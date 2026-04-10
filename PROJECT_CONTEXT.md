@@ -80,6 +80,22 @@ Ambos (claro por defecto, con modo oscuro disponible para reducir la fatiga visu
 - Sin animaciones lentas o complejas que demoren la interacción.
 - Sin paletas de colores invasivas o excesivamente brillantes; priorizar fondos neutros y usar color solo para estados y etiquetas de categorías.
 
+## Estilos y diseno
+- **Colores Base de Marca:**
+  - `primary`: #FFE600 (Amarillo)
+  - `secondary`: #004C97 (Azul - Usado también para la línea Institucional/Paquetería)
+- **Líneas de Negocio (Categorías):**
+  *(Estos colores deben usarse para diferenciar visualmente etiquetas, filtros y tarjetas de soporte según el sector)*
+  - `postal`: #E3000F (Rojo)
+  - `logistica`: #4D4D4D (Gris oscuro)
+  - `financiero`: #008040 (Verde)
+- **Colores Semánticos / Estados:**
+  - `info`: #00A4E0
+  - `success`: #008040
+  - `warning`: #FFE600
+  - `error`: #E3000F
+  - `neutral`: #F2F2F2
+
 ---
 
 ## BRIEFING FUNCIONAL
