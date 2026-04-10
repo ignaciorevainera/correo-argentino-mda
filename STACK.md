@@ -17,13 +17,17 @@ Vercel
 
 ## Skills activas en este proyecto
 Siempre activas:
-- .github/skills/components.md
-- .github/skills/forms.md
-- .github/skills/feature-structure.md
-- .github/skills/content-replacement.md
-- .github/skills/vercel-deploy.md
-- .github/skills/supabase-queries.md
-- .github/skills/auth.md
+- auth-supabase
+- components
+- content-collections
+- content-replacement
+- feature-structure
+- forms
+- performance
+- vercel-deploy
+- supabase
+- supabase-postgres-best-practices
+- find-skills
 
 ## Variables de entorno necesarias
 [SUPABASE_URL]
