@@ -1,7 +1,339 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
+import guia from "../../data/guia_completa.json";
 ---
 
 <BaseLayout title="Guía de Soportes">
-  <h1 class="text-3xl font-bold">Guía de Soportes</h1>
+  <!-- Material Symbols Link -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet"
+  />
+
+  <div class="space-y-8 animate-fade-in">
+    <!-- Page Header -->
+    <section class="space-y-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h2 class="text-4xl font-black tracking-tight text-base-content uppercase italic">
+            Guía de Soportes
+          </h2>
+          <p class="text-base-content/70 text-sm max-w-2xl mt-1">
+            Matriz unificada de equivalencias y derivación técnica. BLA BLA BLA LOREM IPSUM
+          </p>
+        </div>
+        
+        <div class="flex gap-2">
+          <div class="relative w-full md:w-80 group">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 text-sm">search</span>
+            <input 
+              id="global-search"
+              type="text" 
+              placeholder="Buscar grupo SM, Invgate, temas..." 
+              class="input input-sm w-full pl-10 pr-12 bg-base-200 border-none focus:ring-2 focus:ring-primary text-sm transition-all"
+              onkeyup="handleSearch(this.value)"
+            />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded border border-base-content/10 text-[10px] text-base-content/40 font-medium bg-base-300">Ctrl+K</span>
+          </div>
+          <button class="btn btn-sm btn-secondary gap-2 font-bold uppercase text-[10px] text-white">
+            <span class="material-symbols-outlined text-sm">filter_list</span>
+            Filtrar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Unified Table View -->
+    <div class="space-y-8">
+      <section class="bg-base-100 rounded-xl shadow-sm overflow-hidden border border-base-content/10">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra table-sm w-full" id="table-guia">
+            <thead>
+              <tr class="bg-secondary text-[10px] font-bold uppercase tracking-widest text-white">
+                <th class="px-6 py-4">Service Manager</th>
+                <th class="px-6 py-4">Invgate</th>
+                <th class="px-6 py-4">Ruta de Búsqueda</th>
+                <th class="px-6 py-4">Tópicos & Categorías</th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="divide-y divide-base-content/5">
+              <!-- Rows will be injected by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        <div class="p-4 bg-base-200/50 border-t border-base-content/10 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="text-[11px] text-base-content/50 font-bold uppercase tracking-wider" id="pagination-info">
+            Mostrando 0 de 0 registros
+          </div>
+          <div class="join">
+            <button class="join-item btn btn-xs btn-outline border-base-content/20 font-bold" onclick="changePage(-1)" id="btn-prev">
+              <span class="material-symbols-outlined text-sm">chevron_left</span>
+              Anterior
+            </button>
+            <span class="join-item px-4 flex items-center bg-base-100 border-y border-base-content/10 text-[10px] font-bold uppercase tracking-wider text-base-content/60" id="page-indicator">
+              Página 1
+            </span>
+            <button class="join-item btn btn-xs btn-outline border-base-content/20 font-bold" onclick="changePage(1)" id="btn-next">
+              Siguiente
+              <span class="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-2"></div>
+
+  <!-- Data for client-side script -->
+  <script define:vars={{ guia }}>
+    window._GUIA_DATA = guia;
+  </script>
+
+  <script is:inline>
+    // Initialize data from window
+    const baseData = window._GUIA_DATA || [];
+    // Pagination State
+    let currentPage = 1;
+    const rowsPerPage = 12;
+    let filteredData = [...baseData];
+    let currentSearchQuery = "";
+
+    // Initial Render
+    document.addEventListener('DOMContentLoaded', () => {
+      renderTable();
+    });
+
+    // Search Logic
+    function handleSearch(query) {
+      currentSearchQuery = query.toLowerCase();
+      
+      filteredData = baseData.filter(item => {
+        const temasContent = (item.temas || []).join(' ').toLowerCase();
+        const rContent = (item.ruta || "").toLowerCase();
+        const invContent = (item.invgate || "").toLowerCase();
+        const smGroupsContent = (item.sm_groups || []).join(' ').toLowerCase();
+
+        return smGroupsContent.includes(currentSearchQuery) || 
+               invContent.includes(currentSearchQuery) || 
+               rContent.includes(currentSearchQuery) ||
+               temasContent.includes(currentSearchQuery);
+      });
+
+      currentPage = 1; 
+      renderTable();
+    }
+
+    // Change Page
+    function changePage(delta) {
+      const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+      const newPage = currentPage + delta;
+
+      if (newPage >= 1 && newPage <= maxPages) {
+        currentPage = newPage;
+        renderTable();
+      }
+    }
+
+    // Render Table
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      if (!tbody) return;
+
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const paginatedItems = filteredData.slice(start, end);
+      const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+
+      // Update UI Controls
+      const indicator = document.getElementById('page-indicator');
+      const info = document.getElementById('pagination-info');
+      const btnPrev = document.getElementById('btn-prev');
+      const btnNext = document.getElementById('btn-next');
+
+      if (indicator) indicator.textContent = `Página ${currentPage} de ${maxPages}`;
+      if (btnPrev) btnPrev.disabled = currentPage === 1;
+      if (btnNext) btnNext.disabled = currentPage === maxPages;
+      if (info) info.textContent = `Mostrando ${paginatedItems.length} de ${filteredData.length} registros`;
+
+      // Build rows
+      tbody.innerHTML = paginatedItems.map((item, idx) => {
+        const groups = item.sm_groups || [];
+        const itemIndex = start + idx;
+        
+        // Truncation logic
+        const maxVisible = 3;
+        let visibleGroups = groups;
+        let hiddenCount = 0;
+
+        // If searching, identify the matched group
+        let matchedIndex = -1;
+        if (currentSearchQuery) {
+          matchedIndex = groups.findIndex(g => g.toLowerCase().includes(currentSearchQuery));
+        }
+
+        if (groups.length > maxVisible && !currentSearchQuery) {
+          visibleGroups = groups.slice(0, maxVisible);
+          hiddenCount = groups.length - maxVisible;
+        } else if (groups.length > maxVisible && currentSearchQuery) {
+          if (matchedIndex >= maxVisible) {
+            visibleGroups = [groups[matchedIndex], ...groups.slice(0, maxVisible - 1)];
+            hiddenCount = groups.length - maxVisible;
+          } else {
+            visibleGroups = groups.slice(0, maxVisible);
+            hiddenCount = groups.length - maxVisible;
+          }
+        }
+
+        return `
+          <tr class="hover:bg-primary/5 transition-colors group">
+            <td class="px-6 py-4">
+              <div class="flex flex-wrap gap-1.5 max-w-[280px]" id="group-container-${itemIndex}">
+                ${visibleGroups.map((group) => {
+                  const isMatch = currentSearchQuery && group.toLowerCase().includes(currentSearchQuery);
+                  return `
+                    <span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase transition-all
+                      ${isMatch 
+                        ? 'bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse' 
+                        : 'bg-base-200 border-base-content/10 text-base-content/60'}">
+                      ${group}
+                    </span>
+                  `;
+                }).join('')}
+                ${hiddenCount > 0 ? `
+                  <button 
+                    onclick="expandGroups(${itemIndex})"
+                    class="px-2 py-0.5 rounded bg-base-300 hover:bg-primary hover:text-white border border-base-content/5 text-[9px] font-black text-base-content/40 flex items-center gap-1 transition-colors group/more" 
+                    title="Click para ver todos los grupos"
+                  >
+                    <span class="material-symbols-outlined text-[10px] group-hover/more:rotate-90 transition-transform">add</span>
+                    ${hiddenCount} MÁS
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+            <td class="px-6 py-4">
+              <button 
+                class="flex items-center gap-2 group/btn transition-colors text-left"
+                onclick="copyText('${item.invgate}')"
+                title="Click para copiar"
+              >
+                <span class="px-2 py-0.5 bg-secondary text-white rounded text-[11px] font-bold shadow-sm transition-transform group-hover/btn:scale-105">
+                  ${item.invgate || '-'}
+                </span>
+                <span class="material-symbols-outlined text-[12px] text-secondary opacity-0 group-hover/btn:opacity-100 transition-opacity">content_copy</span>
+              </button>
+            </td>
+            <td class="px-6 py-4">
+              ${item.ruta ? `
+                <button 
+                  class="flex items-center gap-2 text-base-content/60 font-mono text-[10px] hover:text-secondary group/btn transition-colors text-left"
+                  onclick="copyText('${item.ruta}')"
+                >
+                  <span class="material-symbols-outlined text-xs text-secondary group-hover/btn:scale-110 transition-transform">folder_open</span>
+                  <span class="whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]" title="${item.ruta}">
+                    ${item.ruta}
+                  </span>
+                  <span class="material-symbols-outlined text-[10px] opacity-0 group-hover/btn:opacity-100 transition-opacity">content_copy</span>
+                </button>
+              ` : '<span class="text-base-content/20 italic text-[10px]">Sin ruta asignada</span>'}
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex flex-wrap gap-1">
+                ${(item.temas || []).length > 0 ? item.temas.map(tema => `
+                  <span class="px-1.5 py-0.5 bg-base-200 text-base-content/70 text-[10px] rounded font-medium border border-base-content/5">
+                    ${tema}
+                  </span>
+                `).join('') : '<span class="text-base-content/20 italic text-[10px]">Sin tópicos</span>'}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Expand Groups Utility
+    function expandGroups(itemIndex) {
+      const item = filteredData[itemIndex];
+      const container = document.getElementById(`group-container-${itemIndex}`);
+      if (!item || !container) return;
+
+      container.innerHTML = item.sm_groups.map(group => {
+        const isMatch = currentSearchQuery && group.toLowerCase().includes(currentSearchQuery);
+        return `
+          <span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase transition-all animate-fade-in
+            ${isMatch 
+              ? 'bg-primary/20 border-primary text-secondary ring-1 ring-primary' 
+              : 'bg-base-200 border-base-content/10 text-base-content/60'}">
+            ${group}
+          </span>
+        `;
+      }).join('') + `
+        <button 
+          onclick="renderTable()" 
+          class="px-2 py-0.5 rounded bg-secondary text-white text-[9px] font-black uppercase flex items-center gap-1 hover:scale-105 transition-transform"
+        >
+          <span class="material-symbols-outlined text-[10px]">keyboard_arrow_up</span>
+          Contraer
+        </button>
+      `;
+    }
+
+    // Copy to Clipboard
+    async function copyText(text) {
+      if (!text || text === '-' || text === 'null') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(`Copiado: ${text}`);
+      } catch (err) {
+        console.error('Error al copiar: ', err);
+      }
+    }
+
+    // Toast Notification
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'alert alert-info shadow-lg py-2 px-4 text-xs font-bold text-white bg-secondary border-none animate-slide-up';
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">check_circle</span>
+          <span>${message}</span>
+        </div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Shortcut Ctrl+K
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('global-search').focus();
+      }
+    });
+  </script>
+
+  <style>
+    .animate-fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+    .animate-slide-up {
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
 </BaseLayout>
