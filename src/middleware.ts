@@ -24,7 +24,7 @@ export const onRequest: MiddlewareHandler = async (context, next) => {
     return next();
   }
 
-  // TODO: Leer cookie/sesion real de Supabase Auth.
+  // TODO: Leer cookie/sesión real de Supabase Auth.
   // TODO: Reemplazar esta validacion placeholder por getUser/getSession en server.
   const hasSupabaseSession = false;
 
