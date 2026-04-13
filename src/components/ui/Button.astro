@@ -1,0 +1,108 @@
+---
+interface Props {
+    variant?:
+        | "primary"
+        | "secondary"
+        | "accent"
+        | "neutral"
+        | "info"
+        | "success"
+        | "warning"
+        | "error";
+    size?: "sm" | "md" | "lg" | "icon";
+    appearance?: "solid" | "outline" | "ghost" | "link";
+    href?: string;
+    disabled?: boolean;
+    class?: string;
+}
+
+
+const variants = {
+  primary: {
+    solid: "bg-[#004C97] text-white border-[#004C97]",
+    outline: "border-[#004C97] text-[#004C97] bg-transparent",
+    ghost: "text-[#004C97] bg-transparent border-transparent",
+    link: "text-[#004C97] underline bg-transparent border-transparent",
+  },
+  secondary: {
+    solid: "bg-[#FFE600] text-black border-[#FFE600]",
+    outline: "border-[#FFE600] text-[#FFE600] bg-transparent",
+    ghost: "text-[#FFE600] bg-transparent border-transparent",
+    link: "text-[#FFE600] underline bg-transparent border-transparent",
+  },
+  accent: {
+    solid: "bg-[#00A4E0] text-white border-[#00A4E0]",
+    outline: "border-[#00A4E0] text-[#00A4E0]",
+    ghost: "text-[#00A4E0]",
+    link: "text-[#00A4E0] underline",
+  },
+  neutral: {
+    solid: "bg-[#F2F2F2] text-black border-[#F2F2F2]",
+    outline: "border-[#F2F2F2] text-black",
+    ghost: "text-black",
+    link: "text-black underline",
+  },
+  info: {
+    solid: "bg-[#00A4E0] text-white border-[#00A4E0]",
+    outline: "border-[#00A4E0] text-[#00A4E0]",
+    ghost: "text-[#00A4E0]",
+    link: "text-[#00A4E0] underline",
+  },
+  success: {
+    solid: "bg-[#008040] text-white border-[#008040]",
+    outline: "border-[#008040] text-[#008040]",
+    ghost: "text-[#008040]",
+    link: "text-[#008040] underline",
+  },
+  warning: {
+    solid: "bg-[#FFE600] text-black border-[#FFE600]",
+    outline: "border-[#FFE600] text-[#FFE600]",
+    ghost: "text-[#FFE600]",
+    link: "text-[#FFE600] underline",
+  },
+  error: {
+    solid: "bg-[#E3000F] text-white border-[#E3000F]",
+    outline: "border-[#E3000F] text-[#E3000F]",
+    ghost: "text-[#E3000F]",
+    link: "text-[#E3000F] underline",
+  },
+};
+
+const sizes = {
+  sm: "h-8 px-3 text-xs",
+  md: "h-10 px-4 text-sm",
+  lg: "h-12 px-6 text-base",
+  icon: "h-10 w-10 p-0 flex items-center justify-center",
+};
+
+const {
+    variant = "secondary",
+    size = "sm",
+    appearance = "solid",
+    href,
+    disabled = false,
+    class: className = "",
+} = Astro.props;
+
+const base =
+  "inline-flex items-center justify-center gap-2 rounded-lg border-2 font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+
+
+const hover = appearance === "solid"
+    ? "hover:opacity-90"
+    : "hover:bg-black/5";
+---
+
+{href ? (
+  <a href={href} class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}>
+    <slot name="icon-left" />
+    <slot />
+    <slot name="icon-right" />
+  </a>
+) : (
+  <button class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`} disabled={disabled}>
+    <slot name="icon-left" />
+    <slot />
+    <slot name="icon-right" />
+  </button>
+)}
