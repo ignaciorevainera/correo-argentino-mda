@@ -65,7 +65,7 @@ const agentAvatarToneClasses = [
         <div class="flex flex-1 flex-col gap-3 md:flex-row md:items-center">
           <div class="w-full md:max-w-md">
             <label for="machine-search" class="sr-only">
-              Buscar maquina por nombre o direccion IP
+              Buscar cubic por hostname, direccion IP o agente asignado
             </label>
             <label class="input input-bordered w-full">
               <Icon
@@ -77,7 +77,7 @@ const agentAvatarToneClasses = [
                 id="machine-search"
                 type="search"
                 class="grow"
-                placeholder="Buscar por nombre de maquina o IP"
+                placeholder="Buscar por hostname, IP o agente"
                 autocomplete="off"
               />
             </label>
@@ -166,6 +166,7 @@ const agentAvatarToneClasses = [
                   data-machine-row
                   data-name={machine.name}
                   data-ip={machine.ip}
+                  data-agent={machine.agent?.name ?? "Sin asignar"}
                   data-status={machine.status}
                   class="grid gap-4 px-4 py-4 md:grid-cols-12 md:items-center"
                 >
@@ -220,7 +221,10 @@ const agentAvatarToneClasses = [
                     <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
                       Agente Asignado
                     </p>
-                    <div class="tooltip tooltip-top" data-tip={agentTooltip}>
+                    <div
+                      class="tooltip tooltip-top tooltip-neutral"
+                      data-tip={agentTooltip}
+                    >
                       <div
                         class="avatar avatar-placeholder"
                         role="img"
@@ -300,12 +304,14 @@ const agentAvatarToneClasses = [
         rows.forEach((row) => {
           const name = normalizeValue(row.getAttribute("data-name") ?? "");
           const ip = normalizeValue(row.getAttribute("data-ip") ?? "");
+          const agent = normalizeValue(row.getAttribute("data-agent") ?? "");
           const status = row.getAttribute("data-status") ?? "";
 
           const matchesSearch =
             searchValue.length === 0 ||
             name.includes(searchValue) ||
-            ip.includes(searchValue);
+            ip.includes(searchValue) ||
+            agent.includes(searchValue);
           const matchesFilter =
             selectedFilter === "all" ||
             (selectedFilter === "online" && status === "online") ||
