@@ -1,7 +1,345 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import CopyCell from "@components/ui/CopyCell.astro";
+import {
+  cubicMachines,
+  cubicTrend,
+  getActiveMachineCount,
+  type CubicStatus,
+} from "@lib/cubics";
+
+const activeMachineCount = getActiveMachineCount(cubicMachines);
+
+const statusConfig: Record<CubicStatus, { label: string; dotClass: string }> = {
+  online: {
+    label: "Conectada",
+    dotClass: "status-success",
+  },
+  offline: {
+    label: "Desconectada",
+    dotClass: "status-error",
+  },
+};
+
+const agentAvatarToneClasses = [
+  "bg-primary text-primary-content",
+  "bg-secondary text-secondary-content",
+  "bg-accent text-accent-content",
+  "bg-info text-info-content",
+  "bg-success text-success-content",
+  "bg-warning text-warning-content",
+  "bg-neutral text-neutral-content",
+];
 ---
 
 <BaseLayout title="Cubics">
-  <h1 class="text-3xl font-bold">Cubics</h1>
+  <section class="flex flex-col gap-6">
+    <div
+      class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+    >
+      <header class="space-y-2">
+        <h1 class="text-3xl font-bold">Cubics</h1>
+        <p class="text-sm text-base-content/70 sm:text-base">
+          Gestion de ordenadores remotos y estaciones de trabajo de red.
+        </p>
+      </header>
+
+      <section
+        class="stat rounded-box border border-base-300 bg-base-100 lg:max-w-xs"
+        aria-label="Resumen de equipos activos"
+      >
+        <div class="stat-title">EQUIPOS ACTIVOS</div>
+        <div class="stat-value text-primary">{activeMachineCount}</div>
+        <div class="stat-desc text-success">
+          +{cubicTrend.delta}
+          {cubicTrend.message}
+        </div>
+      </section>
+    </div>
+
+    <section class="rounded-box border border-base-300 bg-base-100 p-4">
+      <div
+        class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div class="flex flex-1 flex-col gap-3 md:flex-row md:items-center">
+          <div class="w-full md:max-w-md">
+            <label for="machine-search" class="sr-only">
+              Buscar maquina por nombre o direccion IP
+            </label>
+            <label class="input input-bordered w-full">
+              <Icon
+                name="heroicons:magnifying-glass"
+                class="size-4"
+                aria-hidden="true"
+              />
+              <input
+                id="machine-search"
+                type="search"
+                class="grow"
+                placeholder="Buscar por nombre de maquina o IP"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <div class="join" role="group" aria-label="Filtros por estado">
+            <button
+              type="button"
+              class="btn btn-sm join-item btn-primary"
+              aria-pressed="true"
+              data-filter-btn
+              data-filter="all"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm join-item"
+              aria-pressed="false"
+              data-filter-btn
+              data-filter="online"
+            >
+              Activos
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm join-item"
+              aria-pressed="false"
+              data-filter-btn
+              data-filter="offline"
+            >
+              Fuera de linea
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline btn-sm">
+            <Icon name="heroicons:funnel" class="size-4" aria-hidden="true" />
+            Filtros
+          </button>
+          <button type="button" class="btn btn-primary btn-sm">
+            <Icon name="heroicons:plus" class="size-4" aria-hidden="true" />
+            Nueva Cubic
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <div
+        id="cubics-empty-state"
+        class="alert alert-warning hidden"
+        role="status"
+      >
+        <Icon
+          name="heroicons:exclamation-triangle"
+          class="size-5"
+          aria-hidden="true"
+        />
+        <span>No se encontraron cubics con los filtros aplicados.</span>
+      </div>
+
+      <div class="rounded-box border border-base-300 bg-base-100">
+        <div
+          class="hidden grid-cols-12 gap-4 border-b border-base-300 px-4 py-3 text-sm font-semibold text-base-content/70 md:grid"
+        >
+          <span class="col-span-5">Hostname</span>
+          <span class="col-span-3">Direccion IP</span>
+          <span class="col-span-1 text-center">Estado</span>
+          <span class="col-span-2">Agente</span>
+          <span class="col-span-1 text-right">Acciones</span>
+        </div>
+
+        <div class="divide-y divide-base-300">
+          {
+            cubicMachines.map((machine, index) => {
+              const status = statusConfig[machine.status];
+              const avatarToneClass =
+                agentAvatarToneClasses[index % agentAvatarToneClasses.length];
+              const agentTooltip = machine.agent?.name ?? "Sin asignar";
+              const agentInitials = machine.agent?.avatarInitials ?? "--";
+
+              return (
+                <div
+                  data-machine-row
+                  data-name={machine.name}
+                  data-ip={machine.ip}
+                  data-status={machine.status}
+                  class="grid gap-4 px-4 py-4 md:grid-cols-12 md:items-center"
+                >
+                  <div class="space-y-2 md:col-span-5">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
+                      Hostname
+                    </p>
+                    <div class="flex items-center gap-3">
+                      <span class="rounded-box bg-base-200 p-2 text-base-content/70">
+                        <Icon
+                          name="heroicons:computer-desktop"
+                          class="size-4"
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <CopyCell text={machine.name} />
+                    </div>
+                  </div>
+
+                  <div class="space-y-2 md:col-span-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
+                      Direccion IP
+                    </p>
+                    <CopyCell text={machine.ip} />
+                  </div>
+
+                  <div class="space-y-2 md:col-span-1">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
+                      Estado
+                    </p>
+                    <div class="flex justify-center gap-2">
+                      <div class="inline-grid *:[grid-area:1/1]">
+                        <div
+                          class:list={[
+                            "status",
+                            status.dotClass,
+                            "animate-ping",
+                          ]}
+                        />
+                        <div
+                          class:list={["status", status.dotClass]}
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <span class="text-xs text-base-content/70 md:sr-only">
+                        {status.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="space-y-2 md:col-span-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
+                      Agente Asignado
+                    </p>
+                    <div class="tooltip tooltip-top" data-tip={agentTooltip}>
+                      <div
+                        class="avatar avatar-placeholder"
+                        role="img"
+                        tabindex="0"
+                        aria-label={`Agente asignado: ${agentTooltip}`}
+                      >
+                        <div class:list={["w-8 rounded-full", avatarToneClass]}>
+                          <span class="text-xs select-none" aria-hidden="true">
+                            {agentInitials}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="space-y-2 md:col-span-1 md:text-right">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
+                      Acciones
+                    </p>
+                    <div class="dropdown dropdown-end">
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-sm btn-square"
+                        aria-label={`Mas acciones para ${machine.name}`}
+                      >
+                        <Icon
+                          name="heroicons:ellipsis-vertical"
+                          class="size-4"
+                          aria-hidden="true"
+                        />
+                      </button>
+                      <ul class="menu dropdown-content z-10 mt-2 w-40 rounded-box border border-base-300 bg-base-100 p-2 shadow">
+                        <li>
+                          <button type="button">Ver detalle</button>
+                        </li>
+                        <li>
+                          <button type="button">Editar</button>
+                        </li>
+                        <li>
+                          <button type="button">Desvincular</button>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <script>
+    const searchInput = document.querySelector("#machine-search");
+    const filterButtons = Array.from(
+      document.querySelectorAll("[data-filter-btn]"),
+    );
+    const rows = Array.from(document.querySelectorAll("[data-machine-row]"));
+    const emptyState = document.querySelector("#cubics-empty-state");
+    if (
+      searchInput instanceof HTMLInputElement &&
+      emptyState instanceof HTMLElement
+    ) {
+      let selectedFilter = "all";
+
+      const normalizeValue = (value: string): string =>
+        value
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+
+      const updateRows = () => {
+        const searchValue = normalizeValue(searchInput.value.trim());
+        let visibleRows = 0;
+
+        rows.forEach((row) => {
+          const name = normalizeValue(row.getAttribute("data-name") ?? "");
+          const ip = normalizeValue(row.getAttribute("data-ip") ?? "");
+          const status = row.getAttribute("data-status") ?? "";
+
+          const matchesSearch =
+            searchValue.length === 0 ||
+            name.includes(searchValue) ||
+            ip.includes(searchValue);
+          const matchesFilter =
+            selectedFilter === "all" ||
+            (selectedFilter === "online" && status === "online") ||
+            (selectedFilter === "offline" && status === "offline");
+
+          const isVisible = matchesSearch && matchesFilter;
+          row.classList.toggle("hidden", !isVisible);
+
+          if (isVisible) {
+            visibleRows += 1;
+          }
+        });
+
+        emptyState.classList.toggle("hidden", visibleRows > 0);
+      };
+
+      searchInput.addEventListener("input", updateRows);
+
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedFilter = button.getAttribute("data-filter") ?? "all";
+
+          filterButtons.forEach((item) => {
+            const isSelected =
+              item.getAttribute("data-filter") === selectedFilter;
+            item.classList.toggle("btn-primary", isSelected);
+            item.setAttribute("aria-pressed", isSelected ? "true" : "false");
+          });
+
+          updateRows();
+        });
+      });
+
+      updateRows();
+    }
+  </script>
 </BaseLayout>
