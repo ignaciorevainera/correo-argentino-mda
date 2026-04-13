@@ -11,42 +11,14 @@ const currentPath = Astro.url.pathname;
 
 const navItems: NavItem[] = [
   { href: "/", label: "Home", icon: "heroicons:home" },
-  {
-    href: "/titulos-tickets",
-    label: "Títulos de Tickets",
-    icon: "heroicons:queue-list",
-  },
-  {
-    href: "/documentacion",
-    label: "Documentación",
-    icon: "heroicons:document-text",
-  },
-  {
-    href: "/guia-soportes",
-    label: "Guía de Soportes",
-    icon: "heroicons:lifebuoy",
-  },
-  {
-    href: "/buscador-usuarios",
-    label: "Buscador de Usuarios",
-    icon: "heroicons:users",
-  },
-  {
-    href: "/oficinas-telegrafia",
-    label: "Oficinas Telegrafía",
-    icon: "heroicons:building-office-2",
-  },
-  { href: "/cubics", label: "Cubics", icon: "heroicons:computer-desktop" },
-  {
-    href: "/configuracion",
-    label: "Configuración",
-    icon: "heroicons:cog-6-tooth",
-  },
-  {
-    href: "/login",
-    label: "Login",
-    icon: "heroicons:arrow-right-on-rectangle",
-  },
+  { href: "/titulos-tickets", label: "Títulos de Tickets", icon: "heroicons:queue-list"},
+  { href: "/documentacion", label: "Documentación", icon: "heroicons:document-text"},
+  { href: "/guia-soportes", label: "Guía de Soportes", icon: "heroicons:lifebuoy"},
+  { href: "/buscador-usuarios", label: "Buscador de Usuarios", icon: "heroicons:users"},
+  { href: "/oficinas-telegrafia", label: "Oficinas Telegrafía", icon: "heroicons:building-office-2"},
+  { href: "/cubics", label: "Cubics", icon: "heroicons:computer-desktop"},
+  { href: "/configuracion", label: "Configuración", icon: "heroicons:cog-6-tooth"},
+  { href: "/login", label: "Login", icon: "heroicons:arrow-right-on-rectangle"},
 ];
 
 const isActiveRoute = (href: string) =>
@@ -55,31 +27,80 @@ const isActiveRoute = (href: string) =>
     : currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
-<aside class="w-64 shrink-0 border-r border-base-300 bg-secondary p-4">
-  <nav
-    aria-label="Navegación principal"
-    class="menu w-full gap-1 rounded-box p-0"
-  >
+<aside id="sidebar" class="h-screen w-64 bg-secondary flex flex-col transition-all duration-300">
+  <!-- 🔝 HEADER -->
+  <div class="flex items-center justify-between h-14 px-3 border-b border-neutral-200/20">
+    <span class="font-semibold text-sm sidebar-label text-neutral-100">Portal MDA</span>
+    
+    <!-- Remplazar con componente botón en cuanto se añada la variable "ID" dentro del componente Button -->
+    <button 
+      id="sidebar-toggle"
+      class="p-2 rounded-md text-neutral-100 hover:bg-black/5 transition cursor-pointer"
+    >
+      <Icon name="heroicons:bars-3" class="size-5" />
+    </button>
+  </div>
+
+  <nav class="flex-1 p-2 space-y-1">
+    <!-- Crear comoponente NavItem -->
     {
       navItems.map((item) => {
         const isActive = isActiveRoute(item.href);
-
         return (
           <a
             href={item.href}
             class:list={[
-              "flex items-center gap-3 rounded-box px-3 py-2 text-sm transition-colors",
+              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
               isActive
-                ? "bg-primary text-primary-content"
-                : "text-secondary-content hover:bg-secondary/70",
+                ? "bg-primary text-neutral-800"
+                : "text-neutral-100/80 hover:bg-black/5",
             ]}
-            aria-current={isActive ? "page" : undefined}
           >
-            <Icon name={item.icon} class="size-5" aria-hidden="true" />
-            <span>{item.label}</span>
+            <Icon
+              name={item.icon}
+              class="size-5 shrink-0 opacity-80 group-hover:opacity-100"
+            />
+            <span class="sidebar-label truncate">{item.label}</span>
           </a>
         );
       })
     }
   </nav>
 </aside>
+
+
+<script is:inline>
+  const sidebar = document.getElementById("sidebar");
+  const toggleBtn = document.getElementById("sidebar-toggle");
+
+  const STORAGE_KEY = "sidebar-collapsed";
+
+  const isCollapsed = localStorage.getItem(STORAGE_KEY) === "true";
+
+  if (isCollapsed) {
+    sidebar.classList.add("collapsed");
+  }
+
+  toggleBtn?.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+
+    const collapsed = sidebar.classList.contains("collapsed");
+
+    localStorage.setItem(STORAGE_KEY, collapsed);
+  });
+</script>
+
+<style>
+  .collapsed {
+    width: 4rem; /* w-16 */
+  }
+  .collapsed .sidebar-label {
+    display: none;
+  }
+  .collapsed a {
+    justify-content: center;
+  }
+  .collapsed #sidebar-toggle {
+    margin-left: auto;
+  }
+</style>
