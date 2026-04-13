@@ -1,14 +1,66 @@
 ---
 import "@styles/global.css";
-import Sidebar from "@components/Global/Sidebar.astro";
-import TopBar from "@components/Global/TopBar.astro";
+import { Icon } from "astro-icon/components";
 import Footer from "@components/Global/Footer.astro";
 
 interface Props {
   title?: string;
 }
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+}
+
 const { title = "Portal Mesa de Ayuda" } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Home", icon: "heroicons:home" },
+  {
+    href: "/titulos-tickets",
+    label: "Títulos de Tickets",
+    icon: "heroicons:queue-list",
+  },
+  {
+    href: "/documentacion",
+    label: "Documentación",
+    icon: "heroicons:document-text",
+  },
+  {
+    href: "/guia-soportes",
+    label: "Guía de Soportes",
+    icon: "heroicons:lifebuoy",
+  },
+  {
+    href: "/buscador-usuarios",
+    label: "Buscador de Usuarios",
+    icon: "heroicons:users",
+  },
+  {
+    href: "/oficinas-telegrafia",
+    label: "Oficinas Telegrafía",
+    icon: "heroicons:building-office-2",
+  },
+  { href: "/cubics", label: "Cubics", icon: "heroicons:computer-desktop" },
+  {
+    href: "/configuracion",
+    label: "Configuración",
+    icon: "heroicons:cog-6-tooth",
+  },
+];
+
+const loginItem: NavItem = {
+  href: "/login",
+  label: "Login",
+  icon: "heroicons:arrow-right-on-rectangle",
+};
+
+const isActiveRoute = (href: string) =>
+  href === "/"
+    ? currentPath === "/"
+    : currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
 <html lang="es" data-theme="light">
@@ -21,17 +73,93 @@ const { title = "Portal Mesa de Ayuda" } = Astro.props;
     <title>{title}</title>
   </head>
   <body class="min-h-screen bg-base-100 text-base-content">
-    <div class="flex min-h-screen">
-      <Sidebar />
-
-      <div class="flex min-h-screen flex-1 flex-col">
-        <TopBar />
+    <div class="drawer lg:drawer-open">
+      <input
+        id="my-drawer-4"
+        type="checkbox"
+        class="drawer-toggle"
+        aria-label="toggle sidebar"
+      />
+      <div class="drawer-content flex min-h-screen flex-col">
+        <nav class="navbar w-full bg-primary gap-2">
+          <label
+            for="my-drawer-4"
+            aria-label="open sidebar"
+            aria-controls="my-drawer-4"
+            role="button"
+            tabindex="0"
+            class="btn btn-circle drawer-button btn-secondary"
+          >
+            <Icon name="heroicons:bars-3" class="size-5" />
+          </label>
+          <div>Portal Mesa de Ayuda</div>
+        </nav>
 
         <main class="flex-1 overflow-y-auto p-6">
           <slot />
         </main>
 
         <Footer />
+      </div>
+
+      <div class="drawer-side is-drawer-close:overflow-visible">
+        <label
+          for="my-drawer-4"
+          aria-label="close sidebar"
+          class="drawer-overlay"></label>
+
+        <div
+          class="flex min-h-full flex-col items-start bg-secondary is-drawer-close:w-15 is-drawer-open:w-64"
+        >
+          <ul class="menu w-full grow gap-1">
+            {
+              navItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <li>
+                    <a
+                      href={item.href}
+                      aria-label={item.label}
+                      data-tip={item.label}
+                      class:list={[
+                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+                        "is-drawer-close:tooltip is-drawer-close:tooltip-right",
+                        isActive
+                          ? "bg-primary text-primary-content"
+                          : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
+                      ]}
+                    >
+                      <Icon
+                        name={item.icon}
+                        class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
+                      />
+                      <span class="truncate is-drawer-close:hidden">
+                        {item.label}
+                      </span>
+                    </a>
+                  </li>
+                );
+              })
+            }
+          </ul>
+
+          <div class="w-full border-t border-secondary-content/20 p-2">
+            <a
+              href={loginItem.href}
+              aria-label={loginItem.label}
+              data-tip={loginItem.label}
+              class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-secondary-content/80 transition is-drawer-close:tooltip is-drawer-close:tooltip-right hover:bg-base-100/10 hover:text-secondary-content"
+            >
+              <Icon
+                name={loginItem.icon}
+                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
+              />
+              <span class="truncate is-drawer-close:hidden"
+                >{loginItem.label}</span
+              >
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </body>

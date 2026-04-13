@@ -1,0 +1,320 @@
+# DESIGN SYSTEM — Mesa de Ayuda - Correo Argentino
+Generado el 2026-04-10. Actualizar ante cualquier cambio de diseño.
+
+## Stack
+- Framework: Astro
+- Estilos: Tailwind CSS + DaisyUI
+- Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
+- Contenido: MDX (Content Collections)
+- Iconos: `astro-icon` con Heroicons
+- Datos/Auth: Supabase + Supabase Auth
+- Deploy objetivo: Vercel
+
+## Tema activo
+- Tema base activo: `light`
+- Modo oscuro: disponible por `prefers-color-scheme` con tema `dark`
+- Dirección visual: minimalista, utilitaria y de lectura rápida, orientada a productividad interna
+
+## Paleta oficial (actualizada 2026-04-13)
+
+### Base institucional y lineas reservadas (HEX/HSL)
+| Rol | Nombre | HEX | HSL | Uso |
+|---|---|---|---|---|
+| primary | school-bus-yellow | #ffc72c | hsl(44 100% 59%) | Color de marca para CTA principal y foco visual primario |
+| secondary | steel-azure | #254888 | hsl(219 57% 34%) | Color institucional para acciones secundarias y navegacion |
+| logistica | charcoal | #54585a | hsl(200 3% 34%) | Color reservado para etiquetas/elementos de la linea logistica |
+| financiero | forest-green | #009639 | hsl(143 100% 29%) | Color reservado para etiquetas/elementos de la linea financiera |
+| postal | brown-red | #a4343a | hsl(357 52% 42%) | Color reservado para etiquetas/elementos de la linea postal |
+
+### Neutrales para fondos y texto (HEX/HSL)
+| Token | Nombre | HEX | HSL | Uso |
+|---|---|---|---|---|
+| neutral/base | platinum | #efefef | hsl(0 0% 94%) | Fondo base y superficies neutras |
+| base-content | onyx | #0c0c0c | hsl(0 0% 5%) | Texto principal y contenido de alto contraste |
+
+### Mapeo activo de tokens DaisyUI
+| Token DaisyUI | Valor final | Regla de uso |
+|---|---|---|
+| primary | school-bus-yellow base (#ffc72c) | Siempre color principal de marca |
+| secondary | steel-azure base (#254888) | Siempre color secundario institucional |
+| accent | #3a6ea5 | Apoyo visual y destacados, similar al eje azul pero distinto de colores reservados |
+| neutral | platinum (#efefef) | Superficies neutras y estados no criticos |
+| info | #2879a8 | Estado informativo, similar a institucional sin reutilizar secondary |
+| success | #068444 | Estado de exito, similar a financiero sin reutilizar forest-green reservado |
+| warning | #e2ad1f | Estado de advertencia, similar al rango amarillo sin reutilizar primary |
+| error | #b3474d | Estado de error, similar a postal sin reutilizar brown-red reservado |
+
+### Escalas 50-950 exactas por familia
+
+#### school-bus-yellow
+| Escala | HEX |
+|---|---|
+| 50 | #fff8e5 |
+| 100 | #fff1cc |
+| 200 | #ffe499 |
+| 300 | #ffd666 |
+| 400 | #ffc933 |
+| 500 | #ffbb00 |
+| 600 | #cc9600 |
+| 700 | #997000 |
+| 800 | #664b00 |
+| 900 | #332500 |
+| 950 | #241a00 |
+
+#### steel-azure
+| Escala | HEX |
+|---|---|
+| 50 | #ebf0fa |
+| 100 | #d7e1f4 |
+| 200 | #afc3e9 |
+| 300 | #87a5de |
+| 400 | #5f88d3 |
+| 500 | #376ac8 |
+| 600 | #2c55a0 |
+| 700 | #213f78 |
+| 800 | #162a50 |
+| 900 | #0b1528 |
+| 950 | #080f1c |
+
+#### forest-green
+| Escala | HEX |
+|---|---|
+| 50 | #e5ffef |
+| 100 | #ccffe0 |
+| 200 | #99ffc0 |
+| 300 | #66ffa1 |
+| 400 | #33ff81 |
+| 500 | #00ff62 |
+| 600 | #00cc4e |
+| 700 | #00993b |
+| 800 | #006627 |
+| 900 | #003314 |
+| 950 | #00240e |
+
+#### charcoal
+| Escala | HEX |
+|---|---|
+| 50 | #f2f2f3 |
+| 100 | #e5e6e6 |
+| 200 | #cacdce |
+| 300 | #b0b3b5 |
+| 400 | #969a9c |
+| 500 | #7c8183 |
+| 600 | #636769 |
+| 700 | #4a4d4f |
+| 800 | #313435 |
+| 900 | #191a1a |
+| 950 | #111212 |
+
+#### brown-red
+| Escala | HEX |
+|---|---|
+| 50 | #f9ecec |
+| 100 | #f3d8da |
+| 200 | #e7b1b4 |
+| 300 | #da8b8f |
+| 400 | #ce6469 |
+| 500 | #c23d44 |
+| 600 | #9b3136 |
+| 700 | #742529 |
+| 800 | #4e181b |
+| 900 | #270c0e |
+| 950 | #1b0909 |
+
+### Nota explicita de convivencia: base institucional vs escala 50-950
+Los valores base institucionales y las escalas 50-950 conviven con roles distintos.
+
+| Familia | Base institucional (fija) | Escala 500 (fuente oficial) |
+|---|---|---|
+| school-bus-yellow | #ffc72c | #ffbb00 |
+| steel-azure | #254888 | #376ac8 |
+| forest-green | #009639 | #00ff62 |
+| charcoal | #54585a | #7c8183 |
+| brown-red | #a4343a | #c23d44 |
+
+Resolucion aplicada en codigo:
+1. Los tokens semanticos DaisyUI `primary` y `secondary` usan siempre la base institucional fija.
+2. Las variables `--color-*-50` a `--color-*-950` usan exactamente la escala oficial del usuario.
+3. Las lineas reservadas (`institucional`, `postal`, `financiero`, `logistica`) siguen ancladas a sus bases institucionales.
+
+### Reglas de uso para evitar ambiguedades
+1. Los colores de linea (`institucional`, `postal`, `financiero`, `logistica`) son reservados para clasificacion de negocio (badges, tags, filtros y chips por area), no para estados semanticos.
+2. Los estados semanticos (`info`, `success`, `warning`, `error`, `neutral`) se usan solo para feedback de sistema, alertas y validaciones; deben ser similares al lenguaje visual de marca pero nunca iguales a un color reservado.
+3. `primary` queda fijado en school-bus-yellow y `secondary` en steel-azure para todo el producto; no se intercambian por contexto de pagina.
+4. `accent` se usa para apoyo visual y enfasis secundario (links destacados, iconografia o fondos de apoyo), nunca para reemplazar `primary` ni para estados.
+5. En componentes, se consumen tokens semanticos DaisyUI o variables de `@theme`; no se hardcodean HEX dentro del markup.
+
+## Mini guia de implementacion de tokens (DaisyUI)
+
+### Regla rapida para elegir token
+- `primary`: accion principal de la pantalla o del bloque (un foco principal por contexto).
+- `secondary`: accion alternativa o de segundo orden, sin competir con `primary`.
+- `accent`: enfasis visual complementario (apoyo, destacado leve o identificacion visual no critica).
+- `info`, `success`, `warning`, `error`: feedback semantico del sistema (estado, validacion y resultado).
+- Regla transversal: no mezclar colores reservados de linea (`institucional`, `postal`, `financiero`, `logistica`) con estados semanticos.
+
+### 1) Boton (`btn`)
+Uso recomendado:
+- Usar `btn btn-primary` para la accion principal: guardar, confirmar, crear.
+- Usar `btn btn-secondary` para acciones alternativas: volver, cancelar, cerrar.
+- Usar `btn btn-accent` para acciones de apoyo: ver detalle, abrir ayuda, acciones no prioritarias.
+- Reservar `btn-info`, `btn-success`, `btn-warning`, `btn-error` para acciones estrictamente ligadas a estado del sistema (casos puntuales).
+
+Snippet listo para copiar:
+
+```html
+<div class="flex flex-wrap gap-2">
+  <button class="btn btn-primary">Guardar cambios</button>
+  <button class="btn btn-secondary">Volver</button>
+  <button class="btn btn-accent">Ver ayuda</button>
+</div>
+```
+
+Anti-patron:
+- No usar `btn-error` o `btn-warning` como CTA principal de una pantalla sin relacion directa con un estado semantico.
+
+### 2) Badge (`badge`)
+Uso recomendado:
+- Usar `badge-primary`, `badge-secondary` y `badge-accent` para clasificacion visual o contexto de contenido.
+- Usar `badge-info`, `badge-success`, `badge-warning`, `badge-error` para representar estado de un item o proceso.
+- En listados mixtos, mantener consistente la semantica: un mismo estado siempre usa el mismo token.
+
+Snippet listo para copiar:
+
+```html
+<div class="flex flex-wrap gap-2">
+  <span class="badge badge-primary">Ticket</span>
+  <span class="badge badge-secondary">Oficina</span>
+  <span class="badge badge-accent">Interno</span>
+  <span class="badge badge-success">Operativo</span>
+</div>
+```
+
+Anti-patron:
+- No usar colores reservados de linea como sustituto de `badge-success`/`badge-error` para marcar estado tecnico.
+
+### 3) Alert (`alert`)
+Uso recomendado:
+- `alert-info`: informacion relevante sin bloqueo.
+- `alert-success`: confirmacion de accion completada.
+- `alert-warning`: riesgo recuperable o dato a revisar.
+- `alert-error`: fallo bloqueante o accion rechazada.
+- Para alertas, priorizar siempre tokens semanticos; `primary/secondary/accent` no reemplazan esta semantica.
+
+Snippet listo para copiar:
+
+```html
+<div role="alert" class="alert alert-warning">
+  <span>Revisa la IP ingresada antes de continuar.</span>
+</div>
+```
+
+Anti-patron:
+- No comunicar errores con estilos de marca (`primary`, `secondary`, `accent`) porque se pierde claridad semantica.
+
+### 4) Card (`card`)
+Uso recomendado:
+- Construir tarjetas sobre `bg-base-100` y `card-body` para mantener legibilidad.
+- Usar `primary/secondary/accent` en elementos internos (acciones, destacados, etiquetas).
+- Usar `info/success/warning/error` solo en subcomponentes de estado dentro de la card (badge o alert), no en toda la superficie.
+
+Snippet listo para copiar:
+
+```html
+<div class="card bg-base-100 shadow-sm">
+  <div class="card-body">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="card-title">Sincronizacion de oficinas</h3>
+      <span class="badge badge-info">En curso</span>
+    </div>
+    <p>Ultima ejecucion: hace 2 minutos.</p>
+    <div class="card-actions justify-end">
+      <button class="btn btn-primary btn-sm">Ver detalle</button>
+      <button class="btn btn-secondary btn-sm">Historial</button>
+    </div>
+  </div>
+</div>
+```
+
+Anti-patron:
+- No pintar toda la card con color de estado para indicar un resultado; usar badge o alert dentro de la card.
+
+## Tipografía
+- Estado actual: sans-serif del sistema (temporal)
+- Objetivo de estilo: sans-serif limpia, tecnica y legible para lectura rapida en soporte
+- Regla: definir familia final desde Fontsource antes del cierre visual del MVP
+
+## Escala tipográfica usada
+- Titulo principal de pagina: `text-3xl font-bold`
+- Navegación y elementos globales: `text-sm`
+- Texto secundario/global: `text-sm` con opacidad (`text-base-content/70`)
+
+## Espaciado y layout
+- Shell principal en 2 columnas:
+  - Columna izquierda: `Sidebar` fija (`w-64`) con prioridad visual
+  - Columna derecha: `TopBar` + `main` + `Footer`
+- Altura minima general: `min-h-screen`
+- Area de contenido: `main` con `flex-1` y `overflow-y-auto`
+- Padding base de contenido: `p-6`
+- Bordes de separacion: `border-base-300`
+
+## Componentes catalogados
+Globales actuales:
+- `Sidebar` (navegacion lateral con iconos y estado activo)
+- `TopBar` (cabecera superior)
+- `Footer` (pie global)
+
+Layout actual:
+- `BaseLayout` (ensambla sidebar + topbar + main + footer)
+
+Paginas base existentes:
+- `/`
+- `/titulos-tickets`
+- `/documentacion`
+- `/guia-soportes`
+- `/buscador-usuarios`
+- `/oficinas-telegrafia`
+- `/cubics`
+- `/configuracion`
+- `/login`
+
+## Convenciones de nomenclatura
+- Rutas: kebab-case y sin tildes (ejemplo: `/oficinas-telegrafia`)
+- Textos visibles en UI: español correcto con acentos
+- Componentes Astro: PascalCase
+- Alias de importacion activos:
+  - `@/*`
+  - `@components/*`
+  - `@db/*`
+  - `@content/*`
+  - `@layouts/*`
+  - `@pages/*`
+  - `@styles/*`
+  - `@lib/*`
+  - `@types/*`
+
+## Patrones prohibidos
+- Valores arbitrarios de Tailwind (ejemplo: `mt-[13px]`)
+- Estilos inline
+- Colores hardcodeados en componentes (usar tokens semanticos)
+- Animaciones lentas o decorativas que afecten la velocidad de uso
+- Secciones no justificadas por el briefing funcional
+
+## Decisiones documentadas
+- Se adopta `light` como tema por defecto para consistencia operativa
+- `primary` queda fijo en school-bus-yellow y `secondary` en steel-azure
+- Los colores reservados por linea de negocio no se reutilizan como semanticos
+- Los semanticos (`info/success/warning/error/neutral`) son similares al lenguaje de marca, pero no iguales a institucional/postal/financiero/logistica
+- `platinum` y `onyx` se establecen como neutrales base para superficies y texto
+- La sidebar tiene prioridad estructural y visual sobre header/footer
+- El enlace activo en sidebar se marca con color `primary`
+- La arquitectura inicial privilegia claridad de lectura y navegación rapida
+
+## Pendientes
+- Definir tipografia final desde Fontsource
+- Diseñar variante dark propia alineada al branding
+- Implementar sidebar minimizable (comportamiento tipo Gemini)
+- Implementar buscador global con atajo `Ctrl+K` / `Cmd+K`
+- Implementar breadcrumbs en secciones de catalogos y documentacion
+- Catalogar componentes de dominio (cards, tablas, badges, filtros)
+- Ejecutar revision de accesibilidad y contraste WCAG AA
