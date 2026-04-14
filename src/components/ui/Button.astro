@@ -1,21 +1,20 @@
 ---
 interface Props {
-    variant?:
-        | "primary"
-        | "secondary"
-        | "accent"
-        | "neutral"
-        | "info"
-        | "success"
-        | "warning"
-        | "error";
-    size?: "sm" | "md" | "lg" | "icon";
-    appearance?: "solid" | "outline" | "ghost" | "link";
-    href?: string;
-    disabled?: boolean;
-    class?: string;
+  variant?:
+    | "primary"
+    | "secondary"
+    | "accent"
+    | "neutral"
+    | "info"
+    | "success"
+    | "warning"
+    | "error";
+  size?: "sm" | "md" | "lg" | "icon";
+  appearance?: "solid" | "outline" | "ghost" | "link";
+  href?: string;
+  disabled?: boolean;
+  class?: string;
 }
-
 
 const variants = {
   primary: {
@@ -37,10 +36,10 @@ const variants = {
     link: "text-[#00A4E0] underline",
   },
   neutral: {
-    solid: "bg-[#F2F2F2] text-black border-[#F2F2F2]",
-    outline: "border-[#F2F2F2] text-black",
-    ghost: "text-black",
-    link: "text-black underline",
+    solid: "bg-neutral text-neutral-content border-neutral",
+    outline: "border-neutral text-neutral bg-transparent",
+    ghost: "text-neutral bg-transparent border-transparent",
+    link: "text-neutral underline bg-transparent border-transparent",
   },
   info: {
     solid: "bg-[#00A4E0] text-white border-[#00A4E0]",
@@ -76,33 +75,38 @@ const sizes = {
 };
 
 const {
-    variant = "secondary",
-    size = "sm",
-    appearance = "solid",
-    href,
-    disabled = false,
-    class: className = "",
+  variant = "secondary",
+  size = "sm",
+  appearance = "solid",
+  href,
+  disabled = false,
+  class: className = "",
 } = Astro.props;
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-lg border-2 font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
 
-
-const hover = appearance === "solid"
-    ? "hover:opacity-90"
-    : "hover:bg-black/5";
+const hover = appearance === "solid" ? "hover:opacity-90" : "hover:bg-black/5";
 ---
 
-{href ? (
-  <a href={href} class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}>
-    <slot name="icon-left" />
-    <slot />
-    <slot name="icon-right" />
-  </a>
-) : (
-  <button class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`} disabled={disabled}>
-    <slot name="icon-left" />
-    <slot />
-    <slot name="icon-right" />
-  </button>
-)}
+{
+  href ? (
+    <a
+      href={href}
+      class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}
+    >
+      <slot name="icon-left" />
+      <slot />
+      <slot name="icon-right" />
+    </a>
+  ) : (
+    <button
+      class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}
+      disabled={disabled}
+    >
+      <slot name="icon-left" />
+      <slot />
+      <slot name="icon-right" />
+    </button>
+  )
+}

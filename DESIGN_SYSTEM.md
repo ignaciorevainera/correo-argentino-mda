@@ -38,11 +38,13 @@ Generado el 2026-04-10. Actualizar ante cualquier cambio de diseño.
 | primary | school-bus-yellow base (#ffc72c) | Siempre color principal de marca |
 | secondary | steel-azure base (#254888) | Siempre color secundario institucional |
 | accent | #3a6ea5 | Apoyo visual y destacados, similar al eje azul pero distinto de colores reservados |
-| neutral | platinum (#efefef) | Superficies neutras y estados no criticos |
+| neutral | light: #4a4d4f / #f2f2f3 (neutral-content), dark: #cacdce / #191a1a (neutral-content) | Superficies y estados no criticos; complementario de base-* |
 | info | #2879a8 | Estado informativo, similar a institucional sin reutilizar secondary |
 | success | #068444 | Estado de exito, similar a financiero sin reutilizar forest-green reservado |
 | warning | #e2ad1f | Estado de advertencia, similar al rango amarillo sin reutilizar primary |
 | error | #b3474d | Estado de error, similar a postal sin reutilizar brown-red reservado |
+
+Nota: `base-100` y `base-content` se mantienen anclados a platinum/onyx por tema (light: #efefef/#0c0c0c, dark: #191a1a/#efefef). `neutral` y `neutral-content` son complementarios y no reemplazan el fondo/texto base.
 
 ### Escalas 50-950 exactas por familia
 

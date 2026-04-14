@@ -1,45 +1,42 @@
-# Tareas
-
-Este archivo es el plan de trabajo activo del proyecto.
-El agente planner lo escribe antes de cada implementacion.
-El agente qa-reviewer lo limpia al cerrar cada tarea.
-Se lee al inicio de cada sesion para saber donde retomar.
-
-## Estado actual
-
-Sin tareas activas. El agente planner escribe aqui antes de
-cada implementacion siguiendo este formato:
-
----
-
-# Tarea: [nombre descriptivo de la tarea]
-Fecha: [fecha]
+# Tarea: Ajustar token neutral en DaisyUI
+Fecha: 2026-04-13
 
 ## Descripcion
-[Que hay que hacer y por que]
+Actualizar el token semantico neutral para que no reutilice el mismo color que los fondos y textos base en light y dark, manteniendo coherencia con la paleta institucional y contraste legible.
 
 ## Riesgos identificados
-- [riesgo 1]
-- [riesgo 2]
+- Regresion de contraste en componentes que usan btn-neutral, badge-neutral o superficies bg-neutral.
+- Inconsistencia documental si se cambia global.css sin reflejar el mapeo en DESIGN_SYSTEM.md.
+- Conflicto visual con colores reservados de linea de negocio si neutral queda demasiado cercano a logistica.
 
 ## Plan de ejecucion
 
-[ ] Paso 1 — [agente]: [descripcion del paso]
-    Criterio de exito: [como se verifica que este paso esta completo]
+[x] Paso 1 — ui-designer: redefinir neutral y neutral-content en ambos bloques DaisyUI (light y dark) con valores distintos de base-100 y base-content.
+    Criterio de exito: en src/styles/global.css neutral y neutral-content de light/dark quedan actualizados y ya no coinciden con los neutrales base actuales.
 
-[ ] Paso 2 — [agente]: [descripcion del paso]
-    Criterio de exito: [como se verifica que este paso esta completo]
+[x] Paso 2 — ui-designer: sincronizar la documentacion del mapeo semantico en DESIGN_SYSTEM.md con los nuevos valores de neutral.
+    Criterio de exito: DESIGN_SYSTEM.md refleja los nuevos valores neutral y mantiene las reglas semanticas del proyecto.
 
-[ ] Paso N — qa-reviewer: verificar resultado y hacer commit
-    Criterio de exito: build sin errores y checklist aprobado
+[x] Paso 3 — qa-reviewer: validar contraste y consistencia visual en componentes neutral de modo light y dark y cerrar la tarea.
+    Criterio de exito: chequeo visual sin regresiones evidentes, verificacion tecnica en verde y convenciones cumplidas.
 
 ## Agentes involucrados
-- [lista de agentes que participan en esta tarea]
+- ui-designer
+- qa-reviewer
 
 ## Criterio de exito global
-[Como se demuestra que la tarea completa esta terminada]
+El token neutral queda diferenciado de los neutrales base en ambos temas, la UI mantiene contraste utilizable y la documentacion de diseno queda alineada con la implementacion.
 
----
+## Resultado de revision — 2026-04-13
 
-> Este archivo se reemplaza completamente al iniciar cada tarea nueva.
-> El historial de tareas completadas vive en git — no se acumula aqui.
+### Aprobado
+- Se confirmo en src/styles/global.css que `neutral` y `neutral-content` quedaron en light `#4a4d4f / #f2f2f3` y en dark `#cacdce / #191a1a`.
+- Se verifico que `base-100` y `base-content` se mantienen en light `#efefef / #0c0c0c` y en dark `#191a1a / #efefef` sin alteraciones.
+- Se ejecuto validacion tecnica con `npm run astro -- check` y `npm run build`: ambos comandos finalizaron sin errores.
+- Se corrigio un riesgo real de consistencia semantica en src/components/ui/Button.astro, reemplazando neutral hardcodeado por tokens DaisyUI (`bg-neutral`, `text-neutral-content`, `border-neutral`).
+
+### Requiere correccion
+- Ninguna en el alcance de esta tarea.
+
+### Bloqueantes para completar la tarea
+- Ninguno.
