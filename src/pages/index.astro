@@ -1,27 +1,146 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+
+type HeroiconName = `heroicons:${string}`;
+
+interface QuickAccessItem {
+  href: string;
+  title: string;
+  description: string;
+  icon: HeroiconName;
+  iconTone: string;
+}
+
+const quickAccessItems: QuickAccessItem[] = [
+  {
+    href: "/titulos-tickets",
+    title: "Titulos de tickets",
+    description:
+      "Tipifica tickets y copia titulos listos para la gestion diaria.",
+    icon: "heroicons:queue-list",
+    iconTone: "bg-primary/10 text-primary",
+  },
+  {
+    href: "/buscador-usuarios",
+    title: "Buscador de usuarios",
+    description: "Encuentra personal interno para validaciones y escalamiento.",
+    icon: "heroicons:users",
+    iconTone: "bg-info/10 text-info",
+  },
+  {
+    href: "/directorio-oficinas",
+    title: "Directorio de oficinas",
+    description: "Consulta sedes, datos operativos y referencias de contacto.",
+    icon: "heroicons:building-office-2",
+    iconTone: "bg-success/10 text-success",
+  },
+  {
+    href: "/guia-soportes",
+    title: "Guia de soportes",
+    description:
+      "Revisa derivaciones por tema para resolver casos con rapidez.",
+    icon: "heroicons:lifebuoy",
+    iconTone: "bg-warning/10 text-warning",
+  },
+  {
+    href: "/cronograma",
+    title: "Cronograma",
+    description: "Visualiza la planificacion del equipo y tareas programadas.",
+    icon: "heroicons:calendar-days",
+    iconTone: "bg-error/10 text-error",
+  },
+  {
+    href: "/cubics",
+    title: "Cubics",
+    description: "Accede al monitoreo de terminales y diagnostico remoto.",
+    icon: "heroicons:computer-desktop",
+    iconTone: "bg-primary/10 text-primary",
+  },
+  {
+    href: "/mapa-sucursales",
+    title: "Mapa de sucursales",
+    description: "Explora cobertura geografica y ubicaciones operativas clave.",
+    icon: "heroicons:map",
+    iconTone: "bg-info/10 text-info",
+  },
+  {
+    href: "/inventario-terminales",
+    title: "Inventario de terminales",
+    description: "Controla estado, asignacion y disponibilidad del parque IT.",
+    icon: "heroicons:server-stack",
+    iconTone: "bg-success/10 text-success",
+  },
+  {
+    href: "/enlaces-importantes",
+    title: "Enlaces importantes",
+    description: "Centraliza accesos criticos para tareas de soporte N1 y N2.",
+    icon: "heroicons:link",
+    iconTone: "bg-warning/10 text-warning",
+  },
+  {
+    href: "/configuracion",
+    title: "Configuracion",
+    description: "Ajusta preferencias del portal y opciones de experiencia.",
+    icon: "heroicons:cog-6-tooth",
+    iconTone: "bg-error/10 text-error",
+  },
+];
 ---
 
-<BaseLayout title="Portal Mesa de Ayuda">
-  <section class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-    <h1 class="text-3xl font-bold text-secondary">Portal Mesa de Ayuda</h1>
+<BaseLayout title="Dashboard | Portal Mesa de Ayuda">
+  <div class="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <section aria-labelledby="bienvenida-heading" class="flex flex-col gap-2">
+      <h1
+        id="bienvenida-heading"
+        class="text-2xl font-semibold text-base-content"
+      >
+        ¡Hola! 👋
+      </h1>
+      <p class="text-base text-base-content/70">
+        Bienvenido al panel principal. Desde aqui puedes entrar rapido a los
+        modulos operativos del portal.
+      </p>
+    </section>
 
-    <article class="card border border-base-300 bg-base-200 shadow-sm">
-      <div class="card-body gap-3">
-        <h2 class="card-title">Accesos operativos</h2>
-        <p class="text-sm text-base-content/70">
-          Ingreso rapido a los modulos principales para tareas de soporte N1 y
-          N2.
-        </p>
-        <div class="card-actions justify-start gap-2">
-          <a href="/titulos-tickets" class="btn btn-primary btn-sm">
-            Titulos de tickets
-          </a>
-          <a href="/buscador-usuarios" class="btn btn-secondary btn-sm">
-            Buscador de usuarios
-          </a>
-        </div>
+    <section
+      aria-labelledby="accesos-rapidos-heading"
+      class="flex flex-col gap-4"
+    >
+      <h2
+        id="accesos-rapidos-heading"
+        class="text-xl font-semibold text-base-content"
+      >
+        Accesos rapidos
+      </h2>
+
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+      >
+        {
+          quickAccessItems.map((item) => (
+            <a
+              href={item.href}
+              aria-label={`Abrir ${item.title}`}
+              class="card card-compact bg-base-100 border border-base-300 h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary"
+            >
+              <div class="card-body gap-3">
+                <span
+                  aria-hidden="true"
+                  class:list={[
+                    "inline-flex h-10 w-10 items-center justify-center rounded-lg text-lg",
+                    item.iconTone,
+                  ]}
+                >
+                  <Icon name={item.icon} class="size-5" />
+                </span>
+                <h3 class="card-title text-base">{item.title}</h3>
+                <p class="text-sm text-base-content/70">{item.description}</p>
+              </div>
+            </a>
+          ))
+        }
       </div>
-    </article>
-  </section>
+    </section>
+  </div>
 </BaseLayout>

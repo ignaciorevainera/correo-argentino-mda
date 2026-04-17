@@ -1,52 +1,55 @@
-# Tarea: Implementar Header operativo segun contrato aprobado
+# Tarea: Construccion de la vista principal Dashboard (Inicio)
 Fecha: 2026-04-17
 
 ## Descripcion
-Implementar en codigo la Barra Superior (Header/Topbar) para cumplir el contrato UX del portal: componente sticky, orientacion contextual por ruta activa, quick actions globales y comportamiento responsive para operaciones N1/N2.
+Construir la pagina de inicio como Dashboard operativo en [src/pages/index.astro](src/pages/index.astro), con una bienvenida clara y una grilla de accesos rapidos usando solo HTML semantico + Tailwind + DaisyUI, sin graficos ni modulos complejos fuera de alcance.
 
 ## Riesgos identificados
-- Interferencia entre scripts del Header (paleta de comandos, toggle de tema y atajos de teclado) que afecte interacciones globales.
-- Doble ubicacion de preferencias si el toggle de tema no se centraliza en Header.
-- Regresion de navegacion en mobile si el trigger del drawer pierde prioridad o visibilidad.
-- Problemas de contraste/percepcion visual si el Header queda con estilos pesados y no respeta tokens semanticos.
+- Duplicar navegacion global del sidebar con copy o rutas inconsistentes dentro de accesos rapidos.
+- Romper coherencia visual light/dark al usar estilos fuera de tokens semanticos de DaisyUI.
+- Perder estabilidad de la grilla por descripciones largas o jerarquia tipografica inconsistente.
+- Introducir widgets de monitoreo/historial no solicitados y desviar el alcance de la iteracion.
 
 ## Plan de ejecucion
 
-[x] Paso 1 — ui-designer: redisenar estructura del Header en BaseLayout con enfoque sticky y jerarquia visual reducida.
-    Criterio de exito: Header anclado arriba, superficie discreta con tokens semanticos y sin CTAs pesados.
+[x] Paso 1 — ui-designer: definir la estructura semantica del Dashboard en Inicio con bloque de bienvenida y bloque de accesos rapidos.
+    Criterio de exito: la vista tiene secciones separadas y un unico h1 con saludo personalizado + subtitulo contextual en espanol.
 
-[x] Paso 2 — ui-designer: implementar zona contextual izquierda y zona de herramientas globales derecha en el orden definido.
-    Criterio de exito: contexto dinamico de ruta visible en desktop y herramientas A/B/C disponibles (busqueda, preferencias, alertas/ayuda).
+[x] Paso 2 — ui-designer: implementar la grilla responsive de accesos rapidos y mapear enlaces a modulos existentes del portal.
+    Criterio de exito: la grilla usa `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6` y cada tarjeta apunta a una ruta valida.
 
-[x] Paso 3 — ui-designer: implementar busqueda maestra responsive con paleta/modal y atajo Ctrl/Cmd+K.
-    Criterio de exito: trigger desktop y mobile abren dialog, filtro de accesos funciona y cierre opera con Escape/click fuera.
+[x] Paso 3 — ui-designer: construir cada tarjeta con anatomia DaisyUI sobre etiqueta anchor y estados hover solicitados.
+    Criterio de exito: cada acceso usa `card card-compact bg-base-100 border border-base-300`, `card-body`, icono tematico con tokens semanticos y hover con elevacion/sombra/borde primary.
 
-[x] Paso 4 — ui-designer: limpiar duplicaciones y sincronizar layout lateral con el nuevo Header.
-    Criterio de exito: toggle de tema removido del sidebar, login preservado en sidebar y scripts del Header tipados sin errores.
+[x] Paso 4 — ui-designer: ajustar microcopy y legibilidad del contenido de tarjetas respetando restricciones tecnicas de la iteracion.
+    Criterio de exito: titulos con `card-title text-base`, descripcion con `text-sm text-base-content/70` (y limitacion de lineas cuando aplique), sin dependencias nuevas ni modulos complejos.
 
-[x] Paso 5 — qa-reviewer: validar comportamiento integral, ejecutar checks y cerrar con commit.
-    Criterio de exito: validacion visual/funcional del Header en desktop/mobile, `astro check` y `build` en verde, y commit final creado.
+[x] Paso 5 — qa-reviewer: validar resultado integral de UI y checks tecnicos antes del cierre.
+    Criterio de exito: revision visual responsive en mobile/tablet/desktop, cumplimiento del brief sin extras fuera de alcance y verificacion de `astro check`/`build` sin errores.
 
 ## Agentes involucrados
 - ui-designer
 - qa-reviewer
 
 ## Criterio de exito global
-El Header queda implementado como epicentro operativo global, cumpliendo sticky, contexto dinamico, quick actions y consistencia visual semantica sin romper navegacion ni build.
+La ruta de inicio queda convertida en un Dashboard limpio, semantico y responsive con bienvenida y accesos rapidos en tarjetas DaisyUI, totalmente alineado a tokens del sistema y sin introducir complejidad no solicitada.
 
 ## Resultado de revision — 2026-04-17
 
 ### Aprobado
-- Header sticky, delgado y no invasivo validado visualmente en mobile (390x844), tablet (768x1024) y desktop (1280x800).
-- Zona izquierda con contexto dinamico de ruta validada y ocultamiento en mobile ajustado en QA final.
-- Zona derecha validada en orden A/B/C: busqueda maestra, preferencias (theme toggle) y alertas/ayuda.
-- Botones y quick actions usando `btn-ghost`, divisor logico y tokens semanticos (`base-*`, `primary`, `secondary`).
-- Paleta/modal de busqueda validada en desktop y mobile: apertura por boton y `Ctrl+K`, cierre por `Escape` y click fuera, filtro operativo.
-- Toggle de tema centralizado en Header validado, sin duplicado en sidebar; login preservado en navegacion lateral.
-- Validacion tecnica: `npm run astro -- check` sin errores (0 errors, 0 warnings, 4 hints) y `npm run build` exitoso (exit code 0).
+- Seccion de bienvenida implementada con saludo destacado y subtitulo contextual en la vista principal.
+- Seccion "Accesos rapidos" implementada con grilla responsive `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6`.
+- Tarjetas implementadas como enlaces `<a>` con anatomia DaisyUI (`card`, `card-compact`, `bg-base-100`, `border border-base-300`, `card-body`).
+- Estados hover presentes en tarjetas (`transition-all duration-200`, `hover:-translate-y-1`, `hover:shadow-lg`, `hover:border-primary`).
+- Iconografia SVG centrada en contenedor tematico usando tokens DaisyUI (`primary/info/success/warning/error`).
+- Jerarquia tipografica de tarjetas correcta (`card-title text-base` y descripcion `text-sm text-base-content/70`).
+- Sin graficos complejos, sin monitoreo/historial adicional y sin dependencias nuevas en esta vista.
+- Verificacion de accesibilidad basica: un solo `h1` y `aria-label` presentes en enlaces de accesos rapidos.
+- Verificacion de rutas: todos los `href` de accesos rapidos existen en `src/pages`.
+- Validacion tecnica ejecutada: `npm run astro -- check` sin errores (0 errors, 0 warnings) y `npm run build` exitoso.
 
 ### Requiere correccion
-- Ninguna pendiente dentro del alcance de la tarea.
+- No se detectaron hallazgos bloqueantes ni desviaciones del brief para el Dashboard Inicio.
 
 ### Bloqueantes para completar la tarea
 - Ninguno.
