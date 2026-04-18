@@ -1,127 +1,146 @@
 # PROJECT_CONTEXT
 
-## Nombre del proyecto
-Mesa de Ayuda - Correo Argentino
+## Producto
+Portal de la Mesa de Ayuda Interna
 
 ## Descripcion
-Plataforma web centralizada para uso interno de la mesa de ayuda, destinada a agilizar el soporte técnico. Reúne documentación (MDX), catálogos de oficinas, estandarización de tickets, registro de ordenadores remotos (cubics), links de descarga y guías de derivación en un solo lugar.
+Portal interno para soporte corporativo logistico y postal de Correo Argentino.
+Centraliza herramientas de operacion diaria para reducir tiempos de atencion,
+disminuir errores de carga y mejorar la trazabilidad de casos N1/N2.
+
+## Objetivo principal
+Centralizar y agilizar tareas de operadores N1/N2 con herramientas para:
+- tipificacion de tickets
+- busqueda de personal
+- monitoreo de terminales
+- gestion de carga laboral
 
 ## Publico objetivo
-Analistas y agentes de soporte técnico (Mesa de Ayuda) de Correo Argentino. Perfil técnico medio/avanzado, que necesita acceder a la información de forma extremadamente rápida durante la atención.
+Operadores N1 y N2 de mesa de ayuda interna, con foco en soporte corporativo
+de operaciones logisticas y postales.
+
+## Stack real del repositorio
+- Framework: Astro (output static)
+- UI: Tailwind CSS + DaisyUI
+- Integraciones: MDX + astro-icon + theme-change
+- Datos y auth: sin base de datos y sin autenticacion
+- Middleware: `src/middleware.ts` se mantiene como passthrough sin control de
+   rutas privadas.
 
 ---
 
-## BRIEFING DE ESTRUCTURA
+## Sistema de diseno y UX aprobado
 
-### Paginas del sitio
-- `/` (Home / Dashboard) - **Público**
-- `/titulos-tickets` (Catálogo de títulos de tickets) - **Público**
-- `/documentacion` (Base de conocimientos) - **Público**
-- `/guia-soportes` (Matriz de derivación de soporte) - **Público**
-- `/buscador-usuarios` (Búsqueda por DNI) - **Privado (Requiere Auth)**
-- `/oficinas-telegrafia` (Catálogo de oficinas de telegrafía) - **Privado (Requiere Auth)**
-- `/cubics` (Registro de ordenadores remotos) - **Privado (Requiere Auth)**
-- `/configuracion` (Ajustes de cuenta y preferencias) - **Privado (Requiere Auth)**
+### Tipografia y legibilidad
+- Tipografia sans-serif moderna y legible para UI operativa.
+- Tipografia monoespaciada para datos tecnicos: IPs, rutas, IDs y texto rigido.
+- Jerarquia clara para escaneo rapido en contexto de soporte.
 
-### Secciones obligatorias por pagina
+### Tema y color
+- Soporte nativo claro/oscuro con selector global de tema.
+- Acentos institucionales: amarillo y azul.
+- Estados semanticos consistentes: exito, error y advertencia.
 
-Home (Dashboard):
-  - Buscador principal destacado en el header (con atajo de teclado tipo `⌘K` o `Ctrl+K`).
-  - "Accesos Rápidos": Grilla principal con tarjetas (cards) grandes y muy visuales que funcionen como atajos directos a las distintas secciones del sitio (Títulos, Buscador, Oficinas, Documentación, Cubics).
-  - Vista previa o widget de la tabla estática de "Cubics (Ordenadores Remotos)".
-  - Sección de "Actividad Reciente" para retomar rápidamente documentos, herramientas o tickets recientes.
+### Interaccion operativa
+- Botones de copia rapida al portapapeles con feedback inmediato.
+- Interacciones de baja friccion, sin ruido visual ni animaciones pesadas.
+- Navegacion orientada a resolver tareas en pocos clics.
 
-Títulos de Tickets:
-  - Grilla con tarjetas (cards) categorizadas.
-  - Títulos predefinidos con botón de "Copiar al portapapeles" para agilizar la carga.
+### Contrato de Barra Superior (Header/Topbar)
+- El Header es un componente estructural critico: epicentro de orientacion
+   global y quick actions.
+- Debe ser delgado, minimamente invasivo y sticky en todo momento para no
+   perder acceso a herramientas globales durante el scroll.
+- Zona izquierda (contexto): muestra nombre dinamico de la ruta/pantalla
+   activa. En mobile se oculta esta etiqueta para priorizar herramientas.
+- Zona derecha (herramientas globales), en orden de izquierda a derecha:
+   A. Busqueda maestra: omnibox/paleta/quick search con atajos. En desktop
+   visible expandida; en mobile contraida a icono de lupa que abre modal.
+   B. Preferencias: toggle dark/light con icono dinamico que comunique estado
+   actual o accion de cambio.
+   C. Alertas y sistema: centro de notificaciones con badge discreto para no
+   leidas y acceso rapido a ayuda/manual.
+- Reglas de intervencion del Header:
+   - Jerarquia visual reducida: botones ghost, sin CTAs pesados.
+   - Escalabilidad y agrupacion: divisores logicos entre bloques (por ejemplo,
+      busqueda separada de utilidades).
+   - Consistencia de temas: fondo, borde inferior, iconos y contraste segun
+      tokens semanticos en light/dark.
 
-Buscador de usuarios:
-  - Input de búsqueda rápida por DNI o número de documento.
-  - Tarjeta de resultados con los datos básicos del usuario para su rápida identificación.
-
-Oficinas-telegrafia:
-  - Listado o grilla de oficinas.
-  - Filtros y etiquetas para visualizar las distintas propiedades y características de cada sucursal (IPs, cantidad de servidores, usuarios, teléfonos, dirección).
-
-Documentación:
-  - Índice interno de documentos.
-  - Visor de archivos `.mdx` importados desde Notion.
-
-Guía de Soportes:
-  - Tabla de datos ordenable.
-  - Columnas clave: Área/Nivel de soporte, Temas que tratan, y Ruta/Cómo buscarlos en la herramienta de generación de tickets.
-
-Cubics (Ordenadores remotos):
-  - Listado o tabla estática del parque de máquinas remotas.
-  - Columnas/Datos clave: Nombre del equipo, Dirección IP y Asignado (A quién de la mesa de ayuda le pertenece o lo está usando).
-  - Filtro o buscador rápido por IP o nombre de usuario.
-
-### Componentes globales
-- **Panel lateral (Sidebar) minimizable:** Estilo Gemini. Cuando está abierto muestra los nombres de las secciones; cuando se minimiza, solo muestra los íconos limpios para maximizar el espacio de lectura. Incluye el perfil del usuario logueado en la parte inferior (si inició sesión).
-- **Barra de búsqueda global:** Accesible desde cualquier página (siempre en el top bar) para buscar documentación, oficinas, usuarios o cubics instantáneamente mediante atajo de teclado. Los resultados se filtrarán según el estado de autenticación del usuario.
-- **Navegación por migas de pan (Breadcrumbs):** Para ubicarse fácilmente dentro de la documentación o catálogos.
+### Lenguaje de interfaz
+- Idioma principal: espanol.
+- Estilo de escritura: sentence case para titulos y textos de UI.
 
 ---
 
-## BRIEFING VISUAL
+## Sitemap funcional objetivo (11 vistas)
 
-### Tono estetico
-Minimalista, simple y utilitario. Debe sentirse como una herramienta de productividad ágil (estilo Notion o Linear). Enfocado 100% en la claridad, la lectura rápida, el orden de la información y la fácil indexación. Sin distracciones. Uso de *badges* (etiquetas) para identificar categorías rápidamente.
-
-### Referencias visuales
-- **Mockup propio (Referencia principal):** UI estructurada en dashboard, sidebar oscuro/neutro, contenido principal con tarjetas de accesos rápidos grandes y de bordes sutiles, tipografía sans-serif limpia y atajos de teclado visibles.
-- https://gemini.google.com/ (Por el comportamiento del panel lateral minimizable y la limpieza de la interfaz).
-- https://notion.so/ (Por el manejo de la documentación y bases de datos limpias).
-
-### Preferencia de modo
-Ambos (claro por defecto, con modo oscuro disponible para reducir la fatiga visual de los agentes durante los turnos largos).
-
-### Restricciones visuales
-- Sin animaciones lentas o complejas que demoren la interacción.
-- Sin paletas de colores invasivas o excesivamente brillantes; priorizar fondos neutros y usar color solo para estados y etiquetas de categorías.
-
-## Estilos y diseno
-- **Colores Base de Marca:**
-  - `primary`: #FFE600 (Amarillo)
-  - `secondary`: #004C97 (Azul - Usado también para la línea Institucional/Paquetería)
-- **Líneas de Negocio (Categorías):**
-  *(Estos colores deben usarse para diferenciar visualmente etiquetas, filtros y tarjetas de soporte según el sector)*
-  - `postal`: #E3000F (Rojo)
-  - `logistica`: #4D4D4D (Gris oscuro)
-  - `financiero`: #008040 (Verde)
-- **Colores Semánticos / Estados:**
-  - `info`: #00A4E0
-  - `success`: #008040
-  - `warning`: #FFE600
-  - `error`: #E3000F
-  - `neutral`: #F2F2F2
+1. / - Dashboard principal: resumen operativo y accesos rapidos.
+2. /titulos-tickets - Tipificacion de tickets con acciones de copia.
+3. /buscador-usuarios - Busqueda de personal para validaciones de soporte.
+4. /directorio-oficinas - Directorio operativo de oficinas y datos tecnicos.
+5. /guia-soportes - Matriz de derivacion por tema y area de soporte.
+6. /cronograma - Planificacion y calendario de tareas del equipo.
+7. /cubics - Monitoreo y consulta de terminales remotas.
+8. /mapa-sucursales - Vista geografica de cobertura y sucursales.
+9. /inventario-terminales - Estado y asignacion del parque de terminales.
+10. /enlaces-importantes - Hub de accesos externos e internos criticos.
+11. /configuracion - Preferencias de usuario y ajustes del portal.
 
 ---
 
-## BRIEFING FUNCIONAL
+## Estado actual vs roadmap objetivo
 
-### Funcionalidades que el proyecto necesita
-- Motor de búsqueda global robusto (que indexe títulos, MDX y tablas estáticas) accesible vía teclado (`Cmd+K` / `Ctrl+K`).
-- Panel lateral colapsable responsivo.
-- Renderizado de archivos `.mdx` (Markdown con componentes interactivos).
-- Filtros dinámicos en los catálogos (oficinas, soportes y cubics).
-- Portapapeles dinámico (botones de 1 clic para copiar títulos de tickets, datos de oficinas o IPs de los cubics).
+| Vista objetivo | Ruta roadmap | Estado actual en repo | Gap actual |
+|---|---|---|---|
+| Dashboard principal | / | Implementada como Home publico | Alinear copy y widgets al foco operativo N1/N2 |
+| Titulos de tickets | /titulos-tickets | Implementada | Ajustar contenido al nuevo objetivo documental |
+| Buscador de usuarios | /buscador-usuarios | Implementada | Revisar criterios finales de datos y permisos |
+| Directorio de oficinas | /directorio-oficinas | Existe /oficinas-telegrafia | Definir si se renombra ruta o se mantiene alias documental |
+| Guia de soportes | /guia-soportes | Implementada | Completar cobertura de casos por area |
+| Cronograma | /cronograma | No implementada | Ruta pendiente |
+| Cubics | /cubics | Implementada | Expandir para monitoreo operativo segun roadmap |
+| Mapa de sucursales | /mapa-sucursales | No implementada | Ruta pendiente |
+| Inventario de terminales | /inventario-terminales | No implementada | Ruta pendiente |
+| Enlaces importantes | /enlaces-importantes | No implementada | Ruta pendiente |
+| Configuracion | /configuracion | Implementada | Ajustar opciones finales de preferencia |
 
-### Base de datos y Gestión de Datos
-- **Sitio mayoritariamente estático:** Las secciones de Títulos de Tickets, Buscador de Usuarios (DNIs pre-cargados), Guía de Soportes y Registro de Cubics operarán con **datos estáticos** (archivos JSON o similares integrados en el código) que se actualizarán manualmente. No habrá monitoreo en tiempo real del estado de los cubics, solo registro de datos.
-- **Base de Datos Dinámica (Solo para Oficinas):** Se utilizará una base de datos para gestionar el catálogo de "Oficinas de Telegrafía". Esta tabla almacenará atributos complejos y variables como: IP de la oficina, cantidad de servidores, lista de usuarios, números de teléfono y dirección postal.
-- **Documentación:** Se leerá desde archivos `.mdx` locales, sin requerir base de datos tradicional.
-
-### Autenticacion
-Parcial (Acceso mixto).
-- **Secciones Públicas (Sin login):** Home, Títulos de Tickets, Documentación y Guía de Soportes. No requieren autenticación ya que no contienen información sensible ni comprometen la seguridad de la empresa.
-- **Secciones Privadas (Con login obligatorio):** Buscador de Usuarios, Oficinas de Telegrafía y Cubics. Requieren autenticación estricta ya que exponen datos personales de usuarios, direcciones IP y otra información interna sensible. Si un usuario no autenticado intenta acceder a estas rutas, será redirigido a la pantalla de login.
+Notas de trazabilidad:
+- Rutas adicionales hoy presentes fuera del roadmap de 11 vistas:
+   /documentacion y /design-system.
+- Esta actualizacion documental no crea ni modifica rutas funcionales.
 
 ---
 
-## ESTADO ACTUAL
-Proyecto recien iniciado. Pendiente sesion de diseno con agente kickstart.
+## Estado actual vs objetivo del Header
 
-## Proximos pasos
-- Completar STACK.md
-- Sesion de diseno con agente kickstart
+| Aspecto | Objetivo documental aprobado | Estado actual en BaseLayout | Gap actual |
+|---|---|---|---|
+| Rol estructural | Header critico para orientacion global y quick actions | Topbar minima con boton de drawer + texto fijo | Falta consolidar Header como centro unico de contexto y acciones globales |
+| Comportamiento base | Siempre sticky, delgado y minimamente invasivo | No tiene comportamiento sticky declarado | Falta fijacion persistente durante scroll |
+| Zona izquierda | Nombre dinamico de ruta/pantalla activa; oculto en mobile | Texto estatico "Portal Mesa de Ayuda" | Falta contexto dinamico por ruta y regla responsive de ocultamiento |
+| Zona derecha A (busqueda) | Omnibox/paleta/quick search con atajos; desktop expandida y mobile por modal de lupa | No existe busqueda en Header | Falta bloque completo de busqueda maestra |
+| Zona derecha B (preferencias) | Toggle dark/light con icono dinamico en Header | Toggle de tema existente pero ubicado en sidebar | Falta mover/normalizar preferencia como herramienta global de Header |
+| Zona derecha C (alertas/sistema) | Notificaciones con badge discreto + acceso rapido a ayuda/manual | No hay centro de alertas/ayuda en Header | Falta bloque de alertas y soporte rapido |
+| Jerarquia visual y tokens | Botones ghost, divisores por bloques, fondo/borde/iconos por tokens semanticos light/dark | Header actual usa fondo primario pleno y sin divisores funcionales de herramientas | Falta aplicar jerarquia reducida y agrupacion escalable |
+
+---
+
+## Reglas de intervencion
+
+1. Mantener consistencia modular visual en contenedores, tarjetas y limpieza
+   de interfaz.
+2. Si se agrega una ruta o vista nueva, registrar el cambio en el orquestador
+   principal de rutas y en la navegacion superior/lateral dinamica.
+   Estado actual: el orquestador principal esta en src/layouts/BaseLayout.astro
+   (arreglo navItems).
+3. Componentes nuevos deben consumir referencias semanticas de color del sistema
+   (tokens DaisyUI o variables de tema), evitando colores hardcodeados.
+
+---
+
+## Estado del proyecto
+
+- Base funcional inicial disponible en rutas principales.
+- Documentacion actualizada al nuevo marco de producto en fecha 2026-04-17.
+- Pendiente implementacion de rutas roadmap no existentes.

@@ -1,7 +1,6 @@
 ---
 import "@styles/global.css";
 import { Icon } from "astro-icon/components";
-import Footer from "@components/Global/Footer.astro";
 
 interface Props {
   title?: string;
@@ -13,49 +12,90 @@ interface NavItem {
   icon: string;
 }
 
+interface NavSection {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
 const { title = "Portal Mesa de Ayuda" } = Astro.props;
 const currentPath = Astro.url.pathname;
 
-const navItems: NavItem[] = [
-  { href: "/", label: "Home", icon: "heroicons:home" },
+const navSections: NavSection[] = [
   {
-    href: "/titulos-tickets",
-    label: "Títulos de Tickets",
-    icon: "heroicons:queue-list",
+    id: "resto",
+    label: "General",
+    items: [
+      { href: "/", label: "Inicio", icon: "heroicons:home" },
+      {
+        href: "/cronograma",
+        label: "Cronograma",
+        icon: "heroicons:calendar-days",
+      },
+      {
+        href: "/titulos-tickets",
+        label: "Titulos de tickets",
+        icon: "heroicons:queue-list",
+      },
+      {
+        href: "/buscador-usuarios",
+        label: "Buscador de usuarios",
+        icon: "heroicons:users",
+      },
+      {
+        href: "/guia-soportes",
+        label: "Guia de soportes",
+        icon: "heroicons:lifebuoy",
+      },
+      {
+        href: "/enlaces-importantes",
+        label: "Enlaces importantes",
+        icon: "heroicons:link",
+      },
+    ],
   },
   {
-    href: "/documentacion",
-    label: "Documentación",
-    icon: "heroicons:document-text",
+    id: "oficinas-sucursales",
+    label: "Oficinas y sucursales",
+    items: [
+      {
+        href: "/directorio-oficinas",
+        label: "Directorio de oficinas",
+        icon: "heroicons:building-office-2",
+      },
+      {
+        href: "/mapa-sucursales",
+        label: "Mapa de sucursales",
+        icon: "heroicons:map",
+      },
+    ],
   },
   {
-    href: "/guia-soportes",
-    label: "Guía de Soportes",
-    icon: "heroicons:lifebuoy",
-  },
-  {
-    href: "/buscador-usuarios",
-    label: "Buscador de Usuarios",
-    icon: "heroicons:users",
-  },
-  {
-    href: "/oficinas-telegrafia",
-    label: "Oficinas Telegrafía",
-    icon: "heroicons:building-office-2",
-  },
-  { href: "/cubics", label: "Cubics", icon: "heroicons:computer-desktop" },
-  {
-    href: "/configuracion",
-    label: "Configuración",
-    icon: "heroicons:cog-6-tooth",
+    id: "terminales",
+    label: "Terminales",
+    items: [
+      {
+        href: "/cubics",
+        label: "Cubics",
+        icon: "heroicons:computer-desktop",
+      },
+      {
+        href: "/inventario-terminales",
+        label: "Inventario de terminales",
+        icon: "heroicons:server-stack",
+      },
+    ],
   },
 ];
 
-const loginItem: NavItem = {
-  href: "/login",
-  label: "Login",
-  icon: "heroicons:arrow-right-on-rectangle",
+const settingsItem: NavItem = {
+  href: "/configuracion",
+  label: "Configuracion",
+  icon: "heroicons:cog-6-tooth",
 };
+
+const drawerNavItems = navSections.flatMap((section) => section.items);
+const quickAccessItems: NavItem[] = [...drawerNavItems, settingsItem];
 
 const isActiveRoute = (href: string) =>
   href === "/"
@@ -63,8 +103,24 @@ const isActiveRoute = (href: string) =>
     : currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
-<html lang="es" data-theme="light">
+<html lang="es">
   <head>
+    <script is:inline>
+      (() => {
+        const savedTheme = localStorage.getItem("theme");
+        const theme =
+          savedTheme === "light" || savedTheme === "dark"
+            ? savedTheme
+            : "light";
+
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <script>
+      import { themeChange } from "theme-change";
+
+      themeChange();
+    </script>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
@@ -75,92 +131,359 @@ const isActiveRoute = (href: string) =>
   <body class="min-h-screen bg-base-100 text-base-content">
     <div class="drawer lg:drawer-open">
       <input
-        id="my-drawer-4"
+        id="main-drawer"
         type="checkbox"
         class="drawer-toggle"
         aria-label="toggle sidebar"
       />
       <div class="drawer-content flex min-h-screen flex-col">
-        <nav class="navbar w-full bg-primary gap-2">
-          <label
-            for="my-drawer-4"
-            aria-label="open sidebar"
-            aria-controls="my-drawer-4"
-            role="button"
-            tabindex="0"
-            class="btn btn-circle drawer-button btn-secondary"
-          >
-            <Icon name="heroicons:bars-3" class="size-5" />
-          </label>
-          <div>Portal Mesa de Ayuda</div>
-        </nav>
+        <header
+          class="navbar sticky top-0 z-30 min-h-16 border-b border-base-300 bg-base-100/95 px-3 text-base-content backdrop-blur sm:px-4"
+        >
+          <div class="flex items-center gap-2">
+            <label
+              for="main-drawer"
+              aria-label="open sidebar"
+              aria-controls="main-drawer"
+              role="button"
+              tabindex="0"
+              class="btn btn-ghost btn-circle drawer-button lg:hidden"
+            >
+              <Icon name="heroicons:bars-3" class="size-5" />
+            </label>
+          </div>
 
-        <main class="flex-1 overflow-y-auto p-6">
+          <div class="hidden flex-1 justify-center px-4 md:flex">
+            <button
+              type="button"
+              data-open-command-palette
+              aria-label="Abrir busqueda maestra"
+              class="btn btn-ghost inline-flex w-full max-w-2xl items-center justify-start gap-2 border border-base-300 bg-base-100 px-4 font-normal normal-case"
+            >
+              <Icon name="heroicons:magnifying-glass" class="size-4" />
+              <span class="text-sm text-base-content/70">Buscar</span>
+              <kbd class="kbd kbd-sm">Ctrl</kbd>
+              <kbd class="kbd kbd-sm">K</kbd>
+            </button>
+          </div>
+
+          <div class="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              data-open-command-palette
+              aria-label="Abrir busqueda maestra"
+              class="btn btn-ghost btn-circle md:hidden"
+            >
+              <Icon name="heroicons:magnifying-glass" class="size-5" />
+            </button>
+
+            <div class="divider divider-horizontal m-0 md:hidden"></div>
+
+            <button
+              id="theme-toggle"
+              type="button"
+              data-toggle-theme="dark,light"
+              data-act-class="ACTIVECLASS"
+              aria-label="Activar modo oscuro"
+              class="btn btn-ghost btn-circle"
+            >
+              <Icon id="theme-icon-moon" name="heroicons:moon" class="size-5" />
+              <Icon
+                id="theme-icon-sun"
+                name="heroicons:sun"
+                class="hidden size-5"
+              />
+            </button>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
           <slot />
         </main>
-
-        <Footer />
       </div>
 
       <div class="drawer-side is-drawer-close:overflow-visible">
         <label
-          for="my-drawer-4"
+          for="main-drawer"
           aria-label="close sidebar"
           class="drawer-overlay"></label>
 
         <div
-          class="flex min-h-full flex-col items-start bg-secondary is-drawer-close:w-15 is-drawer-open:w-64"
+          class="flex min-h-full flex-col items-start bg-secondary is-drawer-close:w-14 xl:is-drawer-close:w-16 is-drawer-open:w-56 md:is-drawer-open:w-64 xl:is-drawer-open:w-72"
         >
-          <ul class="menu w-full grow gap-1">
-            {
-              navItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <li>
-                    <a
-                      href={item.href}
-                      aria-label={item.label}
-                      data-tip={item.label}
-                      class:list={[
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-                        "is-drawer-close:tooltip is-drawer-close:tooltip-right",
-                        isActive
-                          ? "bg-primary text-primary-content"
-                          : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
-                      ]}
-                    >
-                      <Icon
-                        name={item.icon}
-                        class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
-                      />
-                      <span class="truncate is-drawer-close:hidden">
-                        {item.label}
-                      </span>
-                    </a>
-                  </li>
-                );
-              })
-            }
-          </ul>
+          <div
+            class="flex min-h-16 w-full items-center gap-3 border-b border-secondary-content/20 px-3 is-drawer-close:justify-center is-drawer-close:px-0"
+          >
+            <div class="avatar avatar-placeholder">
+              <div
+                class="bg-neutral text-neutral-content w-8 rounded-full lg:w-10"
+              >
+                <span class="text-xs font-semibold lg:text-sm">MDA</span>
+              </div>
+            </div>
+            <div class="is-drawer-close:hidden">
+              <p class="text-sm font-semibold text-secondary-content">Correo</p>
+              <p class="text-xs text-secondary-content/70">Mesa de ayuda</p>
+            </div>
+          </div>
 
-          <div class="w-full border-t border-secondary-content/20 p-2">
+          <div class="w-full grow">
+            {
+              navSections.map((section, sectionIndex) => (
+                <>
+                  <ul class="menu w-full gap-2">
+                    <li class="menu-title is-drawer-close:hidden">
+                      <span class="text-secondary-content/60">
+                        {section.label}
+                      </span>
+                    </li>
+                    {section.items.map((item) => {
+                      const isActive = isActiveRoute(item.href);
+                      return (
+                        <li>
+                          <a
+                            href={item.href}
+                            aria-label={item.label}
+                            data-tip={item.label}
+                            class:list={[
+                              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+                              "is-drawer-close:tooltip is-drawer-close:tooltip-right",
+                              isActive
+                                ? "bg-primary text-primary-content"
+                                : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
+                            ]}
+                          >
+                            <Icon
+                              name={item.icon}
+                              class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100 lg:size-6"
+                            />
+                            <span class="truncate is-drawer-close:hidden">
+                              {item.label}
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {sectionIndex < navSections.length - 1 && (
+                    <div class="px-3">
+                      <div class="divider m-0 before:bg-secondary-content/20 after:bg-secondary-content/20" />
+                    </div>
+                  )}
+                </>
+              ))
+            }
+          </div>
+
+          <div class="w-full border-t border-secondary-content/20 menu gap-1">
             <a
-              href={loginItem.href}
-              aria-label={loginItem.label}
-              data-tip={loginItem.label}
-              class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-secondary-content/80 transition is-drawer-close:tooltip is-drawer-close:tooltip-right hover:bg-base-100/10 hover:text-secondary-content"
+              href={settingsItem.href}
+              aria-label={settingsItem.label}
+              data-tip={settingsItem.label}
+              class:list={[
+                "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition is-drawer-close:tooltip is-drawer-close:tooltip-right",
+                isActiveRoute(settingsItem.href)
+                  ? "bg-primary text-primary-content"
+                  : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
+              ]}
             >
               <Icon
-                name={loginItem.icon}
-                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
+                name={settingsItem.icon}
+                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100 lg:size-6"
               />
               <span class="truncate is-drawer-close:hidden"
-                >{loginItem.label}</span
+                >{settingsItem.label}</span
               >
             </a>
           </div>
         </div>
       </div>
     </div>
+
+    <dialog id="command-palette" class="modal">
+      <div
+        class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
+      >
+        <div class="border-b border-base-300 p-4">
+          <label for="command-palette-input" class="sr-only"
+            >Filtrar accesos</label
+          >
+
+          <label class="input w-full">
+            <Icon
+              name="heroicons:magnifying-glass"
+              class="size-5 text-base-content/60"
+            />
+            <input
+              type="search"
+              placeholder="Search"
+              id="command-palette-input"
+              type="text"
+              placeholder="Buscar accesos..."
+              class="grow w-full"
+              autocomplete="off"
+            />
+          </label>
+        </div>
+
+        <ul class="menu w-full">
+          {
+            quickAccessItems.map((item) => (
+              <li
+                data-command-item
+                data-search-text={`${item.label} ${item.href}`.toLowerCase()}
+              >
+                <a href={item.href} class="justify-between gap-3">
+                  <span class="flex min-w-0 items-center gap-2">
+                    <Icon name={item.icon} class="size-4 shrink-0" />
+                    <span class="truncate">{item.label}</span>
+                  </span>
+                  <span class="text-xs text-base-content/60">{item.href}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p
+          id="command-palette-empty"
+          class="hidden px-4 pb-4 text-sm text-base-content/70"
+        >
+          No hay accesos que coincidan.
+        </p>
+      </div>
+
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label="Cerrar busqueda">close</button>
+      </form>
+    </dialog>
+
+    <script>
+      const commandPalette = document.getElementById(
+        "command-palette",
+      ) as HTMLDialogElement | null;
+      const commandPaletteInput = document.getElementById(
+        "command-palette-input",
+      ) as HTMLInputElement | null;
+      const commandPaletteItems = Array.from(
+        document.querySelectorAll("[data-command-item]"),
+      ) as HTMLLIElement[];
+      const commandPaletteEmpty = document.getElementById(
+        "command-palette-empty",
+      ) as HTMLElement | null;
+      const commandPaletteTriggers = Array.from(
+        document.querySelectorAll("[data-open-command-palette]"),
+      ) as HTMLButtonElement[];
+
+      const themeToggle = document.getElementById(
+        "theme-toggle",
+      ) as HTMLButtonElement | null;
+      const themeMoonIcon = document.getElementById("theme-icon-moon");
+      const themeSunIcon = document.getElementById("theme-icon-sun");
+
+      const updateThemeToggle = (): void => {
+        const isDark =
+          document.documentElement.getAttribute("data-theme") === "dark";
+
+        themeMoonIcon?.classList.toggle("hidden", isDark);
+        themeSunIcon?.classList.toggle("hidden", !isDark);
+
+        if (themeToggle) {
+          themeToggle.setAttribute(
+            "aria-label",
+            isDark ? "Activar modo claro" : "Activar modo oscuro",
+          );
+        }
+      };
+
+      const filterCommandPalette = (): void => {
+        const query = commandPaletteInput?.value.trim().toLowerCase() ?? "";
+        let visibleItems = 0;
+
+        commandPaletteItems.forEach((item: HTMLLIElement) => {
+          const searchText = item.dataset.searchText ?? "";
+          const isVisible = query.length === 0 || searchText.includes(query);
+
+          item.classList.toggle("hidden", !isVisible);
+          if (isVisible) {
+            visibleItems += 1;
+          }
+        });
+
+        commandPaletteEmpty?.classList.toggle("hidden", visibleItems > 0);
+      };
+
+      const openCommandPalette = (): void => {
+        if (!commandPalette) {
+          return;
+        }
+
+        if (!commandPalette.open) {
+          commandPalette.showModal();
+        }
+
+        if (commandPaletteInput) {
+          commandPaletteInput.value = "";
+          filterCommandPalette();
+          commandPaletteInput.focus();
+        }
+      };
+
+      const closeCommandPalette = (): void => {
+        if (commandPalette?.open) {
+          commandPalette.close();
+        }
+      };
+
+      commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
+        trigger.addEventListener("click", () => {
+          openCommandPalette();
+        });
+      });
+
+      commandPaletteInput?.addEventListener("input", () => {
+        filterCommandPalette();
+      });
+
+      commandPalette?.addEventListener("click", (event: MouseEvent) => {
+        if (event.target === commandPalette) {
+          closeCommandPalette();
+        }
+      });
+
+      document.addEventListener("keydown", (event: KeyboardEvent) => {
+        const isCommandShortcut =
+          (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+
+        if (isCommandShortcut) {
+          event.preventDefault();
+          openCommandPalette();
+          return;
+        }
+
+        if (event.key === "Escape") {
+          closeCommandPalette();
+        }
+      });
+
+      themeToggle?.addEventListener("click", () => {
+        window.setTimeout(() => {
+          updateThemeToggle();
+        }, 0);
+      });
+
+      const themeObserver = new MutationObserver(() => {
+        updateThemeToggle();
+      });
+
+      themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme"],
+      });
+
+      updateThemeToggle();
+      filterCommandPalette();
+    </script>
   </body>
 </html>

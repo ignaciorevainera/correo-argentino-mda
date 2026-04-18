@@ -1,5 +1,5 @@
-# DESIGN SYSTEM — Mesa de Ayuda - Correo Argentino
-Generado el 2026-04-10. Actualizar ante cualquier cambio de diseño.
+# DESIGN SYSTEM - Portal de la Mesa de Ayuda Interna
+Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
 
 ## Stack
 - Framework: Astro
@@ -7,13 +7,23 @@ Generado el 2026-04-10. Actualizar ante cualquier cambio de diseño.
 - Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
 - Contenido: MDX (Content Collections)
 - Iconos: `astro-icon` con Heroicons
-- Datos/Auth: Supabase + Supabase Auth
+- Interactividad de tema: `theme-change`
+- Datos/Auth: sin base de datos y sin autenticacion
 - Deploy objetivo: Vercel
+- Deploy actual: sin configuracion activa en entorno productivo
+
+## Contexto de producto (actualizado 2026-04-17)
+- Producto: Portal de la Mesa de Ayuda Interna.
+- Objetivo principal: centralizar y agilizar tareas de operadores N1/N2
+  para tipificacion de tickets, busqueda de personal, monitoreo de
+  terminales y gestion de carga laboral.
+- Dominio de uso: soporte corporativo logistico y postal.
 
 ## Tema activo
 - Tema base activo: `light`
 - Modo oscuro: disponible por `prefers-color-scheme` con tema `dark`
-- Dirección visual: minimalista, utilitaria y de lectura rápida, orientada a productividad interna
+- Selector global: alternancia manual `light/dark` disponible desde el layout principal
+- Direccion visual: minimalista, utilitaria y de lectura rapida, orientada a productividad interna
 
 ## Paleta oficial (actualizada 2026-04-13)
 
@@ -38,11 +48,13 @@ Generado el 2026-04-10. Actualizar ante cualquier cambio de diseño.
 | primary | school-bus-yellow base (#ffc72c) | Siempre color principal de marca |
 | secondary | steel-azure base (#254888) | Siempre color secundario institucional |
 | accent | #3a6ea5 | Apoyo visual y destacados, similar al eje azul pero distinto de colores reservados |
-| neutral | platinum (#efefef) | Superficies neutras y estados no criticos |
+| neutral | light: #4a4d4f / #f2f2f3 (neutral-content), dark: #cacdce / #191a1a (neutral-content) | Superficies y estados no criticos; complementario de base-* |
 | info | #2879a8 | Estado informativo, similar a institucional sin reutilizar secondary |
 | success | #068444 | Estado de exito, similar a financiero sin reutilizar forest-green reservado |
 | warning | #e2ad1f | Estado de advertencia, similar al rango amarillo sin reutilizar primary |
 | error | #b3474d | Estado de error, similar a postal sin reutilizar brown-red reservado |
+
+Nota: `base-100` y `base-content` se mantienen anclados a platinum/onyx por tema (light: #efefef/#0c0c0c, dark: #191a1a/#efefef). `neutral` y `neutral-content` son complementarios y no reemplazan el fondo/texto base.
 
 ### Escalas 50-950 exactas por familia
 
@@ -239,47 +251,113 @@ Snippet listo para copiar:
 Anti-patron:
 - No pintar toda la card con color de estado para indicar un resultado; usar badge o alert dentro de la card.
 
-## Tipografía
-- Estado actual: sans-serif del sistema (temporal)
-- Objetivo de estilo: sans-serif limpia, tecnica y legible para lectura rapida en soporte
-- Regla: definir familia final desde Fontsource antes del cierre visual del MVP
+## Tipografia
+- UI principal: `Geist Variable` (Fontsource) como `--font-sans`.
+- Datos tecnicos: `Geist Mono Variable` (Fontsource) como `--font-mono`.
+- Regla de idioma: espanol en sentence case para titulos y microcopy.
+- Estado: tipografia base definida e implementada en `src/styles/global.css`.
 
-## Escala tipográfica usada
+## Interaccion operativa
+- Acciones de copia rapida con feedback inmediato para tareas repetitivas.
+- Navegacion de baja friccion, orientada a resolucion de tareas en pocos clics.
+
+## Escala tipografica usada
 - Titulo principal de pagina: `text-3xl font-bold`
-- Navegación y elementos globales: `text-sm`
+- Navegacion y elementos globales: `text-sm`
 - Texto secundario/global: `text-sm` con opacidad (`text-base-content/70`)
 
 ## Espaciado y layout
 - Shell principal en 2 columnas:
-  - Columna izquierda: `Sidebar` fija (`w-64`) con prioridad visual
-  - Columna derecha: `TopBar` + `main` + `Footer`
+  - Columna izquierda: `Sidebar` en drawer (`is-drawer-open:w-64`, `is-drawer-close:w-15`)
+  - Columna derecha: `Header` sticky + `main`
 - Altura minima general: `min-h-screen`
 - Area de contenido: `main` con `flex-1` y `overflow-y-auto`
-- Padding base de contenido: `p-6`
+- Padding base de contenido: `p-4 md:p-6`
 - Bordes de separacion: `border-base-300`
+
+## Contrato de Barra Superior (Header/TopBar)
+
+### Concepto
+- El Header es un componente estructural critico: epicentro de orientacion
+  global y quick actions.
+- Debe ser delgado, minimamente invasivo y sticky siempre.
+
+### Estructura por zonas
+- Zona izquierda (contexto): nombre dinamico de la ruta/pantalla activa.
+  En mobile esta etiqueta se oculta para priorizar herramientas.
+- Zona derecha (herramientas globales), orden izquierda a derecha:
+  A. Busqueda maestra: omnibox/paleta/quick search con atajos. En desktop
+  se muestra expandida; en mobile se contrae a icono de lupa que abre modal.
+  B. Preferencias: toggle dark/light con icono dinamico que comunica estado
+  actual o accion de cambio.
+  C. Alertas y sistema: centro de notificaciones con badge discreto para no
+  leidas y acceso rapido a ayuda/manual.
+
+### Reglas de intervencion visual
+- Jerarquia visual reducida: botones `ghost`, sin CTAs pesados en Header.
+- Escalabilidad y agrupacion: usar divisores logicos entre bloques de
+  herramientas (por ejemplo, busqueda separada de utilidades).
+- Consistencia de temas: fondo, borde inferior, iconos y contraste dependen
+  de tokens semanticos light/dark del sistema.
+
+### Estado actual vs objetivo (trazabilidad)
+- Estado actual en `BaseLayout`: Header sticky implementado con boton de drawer,
+  contexto dinamico por ruta (oculto en mobile), busqueda maestra (desktop +
+  trigger mobile), y toggle dark/light en la zona derecha.
+- Estado actual de busqueda maestra: modal de command palette con filtro local
+  y atajo `Ctrl+K` / `Cmd+K`.
+- Gap vigente: falta el bloque C (alertas y sistema) en Header con badge de
+  no leidas y acceso rapido a ayuda/manual.
+- Estado del contrato: cumplimiento parcial-alto. Se implementaron A y B;
+  queda pendiente C para cierre completo.
 
 ## Componentes catalogados
 Globales actuales:
 - `Sidebar` (navegacion lateral con iconos y estado activo)
-- `TopBar` (cabecera superior)
-- `Footer` (pie global)
+- `Header` (sticky, contexto de ruta, busqueda maestra y toggle de tema)
+- `CommandPalette` (integrado en `BaseLayout` como modal con filtro)
 
 Layout actual:
-- `BaseLayout` (ensambla sidebar + topbar + main + footer)
+- `BaseLayout` (ensambla sidebar + header + main + scripts de interaccion global)
 
-Paginas base existentes:
+UI reutilizable actual:
+- `Button`
+- `CopyCell`
+
+Paginas implementadas hoy (estado real del repo):
 - `/`
 - `/titulos-tickets`
-- `/documentacion`
-- `/guia-soportes`
 - `/buscador-usuarios`
-- `/oficinas-telegrafia`
+- `/directorio-oficinas`
+- `/guia-soportes`
+- `/cronograma`
 - `/cubics`
+- `/mapa-sucursales`
+- `/inventario-terminales`
+- `/enlaces-importantes`
 - `/configuracion`
-- `/login`
+
+Roadmap funcional objetivo (11 vistas):
+
+| Vista | Ruta objetivo | Estado actual | Nota operativa |
+|---|---|---|---|
+| Dashboard principal | `/` | Implementada | Iterar widgets segun foco N1/N2 |
+| Titulos de tickets | `/titulos-tickets` | Implementada | Mantener agilidad de copia |
+| Buscador de usuarios | `/buscador-usuarios` | Implementada | Definir criterios finales de acceso |
+| Directorio de oficinas | `/directorio-oficinas` | Implementada | Consolidar datos operativos definitivos |
+| Guia de soportes | `/guia-soportes` | Implementada | Completar cobertura funcional por area |
+| Cronograma | `/cronograma` | Implementada | Definir origen de datos y reglas de actualizacion |
+| Cubics | `/cubics` | Implementada | Evolucionar a monitoreo operativo |
+| Mapa de sucursales | `/mapa-sucursales` | Implementada | Integrar fuente de datos geografica final |
+| Inventario de terminales | `/inventario-terminales` | Implementada | Definir estructura y ciclo de actualizacion |
+| Enlaces importantes | `/enlaces-importantes` | Implementada | Curar enlaces oficiales y responsables |
+| Configuracion | `/configuracion` | Implementada | Ajustar preferencias finales de usuario |
+
+Nota de trazabilidad: las 11 vistas objetivo ya existen a nivel de rutas.
+El gap actual es de madurez funcional de contenido y no de estructura de navegacion.
 
 ## Convenciones de nomenclatura
-- Rutas: kebab-case y sin tildes (ejemplo: `/oficinas-telegrafia`)
+- Rutas: kebab-case y sin tildes (ejemplo: `/directorio-oficinas`)
 - Textos visibles en UI: español correcto con acentos
 - Componentes Astro: PascalCase
 - Alias de importacion activos:
@@ -300,21 +378,32 @@ Paginas base existentes:
 - Animaciones lentas o decorativas que afecten la velocidad de uso
 - Secciones no justificadas por el briefing funcional
 
+## Reglas de intervencion de UI
+1. Mantener consistencia modular visual en contenedores, tarjetas y
+  composicion limpia de contenido.
+2. Si se agrega una ruta o vista nueva, registrar la ruta en el orquestador
+  principal y en la navegacion dinamica (sidebar y topbar cuando aplique).
+  Estado actual: `src/layouts/BaseLayout.astro` concentra el arreglo `navItems`.
+3. Todo componente nuevo debe usar referencias semanticas de color (tokens
+  DaisyUI o variables del sistema), para integracion automatica con temas.
+
 ## Decisiones documentadas
 - Se adopta `light` como tema por defecto para consistencia operativa
 - `primary` queda fijo en school-bus-yellow y `secondary` en steel-azure
 - Los colores reservados por linea de negocio no se reutilizan como semanticos
 - Los semanticos (`info/success/warning/error/neutral`) son similares al lenguaje de marca, pero no iguales a institucional/postal/financiero/logistica
 - `platinum` y `onyx` se establecen como neutrales base para superficies y texto
-- La sidebar tiene prioridad estructural y visual sobre header/footer
+- Header y sidebar forman una doble capa de navegacion: el Header concentra orientacion global y quick actions; la sidebar concentra navegacion seccional
 - El enlace activo en sidebar se marca con color `primary`
-- La arquitectura inicial privilegia claridad de lectura y navegación rapida
+- La arquitectura inicial privilegia claridad de lectura y navegacion rapida
+- El portal mantiene sentence case en espanol para texto visible
+- Las rutas nuevas deben pasar por el orquestador de `navItems` en BaseLayout
 
 ## Pendientes
-- Definir tipografia final desde Fontsource
-- Diseñar variante dark propia alineada al branding
-- Implementar sidebar minimizable (comportamiento tipo Gemini)
-- Implementar buscador global con atajo `Ctrl+K` / `Cmd+K`
-- Implementar breadcrumbs en secciones de catalogos y documentacion
-- Catalogar componentes de dominio (cards, tablas, badges, filtros)
-- Ejecutar revision de accesibilidad y contraste WCAG AA
+- Completar bloque C del Header: alertas/sistema con badge de no leidas y acceso a ayuda/manual.
+- Diseñar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
+- Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
+- Estandarizar `Button` a tokens semanticos DaisyUI (eliminar colores hardcodeados en variantes).
+- Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.
+- Catalogar componentes de dominio (cards, tablas, badges, filtros) con criterios de uso por contexto.
+- Ejecutar revision de accesibilidad y contraste WCAG AA sobre rutas operativas.

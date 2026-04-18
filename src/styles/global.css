@@ -1,8 +1,13 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
 @import "tailwindcss";
 
 @plugin "daisyui" {
   themes: light --default, dark --prefersdark;
 }
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @plugin "daisyui/theme" {
   name: "light";
@@ -24,8 +29,8 @@
   --color-accent: #3a6ea5;
   --color-accent-content: #ebf0fa;
 
-  --color-neutral: #efefef;
-  --color-neutral-content: #0c0c0c;
+  --color-neutral: #4a4d4f;
+  --color-neutral-content: #f2f2f3;
 
   --color-info: #2879a8;
   --color-info-content: #ffffff;
@@ -40,7 +45,47 @@
   --color-error-content: #ffffff;
 }
 
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+
+  --color-base-100: #191a1a;
+  --color-base-200: #313435;
+  --color-base-300: #4a4d4f;
+  --color-base-content: #efefef;
+
+  --color-primary: #ffc72c;
+  --color-primary-content: #332500;
+
+  --color-secondary: #254888;
+  --color-secondary-content: #ebf0fa;
+
+  --color-accent: #5f88d3;
+  --color-accent-content: #ebf0fa;
+
+  --color-neutral: #cacdce;
+  --color-neutral-content: #191a1a;
+
+  --color-info: #4ea8d7;
+  --color-info-content: #0c0c0c;
+
+  --color-success: #22a661;
+  --color-success-content: #0c0c0c;
+
+  --color-warning: #f4c84e;
+  --color-warning-content: #332500;
+
+  --color-error: #cf6268;
+  --color-error-content: #ffffff;
+}
+
 @theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
   --color-platinum: #efefef;
   --color-onyx: #0c0c0c;
 
@@ -117,23 +162,39 @@
   --color-postal: #a4343a;
 }
 
-/* Lineas de negocio reservadas: postal, financiero y logistica */
-.linea-reservada-postal {
-  --linea-reservada-bg: var(--color-postal);
+/* Garantia explicita: los colores de linea reservados no dependen de tokens semanticos */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --color-linea-institucional: var(--color-institucional);
+  --color-linea-postal: var(--color-postal);
+  --color-linea-financiero: var(--color-financiero);
+  --color-linea-logistica: var(--color-logistica);
+}
+
+/* Lineas de negocio reservadas: institucional, postal, financiero y logistica */
+.linea-reservada-institucional {
+  --linea-reservada-bg: var(--color-linea-institucional);
   --linea-reservada-content: var(--color-platinum);
-  --linea-reservada-border: var(--color-postal);
+  --linea-reservada-border: var(--color-linea-institucional);
+}
+
+.linea-reservada-postal {
+  --linea-reservada-bg: var(--color-linea-postal);
+  --linea-reservada-content: var(--color-platinum);
+  --linea-reservada-border: var(--color-linea-postal);
 }
 
 .linea-reservada-financiero {
-  --linea-reservada-bg: var(--color-financiero);
-  --linea-reservada-content: var(--color-onyx);
-  --linea-reservada-border: var(--color-financiero);
+  --linea-reservada-bg: var(--color-linea-financiero);
+  --linea-reservada-content: var(--color-platinum);
+  --linea-reservada-border: var(--color-linea-financiero);
 }
 
 .linea-reservada-logistica {
-  --linea-reservada-bg: var(--color-logistica);
+  --linea-reservada-bg: var(--color-linea-logistica);
   --linea-reservada-content: var(--color-platinum);
-  --linea-reservada-border: var(--color-logistica);
+  --linea-reservada-border: var(--color-linea-logistica);
 }
 
 .badge-reservado {
@@ -150,4 +211,18 @@
   background-color: var(--linea-reservada-bg, var(--color-platinum));
   border-color: var(--linea-reservada-border, var(--color-onyx));
   color: var(--linea-reservada-content, var(--color-onyx));
+}
+
+body {
+  @apply font-sans;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.btn {
+  @apply font-sans;
 }
