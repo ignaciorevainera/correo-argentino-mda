@@ -7,8 +7,8 @@ Generado el 2026-04-10. Actualizar ante cualquier cambio de diseno.
 - Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
 - Contenido: MDX (Content Collections)
 - Iconos: `astro-icon` con Heroicons
-- Datos/Auth: Supabase + Supabase Auth
-- Deploy objetivo: Vercel
+- Datos/Auth: sin base de datos y sin autenticacion
+- Deploy objetivo: sin plataforma objetivo definida
 
 ## Contexto de producto (actualizado 2026-04-17)
 - Producto: Portal de la Mesa de Ayuda Interna.
@@ -250,10 +250,11 @@ Anti-patron:
 - No pintar toda la card con color de estado para indicar un resultado; usar badge o alert dentro de la card.
 
 ## Tipografia
-- UI principal: sans-serif moderna y legible para operacion intensiva.
-- Datos tecnicos: tipografia monoespaciada para IPs, rutas y texto rigido.
+- UI principal: `Geist Variable` (Fontsource variable) mapeada a `--font-sans` en Tailwind.
+- Alcance de `--font-sans`: layout general, headings y botones.
+- Datos tecnicos: `Geist Mono Variable` mapeada a `--font-mono`.
+- Alcance de `--font-mono`: solo labels/badges de infraestructura (hostname, IP, legajo) y fragmentos tecnicos (codigo/terminal).
 - Regla de idioma: espanol en sentence case para titulos y microcopy.
-- Regla de cierre MVP: definir familia final desde Fontsource.
 
 ## Interaccion operativa
 - Acciones de copia rapida con feedback inmediato para tareas repetitivas.
@@ -326,7 +327,6 @@ Paginas implementadas hoy (estado real del repo):
 - `/cubics`
 - `/configuracion`
 - `/design-system`
-- `/login`
 
 Roadmap funcional objetivo (11 vistas):
 

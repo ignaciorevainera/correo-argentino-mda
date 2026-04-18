@@ -20,12 +20,12 @@ Operadores N1 y N2 de mesa de ayuda interna, con foco en soporte corporativo
 de operaciones logisticas y postales.
 
 ## Stack real del repositorio
-- Framework: Astro (output server) + adapter Vercel
+- Framework: Astro (output static)
 - UI: Tailwind CSS + DaisyUI
 - Integraciones: MDX + astro-icon + theme-change
-- Datos y auth: Supabase + Supabase Auth (dependencias instaladas)
-- Middleware: existe control de rutas privadas en src/middleware.ts, con guard
-  de login aun deshabilitado por bandera de implementacion.
+- Datos y auth: sin base de datos y sin autenticacion
+- Middleware: `src/middleware.ts` se mantiene como passthrough sin control de
+   rutas privadas.
 
 ---
 
@@ -107,7 +107,7 @@ de operaciones logisticas y postales.
 
 Notas de trazabilidad:
 - Rutas adicionales hoy presentes fuera del roadmap de 11 vistas:
-  /documentacion, /design-system y /login.
+   /documentacion y /design-system.
 - Esta actualizacion documental no crea ni modifica rutas funcionales.
 
 ---
@@ -143,5 +143,4 @@ Notas de trazabilidad:
 
 - Base funcional inicial disponible en rutas principales.
 - Documentacion actualizada al nuevo marco de producto en fecha 2026-04-17.
-- Pendiente implementacion de rutas roadmap no existentes y activacion real
-  de guard de autenticacion.
+- Pendiente implementacion de rutas roadmap no existentes.
