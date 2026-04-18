@@ -1,5 +1,5 @@
 # DESIGN SYSTEM - Portal de la Mesa de Ayuda Interna
-Generado el 2026-04-10. Actualizar ante cualquier cambio de diseno.
+Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
 
 ## Stack
 - Framework: Astro
@@ -7,8 +7,10 @@ Generado el 2026-04-10. Actualizar ante cualquier cambio de diseno.
 - Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
 - Contenido: MDX (Content Collections)
 - Iconos: `astro-icon` con Heroicons
+- Interactividad de tema: `theme-change`
 - Datos/Auth: sin base de datos y sin autenticacion
-- Deploy objetivo: sin plataforma objetivo definida
+- Deploy objetivo: Vercel
+- Deploy actual: sin configuracion activa en entorno productivo
 
 ## Contexto de producto (actualizado 2026-04-17)
 - Producto: Portal de la Mesa de Ayuda Interna.
@@ -250,11 +252,10 @@ Anti-patron:
 - No pintar toda la card con color de estado para indicar un resultado; usar badge o alert dentro de la card.
 
 ## Tipografia
-- UI principal: `Geist Variable` (Fontsource variable) mapeada a `--font-sans` en Tailwind.
-- Alcance de `--font-sans`: layout general, headings y botones.
-- Datos tecnicos: `Geist Mono Variable` mapeada a `--font-mono`.
-- Alcance de `--font-mono`: solo labels/badges de infraestructura (hostname, IP, legajo) y fragmentos tecnicos (codigo/terminal).
+- UI principal: `Geist Variable` (Fontsource) como `--font-sans`.
+- Datos tecnicos: `Geist Mono Variable` (Fontsource) como `--font-mono`.
 - Regla de idioma: espanol en sentence case para titulos y microcopy.
+- Estado: tipografia base definida e implementada en `src/styles/global.css`.
 
 ## Interaccion operativa
 - Acciones de copia rapida con feedback inmediato para tareas repetitivas.
@@ -267,11 +268,11 @@ Anti-patron:
 
 ## Espaciado y layout
 - Shell principal en 2 columnas:
-  - Columna izquierda: `Sidebar` fija (`w-64`) con prioridad visual
-  - Columna derecha: `TopBar` sticky + `main`
+  - Columna izquierda: `Sidebar` en drawer (`is-drawer-open:w-64`, `is-drawer-close:w-15`)
+  - Columna derecha: `Header` sticky + `main`
 - Altura minima general: `min-h-screen`
 - Area de contenido: `main` con `flex-1` y `overflow-y-auto`
-- Padding base de contenido: `p-6`
+- Padding base de contenido: `p-4 md:p-6`
 - Bordes de separacion: `border-base-300`
 
 ## Contrato de Barra Superior (Header/TopBar)
@@ -300,55 +301,63 @@ Anti-patron:
   de tokens semanticos light/dark del sistema.
 
 ### Estado actual vs objetivo (trazabilidad)
-- Estado actual en `BaseLayout`: topbar simple con boton de drawer y texto
-  estatico; no existe sticky formal ni bloques completos de busqueda,
-  notificaciones y ayuda en la Barra Superior.
-- Estado actual en herramientas globales: el toggle de tema existe pero vive
-  en la sidebar; no en la zona derecha del Header.
-- Objetivo aprobado: mover y consolidar herramientas globales en Header segun
-  el orden y comportamiento responsive definidos en este contrato.
-- Esta actualizacion es documental: no modifica implementacion funcional.
+- Estado actual en `BaseLayout`: Header sticky implementado con boton de drawer,
+  contexto dinamico por ruta (oculto en mobile), busqueda maestra (desktop +
+  trigger mobile), y toggle dark/light en la zona derecha.
+- Estado actual de busqueda maestra: modal de command palette con filtro local
+  y atajo `Ctrl+K` / `Cmd+K`.
+- Gap vigente: falta el bloque C (alertas y sistema) en Header con badge de
+  no leidas y acceso rapido a ayuda/manual.
+- Estado del contrato: cumplimiento parcial-alto. Se implementaron A y B;
+  queda pendiente C para cierre completo.
 
 ## Componentes catalogados
 Globales actuales:
 - `Sidebar` (navegacion lateral con iconos y estado activo)
-- `TopBar` (cabecera superior basica en `BaseLayout`, pendiente de evolucion al contrato aprobado)
+- `Header` (sticky, contexto de ruta, busqueda maestra y toggle de tema)
+- `CommandPalette` (integrado en `BaseLayout` como modal con filtro)
 
 Layout actual:
-- `BaseLayout` (ensambla sidebar + topbar + main)
+- `BaseLayout` (ensambla sidebar + header + main + scripts de interaccion global)
+
+UI reutilizable actual:
+- `Button`
+- `CopyCell`
 
 Paginas implementadas hoy (estado real del repo):
 - `/`
 - `/titulos-tickets`
-- `/documentacion`
-- `/guia-soportes`
 - `/buscador-usuarios`
-- `/oficinas-telegrafia`
+- `/directorio-oficinas`
+- `/guia-soportes`
+- `/cronograma`
 - `/cubics`
+- `/mapa-sucursales`
+- `/inventario-terminales`
+- `/enlaces-importantes`
 - `/configuracion`
-- `/design-system`
 
 Roadmap funcional objetivo (11 vistas):
 
 | Vista | Ruta objetivo | Estado actual | Nota operativa |
 |---|---|---|---|
-| Dashboard principal | `/` | Implementada | Ajustar widgets al foco N1/N2 |
+| Dashboard principal | `/` | Implementada | Iterar widgets segun foco N1/N2 |
 | Titulos de tickets | `/titulos-tickets` | Implementada | Mantener agilidad de copia |
-| Buscador de usuarios | `/buscador-usuarios` | Implementada | Definir politicas de acceso final |
-| Directorio de oficinas | `/directorio-oficinas` | Cobertura parcial con `/oficinas-telegrafia` | Resolver nombre final de ruta |
-| Guia de soportes | `/guia-soportes` | Implementada | Completar cobertura de casos |
-| Cronograma | `/cronograma` | No implementada | Ruta pendiente |
+| Buscador de usuarios | `/buscador-usuarios` | Implementada | Definir criterios finales de acceso |
+| Directorio de oficinas | `/directorio-oficinas` | Implementada | Consolidar datos operativos definitivos |
+| Guia de soportes | `/guia-soportes` | Implementada | Completar cobertura funcional por area |
+| Cronograma | `/cronograma` | Implementada | Definir origen de datos y reglas de actualizacion |
 | Cubics | `/cubics` | Implementada | Evolucionar a monitoreo operativo |
-| Mapa de sucursales | `/mapa-sucursales` | No implementada | Ruta pendiente |
-| Inventario de terminales | `/inventario-terminales` | No implementada | Ruta pendiente |
-| Enlaces importantes | `/enlaces-importantes` | No implementada | Ruta pendiente |
-| Configuracion | `/configuracion` | Implementada | Ajustar preferencias de usuario |
+| Mapa de sucursales | `/mapa-sucursales` | Implementada | Integrar fuente de datos geografica final |
+| Inventario de terminales | `/inventario-terminales` | Implementada | Definir estructura y ciclo de actualizacion |
+| Enlaces importantes | `/enlaces-importantes` | Implementada | Curar enlaces oficiales y responsables |
+| Configuracion | `/configuracion` | Implementada | Ajustar preferencias finales de usuario |
 
-Nota de trazabilidad: no se implementan rutas nuevas en este ajuste documental;
-solo se registra el gap entre estado real y roadmap objetivo.
+Nota de trazabilidad: las 11 vistas objetivo ya existen a nivel de rutas.
+El gap actual es de madurez funcional de contenido y no de estructura de navegacion.
 
 ## Convenciones de nomenclatura
-- Rutas: kebab-case y sin tildes (ejemplo: `/oficinas-telegrafia`)
+- Rutas: kebab-case y sin tildes (ejemplo: `/directorio-oficinas`)
 - Textos visibles en UI: español correcto con acentos
 - Componentes Astro: PascalCase
 - Alias de importacion activos:
@@ -391,11 +400,10 @@ solo se registra el gap entre estado real y roadmap objetivo.
 - Las rutas nuevas deben pasar por el orquestador de `navItems` en BaseLayout
 
 ## Pendientes
-- Definir tipografia final desde Fontsource
-- Diseñar variante dark propia alineada al branding
-- Implementar sidebar minimizable (comportamiento tipo Gemini)
-- Implementar contrato completo de Header/TopBar (sticky + contexto dinamico + herramientas globales)
-- Implementar buscador global con atajo `Ctrl+K` / `Cmd+K` dentro de la Busqueda maestra del Header
-- Implementar breadcrumbs en secciones de catalogos y documentacion
-- Catalogar componentes de dominio (cards, tablas, badges, filtros)
-- Ejecutar revision de accesibilidad y contraste WCAG AA
+- Completar bloque C del Header: alertas/sistema con badge de no leidas y acceso a ayuda/manual.
+- Diseñar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
+- Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
+- Estandarizar `Button` a tokens semanticos DaisyUI (eliminar colores hardcodeados en variantes).
+- Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.
+- Catalogar componentes de dominio (cards, tablas, badges, filtros) con criterios de uso por contexto.
+- Ejecutar revision de accesibilidad y contraste WCAG AA sobre rutas operativas.
