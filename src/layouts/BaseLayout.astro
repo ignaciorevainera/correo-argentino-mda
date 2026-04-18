@@ -1,7 +1,6 @@
 ---
 import "@styles/global.css";
 import { Icon } from "astro-icon/components";
-import Footer from "@components/Global/Footer.astro";
 
 interface Props {
   title?: string;
@@ -13,86 +12,95 @@ interface NavItem {
   icon: string;
 }
 
+interface NavSection {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
 const { title = "Portal Mesa de Ayuda" } = Astro.props;
 const currentPath = Astro.url.pathname;
 
-const navItems: NavItem[] = [
-  { href: "/", label: "Inicio", icon: "heroicons:home" },
+const navSections: NavSection[] = [
   {
-    href: "/titulos-tickets",
-    label: "Titulos de tickets",
-    icon: "heroicons:queue-list",
+    id: "resto",
+    label: "General",
+    items: [
+      { href: "/", label: "Inicio", icon: "heroicons:home" },
+      {
+        href: "/cronograma",
+        label: "Cronograma",
+        icon: "heroicons:calendar-days",
+      },
+      {
+        href: "/titulos-tickets",
+        label: "Titulos de tickets",
+        icon: "heroicons:queue-list",
+      },
+      {
+        href: "/buscador-usuarios",
+        label: "Buscador de usuarios",
+        icon: "heroicons:users",
+      },
+      {
+        href: "/guia-soportes",
+        label: "Guia de soportes",
+        icon: "heroicons:lifebuoy",
+      },
+      {
+        href: "/enlaces-importantes",
+        label: "Enlaces importantes",
+        icon: "heroicons:link",
+      },
+    ],
   },
   {
-    href: "/buscador-usuarios",
-    label: "Buscador de usuarios",
-    icon: "heroicons:users",
+    id: "oficinas-sucursales",
+    label: "Oficinas y sucursales",
+    items: [
+      {
+        href: "/directorio-oficinas",
+        label: "Directorio de oficinas",
+        icon: "heroicons:building-office-2",
+      },
+      {
+        href: "/mapa-sucursales",
+        label: "Mapa de sucursales",
+        icon: "heroicons:map",
+      },
+    ],
   },
   {
-    href: "/directorio-oficinas",
-    label: "Directorio de oficinas",
-    icon: "heroicons:building-office-2",
-  },
-  {
-    href: "/guia-soportes",
-    label: "Guia de soportes",
-    icon: "heroicons:lifebuoy",
-  },
-  {
-    href: "/cronograma",
-    label: "Cronograma",
-    icon: "heroicons:calendar-days",
-  },
-  { href: "/cubics", label: "Cubics", icon: "heroicons:computer-desktop" },
-  {
-    href: "/mapa-sucursales",
-    label: "Mapa de sucursales",
-    icon: "heroicons:map",
-  },
-  {
-    href: "/inventario-terminales",
-    label: "Inventario de terminales",
-    icon: "heroicons:server-stack",
-  },
-  {
-    href: "/enlaces-importantes",
-    label: "Enlaces importantes",
-    icon: "heroicons:link",
-  },
-  {
-    href: "/configuracion",
-    label: "Configuracion",
-    icon: "heroicons:cog-6-tooth",
+    id: "terminales",
+    label: "Terminales",
+    items: [
+      {
+        href: "/cubics",
+        label: "Cubics",
+        icon: "heroicons:computer-desktop",
+      },
+      {
+        href: "/inventario-terminales",
+        label: "Inventario de terminales",
+        icon: "heroicons:server-stack",
+      },
+    ],
   },
 ];
 
-const loginItem: NavItem = {
-  href: "/login",
-  label: "Login",
-  icon: "heroicons:arrow-right-on-rectangle",
+const settingsItem: NavItem = {
+  href: "/configuracion",
+  label: "Configuracion",
+  icon: "heroicons:cog-6-tooth",
 };
 
-const helpItem: NavItem = {
-  href: "/guia-soportes",
-  label: "Ayuda rapida",
-  icon: "heroicons:question-mark-circle",
-};
-
-const quickAccessItems: NavItem[] = [...navItems, loginItem, helpItem];
+const drawerNavItems = navSections.flatMap((section) => section.items);
+const quickAccessItems: NavItem[] = [...drawerNavItems, settingsItem];
 
 const isActiveRoute = (href: string) =>
   href === "/"
     ? currentPath === "/"
     : currentPath === href || currentPath.startsWith(`${href}/`);
-
-const activeNavItem = navItems.find((item) => isActiveRoute(item.href));
-const activeRouteLabel =
-  activeNavItem?.label ??
-  (isActiveRoute(loginItem.href) ? loginItem.label : "Portal Mesa de Ayuda");
-const activeRouteIcon =
-  activeNavItem?.icon ??
-  (isActiveRoute(loginItem.href) ? loginItem.icon : "heroicons:home");
-const unreadNotifications = 3;
 ---
 
 <html lang="es">
@@ -130,7 +138,7 @@ const unreadNotifications = 3;
       />
       <div class="drawer-content flex min-h-screen flex-col">
         <header
-          class="navbar sticky top-0 z-30 min-h-12 border-b border-base-300 bg-base-100/95 px-3 text-base-content backdrop-blur sm:px-4"
+          class="navbar sticky top-0 z-30 min-h-16 border-b border-base-300 bg-base-100/95 px-3 text-base-content backdrop-blur sm:px-4"
         >
           <div class="flex items-center gap-2">
             <label
@@ -143,27 +151,23 @@ const unreadNotifications = 3;
             >
               <Icon name="heroicons:bars-3" class="size-5" />
             </label>
-
-            <div class="hidden items-center gap-2 text-base-content/80 md:flex">
-              <span class="hidden text-sm font-medium md:inline"
-                >{activeRouteLabel}</span
-              >
-            </div>
           </div>
 
-          <div class="ml-auto flex items-center gap-2">
+          <div class="hidden flex-1 justify-center px-4 md:flex">
             <button
               type="button"
               data-open-command-palette
               aria-label="Abrir busqueda maestra"
-              class="btn btn-ghost hidden items-center gap-2 border border-base-300 bg-base-100 px-3 font-normal normal-case md:inline-flex"
+              class="btn btn-ghost inline-flex w-full max-w-2xl items-center justify-start gap-2 border border-base-300 bg-base-100 px-4 font-normal normal-case"
             >
               <Icon name="heroicons:magnifying-glass" class="size-4" />
               <span class="text-sm text-base-content/70">Buscar</span>
               <kbd class="kbd kbd-sm">Ctrl</kbd>
               <kbd class="kbd kbd-sm">K</kbd>
             </button>
+          </div>
 
+          <div class="ml-auto flex items-center gap-2">
             <button
               type="button"
               data-open-command-palette
@@ -173,7 +177,7 @@ const unreadNotifications = 3;
               <Icon name="heroicons:magnifying-glass" class="size-5" />
             </button>
 
-            <div class="divider divider-horizontal m-0"></div>
+            <div class="divider divider-horizontal m-0 md:hidden"></div>
 
             <button
               id="theme-toggle"
@@ -196,8 +200,6 @@ const unreadNotifications = 3;
         <main class="flex-1 overflow-y-auto p-4 md:p-6">
           <slot />
         </main>
-
-        <Footer />
       </div>
 
       <div class="drawer-side is-drawer-close:overflow-visible">
@@ -207,53 +209,91 @@ const unreadNotifications = 3;
           class="drawer-overlay"></label>
 
         <div
-          class="flex min-h-full flex-col items-start bg-secondary is-drawer-close:w-15 is-drawer-open:w-64"
+          class="flex min-h-full flex-col items-start bg-secondary is-drawer-close:w-14 xl:is-drawer-close:w-16 is-drawer-open:w-56 md:is-drawer-open:w-64 xl:is-drawer-open:w-72"
         >
-          <ul class="menu w-full grow gap-1">
+          <div
+            class="flex min-h-16 w-full items-center gap-3 border-b border-secondary-content/20 px-3 is-drawer-close:justify-center is-drawer-close:px-0"
+          >
+            <div class="avatar avatar-placeholder">
+              <div
+                class="bg-neutral text-neutral-content w-8 rounded-full lg:w-10"
+              >
+                <span class="text-xs font-semibold lg:text-sm">MDA</span>
+              </div>
+            </div>
+            <div class="is-drawer-close:hidden">
+              <p class="text-sm font-semibold text-secondary-content">Correo</p>
+              <p class="text-xs text-secondary-content/70">Mesa de ayuda</p>
+            </div>
+          </div>
+
+          <div class="w-full grow">
             {
-              navItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <li>
-                    <a
-                      href={item.href}
-                      aria-label={item.label}
-                      data-tip={item.label}
-                      class:list={[
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-                        "is-drawer-close:tooltip is-drawer-close:tooltip-right",
-                        isActive
-                          ? "bg-primary text-primary-content"
-                          : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
-                      ]}
-                    >
-                      <Icon
-                        name={item.icon}
-                        class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
-                      />
-                      <span class="truncate is-drawer-close:hidden">
-                        {item.label}
+              navSections.map((section, sectionIndex) => (
+                <>
+                  <ul class="menu w-full gap-2">
+                    <li class="menu-title is-drawer-close:hidden">
+                      <span class="text-secondary-content/60">
+                        {section.label}
                       </span>
-                    </a>
-                  </li>
-                );
-              })
+                    </li>
+                    {section.items.map((item) => {
+                      const isActive = isActiveRoute(item.href);
+                      return (
+                        <li>
+                          <a
+                            href={item.href}
+                            aria-label={item.label}
+                            data-tip={item.label}
+                            class:list={[
+                              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+                              "is-drawer-close:tooltip is-drawer-close:tooltip-right",
+                              isActive
+                                ? "bg-primary text-primary-content"
+                                : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
+                            ]}
+                          >
+                            <Icon
+                              name={item.icon}
+                              class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100 lg:size-6"
+                            />
+                            <span class="truncate is-drawer-close:hidden">
+                              {item.label}
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {sectionIndex < navSections.length - 1 && (
+                    <div class="px-3">
+                      <div class="divider m-0 before:bg-secondary-content/20 after:bg-secondary-content/20" />
+                    </div>
+                  )}
+                </>
+              ))
             }
-          </ul>
+          </div>
 
           <div class="w-full border-t border-secondary-content/20 menu gap-1">
             <a
-              href={loginItem.href}
-              aria-label={loginItem.label}
-              data-tip={loginItem.label}
-              class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-secondary-content/80 transition is-drawer-close:tooltip is-drawer-close:tooltip-right hover:bg-base-100/10 hover:text-secondary-content"
+              href={settingsItem.href}
+              aria-label={settingsItem.label}
+              data-tip={settingsItem.label}
+              class:list={[
+                "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition is-drawer-close:tooltip is-drawer-close:tooltip-right",
+                isActiveRoute(settingsItem.href)
+                  ? "bg-primary text-primary-content"
+                  : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
+              ]}
             >
               <Icon
-                name={loginItem.icon}
-                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100"
+                name={settingsItem.icon}
+                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100 lg:size-6"
               />
               <span class="truncate is-drawer-close:hidden"
-                >{loginItem.label}</span
+                >{settingsItem.label}</span
               >
             </a>
           </div>

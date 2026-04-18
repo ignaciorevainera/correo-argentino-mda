@@ -46,9 +46,9 @@ Estado actual vs objetivo:
 
 ## Stack real del proyecto
 
-- Astro (output server) + adapter Vercel
+- Astro (output static)
 - Tailwind CSS + DaisyUI
-- Supabase + Supabase Auth
+- Sin base de datos y sin autenticacion
 - MDX + astro-icon
 
 ## Estado actual vs roadmap
@@ -63,7 +63,6 @@ Rutas implementadas hoy:
 - /cubics
 - /configuracion
 - /design-system
-- /login
 
 Roadmap funcional objetivo (11 vistas):
 - /
