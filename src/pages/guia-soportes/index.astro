@@ -2,27 +2,47 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
 import guia from "../../data/guia_completa.json";
+import info_soportes from "../../data/info_soportes.json";
 ---
 
-<BaseLayout title="Guía de Soportes">
+<BaseLayout title="Guía de soportes">
   <div class="space-y-8 animate-fade-in">
     <!-- Page Header -->
     <section class="space-y-4">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
+      >
         <div>
-          <h1 class="text-3xl font-bold text-base-content">Guía de Soportes</h1>
+          <h1 class="text-3xl font-bold text-base-content">Guía de soportes</h1>
           <p class="text-base-content/70 text-sm max-w-2xl mt-1">
-            Matriz unificada de equivalencias y derivación técnica de la Mesa de Ayuda.
+            Matriz unificada de equivalencias y derivación técnica de la Mesa de
+            Ayuda.
           </p>
         </div>
 
         <div class="flex gap-2">
           <div class="relative w-full md:w-80 group">
-            <Icon name="heroicons:magnifying-glass" class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40" />
-            <input id="global-search" type="text" placeholder="Buscar grupo SM, Invgate, temas..." class="input input-sm w-full pl-10 pr-12 bg-base-200 border-none focus:ring-2 focus:ring-primary text-sm transition-all" onkeyup="handleSearch(this.value)" />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded border border-base-content/10 text-xs text-base-content/40 font-medium bg-base-300">Ctrl+K</span>
+            <Icon
+              name="heroicons:magnifying-glass"
+              class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40"
+            />
+            <input
+              id="global-search"
+              type="text"
+              placeholder="Buscar grupo SM, Invgate, temas..."
+              class="input input-sm w-full pl-10 pr-12 bg-base-200 border-none focus:ring-2 focus:ring-primary text-sm transition-all"
+              onkeyup="handleSearch(this.value)"
+            />
+            <span
+              class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded border border-base-content/10 text-xs text-base-content/40 font-medium bg-base-300"
+              >Ctrl+K</span
+            >
           </div>
-          <button type="button" class="btn btn-sm btn-secondary gap-2 font-bold uppercase text-xs text-white" title="Funcionalidad a implementar en el futuro">
+          <button
+            type="button"
+            class="btn btn-sm btn-secondary gap-2 font-bold uppercase text-xs text-white"
+            title="Funcionalidad a implementar en el futuro"
+          >
             <Icon name="heroicons:adjustments-horizontal" class="size-6" />
             Filtrar
           </button>
@@ -32,21 +52,43 @@ import guia from "../../data/guia_completa.json";
 
     <!-- Unified Table View -->
     <div class="space-y-8">
-      <section class="bg-base-100 rounded-xl shadow-sm overflow-hidden border border-base-content/10">
+      <section
+        class="bg-base-100 rounded-xl shadow-sm overflow-hidden border border-base-content/10"
+      >
         <div class="overflow-x-auto">
-          <table class="table table-zebra table-sm w-full table-fixed" id="table-guia">
+          <table
+            class="table table-zebra table-sm w-full table-fixed"
+            id="table-guia"
+          >
             <thead>
-              <tr class="bg-secondary text-xs font-bold uppercase tracking-widest text-white select-none">
-                <th class="px-4 py-4 w-[25%] cursor-pointer hover:bg-white/10 transition-colors" onclick="handleSort('sm_groups')">
-                  <div class="flex items-center gap-1">Service Manager <span id="sort-icon-sm_groups"></span></div>
+              <tr
+                class="bg-secondary text-xs font-bold tracking-wide text-white select-none"
+              >
+                <th
+                  class="px-4 py-4 w-1/4 cursor-pointer hover:bg-white/10 transition-colors"
+                  onclick="handleSort('sm_groups')"
+                >
+                  <div class="flex items-center gap-1">
+                    Service Manager <span id="sort-icon-sm_groups"></span>
+                  </div>
                 </th>
-                <th class="px-4 py-4 w-[15%] cursor-pointer hover:bg-white/10 transition-colors" onclick="handleSort('invgate')">
-                  <div class="flex items-center gap-1">Invgate <span id="sort-icon-invgate"></span></div>
+                <th
+                  class="px-4 py-4 w-2/12 cursor-pointer hover:bg-white/10 transition-colors"
+                  onclick="handleSort('invgate')"
+                >
+                  <div class="flex items-center gap-1">
+                    Invgate <span id="sort-icon-invgate"></span>
+                  </div>
                 </th>
-                <th class="px-4 py-4 w-[40%] cursor-pointer hover:bg-white/10 transition-colors" onclick="handleSort('ruta')">
-                  <div class="flex items-center gap-1">Ruta de Búsqueda <span id="sort-icon-ruta"></span></div>
+                <th
+                  class="px-4 py-4 w-5/12 cursor-pointer hover:bg-white/10 transition-colors"
+                  onclick="handleSort('ruta')"
+                >
+                  <div class="flex items-center gap-1">
+                    Ruta de búsqueda <span id="sort-icon-ruta"></span>
+                  </div>
                 </th>
-                <th class="px-4 py-4 w-[20%]">Tópicos & Categorías</th>
+                <th class="px-4 py-4 w-2/12">Tópicos y categorías</th>
               </tr>
             </thead>
             <tbody id="table-body" class="divide-y divide-base-content/5">
@@ -56,153 +98,257 @@ import guia from "../../data/guia_completa.json";
         </div>
 
         <!-- Pagination Controls -->
-        <div class="p-4 bg-base-200/50 border-t border-base-content/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div class="text-xs text-base-content/50 font-bold uppercase tracking-wider" id="pagination-info">
+        <div
+          class="p-4 bg-base-200/50 border-t border-base-content/10 flex flex-col md:flex-row justify-between items-center gap-4"
+        >
+          <div
+            class="text-xs text-base-content/50 font-bold tracking-wide"
+            id="pagination-info"
+          >
             Mostrando 0 de 0 registros
           </div>
           <div class="join">
-            <button class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1" onclick="changePage(-1)" id="btn-prev">
+            <button
+              class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1"
+              onclick="changePage(-1)"
+              id="btn-prev"
+            >
               <Icon name="heroicons:chevron-left" class="size-3" /> Anterior
             </button>
-            <span class="join-item px-4 flex items-center bg-base-100 border-y border-base-content/10 text-xs font-bold uppercase tracking-wider text-base-content/60" id="page-indicator">
+            <span
+              class="join-item px-4 flex items-center bg-base-100 border-y border-base-content/10 text-xs font-bold tracking-wide text-base-content/60"
+              id="page-indicator"
+            >
               Página 1
             </span>
-            <button class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1" onclick="changePage(1)" id="btn-next">
+            <button
+              class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1"
+              onclick="changePage(1)"
+              id="btn-next"
+            >
               Siguiente <Icon name="heroicons:chevron-right" class="size-3" />
             </button>
           </div>
         </div>
       </section>
     </div>
-  </div>
 
-  <!-- Toast Notification System -->
-  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
+    <!-- ===== NUEVA SECCIÓN DE DETALLES DEL SOPORTE ===== -->
+    <section
+      id="support-details-card"
+      class="hidden mt-6 bg-base-100 rounded-2xl shadow-lg border-l-[6px] border-l-primary border-y border-y-base-content/5 border-r border-r-base-content/5 p-6 animate-slide-up relative overflow-hidden"
+    >
+      <!-- Decoración de fondo -->
+      <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
 
-  <!-- Data for client-side script -->
-  <script define:vars={{ guia }}>
-    window._GUIA_DATA = guia;
-  </script>
+      <div class="flex items-start gap-4 relative z-10">
+        <!-- Ícono decorativo -->
+        <div class="p-3.5 bg-primary/10 rounded-2xl text-primary shrink-0 ring-1 ring-primary/20 shadow-sm">
+          <Icon name="heroicons:light-bulb" class="w-7 h-7" />
+        </div>
 
-  <script is:inline>
-    // Initialize data from window
-    const baseData = window._GUIA_DATA || [];
-    
-    // States
-    let currentPage = 1;
-    const rowsPerPage = 12;
-    let filteredData = [...baseData];
-    let currentSearchQuery = "";
-    let currentSortColumn = null;
-    let currentSortDirection = 'asc';
+        <!-- Textos dinámicos -->
+        <div class="w-full relative">
+          <!-- Botón de cerrar (la [X]) -->
+          <button
+            onclick="hideSupportDetails()"
+            class="absolute -top-2 -right-2 p-1 text-base-content/40 hover:text-error transition-colors"
+          >
+            <Icon name="heroicons:x-mark" class="w-5 h-5" />
+          </button>
+          <h3
+            id="details-title"
+            class="text-xl font-black text-base-content"
+          >
+            Soporte técnico TI
+          </h3>
+          <p
+            id="details-desc"
+            class="text-base-content/100 mt-2 text-sm leading-relaxed"
+          >
+            Eduardo Scrotti y Perticara del caño. Realizado 👍
+            <br />
+            Lorem ipsum dolor sit amet consectetur, adipisicing elit. Voluptate excepturi
+            laudantium repudiandae quia, ratione harum aperiam accusantium culpa explicabo
+            placeat, commodi doloribus, aliquid eaque necessitatibus quaerat officiis
+            est corporis quis.
+          </p>
+        </div>
+      </div>
+    </section>
 
-    document.addEventListener("DOMContentLoaded", () => {
-      applyDataState();
-    });
+    <!-- Toast Notification System -->
+    <div
+      id="toast-container"
+      class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
+    >
+    </div>
 
-    function handleSearch(query) {
-      currentSearchQuery = query.toLowerCase();
-      applyDataState();
-    }
+    <!-- Data for client-side script -->
+    <script define:vars={{ guia, info_soportes }}>
+      window._GUIA_DATA = guia;
+      window._INFO_SOPORTES_DATA = info_soportes;
+    </script>
 
-    function handleSort(column) {
-      if (currentSortColumn === column) {
-        if (currentSortDirection === 'asc') {
-          currentSortDirection = 'desc';
-        } else {
-          currentSortColumn = null;
-          currentSortDirection = null;
-        }
-      } else {
-        currentSortColumn = column;
-        currentSortDirection = 'asc';
+
+    <script is:inline>
+      // Initialize data from window
+      const baseData = window._GUIA_DATA || [];
+      const infoSoportes = window._INFO_SOPORTES_DATA || {};
+
+      // States
+      let currentPage = 1;
+      const rowsPerPage = 12;
+      let filteredData = [...baseData];
+      let currentSearchQuery = "";
+      let currentSortColumn = null;
+      let currentSortDirection = "asc";
+
+      document.addEventListener("DOMContentLoaded", () => {
+        applyDataState();
+      });
+
+      function handleSearch(query) {
+        currentSearchQuery = query.toLowerCase();
+        applyDataState();
       }
-      applyDataState();
-    }
 
-    function updateSortIcons() {
-      ['sm_groups', 'invgate', 'ruta'].forEach(col => {
-        const iconSpan = document.getElementById(`sort-icon-${col}`);
-        if (iconSpan) {
-          if (currentSortColumn === col && currentSortDirection === 'desc') {
-            iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`;
-          } else if (currentSortColumn === col && currentSortDirection === 'asc') {
-            iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>`;
+      function handleSort(column) {
+        if (currentSortColumn === column) {
+          if (currentSortDirection === "asc") {
+            currentSortDirection = "desc";
           } else {
-            iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 opacity-40"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" /></svg>`;
+            currentSortColumn = null;
+            currentSortDirection = null;
           }
+        } else {
+          currentSortColumn = column;
+          currentSortDirection = "asc";
         }
-      });
-    }
+        applyDataState();
+      }
 
-    function applyDataState() {
-      filteredData = baseData.filter((item) => {
-        const temasContent = (item.temas || []).join(" ").toLowerCase();
-        const rContent = (item.ruta || "").toLowerCase();
-        const invContent = (item.invgate || "").toLowerCase();
-        const smGroupsContent = (item.sm_groups || []).join(" ").toLowerCase();
+      function showSupportDetails(nombreGrupo){
+        const card = document.getElementById('support-details-card');
+        const title = document.getElementById('details-title');
+        const desc = document.getElementById('details-desc');
 
-        return !currentSearchQuery || 
-            smGroupsContent.includes(currentSearchQuery) ||
-            invContent.includes(currentSearchQuery) ||
-            rContent.includes(currentSearchQuery) ||
-            temasContent.includes(currentSearchQuery);
-      });
+        const nombreLimpio = nombreGrupo.trim().toLowerCase();
 
-      if (currentSortColumn) {
-        filteredData.sort((a, b) => {
-          let valA = a[currentSortColumn];
-          let valB = b[currentSortColumn];
-          
-          if (currentSortColumn === 'sm_groups') {
-            valA = (valA && valA.length > 0) ? valA[0] : '';
-            valB = (valB && valB.length > 0) ? valB[0] : '';
+        const llavesCargadas = Object.keys(infoSoportes);
+        const llaveCorrecta = llavesCargadas.find(llave => llave.trim().toLowerCase() === nombreLimpio);
+
+        const info = llaveCorrecta ? infoSoportes[llaveCorrecta] : null;
+
+        // Actualizamos el título siempre con el nombre exacto que se clickeó
+        title.textContent = nombreGrupo;
+
+        if (info) {
+          desc.innerHTML = `<strong>Descripción:</strong> ${info.descripcion || 'Sin descripción'}`;
+        } else {
+          desc.innerHTML = `No hay información adicional configurada para el grupo: <strong>${nombreGrupo}</strong>`;
+        }
+
+        card.classList.remove('hidden');
+      }
+      function hideSupportDetails() {
+        const card = document.getElementById('support-details-card');
+        card.classList.add('hidden');
+      }
+
+      
+
+      function updateSortIcons() {
+        ["sm_groups", "invgate", "ruta"].forEach((col) => {
+          const iconSpan = document.getElementById(`sort-icon-${col}`);
+          if (iconSpan) {
+            if (currentSortColumn === col && currentSortDirection === "desc") {
+              iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`;
+            } else if (
+              currentSortColumn === col &&
+              currentSortDirection === "asc"
+            ) {
+              iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>`;
+            } else {
+              iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3 opacity-40"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" /></svg>`;
+            }
           }
-          
-          valA = (valA || '').toString().toLowerCase();
-          valB = (valB || '').toString().toLowerCase();
-
-          if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
-          if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
-          return 0;
         });
       }
 
-      currentPage = 1;
-      renderTable();
-      updateSortIcons();
-    }
+      function applyDataState() {
+        filteredData = baseData.filter((item) => {
+          const temasContent = (item.temas || []).join(" ").toLowerCase();
+          const rContent = (item.ruta || "").toLowerCase();
+          const invContent = (item.invgate || "").toLowerCase();
+          const smGroupsContent = (item.sm_groups || [])
+            .join(" ")
+            .toLowerCase();
 
-    function changePage(delta) {
-      const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
-      const newPage = currentPage + delta;
-      if (newPage >= 1 && newPage <= maxPages) {
-        currentPage = newPage;
+          return (
+            !currentSearchQuery ||
+            smGroupsContent.includes(currentSearchQuery) ||
+            invContent.includes(currentSearchQuery) ||
+            rContent.includes(currentSearchQuery) ||
+            temasContent.includes(currentSearchQuery)
+          );
+        });
+
+        if (currentSortColumn) {
+          filteredData.sort((a, b) => {
+            let valA = a[currentSortColumn];
+            let valB = b[currentSortColumn];
+
+            if (currentSortColumn === "sm_groups") {
+              valA = valA && valA.length > 0 ? valA[0] : "";
+              valB = valB && valB.length > 0 ? valB[0] : "";
+            }
+
+            valA = (valA || "").toString().toLowerCase();
+            valB = (valB || "").toString().toLowerCase();
+
+            if (valA < valB) return currentSortDirection === "asc" ? -1 : 1;
+            if (valA > valB) return currentSortDirection === "asc" ? 1 : -1;
+            return 0;
+          });
+        }
+
+        currentPage = 1;
         renderTable();
+        updateSortIcons();
       }
-    }
 
-    function escapeHTML(str) {
-      if (!str) return "";
-      return str.toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+      function changePage(delta) {
+        const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+        const newPage = currentPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+          currentPage = newPage;
+          renderTable();
+        }
+      }
 
-    function renderTable() {
-      const tbody = document.getElementById("table-body");
-      if (!tbody) return;
+      function escapeHTML(str) {
+        if (!str) return "";
+        return str
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
 
-      const start = (currentPage - 1) * rowsPerPage;
-      const end = start + rowsPerPage;
-      const paginatedItems = filteredData.slice(start, end);
-      const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+      function renderTable() {
+        const tbody = document.getElementById("table-body");
+        if (!tbody) return;
 
-      if (filteredData.length === 0) {
-        tbody.innerHTML = `
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const paginatedItems = filteredData.slice(start, end);
+        const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+
+        if (filteredData.length === 0) {
+          tbody.innerHTML = `
           <tr>
             <td colspan="4" class="px-6 py-12 text-center">
               <div class="flex flex-col items-center justify-center text-base-content/40 space-y-3 animate-fade-in">
@@ -215,65 +361,84 @@ import guia from "../../data/guia_completa.json";
           </tr>
         `;
 
-        if (document.getElementById("page-indicator")) document.getElementById("page-indicator").textContent = "Página 0";
-        if (document.getElementById("pagination-info")) document.getElementById("pagination-info").textContent = "Mostrando 0 registros";
-        if (document.getElementById("btn-prev")) document.getElementById("btn-prev").disabled = true;
-        if (document.getElementById("btn-next")) document.getElementById("btn-next").disabled = true;
-        return;
-      }
-
-      // Update UI Controls
-      const indicator = document.getElementById("page-indicator");
-      const info = document.getElementById("pagination-info");
-      const btnPrev = document.getElementById("btn-prev");
-      const btnNext = document.getElementById("btn-next");
-
-      if (indicator) indicator.textContent = `Página ${currentPage} de ${maxPages}`;
-      if (btnPrev) btnPrev.disabled = currentPage === 1;
-      if (btnNext) btnNext.disabled = currentPage === maxPages;
-      if (info) info.textContent = `Mostrando ${paginatedItems.length} de ${filteredData.length} registros`;
-
-      // Build rows
-      tbody.innerHTML = paginatedItems.map((item, idx) => {
-        const groups = item.sm_groups || [];
-        const itemIndex = start + idx;
-
-        const maxVisible = 3;
-        let visibleGroups = groups;
-        let hiddenCount = 0;
-
-        let matchedIndex = -1;
-        if (currentSearchQuery) {
-          matchedIndex = groups.findIndex((g) => g.toLowerCase().includes(currentSearchQuery));
+          if (document.getElementById("page-indicator"))
+            document.getElementById("page-indicator").textContent = "Página 0";
+          if (document.getElementById("pagination-info"))
+            document.getElementById("pagination-info").textContent =
+              "Mostrando 0 registros";
+          if (document.getElementById("btn-prev"))
+            document.getElementById("btn-prev").disabled = true;
+          if (document.getElementById("btn-next"))
+            document.getElementById("btn-next").disabled = true;
+          return;
         }
 
-        if (groups.length > maxVisible && !currentSearchQuery) {
-          visibleGroups = groups.slice(0, maxVisible);
-          hiddenCount = groups.length - maxVisible;
-        } else if (groups.length > maxVisible && currentSearchQuery) {
-          if (matchedIndex >= maxVisible) {
-            visibleGroups = [groups[matchedIndex], ...groups.slice(0, maxVisible - 1)];
-            hiddenCount = groups.length - maxVisible;
-          } else {
-            visibleGroups = groups.slice(0, maxVisible);
-            hiddenCount = groups.length - maxVisible;
-          }
-        }
+        // Update UI Controls
+        const indicator = document.getElementById("page-indicator");
+        const info = document.getElementById("pagination-info");
+        const btnPrev = document.getElementById("btn-prev");
+        const btnNext = document.getElementById("btn-next");
 
-        return `
+        if (indicator)
+          indicator.textContent = `Página ${currentPage} de ${maxPages}`;
+        if (btnPrev) btnPrev.disabled = currentPage === 1;
+        if (btnNext) btnNext.disabled = currentPage === maxPages;
+        if (info)
+          info.textContent = `Mostrando ${paginatedItems.length} de ${filteredData.length} registros`;
+
+        // Build rows
+        tbody.innerHTML = paginatedItems
+          .map((item, idx) => {
+            const groups = item.sm_groups || [];
+            const itemIndex = start + idx;
+
+            const maxVisible = 3;
+            let visibleGroups = groups;
+            let hiddenCount = 0;
+
+            let matchedIndex = -1;
+            if (currentSearchQuery) {
+              matchedIndex = groups.findIndex((g) =>
+                g.toLowerCase().includes(currentSearchQuery),
+              );
+            }
+
+            if (groups.length > maxVisible && !currentSearchQuery) {
+              visibleGroups = groups.slice(0, maxVisible);
+              hiddenCount = groups.length - maxVisible;
+            } else if (groups.length > maxVisible && currentSearchQuery) {
+              if (matchedIndex >= maxVisible) {
+                visibleGroups = [
+                  groups[matchedIndex],
+                  ...groups.slice(0, maxVisible - 1),
+                ];
+                hiddenCount = groups.length - maxVisible;
+              } else {
+                visibleGroups = groups.slice(0, maxVisible);
+                hiddenCount = groups.length - maxVisible;
+              }
+            }
+
+            return `
           <tr class="hover:bg-primary/5 transition-colors group">
             <td class="px-4 py-4 align-top">
               <div class="flex flex-wrap gap-1.5" id="group-container-${itemIndex}">
-                ${visibleGroups.map((group) => {
-                  const isMatch = currentSearchQuery && group.toLowerCase().includes(currentSearchQuery);
-                  return `
-                    <span class="px-2 py-0.5 rounded border text-xs font-bold uppercase transition-all text-center break-all whitespace-normal max-w-full
-                      ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 border-base-content/10 text-base-content/60"}">
+                ${visibleGroups
+                  .map((group) => {
+                    const isMatch =
+                      currentSearchQuery &&
+                      group.toLowerCase().includes(currentSearchQuery);
+                    return `
+                    <button onclick="showSupportDetails('${escapeHTML(group)}')" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
+                      ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
                       ${escapeHTML(group)}
-                    </span>
+                    </button>
                   `;
-                }).join("")}
-                ${hiddenCount > 0 ? `
+                  })
+                  .join("")}
+                ${
+                  hiddenCount > 0
+                    ? `
                   <button 
                     onclick="expandGroups(${itemIndex})"
                     class="px-2 py-0.5 rounded bg-base-300 hover:bg-primary hover:text-white border border-base-content/5 text-xs font-black text-base-content/40 flex items-center gap-1 transition-colors group/more" 
@@ -282,9 +447,11 @@ import guia from "../../data/guia_completa.json";
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-2.5 h-2.5 group-hover/more:rotate-90 transition-transform">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    ${hiddenCount} MÁS
+                    ${hiddenCount} Más
                   </button>
-                ` : ""}
+                `
+                    : ""
+                }
               </div>
             </td>
             <td class="px-4 py-4 align-top">
@@ -298,72 +465,94 @@ import guia from "../../data/guia_completa.json";
               </button>
             </td>
             <td class="px-4 py-4 align-top">
-              ${item.ruta ? `
+              ${
+                item.ruta
+                  ? `
                 <button class="flex items-start gap-2 text-base-content/60 font-mono text-xs hover:text-secondary group/btn transition-colors text-left w-full" onclick="copyText('${escapeHTML(item.ruta)}')">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-secondary group-hover/btn:scale-110 transition-transform flex-shrink-0 mt-0.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                   </svg>
-                  <span class="break-words !whitespace-normal text-left" style="word-break: break-word;">
+                  <span class="break-words !whitespace-normal text-left">
                     ${escapeHTML(item.ruta)}
                   </span>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 opacity-0 group-hover/btn:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
                   </svg>
                 </button>
-              ` : '<span class="text-base-content/20 italic text-xs">Sin ruta asignada</span>'}
+              `
+                  : '<span class="text-base-content/20 italic text-xs">Sin ruta asignada</span>'
+              }
             </td>
             <td class="px-4 py-4 align-top">
               <div class="flex flex-wrap gap-1">
-                ${(item.temas || []).length > 0 ? item.temas.map((tema) => `
+                ${
+                  (item.temas || []).length > 0
+                    ? item.temas
+                        .map(
+                          (tema) => `
                   <span class="px-1.5 py-0.5 bg-base-200 text-base-content/70 text-xs rounded font-medium border border-base-content/5 text-center break-all whitespace-normal max-w-full">
                     ${escapeHTML(tema)}
                   </span>
-                `).join("") : '<span class="text-base-content/20 italic text-xs">Sin tópicos</span>'}
+                `,
+                        )
+                        .join("")
+                    : '<span class="text-base-content/20 italic text-xs">Sin tópicos</span>'
+                }
               </div>
             </td>
           </tr>
         `;
-      }).join("");
-    }
+          })
+          .join("");
+      }
 
-    function expandGroups(itemIndex) {
-      const item = filteredData[itemIndex];
-      const container = document.getElementById(`group-container-${itemIndex}`);
-      if (!item || !container) return;
+      function expandGroups(itemIndex) {
+        const item = filteredData[itemIndex];
+        const container = document.getElementById(
+          `group-container-${itemIndex}`,
+        );
+        if (!item || !container) return;
 
-      container.innerHTML = item.sm_groups.map((group) => {
-        const isMatch = currentSearchQuery && group.toLowerCase().includes(currentSearchQuery);
-        return `
-          <span class="px-2 py-0.5 rounded border text-xs font-bold uppercase transition-all animate-fade-in text-center break-all whitespace-normal max-w-full
-            ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary" : "bg-base-200 border-base-content/10 text-base-content/60"}">
+        container.innerHTML =
+          item.sm_groups
+            .map((group) => {
+              const isMatch =
+                currentSearchQuery &&
+                group.toLowerCase().includes(currentSearchQuery);
+              return `
+          <button onclick="showSupportDetails('${escapeHTML(group)}')" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
+            ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
             ${escapeHTML(group)}
-          </span>
+          </button>
         `;
-      }).join("") + `
-        <button onclick="renderTable()" class="px-2 py-0.5 rounded bg-secondary text-white text-xs font-black uppercase flex items-center gap-1 hover:scale-105 transition-transform">
+            })
+            .join("") +
+          `
+        <button onclick="renderTable()" class="px-2 py-0.5 rounded bg-secondary text-white text-xs font-black flex items-center gap-1 hover:scale-105 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-2.5 h-2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
           </svg>
           Contraer
         </button>
       `;
-    }
-
-    async function copyText(text) {
-      if (!text || text === "-" || text === "null") return;
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast(`Copiado: ${text}`);
-      } catch (err) {
-        console.error("Error al copiar: ", err);
       }
-    }
 
-    function showToast(message) {
-      const container = document.getElementById("toast-container");
-      const toast = document.createElement("div");
-      toast.className = "alert alert-info shadow-lg py-2 px-4 text-xs font-bold text-white bg-secondary border-none animate-slide-up";
-      toast.innerHTML = `
+      async function copyText(text) {
+        if (!text || text === "-" || text === "null") return;
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(`Copiado: ${text}`);
+        } catch (err) {
+          console.error("Error al copiar: ", err);
+        }
+      }
+
+      function showToast(message) {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className =
+          "alert alert-success shadow-lg py-2 px-4 text-xs font-bold text-success-content border-none animate-slide-up flex gap-2";
+        toast.innerHTML = `
         <div class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -371,31 +560,48 @@ import guia from "../../data/guia_completa.json";
           <span>${message}</span>
         </div>
       `;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.classList.add("opacity-0", "translate-x-full");
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    }
-
-    window.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        document.getElementById("global-search").focus();
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.classList.add("opacity-0", "translate-x-full");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
       }
-    });
-  </script>
 
-  <style>
-    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-    .animate-slide-up { animation: slideUp 0.3s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-  </style>
+      window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+          e.preventDefault();
+          document.getElementById("global-search").focus();
+        }
+      });
+    </script>
+
+    <style>
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out;
+      }
+      .animate-slide-up {
+        animation: slideUp 0.3s ease-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+    </style>
+  </div>
 </BaseLayout>
