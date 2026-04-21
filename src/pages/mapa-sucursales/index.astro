@@ -1,10 +1,499 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+
+// Datos de ejemplo para las sucursales (mock)
+// Normalmente esto vendría de una API o base de datos / archivo JSON
+const sucursales = [
+  {
+    nis: "A1234",
+    ubicacion: {
+      lat: -34.6037,
+      lng: -58.3816,
+      nombre: "Sucursal Central - CABA",
+    },
+    region: "Centro",
+    cantidad_pc: 15,
+    servidores: 2,
+    contacto: "011-4444-5555",
+  },
+  {
+    nis: "B5678",
+    ubicacion: { lat: -31.4201, lng: -64.1888, nombre: "Sucursal Córdoba" },
+    region: "Centro",
+    cantidad_pc: 8,
+    servidores: 1,
+    contacto: "0351-444-5555",
+  },
+  {
+    nis: "C9012",
+    ubicacion: { lat: -26.8241, lng: -65.2226, nombre: "Sucursal Tucumán" },
+    region: "Norte",
+    cantidad_pc: 5,
+    servidores: 0,
+    contacto: "0381-444-5555",
+  },
+  {
+    nis: "D3456",
+    ubicacion: { lat: -41.1335, lng: -71.3103, nombre: "Sucursal Bariloche" },
+    region: "Sur",
+    cantidad_pc: 4,
+    servidores: 0,
+    contacto: "0294-444-5555",
+  },
+];
 ---
 
-<BaseLayout title="Mapa de sucursales">
-  <h1 class="text-3xl font-bold">Mapa de sucursales</h1>
-  <p class="mt-2 text-sm text-base-content/70">
-    Vista general de cobertura territorial y ubicacion de sucursales.
-  </p>
+<BaseLayout title="Mapa de Sucursales">
+  <!-- Hoja de estilos de Leaflet (requerida por la librería) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <div class="space-y-8 animate-fade-in">
+    <!-- Page Header -->
+    <section class="space-y-4">
+      <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
+      >
+        <div>
+          <h1 class="text-3xl font-bold text-base-content">
+            Mapa de Sucursales
+          </h1>
+          <p class="text-base-content/70 text-sm max-w-2xl mt-1">
+            Visualización interactiva de la infraestructura instalada por
+            sucursal. Vista general de cobertura territorial.
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            id="toggle-overlays"
+            class="btn btn-sm btn-outline gap-2 font-bold uppercase text-xs"
+          >
+            <Icon name="heroicons:eye-slash" class="size-4" />
+            <span id="toggle-text">Ocultar Capas</span>
+          </button>
+
+          <button
+            id="toggle-markers"
+            class="btn btn-sm btn-outline gap-2 font-bold uppercase text-xs"
+          >
+            <Icon name="heroicons:map-pin" class="size-4" />
+            <span id="marker-toggle-text">Ocultar Sucursales</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mapa Container -->
+    <section
+      class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0"
+    >
+      <div id="mapa-sucursales" class="h-[600px] w-full z-0 relative"></div>
+    </section>
+
+    <!-- Tips del Front-End -->
+    <section
+      class="bg-primary/5 border-l-[6px] border-l-primary p-4 rounded-r-lg shadow-sm"
+    >
+      <div class="flex items-start gap-4">
+        <div class="p-2 bg-primary/10 rounded-lg shrink-0 mt-0.5">
+          <Icon
+            name="heroicons:light-bulb"
+            class="w-6 h-6 text-primary flex-shrink-0"
+          />
+        </div>
+        <div>
+          <h4 class="font-bold text-base-content tracking-wide text-sm">
+            Implementación a futuro: Polígonos y Filtrado por Región
+          </h4>
+          <p
+            class="text-xs text-base-content/70 mt-1.5 leading-relaxed max-w-4xl"
+          >
+            El mapa está estructurado para recibir información dinámica. A
+            futuro podrías:
+            <br />1. Recorrer la prop <b>region</b> para agrupar marcadores utilizando
+            <b>LayerGroups</b> en Leaflet y así activar o desactivar capas mediante
+            botones.
+            <br />2. Modificar dinámicamente el estilo con <b>L.Icon</b> o <b
+              >L.DivIcon</b
+            > (para pintar el marcador de distinto color de acuerdo a la región).
+            <br />3. Reemplazar los puntos de ejemplo usando coordenadas (arrays
+            de lat/lng) para dibujar <b>L.polygon()</b> y pintar toda la extensión
+            geográfica.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data para client-side (Astro Islands) -->
+    <script is:inline define:vars={{ sucursales }}>
+      // Inyectamos la variable desde el servidor hacia Astro Island
+      window._SUCURSALES_DATA = sucursales;
+    </script>
+
+    <!-- Script de Leaflet (CDN sin requerir apiKey/paquetes) y lógica --->
+    <script
+      is:inline
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
+    <script is:inline>
+      document.addEventListener("DOMContentLoaded", () => {
+        const dataMap = window._SUCURSALES_DATA || [];
+
+        // 1. Inicializar el mapa (Enfocamos el centro de Argentina, con un Zoom inicial bajo para ver panorámica)
+        const map = L.map("mapa-sucursales").setView([-38.5, -64.0], 4);
+
+        // 2. Capa base OpenStreetMap (Gratuita, sin APIs de pago)
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+
+        // Grupo para capas adicionales (polígonos y etiquetas)
+        const capasAdicionales = L.layerGroup().addTo(map);
+        let overlaysVisible = true;
+
+        // Botón de Toggle
+        const toggleBtn = document.getElementById("toggle-overlays");
+        const toggleText = document.getElementById("toggle-text");
+        const toggleIcon = document.getElementById("toggle-icon");
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", () => {
+            if (overlaysVisible) {
+              map.removeLayer(capasAdicionales);
+              toggleText.textContent = "Mostrar Capas";
+            } else {
+              map.addLayer(capasAdicionales);
+              toggleText.textContent = "Ocultar Capas";
+            }
+            overlaysVisible = !overlaysVisible;
+            toggleBtn.classList.toggle("btn-active");
+          });
+        }
+
+        // Grupo para marcadores de sucursales
+        const grupoSucursales = L.layerGroup().addTo(map);
+        let markersVisible = true;
+        const markerToggleBtn = document.getElementById("toggle-markers");
+        const markerToggleText = document.getElementById("marker-toggle-text");
+
+        if (markerToggleBtn) {
+          markerToggleBtn.addEventListener("click", () => {
+            if (markersVisible) {
+              map.removeLayer(grupoSucursales);
+              markerToggleText.textContent = "Mostrar Sucursales";
+            } else {
+              map.addLayer(grupoSucursales);
+              markerToggleText.textContent = "Ocultar Sucursales";
+            }
+            markersVisible = !markersVisible;
+            markerToggleBtn.classList.toggle("btn-active");
+          });
+        }
+
+        // Lógica de escalado dinámico y visibilidad para letras superpuestas
+        function updateLabelsScale() {
+          const z = map.getZoom();
+          let scale = 0;
+          let opacity = 0;
+
+          // Se empiezan a ver desde zoom 5 y crecen más sutilmente
+          if (z >= 5) {
+            // Bajamos el multiplicador y el tope máximo para un estilo más minimalista
+            scale = Math.min(Math.max(0.45, (z - 5) * 0.2 + 0.45), 0.8);
+            // Opacidad más alta y constante para que no se difuminen tanto
+            opacity = z >= 6 ? 0.9 : 0.7;
+          }
+
+          document.querySelectorAll(".polygon-label").forEach((el) => {
+            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            el.style.opacity = opacity;
+            el.style.pointerEvents = scale > 0.3 ? "auto" : "none";
+            // Ocultamos físicamente solo si el zoom es muy bajo
+            el.style.visibility = z < 5 ? "hidden" : "visible";
+          });
+        }
+        map.on("zoomend", updateLabelsScale);
+        map.on("zoom", updateLabelsScale);
+
+        // Ícono personalizado (Azul Correo)
+        const sucursalMarkerIcon = L.divIcon({
+          className: "bg-transparent", // Reset de estilos nativos de leaflet
+          html: `
+              <div class="relative group cursor-pointer animate-fade-in" style="margin-top: -10px; margin-left: -10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
+                     class="w-10 h-10 transition-transform hover:scale-110 text-primary drop-shadow-lg"
+                     style="color: #003B71; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
+                  <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            `,
+          iconSize: [40, 40],
+          iconAnchor: [20, 40], // La punta (ancla central inferior)
+          popupAnchor: [0, -38], // Popup se asoma un poco por encima del marcador
+        });
+
+        // 3. Pintar Provincia de Buenos Aires obteniendo GeoJSON dinámico (Nominatim OS)
+        fetch(
+          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Buenos+Aires+Argentina&polygon_geojson=1&format=jsonv2",
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0 && data[0].geojson) {
+              const layerBA = L.geoJSON(data[0].geojson, {
+                style: function () {
+                  return {
+                    color: "#FFCC00", // Borde amarillo correo
+                    weight: 2, // Grosor
+                    fillColor: "#FFCC00", // Relleno amarillo
+                    fillOpacity: 0.15, // Transparencia sutil
+                  };
+                },
+              })
+                .bindPopup(
+                  "<div class='text-center p-1'><b class='text-primary'>Provincia de Buenos Aires</b><br/>Región con mayor densidad de sucursales.</div>",
+                  { className: "custom-popup" },
+                )
+                .addTo(capasAdicionales);
+
+              // Añadir etiqueta "B" en una posición balanceada (evitamos centro geométrico puro)
+              const posBA = [-36.8, -60.1];
+              L.marker(posBA, {
+                icon: L.divIcon({
+                  className: "bg-transparent",
+                  html: '<div class="polygon-label font-black text-[4.5rem] text-[#FFCC00] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 4px 10px rgba(0,0,0,0.5); line-height: 1;">B</div>',
+                  iconSize: [0, 0],
+                }),
+                interactive: false,
+              }).addTo(capasAdicionales);
+
+              // Forzar actualización inicial
+              updateLabelsScale();
+            }
+          })
+          .catch((err) =>
+            console.error("Error al pintar polígono de Bs.As:", err),
+          );
+
+        // 4. Pintar CABA (Ciudad Autónoma de Buenos Aires) obteniendo GeoJSON dinámico
+        fetch(
+          "https://nominatim.openstreetmap.org/search.php?q=Ciudad+Autónoma+de+Buenos+Aires+Argentina&polygon_geojson=1&format=jsonv2",
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0 && data[0].geojson) {
+              const layerCABA = L.geoJSON(data[0].geojson, {
+                style: function () {
+                  return {
+                    color: "#003B71", // Borde azul correo
+                    weight: 2, // Grosor
+                    fillColor: "#003B71", // Relleno azul
+                    fillOpacity: 0.25, // Transparencia sutil
+                  };
+                },
+              })
+                .bindPopup(
+                  "<div class='text-center p-1'><b style='color: #003B71;'>CABA</b><br/>Ciudad Autónoma de Buenos Aires.</div>",
+                  { className: "custom-popup" },
+                )
+                .addTo(capasAdicionales);
+
+              // Añadir etiqueta "C" en el centro de CABA
+              const centerCABA = layerCABA.getBounds().getCenter();
+              L.marker(centerCABA, {
+                icon: L.divIcon({
+                  className: "bg-transparent",
+                  html: '<div class="polygon-label font-black text-[2.2rem] text-[#003B71] pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px rgba(255,255,255,0.9); line-height: 1;">C</div>',
+                  iconSize: [0, 0],
+                }),
+                interactive: false,
+              }).addTo(capasAdicionales);
+
+              // Forzar actualización inicial
+              updateLabelsScale();
+            }
+          })
+          .catch((err) =>
+            console.error("Error al pintar polígono de CABA:", err),
+          );
+
+        // 5. Pintar Provincia de Córdoba obteniendo GeoJSON dinámico
+        fetch(
+          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Córdoba+Argentina&polygon_geojson=1&format=jsonv2",
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0 && data[0].geojson) {
+              const layerCordoba = L.geoJSON(data[0].geojson, {
+                style: function () {
+                  return {
+                    color: "#FFCC00", // Borde amarillo correo
+                    weight: 2, // Grosor
+                    fillColor: "#FFCC00", // Relleno amarillo
+                    fillOpacity: 0.15, // Transparencia sutil
+                  };
+                },
+              })
+                .bindPopup(
+                  "<div class='text-center p-1'><b class='text-primary'>Provincia de Córdoba</b><br/>Región Centro.</div>",
+                  { className: "custom-popup" },
+                )
+                .addTo(capasAdicionales);
+
+              // Añadir etiqueta "X" en el centro de Córdoba
+              const centerCordoba = layerCordoba.getBounds().getCenter();
+              L.marker(centerCordoba, {
+                icon: L.divIcon({
+                  className: "bg-transparent",
+                  html: '<div class="polygon-label font-black text-[4rem] text-[#FFCC00] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 4px 6px rgba(0,0,0,0.5); line-height: 1;">X</div>',
+                  iconSize: [0, 0],
+                }),
+                interactive: false,
+              }).addTo(capasAdicionales);
+
+              // Forzar actualización inicial
+              updateLabelsScale();
+            }
+          })
+          .catch((err) =>
+            console.error("Error al pintar polígono de Córdoba:", err),
+          );
+
+        // 6. Pintar Provincia de Santa Fe obteniendo GeoJSON dinámico
+        fetch(
+          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Santa+Fe+Argentina&polygon_geojson=1&format=jsonv2",
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0 && data[0].geojson) {
+              const layerSantaFe = L.geoJSON(data[0].geojson, {
+                style: function () {
+                  return {
+                    color: "#003B71", // Borde azul correo
+                    weight: 2, // Grosor
+                    fillColor: "#003B71", // Relleno azul
+                    fillOpacity: 0.15, // Transparencia sutil
+                  };
+                },
+              })
+                .bindPopup(
+                  "<div class='text-center p-1'><b style='color: #003B71;'>Provincia de Santa Fe</b><br/>Región Litoral / Centro.</div>",
+                  { className: "custom-popup" },
+                )
+                .addTo(capasAdicionales);
+
+              // Añadir etiqueta "S" en posición balanceada para Santa Fe (Evitar que se pierda al norte o se pegue a Entre Ríos)
+              const posSF = [-30.8, -61.6];
+              L.marker(posSF, {
+                icon: L.divIcon({
+                  className: "bg-transparent",
+                  html: '<div class="polygon-label font-black text-[4.2rem] text-[#003B71] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px rgba(255,255,255,0.9); line-height: 1;">S</div>',
+                  iconSize: [0, 0],
+                }),
+                interactive: false,
+              }).addTo(capasAdicionales);
+
+              // Forzar actualización inicial
+              updateLabelsScale();
+            }
+          })
+          .catch((err) =>
+            console.error("Error al pintar polígono de Santa Fe:", err),
+          );
+
+        // 5. Etiqueta superpuesta para Islas Malvinas (Soberanía)
+        L.marker([-51.65, -59.5], {
+          icon: L.divIcon({
+            className: "bg-transparent",
+            html: '<div class="font-bold text-slate-800 text-[12px] uppercase tracking-widest whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none italic" style="text-shadow: -1px -1px 0 #E2E8F0, 1px -1px 0 #E2E8F0, -1px 1px 0 #E2E8F0, 1px 1px 0 #E2E8F0; transform: translate(-50%, -50%); background: rgba(226, 232, 240, 0.95); backdrop-filter: blur(2px);">Islas Malvinas (Arg)</div>',
+            iconSize: [0, 0],
+          }),
+          interactive: false,
+          zIndexOffset: 1000,
+        }).addTo(map);
+
+        // 4. Renderizar cada marcador y configurarle los Popups (Tooltip interactivo)
+        dataMap.forEach((sucursal) => {
+          const { lat, lng } = sucursal.ubicacion;
+
+          // Contenido HTML avanzado dentro del popup de Leaflet (estilos base o inline, acá reutilizamos el de Tailwind)
+          const popupContent = `
+              <div class="px-1 py-1 min-w-[220px]">
+                <div class="border-b border-gray-200 pb-2 mb-2">
+                  <h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${sucursal.ubicacion.nombre}</h3>
+                  <span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded uppercase tracking-wider">NIS: ${sucursal.nis}</span>
+                </div>
+                
+                <div class="text-xs text-gray-700 space-y-1.5">
+                  <div class="flex justify-between items-center bg-gray-50 px-2 py-1 rounded">
+                    <span class="font-semibold text-gray-500">Región</span> 
+                    <span class="font-bold text-gray-800">${sucursal.region}</span>
+                  </div>
+                  <div class="flex justify-between items-center px-2 py-0.5">
+                    <span class="text-gray-500">Equipos PC</span> 
+                    <span class="font-bold text-gray-700">${sucursal.cantidad_pc}</span>
+                  </div>
+                  <div class="flex justify-between items-center px-2 py-0.5">
+                    <span class="text-gray-500">Servidores</span> 
+                    <span class="font-bold text-gray-700">${sucursal.servidores}</span>
+                  </div>
+                  <div class="flex justify-between pt-1.5 mt-1.5 border-t border-gray-100 px-2">
+                    <span class="text-gray-500">Contacto</span> 
+                    <a href="tel:${sucursal.contacto}" class="text-blue-600 font-bold hover:underline">${sucursal.contacto}</a>
+                  </div>
+                </div>
+              </div>
+            `;
+
+          // Agregar el marker
+          const marker = L.marker([lat, lng], {
+            icon: sucursalMarkerIcon,
+          }).addTo(grupoSucursales);
+
+          // Linkeamos el html
+          marker.bindPopup(popupContent, {
+            className: "custom-popup",
+          });
+        });
+      });
+    </script>
+
+    <style>
+      /* Evitar que Leaflet se dibuje por encima de navbars, pero mantenga usabilidad (z-index) */
+      .leaflet-container {
+        z-index: 10;
+        font-family: inherit;
+      }
+
+      /* Estilos estéticos sobreescribiendo las features nativas del tooltip de Leaflet */
+      .custom-popup .leaflet-popup-content-wrapper {
+        border-radius: 0.75rem;
+        box-shadow:
+          0 10px 15px -3px rgb(0 0 0 / 0.1),
+          0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </div>
 </BaseLayout>
