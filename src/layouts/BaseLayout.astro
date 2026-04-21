@@ -179,21 +179,28 @@ const isActiveRoute = (href: string) =>
 
             <div class="divider divider-horizontal m-0 md:hidden"></div>
 
-            <button
-              id="theme-toggle"
-              type="button"
-              data-toggle-theme="dark,light"
-              data-act-class="ACTIVECLASS"
-              aria-label="Activar modo oscuro"
-              class="btn btn-ghost btn-circle"
-            >
-              <Icon id="theme-icon-moon" name="heroicons:moon" class="size-5" />
-              <Icon
-                id="theme-icon-sun"
-                name="heroicons:sun"
-                class="hidden size-5"
+            <label class="btn btn-ghost btn-circle swap swap-rotate">
+              <input
+                id="theme-toggle"
+                type="checkbox"
+                class="theme-controller"
+                data-toggle-theme="dark,light"
+                data-act-class="ACTIVECLASS"
+                value="dark"
+                aria-label="Activar modo oscuro"
               />
-            </button>
+
+              <Icon
+                name="heroicons:sun"
+                class="swap-off size-5"
+                aria-hidden="true"
+              />
+              <Icon
+                name="heroicons:moon"
+                class="swap-on size-5"
+                aria-hidden="true"
+              />
+            </label>
           </div>
         </header>
 
@@ -378,18 +385,14 @@ const isActiveRoute = (href: string) =>
 
       const themeToggle = document.getElementById(
         "theme-toggle",
-      ) as HTMLButtonElement | null;
-      const themeMoonIcon = document.getElementById("theme-icon-moon");
-      const themeSunIcon = document.getElementById("theme-icon-sun");
+      ) as HTMLInputElement | null;
 
       const updateThemeToggle = (): void => {
         const isDark =
           document.documentElement.getAttribute("data-theme") === "dark";
 
-        themeMoonIcon?.classList.toggle("hidden", isDark);
-        themeSunIcon?.classList.toggle("hidden", !isDark);
-
         if (themeToggle) {
+          themeToggle.checked = isDark;
           themeToggle.setAttribute(
             "aria-label",
             isDark ? "Activar modo claro" : "Activar modo oscuro",
@@ -467,7 +470,7 @@ const isActiveRoute = (href: string) =>
         }
       });
 
-      themeToggle?.addEventListener("click", () => {
+      themeToggle?.addEventListener("change", () => {
         window.setTimeout(() => {
           updateThemeToggle();
         }, 0);
