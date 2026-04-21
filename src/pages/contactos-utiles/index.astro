@@ -1,0 +1,384 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import CopyUrlIconButton from "@components/ui/CopyUrlIconButton.astro";
+import CopyValueButton from "@components/ui/CopyValueButton.astro";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
+import { usefulContactCategories } from "@/data/contactos_utiles";
+import type {
+  HeroiconName,
+  UsefulContactCategory,
+} from "@/types/contactos-utiles";
+
+interface CategoryTheme {
+  icon: HeroiconName;
+  iconContainerClass: string;
+  headerClass: string;
+  badgeClass: string;
+}
+
+const themeByTone: Record<UsefulContactCategory["tone"], CategoryTheme> = {
+  primary: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-primary/40 bg-primary/15 text-primary",
+    headerClass: "bg-primary/10",
+    badgeClass: "badge-primary",
+  },
+  secondary: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-secondary/40 bg-secondary/15 text-secondary",
+    headerClass: "bg-secondary/10",
+    badgeClass: "badge-secondary",
+  },
+  accent: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-accent/40 bg-accent/15 text-accent",
+    headerClass: "bg-accent/10",
+    badgeClass: "badge-accent",
+  },
+  info: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-info/40 bg-info/15 text-info",
+    headerClass: "bg-info/10",
+    badgeClass: "badge-info",
+  },
+  success: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-success/40 bg-success/15 text-success",
+    headerClass: "bg-success/10",
+    badgeClass: "badge-success",
+  },
+  warning: {
+    icon: "heroicons:phone",
+    iconContainerClass: "border-warning/40 bg-warning/15 text-warning",
+    headerClass: "bg-warning/10",
+    badgeClass: "badge-warning",
+  },
+};
+
+const getCategoryTheme = (category: UsefulContactCategory): CategoryTheme => {
+  const theme = themeByTone[category.tone];
+  return {
+    ...theme,
+    icon: category.icon,
+  };
+};
+---
+
+<BaseLayout title="Contactos utiles | Portal Mesa de Ayuda">
+  <section class="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <header class="space-y-2">
+      <h1 class="text-2xl font-semibold text-base-content">Contactos utiles</h1>
+      <p class="text-sm text-base-content/70 sm:text-base">
+        Referencias operativas para contacto rapido con equipos internos y
+        proveedores criticos.
+      </p>
+    </header>
+
+    <div class="flex flex-col gap-4">
+      {
+        usefulContactCategories.map((category) => {
+          const categoryTheme = getCategoryTheme(category);
+
+          return (
+            <article class="collapse collapse-arrow border border-base-300 bg-base-100 shadow-sm">
+              <input
+                type="checkbox"
+                aria-label={`Expandir ${category.title}`}
+              />
+
+              <div
+                class:list={[
+                  "collapse-title flex items-center gap-3 rounded-t-xl pr-14",
+                  categoryTheme.headerClass,
+                ]}
+              >
+                <span
+                  class:list={[
+                    "inline-flex size-10 shrink-0 items-center justify-center rounded-lg border",
+                    categoryTheme.iconContainerClass,
+                  ]}
+                  aria-hidden="true"
+                >
+                  <Icon name={categoryTheme.icon} class="size-5" />
+                </span>
+
+                <div class="min-w-0 flex-1">
+                  <h2 class="truncate text-base font-semibold text-base-content">
+                    {category.title}
+                  </h2>
+                </div>
+
+                <span
+                  class:list={[
+                    "badge badge-sm md:badge-md",
+                    categoryTheme.badgeClass,
+                  ]}
+                >
+                  {category.contacts.length} contactos
+                </span>
+              </div>
+
+              <div class="collapse-content border-t border-base-300 bg-base-200/40 p-0">
+                <div class="overflow-x-auto px-3 py-3 sm:px-4">
+                  <table class="table table-zebra table-fixed table-sm md:table-md">
+                    <colgroup>
+                      <col width="30%" />
+                      <col width="25%" />
+                      <col width="25%" />
+                      <col width="20%" />
+                    </colgroup>
+
+                    <thead>
+                      <tr class="text-xs uppercase tracking-wide text-base-content/70">
+                        <th>Entidad</th>
+                        <th>Telefonos</th>
+                        <th>Correos</th>
+                        <th class="text-right">Acciones</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {category.contacts.map((contact) => {
+                        const hasUrls = contact.urls.length > 0;
+
+                        return (
+                          <tr class="transition-colors hover:bg-base-200/60">
+                            <td class="align-top">
+                              <div class="flex flex-col gap-1">
+                                <span
+                                  class="truncate text-sm font-semibold text-base-content"
+                                  title={contact.provider}
+                                >
+                                  {contact.provider}
+                                </span>
+                                <span class="flex items-start gap-2 text-xs text-base-content/70">
+                                  <span aria-hidden="true" class="text-warning">
+                                    *
+                                  </span>
+                                  <span class="line-clamp-2">
+                                    {contact.service}
+                                  </span>
+                                </span>
+                              </div>
+                            </td>
+
+                            <td class="align-top">
+                              <div class="flex flex-col gap-2">
+                                {contact.phones.map((phone) => (
+                                  <CopyValueButton
+                                    value={phone}
+                                    variant="phone"
+                                    ariaLabel={`Copiar telefono ${phone}`}
+                                  />
+                                ))}
+                              </div>
+                            </td>
+
+                            <td class="align-top">
+                              <div class="flex flex-col gap-2">
+                                {contact.emails.map((email) => (
+                                  <CopyValueButton
+                                    value={email}
+                                    variant="email"
+                                    ariaLabel={`Copiar correo ${email}`}
+                                  />
+                                ))}
+                              </div>
+                            </td>
+
+                            <td class="align-top text-right">
+                              {hasUrls ? (
+                                <div class="flex flex-col items-end gap-2">
+                                  {contact.urls.map((resource) => (
+                                    <div class="inline-flex items-center justify-end gap-2">
+                                      <CopyUrlIconButton
+                                        copyValue={resource.url}
+                                        tooltipText={resource.url}
+                                        tooltipPosition="left"
+                                        ariaLabel={`Copiar URL ${resource.label} de ${contact.provider}`}
+                                      />
+
+                                      <OpenExternalUrlButton
+                                        href={resource.url}
+                                        ariaLabel={`Abrir ${resource.label} en una nueva pestana`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span class="inline-block py-2 text-sm italic text-base-content/60">
+                                  Sin URL asociada
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
+          );
+        })
+      }
+    </div>
+  </section>
+
+  <script>
+    interface CopyVisualState {
+      defaultIcon: Element | null;
+      successIcon: Element | null;
+      resetTimer: number | null;
+    }
+
+    const feedbackDurationMs = 2000;
+
+    const fallbackCopyToClipboard = (value: string): boolean => {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.setAttribute("aria-hidden", "true");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      textarea.style.opacity = "0";
+
+      document.body.append(textarea);
+      textarea.focus();
+      textarea.select();
+
+      let copied = false;
+
+      try {
+        const legacyCopyApi = document as unknown as {
+          execCommand?: (commandId: string) => boolean;
+        };
+        copied =
+          typeof legacyCopyApi.execCommand === "function"
+            ? legacyCopyApi.execCommand("copy")
+            : false;
+      } catch {
+        copied = false;
+      }
+
+      textarea.remove();
+      return copied;
+    };
+
+    const copyToClipboard = async (value: string): Promise<boolean> => {
+      const canUseClipboardApi =
+        typeof navigator !== "undefined" &&
+        typeof navigator.clipboard !== "undefined" &&
+        typeof navigator.clipboard.writeText === "function";
+
+      if (canUseClipboardApi) {
+        try {
+          await navigator.clipboard.writeText(value);
+          return true;
+        } catch {
+          return fallbackCopyToClipboard(value);
+        }
+      }
+
+      return fallbackCopyToClipboard(value);
+    };
+
+    const copyButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("[data-copy-trigger]"),
+    );
+
+    const buttonStates = new WeakMap<HTMLButtonElement, CopyVisualState>();
+
+    const applyCopiedState = (
+      button: HTMLButtonElement,
+      state: CopyVisualState,
+    ): void => {
+      button.classList.add(
+        "bg-success/10",
+        "text-success",
+        "ring-1",
+        "ring-success/30",
+      );
+
+      if (state.defaultIcon instanceof Element) {
+        state.defaultIcon.classList.add("opacity-0", "scale-75");
+      }
+
+      if (state.successIcon instanceof Element) {
+        state.successIcon.classList.remove("hidden");
+        requestAnimationFrame(() => {
+          state.successIcon?.classList.add("opacity-100", "scale-110");
+          state.successIcon?.classList.remove("opacity-0", "scale-75");
+        });
+      }
+
+      if (state.resetTimer !== null) {
+        window.clearTimeout(state.resetTimer);
+      }
+
+      state.resetTimer = window.setTimeout(() => {
+        button.classList.remove(
+          "bg-success/10",
+          "text-success",
+          "ring-1",
+          "ring-success/30",
+        );
+
+        if (state.defaultIcon instanceof Element) {
+          state.defaultIcon.classList.remove("opacity-0", "scale-75");
+        }
+
+        if (state.successIcon instanceof Element) {
+          state.successIcon.classList.add("opacity-0", "scale-75");
+          state.successIcon.classList.remove("opacity-100", "scale-110");
+
+          window.setTimeout(() => {
+            state.successIcon?.classList.add("hidden");
+          }, 160);
+        }
+
+        state.resetTimer = null;
+      }, feedbackDurationMs);
+    };
+
+    copyButtons.forEach((button) => {
+      if (button.dataset.copyBound === "true") {
+        return;
+      }
+
+      button.dataset.copyBound = "true";
+
+      const defaultIcon = button.querySelector("[data-copy-icon-default]");
+      const successIcon = button.querySelector("[data-copy-icon-success]");
+
+      buttonStates.set(button, {
+        defaultIcon,
+        successIcon,
+        resetTimer: null,
+      });
+
+      button.addEventListener("click", async (event) => {
+        event.stopPropagation();
+
+        const value = button.getAttribute("data-copy-value") ?? "";
+        if (value.trim().length === 0) {
+          return;
+        }
+
+        const copied = await copyToClipboard(value);
+        if (!copied) {
+          return;
+        }
+
+        const state = buttonStates.get(button);
+        if (!state) {
+          return;
+        }
+
+        applyCopiedState(button, state);
+      });
+    });
+  </script>
+</BaseLayout>

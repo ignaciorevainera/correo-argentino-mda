@@ -57,3 +57,11 @@ Cada entrada sigue este formato:
 **Solucion:** Mantener fallback legacy de copiado, pero acceder a `execCommand` mediante un wrapper tipado local opcional para evitar el warning sin perder compatibilidad.
 **Regla:** Si se necesita fallback legacy, encapsular APIs deprecadas en wrappers tipados locales y priorizar Clipboard API.
 **Archivos afectados:** src/pages/enlaces/index.astro
+
+### 2026-04-21 — No truncar colecciones de recursos en UI cuando el modelo es array
+
+**Problema:** La columna de acciones en Contactos Utiles tomaba solo `contact.urls[0]`, dejando URLs adicionales invisibles aun cuando el modelo tipado y los datos incluian multiples entradas.
+**Causa:** Implementacion inicial orientada a accion singular de URL en vez de iterar sobre `urls[]`.
+**Solucion:** Cambiar el render para mapear todas las URLs de cada contacto y mantener por item las acciones de copiar y abrir, conservando estado vacio cuando `urls[]` esta vacio.
+**Regla:** Si el contrato de datos define colecciones (`[]`), la UI debe representarlas completas salvo que exista una regla explicita de truncamiento.
+**Archivos afectados:** src/pages/contactos-utiles/index.astro

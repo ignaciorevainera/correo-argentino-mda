@@ -1,112 +1,129 @@
-# Tarea: Replicar vista Enlaces importantes
-Fecha: 2026-04-19
+# Tarea: Implementar vista Contactos Utiles por categorias
+
+Fecha: 2026-04-21
 
 ## Descripcion
-Implementar la vista de Enlaces importantes en la ruta activa del proyecto,
-respetando la estructura pedida (header + grilla responsive + cards por
-categoria), la anatomia exacta de cada item (enlace + divisor + boton copiar),
-y la logica de interaccion (estado temporal de copiado y manejo especial de
-rutas UNC que empiezan con \\), usando solo iconos del pack ya instalado y
-tooltip nativo de DaisyUI, sin agregar dependencias.
+
+Implementar desde cero una vista de categorias de contactos con acordeon de
+apertura multiple, tabla interna responsive por categoria, celdas interactivas
+para copiar telefonos/correos/URLs y feedback visual temporal de exito
+(check + estilos success por 2s), respetando el sistema visual de DaisyUI,
+la jerarquia solicitada y la operatividad de mesa de ayuda, en una ruta nueva
+dedicada dentro de pages.
+
+## Definicion de navegacion propuesta
+
+- Ruta canonica: /contactos-utiles
+- Archivo de pagina: src/pages/contactos-utiles/index.astro
+- Label visible en sidebar: Contactos utiles
+- Icono de sidebar: heroicons:phone
+- Ubicacion en sidebar: seccion General, debajo de Guia de soportes y encima de
+  Enlaces importantes
+- Acceso rapido en dashboard: card Contactos utiles junto al bloque de modulos
+  operativos principales
 
 ## Riesgos identificados
-- El pedido menciona React con useState, pero el stack activo de la vista es
-  Astro sin integracion React declarada; hay riesgo de desvio de alcance si se
-  intenta introducir React solo para esta pantalla.
-- Existe inconsistencia de rutas: la navegacion principal y accesos rapidos
-  siguen apuntando a /enlaces-importantes mientras la implementacion en curso
-  esta en /enlaces.
-- Si se define un icono que no existe en el pack actual (astro-icon +
-  heroicons), la UI puede renderizar placeholders vacios o inconsistencia
-  visual entre categorias.
-- El tooltip flotante y el estado visual de copiado pueden introducir regresion
-  de accesibilidad de teclado si no se valida foco y feedback no visual.
-- El caso especial de rutas UNC requiere bloquear navegacion del anchor y copiar
-  texto al portapapeles; una condicion incorrecta puede romper enlaces normales.
+
+- Riesgo de integracion de ruta nueva: si no se registra correctamente en
+  sidebar y accesos rapidos, puede quedar implementada pero no descubrible para
+  el usuario.
+- Riesgo de colision entre eventos de fila y eventos de elementos copiables:
+  si no se hace stopPropagation correctamente, se pueden disparar acciones no
+  deseadas al copiar.
+- Riesgo de regresion responsive en mobile por tabla ancha; sin contenedor con
+  overflow-x interno el layout puede romperse.
+- Riesgo de inconsistencia visual por no mapear bien tonos/iconos por categoria
+  (icono, fondo y badge deben mantener coherencia tematica).
+- Riesgo de accesibilidad en el acordeon y tooltips (teclado, foco visible,
+  labels de iconos y estado de feedback).
 
 ## Plan de ejecucion
 
-[x] Paso 1 - ui-designer: fijar contrato funcional y visual de la pantalla
-  [src/pages/enlaces/index.astro](src/pages/enlaces/index.astro), tomando
-  como referencia los patrones ya implementados en
-  [src/pages/cubics/index.astro](src/pages/cubics/index.astro) y
-  [src/pages/inventario-terminales/index.astro](src/pages/inventario-terminales/index.astro),
-  y definiendo estructura de datos por categoria junto con la politica de
-  ruta canonica (/enlaces vs /enlaces-importantes) antes de maquetar.
-    Criterio de exito: existe una definicion clara de categoria, item y ruta
-    final, alineada con stack Astro + DaisyUI y sin ambiguedad de navegacion.
+[x] Paso 1 — ui-designer: definir contrato funcional final de la vista y fijar
+su ruta canonica como nueva pagina dedicada
+(src/pages/contactos-utiles/index.astro), sin reutilizar
+src/pages/directorio-oficinas/index.astro, y definir el impacto de
+navegacion global.
+Criterio de exito: la ruta nueva queda definida de forma explicita y
+consistente con sitemap/navegacion, sin conflictos con Directorio de
+oficinas, y con posicion/label/icono alineados a la definicion de
+navegacion propuesta.
 
-[x] Paso 2 - ui-designer: implementar encabezado de pagina y grilla responsive
-    de categorias con los breakpoints solicitados (gap-5, lg:grid-cols-2,
-    xl:grid-cols-3), tarjetas con borde, sombra suave, rounded-xl y header
-    interno con borde inferior y fondo de contraste.
-    Criterio de exito: la vista presenta header y cards por categoria en la
-    grilla esperada, con consistencia visual en mobile, tablet y desktop.
+[x] Paso 2 — ui-designer: modelar la estructura de datos de contactos por
+categoria (proveedor, servicio, telefonos[], correos[], urls[]), creando
+tipado en src/types y fuente de datos local en src/data para soportar
+multiples valores por celda y estado vacio de URLs.
+Criterio de exito: el modelo admite todas las variantes de la especificacion
+sin hardcode ad-hoc en el template.
 
-[x] Paso 3 - ui-designer: implementar getCategoryTheme(iconName) para mapear
-  icono tematico desde el pack heroicons ya instalado y clases de color por
-  categoria (fondo/transparencia/texto), y aplicar el resultado en el
-  encabezado de cada card.
-    Criterio de exito: cada categoria muestra icono y tono visual diferenciable,
-    con clases centralizadas en una sola funcion de mapeo.
+[x] Paso 3 — ui-designer: construir componente(s) de UI reutilizable(s) para la
+vista (acordeon de categorias + tabla de contactos) siguiendo DaisyUI-first,
+usando estructura de tarjeta con borde/sombra suave, trigger con icono
+tematico, titulo, badge de cantidad y panel con divisor superior.
+Criterio de exito: el acordeon permite apertura multiple simultanea y cada
+categoria renderiza cabecera y panel segun la anatomia pedida.
 
-[x] Paso 4 - ui-designer: construir la anatomia completa de cada item de enlace
-    (contenedor group relative, bloque izquierdo con anchor flexible, divisor
-    vertical, bloque derecho fijo para copiar), incluyendo hover/focus visibles
-    y aparicion del icono ExternalLink en hover.
-    Criterio de exito: cada item respeta la estructura exacta solicitada y el
-    layout se mantiene estable con y sin description.
+[x] Paso 4 — ui-designer: implementar la tabla interna por categoria con
+encabezado tecnico (uppercase + tracking), anchos 30/25/25/20,
+alineacion derecha en acciones y contenedor overflow-x-auto para mobile.
+Criterio de exito: la tabla conserva legibilidad y estructura en desktop y
+mobile sin desbordar el layout global.
 
-[x] Paso 5 - ui-designer: agregar tooltip de URL por item usando el componente
-  nativo de DaisyUI (patron tooltip-top/tooltip-neutral ya usado en Cubics),
-  con texto monoespaciado truncable y contraste correcto en light/dark.
-    Criterio de exito: la URL se visualiza en hover sin mover layout y mantiene
-    legibilidad en ambos temas.
+[x] Paso 5 — ui-designer: implementar celdas interactivas de telefonos/correos
+con items apilables, icono identificador en bloque redondeado, tipografia
+monoespaciada, hover con relleno del bloque y aparicion suave del icono de
+copiado por item.
+Criterio de exito: cada dato individual es clickeable y muestra
+microinteraccion visual consistente sin afectar otros elementos de la fila.
 
-[x] Paso 6 - ui-designer: implementar logica de copiado con estado temporal de
-    2000ms, actualizacion de icono Copy/Check y manejo especial de rutas UNC
-    (url que inicia con \\) para prevenir navegacion y copiar texto al click.
-    Criterio de exito: el boton de copiar y el caso UNC funcionan de forma
-    consistente, sin romper navegacion de enlaces HTTP normales.
+[x] Paso 6 — ui-designer: implementar columna de acciones (copiar URL + abrir
+enlace externo), incluyendo estado vacio en cursiva cuando no hay URL, y
+tooltip nativo DaisyUI para previsualizar la URL exacta en fuente mono.
+Criterio de exito: la accion de copia y la de apertura externa conviven sin
+conflicto, y el tooltip muestra la URL correcta con buen contraste.
 
-[x] Paso 7 - ui-designer: alinear referencias de ruta en navegacion global y
-  accesos rapidos (incluyendo el drawer en
-  [src/layouts/BaseLayout.astro](src/layouts/BaseLayout.astro) y cards de
-  [src/pages/index.astro](src/pages/index.astro)) para que el modulo Enlaces
-  importantes abra la ruta final implementada y no queden enlaces rotos.
-    Criterio de exito: sidebar y dashboard navegan al destino correcto de la
-    pantalla sin 404 ni duplicidad funcional.
+[x] Paso 7 — ui-designer: implementar logica de portapapeles y feedback local
+temporal (check con animacion pop/zoom, clases success y reset automatico
+a 2000ms) para telefonos, correos y boton de copiar URL, priorizando
+Clipboard API y fallback legacy encapsulado.
+Criterio de exito: todos los puntos de copiado muestran feedback inmediato,
+recuperan estado base en 2s y no generan warnings de tipado.
 
-[x] Paso 8 - qa-reviewer: validar resultado integral (fidelidad visual,
-    interacciones, accesibilidad basica, responsive y chequeo de build/check)
-  y dejar la tarea lista para cierre, verificando que no se instalaron
-  dependencias nuevas para esta seccion.
-    Criterio de exito: QA aprueba cumplimiento del pedido y no detecta
-    regresiones funcionales ni visuales en la ruta intervenida.
+[x] Paso 8 — qa-reviewer: ejecutar revision integral de fidelidad visual,
+accesibilidad basica, interacciones de copiado, comportamiento responsive y
+validacion tecnica (astro check/build), documentando hallazgos en
+tasks/lessons.md si aparecen correcciones reales.
+Criterio de exito: QA aprueba la tarea sin regresiones bloqueantes y deja
+la vista lista para cierre, incluyendo validacion de la nueva ruta en la
+navegacion del portal.
 
 ## Agentes involucrados
+
 - ui-designer
 - qa-reviewer
 
 ## Criterio de exito global
-La pantalla Enlaces importantes queda replicada con la estructura visual,
-jerarquia, hover tooltip, composicion de item y logica de copiado solicitadas,
-incluyendo el manejo especial de rutas UNC y la navegacion coherente desde el
-resto del portal hacia la ruta final implementada.
 
-## Resultado de revision — 2026-04-19
+La vista Contactos Utiles queda operativa con acordeon multiabierto,
+cabeceras tematicas por categoria, tabla responsive de 4 columnas,
+copiado rapido en telefonos/correos/URLs con feedback visual de exito,
+tooltip de previsualizacion de URL y consistencia completa con el sistema
+de diseno del proyecto.
+
+## Resultado de revision — 2026-04-21
 
 ### Aprobado
-- Ruta canonica alineada a /enlaces en navegacion lateral y accesos rapidos.
-- Vista Enlaces importantes cumple estructura pedida: header + grid responsive + cards por categoria.
-- Tooltip implementado con DaisyUI nativo y feedback visual de copiado funcional.
-- Logica UNC validada: no navega y copia correctamente.
-- Estado temporal de copiado validado con reseteo automatico a 2000ms.
-- No se agregaron dependencias ni cambios fuera del alcance funcional solicitado.
-- Build y Astro check ejecutados sin errores.
+
+- Fidelidad funcional validada en [src/pages/contactos-utiles/index.astro](src/pages/contactos-utiles/index.astro): acordeon multiabierto, tabla 30/25/25/20, hover en filas y celdas interactivas, estado vacio de URL y feedback de copiado a 2000ms.
+- Navegacion integrada correctamente en sidebar y dashboard hacia /contactos-utiles en [src/layouts/BaseLayout.astro](src/layouts/BaseLayout.astro) y [src/pages/index.astro](src/pages/index.astro).
+- Accesibilidad basica cubierta: labels en acciones icon-only, foco visible en controles de copiado y semantica de headings coherente en la pagina.
+- Validacion tecnica superada: `npm run build` y `npx astro check` completan sin errores.
+- Se corrigio durante QA un gap menor de fidelidad: renderizado de multiples URLs por contacto en columna Acciones de [src/pages/contactos-utiles/index.astro](src/pages/contactos-utiles/index.astro).
 
 ### Requiere correccion
-- Sin observaciones bloqueantes en los archivos auditados para esta tarea.
+
+- Sin observaciones bloqueantes en el alcance de Contactos Utiles.
 
 ### Bloqueantes para completar la tarea
+
 - Ninguno.
