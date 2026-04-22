@@ -85,7 +85,6 @@ de operaciones logisticas y postales.
 8. /mapa-sucursales - Vista geografica de cobertura y sucursales.
 9. /inventario-terminales - Estado y asignacion del parque de terminales.
 10. /enlaces-importantes - Hub de accesos externos e internos criticos.
-11. /configuracion - Preferencias de usuario y ajustes del portal.
 
 ---
 
@@ -103,7 +102,6 @@ de operaciones logisticas y postales.
 | Mapa de sucursales | /mapa-sucursales | No implementada | Ruta pendiente |
 | Inventario de terminales | /inventario-terminales | No implementada | Ruta pendiente |
 | Enlaces importantes | /enlaces-importantes | No implementada | Ruta pendiente |
-| Configuracion | /configuracion | Implementada | Ajustar opciones finales de preferencia |
 
 Notas de trazabilidad:
 - Rutas adicionales hoy presentes fuera del roadmap de 11 vistas:
