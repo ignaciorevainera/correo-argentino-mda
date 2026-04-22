@@ -1,7 +1,303 @@
 ---
+/* ARCHIVO: src/pages/buscador-usuarios/index.astro */
 import BaseLayout from "@layouts/BaseLayout.astro";
+import UserCard from "@components/UserCard.astro";
+import { Icon } from "astro-icon/components";
 ---
 
-<BaseLayout title="Buscador de Usuarios">
-  <h1 class="text-3xl font-bold">Buscador de Usuarios</h1>
+<BaseLayout title="Buscador de Usuarios | MDA">
+  <div class="max-w-6xl mx-auto space-y-8">
+    <section class="py-12 px-6 rounded-2xl bg-base-200/50 border border-base-300 shadow-sm transition-colors duration-300">
+      <div class="text-center space-y-3 mb-10">
+        <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-base-content">Buscador de Usuarios</h1>
+        <p class="text-base md:text-lg text-base-content/60 max-w-2xl mx-auto">Acceso rápido a contacto, internos y sucursales de todo el personal.</p>
+      </div>
+
+      <div class="max-w-3xl mx-auto relative group">
+        <div class="join w-full shadow-sm rounded-2xl overflow-hidden border border-base-300 group-focus-within:border-base-content/30 group-focus-within:ring-2 group-focus-within:ring-base-content/5 transition-all duration-300 bg-base-100">
+          <div class="bg-base-200 flex items-center px-4 gap-2 border-r border-base-300 shrink-0">
+            <select id="filter-type" class="select select-ghost select-sm focus:bg-transparent focus:outline-hidden text-[10px] sm:text-xs font-bold uppercase tracking-widest pl-0 pr-8">
+              <option value="all">Global</option>
+              <option value="nombre">Nombre</option>
+              <option value="dni">DNI</option>
+              <option value="usuario">Usuario</option>
+              <option value="sucursal">Sucursal</option>
+            </select>
+          </div>
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none opacity-20 group-focus-within:opacity-100 group-focus-within:scale-105 transition-all">
+              <Icon name="heroicons:magnifying-glass" class="size-5" />
+            </div>
+            <input type="text" id="search-input" placeholder="Escribe para buscar..." class="w-full pl-12 pr-16 h-14 bg-transparent focus:outline-hidden text-base sm:text-lg transition-all" autocomplete="off" />
+            <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none group-focus-within:opacity-0 transition-opacity duration-300">
+              <kbd class="kbd kbd-sm "> / </kbd>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-center mt-6 gap-6 text-xs sm:text-sm text-base-content/50" id="search-status">
+        <span>Escribe para comenzar a buscar...</span>
+      </div>
+    </section>
+
+    <!-- Banner Extensión Chrome -->
+    <div class="px-2 max-w-4xl mx-auto">
+      <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" class="group flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl border border-secondary/20 bg-secondary/[0.03] hover:bg-secondary/[0.06] hover:border-secondary/40 transition-all duration-300">
+        <div class="size-10 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary shrink-0 group-hover:scale-105 transition-transform">
+          <Icon name="heroicons:puzzle-piece" class="size-5" />
+        </div>
+        
+        <div class="flex-1 text-center sm:text-left">
+          <h4 class="font-bold text-sm text-secondary tracking-tight">Extensión MDA-FIND</h4>
+          <p class="text-xs text-base-content/60 leading-relaxed">Agiliza tus búsquedas instalando la versión de navegador para acceso directo desde cualquier pestaña.</p>
+        </div>
+        
+        <div class="flex items-center gap-1 text-[10px] font-bold text-secondary uppercase tracking-widest opacity-80 group-hover:opacity-100 group-hover:gap-2 transition-all">
+          Probar ahora <Icon name="heroicons:chevron-right" class="size-4" />
+        </div>
+      </a>
+    </div>
+
+    <section>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2" id="results-title">
+          Usuarios Sugeridos <span class="badge badge-sm badge-neutral" id="results-count">0</span>
+        </h2>
+        <div id="loading-indicator" class="hidden">
+          <span class="loading loading-spinner loading-sm text-primary"></span>
+          <span class="text-sm text-base-content/60 ml-2">Buscando...</span>
+        </div>
+      </div>
+
+      <div id="results-skeleton" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map(() => (
+          <div class="card bg-base-200/50 border border-base-300 shadow-sm animate-pulse">
+            <div class="card-body p-4 gap-3">
+              <div class="flex items-center gap-3">
+                <div class="size-12 rounded-full bg-base-300" />
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 bg-base-300 rounded w-3/4" />
+                  <div class="h-3 bg-base-300 rounded w-1/2" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <div class="h-8 bg-base-300 rounded" />
+                <div class="h-8 bg-base-300 rounded" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div id="results-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 transition-opacity duration-500"></div>
+
+      <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div class="size-16 rounded-full bg-base-200 flex items-center justify-center text-base-content/20">
+          <Icon name="heroicons:user-minus" class="size-8" />
+        </div>
+        <div>
+          <h3 class="text-lg font-bold">No se encontraron usuarios</h3>
+          <p class="text-base-content/60">Prueba con otros términos de búsqueda o filtros.</p>
+        </div>
+        <button id="clear-search" class="btn btn-ghost btn-sm">Limpiar búsqueda</button>
+      </div>
+    </section>
+  </div>
+
+  <UserCard />
+
+  <script>
+    let allUsers: any[] = [];
+    let isLoaded = false;
+
+    const searchInput = document.getElementById("search-input") as HTMLInputElement | null;
+    const filterType = document.getElementById("filter-type") as HTMLSelectElement | null;
+    const resultsGrid = document.getElementById("results-grid");
+    const resultsCount = document.getElementById("results-count");
+    const resultsTitle = document.getElementById("results-title");
+    const loadingIndicator = document.getElementById("loading-indicator");
+    const emptyState = document.getElementById("empty-state");
+    const statusText = document.getElementById("search-status");
+    const clearSearchBtn = document.getElementById("clear-search");
+    const resultsSkeleton = document.getElementById("results-skeleton");
+    const cardTemplate = document.getElementById("user-card-template") as HTMLTemplateElement | null;
+
+    const avatarColors = ["bg-blue-500 text-white", "bg-purple-500 text-white", "bg-emerald-500 text-white", "bg-amber-500 text-white", "bg-rose-500 text-white", "bg-indigo-500 text-white"];
+
+    function getAvatarColor(name: string) {
+      let hash = 0;
+      const safeName = name || "Usuario";
+      for (let i = 0; i < safeName.length; i++) { hash = safeName.charCodeAt(i) + ((hash << 5) - hash); }
+      return avatarColors[Math.abs(hash) % avatarColors.length];
+    }
+
+    function normalizeString(str: string) {
+      return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    async function init() {
+      try {
+        if (statusText) statusText.textContent = "Cargando base de datos...";
+        const response = await fetch("/data/usuarios.json");
+        if (!response.ok) throw new Error("Network error");
+        const data = await response.json();
+        const rawUsers = data.usuarios || data;
+
+        // Pre-procesamiento para búsqueda ultra-rápida
+        allUsers = rawUsers.map((user: any) => ({
+          ...user,
+          _searchBase: `${normalizeString(user.nombre)} ${normalizeString(user.dni)} ${normalizeString(user.usuario)} ${normalizeString(user.interno)} ${normalizeString(user.sucursal)}`
+        }));
+
+        isLoaded = true;
+        if (statusText) statusText.textContent = `${allUsers.length.toLocaleString()} usuarios disponibles`;
+        showInitialUsers();
+        resultsSkeleton?.classList.add("hidden");
+        resultsGrid?.classList.remove("hidden");
+        setTimeout(() => resultsGrid?.classList.remove("opacity-0"), 50);
+      } catch (error) {
+        if (statusText) statusText.innerHTML = '<span class="text-error">Error al cargar datos.</span>';
+        resultsSkeleton?.classList.add("hidden");
+      }
+    }
+
+    function showInitialUsers() {
+      displayResults(allUsers.slice(0, 12));
+      if (resultsTitle?.firstChild) resultsTitle.firstChild.textContent = "Usuarios Sugeridos ";
+    }
+
+    function displayResults(users: any[]) {
+      if (!resultsGrid || !cardTemplate) return;
+      resultsGrid.innerHTML = "";
+      if (resultsCount) resultsCount.textContent = String(users.length);
+      if (users.length === 0) {
+        resultsGrid.classList.add("hidden");
+        emptyState?.classList.remove("hidden");
+        return;
+      }
+      resultsGrid.classList.remove("hidden");
+      emptyState?.classList.add("hidden");
+      const fragment = document.createDocumentFragment();
+      users.forEach((user) => {
+        const clone = cardTemplate.content.cloneNode(true) as DocumentFragment;
+        const nombreEl = clone.querySelector("[data-user-nombre]");
+        const dniEl = clone.querySelector("[data-user-dni]");
+        const userEl = clone.querySelector("[data-user-id]");
+        const internoEl = clone.querySelector("[data-user-interno]");
+        const telefonoEl = clone.querySelector("[data-user-telefono]");
+        const emailEl = clone.querySelector("[data-user-email]");
+        const sucursalEl = clone.querySelector("[data-user-sucursal]");
+        if (nombreEl) nombreEl.textContent = user.nombre || "Sin Nombre";
+        if (dniEl) dniEl.textContent = user.dni || "-";
+        if (userEl) userEl.textContent = user.usuario || "-";
+        if (internoEl) internoEl.textContent = user.interno || "-";
+        if (telefonoEl) telefonoEl.textContent = user.telefono || "-";
+        if (emailEl) emailEl.textContent = user.email || "Sin Email";
+        if (sucursalEl) sucursalEl.textContent = user.sucursal || "Sin sucursal";
+        const safeNombre = user.nombre || "U";
+        const initials = safeNombre.split(" ").filter((n: string) => n).map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+        const initialsEl = clone.querySelector("[data-user-initials]");
+        if (initialsEl) initialsEl.textContent = initials || "??";
+        const avatarBg = clone.querySelector("[data-user-avatar-bg]") as HTMLElement | null;
+        if (avatarBg) {
+          const colorClass = getAvatarColor(safeNombre);
+          colorClass.split(" ").forEach((cls) => avatarBg.classList.add(cls));
+        }
+        const setupCopy = (selector: string, value: string) => {
+          const btn = clone.querySelector(selector) as HTMLElement | null;
+          if (btn && value) {
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              copyToClipboard(value, btn);
+            });
+          }
+        };
+        setupCopy("[data-copy-dni]", user.dni);
+        setupCopy("[data-copy-user]", user.usuario);
+        setupCopy("[data-copy-interno]", user.interno);
+        setupCopy("[data-copy-telefono]", user.telefono);
+        setupCopy("[data-copy-email]", user.email);
+        fragment.appendChild(clone);
+      });
+      resultsGrid.appendChild(fragment);
+    }
+
+    async function copyToClipboard(text: string, btn: HTMLElement) {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        
+        // Feedback visual premium
+        const tooltip = btn.closest(".tooltip") as HTMLElement | null;
+        const originalTip = tooltip?.getAttribute("data-tip");
+        const originalIcon = btn.innerHTML;
+        
+        if (tooltip) {
+          tooltip.setAttribute("data-tip", "¡Copiado!");
+          tooltip.classList.replace("tooltip-neutral", "tooltip-success");
+          tooltip.classList.add("tooltip-open"); // Forzar visibilidad
+        }
+        
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+        
+        setTimeout(() => {
+          if (tooltip) {
+            tooltip.setAttribute("data-tip", originalTip || "");
+            tooltip.classList.replace("tooltip-success", "tooltip-neutral");
+            tooltip.classList.remove("tooltip-open");
+          }
+          btn.innerHTML = originalIcon;
+        }, 2000);
+      } catch (err) { console.error(err); }
+    }
+
+    let searchTimeout: number;
+    function handleSearch() {
+      if (!isLoaded || !searchInput || !filterType) return;
+      const query = (searchInput.value || "").trim();
+      const type = filterType.value;
+
+      if (query === "") {
+        showInitialUsers();
+        if (statusText) statusText.textContent = `${allUsers.length.toLocaleString()} usuarios disponibles`;
+        return;
+      }
+
+      window.clearTimeout(searchTimeout);
+      loadingIndicator?.classList.remove("hidden");
+
+      searchTimeout = window.setTimeout(() => {
+        const normalizedQuery = normalizeString(query);
+        const terms = normalizedQuery.split(" ").filter(t => t.length > 0);
+
+        const filtered = allUsers.filter((user) => {
+          if (type === "all") {
+            return terms.every(term => user._searchBase.includes(term));
+          } else {
+            const fieldVal = normalizeString(String(user[type] || ""));
+            return terms.every(term => fieldVal.includes(term));
+          }
+        });
+
+        displayResults(filtered.slice(0, 50));
+        if (resultsTitle?.firstChild) resultsTitle.firstChild.textContent = "Resultados ";
+        loadingIndicator?.classList.add("hidden");
+        if (statusText) statusText.textContent = `${filtered.length} encontrados`;
+      }, 200); // Reducido a 200ms para mayor fluidez
+    }
+
+    // Atajo de teclado para enfocar búsqueda
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
+        e.preventDefault();
+        searchInput?.focus();
+      }
+    });
+
+    searchInput?.addEventListener("input", handleSearch);
+    filterType?.addEventListener("change", handleSearch);
+    clearSearchBtn?.addEventListener("click", () => { if (searchInput) searchInput.value = ""; showInitialUsers(); });
+    init();
+  </script>
 </BaseLayout>
