@@ -1,4 +1,4 @@
-export type HeroiconName = `heroicons:${string}`;
+export type BoxiconName = `boxicons:${string}`;
 
 export interface ContactResourceLink {
   label: string;
@@ -17,7 +17,7 @@ export interface UsefulContact {
 export interface UsefulContactCategory {
   id: string;
   title: string;
-  icon: HeroiconName;
+  icon: BoxiconName;
   tone: "primary" | "secondary" | "accent" | "info" | "success" | "warning";
   contacts: UsefulContact[];
 }

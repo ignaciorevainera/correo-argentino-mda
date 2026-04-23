@@ -8,7 +8,7 @@ Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
 - Estilos: Tailwind CSS + DaisyUI
 - Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
 - Contenido: MDX (Content Collections)
-- Iconos: `astro-icon` con Heroicons
+- Iconos: `astro-icon` con Boxicons (`@iconify-json/boxicons`)
 - Interactividad de tema: `theme-change`
 - Datos/Auth: sin base de datos y sin autenticacion
 - Deploy objetivo: Vercel
@@ -284,7 +284,8 @@ Anti-patron:
 - UI principal: `Geist Variable` (Fontsource) como `--font-sans`.
 - Datos tecnicos: `Geist Mono Variable` (Fontsource) como `--font-mono`.
 - Regla de idioma: espanol en sentence case para titulos y microcopy.
-- Estado: tipografia base definida e implementada en `src/styles/global.css`.
+- Estado: tokens tipograficos definidos en `src/styles/global.css`.
+- Carga: Fontsource se importa en `src/layouts/BaseLayout.astro` y se hace `preload` de las variantes latinas `woff2` de `Geist Variable` y `Geist Mono Variable` para reducir FOUT en el primer render.
 
 ## Interaccion operativa
 

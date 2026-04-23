@@ -265,6 +265,6 @@ Incorrecto: grid grid-cols-3 (sin considerar mobile)
 
 ## Iconos
 
-Usar astro-icon con sets de Heroicons, Lucide o Tabler.
+Usar astro-icon con sets de Boxicons, Lucide o Tabler.
 Nunca usar emojis como iconos de interfaz.
 Siempre agregar aria-label a iconos que comuniquen informacion.

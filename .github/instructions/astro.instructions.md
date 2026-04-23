@@ -215,7 +215,7 @@ de DaisyUI con los dos temas separados por coma:
     aria-label="Cambiar tema"
     type="button"
   >
-    <Icon name="heroicons:contrast" />
+    <Icon name="boxicons:contrast" />
   </button>
 
 ### Codigo completo del BaseLayout con theme-change
@@ -344,11 +344,11 @@ Usar siempre astro-icon para iconos en cualquier componente de Astro.
   ---
   import { Icon } from 'astro-icon/components'
   ---
-  <Icon name="heroicons:home" />
+  <Icon name="boxicons:home" />
   <Icon name="lucide:arrow-right" />
   <Icon name="tabler:brand-github" />
 
-Sets de iconos disponibles: heroicons, lucide, tabler.
+Sets de iconos disponibles: boxicons, lucide, tabler.
 Elegir el set mas apropiado para el proyecto y mantenerlo consistente.
 No mezclar sets de iconos dentro del mismo proyecto salvo necesidad
 especifica y justificada en DESIGN_SYSTEM.md.
@@ -356,11 +356,11 @@ especifica y justificada en DESIGN_SYSTEM.md.
 Siempre agregar aria-label cuando el icono comunica informacion
 y no tiene texto visible acompanandolo:
 
-  <Icon name="heroicons:search" aria-label="Buscar" />
+  <Icon name="boxicons:search" aria-label="Buscar" />
 
 Iconos decorativos con aria-hidden:
 
-  <Icon name="heroicons:sparkles" aria-hidden="true" />
+  <Icon name="boxicons:sparkles" aria-hidden="true" />
 
 Nunca usar emojis como iconos de interfaz.
 

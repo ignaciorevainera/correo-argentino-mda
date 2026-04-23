@@ -33,7 +33,7 @@ Ninguna
 - @astrojs/tailwind
 - daisyui
 - astro-icon
-- @iconify-json/heroicons
+- @iconify-json/boxicons
 - @astrojs/mdx
 
 

@@ -1,6 +1,8 @@
 ---
 import "@styles/global.css";
 import { Icon } from "astro-icon/components";
+import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
+import geistMonoLatinWoff2 from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 
 interface Props {
   title?: string;
@@ -26,36 +28,36 @@ const navSections: NavSection[] = [
     id: "resto",
     label: "General",
     items: [
-      { href: "/", label: "Inicio", icon: "heroicons:home" },
+      { href: "/", label: "Inicio", icon: "boxicons:home" },
       {
         href: "/cronograma",
         label: "Cronograma",
-        icon: "heroicons:calendar-days",
+        icon: "boxicons:calendar",
       },
       {
         href: "/titulos-tickets",
         label: "Titulos de tickets",
-        icon: "heroicons:queue-list",
+        icon: "boxicons:list-ul",
       },
       {
         href: "/buscador-usuarios",
         label: "Buscador de usuarios",
-        icon: "heroicons:users",
+        icon: "boxicons:group",
       },
       {
         href: "/guia-soportes",
         label: "Guia de soportes",
-        icon: "heroicons:lifebuoy",
+        icon: "boxicons:buoy",
       },
       {
         href: "/contactos-utiles",
         label: "Contactos utiles",
-        icon: "heroicons:phone",
+        icon: "boxicons:phone",
       },
       {
         href: "/enlaces-importantes",
         label: "Enlaces importantes",
-        icon: "heroicons:link",
+        icon: "boxicons:link",
       },
     ],
   },
@@ -66,12 +68,12 @@ const navSections: NavSection[] = [
       {
         href: "/directorio-oficinas",
         label: "Directorio de oficinas",
-        icon: "heroicons:building-office-2",
+        icon: "boxicons:building",
       },
       {
         href: "/mapa-sucursales",
         label: "Mapa de sucursales",
-        icon: "heroicons:map",
+        icon: "boxicons:map",
       },
     ],
   },
@@ -82,25 +84,19 @@ const navSections: NavSection[] = [
       {
         href: "/cubics",
         label: "Cubics",
-        icon: "heroicons:computer-desktop",
+        icon: "boxicons:desktop",
       },
       {
         href: "/inventario-terminales",
         label: "Inventario de terminales",
-        icon: "heroicons:server-stack",
+        icon: "boxicons:server",
       },
     ],
   },
 ];
 
-const settingsItem: NavItem = {
-  href: "/configuracion",
-  label: "Configuracion",
-  icon: "heroicons:cog-6-tooth",
-};
-
 const drawerNavItems = navSections.flatMap((section) => section.items);
-const quickAccessItems: NavItem[] = [...drawerNavItems, settingsItem];
+const quickAccessItems: NavItem[] = [...drawerNavItems];
 
 const isActiveRoute = (href: string) =>
   href === "/"
@@ -110,6 +106,23 @@ const isActiveRoute = (href: string) =>
 
 <html lang="es">
   <head>
+    <style is:global>
+      @font-face {
+        font-family: "Geist";
+        src: url({geistLatinWoff2}) format("woff2");
+        font-display: swap;
+        font-style: normal;
+        font-weight: 100 900;
+      }
+
+      @font-face {
+        font-family: "Geist Mono";
+        src: url({geistMonoLatinWoff2}) format("woff2");
+        font-display: swap;
+        font-style: normal;
+        font-weight: 100 900;
+      }
+    </style>
     <script is:inline>
       (() => {
         const savedTheme = localStorage.getItem("theme");
@@ -127,6 +140,20 @@ const isActiveRoute = (href: string) =>
       themeChange();
     </script>
     <meta charset="utf-8" />
+    <link
+      rel="preload"
+      href={geistLatinWoff2}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href={geistMonoLatinWoff2}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
@@ -154,7 +181,7 @@ const isActiveRoute = (href: string) =>
               tabindex="0"
               class="btn btn-ghost btn-circle drawer-button lg:hidden"
             >
-              <Icon name="heroicons:bars-3" class="size-5" />
+              <Icon name="boxicons:menu" class="size-5" />
             </label>
           </div>
 
@@ -165,7 +192,7 @@ const isActiveRoute = (href: string) =>
               aria-label="Abrir busqueda maestra"
               class="btn btn-ghost inline-flex w-full max-w-2xl items-center justify-start gap-2 border border-base-300 bg-base-100 px-4 font-normal normal-case"
             >
-              <Icon name="heroicons:magnifying-glass" class="size-4" />
+              <Icon name="boxicons:search" class="size-4" />
               <span class="text-sm text-base-content/70">Buscar</span>
               <kbd class="kbd kbd-sm">Ctrl</kbd>
               <kbd class="kbd kbd-sm">K</kbd>
@@ -179,7 +206,7 @@ const isActiveRoute = (href: string) =>
               aria-label="Abrir busqueda maestra"
               class="btn btn-ghost btn-circle md:hidden"
             >
-              <Icon name="heroicons:magnifying-glass" class="size-5" />
+              <Icon name="boxicons:search" class="size-5" />
             </button>
 
             <div class="divider divider-horizontal m-0 md:hidden"></div>
@@ -196,12 +223,12 @@ const isActiveRoute = (href: string) =>
               />
 
               <Icon
-                name="heroicons:sun"
+                name="boxicons:sun"
                 class="swap-off size-5"
                 aria-hidden="true"
               />
               <Icon
-                name="heroicons:moon"
+                name="boxicons:moon"
                 class="swap-on size-5"
                 aria-hidden="true"
               />
@@ -287,28 +314,6 @@ const isActiveRoute = (href: string) =>
               ))
             }
           </div>
-
-          <div class="w-full border-t border-secondary-content/20 menu gap-1">
-            <a
-              href={settingsItem.href}
-              aria-label={settingsItem.label}
-              data-tip={settingsItem.label}
-              class:list={[
-                "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition is-drawer-close:tooltip is-drawer-close:tooltip-right",
-                isActiveRoute(settingsItem.href)
-                  ? "bg-primary text-primary-content"
-                  : "text-secondary-content/80 hover:bg-base-100/10 hover:text-secondary-content",
-              ]}
-            >
-              <Icon
-                name={settingsItem.icon}
-                class="size-5 shrink-0 opacity-80 transition group-hover:opacity-100 lg:size-6"
-              />
-              <span class="truncate is-drawer-close:hidden"
-                >{settingsItem.label}</span
-              >
-            </a>
-          </div>
         </div>
       </div>
     </div>
@@ -323,10 +328,7 @@ const isActiveRoute = (href: string) =>
           >
 
           <label class="input w-full">
-            <Icon
-              name="heroicons:magnifying-glass"
-              class="size-5 text-base-content/60"
-            />
+            <Icon name="boxicons:search" class="size-5 text-base-content/60" />
             <input
               type="search"
               placeholder="Search"

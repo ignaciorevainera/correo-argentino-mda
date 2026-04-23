@@ -16,7 +16,7 @@ dedicada dentro de pages.
 - Ruta canonica: /contactos-utiles
 - Archivo de pagina: src/pages/contactos-utiles/index.astro
 - Label visible en sidebar: Contactos utiles
-- Icono de sidebar: heroicons:phone
+- Icono de sidebar: boxicons:phone
 - Ubicacion en sidebar: seccion General, debajo de Guia de soportes y encima de
   Enlaces importantes
 - Acceso rapido en dashboard: card Contactos utiles junto al bloque de modulos
