@@ -3,6 +3,7 @@ import "@styles/global.css";
 import { Icon } from "astro-icon/components";
 import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import geistMonoLatinWoff2 from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
+import packageJson from "../../package.json";
 
 interface Props {
   title?: string;
@@ -22,6 +23,13 @@ interface NavSection {
 
 const { title = "Portal Mesa de Ayuda" } = Astro.props;
 const currentPath = Astro.url.pathname;
+const aboutProjectVersion = `v${packageJson.version}`;
+const aboutProjectYear = new Date().getFullYear();
+const aboutProjectOwners: string[] = [
+  "Ignacio Revainera",
+  "Franco Nahuel González",
+  "Darío Altamirano",
+];
 
 const navSections: NavSection[] = [
   {
@@ -238,6 +246,16 @@ const isActiveRoute = (href: string) =>
                 aria-hidden="true"
               />
             </label>
+
+            <button
+              type="button"
+              data-open-about-project
+              title="Acerca de este proyecto"
+              aria-label="Acerca de este proyecto"
+              class="btn btn-ghost btn-circle"
+            >
+              <Icon name="boxicons:help-circle-filled" class="size-5" />
+            </button>
           </div>
         </header>
 
@@ -378,6 +396,113 @@ const isActiveRoute = (href: string) =>
       </form>
     </dialog>
 
+    <dialog id="about-project-dialog" class="modal">
+      <div
+        class="modal-box w-11/12 max-w-md overflow-hidden rounded-lg border-0 bg-base-100 p-0 shadow-2xl"
+      >
+        <div
+          class="relative flex flex-col items-center justify-center overflow-hidden bg-secondary p-8 text-center"
+        >
+          <div class="pointer-events-none absolute -top-8 -right-8 opacity-10">
+            <Icon
+              name="boxicons:network-chart-filled"
+              class="size-40 text-white"
+              aria-hidden="true"
+            />
+          </div>
+
+          <form method="dialog" class="absolute top-3 right-3 z-20">
+            <button
+              type="submit"
+              class="btn btn-ghost btn-sm btn-circle border-0 text-white hover:bg-white/15"
+              aria-label="Cerrar acerca del proyecto"
+            >
+              <span aria-hidden="true" class="text-base leading-none">X</span>
+            </button>
+          </form>
+
+          <div class="relative z-10 flex flex-col items-center">
+            <div
+              class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-inner"
+            >
+              <Icon name="boxicons:building-house" class="size-7 text-white" />
+            </div>
+
+            <h2
+              class="flex flex-wrap items-center justify-center gap-2 text-2xl font-black tracking-tight text-white"
+            >
+              Mesa de Ayuda
+              <span
+                class="rounded-md bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-primary-content ring-1 ring-white/30 shadow-sm"
+              >
+                {aboutProjectVersion}
+              </span>
+            </h2>
+          </div>
+        </div>
+
+        <div class="space-y-5 bg-base-100 px-6 py-7">
+          <div class="flex items-start gap-4">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary"
+            >
+              <Icon name="boxicons:code-alt" class="size-5" />
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold text-base-content">
+                Desarrollo y arquitectura
+              </h4>
+              <p class="mt-1 text-sm leading-relaxed text-base-content/70">
+                Plataforma construida para optimizar la gestion de tickets,
+                visualizacion de infraestructura y monitoreo tecnico.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary"
+            >
+              <Icon name="boxicons:group" class="size-5" />
+            </div>
+            <div class="w-full">
+              <h4 class="mb-3 text-sm font-semibold text-base-content">
+                Responsables del proyecto
+              </h4>
+              <ul class="grid grid-cols-3 gap-2">
+                {
+                  aboutProjectOwners.map((owner) => (
+                    <li class="flex flex-col items-center rounded-xl border border-base-300/70 bg-base-200/60 p-3 text-center transition-colors hover:bg-base-200/90">
+                      <div class="mb-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-content shadow-sm">
+                        <Icon
+                          name="boxicons:user"
+                          class="size-4"
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <span class="text-xs font-semibold leading-tight text-base-content">
+                        {owner}
+                      </span>
+                    </li>
+                  ))
+                }
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-base-300/50 bg-base-200/40 px-6 py-4">
+          <p class="text-center text-xs font-medium text-base-content/70">
+            © {aboutProjectYear} Correo Argentino. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label="Cerrar acerca del proyecto">close</button>
+      </form>
+    </dialog>
+
     <script>
       const commandPalette = document.getElementById(
         "command-palette",
@@ -393,6 +518,12 @@ const isActiveRoute = (href: string) =>
       ) as HTMLElement | null;
       const commandPaletteTriggers = Array.from(
         document.querySelectorAll("[data-open-command-palette]"),
+      ) as HTMLButtonElement[];
+      const aboutProjectDialog = document.getElementById(
+        "about-project-dialog",
+      ) as HTMLDialogElement | null;
+      const aboutProjectTriggers = Array.from(
+        document.querySelectorAll("[data-open-about-project]"),
       ) as HTMLButtonElement[];
 
       const themeToggle = document.getElementById(
@@ -451,9 +582,30 @@ const isActiveRoute = (href: string) =>
         }
       };
 
+      const openAboutProjectDialog = (): void => {
+        if (!aboutProjectDialog) {
+          return;
+        }
+
+        if (!aboutProjectDialog.open) {
+          aboutProjectDialog.showModal();
+        }
+      };
+
+      const closeAboutProjectDialog = (): void => {
+        if (aboutProjectDialog?.open) {
+          aboutProjectDialog.close();
+        }
+      };
+
       commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
         trigger.addEventListener("click", () => {
           openCommandPalette();
+        });
+      });
+      aboutProjectTriggers.forEach((trigger: HTMLButtonElement) => {
+        trigger.addEventListener("click", () => {
+          openAboutProjectDialog();
         });
       });
 
@@ -464,6 +616,11 @@ const isActiveRoute = (href: string) =>
       commandPalette?.addEventListener("click", (event: MouseEvent) => {
         if (event.target === commandPalette) {
           closeCommandPalette();
+        }
+      });
+      aboutProjectDialog?.addEventListener("click", (event: MouseEvent) => {
+        if (event.target === aboutProjectDialog) {
+          closeAboutProjectDialog();
         }
       });
 
@@ -479,6 +636,7 @@ const isActiveRoute = (href: string) =>
 
         if (event.key === "Escape") {
           closeCommandPalette();
+          closeAboutProjectDialog();
         }
       });
 
