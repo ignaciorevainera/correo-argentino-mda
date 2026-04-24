@@ -1,0 +1,103 @@
+---
+import { Icon } from "astro-icon/components";
+import LinkItem from "./LinkItem.astro";
+import type { CategoryTone, CategoryViewModel } from "./types";
+
+interface Props {
+  category: CategoryViewModel;
+}
+
+interface CategoryToneClasses {
+  borderClass: string;
+  headerClass: string;
+  iconClass: string;
+  badgeClass: string;
+}
+
+const { category } = Astro.props;
+
+const toneClasses: Record<CategoryTone, CategoryToneClasses> = {
+  primary: {
+    borderClass: "border-t-primary",
+    headerClass: "bg-primary/10",
+    iconClass: "border-primary/40 bg-primary/15 text-primary",
+    badgeClass: "badge-primary",
+  },
+  secondary: {
+    borderClass: "border-t-secondary",
+    headerClass: "bg-secondary/10",
+    iconClass: "border-secondary/40 bg-secondary/15 text-secondary",
+    badgeClass: "badge-secondary",
+  },
+  accent: {
+    borderClass: "border-t-accent",
+    headerClass: "bg-accent/10",
+    iconClass: "border-accent/40 bg-accent/15 text-accent",
+    badgeClass: "badge-accent",
+  },
+  neutral: {
+    borderClass: "border-t-neutral",
+    headerClass: "bg-base-200",
+    iconClass: "border-neutral/40 bg-neutral/10 text-neutral",
+    badgeClass: "badge-neutral",
+  },
+  success: {
+    borderClass: "border-t-success",
+    headerClass: "bg-success/10",
+    iconClass: "border-success/40 bg-success/15 text-success",
+    badgeClass: "badge-success",
+  },
+};
+
+const classes = toneClasses[category.tone];
+const categorySearchText = category.category;
+---
+
+<article
+  class:list={[
+    "card mb-5 w-full break-inside-avoid overflow-hidden border border-t-4 border-base-300 bg-base-100 shadow-sm",
+    classes.borderClass,
+  ]}
+  data-link-category
+  data-category-search={categorySearchText}
+>
+  <header
+    class:list={[
+      "flex items-center gap-3 border-b border-base-300 px-4 py-3",
+      classes.headerClass,
+    ]}
+  >
+    <span
+      class:list={[
+        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg border",
+        classes.iconClass,
+      ]}
+      aria-hidden="true"
+    >
+      <Icon name={category.icon} class="size-5" />
+    </span>
+
+    <div class="min-w-0 flex-1">
+      <h2
+        class="truncate text-base font-semibold text-base-content"
+        data-highlight-target
+      >
+        {category.category}
+      </h2>
+    </div>
+
+    <span class:list={["badge badge-sm shrink-0", classes.badgeClass]}>
+      {category.links.length} enlaces
+    </span>
+  </header>
+
+  <div class="card-body gap-0 bg-base-200/40 p-3">
+    <ul class="flex flex-col gap-2">
+      {
+        category.links.map((link) => (
+          <LinkItem link={link} category={category.category} />
+        ))
+      }
+    </ul>
+  </div>
+</article>
