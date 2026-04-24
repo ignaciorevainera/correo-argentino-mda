@@ -44,7 +44,7 @@ const sucursales = [
 ];
 ---
 
-<BaseLayout title="Mapa de Sucursales">
+<BaseLayout title="Sucursales y Oficinas">
   <!-- Hoja de estilos de Leaflet (requerida por la librería) -->
   <link
     rel="stylesheet"
@@ -61,74 +61,162 @@ const sucursales = [
       >
         <div>
           <h1 class="text-3xl font-bold text-base-content">
-            Mapa de Sucursales
+            Sucursales y Oficinas
           </h1>
           <p class="text-base-content/70 text-sm max-w-2xl mt-1">
-            Visualización interactiva de la infraestructura instalada por
-            sucursal. Vista general de cobertura territorial.
+            Consulta de infraestructura y ubicación de la red de sucursales.
+            Utiliza los controles para alternar entre la vista de mapa y el
+            directorio detallado.
           </p>
         </div>
 
-        <div class="flex gap-2">
-          <button
-            id="toggle-overlays"
-            class="btn btn-sm btn-outline gap-2 font-bold uppercase text-xs"
-          >
-            <Icon name="boxicons:eye-slash" class="size-4" />
-            <span id="toggle-text">Ocultar Capas</span>
-          </button>
-
-          <button
-            id="toggle-markers"
-            class="btn btn-sm btn-outline gap-2 font-bold uppercase text-xs"
-          >
-            <Icon name="boxicons:location-pin" class="size-4" />
-            <span id="marker-toggle-text">Ocultar Sucursales</span>
-          </button>
+        <div class="flex flex-col sm:flex-row gap-4 items-center">
+          <!-- View Switcher -->
+          <div class="tabs tabs-boxed bg-base-200/50 p-1">
+            <button
+              id="switch-map"
+              class="tab tab-active gap-2 transition-all duration-300"
+            >
+              <Icon name="boxicons:map" class="size-4" />
+              Vista Mapa
+            </button>
+            <button
+              id="switch-list"
+              class="tab gap-2 transition-all duration-300"
+            >
+              <Icon name="boxicons:list-ul" class="size-4" />
+              Vista Directorio
+            </button>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Mapa Container -->
-    <section
-      class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0"
-    >
-      <div id="mapa-sucursales" class="h-150 w-full z-0 relative"></div>
-    </section>
+    <!-- Contenedor de Vistas -->
+    <div id="views-wrapper" class="relative min-h-[600px]">
+      <!-- Vista Mapa -->
+      <section
+        id="view-map"
+        class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0 transition-all duration-500"
+      >
+        <div id="mapa-sucursales" class="h-150 w-full z-0 relative"></div>
 
-    <!-- Tips del Front-End -->
-    <section
-      class="bg-primary/5 border-l-[6px] border-l-primary p-4 rounded-r-lg shadow-sm"
-    >
-      <div class="flex items-start gap-4">
-        <div class="p-2 bg-primary/10 rounded-lg shrink-0 mt-0.5">
-          <Icon
-            name="boxicons:light-bulb"
-            class="w-6 h-6 text-primary shrink-0"
-          />
-        </div>
-        <div>
-          <h4 class="font-bold text-base-content tracking-wide text-sm">
-            Implementación a futuro: Polígonos y Filtrado por Región
-          </h4>
-          <p
-            class="text-xs text-base-content/70 mt-1.5 leading-relaxed max-w-4xl"
-          >
-            El mapa está estructurado para recibir información dinámica. A
-            futuro podrías:
-            <br />1. Recorrer la prop <b>region</b> para agrupar marcadores utilizando
-            <b>LayerGroups</b> en Leaflet y así activar o desactivar capas mediante
-            botones.
-            <br />2. Modificar dinámicamente el estilo con <b>L.Icon</b> o <b
-              >L.DivIcon</b
-            > (para pintar el marcador de distinto color de acuerdo a la región).
-            <br />3. Reemplazar los puntos de ejemplo usando coordenadas (arrays
-            de lat/lng) para dibujar <b>L.polygon()</b> y pintar toda la extensión
-            geográfica.
-          </p>
-        </div>
+      </section>
+
+      <!-- Controles del Mapa -->
+      <div 
+        id="map-controls" 
+        class="flex flex-wrap justify-center gap-3 mt-6"
+      >
+        <button
+          id="toggle-polygons"
+          class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+        >
+          <Icon name="boxicons:layers-alt" class="size-4 text-primary" />
+          <span id="polygons-text">Ocultar Polígonos</span>
+        </button>
+
+        <button
+          id="toggle-labels"
+          class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+        >
+          <Icon name="boxicons:font-family" class="size-4 text-primary" />
+          <span id="labels-text">Ocultar Letras</span>
+        </button>
+
+        <button
+          id="toggle-markers"
+          class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+        >
+          <Icon name="boxicons:location-pin" class="size-4 text-primary" />
+          <span id="marker-toggle-text">Ocultar Sucursales</span>
+        </button>
       </div>
-    </section>
+
+      <!-- Vista Directorio (Hidden) -->
+      <section
+        id="view-list"
+        class="hidden bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden animate-fade-in"
+      >
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr class="bg-base-200/50">
+                <th
+                  class="py-4 px-6 text-xs uppercase tracking-wider opacity-70"
+                  >Sucursal</th
+                >
+                <th
+                  class="py-4 px-6 text-xs uppercase tracking-wider opacity-70"
+                  >Identificador</th
+                >
+                <th
+                  class="py-4 px-6 text-xs uppercase tracking-wider opacity-70"
+                  >Región</th
+                >
+                <th
+                  class="py-4 px-6 text-xs uppercase tracking-wider opacity-70"
+                  >Infraestructura</th
+                >
+                <th
+                  class="py-4 px-6 text-xs uppercase tracking-wider opacity-70"
+                  >Contacto Directo</th
+                >
+              </tr>
+            </thead>
+            <tbody>
+              {
+                sucursales.map((sucursal) => (
+                  <tr class="hover:bg-primary/5 transition-colors group">
+                    <td class="py-4 px-6 font-bold text-base-content">
+                      {sucursal.ubicacion.nombre}
+                    </td>
+                    <td class="py-4 px-6">
+                      <span class="badge badge-outline badge-sm font-mono">
+                        {sucursal.nis}
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-2">
+                        <div class="size-2 rounded-full bg-primary/40" />
+                        {sucursal.region}
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex flex-col gap-1 text-xs">
+                        <span class="flex items-center gap-1.5 font-medium">
+                          <Icon
+                            name="boxicons:desktop"
+                            class="size-3.5 text-primary"
+                          />
+                          {sucursal.cantidad_pc} PCs
+                        </span>
+                        <span class="flex items-center gap-1.5 font-medium">
+                          <Icon
+                            name="boxicons:server"
+                            class="size-3.5 text-primary"
+                          />
+                          {sucursal.servidores} Servidores
+                        </span>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <a
+                        href={`tel:${sucursal.contacto}`}
+                        class="btn btn-ghost btn-xs gap-2 text-primary hover:bg-primary hover:text-white no-underline lowercase"
+                      >
+                        <Icon name="boxicons:phone" class="size-4" />
+                        {sucursal.contacto}
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
     <!-- Data para client-side (Astro Islands) -->
     <script is:inline define:vars={{ sucursales }}>
@@ -147,35 +235,68 @@ const sucursales = [
         const dataMap = window._SUCURSALES_DATA || [];
 
         // 1. Inicializar el mapa (Enfocamos el centro de Argentina, con un Zoom inicial bajo para ver panorámica)
-        const map = L.map("mapa-sucursales").setView([-38.5, -64.0], 4);
+        // Definimos límites para que no se pueda salir de la región de Argentina
+        const bounds = [
+          [-56.0, -74.0], // Sudoeste
+          [-21.0, -53.0], // Noreste
+        ];
 
-        // 2. Capa base OpenStreetMap (Gratuita, sin APIs de pago)
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        }).addTo(map);
+        const map = L.map("mapa-sucursales", {
+          maxBounds: bounds,
+          maxBoundsViscosity: 1.0, // Evita que "rebote" y se salga de los límites
+        }).setView([-38.5, -64.0], 4);
 
-        // Grupo para capas adicionales (polígonos y etiquetas)
-        const capasAdicionales = L.layerGroup().addTo(map);
-        let overlaysVisible = true;
+        // 2. Capa base Argenmap (IGN - Instituto Geográfico Nacional)
+        L.tileLayer(
+          "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{-y}.png",
+          {
+            maxZoom: 18,
+            minZoom: 3,
+            attribution:
+              '&copy; <a href="https://www.ign.gob.ar/AreaServicios/Argenmap/IntroduccionV2" target="_blank">Instituto Geográfico Nacional</a> + <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+          },
+        ).addTo(map);
 
-        // Botón de Toggle
-        const toggleBtn = document.getElementById("toggle-overlays");
-        const toggleText = document.getElementById("toggle-text");
-        const toggleIcon = document.getElementById("toggle-icon");
+        // Grupos para capas adicionales (separados por polígonos y etiquetas)
+        const grupoPoligonos = L.layerGroup().addTo(map);
+        const grupoEtiquetas = L.layerGroup().addTo(map);
+        
+        let polygonsVisible = true;
+        let labelsVisible = true;
 
-        if (toggleBtn) {
-          toggleBtn.addEventListener("click", () => {
-            if (overlaysVisible) {
-              map.removeLayer(capasAdicionales);
-              toggleText.textContent = "Mostrar Capas";
+        // Botón de Toggle Polígonos
+        const polyBtn = document.getElementById("toggle-polygons");
+        const polyText = document.getElementById("polygons-text");
+        if (polyBtn) {
+          polyBtn.addEventListener("click", () => {
+            if (polygonsVisible) {
+              map.removeLayer(grupoPoligonos);
+              polyText.textContent = "Mostrar Polígonos";
             } else {
-              map.addLayer(capasAdicionales);
-              toggleText.textContent = "Ocultar Capas";
+              map.addLayer(grupoPoligonos);
+              polyText.textContent = "Ocultar Polígonos";
             }
-            overlaysVisible = !overlaysVisible;
-            toggleBtn.classList.toggle("btn-active");
+            polygonsVisible = !polygonsVisible;
+            polyBtn.classList.toggle("btn-active");
+          });
+        }
+
+        // Botón de Toggle Etiquetas
+        const labelsBtn = document.getElementById("toggle-labels");
+        const labelsText = document.getElementById("labels-text");
+        if (labelsBtn) {
+          labelsBtn.addEventListener("click", () => {
+            if (labelsVisible) {
+              map.removeLayer(grupoEtiquetas);
+              labelsText.textContent = "Mostrar Letras";
+            } else {
+              map.addLayer(grupoEtiquetas);
+              labelsText.textContent = "Ocultar Letras";
+              // Forzamos recalcular la escala de las letras recién aparecidas
+              setTimeout(updateLabelsScale, 0);
+            }
+            labelsVisible = !labelsVisible;
+            labelsBtn.classList.toggle("btn-active");
           });
         }
 
@@ -241,186 +362,131 @@ const sucursales = [
           popupAnchor: [0, -38], // Popup se asoma un poco por encima del marcador
         });
 
-        // 3. Pintar Provincia de Buenos Aires obteniendo GeoJSON dinámico (Nominatim OS)
-        fetch(
-          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Buenos+Aires+Argentina&polygon_geojson=1&format=jsonv2",
-        )
+        // 3. Pintar todas las Provincias desde el archivo GeoJSON local
+        const provinceLetters = {
+          "Ciudad Autónoma de Buenos Aires": "C",
+          "Buenos Aires": "B",
+          Catamarca: "K",
+          Chaco: "H",
+          Chubut: "U",
+          Córdoba: "X",
+          Corrientes: "W",
+          "Entre Ríos": "E",
+          Formosa: "P",
+          Jujuy: "Y",
+          "La Pampa": "L",
+          "La Rioja": "F",
+          Mendoza: "M",
+          Misiones: "N",
+          Neuquén: "Q",
+          "Río Negro": "R",
+          Salta: "A",
+          "San Juan": "J",
+          "San Luis": "D",
+          "Santa Cruz": "Z",
+          "Santa Fe": "S",
+          "Santiago del Estero": "G",
+          "Tierra del Fuego, Antártida e Islas del Atlántico Sur": "V",
+          Tucumán: "T",
+        };
+
+        const labelOverrides = {
+          "Santa Fe": [-30.8, -61.6],
+          "Buenos Aires": [-36.8, -60.1],
+        };
+
+        fetch("/data/argentina_provincias.geojson")
           .then((res) => res.json())
-          .then((data) => {
-            if (data && data.length > 0 && data[0].geojson) {
-              const layerBA = L.geoJSON(data[0].geojson, {
-                style: function () {
-                  return {
-                    color: "#FFCC00", // Borde amarillo correo
-                    weight: 2, // Grosor
-                    fillColor: "#FFCC00", // Relleno amarillo
-                    fillOpacity: 0.15, // Transparencia sutil
-                  };
-                },
-              })
-                .bindPopup(
-                  "<div class='text-center p-1'><b class='text-primary'>Provincia de Buenos Aires</b><br/>Región con mayor densidad de sucursales.</div>",
+          .then((geoData) => {
+            L.geoJSON(geoData, {
+              style: function (feature) {
+                const name = feature.properties.nombre;
+                // Alternar colores institucionales
+                const isYellow = [
+                  "Buenos Aires",
+                  "Córdoba",
+                  "La Pampa",
+                  "Mendoza",
+                  "La Rioja",
+                  "Chubut",
+                  "Formosa",
+                  "Santiago del Estero",
+                  "Misiones",
+                  "Jujuy",
+                  "Santa Cruz",
+                ].includes(name);
+
+                const color = isYellow ? "#FFCC00" : "#003B71";
+                return {
+                  color: color,
+                  weight: 1.5,
+                  fillColor: color,
+                  fillOpacity:
+                    name === "Ciudad Autónoma de Buenos Aires" ? 0.25 : 0.12,
+                };
+              },
+              onEachFeature: function (feature, layer) {
+                const name = feature.properties.nombre;
+                layer.bindPopup(
+                  `<div class='text-center p-1'><b style='color: ${provinceLetters[name] === "C" || provinceLetters[name] === "S" ? "#003B71" : "#FFCC00"};'>${name}</b><br/>Provincia de la República Argentina.</div>`,
                   { className: "custom-popup" },
-                )
-                .addTo(capasAdicionales);
+                );
 
-              // Añadir etiqueta "B" en una posición balanceada (evitamos centro geométrico puro)
-              const posBA = [-36.8, -60.1];
-              L.marker(posBA, {
-                icon: L.divIcon({
-                  className: "bg-transparent",
-                  html: '<div class="polygon-label font-black text-[4.5rem] text-[#FFCC00] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 4px 10px rgba(0,0,0,0.5); line-height: 1;">B</div>',
-                  iconSize: [0, 0],
-                }),
-                interactive: false,
-              }).addTo(capasAdicionales);
+                // Añadir etiqueta de letra
+                const letter = provinceLetters[name];
+                if (letter) {
+                  const centroid = feature.properties.centroide;
+                  const pos = labelOverrides[name] || [
+                    centroid.lat,
+                    centroid.lon,
+                  ];
 
-              // Forzar actualización inicial
-              updateLabelsScale();
-            }
+                  const isBlue = [
+                    "C",
+                    "S",
+                    "E",
+                    "W",
+                    "A",
+                    "G",
+                    "T",
+                    "F",
+                    "J",
+                    "D",
+                    "Q",
+                    "R",
+                    "V",
+                  ].includes(letter);
+                  const color = isBlue ? "#003B71" : "#FFCC00";
+                  const shadow = isBlue
+                    ? "rgba(255,255,255,0.9)"
+                    : "rgba(0,0,0,0.5)";
+
+                  // Tamaño dinámico según la importancia/tamaño de la provincia
+                  let fontSize = "3.5rem";
+                  if (letter === "C") fontSize = "2rem";
+                  if (["B", "S", "X"].includes(letter)) fontSize = "4.2rem";
+
+                  L.marker(pos, {
+                    icon: L.divIcon({
+                      className: "bg-transparent",
+                      html: `<div class="polygon-label font-black text-[#003B71] opacity-80 pointer-events-none transition-all duration-300" 
+                             style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px ${shadow}; line-height: 1; color: ${color}; font-size: ${fontSize};">${letter}</div>`,
+                      iconSize: [0, 0],
+                    }),
+                    interactive: false,
+                  }).addTo(grupoEtiquetas);
+                }
+              },
+            }).addTo(grupoPoligonos);
+
+            // Forzar actualización de etiquetas después de cargar todo
+            updateLabelsScale();
           })
           .catch((err) =>
-            console.error("Error al pintar polígono de Bs.As:", err),
+            console.error("Error al cargar GeoJSON de provincias:", err),
           );
 
-        // 4. Pintar CABA (Ciudad Autónoma de Buenos Aires) obteniendo GeoJSON dinámico
-        fetch(
-          "https://nominatim.openstreetmap.org/search.php?q=Ciudad+Autónoma+de+Buenos+Aires+Argentina&polygon_geojson=1&format=jsonv2",
-        )
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.length > 0 && data[0].geojson) {
-              const layerCABA = L.geoJSON(data[0].geojson, {
-                style: function () {
-                  return {
-                    color: "#003B71", // Borde azul correo
-                    weight: 2, // Grosor
-                    fillColor: "#003B71", // Relleno azul
-                    fillOpacity: 0.25, // Transparencia sutil
-                  };
-                },
-              })
-                .bindPopup(
-                  "<div class='text-center p-1'><b style='color: #003B71;'>CABA</b><br/>Ciudad Autónoma de Buenos Aires.</div>",
-                  { className: "custom-popup" },
-                )
-                .addTo(capasAdicionales);
-
-              // Añadir etiqueta "C" en el centro de CABA
-              const centerCABA = layerCABA.getBounds().getCenter();
-              L.marker(centerCABA, {
-                icon: L.divIcon({
-                  className: "bg-transparent",
-                  html: '<div class="polygon-label font-black text-[2.2rem] text-[#003B71] pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px rgba(255,255,255,0.9); line-height: 1;">C</div>',
-                  iconSize: [0, 0],
-                }),
-                interactive: false,
-              }).addTo(capasAdicionales);
-
-              // Forzar actualización inicial
-              updateLabelsScale();
-            }
-          })
-          .catch((err) =>
-            console.error("Error al pintar polígono de CABA:", err),
-          );
-
-        // 5. Pintar Provincia de Córdoba obteniendo GeoJSON dinámico
-        fetch(
-          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Córdoba+Argentina&polygon_geojson=1&format=jsonv2",
-        )
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.length > 0 && data[0].geojson) {
-              const layerCordoba = L.geoJSON(data[0].geojson, {
-                style: function () {
-                  return {
-                    color: "#FFCC00", // Borde amarillo correo
-                    weight: 2, // Grosor
-                    fillColor: "#FFCC00", // Relleno amarillo
-                    fillOpacity: 0.15, // Transparencia sutil
-                  };
-                },
-              })
-                .bindPopup(
-                  "<div class='text-center p-1'><b class='text-primary'>Provincia de Córdoba</b><br/>Región Centro.</div>",
-                  { className: "custom-popup" },
-                )
-                .addTo(capasAdicionales);
-
-              // Añadir etiqueta "X" en el centro de Córdoba
-              const centerCordoba = layerCordoba.getBounds().getCenter();
-              L.marker(centerCordoba, {
-                icon: L.divIcon({
-                  className: "bg-transparent",
-                  html: '<div class="polygon-label font-black text-[4rem] text-[#FFCC00] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 4px 6px rgba(0,0,0,0.5); line-height: 1;">X</div>',
-                  iconSize: [0, 0],
-                }),
-                interactive: false,
-              }).addTo(capasAdicionales);
-
-              // Forzar actualización inicial
-              updateLabelsScale();
-            }
-          })
-          .catch((err) =>
-            console.error("Error al pintar polígono de Córdoba:", err),
-          );
-
-        // 6. Pintar Provincia de Santa Fe obteniendo GeoJSON dinámico
-        fetch(
-          "https://nominatim.openstreetmap.org/search.php?q=Provincia+de+Santa+Fe+Argentina&polygon_geojson=1&format=jsonv2",
-        )
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.length > 0 && data[0].geojson) {
-              const layerSantaFe = L.geoJSON(data[0].geojson, {
-                style: function () {
-                  return {
-                    color: "#003B71", // Borde azul correo
-                    weight: 2, // Grosor
-                    fillColor: "#003B71", // Relleno azul
-                    fillOpacity: 0.15, // Transparencia sutil
-                  };
-                },
-              })
-                .bindPopup(
-                  "<div class='text-center p-1'><b style='color: #003B71;'>Provincia de Santa Fe</b><br/>Región Litoral / Centro.</div>",
-                  { className: "custom-popup" },
-                )
-                .addTo(capasAdicionales);
-
-              // Añadir etiqueta "S" en posición balanceada para Santa Fe (Evitar que se pierda al norte o se pegue a Entre Ríos)
-              const posSF = [-30.8, -61.6];
-              L.marker(posSF, {
-                icon: L.divIcon({
-                  className: "bg-transparent",
-                  html: '<div class="polygon-label font-black text-[4.2rem] text-[#003B71] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px rgba(255,255,255,0.9); line-height: 1;">S</div>',
-                  iconSize: [0, 0],
-                }),
-                interactive: false,
-              }).addTo(capasAdicionales);
-
-              // Forzar actualización inicial
-              updateLabelsScale();
-            }
-          })
-          .catch((err) =>
-            console.error("Error al pintar polígono de Santa Fe:", err),
-          );
-
-        // 5. Etiqueta superpuesta para Islas Malvinas (Soberanía)
-        L.marker([-51.65, -59.5], {
-          icon: L.divIcon({
-            className: "bg-transparent",
-            html: '<div class="font-bold text-slate-800 text-[12px] uppercase tracking-widest whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none italic" style="text-shadow: -1px -1px 0 #E2E8F0, 1px -1px 0 #E2E8F0, -1px 1px 0 #E2E8F0, 1px 1px 0 #E2E8F0; transform: translate(-50%, -50%); background: rgba(226, 232, 240, 0.95); backdrop-filter: blur(2px);">Islas Malvinas (Arg)</div>',
-            iconSize: [0, 0],
-          }),
-          interactive: false,
-          zIndexOffset: 1000,
-        }).addTo(map);
-
-        // 4. Renderizar cada marcador y configurarle los Popups (Tooltip interactivo)
+        // 8. Renderizar cada marcador y configurarle los Popups (Tooltip interactivo)
         dataMap.forEach((sucursal) => {
           const { lat, lng } = sucursal.ubicacion;
 
@@ -463,6 +529,34 @@ const sucursales = [
             className: "custom-popup",
           });
         });
+        // 9. Lógica de Cambio de Vista (Mapa / Directorio)
+        const btnMap = document.getElementById("switch-map");
+        const btnList = document.getElementById("switch-list");
+        const viewMap = document.getElementById("view-map");
+        const viewList = document.getElementById("view-list");
+        const mapControls = document.getElementById("map-controls");
+
+        if (btnMap && btnList && viewMap && viewList) {
+          btnMap.addEventListener("click", () => {
+            viewMap.classList.remove("hidden");
+            viewList.classList.add("hidden");
+            btnMap.classList.add("tab-active");
+            btnList.classList.remove("tab-active");
+            if (mapControls) mapControls.classList.remove("hidden");
+            // Forzar a Leaflet a recalcular el tamaño al hacerse visible
+            setTimeout(() => {
+              map.invalidateSize();
+            }, 100);
+          });
+
+          btnList.addEventListener("click", () => {
+            viewMap.classList.add("hidden");
+            viewList.classList.remove("hidden");
+            btnMap.classList.remove("tab-active");
+            btnList.classList.add("tab-active");
+            if (mapControls) mapControls.classList.add("hidden");
+          });
+        }
       });
     </script>
 
