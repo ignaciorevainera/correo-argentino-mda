@@ -1,0 +1,425 @@
+---
+// CronogramaDashboard.astro
+---
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+<div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-10">
+  
+  <!-- Stats Summary -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-container">
+    <!-- Stats will be injected here -->
+  </div>
+
+  <div class="w-full flex flex-col gap-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      
+      <!-- Modern Segmented Control -->
+      <div class="flex bg-base-200/60 p-1.5 rounded-2xl border border-base-300/50 backdrop-blur-md shadow-inner" id="view-switcher">
+        <button 
+          data-view="daily"
+          class="view-btn relative px-6 py-2.5 rounded-xl transition-all duration-300 text-sm font-semibold bg-base-100 shadow-sm ring-1 ring-base-300/50 text-base-content"
+        >
+          <div class="flex items-center gap-2 relative z-10">
+            <i class="bx bx-calendar-event text-lg"></i>
+            <span>Vista Diaria</span>
+          </div>
+        </button>
+        <button 
+          data-view="monthly"
+          class="view-btn relative px-6 py-2.5 rounded-xl transition-all duration-300 text-sm font-medium text-base-content/60 hover:text-base-content hover:bg-base-200/50"
+        >
+          <div class="flex items-center gap-2 relative z-10">
+            <i class="bx bx-calendar-alt text-lg"></i>
+            <span>Mes Completo</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Date Picker -->
+      <div id="date-picker-container" class="flex items-center bg-base-100 p-2.5 rounded-2xl border border-base-300/50 shadow-sm hover:shadow-md transition-shadow duration-300 px-5">
+        <label for="date-input" class="sr-only">Seleccionar fecha</label>
+        <input 
+          type="date" 
+          id="date-input"
+          class="w-auto border-none bg-transparent focus:ring-0 font-semibold cursor-pointer outline-none text-base-content"
+        />
+      </div>
+    </div>
+
+    <!-- Daily View Section -->
+    <div id="daily-view" class="animate-in slide-in-from-bottom-4 fade-in duration-700">
+      <div class="bg-base-100 rounded-3xl border border-base-300/50 shadow-xl shadow-base-content/5 overflow-hidden">
+        <div class="bg-base-200/20 border-b border-base-300/50">
+          <div class="flex flex-col sm:flex-row justify-between items-center py-4 px-6 gap-4">
+            <h3 class="text-lg flex items-center gap-3 font-bold text-base-content">
+              <div class="p-2 rounded-xl bg-[#254888]/10 text-[#254888]">
+                <i class="bx bx-group"></i>
+              </div>
+              Estado de operadores
+            </h3>
+            <div class="flex items-center gap-2.5 bg-base-100/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-base-300/50 shadow-sm">
+               <i class="bx bxs-calendar-check text-[#ffc72c] text-lg"></i>
+               <span class="text-sm font-semibold tracking-wide" id="daily-date-display"></span>
+            </div>
+          </div>
+        </div>
+        <div class="p-0 overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-base-200/30 text-xs uppercase font-bold text-base-content/50 tracking-wider">
+              <tr>
+                <th class="py-4 px-6 rounded-tl-3xl w-[320px]">Operador</th>
+                <th class="py-4 px-4">Modalidad</th>
+                <th class="py-4 px-4">Horario</th>
+                <th class="py-4 px-4">Break</th>
+                <th class="py-4 px-6 text-right rounded-tr-3xl">Usuario</th>
+              </tr>
+            </thead>
+            <tbody id="operators-table-body" class="divide-y divide-base-200/50">
+              <!-- Rows will be injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly View Section (Hidden by default) -->
+    <div id="monthly-view" class="hidden animate-in slide-in-from-bottom-4 fade-in duration-700">
+      <div class="bg-base-100 rounded-3xl border border-base-300/50 shadow-xl shadow-base-content/5 overflow-hidden">
+        <div class="bg-base-200/20 border-b border-base-300/50">
+          <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 py-4 px-6">
+            <h3 class="text-lg flex items-center gap-3 font-bold">
+              <div class="p-2 rounded-xl bg-[#254888]/10 text-[#254888]">
+                <i class="bx bx-calendar-star"></i>
+              </div>
+              Matriz Mensual
+            </h3>
+            <div class="flex flex-wrap gap-4 bg-base-100/50 px-5 py-2 rounded-2xl border border-base-300/50 shadow-sm backdrop-blur-sm">
+              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
+                <div class="w-3.5 h-3.5 rounded-md bg-[#ffc72c] shadow-sm"></div> HO
+              </div>
+              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
+                <div class="w-3.5 h-3.5 rounded-md bg-[#254888] shadow-sm"></div> Presencial
+              </div>
+              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
+                <div class="w-3.5 h-3.5 rounded-md bg-[#b3474d] shadow-sm"></div> Licencia
+              </div>
+              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
+                <div class="w-3.5 h-3.5 rounded-md bg-[#0d9488] shadow-sm"></div> Vacaciones
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-2">
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin rounded-2xl border border-base-200/50">
+            <table class="w-full text-sm text-left border-separate border-spacing-0" id="monthly-table">
+              <thead class="sticky top-0 z-30 bg-base-100/90 backdrop-blur-xl shadow-sm" id="monthly-thead">
+                <!-- Headers injected here -->
+              </thead>
+              <tbody id="monthly-tbody">
+                <!-- Matrix injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Premium custom scrollbar for the matrix */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.2));
+    border-radius: 20px;
+  }
+</style>
+
+<script>
+  interface OperatorData {
+    nombre: string;
+    horario: string;
+    asistencia: Record<string, string>;
+  }
+
+  let cronoData: OperatorData[] = [];
+  const currentMonth = "2026-04";
+  const daysInMonth = 30; // April
+
+  async function init() {
+    try {
+      const res = await fetch('/data/cronograma.json');
+      cronoData = await res.json();
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      const defaultDate = todayStr.startsWith(currentMonth) ? todayStr : `${currentMonth}-01`;
+      const dateInput = document.getElementById('date-input') as HTMLInputElement;
+      if (dateInput) dateInput.value = defaultDate;
+
+      renderDaily();
+      renderMonthly();
+      setupEventListeners();
+    } catch (err) {
+      console.error("Error loading data:", err);
+    }
+  }
+
+  function getStatusStyles(type: string | undefined) {
+    switch (type) {
+      case 'Presencial':
+        return {
+          badge: 'bg-[#254888] text-white shadow-sm font-semibold px-3 py-1 rounded-full text-[11px] tracking-wide',
+          icon: 'bxs-briefcase',
+          color: '#254888',
+          bgClass: 'bg-[#254888]/10'
+        };
+      case 'Home Office':
+        return {
+          badge: 'bg-[#ffc72c] text-[#0c0c0c] font-semibold px-3 py-1 rounded-full text-[11px] tracking-wide',
+          icon: 'bxs-home',
+          color: '#ffc72c',
+          bgClass: 'bg-[#ffc72c]/10'
+        };
+      case 'Licencia':
+        return {
+          badge: 'bg-[#b3474d] text-white shadow-sm font-semibold px-3 py-1 rounded-full text-[11px] tracking-wide',
+          icon: 'bxs-first-aid',
+          color: '#b3474d',
+          bgClass: 'bg-[#b3474d]/10'
+        };
+      case 'Vacaciones':
+        return {
+          badge: 'bg-[#0d9488] text-white shadow-sm font-semibold px-3 py-1 rounded-full text-[11px] tracking-wide',
+          icon: 'bxs-sun',
+          color: '#0d9488',
+          bgClass: 'bg-[#0d9488]/10'
+        };
+      default:
+        return {
+          badge: 'bg-base-200 text-base-content/60 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide border border-base-300/50',
+          icon: 'bx-help-circle',
+          color: 'var(--fallback-bc,oklch(var(--bc)/0.4))',
+          bgClass: 'bg-base-200/50'
+        };
+    }
+  }
+
+  function formatDateLong(dateStr: string) {
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  function renderDaily() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const selectedDate = dateInput?.value || "";
+    const tableBody = document.getElementById('operators-table-body');
+    const statsContainer = document.getElementById('stats-container');
+    const dateDisplay = document.getElementById('daily-date-display');
+
+    if (dateDisplay) dateDisplay.innerText = formatDateLong(selectedDate);
+
+    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0 };
+    cronoData.forEach(op => {
+      const status = op.asistencia[selectedDate];
+      if (status === 'Presencial') stats.presencial++;
+      else if (status === 'Home Office') stats.homeOffice++;
+      else if (status === 'Licencia') stats.licencia++;
+      else if (status === 'Vacaciones') stats.vacaciones++;
+    });
+
+    const statItems = [
+      { label: 'Presencial', value: stats.presencial, icon: 'bxs-briefcase', color: '#254888', bg: 'bg-[#254888]/10' },
+      { label: 'Home Office', value: stats.homeOffice, icon: 'bxs-home', color: '#ffc72c', bg: 'bg-[#ffc72c]/15' },
+      { label: 'Licencia', value: stats.licencia, icon: 'bxs-first-aid', color: '#b3474d', bg: 'bg-[#b3474d]/10' },
+      { label: 'Vacaciones', value: stats.vacaciones, icon: 'bxs-sun', color: '#0d9488', bg: 'bg-[#0d9488]/10' },
+    ];
+
+    if (statsContainer) {
+      statsContainer.innerHTML = statItems.map((stat, i) => `
+        <div class="bg-base-100 rounded-3xl border border-base-300/40 shadow-lg shadow-base-content/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group" style="border-bottom: 4px solid ${stat.color}; animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.1}s both;">
+          <div class="absolute -right-2 -bottom-6 opacity-[0.15] group-hover:opacity-[0.25] group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 pointer-events-none">
+            <i class="bx ${stat.icon} text-9xl" style="color: ${stat.color}"></i>
+          </div>
+          <div class="p-6 relative z-10 flex flex-col h-full justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[12px] font-bold uppercase tracking-widest" style="color: ${stat.color}">${stat.label}</span>
+            </div>
+            <div>
+              <span class="text-5xl font-black tracking-tight text-base-content">${stat.value}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    let rowsHtml = '';
+    cronoData.forEach(op => {
+      const status = op.asistencia[selectedDate];
+      if (!status) return;
+      
+      const styles = getStatusStyles(status);
+      const isAbsent = status === 'Licencia' || status === 'Vacaciones';
+      const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+      const username = op.nombre.toLowerCase().split(' ')[0][0] + (op.nombre.toLowerCase().split(' ')[1] || '');
+
+      let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200";
+      if (status === 'Presencial') ringClass = "bg-[#254888] text-white ring-[#254888]/30 shadow-md shadow-[#254888]/20";
+      else if (status === 'Home Office') ringClass = "bg-[#ffc72c] text-[#0c0c0c] ring-[#ffc72c]/40 shadow-md shadow-[#ffc72c]/20";
+
+      rowsHtml += `
+        <tr class="hover:bg-base-200/40 transition-colors duration-200 group">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-black ring-2 ring-offset-2 transition-transform duration-300 group-hover:scale-110 ${ringClass}">
+                ${initials}
+              </div>
+              <div class="flex flex-col">
+                <span class="font-bold text-sm text-base-content">${op.nombre}</span>
+                <span class="text-[11px] text-base-content/50 font-medium">${username}@correoargentino.com.ar</span>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4">
+            <div class="flex items-center gap-3">
+               <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${styles.bgClass}">
+                  <i class="bx text-lg ${styles.icon}" style="color: ${styles.color}"></i>
+               </div>
+               <span class="${styles.badge}">${status}</span>
+            </div>
+          </td>
+          <td class="px-4 py-4 font-mono text-xs font-semibold">
+            ${isAbsent ? '<span class="text-base-content/30 italic">Ausente</span>' : `<span class="text-base-content/80">${op.horario}</span>`}
+          </td>
+          <td class="px-4 py-4 font-mono text-xs font-semibold">
+            ${isAbsent ? '<span class="text-base-content/30">-</span>' : '<span class="text-base-content/80">1 hr</span>'}
+          </td>
+          <td class="px-6 py-4 text-right">
+            <code class="text-[11px] font-bold bg-base-200/50 px-3 py-1.5 rounded-lg text-base-content/60 border border-base-300/50 shadow-sm">${username}</code>
+          </td>
+        </tr>
+      `;
+    });
+    
+    if (tableBody) tableBody.innerHTML = rowsHtml;
+  }
+
+  function renderMonthly() {
+    const thead = document.getElementById('monthly-thead');
+    const tbody = document.getElementById('monthly-tbody');
+    
+    const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonth}-${(i + 1).toString().padStart(2, '0')}`);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    let theadHtml = `<tr>
+      <th class="sticky left-0 bg-base-100/95 backdrop-blur-xl z-40 min-w-[200px] border-r border-b border-base-200 px-6 py-3 font-bold text-xs uppercase tracking-wider text-base-content/60 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">Operador</th>`;
+    
+    dates.forEach(date => {
+      const d = new Date(date + 'T12:00:00');
+      const isToday = date === todayStr;
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      
+      let thClass = "text-center min-w-[48px] px-0 border-r border-b border-base-200 transition-colors";
+      if (isToday) thClass += " bg-[#ffc72c]/15 text-[#ffc72c] border-b-[#ffc72c] border-b-2";
+      else if (isWeekend) thClass += " bg-base-200/30 text-base-content/40";
+      else thClass += " text-base-content/70";
+      
+      const dayName = d.toLocaleDateString('es-AR', { weekday: 'short' }).substring(0, 2).toUpperCase();
+      
+      theadHtml += `
+        <th class="${thClass}">
+          <div class="flex flex-col items-center py-2 gap-0.5">
+            <span class="font-bold text-[9px] opacity-60 tracking-widest">${dayName}</span>
+            <span class="font-black text-[13px] ${isToday ? 'scale-110' : ''}">${d.getDate()}</span>
+          </div>
+        </th>
+      `;
+    });
+    theadHtml += `</tr>`;
+    if (thead) thead.innerHTML = theadHtml;
+
+    let tbodyHtml = '';
+    cronoData.forEach(op => {
+      tbodyHtml += `<tr class="group">
+        <td class="sticky left-0 bg-base-100 z-30 font-bold py-3 px-6 text-[12px] border-r border-b border-base-200/70 group-hover:bg-base-200/40 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full bg-base-300 group-hover:bg-primary transition-colors"></div>
+            ${op.nombre}
+          </div>
+        </td>`;
+        
+      dates.forEach(date => {
+        const status = op.asistencia[date];
+        const styles = getStatusStyles(status);
+        
+        let cellClass = "p-1 border-r border-b border-base-200/50 text-center";
+        
+        if (status === 'Franco' || !status) {
+          tbodyHtml += `<td class="${cellClass}"><div class="h-10 w-full rounded-lg bg-base-200/10"></div></td>`;
+          return;
+        }
+
+        let initials = "";
+        if (status === 'Presencial') initials = "P";
+        else if (status === 'Home Office') initials = "HO";
+        else if (status === 'Licencia') initials = "L";
+        else if (status === 'Vacaciones') initials = "V";
+
+        tbodyHtml += `
+          <td class="${cellClass}">
+            <div 
+              class="h-10 w-full rounded-xl flex flex-col items-center justify-center gap-[1px] transition-all duration-300 cursor-help hover:-translate-y-0.5 hover:shadow-md relative z-0 ${styles.bgClass}"
+              title="${op.nombre} - ${date}: ${status}"
+            >
+              <i class="bx text-[11px] ${styles.icon} opacity-90" style="color: ${styles.color}"></i>
+              <span class="font-black text-[9px] leading-none tracking-tighter" style="color: ${styles.color}">${initials}</span>
+            </div>
+          </td>
+        `;
+      });
+      tbodyHtml += `</tr>`;
+    });
+    if (tbody) tbody.innerHTML = tbodyHtml;
+  }
+
+  function setupEventListeners() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (dateInput) dateInput.addEventListener('change', renderDaily);
+
+    const viewBtns = document.querySelectorAll('.view-btn');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    const dailyView = document.getElementById('daily-view');
+    const monthlyView = document.getElementById('monthly-view');
+
+    viewBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.getAttribute('data-view');
+        
+        if (dailyView) dailyView.classList.toggle('hidden', view !== 'daily');
+        if (monthlyView) monthlyView.classList.toggle('hidden', view !== 'monthly');
+        
+        if (datePickerContainer) {
+          datePickerContainer.style.opacity = view === 'monthly' ? '0' : '1';
+          setTimeout(() => {
+              datePickerContainer.classList.toggle('hidden', view === 'monthly');
+          }, view === 'monthly' ? 300 : 0);
+        }
+
+        viewBtns.forEach(b => {
+          b.classList.remove('bg-base-100', 'shadow-sm', 'ring-1', 'ring-base-300/50', 'text-base-content');
+          b.classList.add('text-base-content/60', 'hover:text-base-content', 'hover:bg-base-200/50');
+        });
+        
+        btn.classList.add('bg-base-100', 'shadow-sm', 'ring-1', 'ring-base-300/50', 'text-base-content');
+        btn.classList.remove('text-base-content/60', 'hover:text-base-content', 'hover:bg-base-200/50');
+      });
+    });
+  }
+
+  init();
+</script>
