@@ -363,10 +363,17 @@ Layout actual:
 UI reutilizable actual:
 
 - `Button`
-- `CopyCell`
-- `CopyUrlIconButton`
-- `CopyValueButton`
+- `ColorSwatch`
+- `CopyButton`
+  - Componente canónico para copiar valores al portapapeles.
+  - Variante `value`: el botón contiene el texto visible que se copia y mantiene el label estable para búsquedas con highlight.
+  - Variante `link`: muestra ícono + `Copiar`, con tooltip truncado para previsualizar el enlace.
+  - Variante `icon`: muestra solo el ícono de portapapeles, sin tooltip, para tablas densas donde el valor ya está visible fuera del botón.
+- `DesignSystemSection`
 - `OpenExternalUrlButton`
+  - Componente canónico para abrir recursos externos o salidas de flujo.
+  - Variantes `icon` y `text`; la variante `text` muestra `Abrir` con ícono y la variante `icon` conserva solo el ícono para tablas densas.
+- `SearchInput`
 
 Paginas implementadas hoy (estado real del repo):
 
@@ -380,6 +387,7 @@ Paginas implementadas hoy (estado real del repo):
 - `/mapa-sucursales`
 - `/inventario-terminales`
 - `/enlaces-importantes`
+- `/design-system`
 - `/configuracion`
 
 Roadmap funcional objetivo (11 vistas):
@@ -453,7 +461,6 @@ El gap actual es de madurez funcional de contenido y no de estructura de navegac
 - Completar bloque C del Header: alertas/sistema con badge de no leidas y acceso a ayuda/manual.
 - Diseñar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
 - Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
-- Estandarizar `Button` a tokens semanticos DaisyUI (eliminar colores hardcodeados en variantes).
 - Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.
 - Catalogar componentes de dominio (cards, tablas, badges, filtros) con criterios de uso por contexto.
 - Ejecutar revision de accesibilidad y contraste WCAG AA sobre rutas operativas.

@@ -122,15 +122,6 @@ const { categories } = Astro.props;
 </section>
 
 <script>
-  interface CopyButtonState {
-    defaultIcon: Element | null;
-    successIcon: Element | null;
-    label: HTMLElement | null;
-    resetTimer: number | null;
-  }
-
-  const copiedFeedbackDurationMs = 2000;
-
   const normalizeSearchValue = (value: string): string =>
     value
       .toLowerCase()
@@ -194,56 +185,6 @@ const { categories } = Astro.props;
     document.querySelectorAll<HTMLElement>("[data-link-category]"),
   );
 
-  const fallbackCopyToClipboard = (value: string): boolean => {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.setAttribute("aria-hidden", "true");
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    textarea.style.top = "0";
-    textarea.style.opacity = "0";
-
-    document.body.append(textarea);
-    textarea.focus();
-    textarea.select();
-
-    let copied = false;
-
-    try {
-      const legacyCopyApi = document as unknown as {
-        execCommand?: (commandId: string) => boolean;
-      };
-      copied =
-        typeof legacyCopyApi.execCommand === "function"
-          ? legacyCopyApi.execCommand("copy")
-          : false;
-    } catch {
-      copied = false;
-    }
-
-    textarea.remove();
-    return copied;
-  };
-
-  const copyToClipboard = async (value: string): Promise<boolean> => {
-    const canUseClipboardApi =
-      typeof navigator !== "undefined" &&
-      typeof navigator.clipboard !== "undefined" &&
-      typeof navigator.clipboard.writeText === "function";
-
-    if (canUseClipboardApi) {
-      try {
-        await navigator.clipboard.writeText(value);
-        return true;
-      } catch {
-        return fallbackCopyToClipboard(value);
-      }
-    }
-
-    return fallbackCopyToClipboard(value);
-  };
-
   const updateVisibleLinks = (): void => {
     const rawSearchValue = searchInput?.value.trim() ?? "";
     const query = normalizeSearchValue(rawSearchValue);
@@ -298,90 +239,6 @@ const { categories } = Astro.props;
     emptyState?.classList.toggle("hidden", visibleLinks > 0);
     emptyState?.classList.toggle("flex", visibleLinks === 0);
   };
-
-  const applyCopiedState = (
-    button: HTMLButtonElement,
-    state: CopyButtonState,
-  ): void => {
-    button.classList.remove("btn-ghost");
-    button.classList.add("btn-success");
-
-    if (state.defaultIcon instanceof Element) {
-      state.defaultIcon.classList.add("hidden");
-    }
-
-    if (state.successIcon instanceof Element) {
-      state.successIcon.classList.remove("hidden");
-    }
-
-    if (state.label instanceof HTMLElement) {
-      state.label.textContent = "Copiado";
-    }
-
-    if (state.resetTimer !== null) {
-      window.clearTimeout(state.resetTimer);
-    }
-
-    state.resetTimer = window.setTimeout(() => {
-      button.classList.add("btn-ghost");
-      button.classList.remove("btn-success");
-
-      if (state.defaultIcon instanceof Element) {
-        state.defaultIcon.classList.remove("hidden");
-      }
-
-      if (state.successIcon instanceof Element) {
-        state.successIcon.classList.add("hidden");
-      }
-
-      if (state.label instanceof HTMLElement) {
-        state.label.textContent = "Copiar";
-      }
-
-      state.resetTimer = null;
-    }, copiedFeedbackDurationMs);
-  };
-
-  const copyButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("[data-copy-button]"),
-  );
-  const buttonStates = new WeakMap<HTMLButtonElement, CopyButtonState>();
-
-  copyButtons.forEach((button) => {
-    if (button.dataset.copyBound === "true") {
-      return;
-    }
-
-    const defaultIcon = button.querySelector("[data-copy-icon-default]");
-    const successIcon = button.querySelector("[data-copy-icon-success]");
-    const label = button.querySelector<HTMLElement>("[data-copy-label]");
-
-    buttonStates.set(button, {
-      defaultIcon,
-      successIcon,
-      label,
-      resetTimer: null,
-    });
-
-    button.dataset.copyBound = "true";
-
-    button.addEventListener("click", async () => {
-      const value = button.getAttribute("data-copy-value") ?? "";
-
-      if (value.trim().length === 0) {
-        return;
-      }
-
-      const copied = await copyToClipboard(value);
-      const state = buttonStates.get(button);
-
-      if (!copied || !state) {
-        return;
-      }
-
-      applyCopiedState(button, state);
-    });
-  });
 
   searchInput?.addEventListener("input", () => {
     updateVisibleLinks();

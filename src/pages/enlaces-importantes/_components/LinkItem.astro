@@ -1,5 +1,6 @@
 ---
-import { Icon } from "astro-icon/components";
+import CopyButton from "@components/ui/CopyButton.astro";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
 import type { ImportantLink, LinkAlternative } from "./types";
 
 interface Props {
@@ -120,69 +121,28 @@ const linkSubtitle = getDisplaySubtitle(link);
                   </div>
 
                   <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/alternative:opacity-100 group-focus-within/alternative:opacity-100">
-                    <div class="tooltip tooltip-top tooltip-neutral">
-                      <div class="tooltip-content max-w-44 overflow-hidden">
-                        <span
-                          class="block w-44 max-w-full truncate font-mono text-xs"
-                          title={action.url}
-                        >
-                          {action.url}
-                        </span>
-                      </div>
+                    <CopyButton
+                      value={action.url}
+                      variant="link"
+                      appearance="ghost"
+                      size="sm"
+                      tooltipText={action.url}
+                      ariaLabel={`Copiar URL de ${action.title}`}
+                    />
 
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-sm gap-1"
-                        data-copy-button
-                        data-copy-value={action.url}
-                        aria-label={`Copiar URL de ${action.title}`}
-                      >
-                        <Icon
-                          name="boxicons:clipboard"
-                          class="size-4"
-                          data-copy-icon-default
-                          aria-hidden="true"
-                        />
-                        <Icon
-                          name="boxicons:check"
-                          class="hidden size-4"
-                          data-copy-icon-success
-                          aria-hidden="true"
-                        />
-                        <span data-copy-label>Copiar</span>
-                      </button>
-                    </div>
-
-                    {actionIsWebUrl ? (
-                      <a
-                        href={action.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="btn btn-secondary btn-sm gap-1"
-                        aria-label={`Abrir ${action.title} en una nueva pestaña`}
-                      >
-                        <Icon
-                          name="boxicons:arrow-up-right-square"
-                          class="size-4"
-                          aria-hidden="true"
-                        />
-                        <span>Abrir</span>
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        class="btn btn-secondary btn-sm btn-disabled gap-1"
-                        disabled
-                        aria-label={`No se puede abrir ${action.title}; copiá la ruta`}
-                      >
-                        <Icon
-                          name="boxicons:arrow-up-right-square"
-                          class="size-4"
-                          aria-hidden="true"
-                        />
-                        <span>Abrir</span>
-                      </button>
-                    )}
+                    <OpenExternalUrlButton
+                      href={actionIsWebUrl ? action.url : undefined}
+                      variant="text"
+                      appearance="solid"
+                      tone="secondary"
+                      size="sm"
+                      disabled={!actionIsWebUrl}
+                      ariaLabel={
+                        actionIsWebUrl
+                          ? `Abrir ${action.title} en una nueva pestaña`
+                          : `No se puede abrir ${action.title}; copiá la ruta`
+                      }
+                    />
                   </div>
                 </div>
               );
@@ -193,70 +153,29 @@ const linkSubtitle = getDisplaySubtitle(link);
     </div>
 
     <div class="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-      <div class="tooltip tooltip-top tooltip-neutral">
-        <div class="tooltip-content max-w-44 overflow-hidden">
-          <span
-            class="block w-44 max-w-full truncate font-mono text-xs"
-            title={mainAction.url}
-          >
-            {mainAction.url}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm gap-1"
-          data-copy-button
-          data-copy-value={mainAction.url}
-          aria-label={`Copiar URL de ${mainAction.title}`}
-        >
-          <Icon
-            name="boxicons:clipboard"
-            class="size-4"
-            data-copy-icon-default
-            aria-hidden="true"
-          />
-          <Icon
-            name="boxicons:check"
-            class="hidden size-4"
-            data-copy-icon-success
-            aria-hidden="true"
-          />
-          <span data-copy-label>Copiar</span>
-        </button>
-      </div>
+      <CopyButton
+        value={mainAction.url}
+        variant="link"
+        appearance="ghost"
+        size="sm"
+        tooltipText={mainAction.url}
+        ariaLabel={`Copiar URL de ${mainAction.title}`}
+      />
 
       {
-        isWebUrl(mainAction.url) ? (
-          <a
-            href={mainAction.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn btn-secondary btn-sm gap-1"
-            aria-label={`Abrir ${mainAction.title} en una nueva pestaña`}
-          >
-            <Icon
-              name="boxicons:arrow-up-right-square"
-              class="size-4"
-              aria-hidden="true"
-            />
-            <span>Abrir</span>
-          </a>
-        ) : (
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm btn-disabled gap-1"
-            disabled
-            aria-label={`No se puede abrir ${mainAction.title}; copiá la ruta`}
-          >
-            <Icon
-              name="boxicons:arrow-up-right-square"
-              class="size-4"
-              aria-hidden="true"
-            />
-            <span>Abrir</span>
-          </button>
-        )
+        <OpenExternalUrlButton
+          href={isWebUrl(mainAction.url) ? mainAction.url : undefined}
+          variant="text"
+          appearance="solid"
+          tone="secondary"
+          size="sm"
+          disabled={!isWebUrl(mainAction.url)}
+          ariaLabel={
+            isWebUrl(mainAction.url)
+              ? `Abrir ${mainAction.title} en una nueva pestaña`
+              : `No se puede abrir ${mainAction.title}; copiá la ruta`
+          }
+        />
       }
     </div>
   </div>

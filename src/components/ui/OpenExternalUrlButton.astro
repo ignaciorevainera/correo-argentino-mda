@@ -2,24 +2,106 @@
 import { Icon } from "astro-icon/components";
 
 interface Props {
-  href: string;
+  href?: string;
   ariaLabel: string;
+  variant?: "icon" | "text";
+  label?: string;
+  size?: "xs" | "sm" | "md";
+  appearance?: "solid" | "outline" | "ghost";
+  tone?: "primary" | "secondary" | "accent" | "neutral";
+  disabled?: boolean;
+  newTab?: boolean;
+  class?: string;
   buttonClass?: string;
 }
 
-const { href, ariaLabel, buttonClass = "" } = Astro.props;
+const {
+  href,
+  ariaLabel,
+  variant = "icon",
+  label = "Abrir",
+  size = "sm",
+  appearance = "outline",
+  tone = "secondary",
+  disabled = false,
+  newTab = true,
+  class: className = "",
+  buttonClass = "",
+} = Astro.props;
+
+const sizeClassMap: Record<NonNullable<Props["size"]>, string> = {
+  xs: "btn-xs",
+  sm: "btn-sm",
+  md: "",
+};
+
+const appearanceClassMap: Record<
+  NonNullable<Props["tone"]>,
+  Record<NonNullable<Props["appearance"]>, string>
+> = {
+  primary: {
+    solid: "btn-primary",
+    outline: "btn-outline btn-primary",
+    ghost: "btn-ghost text-primary hover:bg-primary/10",
+  },
+  secondary: {
+    solid: "btn-secondary",
+    outline: "btn-outline btn-secondary",
+    ghost: "btn-ghost text-secondary hover:bg-secondary/10",
+  },
+  accent: {
+    solid: "btn-accent",
+    outline: "btn-outline btn-accent",
+    ghost: "btn-ghost text-accent hover:bg-accent/10",
+  },
+  neutral: {
+    solid: "btn-neutral",
+    outline: "btn-outline btn-neutral",
+    ghost: "btn-ghost text-neutral hover:bg-neutral/10",
+  },
+};
+
+const canOpen = Boolean(href) && !disabled;
+const isIconVariant = variant === "icon";
+const baseClasses = [
+  "btn rounded-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+  sizeClassMap[size],
+  appearanceClassMap[tone][appearance],
+  isIconVariant ? "btn-square" : "gap-1",
+  className,
+  buttonClass,
+];
 ---
 
-<a
-  href={href}
-  target="_blank"
-  rel="noopener noreferrer"
-  class:list={["btn btn-outline btn-square btn-sm", buttonClass]}
-  aria-label={ariaLabel}
->
-  <Icon
-    name="boxicons:arrow-up-right-square"
-    class="size-4"
-    aria-hidden="true"
-  />
-</a>
+{
+  canOpen ? (
+    <a
+      href={href}
+      target={newTab ? "_blank" : undefined}
+      rel={newTab ? "noopener noreferrer" : undefined}
+      class:list={baseClasses}
+      aria-label={ariaLabel}
+    >
+      <Icon
+        name="boxicons:arrow-up-right-square"
+        class="size-4"
+        aria-hidden="true"
+      />
+      {!isIconVariant && <span>{label}</span>}
+    </a>
+  ) : (
+    <button
+      type="button"
+      class:list={baseClasses}
+      disabled
+      aria-label={ariaLabel}
+    >
+      <Icon
+        name="boxicons:arrow-up-right-square"
+        class="size-4"
+        aria-hidden="true"
+      />
+      {!isIconVariant && <span>{label}</span>}
+    </button>
+  )
+}

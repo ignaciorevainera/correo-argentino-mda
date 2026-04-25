@@ -1,0 +1,634 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import Button from "@components/ui/Button.astro";
+import ColorSwatch from "@components/ui/ColorSwatch.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
+import DesignSystemSection from "@components/ui/DesignSystemSection.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
+
+type BoxiconName = `boxicons:${string}`;
+
+interface Swatch {
+  name: string;
+  role: string;
+  value: string;
+  sampleClass: string;
+  description: string;
+}
+
+interface IconExample {
+  icon: BoxiconName;
+  label: string;
+  tone: string;
+}
+
+const institutionalSwatches: Swatch[] = [
+  {
+    name: "School-bus yellow",
+    role: "primary",
+    value: "#ffc72c",
+    sampleClass: "bg-primary text-primary-content",
+    description: "Foco principal de marca y acción primaria por contexto.",
+  },
+  {
+    name: "Steel azure",
+    role: "secondary",
+    value: "#254888",
+    sampleClass: "bg-secondary text-secondary-content",
+    description: "Eje institucional para navegación y acciones secundarias.",
+  },
+  {
+    name: "Platinum",
+    role: "base-100",
+    value: "#efefef",
+    sampleClass: "bg-base-100 text-base-content",
+    description: "Superficie base del tema claro y referencia neutral.",
+  },
+  {
+    name: "Onyx",
+    role: "base-content",
+    value: "#0c0c0c",
+    sampleClass: "bg-onyx text-platinum",
+    description: "Texto principal y contraste alto sobre fondos claros.",
+  },
+];
+
+const reservedSwatches: Swatch[] = [
+  {
+    name: "Institucional",
+    role: "línea reservada",
+    value: "bg-institucional",
+    sampleClass: "bg-institucional text-platinum",
+    description: "Clasificación de negocio; no representa estado del sistema.",
+  },
+  {
+    name: "Logistica",
+    role: "línea reservada",
+    value: "bg-logistica",
+    sampleClass: "bg-logistica text-platinum",
+    description: "Reservado para chips y etiquetas de línea logística.",
+  },
+  {
+    name: "Financiero",
+    role: "línea reservada",
+    value: "bg-financiero",
+    sampleClass: "bg-financiero text-platinum",
+    description: "Reservado para clasificación financiera, no para éxito.",
+  },
+  {
+    name: "Postal",
+    role: "línea reservada",
+    value: "bg-postal",
+    sampleClass: "bg-postal text-platinum",
+    description: "Reservado para clasificación postal, no para errores.",
+  },
+];
+
+const semanticSwatches: Swatch[] = [
+  {
+    name: "Info",
+    role: "info",
+    value: "bg-info",
+    sampleClass: "bg-info text-info-content",
+    description: "Mensaje informativo o dato relevante sin bloqueo.",
+  },
+  {
+    name: "Success",
+    role: "success",
+    value: "bg-success",
+    sampleClass: "bg-success text-success-content",
+    description: "Confirmación positiva y procesos completados.",
+  },
+  {
+    name: "Warning",
+    role: "warning",
+    value: "bg-warning",
+    sampleClass: "bg-warning text-warning-content",
+    description: "Riesgo recuperable, revision pendiente o cautela.",
+  },
+  {
+    name: "Error",
+    role: "error",
+    value: "bg-error",
+    sampleClass: "bg-error text-error-content",
+    description: "Fallo bloqueante o acción rechazada.",
+  },
+];
+
+const iconExamples: IconExample[] = [
+  {
+    icon: "boxicons:palette",
+    label: "Sistema visual",
+    tone: "bg-primary/20 text-primary",
+  },
+  {
+    icon: "boxicons:search",
+    label: "Búsqueda",
+    tone: "bg-secondary/15 text-secondary",
+  },
+  {
+    icon: "boxicons:clipboard",
+    label: "Copia",
+    tone: "bg-accent/15 text-accent",
+  },
+  {
+    icon: "boxicons:check-circle",
+    label: "Confirmación",
+    tone: "bg-success/15 text-success",
+  },
+  {
+    icon: "boxicons:alert-triangle",
+    label: "Advertencia",
+    tone: "bg-warning/20 text-warning",
+  },
+  {
+    icon: "boxicons:x-circle",
+    label: "Fallo",
+    tone: "bg-error/15 text-error",
+  },
+];
+
+const tableRows = [
+  {
+    host: "MDA-N1-042",
+    ip: "10.18.42.15",
+    area: "Mesa de ayuda N1",
+    owner: "Operaciones",
+    status: "Operativo",
+    badge: "badge-success",
+    icon: "boxicons:desktop" as BoxiconName,
+  },
+  {
+    host: "SUC-ROS-IMP-03",
+    ip: "10.22.8.103",
+    area: "Rosario centro",
+    owner: "Logistica",
+    status: "Revisar",
+    badge: "badge-warning",
+    icon: "boxicons:server" as BoxiconName,
+  },
+  {
+    host: "VPN-CHECKPOINT",
+    ip: "portal interno",
+    area: "Accesos remotos",
+    owner: "Institucional",
+    status: "Informativo",
+    badge: "badge-info",
+    icon: "boxicons:shield" as BoxiconName,
+  },
+];
+---
+
+<BaseLayout title="Estándar de diseño | Portal Mesa de Ayuda">
+  <div class="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-8">
+    <header
+      class="flex flex-col gap-5 border-b border-base-300 pb-6 lg:flex-row lg:items-end lg:justify-between"
+    >
+      <div class="space-y-3">
+        <div class="flex items-center gap-3">
+          <span
+            class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-content shadow-sm"
+            aria-hidden="true"
+          >
+            <Icon name="boxicons:palette" class="size-6" />
+          </span>
+          <div>
+            <p class="font-mono text-xs font-semibold uppercase tracking-wide text-secondary">
+              UI catálogo vivo
+            </p>
+            <h1 class="text-3xl font-bold text-base-content">
+              Estándar de diseño
+            </h1>
+          </div>
+        </div>
+
+        <p class="max-w-3xl text-sm leading-relaxed text-base-content/70 sm:text-base">
+          Catálogo operativo de tokens, componentes y patrones reutilizables
+          para mantener consistencia visual en el portal de Mesa de Ayuda.
+        </p>
+      </div>
+
+      <nav
+        aria-label="Secciones del estándar"
+        class="flex flex-wrap gap-2 lg:max-w-md lg:justify-end"
+      >
+        <a href="#colores" class="btn btn-outline btn-sm">Colores</a>
+        <a href="#componentes" class="btn btn-outline btn-sm">Componentes</a>
+        <a href="#datos" class="btn btn-outline btn-sm">Datos</a>
+        <a href="#iconografia" class="btn btn-outline btn-sm">Iconografía</a>
+      </nav>
+    </header>
+
+    <DesignSystemSection
+      id="colores"
+      title="Colores institucionales y semánticos"
+      description="Los tokens de marca, líneas reservadas y estados cumplen roles separados para evitar ambigüedades entre clasificación de negocio y feedback del sistema."
+    >
+      <div class="grid gap-4 lg:grid-cols-3">
+        <div class="space-y-3 lg:col-span-1">
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">
+            Marca y base
+          </h3>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {
+              institutionalSwatches.map((swatch) => (
+                <ColorSwatch {...swatch} />
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="space-y-3 lg:col-span-1">
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">
+            Líneas reservadas
+          </h3>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {reservedSwatches.map((swatch) => <ColorSwatch {...swatch} />)}
+          </div>
+        </div>
+
+        <div class="space-y-3 lg:col-span-1">
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/60">
+            Estados semánticos
+          </h3>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {semanticSwatches.map((swatch) => <ColorSwatch {...swatch} />)}
+          </div>
+        </div>
+      </div>
+    </DesignSystemSection>
+
+    <DesignSystemSection
+      id="tipografia"
+      title="Tipografía"
+      description="Geist Variable se usa para la interfaz principal y Geist Mono Variable para datos técnicos, identificadores y valores que requieren lectura rígida."
+    >
+      <div class="grid gap-4 lg:grid-cols-2">
+        <article class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <div class="space-y-4">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+                Jerarquía
+              </p>
+              <h1 class="mt-2 text-3xl font-bold text-base-content">
+                Título principal de página
+              </h1>
+              <h2 class="mt-3 text-xl font-semibold text-base-content">
+                Encabezado de sección
+              </h2>
+              <h3 class="mt-2 text-base font-semibold text-base-content">
+                Título interno de tarjeta
+              </h3>
+            </div>
+
+            <p class="text-sm leading-relaxed text-base-content/75">
+              El cuerpo prioriza lectura rápida para operadores N1/N2, con
+              frases cortas, baja densidad visual y contraste suficiente en
+              superficies claras u oscuras.
+            </p>
+          </div>
+        </article>
+
+        <article class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+            Datos técnicos
+          </p>
+          <dl class="mt-4 grid gap-3 text-sm">
+            <div class="flex items-center justify-between gap-3 border-b border-base-300 pb-3">
+              <dt class="text-base-content/60">IP</dt>
+              <dd class="font-mono font-semibold text-base-content">
+                10.18.42.15
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-b border-base-300 pb-3">
+              <dt class="text-base-content/60">Hostname</dt>
+              <dd class="font-mono font-semibold text-base-content">
+                MDA-N1-042
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-base-content/60">Identificador</dt>
+              <dd class="font-mono font-semibold text-base-content">
+                INC-2026-004281
+              </dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+    </DesignSystemSection>
+
+    <DesignSystemSection
+      id="componentes"
+      title="Botones, inputs y utilitarios"
+      description="Los controles base usan DaisyUI de forma atómica, con ajustes mínimos de Tailwind para espaciado, foco y consistencia operativa."
+    >
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-base-content">Botones</h3>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <Button variant="primary" size="md">Guardar</Button>
+            <Button variant="secondary" size="md">Volver</Button>
+            <Button variant="accent" appearance="outline" size="md">
+              Ver detalle
+            </Button>
+            <Button variant="neutral" appearance="ghost" size="md">
+              Cancelar
+            </Button>
+          </div>
+
+          <div class="mt-5 flex flex-wrap gap-2">
+            <Button variant="info" size="sm">Info</Button>
+            <Button variant="success" size="sm">Éxito</Button>
+            <Button variant="warning" size="sm">Advertencia</Button>
+            <Button variant="error" appearance="outline" size="sm">
+              Error
+            </Button>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-base-content">Inputs</h3>
+          <div class="mt-4 grid gap-3">
+            <label class="input input-bordered w-full bg-base-100">
+              <Icon
+                name="boxicons:terminal"
+                class="size-4 text-base-content/50"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                class="grow"
+                value="MDA-N1-042"
+                aria-label="Hostname de ejemplo"
+              />
+            </label>
+
+            <SearchInput
+              id="design-system-search"
+              label="Buscar patrón"
+              placeholder="Buscar por componente, token o estado"
+            />
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-base-content">
+            Interacción de copia
+          </h3>
+          <div class="mt-4 flex flex-col gap-3">
+            <CopyButton
+              value="MDA-N1-042"
+              variant="value"
+              appearance="surface"
+              label="MDA-N1-042"
+              monospace
+              fullWidth
+            />
+
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-base-300 bg-base-200/50 p-3">
+              <CopyButton
+                value="https://vpn.correoargentino.com.ar"
+                variant="link"
+                appearance="ghost"
+                ariaLabel="Copiar URL de VPN"
+                tooltipText="https://vpn.correoargentino.com.ar"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-base-300 bg-base-200/50 p-3">
+              <span class="min-w-0 truncate font-mono text-sm">
+                soporte@correo.local
+              </span>
+              <CopyButton
+                value="soporte@correo.local"
+                variant="icon"
+                appearance="ghost"
+                size="xs"
+                ariaLabel="Copiar soporte@correo.local"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-base-content">
+            Celdas copiables
+          </h3>
+          <p class="mt-2 text-sm leading-relaxed text-base-content/70">
+            Variante para listados técnicos donde todo el texto visible actúa
+            como botón de copia.
+          </p>
+
+          <div class="mt-4 space-y-2 rounded-lg border border-base-300 bg-base-200/50 p-3">
+            <CopyButton
+              value="CUBIC-NOC-017"
+              variant="value"
+              appearance="ghost"
+              label="CUBIC-NOC-017"
+              monospace
+              fullWidth
+            />
+            <CopyButton
+              value="10.24.17.88"
+              variant="value"
+              appearance="ghost"
+              label="10.24.17.88"
+              monospace
+              fullWidth
+            />
+          </div>
+        </section>
+      </div>
+    </DesignSystemSection>
+
+    <DesignSystemSection
+      id="badges-cards-alertas"
+      title="Badges, cards y alertas"
+      description="Las etiquetas categorizan contenido, las tarjetas agrupan información y las alertas comunican feedback puntual sin pintar superficies completas con estados."
+    >
+      <div class="grid gap-4 xl:grid-cols-3">
+        <section class="rounded-lg border border-base-300 bg-base-100 p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-base-content">Etiquetas</h3>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="badge badge-primary">Ticket</span>
+            <span class="badge badge-secondary">Oficina</span>
+            <span class="badge badge-accent">Interno</span>
+            <span class="badge badge-info">En curso</span>
+            <span class="badge badge-success">Operativo</span>
+            <span class="badge badge-warning">Revisar</span>
+            <span class="badge badge-error">Bloqueado</span>
+            <span class="badge-reservado linea-reservada-postal">Postal</span>
+          </div>
+        </section>
+
+        <article class="card rounded-lg border border-base-300 bg-base-100 shadow-sm">
+          <div class="card-body gap-4 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+                  Card operativa
+                </p>
+                <h3 class="card-title mt-1 text-base">Sincronización</h3>
+              </div>
+              <span class="badge badge-info badge-sm">En curso</span>
+            </div>
+
+            <div class="divider m-0"></div>
+
+            <p class="text-sm leading-relaxed text-base-content/70">
+              Contenedor consistente para resumen, metadata y acciones del
+              módulo.
+            </p>
+
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary btn-sm">Ver detalle</button>
+              <button class="btn btn-secondary btn-outline btn-sm">
+                Historial
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <section class="space-y-3">
+          <div role="alert" class="alert alert-info">
+            <Icon name="boxicons:info-circle" class="size-5" />
+            <span>La consulta se actualiza cada 15 minutos.</span>
+          </div>
+          <div role="alert" class="alert alert-success">
+            <Icon name="boxicons:check-circle" class="size-5" />
+            <span>La operación finalizó correctamente.</span>
+          </div>
+          <div role="alert" class="alert alert-warning">
+            <Icon name="boxicons:alert-triangle" class="size-5" />
+            <span>Revisá la IP antes de continuar.</span>
+          </div>
+          <div role="alert" class="alert alert-error">
+            <Icon name="boxicons:x-circle" class="size-5" />
+            <span>No se pudo completar la acción.</span>
+          </div>
+        </section>
+      </div>
+    </DesignSystemSection>
+
+    <DesignSystemSection
+      id="datos"
+      title="Tablas y listados de datos"
+      description="Las grillas deben sostener lectura por filas, metadata secundaria y acciones alineadas al extremo derecho, con desplazamiento horizontal cuando el ancho disponible no alcanza."
+    >
+      <section
+        class="overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-sm"
+        aria-label="Ejemplo de tabla de inventario"
+      >
+        <div class="overflow-x-auto">
+          <table class="table min-w-240">
+            <thead class="bg-base-200/80">
+              <tr class="text-xs uppercase tracking-wide text-base-content/60">
+                <th>Activo</th>
+                <th>Área</th>
+                <th>Responsable</th>
+                <th>Estado</th>
+                <th class="text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                tableRows.map((row) => (
+                  <tr class="border-b border-base-300 last:border-b-0 hover:bg-base-200/60">
+                    <td>
+                      <div class="flex min-w-0 items-center gap-3">
+                        <span
+                          class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-secondary/25 bg-secondary/10 text-secondary"
+                          aria-hidden="true"
+                        >
+                          <Icon name={row.icon} class="size-4" />
+                        </span>
+                        <div class="min-w-0">
+                          <p class="truncate font-mono text-sm font-semibold text-base-content">
+                            {row.host}
+                          </p>
+                          <p class="truncate font-mono text-xs text-base-content/60">
+                            {row.ip}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <p class="text-sm font-medium text-base-content">
+                        {row.area}
+                      </p>
+                      <p class="text-xs text-base-content/60">
+                        Metadata operativa
+                      </p>
+                    </td>
+                    <td class="text-sm text-base-content/75">{row.owner}</td>
+                    <td>
+                      <span class:list={["badge badge-sm", row.badge]}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="flex justify-end gap-2">
+                        <CopyButton
+                          value={row.host}
+                          variant="value"
+                          appearance="ghost"
+                          label={row.host}
+                          ariaLabel={`Copiar ${row.host}`}
+                          monospace
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-outline btn-square btn-sm"
+                          aria-label={`Editar ${row.host}`}
+                        >
+                          <Icon
+                            name="boxicons:edit"
+                            class="size-4"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </DesignSystemSection>
+
+    <DesignSystemSection
+      id="iconografia"
+      title="Iconografía"
+      description="Los íconos provienen de Boxicons vía astro-icon. En acciones y estados primarios se priorizan figuras compactas y sólidas cuando la librería ofrece una versión equivalente."
+    >
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          iconExamples.map((item) => (
+            <article class="flex items-center gap-3 rounded-lg border border-base-300 bg-base-100 p-4 shadow-sm transition-colors hover:border-base-content/25">
+              <span
+                class:list={[
+                  "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
+                  item.tone,
+                ]}
+                aria-hidden="true"
+              >
+                <Icon name={item.icon} class="size-5" />
+              </span>
+              <div>
+                <p class="text-sm font-semibold text-base-content">
+                  {item.label}
+                </p>
+                <p class="font-mono text-xs text-base-content/60">
+                  {item.icon}
+                </p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </DesignSystemSection>
+  </div>
+</BaseLayout>

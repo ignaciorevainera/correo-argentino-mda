@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
+import SearchInput from "@components/ui/SearchInput.astro";
 import inventoryRows from "../../data/inventario_terminales.json";
 
 type OsFamily = "windows" | "linux" | "legacy";
@@ -162,21 +163,11 @@ const rowIcons: Record<
         hardware y estado de contacto.
       </p>
       <div class="w-full max-w-md">
-        <label class="input input-bordered w-full" for="terminal-search">
-          <Icon
-            name="boxicons:search"
-            class="size-4 opacity-50"
-            aria-hidden="true"
-          />
-          <input
-            id="terminal-search"
-            type="search"
-            class="grow"
-            placeholder="Buscar por hostname, IP, MAC o sucursal"
-            autocomplete="off"
-            aria-label="Buscar terminal por hostname, direccion IP, MAC o sucursal"
-          />
-        </label>
+        <SearchInput
+          id="terminal-search"
+          label="Buscar terminal por hostname, direccion IP, MAC o sucursal"
+          placeholder="Buscar por hostname, IP, MAC o sucursal"
+        />
       </div>
     </header>
 
@@ -373,61 +364,18 @@ const rowIcons: Record<
   </section>
 
   <script>
-    const searchInput = document.querySelector("#terminal-search");
+    import {
+      highlightSearchTargets,
+      matchesSearchQuery,
+    } from "@lib/clientSearch";
+
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#terminal-search");
     const rows = Array.from(
       document.querySelectorAll<HTMLElement>("[data-terminal-row]"),
     );
-    const emptyState = document.querySelector("#terminal-empty-state");
-
-    const normalizeValue = (value: string): string =>
-      value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-
-    const escapeRegExp = (value: string): string =>
-      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const escapeHtml = (value: string): string =>
-      value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-
-    const highlightText = (element: HTMLElement, query: string) => {
-      const originalText =
-        element.dataset.originalText ?? element.textContent ?? "";
-
-      if (!element.dataset.originalText) {
-        element.dataset.originalText = originalText;
-      }
-
-      if (query.length === 0) {
-        element.textContent = originalText;
-        return;
-      }
-
-      const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
-
-      if (!matcher.test(originalText)) {
-        element.textContent = originalText;
-        return;
-      }
-
-      matcher.lastIndex = 0;
-      const highlighted = originalText
-        .split(matcher)
-        .map((chunk, index) =>
-          index % 2 === 1
-            ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
-            : escapeHtml(chunk),
-        )
-        .join("");
-
-      element.innerHTML = highlighted;
-    };
+    const emptyState =
+      document.querySelector<HTMLElement>("#terminal-empty-state");
 
     if (
       searchInput instanceof HTMLInputElement &&
@@ -435,33 +383,18 @@ const rowIcons: Record<
     ) {
       const updateRows = () => {
         const rawSearchValue = searchInput.value.trim();
-        const searchValue = normalizeValue(searchInput.value.trim());
         let visibleRows = 0;
 
         rows.forEach((row) => {
-          const hostname = normalizeValue(
-            row.getAttribute("data-hostname") ?? "",
-          );
-          const ip = normalizeValue(row.getAttribute("data-ip") ?? "");
-          const mac = normalizeValue(row.getAttribute("data-mac") ?? "");
-          const branch = normalizeValue(row.getAttribute("data-branch") ?? "");
-
-          const isVisible =
-            searchValue.length === 0 ||
-            hostname.includes(searchValue) ||
-            ip.includes(searchValue) ||
-            mac.includes(searchValue) ||
-            branch.includes(searchValue);
+          const isVisible = matchesSearchQuery(rawSearchValue, [
+            row.dataset.hostname,
+            row.dataset.ip,
+            row.dataset.mac,
+            row.dataset.branch,
+          ]);
 
           row.classList.toggle("hidden", !isVisible);
-
-          const rowTargets = Array.from(
-            row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
-          );
-
-          rowTargets.forEach((target) => {
-            highlightText(target, isVisible ? rawSearchValue : "");
-          });
+          highlightSearchTargets(row, isVisible ? rawSearchValue : "");
 
           if (isVisible) {
             visibleRows += 1;

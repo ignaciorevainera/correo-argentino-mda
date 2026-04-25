@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
+import SearchInput from "@components/ui/SearchInput.astro";
 import {
   officeDirectoryItems,
   type OfficeDirectoryItem,
@@ -150,24 +151,12 @@ const groupedOffices = Array.from(
         }
       </div>
 
-      <label
-        class="input input-bordered w-full bg-base-100 lg:max-w-sm"
-        for="office-search"
-      >
-        <Icon
-          name="boxicons:search"
-          class="size-4 text-base-content/50"
-          aria-hidden="true"
-        />
-        <input
-          id="office-search"
-          type="search"
-          class="grow"
-          placeholder="Buscar por nombre, codigo, region, centro de costo o CP"
-          autocomplete="off"
-          aria-label="Buscar oficina por nombre, codigo, region, centro de costo o codigo postal"
-        />
-      </label>
+      <SearchInput
+        id="office-search"
+        label="Buscar oficina por nombre, codigo, region, centro de costo o codigo postal"
+        placeholder="Buscar por nombre, codigo, region, centro de costo o CP"
+        class="lg:max-w-sm"
+      />
     </section>
 
     <div id="office-empty-state" class="alert alert-warning hidden" role="status">
@@ -467,6 +456,11 @@ const groupedOffices = Array.from(
   </section>
 
   <script>
+    import {
+      highlightSearchTargets,
+      matchesSearchQuery,
+    } from "@lib/clientSearch";
+
     const tabButtons = Array.from(
       document.querySelectorAll<HTMLButtonElement>("[data-office-tab]"),
     );
@@ -500,67 +494,17 @@ const groupedOffices = Array.from(
       paqueteria: "office-tab-active office-tab-active-paqueteria",
     };
 
-    const normalizeValue = (value: string): string =>
-      value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-
-    const escapeRegExp = (value: string): string =>
-      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const escapeHtml = (value: string): string =>
-      value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-
-    const highlightText = (element: HTMLElement, query: string): void => {
-      const originalText =
-        element.dataset.originalText ?? element.textContent ?? "";
-
-      if (!element.dataset.originalText) {
-        element.dataset.originalText = originalText;
-      }
-
-      if (query.length === 0) {
-        element.textContent = originalText;
-        return;
-      }
-
-      const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
-
-      if (!matcher.test(originalText)) {
-        element.textContent = originalText;
-        return;
-      }
-
-      matcher.lastIndex = 0;
-      const highlighted = originalText
-        .split(matcher)
-        .map((chunk, index) =>
-          index % 2 === 1
-            ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
-            : escapeHtml(chunk),
-        )
-        .join("");
-
-      element.innerHTML = highlighted;
-    };
-
     const detailRowById = new Map(
       detailRows.map((row) => [row.dataset.officeId ?? "", row]),
     );
 
     const isRowVisible = (row: HTMLTableRowElement): boolean => {
-      const query = normalizeValue(searchInput?.value.trim() ?? "");
-      const searchText = normalizeValue(row.dataset.searchText ?? "");
       const matchesType =
         selectedOfficeType === "all" ||
         row.dataset.officeType === selectedOfficeType;
-      const matchesSearch = query.length === 0 || searchText.includes(query);
+      const matchesSearch = matchesSearchQuery(searchInput?.value.trim(), [
+        row.dataset.searchText,
+      ]);
 
       return matchesType && matchesSearch;
     };
@@ -595,17 +539,11 @@ const groupedOffices = Array.from(
         const closedIcon = row.querySelector<HTMLElement>(
           "[data-chevron-closed]",
         );
-        const rowTargets = Array.from(
-          row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
-        );
 
         row.classList.toggle("hidden", !rowIsVisible);
         row.classList.toggle("bg-base-200/70", rowIsExpanded);
         row.setAttribute("aria-expanded", rowIsExpanded ? "true" : "false");
-
-        rowTargets.forEach((target) => {
-          highlightText(target, rowIsVisible ? rawSearchValue : "");
-        });
+        highlightSearchTargets(row, rowIsVisible ? rawSearchValue : "");
 
         openIcon?.classList.toggle("hidden", !rowIsExpanded);
         closedIcon?.classList.toggle("hidden", rowIsExpanded);
