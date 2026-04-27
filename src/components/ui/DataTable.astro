@@ -1,0 +1,51 @@
+---
+interface Props {
+  ariaLabel: string;
+  minWidthClass?: string;
+  headerGridClass: string;
+  rowGridClass: string;
+  class?: string;
+  bodyClass?: string;
+}
+
+const {
+  ariaLabel,
+  minWidthClass = "min-w-max md:min-w-full",
+  headerGridClass,
+  rowGridClass,
+  class: className = "",
+  bodyClass = "",
+} = Astro.props;
+---
+
+<section
+  class:list={[
+    "overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-sm",
+    className,
+  ]}
+  aria-label={ariaLabel}
+  data-table-sort-root
+  data-table-row-grid-class={rowGridClass}
+>
+  <div class:list={[minWidthClass]}>
+    <div
+      class:list={[
+        "grid border-b border-secondary/40 bg-secondary px-4 py-2.5 text-secondary-content shadow-sm",
+        headerGridClass,
+      ]}
+      data-table-header
+    >
+      <slot name="header" />
+    </div>
+
+    <div class:list={bodyClass} data-table-sort-body>
+      <slot />
+    </div>
+  </div>
+</section>
+
+<script>
+  import { bindClientTableSort } from "@lib/clientTableSort";
+
+  bindClientTableSort();
+</script>

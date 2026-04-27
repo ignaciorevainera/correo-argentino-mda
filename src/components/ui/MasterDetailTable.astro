@@ -1,0 +1,49 @@
+---
+interface Props {
+  ariaLabel: string;
+  minWidthClass?: string;
+  headerGridClass: string;
+  class?: string;
+  bodyClass?: string;
+}
+
+const {
+  ariaLabel,
+  minWidthClass = "min-w-max md:min-w-full",
+  headerGridClass,
+  class: className = "",
+  bodyClass = "",
+} = Astro.props;
+---
+
+<section
+  class:list={[
+    "overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-sm",
+    className,
+  ]}
+  aria-label={ariaLabel}
+  data-master-detail-table-root
+  data-master-detail-view="grouped"
+>
+  <div class:list={[minWidthClass]}>
+    <div
+      class:list={[
+        "grid border-b border-secondary/40 bg-secondary px-4 py-2.5 text-secondary-content shadow-sm",
+        headerGridClass,
+      ]}
+      data-master-detail-table-header
+    >
+      <slot name="header" />
+    </div>
+
+    <div class:list={bodyClass} data-master-detail-table-body>
+      <slot />
+    </div>
+  </div>
+</section>
+
+<script>
+  import { bindMasterDetailTableSort } from "@lib/clientMasterDetailTableSort";
+
+  bindMasterDetailTableSort();
+</script>

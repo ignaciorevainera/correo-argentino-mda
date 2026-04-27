@@ -13,6 +13,9 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  children?: NavItem[];
+  parentLabel?: string;
+  nested?: boolean;
 }
 
 interface NavSection {
@@ -23,6 +26,23 @@ interface NavSection {
 
 const { title = "Portal Mesa de Ayuda" } = Astro.props;
 const currentPath = Astro.url.pathname;
+const globalFontFaceCss = `
+  @font-face {
+    font-family: "Geist Variable";
+    src: url("${geistLatinWoff2}") format("woff2");
+    font-display: swap;
+    font-style: normal;
+    font-weight: 100 900;
+  }
+
+  @font-face {
+    font-family: "Geist Mono Variable";
+    src: url("${geistMonoLatinWoff2}") format("woff2");
+    font-display: swap;
+    font-style: normal;
+    font-weight: 100 900;
+  }
+`;
 const aboutProjectVersion = `v${packageJson.version}`;
 const aboutProjectYear = new Date().getFullYear();
 const aboutProjectOwners: string[] = [
@@ -37,6 +57,11 @@ const navSections: NavSection[] = [
     label: "General",
     items: [
       { href: "/", label: "Inicio", icon: "boxicons:home" },
+      {
+        href: "/design-system",
+        label: "Estándar de diseño",
+        icon: "boxicons:palette",
+      },
       {
         href: "/cronograma",
         label: "Cronograma",
@@ -71,6 +96,13 @@ const navSections: NavSection[] = [
         href: "/enlaces-importantes",
         label: "Enlaces importantes",
         icon: "boxicons:link",
+        children: [
+          {
+            href: "/catalogo-aplicativos",
+            label: "Catalogo de aplicativos",
+            icon: "boxicons:link",
+          },
+        ],
       },
     ],
   },
@@ -108,8 +140,25 @@ const navSections: NavSection[] = [
   },
 ];
 
-const drawerNavItems = navSections.flatMap((section) => section.items);
-const quickAccessItems: NavItem[] = [...drawerNavItems];
+const flattenQuickAccessItems = (items: NavItem[]): NavItem[] =>
+  items.flatMap((item) => {
+    const nestedChildren = Array.isArray(item.children)
+      ? item.children.map((child) => ({
+          ...child,
+          parentLabel: item.label,
+          nested: true,
+        }))
+      : [];
+
+    return [{ ...item, children: undefined }, ...nestedChildren];
+  });
+
+const drawerNavItems = navSections.flatMap((section) =>
+  section.items.map((item) => ({ ...item, children: undefined })),
+);
+const quickAccessItems: NavItem[] = navSections.flatMap((section) =>
+  flattenQuickAccessItems(section.items),
+);
 
 const isActiveRoute = (href: string) =>
   href === "/"
@@ -119,23 +168,7 @@ const isActiveRoute = (href: string) =>
 
 <html lang="es">
   <head>
-    <style is:global>
-      @font-face {
-        font-family: "Geist";
-        src: url({geistLatinWoff2}) format("woff2");
-        font-display: swap;
-        font-style: normal;
-        font-weight: 100 900;
-      }
-
-      @font-face {
-        font-family: "Geist Mono";
-        src: url({geistMonoLatinWoff2}) format("woff2");
-        font-display: swap;
-        font-style: normal;
-        font-weight: 100 900;
-      }
-    </style>
+    <style is:global set:html={globalFontFaceCss}></style>
     <script is:inline>
       (() => {
         const savedTheme = localStorage.getItem("theme");
@@ -369,12 +402,26 @@ const isActiveRoute = (href: string) =>
             quickAccessItems.map((item) => (
               <li
                 data-command-item
-                data-search-text={`${item.label} ${item.href}`.toLowerCase()}
+                data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
               >
                 <a href={item.href} class="justify-between gap-3">
-                  <span class="flex min-w-0 items-center gap-2">
+                  <span
+                    class:list={[
+                      "flex min-w-0 items-center gap-2",
+                      item.nested && "pl-5",
+                    ]}
+                  >
                     <Icon name={item.icon} class="size-4 shrink-0" />
-                    <span class="truncate">{item.label}</span>
+                    <span class="min-w-0">
+                      {
+                        item.parentLabel && (
+                          <span class="block text-xs text-base-content/50">
+                            {item.parentLabel}
+                          </span>
+                        )
+                      }
+                      <span class="block truncate">{item.label}</span>
+                    </span>
                   </span>
                   <span class="text-xs text-base-content/60">{item.href}</span>
                 </a>

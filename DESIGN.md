@@ -279,6 +279,55 @@ Anti-patron:
 
 - No pintar toda la card con color de estado para indicar un resultado; usar badge o alert dentro de la card.
 
+### 5) Encabezado de pagina (`PageHeader`)
+
+Uso recomendado:
+
+- Usar `PageHeader` para el bloque textual inicial de cada pagina: titulo
+  principal y subtitulo breve.
+- Mantener buscadores, filtros, metricas y acciones fuera de este componente;
+  pertenecen al layout de cada vista.
+- El titulo usa `text-3xl font-bold tracking-tight text-base-content` y la
+  descripcion usa `text-sm leading-relaxed text-base-content/70`.
+
+Anti-patron:
+
+- No agregar slots ni comportamiento interactivo al encabezado textual.
+
+### 6) Tabla operativa (`DataTable`)
+
+Uso recomendado:
+
+- Usar `DataTable` para listados operativos con filas densas, metadata tecnica,
+  iconografia y acciones por fila.
+- El encabezado debe usar siempre `secondary` como fondo institucional, texto
+  `secondary-content`, negrita y uppercase para reforzar lectura por columnas.
+- Las columnas textuales clave pueden ser ordenables con `DataTableHeaderCell`
+  y `data-sort-*` en cada fila. El ciclo de orden es ascendente, descendente y
+  retorno al orden original.
+- Mantener `overflow-x-auto` como respuesta responsive para preservar densidad
+  de datos sin duplicar la estructura como tarjetas.
+
+Anti-patron:
+
+- No implementar ordenamiento ad hoc por pagina cuando el listado pueda usar el
+  contrato `data-table-sort-root` / `data-table-row`.
+
+### 7) Tabla master-detail (`MasterDetailTable`)
+
+Uso recomendado:
+
+- Usar `MasterDetailTable` para listados con fila maestra, detalle expandible y
+  agrupaciones visuales, como el directorio de oficinas.
+- Reutilizar `DataTableHeaderCell` para sostener el encabezado institucional y
+  el mismo affordance de ordenamiento.
+- El ordenamiento debe mover bloques completos mediante
+  `data-master-detail-sort-item`, preservando el panel de detalle junto a su
+  fila maestra.
+- En vistas agrupadas, conservar los headers de grupo y ordenar los items dentro
+  de cada grupo; en vistas por tipo, el listado puede comportarse como tabla
+  plana.
+
 ## Tipografia
 
 - UI principal: `Geist Variable` (Fontsource) como `--font-sans`.
@@ -295,6 +344,7 @@ Anti-patron:
 ## Escala tipografica usada
 
 - Titulo principal de pagina: `text-3xl font-bold`
+- Subtitulo principal de pagina: `text-sm leading-relaxed text-base-content/70`
 - Navegacion y elementos globales: `text-sm`
 - Texto secundario/global: `text-sm` con opacidad (`text-base-content/70`)
 
@@ -363,10 +413,29 @@ Layout actual:
 UI reutilizable actual:
 
 - `Button`
-- `CopyCell`
-- `CopyUrlIconButton`
-- `CopyValueButton`
+- `ColorSwatch`
+- `CopyButton`
+  - Componente canónico para copiar valores al portapapeles.
+  - Variante `value`: el botón contiene el texto visible que se copia y mantiene el label estable para búsquedas con highlight.
+  - Variante `link`: muestra ícono + `Copiar`, con tooltip truncado para previsualizar el enlace.
+  - Variante `icon`: muestra solo el ícono de portapapeles, sin tooltip, para tablas densas donde el valor ya está visible fuera del botón.
+- `DataTable`
+  - Contenedor canonico para listados operativos con scroll horizontal,
+    encabezado institucional y filas proyectadas por slots.
+- `DataTableHeaderCell`
+  - Celda de encabezado reutilizable; puede ser estatica u ordenable mediante
+    `sortKey`.
+- `DesignSystemSection`
+- `MasterDetailTable`
+  - Contenedor para tablas con fila maestra, detalle expandible y ordenamiento
+    por bloques.
 - `OpenExternalUrlButton`
+  - Componente canónico para abrir recursos externos o salidas de flujo.
+  - Variantes `icon` y `text`; la variante `text` muestra `Abrir` con ícono y la variante `icon` conserva solo el ícono para tablas densas.
+- `PageHeader`
+  - Bloque textual canonico para titulo y subtitulo de pagina.
+  - No contiene buscadores, filtros, metricas ni acciones.
+- `SearchInput`
 
 Paginas implementadas hoy (estado real del repo):
 
@@ -380,6 +449,7 @@ Paginas implementadas hoy (estado real del repo):
 - `/mapa-sucursales`
 - `/inventario-terminales`
 - `/enlaces-importantes`
+- `/design-system`
 - `/configuracion`
 
 Roadmap funcional objetivo (11 vistas):
@@ -453,7 +523,6 @@ El gap actual es de madurez funcional de contenido y no de estructura de navegac
 - Completar bloque C del Header: alertas/sistema con badge de no leidas y acceso a ayuda/manual.
 - Diseñar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
 - Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
-- Estandarizar `Button` a tokens semanticos DaisyUI (eliminar colores hardcodeados en variantes).
 - Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.
 - Catalogar componentes de dominio (cards, tablas, badges, filtros) con criterios de uso por contexto.
 - Ejecutar revision de accesibilidad y contraste WCAG AA sobre rutas operativas.

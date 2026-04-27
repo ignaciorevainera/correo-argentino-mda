@@ -1,0 +1,272 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import PageHeader from "@components/ui/PageHeader.astro";
+import catalogData from "../../data/catalogo_aplicativos.json";
+
+interface CatalogBundle {
+  title: string;
+  description: string;
+  url?: string;
+}
+
+interface CatalogItem {
+  id: string;
+  title: string;
+  type: string;
+  version?: string;
+  description: string;
+  url?: string;
+  variants?: CatalogVariant[];
+}
+
+interface CatalogVariant {
+  id: string;
+  version: string;
+  description: string;
+  url?: string;
+}
+
+interface CatalogViewModel {
+  bundle: CatalogBundle;
+  items: CatalogItem[];
+}
+
+const { bundle, items } = catalogData as CatalogViewModel;
+
+const bundleUrl = bundle.url?.trim() ?? "";
+const hasBundleUrl = bundleUrl.length > 0;
+
+const isWebUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+---
+
+<BaseLayout title="Catalogo de aplicativos | Portal Mesa de Ayuda">
+  <section class="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <PageHeader
+      title="Catalogo de aplicativos"
+      description="Descarga herramientas de operatoria diaria de mesa de ayuda en formato paquete .zip o por aplicativo individual segun tu necesidad."
+    />
+
+    <article class="rounded-xl border border-primary/30 bg-primary/10 p-5">
+      <div
+        class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div class="flex items-start gap-3">
+          <span
+            class="mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-content"
+            aria-hidden="true"
+          >
+            <Icon name="boxicons:link" class="size-5" />
+          </span>
+
+          <div class="space-y-1">
+            <h2 class="text-base font-semibold text-base-content sm:text-lg">
+              {bundle.title}
+            </h2>
+            <p class="text-sm leading-relaxed text-base-content/70">
+              {bundle.description}
+            </p>
+          </div>
+        </div>
+
+        {
+          hasBundleUrl ? (
+            <a
+              href={bundleUrl}
+              class="btn btn-primary btn-sm gap-2 sm:btn-md"
+              target={isWebUrl(bundleUrl) ? "_blank" : undefined}
+              rel={isWebUrl(bundleUrl) ? "noopener noreferrer" : undefined}
+            >
+              <Icon
+                name="boxicons:arrow-up-right-square"
+                class="size-4"
+                aria-hidden="true"
+              />
+              <span>Descargar .zip</span>
+            </a>
+          ) : (
+            <button
+              type="button"
+              class="btn btn-primary btn-disabled btn-sm gap-2 sm:btn-md"
+              disabled
+            >
+              <Icon
+                name="boxicons:calendar"
+                class="size-4"
+                aria-hidden="true"
+              />
+              <span>Disponible pronto</span>
+            </button>
+          )
+        }
+      </div>
+    </article>
+
+    <section class="space-y-3" aria-labelledby="catalogo-individual-title">
+      <div class="flex items-center gap-2">
+        <Icon
+          name="boxicons:link"
+          class="size-5 text-base-content/70"
+          aria-hidden="true"
+        />
+        <h2
+          id="catalogo-individual-title"
+          class="text-lg font-semibold text-base-content"
+        >
+          Descarga por aplicativo
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {
+          items.map((item) => {
+            const itemUrl = item.url?.trim() ?? "";
+            const hasItemUrl = itemUrl.length > 0;
+            const isExternal = hasItemUrl && isWebUrl(itemUrl);
+            const variants = Array.isArray(item.variants) ? item.variants : [];
+            const hasVariants = variants.length > 0;
+
+            return (
+              <article class="card border border-base-300 bg-base-100 shadow-sm">
+                <div class="card-body gap-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="badge badge-outline badge-sm">
+                      {item.type}
+                    </span>
+                    {hasVariants ? (
+                      <span class="badge badge-primary badge-sm">
+                        {variants.length} versiones
+                      </span>
+                    ) : (
+                      item.version && (
+                        <span class="badge badge-neutral badge-sm">
+                          {item.version}
+                        </span>
+                      )
+                    )}
+                  </div>
+
+                  <h3 class="text-base font-semibold text-base-content">
+                    {item.title}
+                  </h3>
+                  <p class="text-sm leading-relaxed text-base-content/70">
+                    {item.description}
+                  </p>
+
+                  {hasVariants ? (
+                    <div class="dropdown dropdown-start w-full">
+                      <div
+                        tabindex="0"
+                        role="button"
+                        class="btn btn-outline btn-sm w-full justify-between border-base-300 bg-base-100 text-base-content shadow-none hover:bg-base-100"
+                      >
+                        <span>Ver versiones disponibles</span>
+                        <Icon
+                          name="boxicons:chevron-down"
+                          class="size-4"
+                          aria-hidden="true"
+                        />
+                      </div>
+
+                      <ul
+                        tabindex="-1"
+                        class="dropdown-content menu bg-base-100 rounded-box z-1 mt-2 w-full border border-base-300 p-2 shadow-sm"
+                      >
+                        {variants.map((variant) => {
+                          const variantUrl = variant.url?.trim() ?? "";
+                          const hasVariantUrl = variantUrl.length > 0;
+                          const isVariantExternal =
+                            hasVariantUrl && isWebUrl(variantUrl);
+
+                          return (
+                            <li>
+                              {hasVariantUrl ? (
+                                <a
+                                  href={variantUrl}
+                                  class="flex items-start gap-3 rounded-lg px-3 py-3"
+                                  target={
+                                    isVariantExternal ? "_blank" : undefined
+                                  }
+                                  rel={
+                                    isVariantExternal
+                                      ? "noopener noreferrer"
+                                      : undefined
+                                  }
+                                >
+                                  <span class="badge badge-neutral badge-sm shrink-0">
+                                    {variant.version}
+                                  </span>
+                                  <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-base-content">
+                                      Descargar version {variant.version}
+                                    </span>
+                                    <span class="mt-1 block text-xs leading-relaxed text-base-content/70">
+                                      {variant.description}
+                                    </span>
+                                  </span>
+                                </a>
+                              ) : (
+                                <button
+                                  type="button"
+                                  class="flex items-start gap-3 rounded-lg px-3 py-3 text-left"
+                                  disabled
+                                >
+                                  <span class="badge badge-neutral badge-sm shrink-0">
+                                    {variant.version}
+                                  </span>
+                                  <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-base-content">
+                                      Version pendiente
+                                    </span>
+                                    <span class="mt-1 block text-xs leading-relaxed text-base-content/70">
+                                      {variant.description}
+                                    </span>
+                                  </span>
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div class="card-actions justify-end pt-1">
+                      {hasItemUrl ? (
+                        <a
+                          href={itemUrl}
+                          class="btn btn-secondary btn-sm gap-2"
+                          target={isExternal ? "_blank" : undefined}
+                          rel={isExternal ? "noopener noreferrer" : undefined}
+                        >
+                          <Icon
+                            name="boxicons:arrow-up-right-square"
+                            class="size-4"
+                            aria-hidden="true"
+                          />
+                          <span>Descargar</span>
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-disabled btn-sm gap-2"
+                          disabled
+                        >
+                          <Icon
+                            name="boxicons:calendar"
+                            class="size-4"
+                            aria-hidden="true"
+                          />
+                          <span>Pendiente</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+    </section>
+  </section>
+</BaseLayout>

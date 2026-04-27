@@ -1,7 +1,11 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
-import CopyCell from "@components/ui/CopyCell.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
 import {
   cubicMachines,
   getActiveMachineCount,
@@ -26,6 +30,9 @@ const shiftIconTone: Record<CubicShift, string> = {
   morning: "border-warning/40 bg-warning text-warning-content",
   afternoon_night: "border-info/40 bg-info text-info-content",
 };
+
+const cubicHeaderGridClass = "grid-cols-12 gap-4";
+const cubicRowGridClass = "grid grid-cols-12 items-center gap-4";
 ---
 
 <BaseLayout title="Cubics">
@@ -33,12 +40,10 @@ const shiftIconTone: Record<CubicShift, string> = {
     <div
       class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
     >
-      <header class="space-y-2">
-        <h1 class="text-3xl font-bold">Cubics</h1>
-        <p class="text-sm text-base-content/70 sm:text-base">
-          Monitoreo operativo de hostnames, IPs y responsables asignados.
-        </p>
-      </header>
+      <PageHeader
+        title="Cubics"
+        description="Monitoreo operativo de hostnames, IPs y responsables asignados."
+      />
 
       <aside
         class="card w-full border border-base-300 bg-base-100 shadow-sm lg:max-w-xs"
@@ -64,21 +69,11 @@ const shiftIconTone: Record<CubicShift, string> = {
       class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
     >
       <div class="w-full max-w-md">
-        <label class="input input-bordered w-full">
-          <Icon
-            name="boxicons:search"
-            class="size-4 opacity-50"
-            aria-hidden="true"
-          />
-          <input
-            id="machine-search"
-            type="search"
-            class="grow"
-            placeholder="Buscar por hostname, IP o usuario"
-            autocomplete="off"
-            aria-label="Buscar cubic por hostname, direccion IP o usuario asignado"
-          />
-        </label>
+        <SearchInput
+          id="machine-search"
+          label="Buscar cubic por hostname, direccion IP o usuario asignado"
+          placeholder="Buscar por hostname, IP o usuario"
+        />
       </div>
 
       <div
@@ -128,201 +123,212 @@ const shiftIconTone: Record<CubicShift, string> = {
         <span>No se encontraron resultados para la busqueda actual.</span>
       </div>
 
-      <div
-        class="overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-sm"
+      <DataTable
+        ariaLabel="Listado de cubics"
+        minWidthClass="min-w-220 md:min-w-full"
+        headerGridClass={cubicHeaderGridClass}
+        rowGridClass={cubicRowGridClass}
       >
-        <div class="min-w-max md:min-w-full">
-          <div
-            class="hidden border-b border-base-300 bg-base-300/40 px-4 py-3 md:grid md:grid-cols-12 md:gap-4"
-          >
-            <p
-              class="col-span-4 font-mono text-sm font-semibold text-base-content/70"
-            >
-              Hostname
-            </p>
-            <p
-              class="col-span-3 font-mono text-sm font-semibold text-base-content/70"
-            >
-              Direccion IP
-            </p>
-            <p class="col-span-2 text-sm font-semibold text-base-content/70">
-              Estado
-            </p>
-            <p class="col-span-3 text-sm font-semibold text-base-content/70">
-              Asignado a
-            </p>
-          </div>
+        <div slot="header" class="col-span-4">
+          <DataTableHeaderCell sortKey="hostname" monospace>
+            Hostname
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-3">
+          <DataTableHeaderCell sortKey="ip" monospace>
+            Direccion IP
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell>Estado</DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-3">
+          <DataTableHeaderCell>Asignado a</DataTableHeaderCell>
+        </div>
 
-          <div>
-            {
-              cubicMachines.map((machine) => {
-                const assignmentSearchValue =
-                  machine.assignments.length > 0
-                    ? machine.assignments
-                        .map((assignment) => assignment.agent.name)
-                        .join(" ")
-                    : "Sin asignar";
+        {
+          cubicMachines.map((machine) => {
+            const assignmentSearchValue =
+              machine.assignments.length > 0
+                ? machine.assignments
+                    .map((assignment) => assignment.agent.name)
+                    .join(" ")
+                : "Sin asignar";
 
-                return (
-                  <article
-                    data-machine-row
-                    data-name={machine.name}
-                    data-ip={machine.ip}
-                    data-agent={assignmentSearchValue}
-                    data-status={machine.status}
-                    class="grid grid-cols-1 gap-3 border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-300/50 last:border-b-0 md:grid-cols-12 md:items-center md:gap-4"
-                  >
-                    <div class="space-y-2 md:col-span-4">
-                      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
-                        Hostname
-                      </p>
-                      <div class="flex items-center gap-3">
-                        <span
-                          class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/20 text-accent"
-                          aria-hidden="true"
-                        >
-                          <Icon
-                            name="boxicons:desktop"
-                            class="size-4"
-                          />
-                        </span>
-                        <div class="min-w-0 flex-1">
-                          <CopyCell text={machine.name} monospace />
-                        </div>
-                      </div>
+            return (
+              <article
+                data-table-row
+                data-machine-row
+                data-name={machine.name}
+                data-ip={machine.ip}
+                data-agent={assignmentSearchValue}
+                data-status={machine.status}
+                data-sort-hostname={machine.name}
+                data-sort-ip={machine.ip}
+                class:list={[
+                  cubicRowGridClass,
+                  "border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-300/50 last:border-b-0",
+                ]}
+              >
+                <div class="col-span-4 min-w-0">
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/20 text-accent"
+                      aria-hidden="true"
+                    >
+                      <Icon name="boxicons:desktop" class="size-4" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <CopyButton
+                        value={machine.name}
+                        variant="value"
+                        appearance="ghost"
+                        label={machine.name}
+                        ariaLabel={`Copiar ${machine.name}`}
+                        monospace
+                        fullWidth
+                        highlightable
+                        class="-ml-2"
+                      />
                     </div>
+                  </div>
+                </div>
 
-                    <div class="space-y-2 md:col-span-3">
-                      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
-                        Direccion IP
-                      </p>
-                      <CopyCell text={machine.ip} monospace />
+                <div class="col-span-3 min-w-0">
+                  <CopyButton
+                    value={machine.ip}
+                    variant="value"
+                    appearance="ghost"
+                    label={machine.ip}
+                    ariaLabel={`Copiar ${machine.ip}`}
+                    monospace
+                    fullWidth
+                    highlightable
+                    class="-ml-2"
+                  />
+                </div>
+
+                <div class="col-span-2 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <div class="inline-grid *:[grid-area:1/1]">
+                      <div
+                        class:list={[
+                          "status",
+                          machine.status === "online"
+                            ? "status-success"
+                            : "status-error",
+                          "animate-ping",
+                          "motion-reduce:animate-none",
+                        ]}
+                      />
+                      <div
+                        class:list={[
+                          "status",
+                          machine.status === "online"
+                            ? "status-success"
+                            : "status-error",
+                        ]}
+                      />
                     </div>
+                    <span class="text-sm text-base-content/80">
+                      {statusCopy[machine.status]}
+                    </span>
+                  </div>
+                </div>
 
-                    <div class="space-y-2 md:col-span-2">
-                      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
-                        Estado
-                      </p>
-                      <div class="flex items-center gap-2">
-                        <div class="inline-grid *:[grid-area:1/1]">
-                          <div
-                            class:list={[
-                              "status",
-                              machine.status === "online"
-                                ? "status-success"
-                                : "status-error",
-                              "animate-ping",
-                              "motion-reduce:animate-none",
-                            ]}
-                          />
-                          <div
-                            class:list={[
-                              "status",
-                              machine.status === "online"
-                                ? "status-success"
-                                : "status-error",
-                            ]}
-                          />
-                        </div>
-                        <span class="text-sm text-base-content/80">
-                          {statusCopy[machine.status]}
-                        </span>
-                      </div>
-                    </div>
+                <div class="col-span-3 min-w-0">
+                  <div class="min-w-0 space-y-1.5">
+                    <div class="flex items-center gap-2">
+                      {machine.assignments.length > 0 ? (
+                        machine.assignments.map((assignment) => {
+                          const assignmentTooltip = assignment.agent.name;
 
-                    <div class="space-y-2 md:col-span-3">
-                      <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">
-                        Asignado a
-                      </p>
-                      <div class="flex items-center gap-2">
-                        {machine.assignments.length > 0 ? (
-                          machine.assignments.map((assignment) => {
-                            const assignmentTooltip = assignment.agent.name;
-
-                            return (
-                              <div
-                                class="tooltip tooltip-top tooltip-neutral z-20"
-                                data-tip={assignmentTooltip}
-                              >
-                                <div class="relative inline-flex overflow-visible">
-                                  <div
-                                    class="avatar avatar-placeholder"
-                                    role="img"
-                                    tabindex="0"
-                                    aria-label={`Usuario asignado: ${assignmentTooltip}`}
-                                  >
-                                    <div class="w-9 rounded-full bg-base-200 text-base-content/70">
-                                      <span
-                                        class="text-xs font-semibold select-none"
-                                        aria-hidden="true"
-                                      >
-                                        {assignment.agent.avatarInitials}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <span
-                                    class:list={[
-                                      "pointer-events-none absolute -bottom-1 -right-1 z-0 inline-flex size-4 items-center justify-center rounded-full border",
-                                      shiftIconTone[assignment.shift],
-                                    ]}
-                                  >
-                                    <Icon
-                                      name={shiftIcon[assignment.shift]}
-                                      class="size-2.5"
-                                      aria-hidden="true"
-                                    />
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div
-                            class="tooltip tooltip-top tooltip-neutral z-20"
-                            data-tip="Sin asignar"
-                          >
+                          return (
                             <div
-                              class="avatar avatar-placeholder"
-                              role="img"
-                              tabindex="0"
-                              aria-label="Usuario asignado: Sin asignar"
+                              class="tooltip tooltip-top tooltip-neutral z-20"
+                              data-tip={assignmentTooltip}
                             >
-                              <div class="w-9 rounded-full bg-base-200 text-base-content/70">
-                                <span
-                                  class="text-xs font-semibold select-none"
-                                  aria-hidden="true"
+                              <div class="relative inline-flex overflow-visible">
+                                <div
+                                  class="avatar avatar-placeholder"
+                                  role="img"
+                                  tabindex="0"
+                                  aria-label={`Usuario asignado: ${assignmentTooltip}`}
                                 >
-                                  --
+                                  <div class="w-9 rounded-full bg-base-200 text-base-content/70">
+                                    <span
+                                      class="text-xs font-semibold select-none"
+                                      aria-hidden="true"
+                                    >
+                                      {assignment.agent.avatarInitials}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span
+                                  class:list={[
+                                    "pointer-events-none absolute -bottom-1 -right-1 z-0 inline-flex size-4 items-center justify-center rounded-full border",
+                                    shiftIconTone[assignment.shift],
+                                  ]}
+                                >
+                                  <Icon
+                                    name={shiftIcon[assignment.shift]}
+                                    class="size-2.5"
+                                    aria-hidden="true"
+                                  />
                                 </span>
                               </div>
                             </div>
+                          );
+                        })
+                      ) : (
+                        <div
+                          class="tooltip tooltip-top tooltip-neutral z-20"
+                          data-tip="Sin asignar"
+                        >
+                          <div
+                            class="avatar avatar-placeholder"
+                            role="img"
+                            tabindex="0"
+                            aria-label="Usuario asignado: Sin asignar"
+                          >
+                            <div class="w-9 rounded-full bg-base-200 text-base-content/70">
+                              <span
+                                class="text-xs font-semibold select-none"
+                                aria-hidden="true"
+                              >
+                                --
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
-                  </article>
-                );
-              })
-            }
-          </div>
-        </div>
-      </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        }
+      </DataTable>
     </section>
   </section>
 
   <script>
-    const searchInput = document.querySelector("#machine-search");
-    const filterTabs = Array.from(
-      document.querySelectorAll("[data-filter-tab]"),
-    );
-    const rows = Array.from(document.querySelectorAll("[data-machine-row]"));
-    const emptyState = document.querySelector("#cubics-empty-state");
+    import {
+      highlightSearchTargets,
+      matchesSearchQuery,
+    } from "@lib/clientSearch";
 
-    const normalizeValue = (value: string): string =>
-      value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#machine-search");
+    const filterTabs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("[data-filter-tab]"),
+    );
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-machine-row]"),
+    );
+    const emptyState =
+      document.querySelector<HTMLElement>("#cubics-empty-state");
 
     if (
       searchInput instanceof HTMLInputElement &&
@@ -331,20 +337,17 @@ const shiftIconTone: Record<CubicShift, string> = {
       let selectedFilter = "all";
 
       const updateRows = () => {
-        const searchValue = normalizeValue(searchInput.value.trim());
+        const rawSearchValue = searchInput.value.trim();
         let visibleRows = 0;
 
         rows.forEach((row) => {
-          const name = normalizeValue(row.getAttribute("data-name") ?? "");
-          const ip = normalizeValue(row.getAttribute("data-ip") ?? "");
-          const agent = normalizeValue(row.getAttribute("data-agent") ?? "");
-          const status = row.getAttribute("data-status") ?? "";
+          const status = row.dataset.status ?? "";
 
-          const matchesSearch =
-            searchValue.length === 0 ||
-            name.includes(searchValue) ||
-            ip.includes(searchValue) ||
-            agent.includes(searchValue);
+          const matchesSearch = matchesSearchQuery(rawSearchValue, [
+            row.dataset.name,
+            row.dataset.ip,
+            row.dataset.agent,
+          ]);
           const matchesFilter =
             selectedFilter === "all" ||
             (selectedFilter === "online" && status === "online") ||
@@ -352,6 +355,7 @@ const shiftIconTone: Record<CubicShift, string> = {
 
           const isVisible = matchesSearch && matchesFilter;
           row.classList.toggle("hidden", !isVisible);
+          highlightSearchTargets(row, isVisible ? rawSearchValue : "");
 
           if (isVisible) {
             visibleRows += 1;
@@ -365,11 +369,11 @@ const shiftIconTone: Record<CubicShift, string> = {
 
       filterTabs.forEach((tab) => {
         tab.addEventListener("change", () => {
-          if (!(tab instanceof HTMLInputElement) || !tab.checked) {
+          if (!tab.checked) {
             return;
           }
 
-          selectedFilter = tab.getAttribute("data-filter") ?? "all";
+          selectedFilter = tab.dataset.filter ?? "all";
           updateRows();
         });
       });
