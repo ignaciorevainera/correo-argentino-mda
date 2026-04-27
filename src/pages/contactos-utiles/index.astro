@@ -2,6 +2,8 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { usefulContactCategories } from "@/data/contactos_utiles";
@@ -86,6 +88,9 @@ const getContactSearchText = (
       .map((resource) => `${resource.label} ${resource.url}`)
       .join(" "),
   ].join(" ");
+
+const contactHeaderGridClass = "grid grid-cols-12 items-start gap-4";
+const contactRowGridClass = "grid grid-cols-12 items-start gap-4";
 ---
 
 <BaseLayout title="Contactos útiles | Portal Mesa de Ayuda">
@@ -183,53 +188,78 @@ const getContactSearchText = (
               </header>
 
               <div class="card-body p-0">
-                <div class="overflow-x-auto">
-                  <table class="table table-sm table-fixed min-w-max">
-                    <colgroup>
-                      <col class="w-2/12" />
-                      <col class="w-2/12" />
-                      <col class="w-2/12" />
-                      <col class="w-3/12" />
-                      <col class="w-3/12" />
-                    </colgroup>
-                    <thead>
-                      <tr class="border-b border-base-300 text-xs uppercase tracking-wider text-base-content/60">
-                        <th class="py-3 font-semibold">Servicio</th>
-                        <th class="py-3 font-semibold">Proveedor</th>
-                        <th class="py-3 font-semibold">Teléfono</th>
-                        <th class="py-3 font-semibold">Correo</th>
-                        <th class="py-3 font-semibold">Sitio web</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <DataTable
+                  ariaLabel={`Contactos utiles de ${category.title}`}
+                  minWidthClass="min-w-260"
+                  headerGridClass={contactHeaderGridClass}
+                  rowGridClass={contactRowGridClass}
+                  class="rounded-none border-0 shadow-none"
+                >
+                  <div slot="header" class="col-span-2">
+                    <DataTableHeaderCell sortKey="service">
+                      Servicio
+                    </DataTableHeaderCell>
+                  </div>
+                  <div slot="header" class="col-span-2">
+                    <DataTableHeaderCell sortKey="provider">
+                      Proveedor
+                    </DataTableHeaderCell>
+                  </div>
+                  <div slot="header" class="col-span-2">
+                    <DataTableHeaderCell sortKey="phone">
+                      Teléfono
+                    </DataTableHeaderCell>
+                  </div>
+                  <div slot="header" class="col-span-3">
+                    <DataTableHeaderCell sortKey="email">
+                      Correo
+                    </DataTableHeaderCell>
+                  </div>
+                  <div slot="header" class="col-span-3">
+                    <DataTableHeaderCell sortKey="url">
+                      Sitio web
+                    </DataTableHeaderCell>
+                  </div>
+
                       {category.contacts.map((contact) => (
-                        <tr
-                          class="group/row border-b border-base-300/70 transition-colors last:border-b-0 hover:bg-base-200/50"
+                        <article
+                          class:list={[
+                            contactRowGridClass,
+                            "border-b border-base-300/70 px-4 py-3 transition-colors last:border-b-0 hover:bg-base-200/50",
+                          ]}
+                          data-table-row
                           data-contact-row
                           data-contact-search={getContactSearchText(
                             category,
                             contact,
                           )}
+                          data-sort-service={contact.service}
+                          data-sort-provider={contact.provider}
+                          data-sort-phone={contact.phones.join(" ")}
+                          data-sort-email={contact.emails.join(" ")}
+                          data-sort-url={contact.urls
+                            .map((resource) => resource.url)
+                            .join(" ")}
                         >
-                          <td class="align-top">
+                          <div class="col-span-2 min-w-0">
                             <p
                               class="text-sm font-medium leading-snug text-base-content"
                               data-highlight-target
                             >
                               {contact.service}
                             </p>
-                          </td>
+                          </div>
 
-                          <td class="align-top">
+                          <div class="col-span-2 min-w-0">
                             <p
                               class="text-xs font-semibold uppercase tracking-wider text-base-content/55"
                               data-highlight-target
                             >
                               {contact.provider}
                             </p>
-                          </td>
+                          </div>
 
-                          <td class="align-top">
+                          <div class="col-span-2 min-w-0">
                             {contact.phones.length > 0 ? (
                               <div class="flex flex-col gap-1.5">
                                 {contact.phones.map((phone) => (
@@ -265,9 +295,9 @@ const getContactSearchText = (
                                 Sin teléfono
                               </span>
                             )}
-                          </td>
+                          </div>
 
-                          <td class="align-top">
+                          <div class="col-span-3 min-w-0">
                             {contact.emails.length > 0 ? (
                               <div class="flex flex-col gap-1.5">
                                 {contact.emails.map((email) => (
@@ -313,9 +343,9 @@ const getContactSearchText = (
                                 Sin correo
                               </span>
                             )}
-                          </td>
+                          </div>
 
-                          <td class="align-top">
+                          <div class="col-span-3 min-w-0">
                             {contact.urls.length > 0 ? (
                               <div class="flex flex-col gap-1.5">
                                 {contact.urls.map((resource) => (
@@ -363,12 +393,10 @@ const getContactSearchText = (
                                 Sin sitio web
                               </span>
                             )}
-                          </td>
-                        </tr>
+                          </div>
+                        </article>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                </DataTable>
               </div>
             </article>
           );
