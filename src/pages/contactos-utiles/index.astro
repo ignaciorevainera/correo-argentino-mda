@@ -1,220 +1,371 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
-import CopyUrlIconButton from "@components/ui/CopyUrlIconButton.astro";
-import CopyValueButton from "@components/ui/CopyValueButton.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
 import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import { usefulContactCategories } from "@/data/contactos_utiles";
-import type {
-  BoxiconName,
-  UsefulContactCategory,
-} from "@/types/contactos-utiles";
+import type { UsefulContactCategory } from "@/types/contactos-utiles";
 
 interface CategoryTheme {
-  icon: BoxiconName;
   iconContainerClass: string;
   headerClass: string;
+  topBorderClass: string;
   badgeClass: string;
 }
 
 const themeByTone: Record<UsefulContactCategory["tone"], CategoryTheme> = {
   primary: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-primary/40 bg-primary/15 text-primary",
+    iconContainerClass: "border-primary bg-primary text-primary-content",
     headerClass: "bg-primary/10",
+    topBorderClass: "border-t-primary",
     badgeClass: "badge-primary",
   },
   secondary: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-secondary/40 bg-secondary/15 text-secondary",
+    iconContainerClass: "border-secondary bg-secondary text-secondary-content",
     headerClass: "bg-secondary/10",
+    topBorderClass: "border-t-secondary",
     badgeClass: "badge-secondary",
   },
   accent: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-accent/40 bg-accent/15 text-accent",
+    iconContainerClass: "border-accent bg-accent text-accent-content",
     headerClass: "bg-accent/10",
+    topBorderClass: "border-t-accent",
     badgeClass: "badge-accent",
   },
   info: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-info/40 bg-info/15 text-info",
+    iconContainerClass: "border-info bg-info text-info-content",
     headerClass: "bg-info/10",
+    topBorderClass: "border-t-info",
     badgeClass: "badge-info",
   },
   success: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-success/40 bg-success/15 text-success",
+    iconContainerClass: "border-success bg-success text-success-content",
     headerClass: "bg-success/10",
+    topBorderClass: "border-t-success",
     badgeClass: "badge-success",
   },
   warning: {
-    icon: "boxicons:phone",
-    iconContainerClass: "border-warning/40 bg-warning/15 text-warning",
+    iconContainerClass: "border-warning bg-warning text-warning-content",
     headerClass: "bg-warning/10",
+    topBorderClass: "border-t-warning",
     badgeClass: "badge-warning",
   },
 };
 
-const getCategoryTheme = (category: UsefulContactCategory): CategoryTheme => {
-  const theme = themeByTone[category.tone];
-  return {
-    ...theme,
-    icon: category.icon,
-  };
-};
+const getCategoryTheme = (category: UsefulContactCategory): CategoryTheme =>
+  themeByTone[category.tone];
+
+const getCategorySearchText = (category: UsefulContactCategory): string =>
+  category.contacts
+    .map((contact) =>
+      [
+        category.title,
+        contact.provider,
+        contact.service,
+        contact.phones.join(" "),
+        contact.emails.join(" "),
+        contact.urls
+          .map((resource) => `${resource.label} ${resource.url}`)
+          .join(" "),
+      ].join(" "),
+    )
+    .join(" ");
+
+const getContactSearchText = (
+  category: UsefulContactCategory,
+  contact: UsefulContactCategory["contacts"][number],
+): string =>
+  [
+    category.title,
+    contact.provider,
+    contact.service,
+    contact.phones.join(" "),
+    contact.emails.join(" "),
+    contact.urls
+      .map((resource) => `${resource.label} ${resource.url}`)
+      .join(" "),
+  ].join(" ");
 ---
 
-<BaseLayout title="Contactos utiles | Portal Mesa de Ayuda">
-  <section class="mx-auto flex w-full max-w-6xl flex-col gap-6">
-    <header class="space-y-2">
-      <h1 class="text-2xl font-semibold text-base-content">Contactos utiles</h1>
-      <p class="text-sm text-base-content/70 sm:text-base">
-        Referencias operativas para contacto rapido con equipos internos y
-        proveedores criticos.
-      </p>
-    </header>
+<BaseLayout title="Contactos útiles | Portal Mesa de Ayuda">
+  <section class="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <PageHeader
+      title="Contactos útiles"
+      description="Directorio operativo para ubicar teléfonos, correos y accesos clave sin salir del flujo de soporte."
+    />
 
-    <div class="flex flex-col gap-4">
+    <div class="w-full max-w-xl">
+      <label class="input input-bordered w-full" for="contacts-search">
+        <Icon
+          name="boxicons:search"
+          class="size-4 text-base-content/50"
+          aria-hidden="true"
+        />
+        <input
+          id="contacts-search"
+          type="search"
+          class="grow"
+          placeholder="Buscar por proveedor, servicio, teléfono, email o link"
+          autocomplete="off"
+          aria-label="Buscar contacto por proveedor, servicio, telefono, email o link"
+        />
+      </label>
+    </div>
+
+    <section
+      id="contacts-empty-state"
+      class="hidden min-h-100 rounded-2xl border-2 border-dashed border-base-300 bg-base-200/30 p-8"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        class="flex min-h-80 flex-col items-center justify-center text-center"
+      >
+        <div
+          class="mb-4 inline-flex size-14 items-center justify-center rounded-2xl bg-base-300/60 text-base-content/45"
+          aria-hidden="true"
+        >
+          <Icon name="boxicons:search" class="size-7" />
+        </div>
+        <h2 class="text-lg font-semibold text-base-content">Sin resultados</h2>
+        <p class="mt-2 max-w-md text-sm leading-relaxed text-base-content/65">
+          No hay contactos que coincidan con la búsqueda actual. Probá con otro
+          proveedor, servicio, teléfono, correo o enlace.
+        </p>
+      </div>
+    </section>
+
+    <section
+      class="flex flex-col gap-5"
+      aria-label="Directorio de contactos útiles"
+      id="contacts-grid"
+    >
       {
         usefulContactCategories.map((category) => {
           const categoryTheme = getCategoryTheme(category);
 
           return (
-            <article class="collapse collapse-arrow border border-base-300 bg-base-100 shadow-sm">
-              <input
-                type="checkbox"
-                aria-label={`Expandir ${category.title}`}
-              />
-
-              <div
+            <article
+              class:list={[
+                "card overflow-hidden border border-t-4 border-base-300 bg-base-100 shadow-sm transition-shadow hover:shadow-md",
+                categoryTheme.topBorderClass,
+              ]}
+              data-contact-category-card
+              data-category-search={getCategorySearchText(category)}
+            >
+              <header
                 class:list={[
-                  "collapse-title flex items-center gap-3 rounded-t-xl pr-14",
+                  "flex items-center justify-between gap-3 border-b border-base-300 p-4",
                   categoryTheme.headerClass,
                 ]}
               >
-                <span
-                  class:list={[
-                    "inline-flex size-10 shrink-0 items-center justify-center rounded-lg border",
-                    categoryTheme.iconContainerClass,
-                  ]}
-                  aria-hidden="true"
-                >
-                  <Icon name={categoryTheme.icon} class="size-5" />
-                </span>
+                <div class="flex min-w-0 items-center gap-3">
+                  <span
+                    class:list={[
+                      "inline-flex size-10 shrink-0 items-center justify-center rounded-lg border shadow-sm",
+                      categoryTheme.iconContainerClass,
+                    ]}
+                    aria-hidden="true"
+                  >
+                    <Icon name={category.icon} class="size-5" />
+                  </span>
 
-                <div class="min-w-0 flex-1">
-                  <h2 class="truncate text-base font-semibold text-base-content">
-                    {category.title}
-                  </h2>
+                  <div class="min-w-0">
+                    <h2 class="truncate text-base font-semibold text-base-content">
+                      {category.title}
+                    </h2>
+                    <p class="text-xs text-base-content/60">
+                      {category.contacts.length} referencias disponibles
+                    </p>
+                  </div>
                 </div>
+              </header>
 
-                <span
-                  class:list={[
-                    "badge badge-sm md:badge-md",
-                    categoryTheme.badgeClass,
-                  ]}
-                >
-                  {category.contacts.length} contactos
-                </span>
-              </div>
-
-              <div class="collapse-content border-t border-base-300 bg-base-200/40 p-0">
-                <div class="overflow-x-auto px-3 py-3 sm:px-4">
-                  <table class="table table-zebra table-fixed table-sm md:table-md">
+              <div class="card-body p-0">
+                <div class="overflow-x-auto">
+                  <table class="table table-sm table-fixed min-w-max">
                     <colgroup>
-                      <col width="30%" />
-                      <col width="25%" />
-                      <col width="25%" />
-                      <col width="20%" />
+                      <col class="w-2/12" />
+                      <col class="w-2/12" />
+                      <col class="w-2/12" />
+                      <col class="w-3/12" />
+                      <col class="w-3/12" />
                     </colgroup>
-
                     <thead>
-                      <tr class="text-xs uppercase tracking-wide text-base-content/70">
-                        <th>Entidad</th>
-                        <th>Telefonos</th>
-                        <th>Correos</th>
-                        <th class="text-right">Acciones</th>
+                      <tr class="border-b border-base-300 text-xs uppercase tracking-wider text-base-content/60">
+                        <th class="py-3 font-semibold">Servicio</th>
+                        <th class="py-3 font-semibold">Proveedor</th>
+                        <th class="py-3 font-semibold">Teléfono</th>
+                        <th class="py-3 font-semibold">Correo</th>
+                        <th class="py-3 font-semibold">Sitio web</th>
                       </tr>
                     </thead>
-
                     <tbody>
-                      {category.contacts.map((contact) => {
-                        const hasUrls = contact.urls.length > 0;
+                      {category.contacts.map((contact) => (
+                        <tr
+                          class="group/row border-b border-base-300/70 transition-colors last:border-b-0 hover:bg-base-200/50"
+                          data-contact-row
+                          data-contact-search={getContactSearchText(
+                            category,
+                            contact,
+                          )}
+                        >
+                          <td class="align-top">
+                            <p
+                              class="text-sm font-medium leading-snug text-base-content"
+                              data-highlight-target
+                            >
+                              {contact.service}
+                            </p>
+                          </td>
 
-                        return (
-                          <tr class="transition-colors hover:bg-base-200/60">
-                            <td class="align-top">
-                              <div class="flex flex-col gap-1">
-                                <span
-                                  class="truncate text-sm font-semibold text-base-content"
-                                  title={contact.provider}
-                                >
-                                  {contact.provider}
-                                </span>
-                                <span class="flex items-start gap-2 text-xs text-base-content/70">
-                                  <span aria-hidden="true" class="text-warning">
-                                    *
-                                  </span>
-                                  <span class="line-clamp-2">
-                                    {contact.service}
-                                  </span>
-                                </span>
-                              </div>
-                            </td>
+                          <td class="align-top">
+                            <p
+                              class="text-xs font-semibold uppercase tracking-wider text-base-content/55"
+                              data-highlight-target
+                            >
+                              {contact.provider}
+                            </p>
+                          </td>
 
-                            <td class="align-top">
-                              <div class="flex flex-col gap-2">
+                          <td class="align-top">
+                            {contact.phones.length > 0 ? (
+                              <div class="flex flex-col gap-1.5">
                                 {contact.phones.map((phone) => (
-                                  <CopyValueButton
-                                    value={phone}
-                                    variant="phone"
-                                    ariaLabel={`Copiar telefono ${phone}`}
-                                  />
+                                  <div class="group flex min-w-0 items-center gap-1">
+                                    <span
+                                      class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+                                      aria-hidden="true"
+                                    >
+                                      <Icon
+                                        name="boxicons:phone"
+                                        class="size-3.5"
+                                      />
+                                    </span>
+                                    <span
+                                      class="min-w-0 flex-1 truncate px-2 py-1.5 font-mono text-xs text-base-content/80 md:text-sm"
+                                      data-highlight-target
+                                    >
+                                      {phone}
+                                    </span>
+                                    <CopyButton
+                                      value={phone}
+                                      variant="icon"
+                                      appearance="ghost"
+                                      size="xs"
+                                      ariaLabel={`Copiar telefono ${phone}`}
+                                      class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                    />
+                                  </div>
                                 ))}
                               </div>
-                            </td>
+                            ) : (
+                              <span class="text-xs italic text-base-content/45">
+                                Sin teléfono
+                              </span>
+                            )}
+                          </td>
 
-                            <td class="align-top">
-                              <div class="flex flex-col gap-2">
+                          <td class="align-top">
+                            {contact.emails.length > 0 ? (
+                              <div class="flex flex-col gap-1.5">
                                 {contact.emails.map((email) => (
-                                  <CopyValueButton
-                                    value={email}
-                                    variant="email"
-                                    ariaLabel={`Copiar correo ${email}`}
-                                  />
+                                  <div class="group flex min-w-0 items-center gap-1">
+                                    <span
+                                      class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+                                      aria-hidden="true"
+                                    >
+                                      <Icon
+                                        name="boxicons:envelope"
+                                        class="size-3.5"
+                                      />
+                                    </span>
+                                    <span
+                                      class="min-w-0 flex-1 truncate px-2 py-1.5 font-mono text-xs text-base-content/80 md:text-sm"
+                                      data-highlight-target
+                                    >
+                                      {email}
+                                    </span>
+                                    <CopyButton
+                                      value={email}
+                                      variant="icon"
+                                      appearance="ghost"
+                                      size="xs"
+                                      ariaLabel={`Copiar correo ${email}`}
+                                      class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                    />
+
+                                    <OpenExternalUrlButton
+                                      href={`mailto:${email}`}
+                                      variant="icon"
+                                      size="xs"
+                                      appearance="ghost"
+                                      newTab={false}
+                                      class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                      ariaLabel={`Abrir cliente de correo para ${email}`}
+                                    />
+                                  </div>
                                 ))}
                               </div>
-                            </td>
+                            ) : (
+                              <span class="text-xs italic text-base-content/45">
+                                Sin correo
+                              </span>
+                            )}
+                          </td>
 
-                            <td class="align-top text-right">
-                              {hasUrls ? (
-                                <div class="flex flex-col items-end gap-2">
-                                  {contact.urls.map((resource) => (
-                                    <div class="inline-flex items-center justify-end gap-2">
-                                      <CopyUrlIconButton
-                                        copyValue={resource.url}
-                                        tooltipText={resource.url}
-                                        tooltipPosition="left"
-                                        ariaLabel={`Copiar URL ${resource.label} de ${contact.provider}`}
+                          <td class="align-top">
+                            {contact.urls.length > 0 ? (
+                              <div class="flex flex-col gap-1.5">
+                                {contact.urls.map((resource) => (
+                                  <div class="group flex min-w-0 items-center gap-1">
+                                    <span
+                                      class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+                                      aria-hidden="true"
+                                    >
+                                      <Icon
+                                        name="boxicons:planet"
+                                        class="size-3.5"
                                       />
+                                    </span>
+                                    <span class="min-w-0 flex-1 px-2 py-1.5">
+                                      <span
+                                        class="block truncate font-mono text-xs text-base-content/80 md:text-sm"
+                                        data-highlight-target
+                                      >
+                                        {resource.url}
+                                      </span>
+                                    </span>
 
-                                      <OpenExternalUrlButton
-                                        href={resource.url}
-                                        ariaLabel={`Abrir ${resource.label} en una nueva pestana`}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span class="inline-block py-2 text-sm italic text-base-content/60">
-                                  Sin URL asociada
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                                    <CopyButton
+                                      value={resource.url}
+                                      variant="icon"
+                                      appearance="ghost"
+                                      size="xs"
+                                      class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                      ariaLabel={`Copiar link ${resource.label} de ${contact.service}`}
+                                    />
+
+                                    <OpenExternalUrlButton
+                                      href={resource.url}
+                                      variant="icon"
+                                      size="xs"
+                                      appearance="ghost"
+                                      class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                      ariaLabel={`Abrir ${resource.label} en una nueva pestaña`}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span class="text-xs italic text-base-content/45">
+                                Sin sitio web
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -223,162 +374,118 @@ const getCategoryTheme = (category: UsefulContactCategory): CategoryTheme => {
           );
         })
       }
-    </div>
+    </section>
   </section>
 
   <script>
-    interface CopyVisualState {
-      defaultIcon: Element | null;
-      successIcon: Element | null;
-      resetTimer: number | null;
-    }
+    const normalizeValue = (value: string): string =>
+      value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-    const feedbackDurationMs = 2000;
+    const escapeRegExp = (value: string): string =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    const fallbackCopyToClipboard = (value: string): boolean => {
-      const textarea = document.createElement("textarea");
-      textarea.value = value;
-      textarea.setAttribute("readonly", "");
-      textarea.setAttribute("aria-hidden", "true");
-      textarea.style.position = "fixed";
-      textarea.style.left = "-9999px";
-      textarea.style.top = "0";
-      textarea.style.opacity = "0";
+    const escapeHtml = (value: string): string =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 
-      document.body.append(textarea);
-      textarea.focus();
-      textarea.select();
+    const highlightText = (element: HTMLElement, query: string): void => {
+      const originalText =
+        element.dataset.originalText ?? element.textContent ?? "";
 
-      let copied = false;
-
-      try {
-        const legacyCopyApi = document as unknown as {
-          execCommand?: (commandId: string) => boolean;
-        };
-        copied =
-          typeof legacyCopyApi.execCommand === "function"
-            ? legacyCopyApi.execCommand("copy")
-            : false;
-      } catch {
-        copied = false;
+      if (!element.dataset.originalText) {
+        element.dataset.originalText = originalText;
       }
 
-      textarea.remove();
-      return copied;
-    };
-
-    const copyToClipboard = async (value: string): Promise<boolean> => {
-      const canUseClipboardApi =
-        typeof navigator !== "undefined" &&
-        typeof navigator.clipboard !== "undefined" &&
-        typeof navigator.clipboard.writeText === "function";
-
-      if (canUseClipboardApi) {
-        try {
-          await navigator.clipboard.writeText(value);
-          return true;
-        } catch {
-          return fallbackCopyToClipboard(value);
-        }
-      }
-
-      return fallbackCopyToClipboard(value);
-    };
-
-    const copyButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("[data-copy-trigger]"),
-    );
-
-    const buttonStates = new WeakMap<HTMLButtonElement, CopyVisualState>();
-
-    const applyCopiedState = (
-      button: HTMLButtonElement,
-      state: CopyVisualState,
-    ): void => {
-      button.classList.add(
-        "bg-success/10",
-        "text-success",
-        "ring-1",
-        "ring-success/30",
-      );
-
-      if (state.defaultIcon instanceof Element) {
-        state.defaultIcon.classList.add("opacity-0", "scale-75");
-      }
-
-      if (state.successIcon instanceof Element) {
-        state.successIcon.classList.remove("hidden");
-        requestAnimationFrame(() => {
-          state.successIcon?.classList.add("opacity-100", "scale-110");
-          state.successIcon?.classList.remove("opacity-0", "scale-75");
-        });
-      }
-
-      if (state.resetTimer !== null) {
-        window.clearTimeout(state.resetTimer);
-      }
-
-      state.resetTimer = window.setTimeout(() => {
-        button.classList.remove(
-          "bg-success/10",
-          "text-success",
-          "ring-1",
-          "ring-success/30",
-        );
-
-        if (state.defaultIcon instanceof Element) {
-          state.defaultIcon.classList.remove("opacity-0", "scale-75");
-        }
-
-        if (state.successIcon instanceof Element) {
-          state.successIcon.classList.add("opacity-0", "scale-75");
-          state.successIcon.classList.remove("opacity-100", "scale-110");
-
-          window.setTimeout(() => {
-            state.successIcon?.classList.add("hidden");
-          }, 160);
-        }
-
-        state.resetTimer = null;
-      }, feedbackDurationMs);
-    };
-
-    copyButtons.forEach((button) => {
-      if (button.dataset.copyBound === "true") {
+      if (query.length === 0) {
+        element.textContent = originalText;
         return;
       }
 
-      button.dataset.copyBound = "true";
+      const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
 
-      const defaultIcon = button.querySelector("[data-copy-icon-default]");
-      const successIcon = button.querySelector("[data-copy-icon-success]");
+      if (!matcher.test(originalText)) {
+        element.textContent = originalText;
+        return;
+      }
 
-      buttonStates.set(button, {
-        defaultIcon,
-        successIcon,
-        resetTimer: null,
+      matcher.lastIndex = 0;
+      const highlighted = originalText
+        .split(matcher)
+        .map((chunk, index) =>
+          index % 2 === 1
+            ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
+            : escapeHtml(chunk),
+        )
+        .join("");
+
+      element.innerHTML = highlighted;
+    };
+
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#contacts-search");
+    const emptyState = document.querySelector<HTMLElement>(
+      "#contacts-empty-state",
+    );
+    const categoryCards = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-contact-category-card]"),
+    );
+    const contactRows = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-contact-row]"),
+    );
+
+    const updateContactSearch = (): void => {
+      if (!(searchInput instanceof HTMLInputElement)) {
+        return;
+      }
+
+      const rawSearchValue = searchInput.value.trim();
+      const searchValue = normalizeValue(rawSearchValue);
+      let visibleRows = 0;
+
+      contactRows.forEach((row) => {
+        const searchableContent = normalizeValue(
+          row.dataset.contactSearch ?? "",
+        );
+        const isVisible =
+          searchValue.length === 0 || searchableContent.includes(searchValue);
+
+        row.classList.toggle("hidden", !isVisible);
+
+        const rowTargets = Array.from(
+          row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+        );
+
+        rowTargets.forEach((target) => {
+          highlightText(target, isVisible ? rawSearchValue : "");
+        });
+
+        if (isVisible) {
+          visibleRows += 1;
+        }
       });
 
-      button.addEventListener("click", async (event) => {
-        event.stopPropagation();
+      categoryCards.forEach((categoryCard) => {
+        const categoryRows = Array.from(
+          categoryCard.querySelectorAll<HTMLElement>("[data-contact-row]"),
+        );
+        const hasVisibleRows = categoryRows.some(
+          (row) => !row.classList.contains("hidden"),
+        );
 
-        const value = button.getAttribute("data-copy-value") ?? "";
-        if (value.trim().length === 0) {
-          return;
-        }
-
-        const copied = await copyToClipboard(value);
-        if (!copied) {
-          return;
-        }
-
-        const state = buttonStates.get(button);
-        if (!state) {
-          return;
-        }
-
-        applyCopiedState(button, state);
+        categoryCard.classList.toggle("hidden", !hasVisibleRows);
       });
-    });
+
+      emptyState?.classList.toggle("hidden", visibleRows > 0);
+    };
+
+    searchInput?.addEventListener("input", updateContactSearch);
+    updateContactSearch();
   </script>
 </BaseLayout>

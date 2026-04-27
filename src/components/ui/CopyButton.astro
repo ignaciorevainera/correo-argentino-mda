@@ -1,0 +1,343 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  value: string;
+  variant?: "value" | "link" | "icon";
+  label?: string;
+  copiedLabel?: string;
+  ariaLabel?: string;
+  size?: "xs" | "sm" | "md";
+  appearance?: "ghost" | "surface" | "outline";
+  monospace?: boolean;
+  fullWidth?: boolean;
+  highlightable?: boolean;
+  tooltipText?: string;
+  tooltipPosition?: "top" | "right" | "bottom" | "left";
+  class?: string;
+}
+
+const {
+  value,
+  variant = "value",
+  label,
+  copiedLabel = "Copiado",
+  ariaLabel = `Copiar ${value}`,
+  size = "sm",
+  appearance = "ghost",
+  monospace = false,
+  fullWidth = false,
+  highlightable = false,
+  tooltipText,
+  tooltipPosition = "top",
+  class: className = "",
+} = Astro.props;
+
+const isLinkVariant = variant === "link";
+const isIconVariant = variant === "icon";
+const buttonLabel = label ?? (isLinkVariant || isIconVariant ? "Copiar" : value);
+const tooltipLabel = tooltipText ?? value;
+
+const sizeClassMap: Record<NonNullable<Props["size"]>, string> = {
+  xs: "btn-xs",
+  sm: "btn-sm",
+  md: "",
+};
+
+const valueAppearanceClassMap: Record<NonNullable<Props["appearance"]>, string> =
+  {
+    ghost: "btn-ghost",
+    outline: "btn-outline",
+    surface: "border border-base-300 bg-base-100 hover:bg-base-200",
+  };
+
+const actionAppearanceClassMap: Record<NonNullable<Props["appearance"]>, string> = {
+  ghost: "btn-soft",
+  outline: "btn-soft btn-outline",
+  surface: "btn-soft",
+};
+
+const tooltipPositionClassMap: Record<
+  NonNullable<Props["tooltipPosition"]>,
+  string
+> = {
+  top: "tooltip-top",
+  right: "tooltip-right",
+  bottom: "tooltip-bottom",
+  left: "tooltip-left",
+};
+
+const valueButtonClasses = [
+  "group min-h-0 justify-start gap-2 rounded-lg px-2 py-1.5 text-left normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+  sizeClassMap[size],
+  valueAppearanceClassMap[appearance],
+  fullWidth ? "w-full" : "max-w-full",
+  className,
+];
+
+const linkButtonClasses = [
+  "gap-1 rounded-lg normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+  sizeClassMap[size],
+  actionAppearanceClassMap[appearance],
+  className,
+];
+
+const iconButtonClasses = [
+  "btn-square rounded-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+  sizeClassMap[size],
+  actionAppearanceClassMap[appearance],
+  className,
+];
+
+const tooltipClasses = [
+  "tooltip tooltip-neutral",
+  tooltipPositionClassMap[tooltipPosition],
+  fullWidth ? "w-full" : "inline-flex",
+];
+---
+
+{
+  isIconVariant ? (
+    <button
+      type="button"
+      class:list={["btn", iconButtonClasses]}
+      data-copy-control
+      data-copy-value={value}
+      data-copy-label-default={buttonLabel}
+      data-copy-label-success={copiedLabel}
+      data-copy-replace-label="false"
+      aria-label={ariaLabel}
+    >
+      <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
+        <Icon
+          name="boxicons:clipboard"
+          class="absolute inset-0 m-auto size-4 transition-all duration-200"
+          data-copy-icon-default
+          aria-hidden="true"
+        />
+        <Icon
+          name="boxicons:check"
+          class="absolute inset-0 m-auto hidden size-4 scale-75 text-success opacity-0 transition-all duration-200"
+          data-copy-icon-success
+          aria-hidden="true"
+        />
+      </span>
+      <span class="sr-only" data-copy-label>{buttonLabel}</span>
+    </button>
+  ) : isLinkVariant ? (
+    <div class:list={tooltipClasses}>
+      <div class="tooltip-content max-w-56 overflow-hidden">
+        <span
+          class="block w-56 max-w-full truncate font-mono text-xs"
+          title={tooltipLabel}
+        >
+          {tooltipLabel}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        class:list={["btn", linkButtonClasses]}
+        data-copy-control
+        data-copy-value={value}
+        data-copy-label-default={buttonLabel}
+        data-copy-label-success={copiedLabel}
+        data-copy-replace-label="true"
+        aria-label={ariaLabel}
+      >
+        <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
+          <Icon
+            name="boxicons:clipboard"
+            class="absolute inset-0 m-auto size-4 transition-all duration-200"
+            data-copy-icon-default
+            aria-hidden="true"
+          />
+          <Icon
+            name="boxicons:check"
+            class="absolute inset-0 m-auto hidden size-4 scale-75 text-success opacity-0 transition-all duration-200"
+            data-copy-icon-success
+            aria-hidden="true"
+          />
+        </span>
+        <span data-copy-label>{buttonLabel}</span>
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      class:list={["btn", valueButtonClasses]}
+      data-copy-control
+      data-copy-value={value}
+      data-copy-label-default={buttonLabel}
+      data-copy-label-success={copiedLabel}
+      data-copy-replace-label="false"
+      aria-label={ariaLabel}
+    >
+      <span
+        class:list={[
+          "min-w-0 flex-1 truncate text-sm text-base-content transition-colors group-hover:text-accent group-focus-visible:text-accent",
+          monospace && "font-mono",
+        ]}
+        data-copy-label
+        data-highlight-target={highlightable ? "" : undefined}
+      >
+        {buttonLabel}
+      </span>
+
+      <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
+        <Icon
+          name="boxicons:clipboard"
+          class="absolute inset-0 m-auto size-4 text-base-content/55 transition-all duration-200 group-hover:text-accent group-focus-visible:text-accent"
+          data-copy-icon-default
+          aria-hidden="true"
+        />
+        <Icon
+          name="boxicons:check"
+          class="absolute inset-0 m-auto hidden size-4 scale-75 text-success opacity-0 transition-all duration-200"
+          data-copy-icon-success
+          aria-hidden="true"
+        />
+      </span>
+    </button>
+  )
+}
+
+<script>
+  const fallbackCopyToClipboard = (value: string): boolean => {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.setAttribute("aria-hidden", "true");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    textarea.style.opacity = "0";
+
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.select();
+
+    let copied = false;
+
+    try {
+      const legacyCopyApi = document as unknown as {
+        execCommand?: (commandId: string) => boolean;
+      };
+
+      copied =
+        typeof legacyCopyApi.execCommand === "function"
+          ? legacyCopyApi.execCommand("copy")
+          : false;
+    } catch {
+      copied = false;
+    }
+
+    textarea.remove();
+    return copied;
+  };
+
+  const copyToClipboard = async (value: string): Promise<boolean> => {
+    const canUseClipboardApi =
+      typeof navigator !== "undefined" &&
+      typeof navigator.clipboard !== "undefined" &&
+      typeof navigator.clipboard.writeText === "function";
+
+    if (canUseClipboardApi) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        return fallbackCopyToClipboard(value);
+      }
+    }
+
+    return fallbackCopyToClipboard(value);
+  };
+
+  const copyControls = document.querySelectorAll("[data-copy-control]");
+
+  copyControls.forEach((control) => {
+    if (!(control instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (control.dataset.copyControlBound === "true") {
+      return;
+    }
+
+    control.dataset.copyControlBound = "true";
+
+    const label = control.querySelector<HTMLElement>("[data-copy-label]");
+    const defaultIcons = Array.from(
+      control.querySelectorAll("[data-copy-icon-default]"),
+    );
+    const successIcons = Array.from(
+      control.querySelectorAll("[data-copy-icon-success]"),
+    );
+    let resetTimer: number | null = null;
+
+    control.addEventListener("click", async () => {
+      const value = control.dataset.copyValue ?? "";
+
+      if (value.trim().length === 0) {
+        return;
+      }
+
+      const copied = await copyToClipboard(value);
+
+      if (!copied) {
+        return;
+      }
+
+      const shouldReplaceLabel = control.dataset.copyReplaceLabel === "true";
+
+      if (shouldReplaceLabel) {
+        label?.replaceChildren(control.dataset.copyLabelSuccess ?? "Copiado");
+      }
+
+      control.classList.add(
+        "border-success/40",
+        "bg-success/10",
+        "text-success",
+        "ring-1",
+        "ring-success/30",
+      );
+
+      defaultIcons.forEach((icon) => {
+        icon.classList.add("hidden", "opacity-0", "scale-75");
+      });
+
+      successIcons.forEach((icon) => {
+        icon.classList.remove("hidden", "opacity-0", "scale-75");
+        icon.classList.add("scale-100", "opacity-100");
+      });
+
+      if (resetTimer !== null) {
+        window.clearTimeout(resetTimer);
+      }
+
+      resetTimer = window.setTimeout(() => {
+        if (shouldReplaceLabel) {
+          label?.replaceChildren(control.dataset.copyLabelDefault ?? "Copiar");
+        }
+
+        control.classList.remove(
+          "border-success/40",
+          "bg-success/10",
+          "text-success",
+          "ring-1",
+          "ring-success/30",
+        );
+
+        defaultIcons.forEach((icon) => {
+          icon.classList.remove("hidden", "opacity-0", "scale-75");
+        });
+
+        successIcons.forEach((icon) => {
+          icon.classList.add("hidden", "opacity-0", "scale-75");
+          icon.classList.remove("scale-100", "opacity-100");
+        });
+      }, 1800);
+    });
+  });
+</script>

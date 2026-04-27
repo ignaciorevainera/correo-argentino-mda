@@ -1,0 +1,747 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import MasterDetailTable from "@components/ui/MasterDetailTable.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
+import {
+  officeDirectoryItems,
+  type OfficeDirectoryItem,
+  type OfficeAssetType,
+  type OfficeType,
+} from "@/data/directorio_oficinas";
+
+type BoxiconName = `boxicons:${string}`;
+
+interface OfficeTypeTab {
+  type: OfficeType | "all";
+  label: string;
+}
+
+const defaultOfficeType: OfficeType | "all" = "comercial";
+
+const officeTypeTabs: OfficeTypeTab[] = [
+  { type: "all", label: "Todas" },
+  { type: "comercial", label: "Comerciales" },
+  { type: "telegrafia", label: "Telegrafia" },
+  { type: "distribucion", label: "Distribucion" },
+  { type: "paqueteria", label: "Paqueteria" },
+];
+
+const officeCountByType = officeDirectoryItems.reduce(
+  (counts, office) => {
+    counts.all += 1;
+    counts[office.type] += 1;
+    return counts;
+  },
+  {
+    all: 0,
+    comercial: 0,
+    telegrafia: 0,
+    distribucion: 0,
+    paqueteria: 0,
+  } satisfies Record<OfficeType | "all", number>,
+);
+
+const officeTypeLabelByType: Record<OfficeType, string> = {
+  comercial: "Comercial",
+  telegrafia: "Telegrafia",
+  distribucion: "Distribucion",
+  paqueteria: "Paqueteria",
+};
+
+const officeTypeChipClassByType: Record<OfficeType, string> = {
+  comercial: "office-type-chip office-type-chip-commercial",
+  telegrafia: "office-type-chip office-type-chip-telegrafia",
+  distribucion: "office-type-chip office-type-chip-distribucion",
+  paqueteria: "office-type-chip office-type-chip-paqueteria",
+};
+
+const officeTypeTabActiveClassByType: Record<OfficeType | "all", string> = {
+  all: "office-tab-active office-tab-active-all",
+  comercial: "office-tab-active office-tab-active-commercial",
+  telegrafia: "office-tab-active office-tab-active-telegrafia",
+  distribucion: "office-tab-active office-tab-active-distribucion",
+  paqueteria: "office-tab-active office-tab-active-paqueteria",
+};
+
+const assetIconByType: Record<OfficeAssetType, BoxiconName> = {
+  server: "boxicons:server",
+  printer: "boxicons:printer",
+  desktop: "boxicons:desktop",
+};
+
+const assetLabelByType: Record<OfficeAssetType, string> = {
+  server: "Servidor",
+  printer: "Impresora",
+  desktop: "Terminal",
+};
+
+const officeDirectoryHeaderGridClass = "grid-cols-12 gap-4";
+const officeDirectoryRowGridClass = "grid grid-cols-12 items-center gap-4";
+
+const groupedOffices = Array.from(
+  officeDirectoryItems.reduce(
+    (groups, office) => {
+      const currentItems = groups.get(office.location) ?? [];
+      currentItems.push(office);
+      groups.set(office.location, currentItems);
+      return groups;
+    },
+    new Map<string, OfficeDirectoryItem[]>(),
+  ),
+).map(([location, offices]) => ({
+  location,
+  searchText: offices
+    .map((office) =>
+      [
+        office.location,
+        office.region,
+        office.costCenter,
+        office.postalCode,
+        office.code,
+        office.name,
+        office.address,
+      ].join(" "),
+    )
+    .join(" "),
+  offices,
+}));
+---
+
+<BaseLayout title="Directorio de oficinas">
+  <section class="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-8">
+    <PageHeader
+      title="Directorio de oficinas"
+      description="Buscador maestro de sucursales, contactos operativos y activos tecnologicos asociados a cada oficina."
+    />
+
+    <section
+      class="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+      aria-label="Filtros del directorio"
+    >
+      <div
+        role="tablist"
+        class="tabs tabs-box w-full bg-base-200/80 p-1 lg:w-auto"
+      >
+        {
+          officeTypeTabs.map((tab) => {
+            const isActive = tab.type === defaultOfficeType;
+
+            return (
+              <button
+                type="button"
+                role="tab"
+                data-office-tab
+                data-office-type={tab.type}
+                aria-selected={isActive ? "true" : "false"}
+                class:list={[
+                  "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
+                  isActive &&
+                    officeTypeTabActiveClassByType[tab.type],
+                ]}
+              >
+                <span>{tab.label}</span>
+                <span class="badge badge-sm bg-base-100 text-base-content/70">
+                  {officeCountByType[tab.type]}
+                </span>
+              </button>
+            );
+          })
+        }
+      </div>
+
+      <SearchInput
+        id="office-search"
+        label="Buscar oficina por nombre, codigo, region, centro de costo o codigo postal"
+        placeholder="Buscar por nombre, codigo, region, centro de costo o CP"
+        class="lg:max-w-sm"
+      />
+    </section>
+
+    <div id="office-empty-state" class="alert alert-warning hidden" role="status">
+      <Icon name="boxicons:search" class="size-5" aria-hidden="true" />
+      <span>No se encontraron oficinas para los filtros actuales.</span>
+    </div>
+
+    <MasterDetailTable
+      ariaLabel="Directorio de oficinas"
+      minWidthClass="min-w-280"
+      headerGridClass={officeDirectoryHeaderGridClass}
+      class="bg-base-100"
+    >
+      <div slot="header" class="col-span-1">
+        <DataTableHeaderCell>
+          <span class="sr-only">Expandir detalle</span>
+        </DataTableHeaderCell>
+      </div>
+      <div slot="header" class="col-span-2">
+        <DataTableHeaderCell sortKey="code" monospace>
+          Codigo
+        </DataTableHeaderCell>
+      </div>
+      <div slot="header" class="col-span-3">
+        <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+      </div>
+      <div slot="header" class="col-span-4">
+        <DataTableHeaderCell sortKey="address">Direccion</DataTableHeaderCell>
+      </div>
+      <div slot="header" class="col-span-2">
+        <DataTableHeaderCell sortKey="cost-center" monospace>
+          Centro de costo
+        </DataTableHeaderCell>
+      </div>
+            {
+              groupedOffices.map((group) =>
+                group.offices.map((office, index) => {
+                  const isVisibleByDefault = office.type === defaultOfficeType;
+                  const searchText = `${office.name} ${office.code} ${office.region} ${office.location} ${office.costCenter} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
+
+                  return (
+                    <>
+                      {index === 0 && (
+                        <div
+                          data-location-group-row
+                          data-master-detail-group-header={group.location}
+                          data-location-group={group.location}
+                          data-search-text={group.searchText}
+                          class="hidden border-b border-base-300 bg-base-200/80 px-5 py-3"
+                        >
+                            <div class="flex items-center justify-between gap-3">
+                              <div class="min-w-0">
+                                <p class="flex items-center gap-2 text-sm font-semibold text-base-content">
+                                  <Icon
+                                    name="boxicons:buildings"
+                                    class="size-4 shrink-0 text-secondary"
+                                    aria-hidden="true"
+                                  />
+                                  <span>{group.location}</span>
+                                </p>
+                                <p class="mt-1 text-xs text-base-content/60">
+                                  {group.offices.length} oficinas en esta locacion
+                                </p>
+                              </div>
+                            </div>
+                        </div>
+                      )}
+
+                      <article
+                        data-master-detail-sort-item
+                        data-office-id={office.id}
+                        data-office-type={office.type}
+                        data-office-location={office.location}
+                        data-search-text={searchText}
+                        data-sort-code={office.code}
+                        data-sort-name={office.name}
+                        data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
+                        data-sort-cost-center={office.costCenter}
+                        data-sort-group={office.location}
+                        class:list={[
+                          "block",
+                          !isVisibleByDefault && "hidden",
+                        ]}
+                      >
+                        <div
+                          data-office-master-row
+                          data-office-id={office.id}
+                          role="button"
+                          tabindex="0"
+                          aria-expanded="false"
+                          class:list={[
+                            officeDirectoryRowGridClass,
+                            "cursor-pointer border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50",
+                          ]}
+                        >
+                        <div class="col-span-1">
+                          <span
+                            class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
+                            aria-hidden="true"
+                          >
+                            <Icon
+                              name="boxicons:chevron-down"
+                              data-chevron-closed
+                              class="size-4"
+                            />
+                            <Icon
+                              name="boxicons:chevron-up"
+                              data-chevron-open
+                              class="hidden size-4"
+                            />
+                          </span>
+                        </div>
+
+                        <div class="col-span-2">
+                          <span
+                            class:list={[
+                              "inline-flex px-2 py-1 font-mono text-sm font-semibold",
+                              officeTypeChipClassByType[office.type],
+                            ]}
+                            data-highlight-target
+                          >
+                            {office.code}
+                          </span>
+                        </div>
+
+                        <div class="col-span-3 min-w-0">
+                          <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-base-content">
+                              <span data-highlight-target>{office.name}</span>
+                            </p>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55">
+                              <span>{officeTypeLabelByType[office.type]}</span>
+                              <span class="text-base-content/35">/</span>
+                              <span>{office.contacts.length} contactos</span>
+                              <span class="text-base-content/35">/</span>
+                              <span>{office.assets.length} activos</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="col-span-4 min-w-0">
+                          <div class="min-w-0 space-y-1">
+                            <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
+                              <Icon
+                                name="boxicons:location-pin"
+                                class="size-4 shrink-0 text-secondary"
+                                aria-hidden="true"
+                              />
+                              <span class="truncate" title={office.address}>
+                                {office.address}
+                              </span>
+                            </p>
+                            <p class="truncate text-xs text-base-content/55">
+                              {office.location}
+                            </p>
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60">
+                              <span data-highlight-target>{office.region}</span>
+                              <span class="text-base-content/35">/</span>
+                              <span class="font-mono" data-highlight-target>
+                                CP {office.postalCode}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="col-span-2">
+                          <span
+                            class="font-mono text-sm text-base-content/75"
+                            data-highlight-target
+                          >
+                            {office.costCenter}
+                          </span>
+                        </div>
+                        </div>
+
+                      <div
+                        data-office-detail-row
+                        data-office-id={office.id}
+                        class="hidden border-b border-base-300 bg-base-200/20"
+                      >
+                          <div class="office-detail-panel m-3 rounded-lg border border-base-300 bg-base-200/60 p-4 md:p-5">
+                            <div class="grid gap-5 lg:grid-cols-2">
+                              <section class="min-w-0 space-y-3">
+                                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                                  <Icon
+                                    name="boxicons:user"
+                                    class="size-4 text-secondary"
+                                    aria-hidden="true"
+                                  />
+                                  Contactos de la oficina
+                                </h2>
+
+                                {office.contacts.length > 0 ? (
+                                  <div class="grid gap-3 sm:grid-cols-2">
+                                    {office.contacts.map((contact) => (
+                                      <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-sm">
+                                        <h3 class="truncate text-sm font-semibold text-base-content">
+                                          {contact.name}
+                                        </h3>
+                                        <div class="mt-3 space-y-2 text-xs text-base-content/70">
+                                          <p class="flex items-center gap-2">
+                                            <Icon
+                                              name="boxicons:clock"
+                                              class="size-4 shrink-0 text-base-content/50"
+                                              aria-hidden="true"
+                                            />
+                                            <span>{contact.timeSlot}</span>
+                                          </p>
+                                          <p class="flex items-center gap-2">
+                                            <Icon
+                                              name="boxicons:phone"
+                                              class="size-4 shrink-0 text-base-content/50"
+                                              aria-hidden="true"
+                                            />
+                                            <span class="font-mono">
+                                              {contact.phone}
+                                            </span>
+                                          </p>
+                                        </div>
+                                      </article>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                                    Sin contactos cargados para esta oficina.
+                                  </p>
+                                )}
+                              </section>
+
+                              <section class="min-w-0 space-y-3">
+                                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                                  <Icon
+                                    name="boxicons:desktop"
+                                    class="size-4 text-secondary"
+                                    aria-hidden="true"
+                                  />
+                                  Activos tecnologicos
+                                </h2>
+
+                                {office.assets.length > 0 ? (
+                                  <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
+                                    <table class="table table-sm">
+                                      <thead>
+                                        <tr class="text-xs uppercase tracking-wide text-base-content/60">
+                                          <th>Tipo / Hostname</th>
+                                          <th>Direccion IP</th>
+                                          <th>Estado</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {office.assets.map((asset) => (
+                                          <tr>
+                                            <td>
+                                              <div class="flex min-w-0 items-center gap-3">
+                                                <span
+                                                  class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-secondary"
+                                                  aria-hidden="true"
+                                                >
+                                                  <Icon
+                                                    name={assetIconByType[
+                                                      asset.type
+                                                    ]}
+                                                    class="size-4"
+                                                  />
+                                                </span>
+                                                <div class="min-w-0">
+                                                  <p class="text-xs font-medium text-base-content/60">
+                                                    {assetLabelByType[
+                                                      asset.type
+                                                    ]}
+                                                  </p>
+                                                  <p class="truncate font-mono text-sm font-semibold text-base-content">
+                                                    {asset.hostname}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td class="font-mono text-sm">
+                                              {asset.ip}
+                                            </td>
+                                            <td>
+                                              <span class="badge badge-success badge-outline badge-sm">
+                                                Online
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                                    Sin activos tecnologicos registrados.
+                                  </p>
+                                )}
+                              </section>
+                            </div>
+                          </div>
+                      </div>
+                      </article>
+                    </>
+                  );
+                }),
+              )
+            }
+    </MasterDetailTable>
+  </section>
+
+  <script>
+    import {
+      highlightSearchTargets,
+      matchesSearchQuery,
+    } from "@lib/clientSearch";
+    import { refreshMasterDetailTableSort } from "@lib/clientMasterDetailTableSort";
+
+    const tabButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("[data-office-tab]"),
+    );
+    const tableRoot = document.querySelector<HTMLElement>(
+      "[data-master-detail-table-root]",
+    );
+    const officeItems = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"),
+    );
+    const masterRows = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-office-master-row]"),
+    );
+    const detailRows = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-office-detail-row]"),
+    );
+    const locationGroupRows = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-location-group-row]"),
+    );
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#office-search");
+    const emptyState =
+      document.querySelector<HTMLElement>("#office-empty-state");
+
+    let selectedOfficeType = "comercial";
+    let expandedOfficeId: string | null = null;
+    const tabActiveClassesByType: Record<string, string> = {
+      all: "office-tab-active office-tab-active-all",
+      comercial: "office-tab-active office-tab-active-commercial",
+      telegrafia: "office-tab-active office-tab-active-telegrafia",
+      distribucion: "office-tab-active office-tab-active-distribucion",
+      paqueteria: "office-tab-active office-tab-active-paqueteria",
+    };
+
+    const detailRowById = new Map(
+      detailRows.map((row) => [row.dataset.officeId ?? "", row]),
+    );
+    const masterRowById = new Map(
+      masterRows.map((row) => [row.dataset.officeId ?? "", row]),
+    );
+
+    const isItemVisible = (item: HTMLElement): boolean => {
+      const matchesType =
+        selectedOfficeType === "all" ||
+        item.dataset.officeType === selectedOfficeType;
+      const matchesSearch = matchesSearchQuery(searchInput?.value.trim(), [
+        item.dataset.searchText,
+      ]);
+
+      return matchesType && matchesSearch;
+    };
+
+    const updateRows = (): void => {
+      const rawSearchValue = searchInput?.value.trim() ?? "";
+      let visibleRows = 0;
+      let expandedRowIsVisible = false;
+
+      if (tableRoot) {
+        tableRoot.dataset.masterDetailView =
+          selectedOfficeType === "all" ? "grouped" : "flat";
+      }
+
+      officeItems.forEach((item) => {
+        const itemIsVisible = isItemVisible(item);
+
+        if (itemIsVisible) {
+          visibleRows += 1;
+        }
+
+        if (itemIsVisible && item.dataset.officeId === expandedOfficeId) {
+          expandedRowIsVisible = true;
+        }
+      });
+
+      if (!expandedRowIsVisible) {
+        expandedOfficeId = null;
+      }
+
+      officeItems.forEach((item) => {
+        const officeId = item.dataset.officeId ?? "";
+        const itemIsVisible = isItemVisible(item);
+        const rowIsExpanded = itemIsVisible && officeId === expandedOfficeId;
+        const row = masterRowById.get(officeId);
+        const detailRow = detailRowById.get(officeId);
+        const openIcon = row?.querySelector<HTMLElement>("[data-chevron-open]");
+        const closedIcon = row?.querySelector<HTMLElement>(
+          "[data-chevron-closed]",
+        );
+
+        item.classList.toggle("hidden", !itemIsVisible);
+        row?.classList.toggle("bg-base-200/70", rowIsExpanded);
+        row?.setAttribute("aria-expanded", rowIsExpanded ? "true" : "false");
+        highlightSearchTargets(item, itemIsVisible ? rawSearchValue : "");
+
+        openIcon?.classList.toggle("hidden", !rowIsExpanded);
+        closedIcon?.classList.toggle("hidden", rowIsExpanded);
+        detailRow?.classList.toggle("hidden", !rowIsExpanded);
+      });
+
+      locationGroupRows.forEach((groupRow) => {
+        const location = groupRow.dataset.locationGroup ?? "";
+        const hasVisibleRows = officeItems.some((item) => {
+          const isVisible = !item.classList.contains("hidden");
+          return isVisible && item.dataset.officeLocation === location;
+        });
+        const showGroup = selectedOfficeType === "all" && hasVisibleRows;
+
+        groupRow.classList.toggle("hidden", !showGroup);
+      });
+
+      refreshMasterDetailTableSort();
+      emptyState?.classList.toggle("hidden", visibleRows > 0);
+    };
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedOfficeType = button.dataset.officeType ?? selectedOfficeType;
+        expandedOfficeId = null;
+
+        tabButtons.forEach((tab) => {
+          const isActive = tab === button;
+          Object.values(tabActiveClassesByType)
+            .flatMap((value) => value.split(" "))
+            .forEach((className) => {
+              tab.classList.toggle(className, false);
+            });
+
+          if (isActive) {
+            const activeType = tab.dataset.officeType ?? "all";
+            tabActiveClassesByType[activeType]
+              .split(" ")
+              .forEach((className) => {
+                tab.classList.add(className);
+              });
+          }
+
+          tab.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        updateRows();
+      });
+    });
+
+    masterRows.forEach((row) => {
+      const toggleRow = (): void => {
+        const officeId = row.dataset.officeId ?? "";
+        expandedOfficeId = expandedOfficeId === officeId ? null : officeId;
+        updateRows();
+      };
+
+      row.addEventListener("click", toggleRow);
+      row.addEventListener("keydown", (event) => {
+        const shouldToggle = event.key === "Enter" || event.key === " ";
+
+        if (!shouldToggle) {
+          return;
+        }
+
+        event.preventDefault();
+        toggleRow();
+      });
+    });
+
+    searchInput?.addEventListener("input", updateRows);
+    updateRows();
+  </script>
+
+  <style>
+    .office-type-chip,
+    .office-tab-active {
+      border-width: 1px;
+      box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
+    }
+
+    .office-type-chip {
+      border-radius: 0.5rem;
+    }
+
+    .office-type-chip-commercial,
+    .office-tab-active-commercial {
+      background-color: var(--color-school-bus-yellow-100);
+      border-color: var(--color-school-bus-yellow-300);
+      color: var(--color-school-bus-yellow-900);
+    }
+
+    .office-type-chip-telegrafia,
+    .office-tab-active-telegrafia {
+      background-color: var(--color-steel-azure-100);
+      border-color: var(--color-steel-azure-300);
+      color: var(--color-steel-azure-900);
+    }
+
+    .office-type-chip-distribucion,
+    .office-tab-active-distribucion {
+      background-color: var(--color-charcoal-100);
+      border-color: var(--color-charcoal-300);
+      color: var(--color-charcoal-900);
+    }
+
+    .office-type-chip-paqueteria,
+    .office-tab-active-paqueteria {
+      background-color: var(--color-brown-red-100);
+      border-color: var(--color-brown-red-300);
+      color: var(--color-brown-red-900);
+    }
+
+    .office-tab-active-all {
+      background-color: var(--color-base-100);
+      border-color: var(--color-base-300);
+      color: var(--color-base-content);
+    }
+
+    [data-theme="dark"] .office-type-chip-commercial,
+    [data-theme="dark"] .office-tab-active-commercial {
+      background-color: color-mix(
+        in srgb,
+        var(--color-school-bus-yellow-200) 82%,
+        black 18%
+      );
+      border-color: var(--color-school-bus-yellow-400);
+      color: var(--color-school-bus-yellow-950);
+    }
+
+    [data-theme="dark"] .office-type-chip-telegrafia,
+    [data-theme="dark"] .office-tab-active-telegrafia {
+      background-color: color-mix(
+        in srgb,
+        var(--color-steel-azure-200) 78%,
+        black 22%
+      );
+      border-color: var(--color-steel-azure-400);
+      color: var(--color-steel-azure-950);
+    }
+
+    [data-theme="dark"] .office-type-chip-distribucion,
+    [data-theme="dark"] .office-tab-active-distribucion {
+      background-color: color-mix(
+        in srgb,
+        var(--color-charcoal-200) 78%,
+        black 22%
+      );
+      border-color: var(--color-charcoal-400);
+      color: var(--color-charcoal-950);
+    }
+
+    [data-theme="dark"] .office-type-chip-paqueteria,
+    [data-theme="dark"] .office-tab-active-paqueteria {
+      background-color: color-mix(
+        in srgb,
+        var(--color-brown-red-200) 78%,
+        black 22%
+      );
+      border-color: var(--color-brown-red-400);
+      color: var(--color-brown-red-950);
+    }
+
+    .office-detail-panel {
+      animation: officeDetailFade 180ms ease-out;
+    }
+
+    @keyframes officeDetailFade {
+      from {
+        opacity: 0;
+        transform: translateY(-0.25rem);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</BaseLayout>

@@ -1,0 +1,182 @@
+---
+import CopyButton from "@components/ui/CopyButton.astro";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
+import type { ImportantLink, LinkAlternative } from "./types";
+
+interface Props {
+  link: ImportantLink;
+  category: string;
+}
+
+interface LinkAction {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  variant: "main" | "alternative";
+}
+
+const { link, category } = Astro.props;
+
+const alternatives = Array.isArray(link.alternatives)
+  ? link.alternatives
+  : [];
+
+const alternativeSearchText = alternatives
+  .map((alternative: LinkAlternative) =>
+    [
+      alternative.title,
+      alternative.url,
+      alternative.subtitle ?? "",
+      alternative.description ?? "",
+    ].join(" "),
+  )
+  .join(" ");
+
+const searchText = [
+  category,
+  link.title,
+  link.url,
+  link.subtitle ?? "",
+  link.description ?? "",
+  alternativeSearchText,
+].join(" ");
+
+const isWebUrl = (url: string): boolean => /^https?:\/\//i.test(url);
+
+const getDisplaySubtitle = (
+  option: ImportantLink | LinkAlternative,
+): string => option.subtitle ?? option.description ?? "";
+
+const toAction = (
+  option: ImportantLink | LinkAlternative,
+  variant: LinkAction["variant"],
+): LinkAction => ({
+  id: option.id,
+  title: option.title,
+  url: option.url,
+  description: getDisplaySubtitle(option),
+  variant,
+});
+
+const mainAction = toAction(link, "main");
+const alternativeActions = alternatives.map((alternative) =>
+  toAction(alternative, "alternative"),
+);
+const linkSubtitle = getDisplaySubtitle(link);
+---
+
+<li
+  class="group rounded-lg border border-base-300 bg-base-100 transition-colors hover:bg-base-200/60 focus-within:bg-base-200/60"
+  data-link-item
+  data-link-search={searchText}
+>
+  <div class="flex items-start gap-3 p-3">
+    <div class="min-w-0 flex-1">
+      <span
+        class="block truncate text-sm font-semibold text-base-content"
+        title={link.title}
+        data-highlight-target
+      >
+        {link.title}
+      </span>
+
+      {
+        linkSubtitle && (
+          <span
+            class="mt-1 block line-clamp-2 text-xs leading-relaxed text-base-content/70"
+            data-highlight-target
+          >
+            {linkSubtitle}
+          </span>
+        )
+      }
+
+      {
+        alternativeActions.length > 0 && (
+          <div class="mt-3 space-y-2 border-t border-base-300 pt-3">
+            {alternativeActions.map((action) => {
+              const actionIsWebUrl = isWebUrl(action.url);
+
+              return (
+                <div
+                  class="group/alternative flex items-start gap-2 rounded-md bg-base-200/70 px-2 py-2 transition-colors hover:bg-base-300/70 focus-within:bg-base-300/70"
+                  data-link-alternative
+                >
+                  <div class="min-w-0 flex-1">
+                    <span
+                      class="block line-clamp-2 text-xs font-semibold leading-relaxed text-base-content"
+                      data-highlight-target
+                    >
+                      {action.title}
+                    </span>
+                    {action.description && (
+                      <span
+                        class="mt-0.5 block line-clamp-2 text-xs leading-relaxed text-base-content/60"
+                        data-highlight-target
+                      >
+                        {action.description}
+                      </span>
+                    )}
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/alternative:opacity-100 group-focus-within/alternative:opacity-100">
+                    <CopyButton
+                      value={action.url}
+                      variant="link"
+                      appearance="ghost"
+                      size="sm"
+                      tooltipText={action.url}
+                      ariaLabel={`Copiar URL de ${action.title}`}
+                    />
+
+                    <OpenExternalUrlButton
+                      href={actionIsWebUrl ? action.url : undefined}
+                      variant="text"
+                      appearance="solid"
+                      tone="secondary"
+                      size="sm"
+                      disabled={!actionIsWebUrl}
+                      ariaLabel={
+                        actionIsWebUrl
+                          ? `Abrir ${action.title} en una nueva pestaña`
+                          : `No se puede abrir ${action.title}; copiá la ruta`
+                      }
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+    </div>
+
+    <div class="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <CopyButton
+        value={mainAction.url}
+        variant="link"
+        appearance="ghost"
+        size="sm"
+        tooltipText={mainAction.url}
+        ariaLabel={`Copiar URL de ${mainAction.title}`}
+      />
+
+      {
+        <OpenExternalUrlButton
+          href={isWebUrl(mainAction.url) ? mainAction.url : undefined}
+          variant="text"
+          appearance="solid"
+          tone="secondary"
+          size="sm"
+          disabled={!isWebUrl(mainAction.url)}
+          ariaLabel={
+            isWebUrl(mainAction.url)
+              ? `Abrir ${mainAction.title} en una nueva pestaña`
+              : `No se puede abrir ${mainAction.title}; copiá la ruta`
+          }
+        />
+      }
+    </div>
+  </div>
+</li>

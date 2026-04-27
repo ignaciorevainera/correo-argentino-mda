@@ -1,6 +1,10 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
 import inventoryRows from "../../data/inventario_terminales.json";
 
 type OsFamily = "windows" | "linux" | "legacy";
@@ -151,34 +155,26 @@ const rowIcons: Record<
   location: "boxicons:location-pin",
   contact: "boxicons:clock",
 };
+
+const terminalHeaderGridClass = "grid-cols-12 gap-4";
+const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
 ---
 
 <BaseLayout title="Inventario de terminales">
   <section class="flex flex-col gap-6">
-    <header class="space-y-3">
-      <h1 class="text-3xl font-bold">Inventario de Terminales</h1>
-      <p class="max-w-3xl text-sm text-base-content/70 sm:text-base">
-        Vista consolidada del parque operativo para diagnostico rapido de red,
-        hardware y estado de contacto.
-      </p>
+    <div class="space-y-3">
+      <PageHeader
+        title="Inventario de Terminales"
+        description="Vista consolidada del parque operativo para diagnostico rapido de red, hardware y estado de contacto."
+      />
       <div class="w-full max-w-md">
-        <label class="input input-bordered w-full" for="terminal-search">
-          <Icon
-            name="boxicons:search"
-            class="size-4 opacity-50"
-            aria-hidden="true"
-          />
-          <input
-            id="terminal-search"
-            type="search"
-            class="grow"
-            placeholder="Buscar por hostname, IP, MAC o sucursal"
-            autocomplete="off"
-            aria-label="Buscar terminal por hostname, direccion IP, MAC o sucursal"
-          />
-        </label>
+        <SearchInput
+          id="terminal-search"
+          label="Buscar terminal por hostname, direccion IP, MAC o sucursal"
+          placeholder="Buscar por hostname, IP, MAC o sucursal"
+        />
       </div>
-    </header>
+    </div>
 
     <section class="space-y-3">
       <div
@@ -194,240 +190,196 @@ const rowIcons: Record<
         <span>No se encontraron resultados para la busqueda actual.</span>
       </div>
 
-      <section
-        class="overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-sm"
-        aria-label="Inventario de terminales"
+      <DataTable
+        ariaLabel="Inventario de terminales"
+        minWidthClass="min-w-280"
+        headerGridClass={terminalHeaderGridClass}
+        rowGridClass={terminalRowGridClass}
       >
-        <div class="inventory-grid-shell">
-          <div
-            class="inventory-grid-row border-b border-base-300 bg-base-300/40 px-4 py-3"
-          >
-            <p
-              class="truncate font-mono text-sm font-semibold text-base-content/70"
-            >
-              Hostname/Red
-            </p>
-            <p
-              class="truncate font-mono text-sm font-semibold text-base-content/70"
-            >
-              Hardware
-            </p>
-            <p
-              class="truncate font-mono text-sm font-semibold text-base-content/70"
-            >
-              Sistema operativo
-            </p>
-            <p
-              class="truncate font-mono text-sm font-semibold text-base-content/70"
-            >
-              Ubicacion
-            </p>
-            <p
-              class="truncate text-right font-mono text-sm font-semibold text-base-content/70"
-            >
-              Ultimo contacto
-            </p>
-          </div>
-
-          <div>
-            {
-              terminals.map((terminal) => (
-                <article
-                  data-terminal-row
-                  data-hostname={terminal.hostname}
-                  data-ip={terminal.ip}
-                  data-mac={terminal.mac}
-                  data-branch={terminal.branch}
-                  class="inventory-grid-row border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-300/50 items-start last:border-b-0"
-                >
-                  <div class="min-w-0">
-                    <div class="flex min-w-0 items-center gap-3">
-                      <span
-                        class:list={[
-                          "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                          osFamilyTone[terminal.osFamily],
-                        ]}
-                        aria-hidden="true"
-                      >
-                        <Icon
-                          name="boxicons:desktop"
-                          class="size-4"
-                        />
-                      </span>
-                      <div class="min-w-0 space-y-0.5">
-                        <p
-                          class="truncate text-sm font-medium text-base-content"
-                          data-highlight-target
-                        >
-                          {terminal.hostname}
-                        </p>
-                        <p
-                          class="truncate font-mono text-xs text-base-content/70"
-                          data-highlight-target
-                        >
-                          {terminal.ip}
-                        </p>
-                        <p
-                          class="truncate font-mono text-xs text-base-content/50"
-                          data-highlight-target
-                        >
-                          {terminal.mac}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="min-w-0 space-y-1">
-                    <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                      <Icon
-                        name={rowIcons.hardware}
-                        class="size-4 shrink-0 text-base-content/60"
-                        aria-hidden="true"
-                      />
-                      <span class="truncate">
-                        {terminal.manufacturer} {terminal.model}
-                      </span>
-                    </p>
-                    <div class="pl-6">
-                      <p class="truncate text-xs text-base-content/70">
-                        RAM:{" "}
-                        <span class="font-medium text-base-content">
-                          {terminal.ram}
-                        </span>
-                      </p>
-                      <p class="truncate font-mono text-xs text-base-content/50">
-                        SN: {terminal.serial}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="min-w-0 space-y-1">
-                    <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                      <Icon
-                        name={rowIcons.os}
-                        class="size-4 shrink-0 text-base-content/60"
-                        aria-hidden="true"
-                      />
-                      <span class="truncate">{terminal.osName}</span>
-                    </p>
-                    <div class="flex min-w-0 items-center gap-2 pl-6">
-                      <span
-                        class:list={[
-                          "badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/70",
-                          osFamilyBadge[terminal.osFamily],
-                        ]}
-                      >
-                        {osFamilyLabel[terminal.osFamily]}
-                      </span>
-                      <span class="badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/60">
-                        {terminal.architecture}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="min-w-0 space-y-1">
-                    <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                      <Icon
-                        name={rowIcons.location}
-                        class="size-4 shrink-0 text-base-content/60"
-                        aria-hidden="true"
-                      />
-                      <span class="truncate" data-highlight-target>
-                        {terminal.branch}
-                      </span>
-                    </p>
-                    <p class="truncate pl-6 text-xs text-base-content/60">
-                      {terminal.province}{" "}
-                      <span class="text-base-content/35">•</span>{" "}
-                      {terminal.region}
-                    </p>
-                    <div class="pl-6">
-                      <span class="inline-block max-w-full truncate rounded-md border border-base-300 bg-base-200/70 px-2 py-0.5 font-mono text-xs text-base-content/70">
-                        {terminal.nis}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="min-w-0">
-                    <div class="flex min-w-0 flex-col items-end gap-0.5 text-right">
-                      <p class="flex min-w-0 items-center justify-end gap-1.5 text-sm font-medium text-base-content">
-                        <Icon
-                          name={rowIcons.contact}
-                          class="size-4 shrink-0 text-base-content/60"
-                          aria-hidden="true"
-                        />
-                        <span class="truncate">{terminal.lastContactDate}</span>
-                      </p>
-                      <p class="truncate font-mono text-xs text-base-content/60">
-                        {terminal.lastContactTime}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              ))
-            }
-          </div>
+        <div slot="header" class="col-span-3">
+          <DataTableHeaderCell sortKey="hostname" monospace>
+            Hostname/Red
+          </DataTableHeaderCell>
         </div>
-      </section>
+        <div slot="header" class="col-span-3">
+          <DataTableHeaderCell sortKey="hardware" monospace>
+            Hardware
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell sortKey="os" monospace>
+            Sistema operativo
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell sortKey="location" monospace>
+            Ubicacion
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell align="right" monospace>
+            Ultimo contacto
+          </DataTableHeaderCell>
+        </div>
+
+        {
+          terminals.map((terminal) => (
+            <article
+              data-table-row
+              data-terminal-row
+              data-hostname={terminal.hostname}
+              data-ip={terminal.ip}
+              data-mac={terminal.mac}
+              data-branch={terminal.branch}
+              data-sort-hostname={terminal.hostname}
+              data-sort-hardware={`${terminal.manufacturer} ${terminal.model}`}
+              data-sort-os={terminal.osName}
+              data-sort-location={`${terminal.branch} ${terminal.province} ${terminal.region}`}
+              class:list={[
+                terminalRowGridClass,
+                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-300/50 last:border-b-0",
+              ]}
+            >
+              <div class="col-span-3 min-w-0">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span
+                    class:list={[
+                      "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
+                      osFamilyTone[terminal.osFamily],
+                    ]}
+                    aria-hidden="true"
+                  >
+                    <Icon name="boxicons:desktop" class="size-4" />
+                  </span>
+                  <div class="min-w-0 space-y-0.5">
+                    <p
+                      class="truncate text-sm font-medium text-base-content"
+                      data-highlight-target
+                    >
+                      {terminal.hostname}
+                    </p>
+                    <p
+                      class="truncate font-mono text-xs text-base-content/70"
+                      data-highlight-target
+                    >
+                      {terminal.ip}
+                    </p>
+                    <p
+                      class="truncate font-mono text-xs text-base-content/50"
+                      data-highlight-target
+                    >
+                      {terminal.mac}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-3 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon
+                    name={rowIcons.hardware}
+                    class="size-4 shrink-0 text-base-content/60"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">
+                    {terminal.manufacturer} {terminal.model}
+                  </span>
+                </p>
+                <div class="pl-6">
+                  <p class="truncate text-xs text-base-content/70">
+                    RAM:{" "}
+                    <span class="font-medium text-base-content">
+                      {terminal.ram}
+                    </span>
+                  </p>
+                  <p class="truncate font-mono text-xs text-base-content/50">
+                    SN: {terminal.serial}
+                  </p>
+                </div>
+              </div>
+
+              <div class="col-span-2 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon
+                    name={rowIcons.os}
+                    class="size-4 shrink-0 text-base-content/60"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">{terminal.osName}</span>
+                </p>
+                <div class="flex min-w-0 items-center gap-2 pl-6">
+                  <span
+                    class:list={[
+                      "badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/70",
+                      osFamilyBadge[terminal.osFamily],
+                    ]}
+                  >
+                    {osFamilyLabel[terminal.osFamily]}
+                  </span>
+                  <span class="badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/60">
+                    {terminal.architecture}
+                  </span>
+                </div>
+              </div>
+
+              <div class="col-span-2 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon
+                    name={rowIcons.location}
+                    class="size-4 shrink-0 text-base-content/60"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate" data-highlight-target>
+                    {terminal.branch}
+                  </span>
+                </p>
+                <p class="truncate pl-6 text-xs text-base-content/60">
+                  {terminal.province}{" "}
+                  <span class="text-base-content/35">•</span>{" "}
+                  {terminal.region}
+                </p>
+                <div class="pl-6">
+                  <span class="inline-block max-w-full truncate rounded-md border border-base-300 bg-base-200/70 px-2 py-0.5 font-mono text-xs text-base-content/70">
+                    {terminal.nis}
+                  </span>
+                </div>
+              </div>
+
+              <div class="col-span-2 min-w-0">
+                <div class="flex min-w-0 flex-col items-end gap-0.5 text-right">
+                  <p class="flex min-w-0 items-center justify-end gap-1.5 text-sm font-medium text-base-content">
+                    <Icon
+                      name={rowIcons.contact}
+                      class="size-4 shrink-0 text-base-content/60"
+                      aria-hidden="true"
+                    />
+                    <span class="truncate">{terminal.lastContactDate}</span>
+                  </p>
+                  <p class="truncate font-mono text-xs text-base-content/60">
+                    {terminal.lastContactTime}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))
+        }
+      </DataTable>
     </section>
   </section>
 
   <script>
-    const searchInput = document.querySelector("#terminal-search");
+    import {
+      highlightSearchTargets,
+      matchesSearchQuery,
+    } from "@lib/clientSearch";
+
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#terminal-search");
     const rows = Array.from(
       document.querySelectorAll<HTMLElement>("[data-terminal-row]"),
     );
-    const emptyState = document.querySelector("#terminal-empty-state");
-
-    const normalizeValue = (value: string): string =>
-      value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-
-    const escapeRegExp = (value: string): string =>
-      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const escapeHtml = (value: string): string =>
-      value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-
-    const highlightText = (element: HTMLElement, query: string) => {
-      const originalText =
-        element.dataset.originalText ?? element.textContent ?? "";
-
-      if (!element.dataset.originalText) {
-        element.dataset.originalText = originalText;
-      }
-
-      if (query.length === 0) {
-        element.textContent = originalText;
-        return;
-      }
-
-      const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
-
-      if (!matcher.test(originalText)) {
-        element.textContent = originalText;
-        return;
-      }
-
-      matcher.lastIndex = 0;
-      const highlighted = originalText
-        .split(matcher)
-        .map((chunk, index) =>
-          index % 2 === 1
-            ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
-            : escapeHtml(chunk),
-        )
-        .join("");
-
-      element.innerHTML = highlighted;
-    };
+    const emptyState =
+      document.querySelector<HTMLElement>("#terminal-empty-state");
 
     if (
       searchInput instanceof HTMLInputElement &&
@@ -435,33 +387,18 @@ const rowIcons: Record<
     ) {
       const updateRows = () => {
         const rawSearchValue = searchInput.value.trim();
-        const searchValue = normalizeValue(searchInput.value.trim());
         let visibleRows = 0;
 
         rows.forEach((row) => {
-          const hostname = normalizeValue(
-            row.getAttribute("data-hostname") ?? "",
-          );
-          const ip = normalizeValue(row.getAttribute("data-ip") ?? "");
-          const mac = normalizeValue(row.getAttribute("data-mac") ?? "");
-          const branch = normalizeValue(row.getAttribute("data-branch") ?? "");
-
-          const isVisible =
-            searchValue.length === 0 ||
-            hostname.includes(searchValue) ||
-            ip.includes(searchValue) ||
-            mac.includes(searchValue) ||
-            branch.includes(searchValue);
+          const isVisible = matchesSearchQuery(rawSearchValue, [
+            row.dataset.hostname,
+            row.dataset.ip,
+            row.dataset.mac,
+            row.dataset.branch,
+          ]);
 
           row.classList.toggle("hidden", !isVisible);
-
-          const rowTargets = Array.from(
-            row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
-          );
-
-          rowTargets.forEach((target) => {
-            highlightText(target, isVisible ? rawSearchValue : "");
-          });
+          highlightSearchTargets(row, isVisible ? rawSearchValue : "");
 
           if (isVisible) {
             visibleRows += 1;
@@ -476,22 +413,3 @@ const rowIcons: Record<
     }
   </script>
 </BaseLayout>
-
-<style>
-  .inventory-grid-shell {
-    min-width: 980px;
-  }
-
-  .inventory-grid-row {
-    display: grid;
-    grid-template-columns:
-      minmax(140px, 1.2fr) minmax(250px, 2fr) minmax(200px, 1.5fr)
-      minmax(180px, 1.5fr) minmax(110px, 1fr);
-    align-items: start;
-    gap: 1rem;
-  }
-
-  .inventory-grid-row.hidden {
-    display: none;
-  }
-</style>

@@ -18,60 +18,60 @@ interface Props {
 
 const variants = {
   primary: {
-    solid: "bg-[#004C97] text-white border-[#004C97]",
-    outline: "border-[#004C97] text-[#004C97] bg-transparent",
-    ghost: "text-[#004C97] bg-transparent border-transparent",
-    link: "text-[#004C97] underline bg-transparent border-transparent",
+    solid: "btn-primary",
+    outline: "btn-outline btn-primary",
+    ghost: "btn-ghost text-primary hover:bg-primary/10",
+    link: "btn-link text-primary",
   },
   secondary: {
-    solid: "bg-[#FFE600] text-black border-[#FFE600]",
-    outline: "border-[#FFE600] text-[#FFE600] bg-transparent",
-    ghost: "text-[#FFE600] bg-transparent border-transparent",
-    link: "text-[#FFE600] underline bg-transparent border-transparent",
+    solid: "btn-secondary",
+    outline: "btn-outline btn-secondary",
+    ghost: "btn-ghost text-secondary hover:bg-secondary/10",
+    link: "btn-link text-secondary",
   },
   accent: {
-    solid: "bg-[#00A4E0] text-white border-[#00A4E0]",
-    outline: "border-[#00A4E0] text-[#00A4E0]",
-    ghost: "text-[#00A4E0]",
-    link: "text-[#00A4E0] underline",
+    solid: "btn-accent",
+    outline: "btn-outline btn-accent",
+    ghost: "btn-ghost text-accent hover:bg-accent/10",
+    link: "btn-link text-accent",
   },
   neutral: {
-    solid: "bg-neutral text-neutral-content border-neutral",
-    outline: "border-neutral text-neutral bg-transparent",
-    ghost: "text-neutral bg-transparent border-transparent",
-    link: "text-neutral underline bg-transparent border-transparent",
+    solid: "btn-neutral",
+    outline: "btn-outline btn-neutral",
+    ghost: "btn-ghost text-neutral hover:bg-neutral/10",
+    link: "btn-link text-neutral",
   },
   info: {
-    solid: "bg-[#00A4E0] text-white border-[#00A4E0]",
-    outline: "border-[#00A4E0] text-[#00A4E0]",
-    ghost: "text-[#00A4E0]",
-    link: "text-[#00A4E0] underline",
+    solid: "btn-info",
+    outline: "btn-outline btn-info",
+    ghost: "btn-ghost text-info hover:bg-info/10",
+    link: "btn-link text-info",
   },
   success: {
-    solid: "bg-[#008040] text-white border-[#008040]",
-    outline: "border-[#008040] text-[#008040]",
-    ghost: "text-[#008040]",
-    link: "text-[#008040] underline",
+    solid: "btn-success",
+    outline: "btn-outline btn-success",
+    ghost: "btn-ghost text-success hover:bg-success/10",
+    link: "btn-link text-success",
   },
   warning: {
-    solid: "bg-[#FFE600] text-black border-[#FFE600]",
-    outline: "border-[#FFE600] text-[#FFE600]",
-    ghost: "text-[#FFE600]",
-    link: "text-[#FFE600] underline",
+    solid: "btn-warning",
+    outline: "btn-outline btn-warning",
+    ghost: "btn-ghost text-warning hover:bg-warning/10",
+    link: "btn-link text-warning",
   },
   error: {
-    solid: "bg-[#E3000F] text-white border-[#E3000F]",
-    outline: "border-[#E3000F] text-[#E3000F]",
-    ghost: "text-[#E3000F]",
-    link: "text-[#E3000F] underline",
+    solid: "btn-error",
+    outline: "btn-outline btn-error",
+    ghost: "btn-ghost text-error hover:bg-error/10",
+    link: "btn-link text-error",
   },
 };
 
 const sizes = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
-  icon: "h-10 w-10 p-0 flex items-center justify-center",
+  sm: "btn-sm",
+  md: "",
+  lg: "btn-lg",
+  icon: "btn-square",
 };
 
 const {
@@ -84,16 +84,23 @@ const {
 } = Astro.props;
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-lg border-2 font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+  "btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-const hover = appearance === "solid" ? "hover:opacity-90" : "hover:bg-black/5";
+const disabledClass = "btn-disabled pointer-events-none opacity-60";
 ---
 
 {
   href ? (
     <a
       href={href}
-      class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}
+      aria-disabled={disabled ? "true" : undefined}
+      class:list={[
+        base,
+        sizes[size],
+        variants[variant][appearance],
+        disabled && disabledClass,
+        className,
+      ]}
     >
       <slot name="icon-left" />
       <slot />
@@ -101,7 +108,13 @@ const hover = appearance === "solid" ? "hover:opacity-90" : "hover:bg-black/5";
     </a>
   ) : (
     <button
-      class={`${base} ${sizes[size]} ${variants[variant][appearance]} ${hover} ${className}`}
+      type="button"
+      class:list={[
+        base,
+        sizes[size],
+        variants[variant][appearance],
+        className,
+      ]}
       disabled={disabled}
     >
       <slot name="icon-left" />

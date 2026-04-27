@@ -1,0 +1,245 @@
+---
+import { Icon } from "astro-icon/components";
+import PageHeader from "@components/ui/PageHeader.astro";
+import CategoryCard from "./CategoryCard.astro";
+import type { CategoryViewModel } from "./types";
+
+interface Props {
+  categories: CategoryViewModel[];
+}
+
+const { categories } = Astro.props;
+---
+
+<section class="mx-auto flex w-full max-w-7xl flex-col gap-6">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <PageHeader
+      title="Enlaces importantes"
+      description="Accesos clave para resolver tareas operativas de soporte con menos fricción."
+      class="max-w-3xl"
+    />
+
+    <div class="form-control w-full max-w-md">
+      <label class="sr-only" for="important-links-search">
+        Buscar enlaces importantes
+      </label>
+      <div class="input input-bordered flex w-full items-center gap-2 bg-base-100">
+        <Icon
+          name="boxicons:search"
+          class="size-5 text-base-content/50"
+          aria-hidden="true"
+        />
+        <input
+          id="important-links-search"
+          type="search"
+          class="grow"
+          placeholder="Buscar por nombre, URL o descripción"
+          autocomplete="off"
+          aria-describedby="important-links-search-help"
+        />
+      </div>
+      <p id="important-links-search-help" class="sr-only">
+        Filtra los enlaces mientras escribís.
+      </p>
+    </div>
+  </div>
+
+  <section
+    class="rounded-xl border border-primary/30 bg-primary/10 p-4 sm:p-5"
+    aria-labelledby="catalogo-aplicativos-cta-title"
+  >
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-start gap-3">
+        <span
+          class="mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-content"
+          aria-hidden="true"
+        >
+          <Icon name="boxicons:link" class="size-5" />
+        </span>
+
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <h2
+              id="catalogo-aplicativos-cta-title"
+              class="text-base font-semibold text-base-content sm:text-lg"
+            >
+              Nuevo catalogo de aplicativos
+            </h2>
+            <span class="badge badge-warning badge-sm">Nuevo</span>
+          </div>
+
+          <p class="text-sm leading-relaxed text-base-content/70">
+            Descarga herramientas de mesa de ayuda desde un paquete .zip o por
+            aplicativo individual para mantener la operatoria diaria.
+          </p>
+        </div>
+      </div>
+
+      <a href="/catalogo-aplicativos" class="btn btn-primary btn-sm gap-2 sm:btn-md">
+        <Icon
+          name="boxicons:arrow-up-right-square"
+          class="size-4"
+          aria-hidden="true"
+        />
+        <span>Ir al catalogo</span>
+      </a>
+    </div>
+  </section>
+
+  <div
+    id="important-links-grid"
+    class="columns-1 gap-5 md:columns-2 xl:columns-3"
+  >
+    {
+      categories.map((category) => (
+        <CategoryCard category={category} />
+      ))
+    }
+  </div>
+
+  <div
+    id="important-links-empty"
+    class="hidden min-h-80 items-center justify-center rounded-lg border border-dashed border-base-300 bg-base-200/40 p-8 text-center"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="flex max-w-md flex-col items-center gap-3">
+      <Icon
+        name="boxicons:search"
+        class="size-16 text-base-content/20"
+        aria-hidden="true"
+      />
+      <h2 class="text-xl font-semibold text-base-content">Sin resultados</h2>
+      <p class="text-sm leading-relaxed text-base-content/70">
+        La búsqueda no coincidió con ningún enlace. Probá con otro nombre, URL o
+        descripción.
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  const normalizeSearchValue = (value: string): string =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const highlightText = (element: HTMLElement, query: string): void => {
+    const originalText =
+      element.dataset.originalText ?? element.textContent ?? "";
+
+    if (!element.dataset.originalText) {
+      element.dataset.originalText = originalText;
+    }
+
+    if (query.length === 0) {
+      element.textContent = originalText;
+      return;
+    }
+
+    const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
+
+    if (!matcher.test(originalText)) {
+      element.textContent = originalText;
+      return;
+    }
+
+    matcher.lastIndex = 0;
+    const highlighted = originalText
+      .split(matcher)
+      .map((chunk, index) =>
+        index % 2 === 1
+          ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
+          : escapeHtml(chunk),
+      )
+      .join("");
+
+    element.innerHTML = highlighted;
+  };
+
+  const searchInput = document.getElementById(
+    "important-links-search",
+  ) as HTMLInputElement | null;
+  const linksGrid = document.getElementById(
+    "important-links-grid",
+  ) as HTMLElement | null;
+  const emptyState = document.getElementById(
+    "important-links-empty",
+  ) as HTMLElement | null;
+  const categoryCards = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-link-category]"),
+  );
+
+  const updateVisibleLinks = (): void => {
+    const rawSearchValue = searchInput?.value.trim() ?? "";
+    const query = normalizeSearchValue(rawSearchValue);
+    let visibleLinks = 0;
+
+    categoryCards.forEach((categoryCard) => {
+      const categorySearch = normalizeSearchValue(
+        categoryCard.dataset.categorySearch ?? "",
+      );
+      const categoryMatches = query.length > 0 && categorySearch.includes(query);
+      const categoryItems = Array.from(
+        categoryCard.querySelectorAll<HTMLElement>("[data-link-item]"),
+      );
+      let visibleCategoryLinks = 0;
+
+      categoryItems.forEach((item) => {
+        const linkSearch = normalizeSearchValue(item.dataset.linkSearch ?? "");
+        const isVisible =
+          query.length === 0 || categoryMatches || linkSearch.includes(query);
+
+        item.classList.toggle("hidden", !isVisible);
+
+        const itemTargets = Array.from(
+          item.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+        );
+
+        itemTargets.forEach((target) => {
+          highlightText(target, isVisible ? rawSearchValue : "");
+        });
+
+        if (isVisible) {
+          visibleLinks += 1;
+          visibleCategoryLinks += 1;
+        }
+      });
+
+      categoryCard.classList.toggle("hidden", visibleCategoryLinks === 0);
+
+      const categoryTitle = categoryCard.querySelector<HTMLElement>(
+        "header [data-highlight-target]",
+      );
+
+      if (categoryTitle) {
+        highlightText(
+          categoryTitle,
+          visibleCategoryLinks > 0 ? rawSearchValue : "",
+        );
+      }
+    });
+
+    linksGrid?.classList.toggle("hidden", visibleLinks === 0);
+    emptyState?.classList.toggle("hidden", visibleLinks > 0);
+    emptyState?.classList.toggle("flex", visibleLinks === 0);
+  };
+
+  searchInput?.addEventListener("input", () => {
+    updateVisibleLinks();
+  });
+
+  updateVisibleLinks();
+</script>
