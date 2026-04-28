@@ -4,7 +4,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
   {
     id: "soporte-corasa",
     title: "Soporte y atencion (CORASA)",
-    icon: "boxicons:buoy",
+    icon: "boxicons:buoy-filled",
     tone: "primary",
     contacts: [
       {
@@ -68,7 +68,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
   {
     id: "sistemas-accesos",
     title: "Sistemas y Accesos",
-    icon: "boxicons:database",
+    icon: "boxicons:database-filled",
     tone: "info",
     contacts: [
       {
@@ -145,7 +145,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
   {
     id: "servicios-externos",
     title: "Entidades y Servicios Externos",
-    icon: "boxicons:globe",
+    icon: "boxicons:globe-filled",
     tone: "accent",
     contacts: [
       {
@@ -215,7 +215,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
   {
     id: "logistica-compras",
     title: "Logistica y Compras",
-    icon: "boxicons:shopping-bag",
+    icon: "boxicons:shopping-bag-filled",
     tone: "secondary",
     contacts: [
       {
