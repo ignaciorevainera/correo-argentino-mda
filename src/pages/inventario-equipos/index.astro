@@ -1,0 +1,491 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { Icon } from "astro-icon/components";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
+import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
+import inventoryRows from "../../data/inventario_terminales.json";
+import {
+  cubicMachines,
+  getActiveMachineCount,
+  type CubicShift,
+  type CubicStatus,
+} from "@lib/cubics";
+
+// --- Lógica de Terminales ---
+type OsFamily = "windows" | "linux" | "legacy";
+type BoxiconName = `boxicons:${string}`;
+
+interface TerminalItem {
+  hostname: string;
+  ip: string;
+  mac: string;
+  manufacturer: string;
+  model: string;
+  ram: string;
+  serial: string;
+  osName: string;
+  architecture: string;
+  branch: string;
+  province: string;
+  region: string;
+  nis: string;
+  lastContactDate: string;
+  lastContactTime: string;
+  osFamily: OsFamily;
+}
+
+interface CsvTerminalRow {
+  Hostname: string;
+  Mac: string;
+  "Ip-Dir": string;
+  "Sist. Ope.": string;
+  "OS. Tipo": string;
+  Ram: string;
+  Serial: string;
+  manufacturer: string;
+  Modelo: string;
+  Sucursal: string;
+  Provincia: string;
+  Region: string;
+  NIS: string;
+  "Last-Contact": string;
+}
+
+const monthLabels = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+const toOsFamily = (osName: string): OsFamily => {
+  const normalized = osName.toLowerCase();
+  if (normalized.includes("ubuntu") || normalized.includes("linux") || normalized.includes("debian")) return "linux";
+  if (normalized.includes("windows")) return "windows";
+  return "legacy";
+};
+
+const parseLastContact = (lastContact: string): { date: string; time: string } => {
+  const parsedDate = new Date(lastContact.replace(" ", "T"));
+  if (Number.isNaN(parsedDate.getTime())) return { date: "--", time: "--" };
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  const month = monthLabels[parsedDate.getMonth()];
+  const year = parsedDate.getFullYear();
+  const hours = String(parsedDate.getHours()).padStart(2, "0");
+  const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
+  return { date: `${day} ${month} ${year}`, time: `${hours}:${minutes}` };
+};
+
+const terminals: TerminalItem[] = (inventoryRows as CsvTerminalRow[])
+  .slice(0, 50)
+  .map((row) => {
+    const lastContact = parseLastContact(row["Last-Contact"]);
+    const architecture = row["OS. Tipo"]?.trim() ? `${row["OS. Tipo"].trim()} bits` : "--";
+    return {
+      hostname: row.Hostname?.trim() || "--",
+      ip: row["Ip-Dir"]?.trim() || "--",
+      mac: row.Mac?.trim() || "--",
+      manufacturer: row.manufacturer?.trim() || "--",
+      model: row.Modelo?.trim() || "--",
+      ram: row.Ram?.trim() || "--",
+      serial: row.Serial?.trim() || "--",
+      osName: row["Sist. Ope."]?.trim() || "--",
+      architecture,
+      branch: row.Sucursal?.trim() || "--",
+      province: row.Provincia?.trim() || "--",
+      region: row.Region?.trim() || "--",
+      nis: row.NIS?.trim() || "--",
+      lastContactDate: lastContact.date,
+      lastContactTime: lastContact.time,
+      osFamily: toOsFamily(row["Sist. Ope."] || ""),
+    };
+  });
+
+const osFamilyTone: Record<OsFamily, string> = {
+  windows: "border-info/30 bg-info/15 text-info",
+  linux: "border-success/30 bg-success/15 text-success",
+  legacy: "border-warning/30 bg-warning/15 text-warning",
+};
+
+const osFamilyBadge: Record<OsFamily, string> = {
+  windows: "badge-info",
+  linux: "badge-success",
+  legacy: "badge-warning",
+};
+
+const osFamilyLabel: Record<OsFamily, string> = {
+  windows: "Windows",
+  linux: "Linux",
+  legacy: "Legacy",
+};
+
+const rowIcons: Record<"hardware" | "os" | "location" | "contact", BoxiconName> = {
+  hardware: "boxicons:chip-filled",
+  os: "boxicons:database-filled",
+  location: "boxicons:location-pin-filled",
+  contact: "boxicons:clock-filled",
+};
+
+const terminalHeaderGridClass = "grid-cols-12 gap-4";
+const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
+
+// --- Lógica de Cúbics ---
+const onlineCount = getActiveMachineCount(cubicMachines);
+const totalMachines = cubicMachines.length;
+
+const statusCopy: Record<CubicStatus, string> = {
+  online: "Online",
+  offline: "Offline",
+};
+
+const shiftIcon: Record<CubicShift, string> = {
+  morning: "boxicons:sun-filled",
+  afternoon_night: "boxicons:moon-filled",
+};
+
+const shiftIconTone: Record<CubicShift, string> = {
+  morning: "border-warning/40 bg-warning text-warning-content",
+  afternoon_night: "border-info/40 bg-info text-info-content",
+};
+
+const cubicHeaderGridClass = "grid-cols-12 gap-4";
+const cubicRowGridClass = "grid grid-cols-12 items-center gap-4";
+
+const inventoryTabs = [
+  { label: "Terminales de Sucursales", value: "terminales", icon: "boxicons:desktop-filled" },
+  { label: "Cúbics de Ayuda", value: "cubics", icon: "boxicons:server-filled" },
+];
+---
+
+<BaseLayout title="Inventario de Equipos">
+  <PageContainer as="section" width="wide" gap="md">
+    <PageHeader
+      title="Inventario de Equipos"
+      description="Gestión centralizada del parque operativo: terminales de sucursales y estaciones de trabajo de ayuda."
+    />
+
+    <ViewSwitcher 
+      tabs={inventoryTabs} 
+      activeValue="terminales" 
+      name="inventory_tabs"
+      id="inventory-view-switcher"
+    />
+
+    <!-- Terminales de Sucursales View -->
+    <div id="view-terminales" class="space-y-6">
+      <div class="w-full max-w-md">
+        <SearchInput
+          id="terminal-search"
+          label="Buscar terminal por hostname, direccion IP, MAC o sucursal"
+          placeholder="Buscar por hostname, IP, MAC o sucursal"
+        />
+      </div>
+
+      <section class="space-y-3">
+        <div id="terminal-empty-state" class="alert alert-warning hidden" role="status">
+          <Icon name="boxicons:alert-triangle-filled" class="size-5" aria-hidden="true" />
+          <span>No se encontraron resultados para la busqueda actual.</span>
+        </div>
+
+        <DataTable
+          ariaLabel="Inventario de terminales"
+          minWidthClass="min-w-280"
+          headerGridClass={terminalHeaderGridClass}
+          rowGridClass={terminalRowGridClass}
+        >
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="hostname" monospace>Hostname/Red</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="hardware" monospace>Hardware</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell sortKey="os" monospace>Sistema operativo</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell sortKey="location" monospace>Ubicacion</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell align="right" monospace>Ultimo contacto</DataTableHeaderCell>
+          </div>
+
+          {terminals.map((terminal) => (
+            <article
+              data-table-row
+              data-terminal-row
+              data-hostname={terminal.hostname}
+              data-ip={terminal.ip}
+              data-mac={terminal.mac}
+              data-branch={terminal.branch}
+              class:list={[
+                terminalRowGridClass,
+                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-300/50 last:border-b-0",
+              ]}
+            >
+              <div class="col-span-3 min-w-0">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class:list={["inline-flex size-9 shrink-0 items-center justify-center rounded-lg border", osFamilyTone[terminal.osFamily]]}>
+                    <Icon name="boxicons:desktop-filled" class="size-4" />
+                  </span>
+                  <div class="min-w-0 space-y-0.5">
+                    <p class="truncate text-sm font-medium text-base-content" data-highlight-target>{terminal.hostname}</p>
+                    <p class="truncate font-mono text-xs text-base-content/70" data-highlight-target>{terminal.ip}</p>
+                    <p class="truncate font-mono text-xs text-base-content/50" data-highlight-target>{terminal.mac}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-span-3 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon name={rowIcons.hardware} class="size-4 shrink-0 text-base-content/60" />
+                  <span class="truncate">{terminal.manufacturer} {terminal.model}</span>
+                </p>
+                <div class="pl-6">
+                  <p class="truncate text-xs text-base-content/70">RAM: <span class="font-medium text-base-content">{terminal.ram}</span></p>
+                  <p class="truncate font-mono text-xs text-base-content/50">SN: {terminal.serial}</p>
+                </div>
+              </div>
+
+              <div class="col-span-2 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon name={rowIcons.os} class="size-4 shrink-0 text-base-content/60" />
+                  <span class="truncate">{terminal.osName}</span>
+                </p>
+                <div class="flex min-w-0 items-center gap-2 pl-6">
+                  <span class:list={["badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/70", osFamilyBadge[terminal.osFamily]]}>{osFamilyLabel[terminal.osFamily]}</span>
+                  <span class="badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/60">{terminal.architecture}</span>
+                </div>
+              </div>
+
+              <div class="col-span-2 min-w-0 space-y-1">
+                <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
+                  <Icon name={rowIcons.location} class="size-4 shrink-0 text-base-content/60" />
+                  <span class="truncate" data-highlight-target>{terminal.branch}</span>
+                </p>
+                <p class="truncate pl-6 text-xs text-base-content/60">{terminal.province} <span class="text-base-content/35">•</span> {terminal.region}</p>
+                <div class="pl-6"><span class="inline-block max-w-full truncate rounded-md border border-base-300 bg-base-200/70 px-2 py-0.5 font-mono text-xs text-base-content/70">{terminal.nis}</span></div>
+              </div>
+
+              <div class="col-span-2 min-w-0">
+                <div class="flex min-w-0 flex-col items-end gap-0.5 text-right">
+                  <p class="flex min-w-0 items-center justify-end gap-1.5 text-sm font-medium text-base-content">
+                    <Icon name={rowIcons.contact} class="size-4 shrink-0 text-base-content/60" />
+                    <span class="truncate">{terminal.lastContactDate}</span>
+                  </p>
+                  <p class="truncate font-mono text-xs text-base-content/60">{terminal.lastContactTime}</p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </DataTable>
+      </section>
+    </div>
+
+    <!-- Cúbics de Ayuda View -->
+    <div id="view-cubics" class="hidden space-y-6">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <aside class="card w-full border border-base-300 bg-base-100 shadow-sm lg:max-w-xs" aria-label="Resumen de conectividad">
+          <div class="card-body gap-2 p-4">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Conectividad actual</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge badge-success badge-lg font-mono">{onlineCount}/{totalMachines}</span>
+              <span class="text-sm text-base-content/70">online/total</span>
+            </div>
+          </div>
+        </aside>
+
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-end flex-1">
+          <div class="w-full max-w-md">
+            <SearchInput
+              id="machine-search"
+              label="Buscar cubic por hostname, direccion IP o usuario asignado"
+              placeholder="Buscar por hostname, IP o usuario"
+            />
+          </div>
+          <div class="tabs tabs-box self-start md:self-auto" role="radiogroup" aria-label="Filtros por estado">
+            <input type="radio" name="cubic_filters" class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]" aria-label="Todos" checked data-filter-tab data-filter="all" />
+            <input type="radio" name="cubic_filters" class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]" aria-label="Online" data-filter-tab data-filter="online" />
+            <input type="radio" name="cubic_filters" class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]" aria-label="Offline" data-filter-tab data-filter="offline" />
+          </div>
+        </div>
+      </div>
+
+      <section class="space-y-3">
+        <div id="cubics-empty-state" class="alert alert-warning hidden" role="status">
+          <Icon name="boxicons:alert-triangle-filled" class="size-5" aria-hidden="true" />
+          <span>No se encontraron resultados para la busqueda actual.</span>
+        </div>
+
+        <DataTable ariaLabel="Listado de cubics" minWidthClass="min-w-220 md:min-w-full" headerGridClass={cubicHeaderGridClass} rowGridClass={cubicRowGridClass}>
+          <div slot="header" class="col-span-4">
+            <DataTableHeaderCell sortKey="hostname" monospace>Hostname</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="ip" monospace>Direccion IP</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell>Estado</DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell>Asignado a</DataTableHeaderCell>
+          </div>
+
+          {cubicMachines.map((machine) => {
+            const assignmentSearchValue = machine.assignments.length > 0 ? machine.assignments.map((a) => a.agent.name).join(" ") : "Sin asignar";
+            return (
+              <article
+                data-table-row
+                data-machine-row
+                data-name={machine.name}
+                data-ip={machine.ip}
+                data-agent={assignmentSearchValue}
+                data-status={machine.status}
+                class:list={[cubicRowGridClass, "border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-300/50 last:border-b-0"]}
+              >
+                <div class="col-span-4 min-w-0">
+                  <div class="flex items-center gap-3">
+                    <span class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/20 text-accent">
+                      <Icon name="boxicons:desktop-filled" class="size-4" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <CopyButton value={machine.name} variant="value" appearance="ghost" label={machine.name} ariaLabel={`Copiar ${machine.name}`} monospace fullWidth highlightable class="-ml-2" />
+                    </div>
+                  </div>
+                </div>
+                <div class="col-span-3 min-w-0">
+                  <CopyButton value={machine.ip} variant="value" appearance="ghost" label={machine.ip} ariaLabel={`Copiar ${machine.ip}`} monospace fullWidth highlightable class="-ml-2" />
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <div class="inline-grid *:[grid-area:1/1]">
+                      <div class:list={["status", machine.status === "online" ? "status-success" : "status-error", "animate-ping"]} />
+                      <div class:list={["status", machine.status === "online" ? "status-success" : "status-error"]} />
+                    </div>
+                    <span class="text-sm text-base-content/80">{statusCopy[machine.status]}</span>
+                  </div>
+                </div>
+                <div class="col-span-3 min-w-0">
+                  <div class="flex items-center gap-2">
+                    {machine.assignments.length > 0 ? machine.assignments.map((assignment) => (
+                      <div class="tooltip tooltip-top tooltip-neutral z-20" data-tip={assignment.agent.name}>
+                        <div class="relative inline-flex overflow-visible">
+                          <div class="avatar avatar-placeholder" role="img" tabindex="0" aria-label={`Usuario asignado: ${assignment.agent.name}`}>
+                            <div class="w-9 rounded-full bg-base-200 text-base-content/70">
+                              <span class="text-xs font-semibold select-none">{assignment.agent.avatarInitials}</span>
+                            </div>
+                          </div>
+                          <span class:list={["pointer-events-none absolute -bottom-1 -right-1 z-0 inline-flex size-4 items-center justify-center rounded-full border", shiftIconTone[assignment.shift]]}>
+                            <Icon name={shiftIcon[assignment.shift]} class="size-2.5" />
+                          </span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div class="tooltip tooltip-top tooltip-neutral z-20" data-tip="Sin asignar">
+                        <div class="avatar avatar-placeholder" role="img" tabindex="0" aria-label="Usuario asignado: Sin asignar">
+                          <div class="w-9 rounded-full bg-base-200 text-base-content/70">
+                            <span class="text-xs font-semibold select-none">--</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </DataTable>
+      </section>
+    </div>
+  </PageContainer>
+
+  <script>
+    import { highlightSearchTargets, matchesSearchQuery } from "@lib/clientSearch";
+
+    // --- Tab Switching Logic ---
+    const switcher = document.getElementById("inventory-view-switcher");
+    const viewTerminales = document.getElementById("view-terminales");
+    const viewCubics = document.getElementById("view-cubics");
+
+    const updateTabs = (activeValue: string) => {
+      const isTerminales = activeValue === "terminales";
+      viewTerminales?.classList.toggle("hidden", !isTerminales);
+      viewCubics?.classList.toggle("hidden", isTerminales);
+    };
+
+    switcher?.addEventListener("view-change", (e: any) => {
+      updateTabs(e.detail.value);
+    });
+
+    // --- Terminal Search Logic ---
+    const terminalSearchInput = document.querySelector<HTMLInputElement>("#terminal-search");
+    const terminalRows = Array.from(document.querySelectorAll<HTMLElement>("[data-terminal-row]"));
+    const terminalEmptyState = document.querySelector<HTMLElement>("#terminal-empty-state");
+
+    const updateTerminalRows = () => {
+      if (!terminalSearchInput) return;
+      const query = terminalSearchInput.value.trim();
+      let visibleCount = 0;
+
+      terminalRows.forEach((row) => {
+        const isVisible = matchesSearchQuery(query, [
+          row.dataset.hostname,
+          row.dataset.ip,
+          row.dataset.mac,
+          row.dataset.branch,
+        ]);
+        row.classList.toggle("hidden", !isVisible);
+        highlightSearchTargets(row, isVisible ? query : "");
+        if (isVisible) visibleCount++;
+      });
+      terminalEmptyState?.classList.toggle("hidden", visibleCount > 0);
+    };
+
+    terminalSearchInput?.addEventListener("input", updateTerminalRows);
+
+    // --- Cubics Logic (Search + Filter) ---
+    const machineSearchInput = document.querySelector<HTMLInputElement>("#machine-search");
+    const filterTabs = Array.from(document.querySelectorAll<HTMLInputElement>("[data-filter-tab]"));
+    const machineRows = Array.from(document.querySelectorAll<HTMLElement>("[data-machine-row]"));
+    const cubicsEmptyState = document.querySelector<HTMLElement>("#cubics-empty-state");
+    let selectedCubicFilter = "all";
+
+    const updateMachineRows = () => {
+      if (!machineSearchInput) return;
+      const query = machineSearchInput.value.trim();
+      let visibleCount = 0;
+
+      machineRows.forEach((row) => {
+        const status = row.dataset.status ?? "";
+        const matchesSearch = matchesSearchQuery(query, [
+          row.dataset.name,
+          row.dataset.ip,
+          row.dataset.agent,
+        ]);
+        const matchesFilter = selectedCubicFilter === "all" || status === selectedCubicFilter;
+
+        const isVisible = matchesSearch && matchesFilter;
+        row.classList.toggle("hidden", !isVisible);
+        highlightSearchTargets(row, isVisible ? query : "");
+        if (isVisible) visibleCount++;
+      });
+      cubicsEmptyState?.classList.toggle("hidden", visibleCount > 0);
+    };
+
+    machineSearchInput?.addEventListener("input", updateMachineRows);
+    filterTabs.forEach((tab) => {
+      tab.addEventListener("change", () => {
+        if (tab.checked) {
+          selectedCubicFilter = tab.dataset.filter ?? "all";
+          updateMachineRows();
+        }
+      });
+    });
+
+    // Initialize searches
+    updateTerminalRows();
+    updateMachineRows();
+  </script>
+</BaseLayout>

@@ -6,12 +6,117 @@ import MasterDetailTable from "@components/ui/MasterDetailTable.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
+import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import {
   officeDirectoryItems,
   type OfficeDirectoryItem,
   type OfficeAssetType,
   type OfficeType,
 } from "@/data/directorio_oficinas";
+
+// Datos de ejemplo para el mapa de sucursales (mock)
+const sucursales = [
+  {
+    nis: "A1234",
+    ubicacion: {
+      lat: -34.6037,
+      lng: -58.3816,
+      nombre: "Sucursal Central - CABA",
+    },
+    region: "AMBA",
+    cantidad_pc: 15,
+    servidores: 2,
+    contacto: "011-4444-5555",
+  },
+  {
+    nis: "B5678",
+    ubicacion: { lat: -31.4201, lng: -64.1888, nombre: "Sucursal Córdoba" },
+    region: "Centro",
+    cantidad_pc: 8,
+    servidores: 1,
+    contacto: "0351-444-5555",
+  },
+  {
+    nis: "C9012",
+    ubicacion: { lat: -26.8241, lng: -65.2226, nombre: "Sucursal Tucumán" },
+    region: "NOA",
+    cantidad_pc: 5,
+    servidores: 0,
+    contacto: "0381-444-5555",
+  },
+  {
+    nis: "D3456",
+    ubicacion: { lat: -41.1335, lng: -71.3103, nombre: "Sucursal Bariloche" },
+    region: "Patagonia",
+    cantidad_pc: 4,
+    servidores: 0,
+    contacto: "0294-444-5555",
+  },
+  {
+    nis: "E7890",
+    ubicacion: { lat: -38.7183, lng: -62.2663, nombre: "Sucursal Bahía Blanca" },
+    region: "Buenos Aires Sur",
+    cantidad_pc: 7,
+    servidores: 1,
+    contacto: "0291-444-5555",
+  },
+  {
+    nis: "F1234",
+    ubicacion: { lat: -24.7821, lng: -65.4232, nombre: "Sucursal Salta" },
+    region: "NOA",
+    cantidad_pc: 6,
+    servidores: 0,
+    contacto: "0387-444-5555",
+  },
+  {
+    nis: "G5678",
+    ubicacion: { lat: -32.8895, lng: -68.8458, nombre: "Sucursal Mendoza" },
+    region: "Cuyo",
+    cantidad_pc: 9,
+    servidores: 1,
+    contacto: "0261-444-5555",
+  },
+  {
+    nis: "H9012",
+    ubicacion: { lat: -54.8019, lng: -68.303, nombre: "Sucursal Ushuaia" },
+    region: "Patagonia",
+    cantidad_pc: 3,
+    servidores: 0,
+    contacto: "02901-444-5555",
+  },
+  {
+    nis: "I3456",
+    ubicacion: { lat: -27.3671, lng: -55.8961, nombre: "Sucursal Posadas" },
+    region: "NEA",
+    cantidad_pc: 5,
+    servidores: 0,
+    contacto: "0376-444-5555",
+  },
+  {
+    nis: "J7890",
+    ubicacion: { lat: -34.5826, lng: -58.3816, nombre: "Centro Logístico Barracas" },
+    region: "AMBA",
+    cantidad_pc: 25,
+    servidores: 4,
+    contacto: "011-4444-6666",
+  },
+  {
+    nis: "K1234",
+    ubicacion: { lat: -32.9442, lng: -60.6505, nombre: "Sucursal Rosario" },
+    region: "Litoral",
+    cantidad_pc: 12,
+    servidores: 2,
+    contacto: "0341-444-5555",
+  },
+  {
+    nis: "L5678",
+    ubicacion: { lat: -27.4606, lng: -58.8305, nombre: "Sucursal Corrientes" },
+    region: "NEA",
+    cantidad_pc: 6,
+    servidores: 1,
+    contacto: "0379-444-5555",
+  },
+];
 
 type BoxiconName = `boxicons:${string}`;
 
@@ -109,363 +214,444 @@ const groupedOffices = Array.from(
     .join(" "),
   offices,
 }));
+
+const mainTabs = [
+  { label: "Directorio de Oficinas", value: "directory" },
+  { label: "Mapa de Sucursales", value: "map" },
+];
 ---
 
 <BaseLayout title="Directorio de oficinas">
+  <!-- Hoja de estilos de Leaflet (requerida por la librería) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
   <PageContainer as="section" width="wide" gap="md" class="pb-8">
     <PageHeader
       title="Directorio de oficinas"
-      description="Buscador maestro de sucursales, contactos operativos y activos tecnologicos asociados a cada oficina."
+      description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
     />
 
-    <section
-      class="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between"
-      aria-label="Filtros del directorio"
-    >
-      <div
-        role="tablist"
-        class="tabs tabs-box w-full bg-base-200/80 p-1 lg:w-auto"
+    <!-- Main View Switcher (Tabs) -->
+    <ViewSwitcher 
+      tabs={mainTabs} 
+      activeValue="directory" 
+      name="main_view_tabs"
+      id="main-view-switcher"
+    />
+
+    <!-- Contenedor de Directorio -->
+    <div id="main-view-directory" class="space-y-6">
+      <section
+        class="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+        aria-label="Filtros del directorio"
       >
-        {
-          officeTypeTabs.map((tab) => {
-            const isActive = tab.type === defaultOfficeType;
+        <div
+          role="tablist"
+          class="tabs tabs-box w-full bg-base-200/80 p-1 lg:w-auto"
+        >
+          {
+            officeTypeTabs.map((tab) => {
+              const isActive = tab.type === defaultOfficeType;
 
-            return (
-              <button
-                type="button"
-                role="tab"
-                data-office-tab
-                data-office-type={tab.type}
-                aria-selected={isActive ? "true" : "false"}
-                class:list={[
-                  "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
-                  isActive &&
-                    officeTypeTabActiveClassByType[tab.type],
-                ]}
-              >
-                <span>{tab.label}</span>
-                <span class="badge badge-sm bg-base-100 text-base-content/70">
-                  {officeCountByType[tab.type]}
-                </span>
-              </button>
-            );
-          })
-        }
+              return (
+                <button
+                  type="button"
+                  role="tab"
+                  data-office-tab
+                  data-office-type={tab.type}
+                  aria-selected={isActive ? "true" : "false"}
+                  class:list={[
+                    "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
+                    isActive &&
+                      officeTypeTabActiveClassByType[tab.type],
+                  ]}
+                >
+                  <span>{tab.label}</span>
+                  <span class="badge badge-sm bg-base-100 text-base-content/70">
+                    {officeCountByType[tab.type]}
+                  </span>
+                </button>
+              );
+            })
+          }
+        </div>
+
+        <SearchInput
+          id="office-search"
+          label="Buscar oficina por nombre, codigo, region, centro de costo o codigo postal"
+          placeholder="Buscar por nombre, codigo, region, centro de costo o CP"
+          class="lg:max-w-sm"
+        />
+      </section>
+
+      <div id="office-empty-state" class="alert alert-warning hidden" role="status">
+        <Icon name="boxicons:search" class="size-5" aria-hidden="true" />
+        <span>No se encontraron oficinas para los filtros actuales.</span>
       </div>
 
-      <SearchInput
-        id="office-search"
-        label="Buscar oficina por nombre, codigo, region, centro de costo o codigo postal"
-        placeholder="Buscar por nombre, codigo, region, centro de costo o CP"
-        class="lg:max-w-sm"
-      />
-    </section>
+      <MasterDetailTable
+        ariaLabel="Directorio de oficinas"
+        minWidthClass="min-w-280"
+        headerGridClass={officeDirectoryHeaderGridClass}
+        class="bg-base-100"
+      >
+        <div slot="header" class="col-span-1">
+          <DataTableHeaderCell>
+            <span class="sr-only">Expandir detalle</span>
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell sortKey="code" monospace>
+            Codigo
+          </DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-3">
+          <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-4">
+          <DataTableHeaderCell sortKey="address">Direccion</DataTableHeaderCell>
+        </div>
+        <div slot="header" class="col-span-2">
+          <DataTableHeaderCell sortKey="cost-center" monospace>
+            Centro de costo
+          </DataTableHeaderCell>
+        </div>
+              {
+                groupedOffices.map((group) =>
+                  group.offices.map((office, index) => {
+                    const isVisibleByDefault = office.type === defaultOfficeType;
+                    const searchText = `${office.name} ${office.code} ${office.region} ${office.location} ${office.costCenter} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
 
-    <div id="office-empty-state" class="alert alert-warning hidden" role="status">
-      <Icon name="boxicons:search-filled" class="size-5" aria-hidden="true" />
-      <span>No se encontraron oficinas para los filtros actuales.</span>
-    </div>
+                    return (
+                      <>
+                        {index === 0 && (
+                          <div
+                            data-location-group-row
+                            data-master-detail-group-header={group.location}
+                            data-location-group={group.location}
+                            data-search-text={group.searchText}
+                            class="hidden border-b border-base-300 bg-base-200/80 px-5 py-3"
+                          >
+                              <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                  <p class="flex items-center gap-2 text-sm font-semibold text-base-content">
+                                    <Icon
+                                      name="boxicons:buildings-filled"
+                                      class="size-4 shrink-0 text-secondary"
+                                      aria-hidden="true"
+                                    />
+                                    <span>{group.location}</span>
+                                  </p>
+                                  <p class="mt-1 text-xs text-base-content/60">
+                                    {group.offices.length} oficinas en esta locacion
+                                  </p>
+                                </div>
+                              </div>
+                          </div>
+                        )}
 
-    <MasterDetailTable
-      ariaLabel="Directorio de oficinas"
-      minWidthClass="min-w-280"
-      headerGridClass={officeDirectoryHeaderGridClass}
-      class="bg-base-100"
-    >
-      <div slot="header" class="col-span-1">
-        <DataTableHeaderCell>
-          <span class="sr-only">Expandir detalle</span>
-        </DataTableHeaderCell>
-      </div>
-      <div slot="header" class="col-span-2">
-        <DataTableHeaderCell sortKey="code" monospace>
-          Codigo
-        </DataTableHeaderCell>
-      </div>
-      <div slot="header" class="col-span-3">
-        <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
-      </div>
-      <div slot="header" class="col-span-4">
-        <DataTableHeaderCell sortKey="address">Direccion</DataTableHeaderCell>
-      </div>
-      <div slot="header" class="col-span-2">
-        <DataTableHeaderCell sortKey="cost-center" monospace>
-          Centro de costo
-        </DataTableHeaderCell>
-      </div>
-            {
-              groupedOffices.map((group) =>
-                group.offices.map((office, index) => {
-                  const isVisibleByDefault = office.type === defaultOfficeType;
-                  const searchText = `${office.name} ${office.code} ${office.region} ${office.location} ${office.costCenter} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
-
-                  return (
-                    <>
-                      {index === 0 && (
-                        <div
-                          data-location-group-row
-                          data-master-detail-group-header={group.location}
-                          data-location-group={group.location}
-                          data-search-text={group.searchText}
-                          class="hidden border-b border-base-300 bg-base-200/80 px-5 py-3"
+                        <article
+                          data-master-detail-sort-item
+                          data-office-id={office.id}
+                          data-office-type={office.type}
+                          data-office-location={office.location}
+                          data-search-text={searchText}
+                          data-sort-code={office.code}
+                          data-sort-name={office.name}
+                          data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
+                          data-sort-cost-center={office.costCenter}
+                          data-sort-group={office.location}
+                          class:list={[
+                            "block",
+                            !isVisibleByDefault && "hidden",
+                          ]}
                         >
-                            <div class="flex items-center justify-between gap-3">
-                              <div class="min-w-0">
-                                <p class="flex items-center gap-2 text-sm font-semibold text-base-content">
-                                  <Icon
-                                    name="boxicons:buildings-filled"
-                                    class="size-4 shrink-0 text-secondary"
-                                    aria-hidden="true"
-                                  />
-                                  <span>{group.location}</span>
-                                </p>
-                                <p class="mt-1 text-xs text-base-content/60">
-                                  {group.offices.length} oficinas en esta locacion
-                                </p>
+                          <div
+                            data-office-master-row
+                            data-office-id={office.id}
+                            role="button"
+                            tabindex="0"
+                            aria-expanded="false"
+                            class:list={[
+                              officeDirectoryRowGridClass,
+                              "cursor-pointer border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50",
+                            ]}
+                          >
+                          <div class="col-span-1">
+                            <span
+                              class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
+                              aria-hidden="true"
+                            >
+                              <Icon
+                                name="boxicons:chevron-down-filled"
+                                data-chevron-closed
+                                class="size-4"
+                              />
+                              <Icon
+                                name="boxicons:chevron-up-filled"
+                                data-chevron-open
+                                class="hidden size-4"
+                              />
+                            </span>
+                          </div>
+
+                          <div class="col-span-2">
+                            <span
+                              class:list={[
+                                "inline-flex px-2 py-1 font-mono text-sm font-semibold",
+                                officeTypeChipClassByType[office.type],
+                              ]}
+                              data-highlight-target
+                            >
+                              {office.code}
+                            </span>
+                          </div>
+
+                          <div class="col-span-3 min-w-0">
+                            <div class="min-w-0">
+                              <p class="truncate text-sm font-semibold text-base-content">
+                                <span data-highlight-target>{office.name}</span>
+                              </p>
+                              <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55">
+                                <span>{officeTypeLabelByType[office.type]}</span>
+                                <span class="text-base-content/35">/</span>
+                                <span>{office.contacts.length} contactos</span>
+                                <span class="text-base-content/35">/</span>
+                                <span>{office.assets.length} activos</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="col-span-4 min-w-0">
+                            <div class="min-w-0 space-y-1">
+                              <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
+                                <Icon
+                                  name="boxicons:location-pin-filled"
+                                  class="size-4 shrink-0 text-secondary"
+                                  aria-hidden="true"
+                                />
+                                <span class="truncate" title={office.address}>
+                                  {office.address}
+                                </span>
+                              </p>
+                              <p class="truncate text-xs text-base-content/55">
+                                {office.location}
+                              </p>
+                              <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60">
+                                <span data-highlight-target>{office.region}</span>
+                                <span class="text-base-content/35">/</span>
+                                <span class="font-mono" data-highlight-target>
+                                  CP {office.postalCode}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="col-span-2">
+                            <span
+                              class="font-mono text-sm text-base-content/75"
+                              data-highlight-target
+                            >
+                              {office.costCenter}
+                            </span>
+                          </div>
+                          </div>
+
+                        <div
+                          data-office-detail-row
+                          data-office-id={office.id}
+                          class="hidden border-b border-base-300 bg-base-200/20"
+                        >
+                            <div class="office-detail-panel m-3 rounded-lg border border-base-300 bg-base-200/60 p-4 md:p-5">
+                              <div class="grid gap-5 lg:grid-cols-2">
+                                <section class="min-w-0 space-y-3">
+                                  <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                                    <Icon
+                                      name="boxicons:user-filled"
+                                      class="size-4 text-secondary"
+                                      aria-hidden="true"
+                                    />
+                                    Contactos de la oficina
+                                  </h2>
+
+                                  {office.contacts.length > 0 ? (
+                                    <div class="grid gap-3 sm:grid-cols-2">
+                                      {office.contacts.map((contact) => (
+                                        <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-sm">
+                                          <h3 class="truncate text-sm font-semibold text-base-content">
+                                            {contact.name}
+                                          </h3>
+                                          <div class="mt-3 space-y-2 text-xs text-base-content/70">
+                                            <p class="flex items-center gap-2">
+                                              <Icon
+                                                name="boxicons:clock-filled"
+                                                class="size-4 shrink-0 text-base-content/50"
+                                                aria-hidden="true"
+                                              />
+                                              <span>{contact.timeSlot}</span>
+                                            </p>
+                                            <p class="flex items-center gap-2">
+                                              <Icon
+                                                name="boxicons:phone-filled"
+                                                class="size-4 shrink-0 text-base-content/50"
+                                                aria-hidden="true"
+                                              />
+                                              <span class="font-mono">
+                                                {contact.phone}
+                                              </span>
+                                            </p>
+                                          </div>
+                                        </article>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                                      Sin contactos cargados para esta oficina.
+                                    </p>
+                                  )}
+                                </section>
+
+                                <section class="min-w-0 space-y-3">
+                                  <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                                    <Icon
+                                      name="boxicons:desktop-filled"
+                                      class="size-4 text-secondary"
+                                      aria-hidden="true"
+                                    />
+                                    Activos tecnologicos
+                                  </h2>
+
+                                  {office.assets.length > 0 ? (
+                                    <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
+                                      <table class="table table-sm">
+                                        <thead>
+                                          <tr class="text-xs uppercase tracking-wide text-base-content/60">
+                                            <th>Tipo / Hostname</th>
+                                            <th>Direccion IP</th>
+                                            <th>Estado</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {office.assets.map((asset) => (
+                                            <tr>
+                                              <td>
+                                                <div class="flex min-w-0 items-center gap-3">
+                                                  <span
+                                                    class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-secondary"
+                                                    aria-hidden="true"
+                                                  >
+                                                    <Icon
+                                                      name={assetIconByType[
+                                                        asset.type
+                                                      ]}
+                                                      class="size-4"
+                                                    />
+                                                  </span>
+                                                  <div class="min-w-0">
+                                                    <p class="text-xs font-medium text-base-content/60">
+                                                      {assetLabelByType[
+                                                        asset.type
+                                                      ]}
+                                                    </p>
+                                                    <p class="truncate font-mono text-sm font-semibold text-base-content">
+                                                      {asset.hostname}
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                              </td>
+                                              <td class="font-mono text-sm">
+                                                {asset.ip}
+                                              </td>
+                                              <td>
+                                                <span class="badge badge-success badge-outline badge-sm">
+                                                  Online
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                                      Sin activos tecnologicos registrados.
+                                    </p>
+                                  )}
+                                </section>
                               </div>
                             </div>
                         </div>
-                      )}
+                        </article>
+                      </>
+                    );
+                  }),
+                )
+              }
+      </MasterDetailTable>
+    </div>
 
-                      <article
-                        data-master-detail-sort-item
-                        data-office-id={office.id}
-                        data-office-type={office.type}
-                        data-office-location={office.location}
-                        data-search-text={searchText}
-                        data-sort-code={office.code}
-                        data-sort-name={office.name}
-                        data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
-                        data-sort-cost-center={office.costCenter}
-                        data-sort-group={office.location}
-                        class:list={[
-                          "block",
-                          !isVisibleByDefault && "hidden",
-                        ]}
-                      >
-                        <div
-                          data-office-master-row
-                          data-office-id={office.id}
-                          role="button"
-                          tabindex="0"
-                          aria-expanded="false"
-                          class:list={[
-                            officeDirectoryRowGridClass,
-                            "cursor-pointer border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50",
-                          ]}
-                        >
-                        <div class="col-span-1">
-                          <span
-                            class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
-                            aria-hidden="true"
-                          >
-                            <Icon
-                              name="boxicons:chevron-down-filled"
-                              data-chevron-closed
-                              class="size-4"
-                            />
-                            <Icon
-                              name="boxicons:chevron-up-filled"
-                              data-chevron-open
-                              class="hidden size-4"
-                            />
-                          </span>
-                        </div>
+    <!-- Contenedor de Mapa -->
+    <div id="main-view-map" class="hidden space-y-6">
+      <!-- Contenedor de Vistas Internas del Mapa (si se quiere mantener el toggle de lista interna del mapa original) -->
+      <div id="views-wrapper" class="relative min-h-150">
+        <!-- Vista Mapa -->
+        <section
+          id="view-map"
+          class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0 transition-all duration-500"
+        >
+          <div id="mapa-sucursales" class="h-150 w-full z-0 relative"></div>
+        </section>
 
-                        <div class="col-span-2">
-                          <span
-                            class:list={[
-                              "inline-flex px-2 py-1 font-mono text-sm font-semibold",
-                              officeTypeChipClassByType[office.type],
-                            ]}
-                            data-highlight-target
-                          >
-                            {office.code}
-                          </span>
-                        </div>
+        <!-- Controles del Mapa -->
+        <div 
+          id="map-controls" 
+          class="flex flex-wrap justify-center gap-3 mt-6"
+        >
+          <button
+            id="toggle-polygons"
+            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+          >
+            <Icon name="boxicons:layers-alt-filled" class="size-4 text-primary" />
+            <span id="polygons-text">Ocultar Polígonos</span>
+          </button>
 
-                        <div class="col-span-3 min-w-0">
-                          <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-base-content">
-                              <span data-highlight-target>{office.name}</span>
-                            </p>
-                            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55">
-                              <span>{officeTypeLabelByType[office.type]}</span>
-                              <span class="text-base-content/35">/</span>
-                              <span>{office.contacts.length} contactos</span>
-                              <span class="text-base-content/35">/</span>
-                              <span>{office.assets.length} activos</span>
-                            </div>
-                          </div>
-                        </div>
+          <button
+            id="toggle-labels"
+            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+          >
+            <Icon name="boxicons:font-family-filled" class="size-4 text-primary" />
+            <span id="labels-text">Ocultar Letras</span>
+          </button>
 
-                        <div class="col-span-4 min-w-0">
-                          <div class="min-w-0 space-y-1">
-                            <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
-                              <Icon
-                                name="boxicons:location-pin-filled"
-                                class="size-4 shrink-0 text-secondary"
-                                aria-hidden="true"
-                              />
-                              <span class="truncate" title={office.address}>
-                                {office.address}
-                              </span>
-                            </p>
-                            <p class="truncate text-xs text-base-content/55">
-                              {office.location}
-                            </p>
-                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60">
-                              <span data-highlight-target>{office.region}</span>
-                              <span class="text-base-content/35">/</span>
-                              <span class="font-mono" data-highlight-target>
-                                CP {office.postalCode}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="col-span-2">
-                          <span
-                            class="font-mono text-sm text-base-content/75"
-                            data-highlight-target
-                          >
-                            {office.costCenter}
-                          </span>
-                        </div>
-                        </div>
-
-                      <div
-                        data-office-detail-row
-                        data-office-id={office.id}
-                        class="hidden border-b border-base-300 bg-base-200/20"
-                      >
-                          <div class="office-detail-panel m-3 rounded-lg border border-base-300 bg-base-200/60 p-4 md:p-5">
-                            <div class="grid gap-5 lg:grid-cols-2">
-                              <section class="min-w-0 space-y-3">
-                                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                                  <Icon
-                                    name="boxicons:user-filled"
-                                    class="size-4 text-secondary"
-                                    aria-hidden="true"
-                                  />
-                                  Contactos de la oficina
-                                </h2>
-
-                                {office.contacts.length > 0 ? (
-                                  <div class="grid gap-3 sm:grid-cols-2">
-                                    {office.contacts.map((contact) => (
-                                      <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-sm">
-                                        <h3 class="truncate text-sm font-semibold text-base-content">
-                                          {contact.name}
-                                        </h3>
-                                        <div class="mt-3 space-y-2 text-xs text-base-content/70">
-                                          <p class="flex items-center gap-2">
-                                            <Icon
-                                              name="boxicons:clock-filled"
-                                              class="size-4 shrink-0 text-base-content/50"
-                                              aria-hidden="true"
-                                            />
-                                            <span>{contact.timeSlot}</span>
-                                          </p>
-                                          <p class="flex items-center gap-2">
-                                            <Icon
-                                              name="boxicons:phone-filled"
-                                              class="size-4 shrink-0 text-base-content/50"
-                                              aria-hidden="true"
-                                            />
-                                            <span class="font-mono">
-                                              {contact.phone}
-                                            </span>
-                                          </p>
-                                        </div>
-                                      </article>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
-                                    Sin contactos cargados para esta oficina.
-                                  </p>
-                                )}
-                              </section>
-
-                              <section class="min-w-0 space-y-3">
-                                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                                  <Icon
-                                    name="boxicons:desktop-filled"
-                                    class="size-4 text-secondary"
-                                    aria-hidden="true"
-                                  />
-                                  Activos tecnologicos
-                                </h2>
-
-                                {office.assets.length > 0 ? (
-                                  <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
-                                    <table class="table table-sm">
-                                      <thead>
-                                        <tr class="text-xs uppercase tracking-wide text-base-content/60">
-                                          <th>Tipo / Hostname</th>
-                                          <th>Direccion IP</th>
-                                          <th>Estado</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {office.assets.map((asset) => (
-                                          <tr>
-                                            <td>
-                                              <div class="flex min-w-0 items-center gap-3">
-                                                <span
-                                                  class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-secondary"
-                                                  aria-hidden="true"
-                                                >
-                                                  <Icon
-                                                    name={assetIconByType[
-                                                      asset.type
-                                                    ]}
-                                                    class="size-4"
-                                                  />
-                                                </span>
-                                                <div class="min-w-0">
-                                                  <p class="text-xs font-medium text-base-content/60">
-                                                    {assetLabelByType[
-                                                      asset.type
-                                                    ]}
-                                                  </p>
-                                                  <p class="truncate font-mono text-sm font-semibold text-base-content">
-                                                    {asset.hostname}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                            </td>
-                                            <td class="font-mono text-sm">
-                                              {asset.ip}
-                                            </td>
-                                            <td>
-                                              <span class="badge badge-success badge-outline badge-sm">
-                                                Online
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                ) : (
-                                  <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
-                                    Sin activos tecnologicos registrados.
-                                  </p>
-                                )}
-                              </section>
-                            </div>
-                          </div>
-                      </div>
-                      </article>
-                    </>
-                  );
-                }),
-              )
-            }
-    </MasterDetailTable>
+          <button
+            id="toggle-markers"
+            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-[10px] sm:text-xs transition-all duration-300"
+          >
+            <Icon name="boxicons:location-pin-filled" class="size-4 text-primary" />
+            <span id="marker-toggle-text">Ocultar Sucursales</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </PageContainer>
+
+  <!-- Data para client-side (Astro Islands) -->
+  <script is:inline define:vars={{ sucursales }}>
+    // Inyectamos la variable desde el servidor hacia el cliente
+    window._SUCURSALES_DATA = sucursales;
+  </script>
+
+  <!-- Script de Leaflet (CDN) y lógica combinada -->
+  <script
+    is:inline
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
 
   <script>
     import {
@@ -474,6 +660,11 @@ const groupedOffices = Array.from(
     } from "@lib/clientSearch";
     import { refreshMasterDetailTableSort } from "@lib/clientMasterDetailTableSort";
 
+    // --- Lógica del Switch Principal ---
+    const mainViewDir = document.getElementById("main-view-directory");
+    const mainViewMap = document.getElementById("main-view-map");
+
+    // --- Lógica del Directorio ---
     const tabButtons = Array.from(
       document.querySelectorAll<HTMLButtonElement>("[data-office-tab]"),
     );
@@ -587,31 +778,208 @@ const groupedOffices = Array.from(
       emptyState?.classList.toggle("hidden", visibleRows > 0);
     };
 
+    // --- Lógica del Mapa (Leaflet) ---
+    let map: any = null;
+    const initializeMap = () => {
+      if (map) return;
+      const dataMap = (window as any)._SUCURSALES_DATA || [];
+      const bounds = [
+        [-56.0, -74.0], // Sudoeste
+        [-21.0, -53.0], // Noreste
+      ];
+
+      map = L.map("mapa-sucursales", {
+        maxBounds: bounds as any,
+        maxBoundsViscosity: 1.0,
+      }).setView([-38.5, -64.0], 4);
+
+      L.tileLayer(
+        "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{-y}.png",
+        {
+          maxZoom: 18,
+          minZoom: 3,
+          attribution:
+            '&copy; <a href="https://www.ign.gob.ar/AreaServicios/Argenmap/IntroduccionV2" target="_blank">Instituto Geográfico Nacional</a> + <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        },
+      ).addTo(map);
+
+      const grupoPoligonos = L.layerGroup().addTo(map);
+      const grupoEtiquetas = L.layerGroup().addTo(map);
+      const grupoSucursales = L.layerGroup().addTo(map);
+      
+      let polygonsVisible = true;
+      let labelsVisible = true;
+      let markersVisible = true;
+
+      // Botones de control del mapa
+      const polyBtn = document.getElementById("toggle-polygons");
+      const polyText = document.getElementById("polygons-text");
+      if (polyBtn) {
+        polyBtn.addEventListener("click", () => {
+          if (polygonsVisible) {
+            map.removeLayer(grupoPoligonos);
+            if (polyText) polyText.textContent = "Mostrar Polígonos";
+          } else {
+            map.addLayer(grupoPoligonos);
+            if (polyText) polyText.textContent = "Ocultar Polígonos";
+          }
+          polygonsVisible = !polygonsVisible;
+          polyBtn.classList.toggle("btn-active");
+        });
+      }
+
+      const labelsBtn = document.getElementById("toggle-labels");
+      const labelsText = document.getElementById("labels-text");
+      if (labelsBtn) {
+        labelsBtn.addEventListener("click", () => {
+          if (labelsVisible) {
+            map.removeLayer(grupoEtiquetas);
+            if (labelsText) labelsText.textContent = "Mostrar Letras";
+          } else {
+            map.addLayer(grupoEtiquetas);
+            if (labelsText) labelsText.textContent = "Ocultar Letras";
+            setTimeout(updateLabelsScale, 0);
+          }
+          labelsVisible = !labelsVisible;
+          labelsBtn.classList.toggle("btn-active");
+        });
+      }
+
+      const markerToggleBtn = document.getElementById("toggle-markers");
+      const markerToggleText = document.getElementById("marker-toggle-text");
+      if (markerToggleBtn) {
+        markerToggleBtn.addEventListener("click", () => {
+          if (markersVisible) {
+            map.removeLayer(grupoSucursales);
+            if (markerToggleText) markerToggleText.textContent = "Mostrar Sucursales";
+          } else {
+            map.addLayer(grupoSucursales);
+            if (markerToggleText) markerToggleText.textContent = "Ocultar Sucursales";
+          }
+          markersVisible = !markersVisible;
+          markerToggleBtn.classList.toggle("btn-active");
+        });
+      }
+
+      function updateLabelsScale() {
+        const z = map.getZoom();
+        let scale = 0;
+        let opacity = 0;
+        if (z >= 5) {
+          scale = Math.min(Math.max(0.45, (z - 5) * 0.2 + 0.45), 0.8);
+          opacity = z >= 6 ? 0.9 : 0.7;
+        }
+        document.querySelectorAll<HTMLElement>(".polygon-label").forEach((el) => {
+          el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+          el.style.opacity = opacity.toString();
+          el.style.pointerEvents = scale > 0.3 ? "auto" : "none";
+          el.style.visibility = z < 5 ? "hidden" : "visible";
+        });
+      }
+      map.on("zoomend", updateLabelsScale);
+      map.on("zoom", updateLabelsScale);
+
+      const sucursalMarkerIcon = L.divIcon({
+        className: "bg-transparent",
+        html: `
+            <div class="relative group cursor-pointer animate-fade-in" style="margin-top: -10px; margin-left: -10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
+                   class="w-10 h-10 transition-transform hover:scale-110 text-primary drop-shadow-lg"
+                   style="color: #003B71; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
+                <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+              </svg>
+            </div>
+          `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+        popupAnchor: [0, -38],
+      });
+
+      const provinceLetters: Record<string, string> = {
+        "Ciudad Autónoma de Buenos Aires": "C", "Buenos Aires": "B", Catamarca: "K", Chaco: "H", Chubut: "U", Córdoba: "X", Corrientes: "W", "Entre Ríos": "E", Formosa: "P", Jujuy: "Y", "La Pampa": "L", "La Rioja": "F", Mendoza: "M", Misiones: "N", Neuquén: "Q", "Río Negro": "R", Salta: "A", "San Juan": "J", "San Luis": "D", "Santa Cruz": "Z", "Santa Fe": "S", "Santiago del Estero": "G", "Tierra del Fuego, Antártida e Islas del Atlántico Sur": "V", Tucumán: "T",
+      };
+
+      const labelOverrides: Record<string, [number, number]> = {
+        "Santa Fe": [-30.8, -61.6], "Buenos Aires": [-36.8, -60.1],
+      };
+
+      fetch("/data/argentina_provincias.geojson")
+        .then((res) => res.json())
+        .then((geoData) => {
+          L.geoJSON(geoData, {
+            style: function (feature: any) {
+              const name = feature.properties.nombre;
+              const isYellow = ["Buenos Aires", "Córdoba", "La Pampa", "Mendoza", "La Rioja", "Chubut", "Formosa", "Santiago del Estero", "Misiones", "Jujuy", "Santa Cruz"].includes(name);
+              const color = isYellow ? "#FFCC00" : "#003B71";
+              return {
+                color: color, weight: 1.5, fillColor: color, fillOpacity: name === "Ciudad Autónoma de Buenos Aires" ? 0.25 : 0.12,
+              };
+            },
+            onEachFeature: function (feature: any, layer: any) {
+              const name = feature.properties.nombre;
+              layer.bindPopup(`<div class='text-center p-1'><b style='color: ${provinceLetters[name] === "C" || provinceLetters[name] === "S" ? "#003B71" : "#FFCC00"};'>${name}</b><br/>Provincia de la República Argentina.</div>`, { className: "custom-popup" });
+              const letter = provinceLetters[name];
+              if (letter) {
+                const centroid = feature.properties.centroide;
+                const pos = labelOverrides[name] || [centroid.lat, centroid.lon];
+                const isBlue = ["C", "S", "E", "W", "A", "G", "T", "F", "J", "D", "Q", "R", "V"].includes(letter);
+                const color = isBlue ? "#003B71" : "#FFCC00";
+                const shadow = isBlue ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.5)";
+                let fontSize = "3.5rem";
+                if (letter === "C") fontSize = "2rem";
+                if (["B", "S", "X"].includes(letter)) fontSize = "4.2rem";
+                L.marker(pos as any, {
+                  icon: L.divIcon({
+                    className: "bg-transparent",
+                    html: `<div class="polygon-label font-black text-[#003B71] opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px ${shadow}; line-height: 1; color: ${color}; font-size: ${fontSize};">${letter}</div>`,
+                    iconSize: [0, 0],
+                  }),
+                  interactive: false,
+                }).addTo(grupoEtiquetas);
+              }
+            },
+          }).addTo(grupoPoligonos);
+          updateLabelsScale();
+        });
+
+      dataMap.forEach((sucursal: any) => {
+        const { lat, lng } = sucursal.ubicacion;
+        const popupContent = `<div class="px-1 py-1 min-w-[220px]"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${sucursal.ubicacion.nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black rounded uppercase tracking-wider">NIS: ${sucursal.nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex justify-between items-center bg-gray-50 px-2 py-1 rounded"><span class="font-semibold text-gray-500">Región</span><span class="font-bold text-gray-800">${sucursal.region}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Equipos PC</span><span class="font-bold text-gray-700">${sucursal.cantidad_pc}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Servidores</span><span class="font-bold text-gray-700">${sucursal.servidores}</span></div><div class="flex justify-between pt-1.5 mt-1.5 border-t border-gray-100 px-2"><span class="text-gray-500">Contacto</span><a href="tel:${sucursal.contacto}" class="text-blue-600 font-bold hover:underline">${sucursal.contacto}</a></div></div></div>`;
+        L.marker([lat, lng], { icon: sucursalMarkerIcon }).addTo(grupoSucursales).bindPopup(popupContent, { className: "custom-popup" });
+      });
+    };
+
+    // --- Inicialización y Eventos ---
+    const switcher = document.getElementById("main-view-switcher");
+    
+    switcher?.addEventListener("view-change", (e: any) => {
+      const value = e.detail.value;
+      if (value === "directory") {
+        mainViewDir?.classList.remove("hidden");
+        mainViewMap?.classList.add("hidden");
+      } else if (value === "map") {
+        mainViewDir?.classList.add("hidden");
+        mainViewMap?.classList.remove("hidden");
+        initializeMap();
+        setTimeout(() => {
+          if (map) map.invalidateSize();
+        }, 100);
+      }
+    });
+
     tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         selectedOfficeType = button.dataset.officeType ?? selectedOfficeType;
         expandedOfficeId = null;
-
         tabButtons.forEach((tab) => {
           const isActive = tab === button;
-          Object.values(tabActiveClassesByType)
-            .flatMap((value) => value.split(" "))
-            .forEach((className) => {
-              tab.classList.toggle(className, false);
-            });
-
+          Object.values(tabActiveClassesByType).flatMap((value) => value.split(" ")).forEach((className) => { tab.classList.toggle(className, false); });
           if (isActive) {
             const activeType = tab.dataset.officeType ?? "all";
-            tabActiveClassesByType[activeType]
-              .split(" ")
-              .forEach((className) => {
-                tab.classList.add(className);
-              });
+            tabActiveClassesByType[activeType].split(" ").forEach((className) => { tab.classList.add(className); });
           }
-
           tab.setAttribute("aria-selected", isActive ? "true" : "false");
         });
-
         updateRows();
       });
     });
@@ -622,15 +990,10 @@ const groupedOffices = Array.from(
         expandedOfficeId = expandedOfficeId === officeId ? null : officeId;
         updateRows();
       };
-
       row.addEventListener("click", toggleRow);
       row.addEventListener("keydown", (event) => {
         const shouldToggle = event.key === "Enter" || event.key === " ";
-
-        if (!shouldToggle) {
-          return;
-        }
-
+        if (!shouldToggle) return;
         event.preventDefault();
         toggleRow();
       });
@@ -641,108 +1004,31 @@ const groupedOffices = Array.from(
   </script>
 
   <style>
+    /* Estilos del Directorio */
     .office-type-chip,
     .office-tab-active {
       border-width: 1px;
       box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
     }
+    .office-type-chip { border-radius: 0.5rem; }
+    .office-type-chip-commercial, .office-tab-active-commercial { background-color: var(--color-school-bus-yellow-100); border-color: var(--color-school-bus-yellow-300); color: var(--color-school-bus-yellow-900); }
+    .office-type-chip-telegrafia, .office-tab-active-telegrafia { background-color: var(--color-steel-azure-100); border-color: var(--color-steel-azure-300); color: var(--color-steel-azure-900); }
+    .office-type-chip-distribucion, .office-tab-active-distribucion { background-color: var(--color-charcoal-100); border-color: var(--color-charcoal-300); color: var(--color-charcoal-900); }
+    .office-type-chip-paqueteria, .office-tab-active-paqueteria { background-color: var(--color-brown-red-100); border-color: var(--color-brown-red-300); color: var(--color-brown-red-900); }
+    .office-tab-active-all { background-color: var(--color-base-100); border-color: var(--color-base-300); color: var(--color-base-content); }
 
-    .office-type-chip {
-      border-radius: 0.5rem;
-    }
+    [data-theme="dark"] .office-type-chip-commercial, [data-theme="dark"] .office-tab-active-commercial { background-color: color-mix(in srgb, var(--color-school-bus-yellow-200) 82%, black 18%); border-color: var(--color-school-bus-yellow-400); color: var(--color-school-bus-yellow-950); }
+    [data-theme="dark"] .office-type-chip-telegrafia, [data-theme="dark"] .office-tab-active-telegrafia { background-color: color-mix(in srgb, var(--color-steel-azure-200) 78%, black 22%); border-color: var(--color-steel-azure-400); color: var(--color-steel-azure-950); }
+    [data-theme="dark"] .office-type-chip-distribucion, [data-theme="dark"] .office-tab-active-distribucion { background-color: color-mix(in srgb, var(--color-charcoal-200) 78%, black 22%); border-color: var(--color-charcoal-400); color: var(--color-charcoal-950); }
+    [data-theme="dark"] .office-type-chip-paqueteria, [data-theme="dark"] .office-tab-active-paqueteria { background-color: color-mix(in srgb, var(--color-brown-red-200) 78%, black 22%); border-color: var(--color-brown-red-400); color: var(--color-brown-red-950); }
 
-    .office-type-chip-commercial,
-    .office-tab-active-commercial {
-      background-color: var(--color-school-bus-yellow-100);
-      border-color: var(--color-school-bus-yellow-300);
-      color: var(--color-school-bus-yellow-900);
-    }
+    .office-detail-panel { animation: officeDetailFade 180ms ease-out; }
+    @keyframes officeDetailFade { from { opacity: 0; transform: translateY(-0.25rem); } to { opacity: 1; transform: translateY(0); } }
 
-    .office-type-chip-telegrafia,
-    .office-tab-active-telegrafia {
-      background-color: var(--color-steel-azure-100);
-      border-color: var(--color-steel-azure-300);
-      color: var(--color-steel-azure-900);
-    }
-
-    .office-type-chip-distribucion,
-    .office-tab-active-distribucion {
-      background-color: var(--color-charcoal-100);
-      border-color: var(--color-charcoal-300);
-      color: var(--color-charcoal-900);
-    }
-
-    .office-type-chip-paqueteria,
-    .office-tab-active-paqueteria {
-      background-color: var(--color-brown-red-100);
-      border-color: var(--color-brown-red-300);
-      color: var(--color-brown-red-900);
-    }
-
-    .office-tab-active-all {
-      background-color: var(--color-base-100);
-      border-color: var(--color-base-300);
-      color: var(--color-base-content);
-    }
-
-    [data-theme="dark"] .office-type-chip-commercial,
-    [data-theme="dark"] .office-tab-active-commercial {
-      background-color: color-mix(
-        in srgb,
-        var(--color-school-bus-yellow-200) 82%,
-        black 18%
-      );
-      border-color: var(--color-school-bus-yellow-400);
-      color: var(--color-school-bus-yellow-950);
-    }
-
-    [data-theme="dark"] .office-type-chip-telegrafia,
-    [data-theme="dark"] .office-tab-active-telegrafia {
-      background-color: color-mix(
-        in srgb,
-        var(--color-steel-azure-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-steel-azure-400);
-      color: var(--color-steel-azure-950);
-    }
-
-    [data-theme="dark"] .office-type-chip-distribucion,
-    [data-theme="dark"] .office-tab-active-distribucion {
-      background-color: color-mix(
-        in srgb,
-        var(--color-charcoal-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-charcoal-400);
-      color: var(--color-charcoal-950);
-    }
-
-    [data-theme="dark"] .office-type-chip-paqueteria,
-    [data-theme="dark"] .office-tab-active-paqueteria {
-      background-color: color-mix(
-        in srgb,
-        var(--color-brown-red-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-brown-red-400);
-      color: var(--color-brown-red-950);
-    }
-
-    .office-detail-panel {
-      animation: officeDetailFade 180ms ease-out;
-    }
-
-    @keyframes officeDetailFade {
-      from {
-        opacity: 0;
-        transform: translateY(-0.25rem);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    /* Estilos del Mapa */
+    .leaflet-container { z-index: 10; font-family: inherit; }
+    .custom-popup .leaflet-popup-content-wrapper { border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </BaseLayout>

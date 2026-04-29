@@ -1,4 +1,4 @@
-import type { UsefulContactCategory } from "@/types/contactos-utiles";
+import type { UsefulContactCategory } from "@/types/contactos";
 
 export const usefulContactCategories: UsefulContactCategory[] = [
   {

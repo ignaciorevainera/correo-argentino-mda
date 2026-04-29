@@ -729,6 +729,237 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
       },
     ],
   },
+  {
+    id: "of-016",
+    type: "comercial",
+    code: "COM-055",
+    name: "Sucursal Posadas",
+    location: "Posadas Capital",
+    region: "NEA",
+    address: "Bolivar 2410, Posadas, Misiones",
+    contacts: [
+      {
+        name: "Lilian Benitez",
+        timeSlot: "08:00 a 16:00",
+        phone: "0376 444-1234",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-com055-core", ip: "10.20.55.10", status: "online" },
+      { type: "desktop", hostname: "pc-com055-caja1", ip: "10.20.55.41", status: "online" },
+    ],
+  },
+  {
+    id: "of-017",
+    type: "telegrafia",
+    code: "TEL-012",
+    name: "Telegrafia Bahia Blanca",
+    location: "Bahia Blanca",
+    region: "Buenos Aires Sur",
+    address: "Moreno 34, Bahia Blanca, Buenos Aires",
+    contacts: [
+      {
+        name: "Esteban Quiroga",
+        timeSlot: "07:00 a 15:00",
+        phone: "0291 455-8800",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-tel012-msg", ip: "10.30.12.12", status: "online" },
+      { type: "desktop", hostname: "pc-tel012-op", ip: "10.30.12.51", status: "online" },
+    ],
+  },
+  {
+    id: "of-018",
+    type: "distribucion",
+    code: "DIS-022",
+    name: "Centro Logistico Santa Fe",
+    location: "Santa Fe Capital",
+    region: "Litoral",
+    address: "Av. Peñaloza 5600, Santa Fe",
+    contacts: [
+      {
+        name: "Marcelo Lopez",
+        timeSlot: "06:00 a 14:00",
+        phone: "0342 455-1122",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-dis022-wms", ip: "10.40.22.10", status: "online" },
+      { type: "printer", hostname: "prt-dis022-rem", ip: "10.40.22.34", status: "online" },
+    ],
+  },
+  {
+    id: "of-019",
+    type: "paqueteria",
+    code: "PAQ-008",
+    name: "Nodo Paqueteria Resistencia",
+    location: "Resistencia",
+    region: "NEA",
+    address: "Sarmiento 120, Resistencia, Chaco",
+    contacts: [
+      {
+        name: "Gisela Vargas",
+        timeSlot: "08:00 a 18:00",
+        phone: "0362 442-3344",
+      },
+    ],
+    assets: [
+      { type: "desktop", hostname: "pc-paq008-op", ip: "10.50.8.44", status: "online" },
+    ],
+  },
+  {
+    id: "of-020",
+    type: "comercial",
+    code: "COM-062",
+    name: "Sucursal San Juan",
+    location: "San Juan Capital",
+    region: "Cuyo",
+    address: "Av. Jose Ignacio de la Roza 223, San Juan",
+    contacts: [
+      {
+        name: "Fabian Castro",
+        timeSlot: "08:00 a 13:00",
+        phone: "0264 421-1100",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-com062-core", ip: "10.20.62.10", status: "online" },
+    ],
+  },
+  {
+    id: "of-021",
+    type: "telegrafia",
+    code: "TEL-045",
+    name: "Telegrafia San Luis",
+    location: "San Luis Capital",
+    region: "Cuyo",
+    address: "Av. Illia 345, San Luis",
+    contacts: [
+      {
+        name: "Beatriz Sosa",
+        timeSlot: "09:00 a 17:00",
+        phone: "0266 442-2211",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-tel045-msg", ip: "10.30.45.12", status: "online" },
+    ],
+  },
+  {
+    id: "of-022",
+    type: "distribucion",
+    code: "DIS-050",
+    name: "CDD Avellaneda",
+    location: "Avellaneda",
+    region: "GBA Sur",
+    address: "Av. Mitre 540, Avellaneda, Buenos Aires",
+    contacts: [
+      {
+        name: "Ruben Martinez",
+        timeSlot: "06:00 a 22:00",
+        phone: "011 4222-3344",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-dis050-core", ip: "10.40.50.10", status: "online" },
+    ],
+  },
+  {
+    id: "of-023",
+    type: "paqueteria",
+    code: "PAQ-031",
+    name: "Hub Paqueteria Corrientes",
+    location: "Corrientes Capital",
+    region: "NEA",
+    address: "Av. 3 de Abril 1200, Corrientes",
+    contacts: [
+      {
+        name: "Hugo Espinoza",
+        timeSlot: "08:00 a 16:00",
+        phone: "0379 443-3322",
+      },
+    ],
+    assets: [
+      { type: "printer", hostname: "prt-paq031-sorter", ip: "10.50.31.41", status: "online" },
+    ],
+  },
+  {
+    id: "of-024",
+    type: "comercial",
+    code: "COM-070",
+    name: "Sucursal Ushuaia",
+    location: "Ushuaia",
+    region: "Patagonia",
+    address: "San Martin 412, Ushuaia, Tierra del Fuego",
+    contacts: [
+      {
+        name: "Karina Torres",
+        timeSlot: "10:00 a 18:00",
+        phone: "02901 422-1100",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-com070-core", ip: "10.20.70.10", status: "online" },
+    ],
+  },
+  {
+    id: "of-025",
+    type: "telegrafia",
+    code: "TEL-018",
+    name: "Telegrafia Rio Gallegos",
+    location: "Rio Gallegos",
+    region: "Patagonia",
+    address: "Av. Kirchner 812, Rio Gallegos, Santa Cruz",
+    contacts: [
+      {
+        name: "Oscar Ruiz",
+        timeSlot: "09:00 a 17:00",
+        phone: "02966 422-3344",
+      },
+    ],
+    assets: [
+      { type: "desktop", hostname: "pc-tel018-op", ip: "10.30.18.51", status: "online" },
+    ],
+  },
+  {
+    id: "of-026",
+    type: "distribucion",
+    code: "DIS-012",
+    name: "Planta Operativa Quilmes",
+    location: "Quilmes",
+    region: "GBA Sur",
+    address: "Av. Hipolito Yrigoyen 245, Quilmes, Buenos Aires",
+    contacts: [
+      {
+        name: "Micaela Ordoñez",
+        timeSlot: "06:00 a 14:00",
+        phone: "011 4253-1122",
+      },
+    ],
+    assets: [
+      { type: "server", hostname: "srv-dis012-core", ip: "10.40.12.10", status: "online" },
+    ],
+  },
+  {
+    id: "of-027",
+    type: "paqueteria",
+    code: "PAQ-015",
+    name: "Nodo Paqueteria Formosa",
+    location: "Formosa Capital",
+    region: "NEA",
+    address: "Av. 25 de Mayo 1100, Formosa",
+    contacts: [
+      {
+        name: "Anibal Mendez",
+        timeSlot: "08:00 a 16:00",
+        phone: "0370 443-3344",
+      },
+    ],
+    assets: [
+      { type: "desktop", hostname: "pc-paq015-op", ip: "10.50.15.60", status: "online" },
+    ],
+  },
 ];
 
 const officeSiteMetaById: Record<
@@ -750,6 +981,18 @@ const officeSiteMetaById: Record<
   "of-013": { costCenter: "CC-1241", postalCode: "1832" },
   "of-014": { costCenter: "CC-2341", postalCode: "1832" },
   "of-015": { costCenter: "CC-3441", postalCode: "1832" },
+  "of-016": { costCenter: "CC-1155", postalCode: "3300" },
+  "of-017": { costCenter: "CC-2312", postalCode: "8000" },
+  "of-018": { costCenter: "CC-3422", postalCode: "3000" },
+  "of-019": { costCenter: "CC-4508", postalCode: "3500" },
+  "of-020": { costCenter: "CC-1162", postalCode: "5400" },
+  "of-021": { costCenter: "CC-2345", postalCode: "5700" },
+  "of-022": { costCenter: "CC-3450", postalCode: "1870" },
+  "of-023": { costCenter: "CC-4531", postalCode: "3400" },
+  "of-024": { costCenter: "CC-1170", postalCode: "9410" },
+  "of-025": { costCenter: "CC-2318", postalCode: "9400" },
+  "of-026": { costCenter: "CC-3412", postalCode: "1878" },
+  "of-027": { costCenter: "CC-4515", postalCode: "3600" },
 };
 
 export const officeDirectoryItems: OfficeDirectoryItem[] =

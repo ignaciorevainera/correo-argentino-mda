@@ -1,0 +1,74 @@
+---
+interface Tab {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  tabs: Tab[];
+  activeValue?: string;
+  name: string; // Obligatorio para el grupo de radio buttons
+  id?: string;
+  class?: string;
+  containerClass?: string;
+}
+
+const { 
+  tabs, 
+  activeValue, 
+  name,
+  id,
+  class: className = "", 
+  containerClass = "flex justify-center mb-6" 
+} = Astro.props;
+---
+
+<div id={id} class:list={[containerClass, className]}>
+  <div class="tabs tabs-box bg-base-200/50 p-1" data-view-switcher>
+    {tabs.map((tab) => (
+      <input
+        type="radio"
+        name={name}
+        class="tab transition-all duration-300"
+        aria-label={tab.label}
+        value={tab.value}
+        checked={activeValue === tab.value ? "checked" : undefined}
+      />
+    ))}
+  </div>
+</div>
+
+<script>
+  const setupViewSwitcher = () => {
+    const switchers = document.querySelectorAll('[data-view-switcher]');
+    
+    switchers.forEach(switcher => {
+      const radios = switcher.querySelectorAll('input[type="radio"].tab');
+      
+      radios.forEach(radio => {
+        // Remover listeners anteriores si los hubiera (útil en transiciones)
+        radio.replaceWith(radio.cloneNode(true));
+      });
+
+      // Volver a seleccionar después de clonar
+      const newRadios = switcher.querySelectorAll('input[type="radio"].tab');
+      newRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const target = e.target as HTMLInputElement;
+          if (target.checked) {
+            const container = switcher.parentElement;
+            if (container) {
+              container.dispatchEvent(new CustomEvent('view-change', {
+                detail: { value: target.value },
+                bubbles: true
+              }));
+            }
+          }
+        });
+      });
+    });
+  };
+
+  setupViewSwitcher();
+  document.addEventListener('astro:after-swap', setupViewSwitcher);
+</script>
