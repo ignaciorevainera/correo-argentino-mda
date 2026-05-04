@@ -3,7 +3,7 @@ import type { UsefulContactCategory } from "@/types/contactos";
 export const usefulContactCategories: UsefulContactCategory[] = [
   {
     id: "soporte-corasa",
-    title: "Soporte y atencion (CORASA)",
+    title: "Soporte y atención (CORASA)",
     icon: "boxicons:buoy-filled",
     tone: "primary",
     contacts: [
@@ -18,7 +18,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       {
         id: "c5",
         provider: "CORASA",
-        service: "Soporte Tecnico TI",
+        service: "Soporte Técnico TI",
         phones: ["6316-1851"],
         emails: ["SoporteTecnicoTI@correoargentino.com.ar"],
         urls: [],
@@ -34,7 +34,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       {
         id: "c6",
         provider: "CORASA",
-        service: "Atencion al Cliente",
+        service: "Atención al Cliente",
         phones: ["011 4891-9191", "0810-777-7787"],
         emails: [],
         urls: [],
@@ -59,7 +59,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
         id: "c11",
         provider: "CORASA",
         service: "Mesa de Ayuda Electoral",
-        phones: ["0800 222 8686 (Opcion 1)"],
+        phones: ["0800 222 8686 (Opción 1)"],
         emails: [],
         urls: [],
       },
@@ -74,7 +74,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       {
         id: "c3",
         provider: "CORASA",
-        service: "Gestion de Identidades y Accesos",
+        service: "Gestión de Identidades y Accesos",
         phones: [],
         emails: ["GDI@correoargentino.com.ar"],
         urls: [],
@@ -111,7 +111,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       {
         id: "c14",
         provider: "CORASA",
-        service: "MicroInformatica",
+        service: "MicroInformática",
         phones: ["83202"],
         emails: [],
         urls: [],
@@ -193,8 +193,8 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       {
         id: "c20",
         provider: "Sepsa",
-        service: "Pago Facil",
-        phones: ["0800-444-3224 opcion 3"],
+        service: "Pago Fácil",
+        phones: ["0800-444-3224 opción 3"],
         emails: [
           "pagofacil@westernunion.com",
           "santiago.lynchgaray@wu.com",
@@ -206,7 +206,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
         id: "c21",
         provider: "Prisma",
         service: "Lapos",
-        phones: ["0800-333-1258 opcion 1 y 2"],
+        phones: ["0800-333-1258 opción 1 y 2"],
         emails: [],
         urls: [],
       },
@@ -214,7 +214,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
   },
   {
     id: "logistica-compras",
-    title: "Logistica y Compras",
+    title: "Logística y Compras",
     icon: "boxicons:shopping-bag-filled",
     tone: "secondary",
     contacts: [
@@ -233,7 +233,7 @@ export const usefulContactCategories: UsefulContactCategory[] = [
       },
       {
         id: "c23",
-        provider: "Servicio Tecnico Gregorutti",
+        provider: "Servicio Técnico Gregorutti",
         service: "Aforadora",
         phones: ["011 45415108"],
         emails: ["Servicio@gregorutti.com.ar"],

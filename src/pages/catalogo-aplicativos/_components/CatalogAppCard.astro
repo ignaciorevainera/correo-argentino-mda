@@ -19,7 +19,7 @@ const variants = Array.isArray(item.variants) ? item.variants : [];
 const hasVariants = variants.length > 0;
 const typeToneMap: Partial<Record<string, BadgeTone>> = {
   Programa: "secondary",
-  Extension: "accent",
+  Extensión: "accent",
 };
 const typeTone = typeToneMap[item.type] ?? "neutral";
 ---
@@ -78,8 +78,7 @@ const typeTone = typeToneMap[item.type] ?? "neutral";
             {variants.map((variant) => {
               const variantUrl = variant.url?.trim() ?? "";
               const hasVariantUrl = variantUrl.length > 0;
-              const isVariantExternal =
-                hasVariantUrl && isWebUrl(variantUrl);
+              const isVariantExternal = hasVariantUrl && isWebUrl(variantUrl);
 
               return (
                 <li class="rounded-lg">
@@ -91,13 +90,14 @@ const typeTone = typeToneMap[item.type] ?? "neutral";
                       rel={
                         isVariantExternal ? "noopener noreferrer" : undefined
                       }
+                      download={!isVariantExternal ? "" : undefined}
                     >
                       <CatalogSoftBadge tone="neutral" class="shrink-0">
                         {variant.version}
                       </CatalogSoftBadge>
                       <span class="min-w-0">
                         <span class="block text-sm font-medium text-base-content">
-                          Descargar version {variant.version}
+                          Descargar versión {variant.version}
                         </span>
                         <span class="mt-1 block text-xs leading-relaxed text-base-content/70">
                           {variant.description}
@@ -111,7 +111,7 @@ const typeTone = typeToneMap[item.type] ?? "neutral";
                       </CatalogSoftBadge>
                       <span class="min-w-0">
                         <span class="block text-sm font-medium text-base-content">
-                          Version pendiente
+                          Versión pendiente
                         </span>
                         <span class="mt-1 block text-xs leading-relaxed text-base-content/70">
                           {variant.description}
@@ -132,10 +132,11 @@ const typeTone = typeToneMap[item.type] ?? "neutral";
               class="btn btn-secondary btn-sm gap-2"
               target={isExternal ? "_blank" : undefined}
               rel={isExternal ? "noopener noreferrer" : undefined}
+              download={!isExternal ? "" : undefined}
             >
               <Icon
-                name="boxicons:arrow-up-right-square-filled"
-                class="size-4"
+                name="boxicons:arrow-to-bottom-stroke"
+                size={18}
                 aria-hidden="true"
               />
               <span>Descargar</span>
@@ -146,7 +147,11 @@ const typeTone = typeToneMap[item.type] ?? "neutral";
               class="btn btn-ghost btn-disabled btn-sm gap-2"
               disabled
             >
-              <Icon name="boxicons:calendar-filled" class="size-4" aria-hidden="true" />
+              <Icon
+                name="boxicons:calendar-filled"
+                size={18}
+                aria-hidden="true"
+              />
               <span>Pendiente</span>
             </button>
           )}

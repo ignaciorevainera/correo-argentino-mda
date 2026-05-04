@@ -46,7 +46,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     name: "Sucursal Microcentro",
     location: "CABA - Microcentro",
     region: "AMBA",
-    address: "Av. Corrientes 1312, Ciudad Autonoma de Buenos Aires",
+    address: "Av. Corrientes 1312, Ciudad Autónoma de Buenos Aires",
     contacts: [
       {
         name: "Mariana Duarte",
@@ -90,12 +90,12 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     address: "Belgrano 318, San Isidro, Buenos Aires",
     contacts: [
       {
-        name: "Adrian Ferreyra",
+        name: "Adrián Ferreyra",
         timeSlot: "08:00 a 14:00",
         phone: "011 4743-1820",
       },
       {
-        name: "Micaela Benitez",
+        name: "Micaela Benítez",
         timeSlot: "14:00 a 20:00",
         phone: "011 4743-1828",
       },
@@ -133,8 +133,8 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     code: "COM-027",
     name: "Sucursal Mar del Plata Centro",
     location: "Mar del Plata Centro",
-    region: "Costa Atlantica",
-    address: "San Martin 2541, Mar del Plata, Buenos Aires",
+    region: "Costa Atlántica",
+    address: "San Martín 2541, Mar del Plata, Buenos Aires",
     contacts: [
       {
         name: "Valeria Ledesma",
@@ -173,7 +173,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
       },
       {
         type: "desktop",
-        hostname: "pc-com027-supervision",
+        hostname: "pc-com027-supervisión",
         ip: "10.20.27.61",
         status: "online",
       },
@@ -189,13 +189,13 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-003",
     type: "telegrafia",
     code: "TEL-003",
-    name: "Telegrafia Retiro",
+    name: "Telegrafía Retiro",
     location: "CABA - Retiro",
     region: "AMBA",
-    address: "Ramos Mejia 1358, Ciudad Autonoma de Buenos Aires",
+    address: "Ramos Mejía 1358, Ciudad Autónoma de Buenos Aires",
     contacts: [
       {
-        name: "Lucia Peralta",
+        name: "Lucía Peralta",
         timeSlot: "09:00 a 17:00",
         phone: "011 4310-2201",
       },
@@ -219,18 +219,18 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-004",
     type: "telegrafia",
     code: "TEL-021",
-    name: "Telegrafia La Plata",
+    name: "Telegrafía La Plata",
     location: "La Plata",
     region: "Buenos Aires Sur",
     address: "Calle 49 738, La Plata, Buenos Aires",
     contacts: [
       {
-        name: "Ruben Sosa",
+        name: "Rubén Sosa",
         timeSlot: "07:00 a 15:00",
         phone: "0221 429-7100",
       },
       {
-        name: "Natalia Gomez",
+        name: "Natalia Gómez",
         timeSlot: "15:00 a 21:00",
         phone: "0221 429-7108",
       },
@@ -243,7 +243,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     assets: [
       {
         type: "server",
-        hostname: "srv-tel021-mensajeria",
+        hostname: "srv-tel021-mensajería",
         ip: "10.30.21.15",
         status: "online",
       },
@@ -265,10 +265,10 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-010",
     type: "telegrafia",
     code: "TEL-034",
-    name: "Telegrafia Tucuman",
-    location: "San Miguel de Tucuman",
+    name: "Telegrafía Tucumán",
+    location: "San Miguel de Tucumán",
     region: "NOA",
-    address: "San Martin 812, San Miguel de Tucuman, Tucuman",
+    address: "San Martín 812, San Miguel de Tucumán, Tucumán",
     contacts: [
       {
         name: "Ricardo Funes",
@@ -306,10 +306,10 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-005",
     type: "distribucion",
     code: "DIS-008",
-    name: "Centro de Distribucion Barracas",
+    name: "Centro de Distribución Barracas",
     location: "CABA - Barracas",
     region: "AMBA Logistica",
-    address: "Av. Australia 2800, Barracas, Ciudad Autonoma de Buenos Aires",
+    address: "Av. Australia 2800, Barracas, Ciudad Autónoma de Buenos Aires",
     contacts: [
       {
         name: "Diego Molinari",
@@ -373,7 +373,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
       },
       {
         type: "desktop",
-        hostname: "pc-dis019-logistica",
+        hostname: "pc-dis019-logística",
         ip: "10.40.19.56",
         status: "online",
       },
@@ -389,18 +389,18 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-011",
     type: "distribucion",
     code: "DIS-031",
-    name: "Centro Logistico Neuquen",
-    location: "Neuquen",
+    name: "Centro Logístico Neuquén",
+    location: "Neuquén",
     region: "Patagonia",
-    address: "Ruta 22 Km 1237, Neuquen",
+    address: "Ruta 22 Km 1237, Neuquén",
     contacts: [
       {
-        name: "Leandro Farias",
+        name: "Leandro Farías",
         timeSlot: "05:00 a 13:00",
         phone: "0299 448-7101",
       },
       {
-        name: "Rocio Mendez",
+        name: "Rocío Méndez",
         timeSlot: "13:00 a 21:00",
         phone: "0299 448-7107",
       },
@@ -431,13 +431,13 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
       },
       {
         type: "printer",
-        hostname: "prt-dis031-expedicion",
+        hostname: "prt-dis031-expedición",
         ip: "10.40.31.34",
         status: "online",
       },
       {
         type: "desktop",
-        hostname: "pc-dis031-supervision",
+        hostname: "pc-dis031-supervisión",
         ip: "10.40.31.58",
         status: "online",
       },
@@ -453,18 +453,18 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-007",
     type: "paqueteria",
     code: "PAQ-006",
-    name: "Paqueteria Cordoba",
-    location: "Cordoba Capital",
+    name: "Paquetería Córdoba",
+    location: "Córdoba Capital",
     region: "Centro",
-    address: "Bv. San Juan 620, Cordoba",
+    address: "Bv. San Juan 620, Córdoba",
     contacts: [
       {
-        name: "Sofia Acosta",
+        name: "Sofía Acosta",
         timeSlot: "08:00 a 16:00",
         phone: "0351 421-6020",
       },
       {
-        name: "Matias Herrera",
+        name: "Matías Herrera",
         timeSlot: "16:00 a 22:00",
         phone: "0351 421-6025",
       },
@@ -488,10 +488,10 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-008",
     type: "paqueteria",
     code: "PAQ-012",
-    name: "Nodo Paqueteria Mendoza",
+    name: "Nodo Paquetería Mendoza",
     location: "Mendoza Capital",
     region: "Cuyo",
-    address: "San Martin 1420, Mendoza",
+    address: "San Martín 1420, Mendoza",
     contacts: [
       {
         name: "Carolina Quiroga",
@@ -529,7 +529,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-012",
     type: "paqueteria",
     code: "PAQ-020",
-    name: "Hub Paqueteria Salta",
+    name: "Hub Paquetería Salta",
     location: "Salta Capital",
     region: "NOA",
     address: "Av. Chile 1450, Salta",
@@ -540,7 +540,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
         phone: "0387 431-5502",
       },
       {
-        name: "Damian Vega",
+        name: "Damián Vega",
         timeSlot: "16:00 a 00:00",
         phone: "0387 431-5510",
       },
@@ -634,7 +634,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-014",
     type: "telegrafia",
     code: "TEL-041",
-    name: "Telegrafia Lomas de Zamora",
+    name: "Telegrafía Lomas de Zamora",
     location: "Lomas de Zamora - Edificio Laprida 1246",
     region: "GBA Sur",
     address: "Laprida 1246, Piso 1, Lomas de Zamora, Buenos Aires",
@@ -653,7 +653,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     assets: [
       {
         type: "server",
-        hostname: "srv-tel041-mensajeria",
+        hostname: "srv-tel041-mensajería",
         ip: "10.30.41.10",
         status: "online",
       },
@@ -739,7 +739,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     address: "Bolivar 2410, Posadas, Misiones",
     contacts: [
       {
-        name: "Lilian Benitez",
+        name: "Lilian Benítez",
         timeSlot: "08:00 a 16:00",
         phone: "0376 444-1234",
       },
@@ -753,10 +753,10 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-017",
     type: "telegrafia",
     code: "TEL-012",
-    name: "Telegrafia Bahia Blanca",
-    location: "Bahia Blanca",
+    name: "Telegrafía Bahía Blanca",
+    location: "Bahía Blanca",
     region: "Buenos Aires Sur",
-    address: "Moreno 34, Bahia Blanca, Buenos Aires",
+    address: "Moreno 34, Bahía Blanca, Buenos Aires",
     contacts: [
       {
         name: "Esteban Quiroga",
@@ -773,13 +773,13 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-018",
     type: "distribucion",
     code: "DIS-022",
-    name: "Centro Logistico Santa Fe",
+    name: "Centro Logístico Santa Fe",
     location: "Santa Fe Capital",
     region: "Litoral",
     address: "Av. Peñaloza 5600, Santa Fe",
     contacts: [
       {
-        name: "Marcelo Lopez",
+        name: "Marcelo López",
         timeSlot: "06:00 a 14:00",
         phone: "0342 455-1122",
       },
@@ -793,7 +793,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-019",
     type: "paqueteria",
     code: "PAQ-008",
-    name: "Nodo Paqueteria Resistencia",
+    name: "Nodo Paquetería Resistencia",
     location: "Resistencia",
     region: "NEA",
     address: "Sarmiento 120, Resistencia, Chaco",
@@ -831,7 +831,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-021",
     type: "telegrafia",
     code: "TEL-045",
-    name: "Telegrafia San Luis",
+    name: "Telegrafía San Luis",
     location: "San Luis Capital",
     region: "Cuyo",
     address: "Av. Illia 345, San Luis",
@@ -856,7 +856,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     address: "Av. Mitre 540, Avellaneda, Buenos Aires",
     contacts: [
       {
-        name: "Ruben Martinez",
+        name: "Rubén Martinez",
         timeSlot: "06:00 a 22:00",
         phone: "011 4222-3344",
       },
@@ -869,7 +869,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-023",
     type: "paqueteria",
     code: "PAQ-031",
-    name: "Hub Paqueteria Corrientes",
+    name: "Hub Paquetería Corrientes",
     location: "Corrientes Capital",
     region: "NEA",
     address: "Av. 3 de Abril 1200, Corrientes",
@@ -891,7 +891,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     name: "Sucursal Ushuaia",
     location: "Ushuaia",
     region: "Patagonia",
-    address: "San Martin 412, Ushuaia, Tierra del Fuego",
+    address: "San Martín 412, Ushuaia, Tierra del Fuego",
     contacts: [
       {
         name: "Karina Torres",
@@ -907,7 +907,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-025",
     type: "telegrafia",
     code: "TEL-018",
-    name: "Telegrafia Rio Gallegos",
+    name: "Telegrafía Rio Gallegos",
     location: "Rio Gallegos",
     region: "Patagonia",
     address: "Av. Kirchner 812, Rio Gallegos, Santa Cruz",
@@ -945,7 +945,7 @@ const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
     id: "of-027",
     type: "paqueteria",
     code: "PAQ-015",
-    name: "Nodo Paqueteria Formosa",
+    name: "Nodo Paquetería Formosa",
     location: "Formosa Capital",
     region: "NEA",
     address: "Av. 25 de Mayo 1100, Formosa",
