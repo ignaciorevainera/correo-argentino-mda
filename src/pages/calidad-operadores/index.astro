@@ -3,10 +3,33 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
+import { mockOperatorsQuality } from "@lib/mockQualityData";
+
+const totalOperators = mockOperatorsQuality.length;
+const avgScore = Math.round(
+  mockOperatorsQuality.reduce((acc, op) => acc + op.averageScore, 0) /
+    totalOperators,
+);
+const excellentOperators = mockOperatorsQuality.filter(
+  (op) => op.averageScore >= 90,
+).length;
+const needsImprovement = mockOperatorsQuality.filter(
+  (op) => op.averageScore < 80,
+).length;
+
+const allCalls = mockOperatorsQuality.flatMap((op) => op.calls);
+const totalCalls = allCalls.length;
+const avgSection1 = Math.round(
+  allCalls.reduce((acc, c) => acc + c.section1.score, 0) / totalCalls,
+);
+const avgSection2 = Math.round(
+  allCalls.reduce((acc, c) => acc + c.section2.score, 0) / totalCalls,
+);
 ---
 
 <BaseLayout title="Calidad de operadores">
-  <PageContainer>
+  <PageContainer class="max-w-7xl mx-auto">
     <a href="/supervision" class="btn btn-ghost btn-sm mb-2 w-fit pl-2">
       <Icon name="boxicons:chevron-left" class="size-4" />
       Volver a Supervisión
@@ -14,24 +37,1034 @@ import PageHeader from "@components/ui/PageHeader.astro";
 
     <PageHeader
       title="Calidad de operadores"
-      description="Métricas y validaciones de la calidad de atención del equipo de operaciones."
+      description="Evaluación de llamadas, métricas y validaciones de la calidad de atención del equipo de operaciones de Mesa de Ayuda."
     />
 
+    <!-- Selector de Período -->
     <div
-      class="flex w-full min-h-100 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-base-300 bg-base-200/30 p-12 text-center"
+      class="mt-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-base-200/50 p-4 rounded-xl border border-base-300 shadow-sm"
     >
-      <Icon
-        name="boxicons:bar-chart-big-filled"
-        class="mb-4 size-12 text-base-content/20"
-      />
+      <div class="flex items-center gap-2 text-base-content/80 mb-3 sm:mb-0">
+        <Icon name="boxicons:calendar" class="size-5 text-primary" />
+        <span class="font-semibold">Período de evaluación:</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-sm btn-square btn-ghost" title="Mes anterior">
+          <Icon name="boxicons:chevron-left" class="size-5" />
+        </button>
+        <select
+          id="month-selector"
+          class="select select-bordered select-sm w-full sm:w-48 bg-base-100 font-bold text-center"
+        >
+          <option value="05-2026">Mayo 2026</option>
+          <option value="04-2026">Abril 2026</option>
+          <option value="03-2026">Marzo 2026</option>
+          <option value="02-2026">Febrero 2026</option>
+        </select>
+        <button
+          class="btn btn-sm btn-square btn-ghost"
+          title="Mes siguiente"
+          disabled
+        >
+          <Icon name="boxicons:chevron-right" class="size-5 opacity-50" />
+        </button>
+      </div>
+    </div>
 
-      <h2 class="mb-2 text-xl font-medium text-base-content">
-        Sección sin contenido
-      </h2>
+    <div
+      class="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative"
+    >
+      <!-- Panel Izquierdo: Lista Navegable -->
+      <aside
+        class="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]"
+      >
+        <div
+          class="card border border-base-300 bg-base-100 shadow-sm flex-1 flex flex-col overflow-hidden"
+        >
+          <div
+            class="p-4 border-b border-base-200 bg-base-200/30 flex flex-col gap-3"
+          >
+            <h2 class="font-bold text-base-content flex items-center gap-2">
+              <Icon name="boxicons:group" class="size-5 text-primary" />
+              Operadores Evaluados
+            </h2>
+            <div class="flex flex-col gap-2">
+              <SearchInput
+                id="operator-search"
+                label="Buscar operador"
+                placeholder="Buscar por nombre o legajo..."
+              />
+              <div class="flex gap-2">
+                <select
+                  id="operator-filter"
+                  class="select select-bordered select-sm w-1/2 font-medium text-base-content/70"
+                >
+                  <option value="all">Estado: Todos</option>
+                  <option value="Activo">Activos</option>
+                  <option value="Vacaciones">Vacaciones</option>
+                  <option value="Licencia">Licencia</option>
+                </select>
+                <select
+                  id="operator-sort"
+                  class="select select-bordered select-sm w-1/2 font-medium text-base-content/70"
+                >
+                  <option value="name">A-Z</option>
+                  <option value="score-desc">Mayor Score</option>
+                  <option value="score-asc">Menor Score</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-      <p class="max-w-md text-balance text-sm text-base-content/70">
-        El contenido de este módulo se encuentra vacío tal como se solicitó.
-      </p>
+          <div class="flex-1 overflow-y-auto p-2" id="operator-list">
+            {
+              mockOperatorsQuality.map((op) => (
+                <button
+                  class="operator-item group w-full text-left p-4 mb-2 rounded-xl bg-base-100 border border-base-200 border-l-4 border-l-transparent hover:border-l-secondary hover:shadow-sm transition-all flex items-center justify-between"
+                  data-name={op.name.toLowerCase()}
+                  data-id={op.id.toLowerCase()}
+                  data-operator={JSON.stringify(op)}
+                >
+                  <div class="flex items-center gap-4">
+                    <div class="relative">
+                      <div class="flex size-10 items-center justify-center rounded-full bg-base-200 group-hover:bg-secondary group-hover:text-secondary-content text-base-content/70 font-bold transition-colors shadow-sm">
+                        {op.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .substring(0, 2)}
+                      </div>
+                      <div
+                        class={`absolute -bottom-1 -right-1 size-3.5 rounded-full border-2 border-base-100 ${op.status === "Activo" ? "bg-success" : "bg-warning"}`}
+                      />
+                    </div>
+                    <div>
+                      <div class="font-bold text-sm text-base-content group-hover:text-base-content transition-colors tracking-tight flex items-center gap-1">
+                        {op.name}
+                        {op.averageScore >= 90 && (
+                          <Icon
+                            name="boxicons:badge-check"
+                            class="size-4 text-secondary"
+                            title="Insignia de Excelencia"
+                          />
+                        )}
+                      </div>
+                      <div class="font-mono text-xs uppercase text-base-content/50 mt-0.5">
+                        {op.id}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class={`text-sm font-black ${op.averageScore >= 90 ? "text-success" : op.averageScore >= 80 ? "text-warning" : "text-error"}`}
+                  >
+                    {op.averageScore}%
+                  </div>
+                </button>
+              ))
+            }
+            <div
+              id="no-results-msg"
+              class="hidden py-8 text-center text-base-content/50"
+            >
+              <Icon
+                name="boxicons:search"
+                class="mx-auto mb-2 size-8 opacity-40"
+              />
+              <p class="text-sm font-medium">Sin resultados</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Panel Derecho: Información / Detalle -->
+      <main class="lg:col-span-8 h-full">
+        <!-- Estado 1: Información General (Default) -->
+        <div id="general-info-panel" class="space-y-6 animate-fade-in">
+          <!-- Stats Grid -->
+          <!-- Asymmetric Editorial Stats Grid -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Hero Stat: Promedio General (Takes 2 cols/2 rows) -->
+            <div
+              class="col-span-2 row-span-2 bg-secondary text-secondary-content rounded-3xl p-8 flex flex-col justify-between shadow-lg relative overflow-hidden"
+            >
+              <!-- Subtle pattern overlay -->
+              <div
+                class="absolute inset-0 opacity-5"
+                style="background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0); background-size: 24px 24px;"
+              >
+              </div>
+              <div
+                class="absolute -right-8 -top-8 opacity-10 transition-all duration-700"
+              >
+                <Icon name="boxicons:check-shield" class="size-64" />
+              </div>
+              <div class="flex justify-between items-start relative z-10">
+                <h3
+                  class="font-bold uppercase tracking-widest text-xs opacity-80"
+                >
+                  Calidad Global
+                </h3>
+                <Icon
+                  name="boxicons:chart-bar-columns"
+                  class="size-6 opacity-80"
+                />
+              </div>
+              <div class="mt-12 relative z-10">
+                <div
+                  class="text-7xl lg:text-8xl font-black tracking-tighter leading-none"
+                >
+                  {avgScore}<span class="text-4xl lg:text-5xl opacity-70"
+                    >%</span>
+                </div>
+                <p
+                  class="text-sm font-medium opacity-90 mt-4 max-w-xs leading-relaxed"
+                >
+                  Promedio general del equipo de Mesa de Ayuda en el período
+                  seleccionado.
+                </p>
+              </div>
+            </div>
+
+            <!-- Evaluados -->
+            <div
+              class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-base-300 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:group" class="size-3.5" /> Evaluados
+              </h3>
+              <div>
+                <div
+                  class="text-4xl font-black text-base-content tracking-tight"
+                >
+                  {totalOperators}
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Operadores activos
+                </div>
+              </div>
+            </div>
+
+            <!-- Llamadas Auditadas -->
+            <div
+              class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-base-300 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:phone-ring" class="size-3.5" /> Auditorías
+              </h3>
+              <div>
+                <div
+                  class="text-4xl font-black text-base-content tracking-tight"
+                >
+                  {totalCalls}
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Llamadas aleatorias
+                </div>
+              </div>
+            </div>
+
+            <!-- Excelente -->
+            <div
+              class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-success/30 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:star" class="size-3.5" /> Excelencia
+              </h3>
+              <div>
+                <div class="text-4xl font-black text-success tracking-tight">
+                  {excellentOperators}
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Operadores &gt; 90%
+                </div>
+              </div>
+            </div>
+
+            <!-- Bajo Rendimiento -->
+            <div
+              class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-error/30 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:alert-circle" class="size-3.5" /> Alerta
+              </h3>
+              <div>
+                <div class="text-4xl font-black text-error tracking-tight">
+                  {needsImprovement}
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Operadores &lt; 80%
+                </div>
+              </div>
+            </div>
+
+            <!-- Promedio Interacción -->
+            <div
+              class="col-span-2 lg:col-span-2 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-base-300 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:discussion" class="size-3.5" /> Interacción
+              </h3>
+              <div>
+                <div
+                  class="text-4xl font-black text-base-content tracking-tight"
+                >
+                  {avgSection1}%
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Trato al usuario y habilidades blandas
+                </div>
+              </div>
+            </div>
+
+            <!-- Promedio Gestión -->
+            <div
+              class="col-span-2 lg:col-span-2 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-sm transition-all hover:shadow-md hover:border-base-300 flex flex-col justify-between"
+            >
+              <h3
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
+              >
+                <Icon name="boxicons:task" class="size-3.5" /> Gestión
+              </h3>
+              <div>
+                <div
+                  class="text-4xl font-black text-base-content tracking-tight"
+                >
+                  {avgSection2}%
+                </div>
+                <div class="text-xs font-medium text-base-content/50 mt-1">
+                  Eficiencia técnica y resolución de tickets
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State CTA -->
+          <div
+            class="rounded-3xl bg-base-200/50 flex-1 min-h-64 flex flex-col items-center justify-center text-center p-8 mt-4 border border-base-300 shadow-inner"
+          >
+            <div
+              class="rounded-full bg-base-100 p-6 shadow-sm mb-6 border border-base-200"
+            >
+              <Icon
+                name="boxicons:cursor-click"
+                class="size-10 text-secondary/40"
+              />
+            </div>
+            <h3
+              class="text-2xl font-black text-base-content tracking-tight mb-3"
+            >
+              Análisis Individual
+            </h3>
+            <p
+              class="max-w-md text-sm text-base-content/60 font-medium leading-relaxed"
+            >
+              Seleccione un operador de la lista lateral para visualizar su
+              rendimiento detallado y el desglose de cada llamada.
+            </p>
+          </div>
+        </div>
+
+        <!-- Estado 2: Detalle del Operador (Oculto por defecto) -->
+        <div
+          id="operator-details-panel"
+          class="hidden space-y-6 animate-fade-in pb-8"
+        >
+          <div class="flex justify-between items-center mb-2 no-print">
+            <button
+              id="btn-back-to-summary"
+              class="btn btn-sm btn-ghost w-fit pl-2 text-base-content/70 hover:text-base-content hover:bg-base-200"
+            >
+              <Icon name="boxicons:arrow-to-left" class="size-4" />
+              Volver al resumen
+            </button>
+            <button
+              class="btn btn-sm btn-outline text-secondary border-secondary/30 hover:bg-secondary hover:text-secondary-content"
+              onclick="window.print()"
+            >
+              <Icon name="boxicons:printer" class="size-4" />
+              Exportar Reporte
+            </button>
+          </div>
+
+          <!-- Header del Detalle -->
+          <div
+            class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
+          >
+            <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div
+                class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
+                id="detail-avatar"
+              >
+                --
+              </div>
+              <div>
+                <div
+                  class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                >
+                  Perfil del Operador
+                </div>
+                <h3
+                  class="text-4xl font-black text-base-content tracking-tighter"
+                  id="detail-name"
+                >
+                  --
+                </h3>
+                <div
+                  class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                >
+                  <span class="flex items-center gap-1"
+                    ><Icon
+                      name="boxicons:user-id-card"
+                      class="size-4 opacity-70"
+                    />
+                    <span id="detail-id" class="font-mono">--</span></span
+                  >
+                  <span class="opacity-30">•</span>
+                  <span class="flex items-center gap-1"
+                    ><Icon name="boxicons:calendar" class="size-4 opacity-70" />
+                    <span id="detail-month">--</span></span
+                  >
+                  <span class="opacity-30">•</span>
+                  <span
+                    id="detail-status"
+                    class="badge badge-sm font-bold border-2 bg-base-100"
+                    >--</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200"
+            >
+              <div
+                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+              >
+                Score Mensual
+              </div>
+              <div
+                class="text-5xl font-black tracking-tighter"
+                id="detail-score"
+              >
+                --%
+              </div>
+            </div>
+          </div>
+
+          <!-- Insights y Tendencia -->
+          <div class="grid sm:grid-cols-2 gap-6 mt-6">
+            <!-- Tendencia -->
+            <div
+              class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-sm"
+            >
+              <h4
+                class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2 mb-4"
+              >
+                <Icon name="boxicons:chart-line" class="size-4" />
+                Tendencia (Últimos 6 meses)
+              </h4>
+              <div
+                class="flex items-end justify-between h-20 gap-2"
+                id="detail-history-chart"
+              >
+                <!-- dynamic bars -->
+              </div>
+            </div>
+
+            <!-- Áreas de Mejora -->
+            <div
+              class="bg-base-100 rounded-2xl border border-warning/30 p-6 shadow-sm bg-warning/5"
+            >
+              <h4
+                class="font-bold uppercase tracking-wider text-xs text-warning-content/70 flex items-center gap-2 mb-4"
+              >
+                <Icon name="boxicons:alert-octagon" class="size-4 text-warning" />
+                Áreas de Mejora Detectadas
+              </h4>
+              <ul
+                class="space-y-2 text-sm font-medium text-base-content/80"
+                id="detail-insights"
+              >
+                <!-- dynamic insights -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Section Titulo -->
+          <div
+            class="flex items-center justify-between border-b border-base-300 pb-2 mt-8"
+          >
+            <h4
+              class="font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
+            >
+              <Icon name="boxicons:headphone" class="size-5" />
+              Desglose de Llamadas
+            </h4>
+            <span
+              class="text-xs font-medium text-base-content/50 badge badge-ghost"
+              >4 Aleatorias</span
+            >
+          </div>
+
+          <!-- Grid de Llamadas -->
+          <div class="grid gap-6" id="detail-calls-container">
+            <!-- Renderizado dinámico vía JS -->
+          </div>
+        </div>
+      </main>
     </div>
   </PageContainer>
 </BaseLayout>
+
+<style>
+  /* Animaciones útiles para las transiciones de estado */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #operator-details-panel,
+    #operator-details-panel * {
+      visibility: visible;
+    }
+    #operator-details-panel {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .no-print,
+    .btn,
+    button,
+    select {
+      display: none !important;
+    }
+    .call-card-details {
+      display: grid !important;
+    } /* Force expand all calls for print */
+  }
+</style>
+
+<script>
+  const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"></path></svg>`;
+  const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m16.192 6.344-4.243 4.242-4.242-4.242-1.414 1.414L10.535 12l-4.242 4.242 1.414 1.414 4.242-4.242 4.243 4.242 1.414-1.414L13.364 12l4.242-4.242z"></path></svg>`;
+  const ICON_ARROW = `<svg class="size-4 text-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M10.707 17.707 16.414 12l-5.707-5.707-1.414 1.414L13.586 12l-4.293 4.293z"></path></svg>`;
+  const ICON_STAR = `<svg class="size-4 text-success" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M21.947 9.179a1.001 1.001 0 0 0-.868-.676l-5.701-.453-2.467-5.461a.998.998 0 0 0-1.822-.001L8.622 8.05l-5.701.453a1 1 0 0 0-.619 1.713l4.214 4.107-1.29 5.71a1.001 1.001 0 0 0 1.451 1.054L12 18.26l5.324 2.827a1.002 1.002 0 0 0 1.45-1.054l-1.29-5.71 4.214-4.107a1 1 0 0 0 .249-1.037z"></path></svg>`;
+
+  function renderCallCard(call: any, index: number) {
+    const s1ScoreColor =
+      call.section1.score >= 90
+        ? "text-success"
+        : call.section1.score >= 70
+          ? "text-warning"
+          : "text-error";
+    const s2ScoreColor =
+      call.section2.score >= 90
+        ? "text-success"
+        : call.section2.score >= 70
+          ? "text-warning"
+          : "text-error";
+    const badgeClass =
+      call.totalScore >= 90
+        ? "badge-success"
+        : call.totalScore >= 80
+          ? "badge-warning"
+          : "badge-error";
+
+    return `
+      <div class="call-card-container rounded-3xl border border-base-300 bg-base-100 overflow-hidden shadow-sm transition-all hover:shadow-lg relative group">
+        
+        <!-- Decoration Left Border -->
+        <div class="absolute left-0 top-0 bottom-0 w-2 ${badgeClass.replace("badge-", "bg-")} opacity-80 group-hover:opacity-100 transition-opacity"></div>
+        
+        <!-- Card Header -->
+        <div class="flex flex-wrap items-center justify-between border-b border-base-200 bg-base-100 p-6 pl-8">
+          <div class="flex items-center gap-5">
+            <div class="flex size-12 items-center justify-center rounded-2xl bg-base-200 font-black text-base-content/70 border border-base-300 shadow-inner">
+              #${index + 1}
+            </div>
+            <div>
+              <div class="font-mono text-lg font-black tracking-tight text-base-content">${call.callId}</div>
+              <div class="text-xs font-medium text-base-content/50 mt-1 uppercase tracking-widest">Ticket: <span class="font-mono text-base-content/70">${call.ticketId}</span></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-8 mt-4 sm:mt-0">
+            <div class="text-right">
+              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Duración</div>
+              <div class="text-base font-mono font-bold text-base-content/80">${call.duration}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Score Total</div>
+              <div class="badge ${badgeClass} font-black shadow-sm text-sm py-3 px-3">
+                ${call.totalScore}%
+              </div>
+            </div>
+            <button 
+              class="btn btn-circle btn-ghost btn-sm text-base-content/50 hover:text-base-content hover:bg-base-200 ml-2" 
+              onclick="this.closest('.call-card-container').querySelector('.call-card-details').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180');"
+              title="Expandir / Minimizar detalles"
+            >
+              <svg class="size-6 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M16.293 9.293 12 13.586 7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z"></path></svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Details Grid -->
+        <div class="call-card-details hidden grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-base-200 bg-base-200/20">
+          
+          <!-- Section 1 -->
+          <div class="p-6 pl-8">
+            <div class="mb-6 flex items-center justify-between border-b border-base-300/50 pb-3">
+              <h5 class="font-bold text-xs uppercase tracking-widest text-base-content/70">Interacción con Usuario</h5>
+              <div class="flex items-baseline gap-1">
+                <span class="text-xl font-black ${s1ScoreColor}">${call.section1.score}</span>
+                <span class="text-xs font-bold text-base-content/30">/${call.section1.maxScore}</span>
+              </div>
+            </div>
+            <ul class="space-y-3.5 text-sm">
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Cordialidad y cortesia</span>
+                <span class="leading-none ${call.section1.details.cordialidad ? "text-success" : "text-error"}" title="${call.section1.details.cordialidad ? "Cumple" : "No Cumple"}">${call.section1.details.cordialidad ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Uso del saludo estándar</span>
+                <span class="leading-none ${call.section1.details.saludo ? "text-success" : "text-error"}" title="${call.section1.details.saludo ? "Cumple" : "No Cumple"}">${call.section1.details.saludo ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Demuestra interes en resolver el problema</span>
+                <span class="leading-none ${call.section1.details.interes ? "text-success" : "text-error"}" title="${call.section1.details.interes ? "Cumple" : "No Cumple"}">${call.section1.details.interes ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Sondeo</span>
+                <span class="leading-none ${call.section1.details.sondeo ? "text-success" : "text-error"}" title="${call.section1.details.sondeo ? "Cumple" : "No Cumple"}">${call.section1.details.sondeo ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Escucha en forma activa y atenta</span>
+                <span class="leading-none ${call.section1.details.escucha ? "text-success" : "text-error"}" title="${call.section1.details.escucha ? "Cumple" : "No Cumple"}">${call.section1.details.escucha ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Control de la conversacion</span>
+                <span class="leading-none ${call.section1.details.control ? "text-success" : "text-error"}" title="${call.section1.details.control ? "Cumple" : "No Cumple"}">${call.section1.details.control ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Contencion en la espera</span>
+                <span class="leading-none ${call.section1.details.contencion ? "text-success" : "text-error"}" title="${call.section1.details.contencion ? "Cumple" : "No Cumple"}">${call.section1.details.contencion ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Se despide cordialmente</span>
+                <span class="leading-none ${call.section1.details.despedida ? "text-success" : "text-error"}" title="${call.section1.details.despedida ? "Cumple" : "No Cumple"}">${call.section1.details.despedida ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Solicitud</span>
+                <span class="leading-none ${call.section1.details.solicitud ? "text-success" : "text-error"}" title="${call.section1.details.solicitud ? "Cumple" : "No Cumple"}">${call.section1.details.solicitud ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Lenguaje apropiado</span>
+                <span class="leading-none ${call.section1.details.lenguaje ? "text-success" : "text-error"}" title="${call.section1.details.lenguaje ? "Cumple" : "No Cumple"}">${call.section1.details.lenguaje ? ICON_CHECK : ICON_X}</span>
+              </li>
+
+            </ul>
+          </div>
+          
+          <!-- Section 2 -->
+          <div class="p-6">
+            <div class="mb-6 flex items-center justify-between border-b border-base-300/50 pb-3">
+              <h5 class="font-bold text-xs uppercase tracking-widest text-base-content/70">Gestión del Ticket</h5>
+              <div class="flex items-baseline gap-1">
+                <span class="text-xl font-black ${s2ScoreColor}">${call.section2.score}</span>
+                <span class="text-xs font-bold text-base-content/30">/${call.section2.maxScore}</span>
+              </div>
+            </div>
+            <ul class="space-y-3.5 text-sm">
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Origen de la solicitud</span>
+                <span class="leading-none ${call.section2.details.origen ? "text-success" : "text-error"}" title="${call.section2.details.origen ? "Cumple" : "No Cumple"}">${call.section2.details.origen ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Tipo de solicitud</span>
+                <span class="leading-none ${call.section2.details.tipo ? "text-success" : "text-error"}" title="${call.section2.details.tipo ? "Cumple" : "No Cumple"}">${call.section2.details.tipo ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Categorizacion</span>
+                <span class="leading-none ${call.section2.details.categorizacion ? "text-success" : "text-error"}" title="${call.section2.details.categorizacion ? "Cumple" : "No Cumple"}">${call.section2.details.categorizacion ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Ortografía</span>
+                <span class="leading-none ${call.section2.details.ortografia ? "text-success" : "text-error"}" title="${call.section2.details.ortografia ? "Cumple" : "No Cumple"}">${call.section2.details.ortografia ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Prioridad</span>
+                <span class="leading-none ${call.section2.details.prioridad ? "text-success" : "text-error"}" title="${call.section2.details.prioridad ? "Cumple" : "No Cumple"}">${call.section2.details.prioridad ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Titulo</span>
+                <span class="leading-none ${call.section2.details.titulo ? "text-success" : "text-error"}" title="${call.section2.details.titulo ? "Cumple" : "No Cumple"}">${call.section2.details.titulo ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Criterio de cierre</span>
+                <span class="leading-none ${call.section2.details.cierre ? "text-success" : "text-error"}" title="${call.section2.details.cierre ? "Cumple" : "No Cumple"}">${call.section2.details.cierre ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Descripcion/ Evidencia</span>
+                <span class="leading-none ${call.section2.details.descripcion ? "text-success" : "text-error"}" title="${call.section2.details.descripcion ? "Cumple" : "No Cumple"}">${call.section2.details.descripcion ? ICON_CHECK : ICON_X}</span>
+              </li>
+              <li class="flex items-center justify-between group/item">
+                <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">Exactitud en el ingreso de datos</span>
+                <span class="leading-none ${call.section2.details.exactitud ? "text-success" : "text-error"}" title="${call.section2.details.exactitud ? "Cumple" : "No Cumple"}">${call.section2.details.exactitud ? ICON_CHECK : ICON_X}</span>
+              </li>
+            </ul>
+          </div>
+          
+        </div>
+      </div>
+    `;
+  }
+
+  function initQualityMasterDetail() {
+    // Referencias a paneles
+    const generalPanel = document.getElementById("general-info-panel");
+    const detailsPanel = document.getElementById("operator-details-panel");
+
+    // Referencias a elementos del detalle
+    const dAvatar = document.getElementById("detail-avatar");
+    const dName = document.getElementById("detail-name");
+    const dId = document.getElementById("detail-id");
+    const dMonth = document.getElementById("detail-month");
+    const dStatus = document.getElementById("detail-status");
+    const dScore = document.getElementById("detail-score");
+    const callsContainer = document.getElementById("detail-calls-container");
+    const btnBack = document.getElementById("btn-back-to-summary");
+
+    // Lógica botón volver al resumen
+    if (btnBack) {
+      const newBtnBack = btnBack.cloneNode(true) as HTMLButtonElement;
+      btnBack.parentNode?.replaceChild(newBtnBack, btnBack);
+
+      newBtnBack.addEventListener("click", () => {
+        if (generalPanel) generalPanel.classList.remove("hidden");
+        if (detailsPanel) detailsPanel.classList.add("hidden");
+
+        // Limpiar selección de la lista
+        document.querySelectorAll(".operator-item").forEach((el) => {
+          el.classList.remove("border-l-primary", "bg-primary/5", "shadow-md");
+          el.classList.add("border-l-transparent");
+        });
+      });
+    }
+
+    // 1. Buscador y Filtro de la lista
+    const searchInput = document.getElementById(
+      "operator-search",
+    ) as HTMLInputElement;
+    const operatorFilter = document.getElementById(
+      "operator-filter",
+    ) as HTMLSelectElement;
+    const operatorSort = document.getElementById(
+      "operator-sort",
+    ) as HTMLSelectElement;
+    const operatorListContainer = document.getElementById("operator-list");
+    const operatorItems = document.querySelectorAll(".operator-item");
+    const noResultsMsg = document.getElementById("no-results-msg");
+
+    const updateOperatorsList = () => {
+      const term = searchInput?.value.toLowerCase() || "";
+      const filter = operatorFilter?.value || "all";
+      const sortValue = operatorSort?.value || "name";
+      let hasVisibleItems = false;
+
+      const itemsArray = Array.from(operatorItems) as HTMLElement[];
+
+      itemsArray.sort((a, b) => {
+        if (sortValue === "name") {
+          return (a.getAttribute("data-name") || "").localeCompare(
+            b.getAttribute("data-name") || "",
+          );
+        } else {
+          const opA = JSON.parse(a.getAttribute("data-operator") || "{}");
+          const opB = JSON.parse(b.getAttribute("data-operator") || "{}");
+          return sortValue === "score-desc"
+            ? opB.averageScore - opA.averageScore
+            : opA.averageScore - opB.averageScore;
+        }
+      });
+
+      itemsArray.forEach((item) => {
+        const name = item.getAttribute("data-name") || "";
+        const id = item.getAttribute("data-id") || "";
+        const opDataStr = item.getAttribute("data-operator");
+        let status = "";
+        if (opDataStr) {
+          try {
+            status = JSON.parse(opDataStr).status;
+          } catch (e) {}
+        }
+
+        const matchesSearch = name.includes(term) || id.includes(term);
+        const matchesFilter = filter === "all" || status === filter;
+
+        if (matchesSearch && matchesFilter) {
+          item.classList.remove("hidden");
+          hasVisibleItems = true;
+        } else {
+          item.classList.add("hidden");
+        }
+
+        // Re-append to sort visually
+        if (operatorListContainer && noResultsMsg) {
+          operatorListContainer.insertBefore(item, noResultsMsg);
+        }
+      });
+
+      if (!hasVisibleItems && noResultsMsg) {
+        noResultsMsg.classList.remove("hidden");
+      } else if (noResultsMsg) {
+        noResultsMsg.classList.add("hidden");
+      }
+    };
+
+    // Lógica selector de mes (Simulación visual)
+    const monthSelector = document.getElementById(
+      "month-selector",
+    ) as HTMLSelectElement;
+    if (monthSelector) {
+      const newMonthSelector = monthSelector.cloneNode(
+        true,
+      ) as HTMLSelectElement;
+      monthSelector.parentNode?.replaceChild(newMonthSelector, monthSelector);
+
+      newMonthSelector.addEventListener("change", (e) => {
+        const select = e.target as HTMLSelectElement;
+
+        // Simular un efecto de carga en la lista y las tarjetas
+        document.querySelectorAll(".stat-value").forEach((el) => {
+          el.classList.add("opacity-0");
+          setTimeout(() => el.classList.remove("opacity-0"), 300);
+        });
+
+        operatorItems.forEach((item) => {
+          item.classList.add("opacity-50", "pointer-events-none");
+          setTimeout(() => {
+            item.classList.remove("opacity-50", "pointer-events-none");
+            // Resetear vista a panel general
+            const gp = document.getElementById("general-info-panel");
+            const dp = document.getElementById("operator-details-panel");
+            if (gp) gp.classList.remove("hidden");
+            if (dp) dp.classList.add("hidden");
+            item.classList.remove(
+              "active",
+              "border-l-secondary",
+              "bg-secondary/5",
+              "shadow-md",
+            );
+            item.classList.add("border-l-transparent");
+          }, 400);
+        });
+      });
+    }
+
+    if (searchInput) {
+      const newSearchInput = searchInput.cloneNode(true) as HTMLInputElement;
+      searchInput.parentNode?.replaceChild(newSearchInput, searchInput);
+      newSearchInput.addEventListener("input", updateOperatorsList);
+    }
+
+    if (operatorFilter) {
+      const newOperatorFilter = operatorFilter.cloneNode(
+        true,
+      ) as HTMLSelectElement;
+      operatorFilter.parentNode?.replaceChild(
+        newOperatorFilter,
+        operatorFilter,
+      );
+      newOperatorFilter.addEventListener("change", updateOperatorsList);
+    }
+
+    if (operatorSort) {
+      const newOperatorSort = operatorSort.cloneNode(true) as HTMLSelectElement;
+      operatorSort.parentNode?.replaceChild(newOperatorSort, operatorSort);
+      newOperatorSort.addEventListener("change", updateOperatorsList);
+    }
+
+    // 2. Lógica de selección Maestro-Detalle
+    // Reemplazamos los botones para evitar listeners duplicados en caso de HMR
+    operatorItems.forEach((item) => {
+      const newItem = item.cloneNode(true) as HTMLButtonElement;
+      item.parentNode?.replaceChild(newItem, item);
+
+      newItem.addEventListener("click", (e) => {
+        const target = e.currentTarget as HTMLButtonElement;
+        const operatorData = target.getAttribute("data-operator");
+        if (!operatorData) return;
+
+        try {
+          const operator = JSON.parse(operatorData);
+
+          // Actualizar estado visual de la lista
+          document.querySelectorAll(".operator-item").forEach((el) => {
+            el.classList.remove(
+              "border-l-secondary",
+              "bg-secondary/5",
+              "shadow-md",
+            );
+            el.classList.add("border-l-transparent");
+          });
+          target.classList.remove("border-l-transparent");
+          target.classList.add(
+            "border-l-secondary",
+            "bg-secondary/5",
+            "shadow-md",
+          );
+
+          // Llenar datos de cabecera
+          if (dAvatar)
+            dAvatar.textContent = operator.name
+              .split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .substring(0, 2);
+          if (dName) dName.textContent = operator.name;
+          if (dMonth) dMonth.textContent = operator.month || "Mayo 2026";
+
+          if (dStatus) {
+            dStatus.textContent = operator.status;
+            dStatus.className = `badge badge-sm font-bold border-2 bg-base-100 ${operator.status === "Activo" ? "border-success text-success" : "border-warning text-warning"}`;
+          }
+
+          if (dScore) {
+            dScore.textContent = `${operator.averageScore}%`;
+            dScore.className = `text-5xl font-black tracking-tighter ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
+          }
+
+          // Render History Chart (SVG Line Chart)
+          const historyContainer = document.getElementById(
+            "detail-history-chart",
+          );
+          if (historyContainer && operator.history) {
+            const points = operator.history;
+            const width = 300;
+            const height = 60;
+
+            // Calculate coordinates (Y inverted since SVG 0,0 is top-left)
+            // Using 0-100 scale for Y
+            const coords = points.map((score: number, i: number) => {
+              const x = (i / (points.length - 1)) * width;
+              const y = height - (score / 100) * height;
+              return { x, y, score };
+            });
+
+            const pathD = coords
+              .map((c: any, i: number) =>
+                i === 0 ? `M ${c.x},${c.y}` : `L ${c.x},${c.y}`,
+              )
+              .join(" ");
+
+            historyContainer.className = "relative w-full h-16 mt-2 mb-4"; // Ensure absolute positioning context and height
+            historyContainer.innerHTML = `
+               <svg class="w-full h-full overflow-visible" viewBox="-4 -4 ${width + 8} ${height + 8}" preserveAspectRatio="none">
+                 <path d="${pathD}" fill="none" stroke="currentColor" stroke-width="3" class="text-secondary drop-shadow-sm" stroke-linecap="round" stroke-linejoin="round" />
+                 ${coords
+                   .map(
+                     (c: any, i: number) => `
+                   <circle cx="${c.x}" cy="${c.y}" r="${i === points.length - 1 ? "5" : "4"}" fill="currentColor" class="${i === points.length - 1 ? "text-secondary" : "text-base-100"} stroke-secondary stroke-2 transition-all hover:r-6" />
+                 `,
+                   )
+                   .join("")}
+               </svg>
+               <div class="absolute w-full flex justify-between -bottom-5 text-[10px] font-bold text-base-content/50">
+                  ${points.map((p: number) => `<span>${p}%</span>`).join("")}
+               </div>
+             `;
+          }
+
+          // Render Insights
+          const insightsContainer = document.getElementById("detail-insights");
+          if (insightsContainer && operator.calls) {
+            const failures: Record<string, number> = {};
+            // Count failures
+            operator.calls.forEach((c: any) => {
+              Object.entries(c.section1.details).forEach(([key, val]) => {
+                if (!val) failures[key] = (failures[key] || 0) + 1;
+              });
+              Object.entries(c.section2.details).forEach(([key, val]) => {
+                if (!val) failures[key] = (failures[key] || 0) + 1;
+              });
+            });
+            // Sort failures
+            const sortedFailures = Object.entries(failures)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 2);
+
+            if (sortedFailures.length > 0) {
+              insightsContainer.innerHTML = sortedFailures
+                .map(
+                  ([key, count]) => `
+                 <li class="flex items-center gap-2">
+                   ${ICON_ARROW}
+                   <span>Falla frecuente en: <strong class="capitalize">${key}</strong> <span class="opacity-50">(${count} veces)</span></span>
+                 </li>
+               `,
+                )
+                .join("");
+            } else {
+              insightsContainer.innerHTML = `<li class="text-success flex items-center gap-2">${ICON_STAR} <span class="font-bold">¡Rendimiento impecable!</span> No se detectaron patrones de error frecuentes.</li>`;
+            }
+          }
+
+          // Llenar contenedor de llamadas
+          if (callsContainer) {
+            callsContainer.innerHTML = operator.calls
+              .map((call: any, index: number) => renderCallCard(call, index))
+              .join("");
+          }
+
+          // Ocultar info general y mostrar el detalle
+          if (generalPanel) generalPanel.classList.add("hidden");
+          if (detailsPanel) {
+            detailsPanel.classList.remove("hidden");
+            // Hacer scroll hacia arriba en mobile
+            if (window.innerWidth < 1024) {
+              detailsPanel.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Error displaying operator details", err);
+        }
+      });
+    });
+  }
+
+  // Inicializar al ejecutar script
+  initQualityMasterDetail();
+
+  // Compatibilidad con Astro View Transitions
+  document.addEventListener("astro:page-load", initQualityMasterDetail);
+</script>
