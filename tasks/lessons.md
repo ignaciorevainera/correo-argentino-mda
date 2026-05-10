@@ -24,7 +24,13 @@ Cada entrada sigue este formato:
 
 ---
 
-[El agente completa esta seccion a medida que avanza el proyecto]
+### 2026-05-08 — Corrupcion accidental por sustitucion incorrecta en JSON
+
+**Problema:** Al intentar agregar un enlace al archivo `enlaces_importantes.json`, se introdujeron cadenas incorrectas ("Paquete Argentino") en campos no relacionados, corrompiendo la integridad de otros registros.
+**Causa:** El contenido de reemplazo enviado a la herramienta `replace_file_content` contenia datos erroneos (posiblemente por arrastre de contexto o error manual al redactar el bloque).
+**Solucion:** Se realizo una lectura inmediata del archivo para identificar el dano y se restauro la estructura original junto con el cambio deseado.
+**Regla:** Validar meticulosamente el bloque de `ReplacementContent` antes de ejecutar ediciones, especialmente en archivos de datos (JSON/YAML), para asegurar que no se incluyan sustituciones accidentales fuera del objetivo.
+**Archivos afectados:** src/data/enlaces_importantes.json
 
 ### 2026-04-13 — Neutral hardcodeado fuera de tokens semanticos
 
