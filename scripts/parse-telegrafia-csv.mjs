@@ -99,7 +99,7 @@ function toTitleCase(text) {
   const upperEx = [
     "sts", "opt", "nis", "ip", "ipv4", "cdd", "sts-opt", 
     "ctt", "itim", "baires", "bairesd", "sl", "sc", "sf", "suc", "cf", "sit",
-    "tf", "i2", "mda"
+    "tf", "i2", "mda", "bairesi2", "telecomspa", "telecom"
   ];
 
   return text
@@ -521,7 +521,13 @@ function main() {
   lines.push(`  assets: TelegrafiaAsset[];`);
   lines.push(`}`);
   lines.push(``);
-  lines.push(`export const mockTelegrafia: Office[] = ${JSON.stringify(offices, null, 2)};`);
+  // Construir el archivo TS con formato más amigable (sin comillas en claves)
+  const json = JSON.stringify(offices, null, 2);
+  const formattedJson = json
+    .replace(/"([^"]+)":/g, '$1:') // Quitar comillas a las claves
+    .replace(/\[\s+\]/g, '[]');    // Colapsar arrays vacíos
+
+  lines.push(`export const mockTelegrafia: Office[] = ${formattedJson};`);
   lines.push(``);
 
   const output = lines.join("\n");

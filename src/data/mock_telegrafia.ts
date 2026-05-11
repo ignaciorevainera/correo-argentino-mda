@@ -244,14 +244,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -430,14 +424,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -626,14 +614,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -657,14 +639,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Se muda a CDP Mercado Central",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Se muda a CDP Mercado Central",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -858,14 +834,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -1254,14 +1224,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -1890,14 +1854,9 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Ref: SD0224106 / IM0231633. Debido al traslado del CDD 39 para la integración con el CDD 40. Esta terminal seguirá operando con rango IP de CDD 40 pero funcionará como oficina independiente, no como cliente.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "Ref: SD0224106 / IM0231633. Debido al traslado del CDD 39 para la integración con el CDD 40. Esta terminal seguirá operando con rango IP de CDD 40 pero funcionará como oficina independiente, no como cliente.",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -2241,14 +2200,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -2387,14 +2340,9 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Ref: SD0273923. La PC se encuentra averiada y necesita de la asistencia de un técnico. Se realizó un desvío telegráfico.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "Ref: SD0273923. La PC se encuentra averiada y necesita de la asistencia de un técnico. Se realizó un desvío telegráfico.",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -2943,14 +2891,9 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "No responde por WebTeleg ni figura en inventario. Ref: SD0280395 donde se informa que la PC tuvo un problema y por el momento la oficina no está funcionando. Se ha realizado un desvío telegráfico.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "No responde por WebTeleg ni figura en inventario. Ref: SD0280395 donde se informa que la PC tuvo un problema y por el momento la oficina no está funcionando. Se ha realizado un desvío telegráfico.",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -3867,26 +3810,16 @@ export const mockTelegrafia: Office[] = [
   {
     id: "teleg-i2622",
     code: "I2622",
-    name: "Jardin America",
+    name: "Jardín América",
     type: "telegrafia",
     region: "Misiones",
     address: "Av. Argentina 650",
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "HP 4103. Sin funcionar a la espera de tóner.",
-        phone: "",
-        timeSlot: "",
-      },
-      {
-        name: "HP 426. Por el momento se utiliza ya que la original no tiene tóner.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "HP 4103. Sin funcionar a la espera de tóner. HP 426. Por el momento se utiliza ya que la original no tiene tóner.",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -4895,14 +4828,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -4951,14 +4878,9 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "No responde por WebTeleg y no figura en inventario. Ref: IM0231677. Debido a la mudanza de CDD 4 Rosario hacia CDD 5 Rosario y por falta de espacio para colocar la terminal de telegrafía, fue necesario darla de baja.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "No responde por WebTeleg y no figura en inventario. Ref: IM0231677. Debido a la mudanza de CDD 4 Rosario hacia CDD 5 Rosario y por falta de espacio para colocar la terminal de telegrafía, fue necesario darla de baja.",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -5102,14 +5024,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -5396,10 +5312,10 @@ export const mockTelegrafia: Office[] = [
   {
     id: "teleg-i3007",
     code: "I3007",
-    name: "Santo Tome",
+    name: "Santo Tomé",
     type: "telegrafia",
     region: "Santa Fe",
-    address: "Av. Ejercito Argentino 3130",
+    address: "Av. Ejército Argentino 3130",
     lat: -34.6,
     lng: -58.3,
     email: "",
@@ -5411,21 +5327,6 @@ export const mockTelegrafia: Office[] = [
         hostname: "I3007STM001",
         ip: "10.171.87.170",
       },
-    ],
-  },
-  {
-    id: "teleg-i3008",
-    code: "I3008",
-    name: "Santo Tome",
-    type: "telegrafia",
-    region: "Santa Fe",
-    address: "Av. Ejercito Argentino 3130",
-    lat: -34.6,
-    lng: -58.3,
-    email: "",
-    notes: "",
-    contacts: [],
-    assets: [
       {
         type: "printer",
         hostname: "No aplica",
@@ -5818,14 +5719,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -5869,14 +5764,9 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "No responde por WebTeleg, no figura en inventario ni existen tickets.  - Consultar con NOYA",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes:
+      "No responde por WebTeleg, no figura en inventario ni existen tickets.  - Consultar con NOYA",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -6655,14 +6545,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Oficina dada de baja",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Oficina dada de baja",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -6706,14 +6590,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "No existen tickets en SM, no figura en Web Teleg.",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "No existen tickets en SM, no figura en Web Teleg.",
+    contacts: [],
     assets: [],
   },
   {
@@ -6936,14 +6814,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Sin conexión",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Sin conexión",
+    contacts: [],
     assets: [
       {
         type: "server",
@@ -6990,7 +6862,7 @@ export const mockTelegrafia: Office[] = [
   {
     id: "teleg-i6405",
     code: "I6405",
-    name: "CDD QUILMES OESTE",
+    name: "CDD Quilmes Oeste",
     type: "telegrafia",
     region: "Buenos Aires",
     address: "Yrigoyen Hipolito 405",
@@ -7102,14 +6974,8 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "",
-    contacts: [
-      {
-        name: "Se intenta acceder mediante Kitty, pero la conexión es rechazada",
-        phone: "",
-        timeSlot: "",
-      },
-    ],
+    notes: "Se intenta acceder mediante Kitty, pero la conexión es rechazada",
+    contacts: [],
     assets: [
       {
         type: "server",
