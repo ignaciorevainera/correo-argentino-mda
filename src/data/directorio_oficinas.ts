@@ -4,7 +4,7 @@ export type OfficeType =
   | "distribucion"
   | "paqueteria";
 
-export type OfficeAssetType = "server" | "printer" | "desktop";
+export type OfficeAssetType = "server" | "printer" | "desktop" | "client";
 
 export interface OfficeContact {
   name: string;
@@ -16,7 +16,7 @@ export interface OfficeAsset {
   type: OfficeAssetType;
   hostname: string;
   ip: string;
-  status: "online";
+  status?: "online";
 }
 
 export interface OfficeDirectoryItem {
@@ -29,13 +29,15 @@ export interface OfficeDirectoryItem {
   postalCode: string;
   region: string;
   address: string;
+  email: string;
+  notes: string;
   contacts: OfficeContact[];
   assets: OfficeAsset[];
 }
 
 type OfficeDirectoryBaseItem = Omit<
   OfficeDirectoryItem,
-  "costCenter" | "postalCode"
+  "costCenter" | "postalCode" | "email" | "notes"
 >;
 
 const officeDirectoryBaseItems: OfficeDirectoryBaseItem[] = [
@@ -995,8 +997,39 @@ const officeSiteMetaById: Record<
   "of-027": { costCenter: "CC-4515", postalCode: "3600" },
 };
 
-export const officeDirectoryItems: OfficeDirectoryItem[] =
+// Datos mock de oficinas no-telegráficas (con metadata completa)
+const mockOfficeDirectoryItems: OfficeDirectoryItem[] =
   officeDirectoryBaseItems.map((office) => ({
     ...office,
+    email: "",
+    notes: "",
     ...officeSiteMetaById[office.id],
   }));
+
+// Datos reales de oficinas telegráficas importados del CSV
+import { mockTelegrafia } from "./mock_telegrafia";
+
+const telegrafiaDirectoryItems: OfficeDirectoryItem[] = mockTelegrafia.map(
+  (t) => ({
+    id: t.id,
+    type: "telegrafia" as const,
+    code: t.code,
+    name: t.name,
+    location: t.region,
+    costCenter: "",
+    postalCode: "",
+    region: t.region,
+    address: t.address,
+    email: t.email,
+    notes: t.notes,
+    contacts: t.contacts,
+    assets: t.assets.map((a) => ({ ...a, status: "online" as const })),
+  }),
+);
+
+// Combinar ambas fuentes: mock genérico + telegrafía real
+// Filtrar las oficinas telegráficas de los datos mock para evitar duplicados
+export const officeDirectoryItems: OfficeDirectoryItem[] = [
+  ...mockOfficeDirectoryItems.filter((o) => o.type !== "telegrafia"),
+  ...telegrafiaDirectoryItems,
+];
