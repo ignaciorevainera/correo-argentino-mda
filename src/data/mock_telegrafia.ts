@@ -3700,7 +3700,7 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "CDD 02 Cordoba ",
+    notes: "",
     contacts: [],
     assets: [
       {
@@ -3725,13 +3725,17 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "CDDSanFrancisco@correoargentino.com.ar",
-    notes: "Mario Cesar Pastoriza - MPastoriza@correoargentino.com.ar",
+    notes: "",
     contacts: [
       {
-        name: "Vivas Ver nica / Mario Pastoriza",
-        phone: "677006 - 498419 / 03564 498419",
-        timeSlot: "07:30 a 16:30 / 07 a 17h",
-        role: "Jefe de sucursal",
+        name: "Mario César Pastoriza",
+        phone: "03564 498419",
+        timeSlot: "07:30 a 17",
+      },
+      {
+        name: "Verónica Vivas",
+        phone: "03564 498419",
+        timeSlot: "07:30 a 16:30h",
       },
     ],
     assets: [
@@ -3757,7 +3761,7 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "",
-    notes: "**Sin datos cargados** ",
+    notes: "",
     contacts: [],
     assets: [
       {
@@ -3782,16 +3786,31 @@ export const mockTelegrafia: Office[] = [
     lat: -34.6,
     lng: -58.3,
     email: "CDDVillaCarlosPaz@correoargentino.com.ar",
-    notes:
-      "Cesar Leonel Carrizo - lecarrizo@correoargentinosa.onmicrosoft.com // Luis Angel Z rate - 03541-421910/28986//  Nelson Fabian Oviedo - 03541-437321",
+    notes: "",
     contacts: [
       {
-        name: "Turno ma ana: Oviedo, Nelson Fabi n",
-        phone:
-          "Turno Ma ana: 3541-521798 /  3541-621431 /  3541-581762 - Turno Tarde : 3541-642231",
-        timeSlot:
-          "06.00 a 13.30 / 06.00 a 13.30 / 07.00 a 14.30 / 12.00 a 19.00",
-        role: "Supervisor CDD / Carrizo, C sar Leonel - Supervisor CDD / Z rate Luis Angel - Jefe CDD / Turno tarde: Rossi, Lautaro Ignacio - Auxiliar CDD",
+        name: "Nelson Fabián Oviedo",
+        phone: "03541 521798",
+        timeSlot: "06 a 13:30h",
+        role: "Supervisor CDD",
+      },
+      {
+        name: "Cesar Leonel Carrizo",
+        phone: "03541 621431",
+        timeSlot: "06 a 13:30h",
+        role: "Supervisor CDD",
+      },
+      {
+        name: "Luis Angel Zárate",
+        phone: "03541 581762",
+        timeSlot: "07 a 14:30h",
+        role: "Jefe CDD",
+      },
+      {
+        name: "Lautaro Ignacio Rossi",
+        phone: "03541 642231",
+        timeSlot: "12 a 19h",
+        role: "Auxiliar CDD",
       },
     ],
     assets: [
