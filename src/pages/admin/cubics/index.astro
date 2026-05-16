@@ -1,0 +1,269 @@
+---
+import { db } from "@db/index";
+import { cubics } from "@db/schema";
+import { eq, asc } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import Button from "@components/ui/Button.astro";
+import { Icon } from "astro-icon/components";
+
+let successMsg = "";
+let errorMsg = "";
+
+// --- LÓGICA POST: Eliminar Cubic ---
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const action = formData.get("action")?.toString();
+
+  if (action === "delete_cubic") {
+    const cubicId = Number(formData.get("cubicId"));
+    if (cubicId) {
+      try {
+        const [deleted] = await db
+          .delete(cubics)
+          .where(eq(cubics.id, cubicId))
+          .returning({ name: cubics.name });
+
+        if (deleted) {
+          successMsg = `Ordenador "${deleted.name}" dado de baja con éxito.`;
+        } else {
+          errorMsg = "El ordenador indicado no existe.";
+        }
+      } catch (e) {
+        errorMsg = "Error al eliminar el ordenador.";
+      }
+    }
+  }
+}
+
+// --- LÓGICA GET: Listar Cubics con asignaciones ---
+const allCubics = await db.query.cubics.findMany({
+  orderBy: [asc(cubics.name)],
+  with: {
+    assignments: {
+      with: {
+        agent: true,
+      },
+    },
+  },
+});
+
+const statusLabel: Record<string, string> = {
+  online: "Online",
+  offline: "Offline",
+};
+
+const statusBadgeClass: Record<string, string> = {
+  online: "badge-success",
+  offline: "badge-error",
+};
+
+const headerGridClass = "grid-cols-[1.5fr_130px_100px_2fr_140px] gap-4";
+const rowGridClass =
+  "grid grid-cols-[1.5fr_130px_100px_2fr_140px] items-center gap-4";
+---
+
+<BaseLayout title="Gestión de cubics | Portal Mesa de Ayuda">
+  <PageContainer>
+    <PageHeader
+      title="Gestión de cubics"
+      description="Administración del parque de ordenadores de la Mesa de Ayuda, asignaciones y estado operativo."
+    />
+
+    {/* ── Feedback de acciones ── */}
+    {errorMsg && (
+      <div role="alert" class="alert alert-error alert-soft text-sm">
+        <Icon
+          name="boxicons:error-circle-filled"
+          size={20}
+          class="shrink-0"
+        />
+        <span>{errorMsg}</span>
+      </div>
+    )}
+    {successMsg && (
+      <div role="alert" class="alert alert-success alert-soft text-sm">
+        <Icon
+          name="boxicons:check-circle-filled"
+          size={20}
+          class="shrink-0"
+        />
+        <span>{successMsg}</span>
+      </div>
+    )}
+
+    {/* ── Toolbar ── */}
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold text-base-content">
+          Ordenadores registrados
+        </h2>
+        {allCubics.length > 0 && (
+          <span class="badge badge-neutral badge-sm font-mono">
+            {allCubics.length}
+          </span>
+        )}
+      </div>
+
+      <Button variant="secondary" href="/admin/cubics/new">
+        <Icon name="boxicons:plus" size={18} slot="icon-left" />
+        Registrar nuevo cubic
+      </Button>
+    </div>
+
+    {/* ── Tabla ── */}
+    <DataTable
+      ariaLabel="Listado de ordenadores registrados"
+      minWidthClass="min-w-200"
+      headerGridClass={headerGridClass}
+      rowGridClass={rowGridClass}
+    >
+      <div slot="header">
+        <DataTableHeaderCell sortKey="name">Terminal</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell sortKey="ip">Dirección IP</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell sortKey="status">Estado</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell>Operadores</DataTableHeaderCell>
+      </div>
+      <div slot="header" class="text-right">
+        <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+      </div>
+
+      {allCubics.length === 0 ? (
+        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon
+              name="boxicons:server-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">No hay ordenadores registrados</p>
+            <p class="text-xs">
+              Comenzá registrando el primer cubic desde el botón superior.
+            </p>
+          </div>
+        </div>
+      ) : (
+        allCubics.map((cubic) => {
+          const agentNames = cubic.assignments
+            .map((a) => a.agent.name)
+            .join(", ");
+
+          return (
+            <article
+              data-table-row
+              data-sort-name={cubic.name}
+              data-sort-ip={cubic.ip ?? ""}
+              data-sort-status={cubic.status}
+              class:list={[
+                rowGridClass,
+                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+              ]}
+            >
+              {/* Terminal */}
+              <div class="min-w-0">
+                <p class="truncate font-mono text-sm font-semibold text-base-content">
+                  {cubic.name}
+                </p>
+              </div>
+
+              {/* IP */}
+              <div>
+                <span class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm text-base-content/80">
+                  {cubic.ip || <span class="text-base-content/30">&mdash;</span>}
+                </span>
+              </div>
+
+              {/* Estado */}
+              <div>
+                <span
+                  class:list={[
+                    "badge badge-sm font-bold uppercase tracking-wide",
+                    statusBadgeClass[cubic.status] ?? "badge-neutral",
+                  ]}
+                >
+                  {statusLabel[cubic.status] ?? cubic.status}
+                </span>
+              </div>
+
+              {/* Operadores */}
+              <div class="min-w-0">
+                {cubic.assignments.length > 0 ? (
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    {cubic.assignments.map((assignment) => (
+                      <div
+                        class="tooltip tooltip-top tooltip-neutral"
+                        data-tip={`${assignment.agent.name} — ${assignment.shift === "morning" ? "Mañana" : "Tarde/Noche"}`}
+                      >
+                        <div
+                          class="avatar avatar-placeholder"
+                          role="img"
+                          aria-label={assignment.agent.name}
+                        >
+                          <div class="w-8 rounded-full bg-base-200 text-base-content/70">
+                            <span class="text-xs font-semibold select-none">
+                              {assignment.agent.avatarInitials ?? assignment.agent.name.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span class="text-xs text-base-content/30">&mdash;</span>
+                )}
+              </div>
+
+              {/* Acciones */}
+              <div class="flex items-center justify-end gap-1">
+                <Button
+                  variant="secondary"
+                  appearance="ghost"
+                  size="sm"
+                  href={`/admin/cubics/${cubic.id}`}
+                  class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                  aria-label={`Editar ${cubic.name}`}
+                >
+                  <Icon
+                    name="boxicons:pencil-filled"
+                    size={14}
+                    slot="icon-left"
+                  />
+                  <span class="hidden sm:inline">Editar</span>
+                </Button>
+
+                <form
+                  method="POST"
+                  class="inline"
+                  onsubmit="return confirm('¿Estás seguro de que deseas dar de baja este ordenador del sistema?')"
+                >
+                  <input type="hidden" name="action" value="delete_cubic" />
+                  <input type="hidden" name="cubicId" value={cubic.id} />
+                  <button
+                    type="submit"
+                    class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+                    aria-label={`Eliminar ${cubic.name}`}
+                  >
+                    <Icon name="boxicons:trash-filled" size={14} />
+                    <span class="hidden sm:inline">Eliminar</span>
+                  </button>
+                </form>
+              </div>
+            </article>
+          );
+        })
+      )}
+    </DataTable>
+  </PageContainer>
+</BaseLayout>

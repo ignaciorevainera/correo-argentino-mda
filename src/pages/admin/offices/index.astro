@@ -1,0 +1,248 @@
+---
+import { db } from "@db/index";
+import { offices } from "@db/schema";
+import { eq, asc } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import Button from "@components/ui/Button.astro";
+import { Icon } from "astro-icon/components";
+
+let successMsg = "";
+let errorMsg = "";
+
+// --- LÓGICA POST: Eliminar Oficina ---
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const action = formData.get("action")?.toString();
+
+  if (action === "delete_office") {
+    const officeId = Number(formData.get("officeId"));
+    if (officeId) {
+      try {
+        const [deleted] = await db
+          .delete(offices)
+          .where(eq(offices.id, officeId))
+          .returning({ code: offices.code, name: offices.name });
+
+        if (deleted) {
+          successMsg = `Oficina "${deleted.name}" (${deleted.code}) eliminada con éxito.`;
+        } else {
+          errorMsg = "La oficina indicada no existe.";
+        }
+      } catch (e) {
+        errorMsg = "Error al eliminar la oficina.";
+      }
+    }
+  }
+}
+
+// --- LÓGICA GET: Listar Oficinas ---
+const allOffices = await db
+  .select()
+  .from(offices)
+  .orderBy(asc(offices.code), asc(offices.name));
+
+const officeTypeLabels: Record<string, string> = {
+  telegrafia: "Telegrafía",
+  comercial: "Comercial",
+  distribucion: "Distribución",
+  paqueteria: "Paquetería",
+};
+
+const officeTypeBadgeClass: Record<string, string> = {
+  telegrafia: "badge-info",
+  comercial: "badge-success",
+  distribucion: "badge-warning",
+  paqueteria: "badge-accent",
+};
+
+const headerGridClass = "grid-cols-[100px_1fr_120px_1fr_140px] gap-4";
+const rowGridClass =
+  "grid grid-cols-[100px_1fr_120px_1fr_140px] items-center gap-4";
+---
+
+<BaseLayout title="Gestión de oficinas | Portal Mesa de Ayuda">
+  <PageContainer>
+    <PageHeader
+      title="Gestión de oficinas"
+      description="Administración del directorio operativo de oficinas, contactos y activos tecnológicos."
+    />
+
+    {/* ── Feedback de acciones ── */}
+    {errorMsg && (
+      <div role="alert" class="alert alert-error alert-soft text-sm">
+        <Icon
+          name="boxicons:error-circle-filled"
+          size={20}
+          class="shrink-0"
+        />
+        <span>{errorMsg}</span>
+      </div>
+    )}
+    {successMsg && (
+      <div role="alert" class="alert alert-success alert-soft text-sm">
+        <Icon
+          name="boxicons:check-circle-filled"
+          size={20}
+          class="shrink-0"
+        />
+        <span>{successMsg}</span>
+      </div>
+    )}
+
+    {/* ── Toolbar ── */}
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold text-base-content">
+          Oficinas registradas
+        </h2>
+        {allOffices.length > 0 && (
+          <span class="badge badge-neutral badge-sm font-mono">
+            {allOffices.length}
+          </span>
+        )}
+      </div>
+
+      <Button variant="secondary" href="/admin/offices/new">
+        <Icon name="boxicons:plus" size={18} slot="icon-left" />
+        Nueva sucursal
+      </Button>
+    </div>
+
+    {/* ── Tabla ── */}
+    <DataTable
+      ariaLabel="Listado de oficinas registradas"
+      minWidthClass="min-w-200"
+      headerGridClass={headerGridClass}
+      rowGridClass={rowGridClass}
+    >
+      <div slot="header">
+        <DataTableHeaderCell sortKey="code">Código</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell sortKey="type">Tipo</DataTableHeaderCell>
+      </div>
+      <div slot="header">
+        <DataTableHeaderCell sortKey="region">Región</DataTableHeaderCell>
+      </div>
+      <div slot="header" class="text-right">
+        <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+      </div>
+
+      {allOffices.length === 0 ? (
+        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon
+              name="boxicons:building-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">No hay oficinas registradas</p>
+            <p class="text-xs">
+              Comenzá cargando la primera oficina desde el botón superior.
+            </p>
+          </div>
+        </div>
+      ) : (
+        allOffices.map((office) => (
+          <article
+            data-table-row
+            data-sort-code={office.code}
+            data-sort-name={office.name}
+            data-sort-type={office.type}
+            data-sort-region={office.region ?? ""}
+            class:list={[
+              rowGridClass,
+              "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+            ]}
+          >
+            {/* Código */}
+            <div>
+              <span class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content">
+                {office.code}
+              </span>
+            </div>
+
+            {/* Nombre + Dirección */}
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-base-content">
+                {office.name}
+              </p>
+              {office.address && (
+                <p class="mt-0.5 truncate text-xs text-base-content/50">
+                  {office.address}
+                </p>
+              )}
+            </div>
+
+            {/* Tipo */}
+            <div>
+              <span
+                class:list={[
+                  "badge badge-sm font-bold uppercase tracking-wide",
+                  officeTypeBadgeClass[office.type] ?? "badge-neutral",
+                ]}
+              >
+                {officeTypeLabels[office.type] ?? office.type}
+              </span>
+            </div>
+
+            {/* Región */}
+            <div class="min-w-0">
+              <span class="truncate text-sm text-base-content/70">
+                {office.region || (
+                  <span class="text-base-content/30">&mdash;</span>
+                )}
+              </span>
+            </div>
+
+            {/* Acciones */}
+            <div class="flex items-center justify-end gap-1">
+              <Button
+                variant="secondary"
+                appearance="ghost"
+                size="sm"
+                href={`/admin/offices/${office.id}`}
+                class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                aria-label={`Editar ${office.name}`}
+              >
+                <Icon
+                  name="boxicons:pencil-filled"
+                  size={14}
+                  slot="icon-left"
+                />
+                <span class="hidden sm:inline">Editar</span>
+              </Button>
+
+              <form
+                method="POST"
+                class="inline"
+                onsubmit="return confirm('¿Estás seguro de que querés eliminar esta oficina? Se borrarán también sus contactos y activos vinculados.')"
+              >
+                <input type="hidden" name="action" value="delete_office" />
+                <input type="hidden" name="officeId" value={office.id} />
+                <button
+                  type="submit"
+                  class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+                  aria-label={`Eliminar ${office.name}`}
+                >
+                  <Icon name="boxicons:trash-filled" size={14} />
+                  <span class="hidden sm:inline">Eliminar</span>
+                </button>
+              </form>
+            </div>
+          </article>
+        ))
+      )}
+    </DataTable>
+  </PageContainer>
+</BaseLayout>

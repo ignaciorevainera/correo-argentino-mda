@@ -1,0 +1,460 @@
+---
+import { db } from "@db/index";
+import { offices, contacts, officeContacts, officeAssets } from "@db/schema";
+import { eq, and, isNull } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import Button from "@components/ui/Button.astro";
+import { Icon } from "astro-icon/components";
+
+// --- Verificación de rol ---
+const user = Astro.locals.user;
+if (user.role !== "admin") return Astro.redirect("/login");
+
+const { id } = Astro.params;
+const isNew = id === "new";
+let successMsg = "";
+let errorMsg = "";
+
+// --- LÓGICA POST: Guardar ---
+if (Astro.request.method === "POST") {
+  try {
+    const fd = await Astro.request.formData();
+
+    const officeData = {
+      code: fd.get("code")?.toString().trim() ?? "",
+      name: fd.get("name")?.toString().trim() ?? "",
+      type: fd.get("type")?.toString() ?? "telegrafia",
+      region: fd.get("region")?.toString().trim() || null,
+      address: fd.get("address")?.toString().trim() || null,
+      email: fd.get("email")?.toString().trim() || null,
+      notes: fd.get("notes")?.toString().trim() || null,
+    };
+
+    if (!officeData.code || !officeData.name) {
+      errorMsg = "Código y nombre son obligatorios.";
+    } else {
+      let officeId: number;
+
+      if (isNew) {
+        const [created] = await db.insert(offices).values(officeData).returning({ id: offices.id });
+        officeId = created.id;
+      } else {
+        officeId = Number(id);
+        await db.update(offices).set(officeData).where(eq(offices.id, officeId));
+      }
+
+      // --- Activos: borrar viejos y recrear ---
+      await db.delete(officeAssets).where(eq(officeAssets.officeId, officeId));
+
+      const assetTypes = fd.getAll("asset_type");
+      const assetHostnames = fd.getAll("asset_hostname");
+      const assetIps = fd.getAll("asset_ip");
+
+      for (let i = 0; i < assetTypes.length; i++) {
+        const aType = assetTypes[i]?.toString().trim();
+        if (!aType) continue;
+        await db.insert(officeAssets).values({
+          officeId,
+          type: aType,
+          hostname: assetHostnames[i]?.toString().trim() || null,
+          ip: assetIps[i]?.toString().trim() || null,
+        });
+      }
+
+      // --- Contactos: borrar vínculos viejos y recrear ---
+      await db.delete(officeContacts).where(eq(officeContacts.officeId, officeId));
+
+      const cIds = fd.getAll("contact_id");
+      const cNames = fd.getAll("contact_name");
+      const cPhones = fd.getAll("contact_phone");
+      const cRoles = fd.getAll("contact_role");
+      const cTimeSlots = fd.getAll("contact_timeslot");
+
+      for (let i = 0; i < cNames.length; i++) {
+        const cIdStr = cIds[i]?.toString().trim();
+        const cName = cNames[i]?.toString().trim();
+        if (!cName) continue;
+        const cPhone = cPhones[i]?.toString().trim() || null;
+
+        let contactId: number;
+        if (cIdStr) {
+          contactId = Number(cIdStr);
+          await db.update(contacts).set({ name: cName, phone: cPhone }).where(eq(contacts.id, contactId));
+        } else {
+          // Buscar contacto existente por nombre + teléfono
+          let existing;
+          if (cPhone) {
+            [existing] = await db.select().from(contacts)
+              .where(and(eq(contacts.name, cName), eq(contacts.phone, cPhone)));
+          } else {
+            [existing] = await db.select().from(contacts)
+              .where(and(eq(contacts.name, cName), isNull(contacts.phone)));
+          }
+
+          if (existing) {
+            contactId = existing.id;
+          } else {
+            const [created] = await db.insert(contacts).values({ name: cName, phone: cPhone }).returning({ id: contacts.id });
+            contactId = created.id;
+          }
+        }
+
+        try {
+          await db.insert(officeContacts).values({
+            officeId,
+            contactId,
+            role: cRoles[i]?.toString().trim() || null,
+            timeSlot: cTimeSlots[i]?.toString().trim() || null,
+          });
+        } catch (e: any) {
+          // Ignorar si el mismo contacto se intenta vincular 2 veces
+        }
+      }
+
+      if (isNew) {
+        return Astro.redirect(`/admin/offices/${officeId}`);
+      }
+      successMsg = "Oficina actualizada con éxito.";
+    }
+  } catch (e: any) {
+    errorMsg = e.message?.includes("UNIQUE") ? "Ya existe una oficina con ese código." : "Error al guardar la oficina.";
+  }
+}
+
+// --- LÓGICA GET: Cargar datos ---
+type OfficeRecord = {
+  id: number; code: string; name: string; type: string;
+  region: string | null; address: string | null; email: string | null; notes: string | null;
+  contacts: { role: string | null; timeSlot: string | null; contact: { id: number; name: string; phone: string | null } }[];
+  assets: { id: number; type: string; hostname: string | null; ip: string | null }[];
+};
+
+let office: OfficeRecord | null = null;
+
+if (!isNew) {
+  const result = await db.query.offices.findFirst({
+    where: eq(offices.id, Number(id)),
+    with: {
+      assets: true,
+      contacts: { with: { contact: true } },
+    },
+  });
+  if (!result) return Astro.redirect("/admin/offices");
+  office = result as unknown as OfficeRecord;
+}
+
+const pageTitle = isNew ? "Nueva sucursal" : `Editar: ${office!.name}`;
+
+const officeTypes = [
+  { value: "telegrafia", label: "Telegrafía" },
+  { value: "comercial", label: "Comercial" },
+  { value: "distribucion", label: "Distribución" },
+  { value: "paqueteria", label: "Paquetería" },
+];
+
+const assetTypeOptions = [
+  { value: "Server", label: "Servidor" },
+  { value: "Client", label: "Cliente" },
+  { value: "Printer", label: "Impresora" },
+];
+---
+
+<BaseLayout title={`${pageTitle} | Portal Mesa de Ayuda`}>
+  <PageContainer>
+
+    {/* ── Breadcrumb / Volver ── */}
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a href="/admin/offices" class="flex items-center gap-1.5 hover:text-base-content transition-colors">
+        <Icon name="boxicons:chevron-left" size={16} />
+        Gestión de oficinas
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">{pageTitle}</span>
+    </div>
+
+    <PageHeader
+      title={pageTitle}
+      description={isNew ? "Completá los datos para registrar una nueva sucursal." : `Código ${office!.code} · ${office!.type}`}
+    />
+
+    {/* Feedback */}
+    {errorMsg && (
+      <div role="alert" class="alert alert-error alert-soft text-sm">
+        <Icon name="boxicons:error-circle-filled" size={18} class="shrink-0" />
+        <span>{errorMsg}</span>
+      </div>
+    )}
+    {successMsg && (
+      <div role="alert" class="alert alert-success alert-soft text-sm">
+        <Icon name="boxicons:check-circle-filled" size={18} class="shrink-0" />
+        <span>{successMsg}</span>
+      </div>
+    )}
+
+    <form
+      method="POST"
+      id="office-form"
+      onsubmit="return confirm('¿Estás seguro de que deseas guardar estas modificaciones?');"
+      class="space-y-4"
+    >
+      {/* ── Top: Datos básicos ── */}
+      <section class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body gap-4 p-5">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+              <Icon name="boxicons:building-filled" size={15} />
+            </span>
+            Datos básicos
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-3">
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Código *</legend>
+                <input type="text" name="code" required value={office?.code ?? ""} placeholder="I2659" autocomplete="off" class="input input-sm w-full font-mono" />
+              </fieldset>
+
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Tipo</legend>
+                <select name="type" class="select select-sm w-full">
+                  {officeTypes.map((t) => (
+                    <option value={t.value} selected={office?.type === t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </fieldset>
+            </div>
+
+            <div class="space-y-3">
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Nombre *</legend>
+                <input type="text" name="name" required value={office?.name ?? ""} placeholder="ej: Neuquén" autocomplete="off" class="input input-sm w-full" />
+              </fieldset>
+
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Email</legend>
+                <input type="email" name="email" value={office?.email ?? ""} placeholder="oficina@correo.com.ar" class="input input-sm w-full" />
+              </fieldset>
+            </div>
+
+            <div class="space-y-3">
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Región</legend>
+                <input type="text" name="region" value={office?.region ?? ""} placeholder="ej: Neuquén" class="input input-sm w-full" />
+              </fieldset>
+
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Dirección</legend>
+                <input type="text" name="address" value={office?.address ?? ""} placeholder="ej: Santa Fe 101" class="input input-sm w-full" />
+              </fieldset>
+            </div>
+
+            <div class="col-span-3">
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">Notas</legend>
+                <textarea name="notes" rows={2} class="textarea w-full text-sm" placeholder="Observaciones internas">{office?.notes ?? ""}</textarea>
+              </fieldset>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Bottom: Infra + Contactos ── */}
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+        {/* ── Infraestructura ── */}
+        <section class="card bg-base-100 border border-base-300 shadow-sm">
+            <div class="card-body gap-3 p-5">
+              <div class="flex items-center justify-between">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+                  <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-info/10 text-info">
+                    <Icon name="boxicons:server-filled" size={15} />
+                  </span>
+                  Infraestructura
+                </h2>
+                <button type="button" id="btn-add-asset" class="btn btn-ghost btn-xs text-info gap-1">
+                  <Icon name="boxicons:plus" size={14} />
+                  Agregar
+                </button>
+              </div>
+
+              <div id="assets-container" class="space-y-3">
+                {(office?.assets ?? []).map((a) => (
+                  <div class="asset-row relative grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg bg-base-200/50 p-4 border border-base-300 pr-10">
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">Tipo</legend>
+                      <select name="asset_type" class="select select-sm w-full">
+                        {assetTypeOptions.map((opt) => (
+                          <option value={opt.value} selected={a.type === opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </fieldset>
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">Hostname</legend>
+                      <input type="text" name="asset_hostname" value={a.hostname ?? ""} class="input input-sm w-full font-mono" placeholder="SRV-NEU-01" />
+                    </fieldset>
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">IP</legend>
+                      <input type="text" name="asset_ip" value={a.ip ?? ""} class="input input-sm w-full font-mono" placeholder="10.0.1.1" />
+                    </fieldset>
+                    <button type="button" class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2" aria-label="Quitar equipo">
+                      <Icon name="boxicons:trash" size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {(office?.assets ?? []).length === 0 && (
+                <p class="text-xs text-base-content/40 text-center py-1">Sin equipos registrados.</p>
+              )}
+            </div>
+          </section>
+
+          {/* ── Personal a cargo ── */}
+          <section class="card bg-base-100 border border-base-300 shadow-sm flex-1">
+            <div class="card-body gap-3 p-5">
+              <div class="flex items-center justify-between">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+                  <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning">
+                    <Icon name="boxicons:group-filled" size={15} />
+                  </span>
+                  Personal a cargo
+                </h2>
+                <button type="button" id="btn-add-contact" class="btn btn-ghost btn-xs text-warning gap-1">
+                  <Icon name="boxicons:plus" size={14} />
+                  Agregar
+                </button>
+              </div>
+
+              <div id="contacts-container" class="space-y-3">
+                {(office?.contacts ?? []).map((oc) => (
+                  <div class="contact-row relative rounded-lg bg-base-200/50 p-4 border border-base-300">
+                    <input type="hidden" name="contact_id" value={oc.contact.id} />
+                    <button type="button" class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2" aria-label="Quitar contacto">
+                      <Icon name="boxicons:trash" size={18} />
+                    </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pr-6">
+                      <fieldset class="fieldset gap-1">
+                        <legend class="fieldset-legend text-xs font-bold">Nombre</legend>
+                        <input type="text" name="contact_name" value={oc.contact.name} class="input input-sm w-full" placeholder="García Juan" />
+                      </fieldset>
+                      <fieldset class="fieldset gap-1">
+                        <legend class="fieldset-legend text-xs font-bold">Teléfono</legend>
+                        <input type="text" name="contact_phone" value={oc.contact.phone ?? ""} class="input input-sm w-full font-mono" placeholder="0299-123456" />
+                      </fieldset>
+                      <fieldset class="fieldset gap-1">
+                        <legend class="fieldset-legend text-xs font-bold">Rol</legend>
+                        <input type="text" name="contact_role" value={oc.role ?? ""} class="input input-sm w-full" placeholder="Jefe" />
+                      </fieldset>
+                      <fieldset class="fieldset gap-1">
+                        <legend class="fieldset-legend text-xs font-bold">Horario</legend>
+                        <input type="text" name="contact_timeslot" value={oc.timeSlot ?? ""} class="input input-sm w-full" placeholder="Mañana" />
+                      </fieldset>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {(office?.contacts ?? []).length === 0 && (
+                <p class="text-xs text-base-content/40 text-center py-1">Sin personal vinculado.</p>
+              )}
+            </div>
+            </div>
+          </section>
+        </div>
+
+      {/* ── Acciones ── */}
+      <div class="flex items-center justify-between gap-3 pt-1">
+        <Button variant="neutral" appearance="ghost" href="/admin/offices">
+          <Icon name="boxicons:arrow-left-filled" size={16} slot="icon-left" />
+          Volver al listado
+        </Button>
+        <button type="submit" class="btn btn-secondary btn-sm gap-2">
+          <Icon name="boxicons:save-filled" size={16} />
+          {isNew ? "Crear sucursal" : "Guardar cambios"}
+        </button>
+      </div>
+    </form>
+  </PageContainer>
+</BaseLayout>
+
+{/* ── Templates dinámicos ── */}
+<template id="tpl-asset-row">
+  <div class="asset-row relative grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg bg-base-200/50 p-4 border border-base-300 pr-10">
+    <fieldset class="fieldset gap-1">
+      <legend class="fieldset-legend text-xs font-bold">Tipo</legend>
+      <select name="asset_type" class="select select-sm w-full">
+        <option value="Server">Servidor</option>
+        <option value="Client">Cliente</option>
+        <option value="Printer">Impresora</option>
+      </select>
+    </fieldset>
+    <fieldset class="fieldset gap-1">
+      <legend class="fieldset-legend text-xs font-bold">Hostname</legend>
+      <input type="text" name="asset_hostname" class="input input-sm w-full font-mono" placeholder="SRV-NEU-01" />
+    </fieldset>
+    <fieldset class="fieldset gap-1">
+      <legend class="fieldset-legend text-xs font-bold">IP</legend>
+      <input type="text" name="asset_ip" class="input input-sm w-full font-mono" placeholder="10.0.1.1" />
+    </fieldset>
+    <button type="button" class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2" aria-label="Quitar equipo">
+      <Icon name="boxicons:trash" size={18} />
+    </button>
+  </div>
+</template>
+
+<template id="tpl-contact-row">
+  <div class="contact-row relative rounded-lg bg-base-200/50 p-4 border border-base-300">
+    <input type="hidden" name="contact_id" value="" />
+    <button type="button" class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2" aria-label="Quitar contacto">
+      <Icon name="boxicons:trash" size={18} />
+    </button>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pr-6">
+      <fieldset class="fieldset gap-1">
+        <legend class="fieldset-legend text-xs font-bold">Nombre</legend>
+        <input type="text" name="contact_name" class="input input-sm w-full" placeholder="García Juan" />
+      </fieldset>
+      <fieldset class="fieldset gap-1">
+        <legend class="fieldset-legend text-xs font-bold">Teléfono</legend>
+        <input type="text" name="contact_phone" class="input input-sm w-full font-mono" placeholder="0299-123456" />
+      </fieldset>
+      <fieldset class="fieldset gap-1">
+        <legend class="fieldset-legend text-xs font-bold">Rol</legend>
+        <input type="text" name="contact_role" class="input input-sm w-full" placeholder="Jefe" />
+      </fieldset>
+      <fieldset class="fieldset gap-1">
+        <legend class="fieldset-legend text-xs font-bold">Horario</legend>
+        <input type="text" name="contact_timeslot" class="input input-sm w-full" placeholder="Mañana" />
+      </fieldset>
+    </div>
+  </div>
+</template>
+
+<script>
+  function initDynamicRows() {
+    const assetsContainer = document.getElementById("assets-container")!;
+    const contactsContainer = document.getElementById("contacts-container")!;
+    const tplAsset = document.getElementById("tpl-asset-row") as HTMLTemplateElement;
+    const tplContact = document.getElementById("tpl-contact-row") as HTMLTemplateElement;
+
+    document.getElementById("btn-add-asset")?.addEventListener("click", () => {
+      assetsContainer.appendChild(tplAsset.content.cloneNode(true));
+      bindRemoveButtons(assetsContainer);
+    });
+
+    document.getElementById("btn-add-contact")?.addEventListener("click", () => {
+      contactsContainer.appendChild(tplContact.content.cloneNode(true));
+      bindRemoveButtons(contactsContainer);
+    });
+
+    function bindRemoveButtons(container: HTMLElement) {
+      container.querySelectorAll<HTMLButtonElement>(".remove-row-btn").forEach((btn) => {
+        btn.onclick = () => btn.closest(".asset-row, .contact-row")?.remove();
+      });
+    }
+
+    bindRemoveButtons(assetsContainer);
+    bindRemoveButtons(contactsContainer);
+  }
+
+  initDynamicRows();
+</script>
