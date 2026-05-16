@@ -1,0 +1,117 @@
+---
+import { db } from '@db/index';
+import { users } from '@db/schema';
+import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs'; // <-- Importamos bcrypt
+import BaseLayout from '@layouts/BaseLayout.astro';
+
+if (Astro.locals.user.id !== 0) {
+  return Astro.redirect('/');
+}
+
+let errorMsg = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const usernameInput = formData.get('username')?.toString().trim();
+  const passwordInput = formData.get('password')?.toString(); // Obtenemos la pass
+
+  if (usernameInput && passwordInput) {
+    const [userFound] = await db.select().from(users).where(eq(users.username, usernameInput));
+
+    if (userFound) {
+      // Magia de Bcrypt: Compara la pass en texto plano con el Hash de la DB
+      const isPasswordValid = await bcrypt.compare(passwordInput, userFound.password);
+
+      if (isPasswordValid) {
+        Astro.cookies.set('mda_session', userFound.username, { 
+          path: '/', maxAge: 60 * 60 * 24 
+        });
+        return Astro.redirect('/');
+      } else {
+        errorMsg = 'Contraseña incorrecta.';
+      }
+    } else {
+      errorMsg = 'El usuario no existe.';
+    }
+  }
+}
+---
+
+<BaseLayout title="Iniciar Sesión">
+  <div class="flex min-h-[80vh] items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+      <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body gap-6">
+          <!-- Brand lockup -->
+          <div class="text-center">
+            <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-secondary-content shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-7" aria-hidden="true">
+                <path d="M7 14v-2h10v2H7zm0-4V8h10v2H7zM3 20V4h18v16H3zm2-2h14V6H5v12z"/>
+              </svg>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-base-content">
+              Mesa de Ayuda
+            </h1>
+            <p class="mt-1 text-xs text-base-content/60">
+              Ingresá con tu usuario de red
+            </p>
+          </div>
+
+          <!-- Error alert -->
+          {errorMsg && (
+            <div role="alert" class="alert alert-error text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5 shrink-0" aria-hidden="true">
+                <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-7v2h2v-2h-2zm0-8v6h2V7h-2z"/>
+              </svg>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <!-- Login form -->
+          <form method="POST" class="space-y-4">
+            <div class="form-control w-full">
+              <label class="label" for="login-username">
+                <span class="label-text font-medium">Usuario de red</span>
+              </label>
+              <input
+                type="text"
+                id="login-username"
+                name="username"
+                required
+                placeholder="ej: jgonzalez"
+                autocomplete="username"
+                class="input input-bordered w-full"
+              />
+            </div>
+
+            <div class="form-control w-full">
+              <label class="label" for="login-password">
+                <span class="label-text font-medium">Contraseña</span>
+              </label>
+              <input
+                type="password"
+                id="login-password"
+                name="password"
+                required
+                autocomplete="current-password"
+                class="input input-bordered w-full"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-secondary w-full"
+            >
+              Ingresar
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <p class="mt-6 text-center text-xs text-base-content/40">
+        © {new Date().getFullYear()} Correo Argentino · Portal interno
+      </p>
+    </div>
+  </div>
+</BaseLayout>
