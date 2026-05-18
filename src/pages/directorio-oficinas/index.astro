@@ -135,7 +135,7 @@ interface OfficeTypeTab {
   label: string;
 }
 
-const defaultOfficeType: OfficeType | "all" = "comercial";
+const defaultOfficeType: OfficeType | "all" = "all";
 
 const officeTypeTabs: OfficeTypeTab[] = [
   { type: "all", label: "Todas" },
@@ -274,43 +274,47 @@ const mainTabs = [
     <!-- Contenedor de Directorio -->
     <div id="main-view-directory" class="space-y-6">
       <section
-        class="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+        class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
         aria-label="Filtros del directorio"
       >
-        <div
-          role="tablist"
-          class="tabs tabs-box w-full bg-base-200/80 p-1 lg:w-auto"
-        >
-          {
-            officeTypeTabs.map((tab) => {
-              const isActive = tab.type === defaultOfficeType;
+        <!-- Fila 1: Tabs -->
+        <div class="w-full">
+          <div
+            role="tablist"
+            class="tabs tabs-box w-full bg-base-200/80 p-1 flex-nowrap overflow-x-auto"
+          >
+            {
+              officeTypeTabs.map((tab) => {
+                const isActive = tab.type === defaultOfficeType;
 
-              return (
-                <button
-                  type="button"
-                  role="tab"
-                  data-office-tab
-                  data-office-type={tab.type}
-                  aria-selected={isActive ? "true" : "false"}
-                  class:list={[
-                    "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
-                    isActive && officeTypeTabActiveClassByType[tab.type],
-                  ]}
-                >
-                  <span>{tab.label}</span>
-                  <span class="badge badge-sm bg-base-100 text-base-content/70">
-                    {officeCountByType[tab.type]}
-                  </span>
-                </button>
-              );
-            })
-          }
+                return (
+                  <button
+                    type="button"
+                    role="tab"
+                    data-office-tab
+                    data-office-type={tab.type}
+                    aria-selected={isActive ? "true" : "false"}
+                    class:list={[
+                      "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
+                      isActive && officeTypeTabActiveClassByType[tab.type],
+                    ]}
+                  >
+                    <span>{tab.label}</span>
+                    <span class="badge badge-sm bg-base-100 text-base-content/70">
+                      {officeCountByType[tab.type]}
+                    </span>
+                  </button>
+                );
+              })
+            }
+          </div>
         </div>
 
-        <div class="flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:max-w-xl">
+        <!-- Fila 2: Select y Búsqueda -->
+        <div class="flex flex-col sm:flex-row gap-3 w-full">
           <select
             id="regionFilter"
-            class="select border-base-300 w-full sm:w-48 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="select border-base-300 w-full sm:w-auto sm:min-w-48 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Filtrar por región"
           >
             <option value="all">Todas las regiones</option>
@@ -322,7 +326,7 @@ const mainTabs = [
             id="office-search"
             label="Buscar oficina por nombre, código, región, centro de costo o código postal"
             placeholder="Buscar por nombre, código, región, centro de costo o CP"
-            class="w-full"
+            class="flex-1"
           />
         </div>
       </section>
@@ -336,7 +340,17 @@ const mainTabs = [
         <span>No se encontraron oficinas para los filtros actuales.</span>
       </div>
 
-      <MasterDetailTable
+      <div
+        id="office-category-empty-state"
+        class="alert alert-info hidden"
+        role="status"
+      >
+        <Icon name="boxicons:info-circle" size={24} aria-hidden="true" />
+        <span>Todavía no hay oficinas registradas de este tipo.</span>
+      </div>
+
+      <div id="office-table-wrapper">
+        <MasterDetailTable
         ariaLabel="Directorio de oficinas"
         minWidthClass="min-w-280"
         headerGridClass={officeDirectoryHeaderGridClass}
@@ -364,7 +378,7 @@ const mainTabs = [
         {
           groupedOffices.map((group) =>
             group.offices.map((office, index) => {
-              const isVisibleByDefault = office.type === defaultOfficeType;
+              const isVisibleByDefault = defaultOfficeType === "all" || office.type === defaultOfficeType;
               const searchText = `${office.name} ${office.code} ${office.region} ${office.location} ${office.costCenter} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
 
               return (
@@ -685,6 +699,7 @@ const mainTabs = [
           )
         }
       </MasterDetailTable>
+      </div>
     </div>
 
     <!-- Contenedor de Mapa -->
@@ -790,8 +805,11 @@ const mainTabs = [
     const emptyState = document.querySelector<HTMLElement>(
       "#office-empty-state",
     );
+    const categoryEmptyState = document.querySelector<HTMLElement>(
+      "#office-category-empty-state",
+    );
 
-    let selectedOfficeType = "comercial";
+    let selectedOfficeType = "all";
     let expandedOfficeId: string | null = null;
     const tabActiveClassesByType: Record<string, string> = {
       all: "office-tab-active office-tab-active-all",
@@ -882,7 +900,15 @@ const mainTabs = [
         groupRow.classList.toggle("hidden", !showGroup);
       });
 
-      emptyState?.classList.toggle("hidden", visibleRows > 0);
+      const hasItemsInType = selectedOfficeType === "all" || officeItems.some((item) => item.dataset.officeType === selectedOfficeType);
+      const showCategoryEmpty = !hasItemsInType;
+      const showSearchEmpty = hasItemsInType && visibleRows === 0;
+
+      categoryEmptyState?.classList.toggle("hidden", !showCategoryEmpty);
+      emptyState?.classList.toggle("hidden", !showSearchEmpty);
+
+      const tableWrapper = document.getElementById("office-table-wrapper");
+      tableWrapper?.classList.toggle("hidden", visibleRows === 0);
     };
 
     // --- Lógica del Mapa (Leaflet) ---

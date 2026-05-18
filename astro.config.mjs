@@ -9,6 +9,12 @@ import react from "@astrojs/react";
 import node from "@astrojs/node";
 
 export default defineConfig({
+site: 'http://mda.correo.local', 
+  
+  security: {
+    checkOrigin: false
+  },
+
   devToolbar: {
     enabled: false,
   },

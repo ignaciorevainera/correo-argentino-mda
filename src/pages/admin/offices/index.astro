@@ -8,6 +8,7 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import Button from "@components/ui/Button.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
 
 let successMsg = "";
@@ -94,22 +95,30 @@ const rowGridClass =
     )}
 
     {/* ── Toolbar ── */}
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-base-content">
           Oficinas registradas
         </h2>
         {allOffices.length > 0 && (
-          <span class="badge badge-neutral badge-sm font-mono">
+          <span id="office-count-badge" class="badge badge-neutral badge-sm font-mono">
             {allOffices.length}
           </span>
         )}
       </div>
 
-      <Button variant="secondary" href="/admin/offices/new">
-        <Icon name="boxicons:plus" size={18} slot="icon-left" />
-        Nueva sucursal
-      </Button>
+      <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+        <SearchInput
+          id="admin-office-search"
+          label="Buscar oficina"
+          placeholder="Buscar por código, nombre o región"
+          class="w-full sm:w-64"
+        />
+        <Button variant="secondary" href="/admin/offices/new" class="w-full sm:w-auto">
+          <Icon name="boxicons:plus" size={18} slot="icon-left" />
+          Nueva sucursal
+        </Button>
+      </div>
     </div>
 
     {/* ── Tabla ── */}
@@ -153,96 +162,163 @@ const rowGridClass =
           </div>
         </div>
       ) : (
-        allOffices.map((office) => (
-          <article
-            data-table-row
-            data-sort-code={office.code}
-            data-sort-name={office.name}
-            data-sort-type={office.type}
-            data-sort-region={office.region ?? ""}
-            class:list={[
-              rowGridClass,
-              "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-            ]}
-          >
-            {/* Código */}
-            <div>
-              <span class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content">
-                {office.code}
-              </span>
-            </div>
-
-            {/* Nombre + Dirección */}
-            <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-base-content">
-                {office.name}
-              </p>
-              {office.address && (
-                <p class="mt-0.5 truncate text-xs text-base-content/50">
-                  {office.address}
-                </p>
-              )}
-            </div>
-
-            {/* Tipo */}
-            <div>
-              <span
-                class:list={[
-                  "badge badge-sm font-bold uppercase tracking-wide",
-                  officeTypeBadgeClass[office.type] ?? "badge-neutral",
-                ]}
-              >
-                {officeTypeLabels[office.type] ?? office.type}
-              </span>
-            </div>
-
-            {/* Región */}
-            <div class="min-w-0">
-              <span class="truncate text-sm text-base-content/70">
-                {office.region || (
-                  <span class="text-base-content/30">&mdash;</span>
-                )}
-              </span>
-            </div>
-
-            {/* Acciones */}
-            <div class="flex items-center justify-end gap-1">
-              <Button
-                variant="secondary"
-                appearance="ghost"
-                size="sm"
-                href={`/admin/offices/${office.id}`}
-                class="h-7 px-2 text-base-content/60 hover:text-secondary"
-                aria-label={`Editar ${office.name}`}
-              >
-                <Icon
-                  name="boxicons:pencil-filled"
-                  size={14}
-                  slot="icon-left"
-                />
-                <span class="hidden sm:inline">Editar</span>
-              </Button>
-
-              <form
-                method="POST"
-                class="inline"
-                onsubmit="return confirm('¿Estás seguro de que querés eliminar esta oficina? Se borrarán también sus contactos y activos vinculados.')"
-              >
-                <input type="hidden" name="action" value="delete_office" />
-                <input type="hidden" name="officeId" value={office.id} />
-                <button
-                  type="submit"
-                  class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
-                  aria-label={`Eliminar ${office.name}`}
+        <>
+          {allOffices.map((office) => (
+            <article
+              data-table-row
+              data-sort-code={office.code}
+              data-sort-name={office.name}
+              data-sort-type={office.type}
+              data-sort-region={office.region ?? ""}
+              data-search-text={`${office.code} ${office.name} ${office.region ?? ""} ${officeTypeLabels[office.type] ?? office.type}`.toLowerCase()}
+              class:list={[
+                rowGridClass,
+                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+              ]}
+            >
+              {/* Código */}
+              <div>
+                <span 
+                  data-search-target
+                  class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
                 >
-                  <Icon name="boxicons:trash-filled" size={14} />
-                  <span class="hidden sm:inline">Eliminar</span>
-                </button>
-              </form>
+                  {office.code}
+                </span>
+              </div>
+
+              {/* Nombre + Dirección */}
+              <div class="min-w-0">
+                <p 
+                  data-search-target
+                  class="truncate text-sm font-semibold text-base-content"
+                >
+                  {office.name}
+                </p>
+                {office.address && (
+                  <p 
+                    data-search-target
+                    class="mt-0.5 truncate text-xs text-base-content/50"
+                  >
+                    {office.address}
+                  </p>
+                )}
+              </div>
+
+              {/* Tipo */}
+              <div>
+                <span
+                  data-search-target
+                  class:list={[
+                    "badge badge-sm font-bold uppercase tracking-wide",
+                    officeTypeBadgeClass[office.type] ?? "badge-neutral",
+                  ]}
+                >
+                  {officeTypeLabels[office.type] ?? office.type}
+                </span>
+              </div>
+
+              {/* Región */}
+              <div class="min-w-0">
+                <span 
+                  data-search-target
+                  class="truncate text-sm text-base-content/70"
+                >
+                  {office.region || (
+                    <span class="text-base-content/30">&mdash;</span>
+                  )}
+                </span>
+              </div>
+
+              {/* Acciones */}
+              <div class="flex items-center justify-end gap-1">
+                <Button
+                  variant="secondary"
+                  appearance="ghost"
+                  size="sm"
+                  href={`/admin/offices/${office.id}`}
+                  class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                  aria-label={`Editar ${office.name}`}
+                >
+                  <Icon
+                    name="boxicons:pencil-filled"
+                    size={14}
+                    slot="icon-left"
+                  />
+                  <span class="hidden sm:inline">Editar</span>
+                </Button>
+
+                <form
+                  method="POST"
+                  class="inline"
+                  onsubmit="return confirm('¿Estás seguro de que querés eliminar esta oficina? Se borrarán también sus contactos y activos vinculados.')"
+                >
+                  <input type="hidden" name="action" value="delete_office" />
+                  <input type="hidden" name="officeId" value={office.id} />
+                  <button
+                    type="submit"
+                    class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+                    aria-label={`Eliminar ${office.name}`}
+                  >
+                    <Icon name="boxicons:trash-filled" size={14} />
+                    <span class="hidden sm:inline">Eliminar</span>
+                  </button>
+                </form>
+              </div>
+            </article>
+          ))}
+          
+          {/* Empty state para búsqueda */}
+          <div id="search-empty-state" class="hidden flex flex-col items-center gap-3 py-16 text-base-content/50">
+            <div class="rounded-full bg-base-200 p-4">
+              <Icon
+                name="boxicons:search"
+                size={32}
+                class="opacity-30"
+                aria-hidden="true"
+              />
             </div>
-          </article>
-        ))
+            <div class="space-y-1 text-center">
+              <p class="text-sm font-semibold">No se encontraron resultados</p>
+              <p class="text-xs">
+                Probá con otros términos de búsqueda.
+              </p>
+            </div>
+          </div>
+        </>
       )}
     </DataTable>
+    <script>
+      import { matchesSearchQuery, highlightSearchTargets } from "@lib/searchUtils";
+
+      const searchInput = document.querySelector<HTMLInputElement>("#admin-office-search");
+      const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
+      const countBadge = document.querySelector<HTMLElement>("#office-count-badge");
+      const emptyState = document.querySelector<HTMLElement>("#search-empty-state");
+
+      searchInput?.addEventListener("input", () => {
+        const query = searchInput.value.trim();
+        let visibleCount = 0;
+
+        rows.forEach((row) => {
+          const searchText = row.dataset.searchText || "";
+          const isVisible = matchesSearchQuery(query, [searchText]);
+          
+          row.classList.toggle("hidden", !isVisible);
+          highlightSearchTargets(row, isVisible ? query : "");
+          
+          if (isVisible) {
+            visibleCount++;
+          }
+        });
+
+        if (countBadge) {
+          countBadge.textContent = visibleCount.toString();
+        }
+
+        if (emptyState) {
+          emptyState.classList.toggle("hidden", visibleCount > 0);
+        }
+      });
+    </script>
   </PageContainer>
 </BaseLayout>

@@ -96,6 +96,20 @@ const parseLastContact = (
   return { date: `${day} ${month} ${year}`, time: `${hours}:${minutes}` };
 };
 
+const formatLastPing = (lastPing: Date | string | null | undefined): string => {
+  if (!lastPing) return "Pendiente";
+  const dateObj = new Date(lastPing);
+  if (Number.isNaN(dateObj.getTime())) return "Pendiente";
+
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  const hours = String(dateObj.getHours()).padStart(2, "0");
+  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+
+  return `${day}/${month}/${year} - ${hours}:${minutes} hs`;
+};
+
 const terminals: TerminalItem[] = (inventoryRows as unknown as CsvTerminalRow[])
   .slice(0, 50)
   .map((row) => {
@@ -503,10 +517,10 @@ const inventoryTabs = [
           <div slot="header" class="col-span-3">
             <DataTableHeaderCell sortKey="ip">Dirección IP</DataTableHeaderCell>
           </div>
-          <div slot="header" class="col-span-2">
+          <div slot="header" class="col-span-3">
             <DataTableHeaderCell>Estado</DataTableHeaderCell>
           </div>
-          <div slot="header" class="col-span-3">
+          <div slot="header" class="col-span-2">
             <DataTableHeaderCell>Asignado a</DataTableHeaderCell>
           </div>
 
@@ -564,33 +578,38 @@ const inventoryTabs = [
                       class="-ml-2"
                     />
                   </div>
-                  <div class="col-span-2 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <div class="inline-grid *:[grid-area:1/1]">
-                        <div
-                          class:list={[
-                            "status",
-                            machine.status === "online"
-                              ? "status-success"
-                              : "status-error",
-                            "animate-ping",
-                          ]}
-                        />
-                        <div
-                          class:list={[
-                            "status",
-                            machine.status === "online"
-                              ? "status-success"
-                              : "status-error",
-                          ]}
-                        />
+                  <div class="col-span-3 min-w-0">
+                    <div class="flex flex-col gap-0.5">
+                      <div class="flex items-center gap-2">
+                        <div class="inline-grid *:[grid-area:1/1]">
+                          <div
+                            class:list={[
+                              "status",
+                              machine.status === "online"
+                                ? "status-success"
+                                : "status-error",
+                              "animate-ping",
+                            ]}
+                          />
+                          <div
+                            class:list={[
+                              "status",
+                              machine.status === "online"
+                                ? "status-success"
+                                : "status-error",
+                            ]}
+                          />
+                        </div>
+                        <span class="text-sm text-base-content/80">
+                          {statusCopy[machine.status as CubicStatus]}
+                        </span>
                       </div>
-                      <span class="text-sm text-base-content/80">
-                        {statusCopy[machine.status as CubicStatus]}
-                      </span>
+                      <p class="text-[10px] text-base-content/50">
+                        Último escaneo: {formatLastPing((machine as any).lastPing)}
+                      </p>
                     </div>
                   </div>
-                  <div class="col-span-3 min-w-0">
+                  <div class="col-span-2 min-w-0">
                     <div class="flex items-center gap-2">
                       {machine.assignments.length > 0 ? (
                         machine.assignments.map((assignment) => (
