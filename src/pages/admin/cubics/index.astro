@@ -61,6 +61,21 @@ const statusBadgeClass: Record<string, string> = {
   offline: "badge-error",
 };
 
+function timeAgo(dateString: string | null) {
+  if (!dateString) return 'Nunca';
+  
+  const date = new Date(dateString);
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return 'Hace un momento';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `Hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Hace ${hours} hr`;
+  const days = Math.floor(hours / 24);
+  return `Hace ${days} día${days > 1 ? 's' : ''}`;
+}
+
 const headerGridClass = "grid-cols-[1.5fr_130px_100px_2fr_140px] gap-4";
 const rowGridClass =
   "grid grid-cols-[1.5fr_130px_100px_2fr_140px] items-center gap-4";
@@ -187,14 +202,20 @@ const rowGridClass =
 
               {/* Estado */}
               <div>
-                <span
-                  class:list={[
-                    "badge badge-sm font-bold uppercase tracking-wide",
-                    statusBadgeClass[cubic.status] ?? "badge-neutral",
-                  ]}
-                >
-                  {statusLabel[cubic.status] ?? cubic.status}
-                </span>
+                <div class="flex flex-col gap-1">
+                  <span
+                    class:list={[
+                      "badge badge-sm font-bold uppercase tracking-wide",
+                      statusBadgeClass[cubic.status] ?? "badge-neutral",
+                      cubic.status === 'online' ? 'animate-pulse' : '',
+                    ]}
+                  >
+                    {statusLabel[cubic.status] ?? cubic.status}
+                  </span>
+                  <span class="text-xs text-base-content/50">
+                    {timeAgo(cubic.lastPing)}
+                  </span>
+                </div>
               </div>
 
               {/* Operadores */}
@@ -267,3 +288,10 @@ const rowGridClass =
     </DataTable>
   </PageContainer>
 </BaseLayout>
+
+<script>
+  // Recarga la página automáticamente cada 5 minutos (300000 ms)
+  setTimeout(() => {
+    window.location.reload();
+  }, 300000);
+</script>
