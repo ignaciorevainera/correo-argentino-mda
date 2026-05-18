@@ -5,36 +5,18 @@ import { Icon } from "astro-icon/components";
 
 <div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-8">
   
-  <!-- Stats Summary -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="stats-container">
+  <!-- Stats Summary (hidden by default) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 hidden" id="stats-container">
     <!-- Stats will be injected here -->
   </div>
 
   <div class="w-full flex flex-col gap-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      
-      <!-- Modern Segmented Control -->
-      <div class="flex bg-base-200 p-1 rounded-xl border border-base-300" id="view-switcher">
-        <button 
-          data-view="daily"
-          aria-label="Cambiar a Vista Diaria"
-          class="view-btn flex items-center gap-2 px-5 py-2 rounded-lg transition-colors duration-200 text-sm font-semibold bg-secondary text-secondary-content shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-        >
-          <Icon name="boxicons:calendar-event" size={18} />
-          <span>Vista Diaria</span>
-        </button>
-        <button 
-          data-view="monthly"
-          aria-label="Cambiar a Vista Mensual"
-          class="view-btn flex items-center gap-2 px-5 py-2 rounded-lg transition-colors duration-200 text-sm font-medium text-base-content/50 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-        >
-          <Icon name="boxicons:calendar-alt" size={18} />
-          <span>Mes Completo</span>
-        </button>
-      </div>
+      <!-- Left side spacer replaces Segmented Control -->
+      <div></div>
 
-      <!-- Date Picker -->
-      <div id="date-picker-container" class="relative flex min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20">
+      <!-- Date Picker (hidden by default) -->
+      <div id="date-picker-container" class="relative flex min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 hidden is-faded">
         <Icon name="boxicons:calendar" size={18} class="text-base-content/40" />
         <label for="date-input" class="sr-only">Seleccionar fecha</label>
         <span id="date-input-display" class="text-sm font-semibold tabular-nums text-base-content pointer-events-none">
@@ -47,15 +29,26 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
 
-    <!-- Daily View Section -->
-    <div id="daily-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500">
+    <!-- Daily View Section (Hidden by default) -->
+    <div id="daily-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
       <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden">
         <div class="bg-base-200/70 border-b border-base-300">
           <div class="flex flex-col sm:flex-row justify-between items-center py-3.5 px-6 gap-3">
-            <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content">
-              <Icon name="boxicons:group" size={18} />
-              Estado de operadores
-            </h3>
+            <div class="flex items-center gap-4">
+              <button 
+                id="back-to-monthly-btn" 
+                type="button"
+                class="btn btn-xs btn-ghost gap-1.5 px-2.5 py-1.5 rounded-lg border border-base-300/60 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-all font-bold uppercase tracking-wider text-[10px]"
+                aria-label="Volver al Mes Completo"
+              >
+                <Icon name="boxicons:chevron-left" size={14} />
+                Volver al Mes
+              </button>
+              <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content border-l border-base-300 pl-4">
+                <Icon name="boxicons:group" size={18} />
+                Estado de operadores
+              </h3>
+            </div>
             <div class="flex items-center gap-2 bg-base-100 px-3.5 py-1.5 rounded-lg border border-base-300 shadow-sm text-base-content/75">
                <Icon name="boxicons:calendar-check" size={16} class="text-secondary" />
                <span class="text-sm font-semibold tabular-nums" id="daily-date-display"></span>
@@ -81,46 +74,83 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
 
-    <!-- Monthly View Section (Hidden by default) -->
-    <div id="monthly-view" class="hidden animate-in slide-in-from-bottom-2 fade-in duration-500">
+    <!-- Monthly View Section (Shown by default) -->
+    <div id="monthly-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500">
       <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden">
         <div class="bg-base-200/70 border-b border-base-300">
-          <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 py-3.5 px-6">
-            <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content">
-              <Icon name="boxicons:calendar-star" size={18} />
-              Matriz Mensual
-            </h3>
-            <div class="flex flex-1 max-w-xs mx-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6">
+            <!-- Left: Title, Navigation & Maximize button -->
+            <div class="flex items-center gap-3 shrink-0 flex-wrap">
+              <h3 class="text-xs flex items-center gap-2 font-black uppercase tracking-wider text-base-content select-none">
+                <Icon name="boxicons:calendar-star" size={18} class="text-secondary" />
+                Matriz Mensual
+              </h3>
+              
+              <!-- Month Navigator -->
+              <div class="flex items-center gap-1 bg-base-100 rounded-lg p-0.5 border border-base-300 shadow-sm ml-2">
+                <button
+                  type="button"
+                  id="prev-month-btn"
+                  class="btn btn-xs btn-ghost p-1 rounded hover:bg-base-200 text-base-content/70 hover:text-base-content transition-all"
+                  title="Mes anterior"
+                  aria-label="Mes anterior"
+                >
+                  <Icon name="boxicons:chevron-left" size={14} />
+                </button>
+                <span id="current-month-display" class="text-[10px] font-black uppercase tracking-wider px-2 text-base-content min-w-[100px] text-center select-none">
+                  -
+                </span>
+                <button
+                  type="button"
+                  id="next-month-btn"
+                  class="btn btn-xs btn-ghost p-1 rounded hover:bg-base-200 text-base-content/70 hover:text-base-content transition-all"
+                  title="Mes siguiente"
+                  aria-label="Mes siguiente"
+                >
+                  <Icon name="boxicons:chevron-right" size={14} />
+                </button>
+              </div>
+
+
+            </div>
+
+            <!-- Center: Search input -->
+            <div class="flex-1 max-w-sm w-full mx-0 lg:mx-4">
               <div class="relative w-full">
                 <Icon name="boxicons:search" size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30" />
                 <input 
                   type="text" 
                   id="monthly-search"
                   placeholder="Buscar operador..." 
-                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none"
+                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8"
                 />
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-4">
+
+            <div class="flex flex-wrap items-center gap-2.5 justify-start lg:justify-end shrink-0">
               <div id="compliance-alert-badge" class="hidden">
-                 <div class="flex items-center gap-2 px-3 py-1 bg-error/10 text-error rounded-full border border-error/20 animate-pulse">
-                    <Icon name="boxicons:alert-triangle" size={14} />
-                    <span class="text-[10px] font-black uppercase tracking-tighter" id="compliance-alert-text">0 Inconsistencias</span>
+                 <div class="flex items-center gap-1.5 px-2.5 py-1 bg-error/10 text-error rounded-full border border-error/20 animate-pulse">
+                    <Icon name="boxicons:alert-triangle" size={13} />
+                    <span class="text-[9px] font-black uppercase tracking-tighter" id="compliance-alert-text">0 Inconsistencias</span>
                  </div>
               </div>
-              <div class="flex items-center gap-1.5 text-xs font-semibold text-base-content/70">
-                <div class="w-3 h-3 rounded bg-primary"></div> HO
-              </div>
-              <div class="flex items-center gap-1.5 text-xs font-semibold text-base-content/70">
-                <div class="w-3 h-3 rounded bg-secondary"></div> Presencial
-              </div>
-              <div class="flex items-center gap-1.5 text-xs font-semibold text-base-content/70">
-                <div class="w-3 h-3 rounded bg-error"></div> Licencia
-              </div>
-              <div class="flex items-center gap-1.5 text-xs font-semibold text-base-content/70">
-                <div class="w-3 h-3 rounded bg-success"></div> Vacaciones
-              </div>
+              
+              <!-- Maximize Button -->
+              <button
+                type="button"
+                id="maximize-cronograma-btn"
+                class="btn btn-xs btn-ghost gap-1.5 px-2.5 border border-base-300/80 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7"
+                title="Maximizar cronograma"
+                aria-label="Maximizar cronograma"
+              >
+                <span class="flex items-center gap-1 font-bold" id="maximize-icon-wrapper">
+                  <Icon name="boxicons:maximize" size={13} class="max-icon" />
+                  <Icon name="boxicons:minimize" size={13} class="min-icon hidden" />
+                </span>
+                <span id="maximize-text">Maximizar</span>
+              </button>
             </div>
+
           </div>
         </div>
         <div class="p-3">
@@ -138,14 +168,65 @@ import { Icon } from "astro-icon/components";
             </table>
           </div>
         </div>
-        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex justify-between items-center">
-          <p class="text-[10px] font-black uppercase tracking-widest text-base-content/40">Supervisor Panel v1.0</p>
+        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex justify-between items-center no-print">
+          <!-- Status Filters Container -->
+          <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+            <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Filtrar:</span>
+            
+            <button
+              type="button"
+              id="filter-all-btn"
+              class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+            >
+              Todos
+            </button>
+            
+            <button
+              type="button"
+              id="filter-presencial-btn"
+              data-filter="Presencial"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> Presencial
+            </button>
+            
+            <button
+              type="button"
+              id="filter-ho-btn"
+              data-filter="Home Office"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-primary"></div> HO
+            </button>
+            
+            <button
+              type="button"
+              id="filter-licencia-btn"
+              data-filter="Licencia"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
+            </button>
+            
+            <button
+              type="button"
+              id="filter-vacaciones-btn"
+              data-filter="Vacaciones"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
+            </button>
+          </div>
           <div class="flex gap-2">
-            <button class="btn btn-xs btn-outline gap-1 border-base-300 hover:bg-base-300 hover:border-base-300">
+            <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
               <Icon name="boxicons:file" size={14} />
               Exportar CSV
             </button>
-            <button class="btn btn-xs btn-secondary gap-1">
+            <button id="export-image-btn" class="btn btn-xs btn-primary gap-1.5 font-bold text-[10px] uppercase rounded-lg shadow-sm shadow-primary/10">
+              <Icon name="boxicons:image" size={14} />
+              Exportar Imagen (PNG)
+            </button>
+            <button id="print-report-btn" class="btn btn-xs btn-secondary gap-1.5 font-bold text-[10px] uppercase rounded-lg shadow-sm shadow-secondary/10">
               <Icon name="boxicons:printer" size={14} />
               Imprimir Reporte
             </button>
@@ -169,8 +250,8 @@ import { Icon } from "astro-icon/components";
     <button data-status="Presencial" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-colors text-xs font-bold text-base-content/70 group">
       <div class="w-2 h-2 rounded-full bg-secondary"></div> Presencial
     </button>
-    <button data-status="Home Office" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors text-xs font-bold text-base-content/70 group">
-      <div class="w-2 h-2 rounded-full bg-primary"></div> Home Office
+    <button data-status="Home Office" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-amber-500"></div> Home Office
     </button>
     <button data-status="Licencia" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-error/10 hover:text-error transition-colors text-xs font-bold text-base-content/70 group">
       <div class="w-2 h-2 rounded-full bg-error"></div> Licencia
@@ -186,13 +267,32 @@ import { Icon } from "astro-icon/components";
 
 <!-- Floating Save Alert -->
 <div id="save-indicator" class="fixed bottom-6 right-6 z-50 hidden animate-in slide-in-from-right-10 fade-in duration-300">
-  <div class="bg-secondary text-secondary-content px-5 py-3 rounded-2xl shadow-xl flex items-center gap-4 border border-secondary/20">
-    <Icon name="boxicons:info-circle" size={20} class="animate-pulse" />
-    <div class="flex flex-col">
-       <span class="text-xs font-black uppercase tracking-tight">Cambios no guardados</span>
-       <span class="text-[10px] opacity-80">La edición es local para esta sesión</span>
+  <div class="bg-base-100/95 border-2 border-secondary/30 backdrop-blur-xl text-base-content px-6 py-4 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-5 min-w-[380px] max-w-md">
+    <div class="w-10 h-10 rounded-2xl bg-secondary/15 flex items-center justify-center text-secondary shrink-0 animate-pulse border border-secondary/20">
+      <Icon name="boxicons:save" size={22} />
     </div>
-    <button id="save-confirm-btn" class="btn btn-xs btn-ghost bg-base-100/20 hover:bg-base-100/40 border-none ml-2">Descartar</button>
+    <div class="flex-1 min-w-0">
+       <span class="text-[10px] font-black uppercase tracking-wider text-secondary">Base de Datos Activa</span>
+       <h4 id="save-indicator-text" class="text-xs font-black text-base-content uppercase tracking-tight truncate mt-0.5">
+         Edición en progreso: Cambios pendientes
+       </h4>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button 
+        type="button" 
+        id="save-discard-btn" 
+        class="btn btn-xs btn-ghost hover:bg-error/15 hover:text-error text-[10px] font-black uppercase tracking-wider rounded-lg px-2.5 transition-colors"
+      >
+        Descartar
+      </button>
+      <button 
+        type="button" 
+        id="save-confirm-btn" 
+        class="btn btn-xs btn-secondary text-[10px] font-black uppercase tracking-wider rounded-lg px-4 shadow-lg shadow-secondary/15 transition-all"
+      >
+        Guardar
+      </button>
+    </div>
   </div>
 </div>
 
@@ -235,8 +335,8 @@ import { Icon } from "astro-icon/components";
             <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Rendimiento Mensual</h3>
             <div class="grid grid-cols-2 gap-4">
               <div class="bg-primary/5 rounded-3xl p-5 border border-primary/10 flex flex-col items-center text-center">
-                <span class="text-3xl font-black text-primary" id="drawer-stat-ho">0</span>
-                <span class="text-[9px] font-black uppercase tracking-widest text-primary/60 mt-1">Home Office</span>
+                <span class="text-3xl font-black text-amber-600 dark:text-amber-400" id="drawer-stat-ho">0</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mt-1">Home Office</span>
               </div>
               <div class="bg-secondary/5 rounded-3xl p-5 border border-secondary/10 flex flex-col items-center text-center">
                 <span class="text-3xl font-black text-secondary" id="drawer-stat-p">0</span>
@@ -246,8 +346,12 @@ import { Icon } from "astro-icon/components";
           </section>
 
           <section>
-            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Notas de Supervisión</h3>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Notas de Supervisión</h3>
+              <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
             <textarea 
+              id="drawer-op-notes"
               placeholder="Añadir seguimiento..." 
               class="textarea textarea-bordered w-full bg-base-200/30 border-base-300 text-sm focus:ring-2 focus:ring-secondary/20 h-32 rounded-2xl p-4"
             ></textarea>
@@ -319,6 +423,20 @@ import { Icon } from "astro-icon/components";
         </div>
       </div>
 
+      <!-- Comentarios del Día -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Comentario del Día</p>
+          <span id="monthly-comment-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <textarea
+          id="monthly-detail-comment"
+          rows="2"
+          placeholder="Escribe un comentario específico para este día..."
+          class="textarea textarea-bordered w-full text-xs leading-relaxed focus:textarea-primary bg-base-100 border-base-300 rounded-lg py-2 px-3 resize-none focus:outline-none transition-all duration-200"
+        ></textarea>
+      </div>
+
       <div class="pt-4 border-t border-dashed border-base-300">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
@@ -333,6 +451,28 @@ import { Icon } from "astro-icon/components";
 </div>
 
 <style is:global>
+  /* --- Maximize Mode Styles --- */
+  html.cronograma-maximized nav,
+  html.cronograma-maximized footer,
+  html.cronograma-maximized .mb-2.w-fit,
+  html.cronograma-maximized .mb-6.flex,
+  html.cronograma-maximized h1,
+  html.cronograma-maximized p.text-base-content\/70 {
+    display: none !important;
+  }
+
+  html.cronograma-maximized .mx-auto.max-w-6xl,
+  html.cronograma-maximized .mx-auto.max-w-7xl {
+    max-width: 98% !important;
+    width: 98% !important;
+    margin-top: 1.5rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  html.cronograma-maximized #cronograma-container {
+    padding-bottom: 2rem !important;
+  }
+
   #date-picker-container {
     transition: opacity 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
   }
@@ -447,18 +587,25 @@ import { Icon } from "astro-icon/components";
     nombre: string;
     horario: string;
     asistencia: Record<string, string>;
+    comentarios?: Record<string, string>;
   }
 
   const icons = {
     briefcase: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"/><path d="M4 12h16"/></svg></span>`,
     home: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M10 20v-5h4v5"/></svg></span>`,
-    firstAid: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 4h4v4h4v4h-4v4h-4v-4H6V8h4V4Z"/><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg></span>`,
+    firstAid: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 4h4v4h4v4h-4v-4H6V8h4V4Z"/><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg></span>`,
     sun: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>`,
     help: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 1.8-1.7 2.3-2.3 3.2"/><path d="M12 17h.01"/></svg></span>`,
     timer: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>`
   };
 
   let cronoData: OperatorData[] = [];
+  let isCoverageMinimized = false;
+  let modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
+  let searchQuery = '';
+  let activeFilter = 'all'; // 'all', 'Presencial', 'Home Office', 'Licencia', 'Vacaciones'
+  let activeDetailTrigger: HTMLElement | null = null;
+  let focusedDateStr: string | null = null;
 
   function getDaysInMonth(year: number, month: number) {
     return new Date(year, month + 1, 0).getDate();
@@ -483,6 +630,20 @@ import { Icon } from "astro-icon/components";
       month: 'long',
       year: 'numeric'
     }).format(new Date(dateStr + 'T12:00:00'));
+  }
+
+  function getDatesArrayForCurrentMonth() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (!dateInput || !dateInput.value) return [];
+
+    const [year, month] = dateInput.value.split('-').map(Number);
+    const totalDays = getDaysInMonth(year, month - 1);
+    const dates: string[] = [];
+    for (let i = 1; i <= totalDays; i++) {
+      const dStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      dates.push(dStr);
+    }
+    return dates;
   }
 
   function escapeHtml(value: string) {
@@ -538,9 +699,72 @@ import { Icon } from "astro-icon/components";
     return { status: 'offline', text: 'Fuera de horario' };
   }
 
+  function updateMonthDisplay() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const display = document.getElementById('current-month-display');
+    if (!dateInput || !display) return;
+
+    const [yearStr, monthStr] = dateInput.value.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+
+    const dateObj = new Date(year, month, 15);
+    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+    display.innerText = formatter.format(dateObj);
+  }
+
+  function changeMonth(offset: number) {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (!dateInput) return;
+
+    const [yearStr, monthStr, dayStr] = dateInput.value.split('-');
+    let year = parseInt(yearStr);
+    let month = parseInt(monthStr) - 1; // 0-indexed month
+    let day = parseInt(dayStr);
+
+    month += offset;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    } else if (month < 0) {
+      month = 11;
+      year -= 1;
+    }
+
+    const daysInNewMonth = getDaysInMonth(year, month);
+    if (day > daysInNewMonth) {
+      day = daysInNewMonth;
+    }
+
+    const newDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    
+    // Constraints according to uniqueDates
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueDates = [...new Set(allDates)].sort();
+    if (uniqueDates.length > 0) {
+      const minDate = uniqueDates[0];
+      const maxDate = uniqueDates[uniqueDates.length - 1];
+      
+      if (newDateStr < minDate) {
+        dateInput.value = minDate;
+      } else if (newDateStr > maxDate) {
+        dateInput.value = maxDate;
+      } else {
+        dateInput.value = newDateStr;
+      }
+    } else {
+      dateInput.value = newDateStr;
+    }
+
+    updateDateInputDisplay();
+    updateMonthDisplay();
+    renderDaily();
+    renderMonthly();
+  }
+
   async function init() {
     try {
-      const res = await fetch('/data/cronograma.json');
+      const res = await fetch('/api/cronograma');
       cronoData = await res.json();
 
       const dateInput = document.getElementById('date-input') as HTMLInputElement;
@@ -556,6 +780,7 @@ import { Icon } from "astro-icon/components";
       if (dateInput) {
         dateInput.value = initialDate;
         updateDateInputDisplay();
+        updateMonthDisplay();
         if (uniqueDates.length > 0) {
           dateInput.min = uniqueDates[0];
           dateInput.max = latestDate;
@@ -581,10 +806,10 @@ import { Icon } from "astro-icon/components";
         };
       case 'Home Office':
         return {
-          badge: 'bg-primary text-primary-content font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
           icon: icons.home,
           color: 'var(--color-primary)',
-          bgClass: 'bg-primary text-primary-content'
+          bgClass: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/25 shadow-sm'
         };
       case 'Licencia':
         return {
@@ -634,7 +859,7 @@ import { Icon } from "astro-icon/components";
 
     const statItems = [
       { label: 'Presencial', value: stats.presencial, icon: icons.briefcase, borderClass: 'border-l-secondary', textClass: 'text-secondary' },
-      { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-primary', textClass: 'text-primary' },
+      { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
       { label: 'Licencia', value: stats.licencia, icon: icons.firstAid, borderClass: 'border-l-error', textClass: 'text-error' },
       { label: 'Vacaciones', value: stats.vacaciones, icon: icons.sun, borderClass: 'border-l-success', textClass: 'text-success' },
     ];
@@ -671,14 +896,14 @@ import { Icon } from "astro-icon/components";
 
       let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
       if (status === 'Presencial') ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
-      else if (status === 'Home Office') ringClass = "bg-primary text-primary-content ring-primary/40 border border-primary/30 shadow-sm";
+      else if (status === 'Home Office') ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
 
       rowsHtml += `
         <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
           <td class="px-6 py-4">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
-                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : 'bg-primary'}"></div>
+                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : (status === 'Home Office' ? 'bg-amber-500' : 'bg-primary')}"></div>
                 <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
                   ${initials}
                 </div>
@@ -724,7 +949,111 @@ import { Icon } from "astro-icon/components";
     if (tableBody) tableBody.innerHTML = rowsHtml;
   }
 
+  function isWorkingAtHour(horario: string, hourStr: string) {
+    if (!horario || horario === '-' || horario === 'Franco') return false;
+    const parts = horario.split(' - ');
+    if (parts.length !== 2) return false;
+    const start = parts[0];
+    const end = parts[1];
+
+    const hS = parseInt(start.split(':')[0]);
+    const hE = parseInt(end.split(':')[0]);
+    const hC = parseInt(hourStr.split(':')[0]);
+
+    if (hS <= hE) {
+       return hC >= hS && hC < hE;
+    } else {
+       return hC >= hS || hC < hE;
+    }
+  }
+
+  function renderHourly(dateStr: string) {
+    const thead = document.getElementById('monthly-thead');
+    const tbody = document.getElementById('monthly-tbody');
+    const tfoot = document.getElementById('monthly-tfoot');
+    
+    const hours = Array.from({length: 16}, (_, i) => `${(i+7).toString().padStart(2, '0')}:00`);
+    const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
+    const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+
+    let theadHtml = `
+      <tr>
+        <th rowspan="2" class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+        <th colspan="${hours.length}" class="text-center py-3 bg-secondary/5 text-secondary border-b border-base-200 relative group">
+           <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
+              Volver al mes
+           </button>
+           <span class="font-black tracking-widest uppercase text-sm">Vista Diaria: ${formattedDate}</span>
+        </th>
+      </tr>
+      <tr>
+    `;
+    
+    hours.forEach(hour => {
+      theadHtml += `<th class="text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-200/20">
+        <span class="font-extrabold text-[10px] tracking-wide text-base-content/60">${hour}</span>
+      </th>`;
+    });
+    theadHtml += `</tr>`;
+    if (thead) thead.innerHTML = theadHtml;
+
+    const filteredOps = cronoData.filter(op => {
+      const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (activeFilter === 'all') return true;
+      const status = op.asistencia[dateStr];
+      if (activeFilter === 'Licencia') {
+        return status === 'Licencia' || status === 'Vacaciones';
+      }
+      return status === activeFilter;
+    });
+
+    let tbodyHtml = '';
+    if (filteredOps.length === 0) {
+       tbodyHtml = `<tr><td colspan="${hours.length + 1}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50">Sin resultados</td></tr>`;
+    } else {
+       filteredOps.forEach(op => {
+          const status = op.asistencia[dateStr] || 'Franco';
+          const horario = op.horario;
+          const styles = getStatusStyles(status);
+          const isAbsent = status === 'Licencia' || status === 'Vacaciones';
+          const isFranco = status === 'Franco';
+          
+          tbodyHtml += `<tr class="group hover:bg-base-200/40 transition-all border-b border-base-200/50">
+             <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors">
+                <div class="flex flex-col min-w-0">
+                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">${op.nombre}</button>
+                  <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
+                </div>
+             </td>
+          `;
+
+          hours.forEach(hour => {
+             const working = isWorkingAtHour(horario, hour);
+             if (working && !isFranco) {
+                tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
+                   <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                   </div>
+                </td>`;
+             } else {
+                tbodyHtml += `<td class="border-r border-b border-base-200/50 bg-base-100/50"></td>`;
+             }
+          });
+          tbodyHtml += `</tr>`;
+       });
+    }
+    if (tbody) tbody.innerHTML = tbodyHtml;
+    
+    if (tfoot) tfoot.innerHTML = `<tr><td colspan="${hours.length + 1}" class="bg-base-200 py-3 text-center border-t border-base-300 text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Fin del reporte diario</td></tr>`;
+  }
+
   function renderMonthly() {
+    if (focusedDateStr) {
+      renderHourly(focusedDateStr);
+      return;
+    }
+
     const thead = document.getElementById('monthly-thead');
     const tbody = document.getElementById('monthly-tbody');
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
@@ -778,15 +1107,20 @@ import { Icon } from "astro-icon/components";
       const dayName = formatter.format(d).substring(0, 2).toUpperCase();
       
       theadHtml += `
-        <th class="${thClass}">
-          <div class="flex flex-col items-center py-2 gap-0.5">
-            <span class="font-extrabold text-xs tracking-wide ${isToday ? 'opacity-80' : 'opacity-60'}">${dayName}</span>
+        <th class="${thClass} p-0">
+          <button
+            type="button"
+            class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
+            data-click-day="${date}"
+            aria-label="Ver detalle del día ${d.getDate()} de ${new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(d)}"
+          >
+            <span class="font-extrabold text-[10px] tracking-wide ${isToday ? 'opacity-90' : 'opacity-60'}">${dayName}</span>
             <div class="flex items-center gap-1">
-               <span class="font-black text-sm ${isToday ? 'scale-125' : ''}">${d.getDate()}</span>
+               <span class="font-black text-xs ${isToday ? 'scale-110' : ''}">${d.getDate()}</span>
                ${isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
             </div>
-            ${isToday ? `<span class="text-[8px] font-black tracking-wide uppercase opacity-70">HOY</span>` : ''}
-          </div>
+            ${isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+          </button>
         </th>
       `;
     });
@@ -794,109 +1128,152 @@ import { Icon } from "astro-icon/components";
     if (thead) thead.innerHTML = theadHtml;
 
     let tbodyHtml = '';
-    cronoData.forEach(op => {
-      const stats = { P: 0, HO: 0, L: 0 };
-      dates.forEach(d => {
-        const s = op.asistencia[d];
-        if (s === 'Presencial') stats.P++;
-        else if (s === 'Home Office') stats.HO++;
-        else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
-      });
+    const filteredOps = cronoData.filter(op => {
+      // 1. Search Query filter (case-insensitive name check)
+      const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
 
-      // --- RULE: Consecutive HO Check ---
-      let maxConsecutiveHO = 0;
-      let currentHO = 0;
-      dates.forEach(d => {
-        if (op.asistencia[d] === 'Home Office') {
-          currentHO++;
-          maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
-        } else if (op.asistencia[d] !== 'Franco' && op.asistencia[d]) {
-          currentHO = 0;
+      // 2. Status Filter
+      if (activeFilter === 'all') return true;
+      
+      // Check if the operator has at least one occurrence of the selected status in the current month
+      return dates.some(d => {
+        const status = op.asistencia[d];
+        if (activeFilter === 'Licencia') {
+          return status === 'Licencia' || status === 'Vacaciones';
         }
+        return status === activeFilter;
       });
-      const hoViolation = maxConsecutiveHO > 5;
-      if (hoViolation) totalInconsistencies++;
+    });
 
-      tbodyHtml += `<tr class="group ${hoViolation ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
-        <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
-          <div class="flex items-center gap-3">
-            <div class="w-1.5 h-1.5 rounded-full ${hoViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-primary'} transition-colors shadow-sm"></div>
-            <div class="flex flex-col min-w-0">
-               <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">
-                ${op.nombre}
-              </button>
-              ${hoViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+    if (filteredOps.length === 0) {
+      tbodyHtml = `<tr>
+        <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+          <div class="flex flex-col items-center justify-center gap-3 py-6">
+            <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs uppercase tracking-widest font-black text-base-content/70">Sin resultados</span>
+              <span class="text-[10px] text-base-content/40 font-medium normal-case mt-0.5">Ningún operador coincide con tu búsqueda o filtro.</span>
             </div>
           </div>
         </td>
-        <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
-        <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-primary group-hover:bg-base-200 transition-colors">${stats.HO}</td>
-        <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
-`;
-        
-      dates.forEach(date => {
-        const status = op.asistencia[date];
-        const styles = getStatusStyles(status);
-        const isTodayCell = date === todayStr;
-        const safeName = escapeHtml(op.nombre);
-        const safeDate = escapeHtml(date);
-        const safeStatus = escapeHtml(status || 'Franco');
-        const safeHorario = escapeHtml(op.horario);
-        const username = getUsername(op.nombre);
-        
-        // --- RULE: License Overlap Check ---
-        const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
-        if (isLicenseOverlap) totalInconsistencies++;
+      </tr>`;
+    } else {
+      filteredOps.forEach(op => {
+        const stats = { P: 0, HO: 0, L: 0 };
+        dates.forEach(d => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial') stats.P++;
+          else if (s === 'Home Office') stats.HO++;
+          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+        });
 
-        let cellClass = `p-1.5 border-r border-b border-base-200/50 text-center transition-all duration-300`;
-        if (isTodayCell) cellClass += ' bg-secondary/10';
-        if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
-        
-        if (status === 'Franco' || !status) {
-          tbodyHtml += `<td class="${cellClass}">
-            <button
-              type="button"
-              class="monthly-cell-button h-8 ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'}"
-              data-monthly-detail
-              data-operator="${safeName}"
-              data-date="${safeDate}"
-              data-status="Franco"
-              data-horario="${safeHorario}"
-              data-username="${escapeHtml(username)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
-            ></button>
-          </td>`;
-          return;
-        }
+        // --- RULE: Consecutive HO Check ---
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        dates.forEach(d => {
+          if (op.asistencia[d] === 'Home Office') {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (op.asistencia[d] !== 'Franco' && op.asistencia[d]) {
+            currentHO = 0;
+          }
+        });
+        const hoViolation = maxConsecutiveHO > 5;
+        if (hoViolation) totalInconsistencies++;
 
-        let initials = "";
-        if (status === 'Presencial') initials = "P";
-        else if (status === 'Home Office') initials = "HO";
-        else if (status === 'Licencia') initials = "L";
-        else if (status === 'Vacaciones') initials = "V";
-
-        tbodyHtml += `
-          <td class="${cellClass}">
-            <button
-              type="button"
-              class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
-              title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
-              data-monthly-detail
-              data-operator="${safeName}"
-              data-date="${safeDate}"
-              data-status="${safeStatus}"
-              data-horario="${safeHorario}"
-              data-username="${escapeHtml(username)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
-            >
-              <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
-              ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
-            </button>
+        tbodyHtml += `<tr class="group ${hoViolation ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+          <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="w-1.5 h-1.5 rounded-full ${hoViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+              <div class="flex flex-col min-w-0">
+                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">
+                  ${op.nombre}
+                </button>
+                ${hoViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+              </div>
+            </div>
           </td>
-        `;
+          <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
+          <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+  `;
+          
+        dates.forEach(date => {
+          const status = op.asistencia[date];
+          const styles = getStatusStyles(status);
+          const isTodayCell = date === todayStr;
+          const safeName = escapeHtml(op.nombre);
+          const safeDate = escapeHtml(date);
+          const safeStatus = escapeHtml(status || 'Franco');
+          const safeHorario = escapeHtml(op.horario);
+          const username = getUsername(op.nombre);
+          
+          // --- RULE: License Overlap Check ---
+          const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
+          if (isLicenseOverlap) totalInconsistencies++;
+
+          let cellClass = `p-1.5 border-r border-b border-base-200/50 text-center transition-all duration-300`;
+          if (isTodayCell) cellClass += ' bg-secondary/10';
+          if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
+          
+          const hasComment = !!(op.comentarios && op.comentarios[date]);
+          if (status === 'Franco' || !status) {
+            tbodyHtml += `<td class="${cellClass}">
+              <button
+                type="button"
+                class="monthly-cell-button h-8 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'}"
+                data-monthly-detail
+                data-operator="${safeName}"
+                data-date="${safeDate}"
+                data-status="Franco"
+                data-horario="${safeHorario}"
+                data-username="${escapeHtml(username)}"
+                data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
+              >
+                ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
+              </button>
+            </td>`;
+            return;
+          }
+
+          let initials = "";
+          if (status === 'Presencial') initials = "P";
+          else if (status === 'Home Office') initials = "HO";
+          else if (status === 'Licencia') initials = "L";
+          else if (status === 'Vacaciones') initials = "V";
+
+          tbodyHtml += `
+            <td class="${cellClass}">
+              <button
+                type="button"
+                class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
+                title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
+                data-monthly-detail
+                data-operator="${safeName}"
+                data-date="${safeDate}"
+                data-status="${safeStatus}"
+                data-horario="${safeHorario}"
+                data-username="${escapeHtml(username)}"
+                data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
+              >
+                <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
+                ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
+                ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
+              </button>
+            </td>
+          `;
+        });
+        tbodyHtml += `</tr>`;
       });
-      tbodyHtml += `</tr>`;
-    });
+    }
 
     if (tbody) tbody.innerHTML = tbodyHtml;
 
@@ -923,11 +1300,29 @@ import { Icon } from "astro-icon/components";
       return { p, ho, total: p + ho };
     });
 
+    const pyClass = isCoverageMinimized ? 'py-1.5' : 'py-3.5';
+    const chevronIcon = isCoverageMinimized ? 
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up transition-transform duration-200"><path d="m18 15-6-6-6 6"/></svg>` : 
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>`;
+
     let tfootHtml = `<tr>
-      <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-base-content/50 border-r border-base-300">Resumen Cobertura</td>
-      <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center py-4 text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
-      <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center py-4 text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
-      <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center py-4 text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
+      <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
+          <button
+            type="button"
+            id="toggle-coverage-btn"
+            class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-300 text-base-content/50 hover:text-base-content transition-all"
+            title="${isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+            aria-label="${isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+          >
+            ${chevronIcon}
+          </button>
+        </div>
+      </td>
+      <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
+      <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
+      <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
     `;
 
     dailyCoverage.forEach(c => {
@@ -936,13 +1331,17 @@ import { Icon } from "astro-icon/components";
       const totalPercent = ((c.p + c.ho) / teamSize) * 100;
       const isLowCoverage = totalPercent < 40;
 
+      const cellPyClass = isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
+
       tfootHtml += `
-        <td class="py-2 px-1 border-r border-base-200/50 min-w-[3rem] ${isLowCoverage ? 'bg-error/5' : ''}">
+        <td class="${cellPyClass} border-r border-base-200/50 min-w-[3rem] ${isLowCoverage ? 'bg-error/5' : ''}">
           <div class="flex flex-col items-center gap-1.5">
+             ${isCoverageMinimized ? '' : `
              <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
-                <div class="bg-primary w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
+                <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
                 <div class="bg-secondary w-full transition-all duration-500" style="height: ${pPercent}%" title="Presencial: ${c.p}"></div>
              </div>
+             `}
              <div class="flex flex-col items-center leading-none">
                 <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.p + c.ho}</span>
                 <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
@@ -962,6 +1361,14 @@ import { Icon } from "astro-icon/components";
     const date = cell.dataset.date;
     if (!operator || !date) return;
 
+    // Track the changes in our pending changes array
+    const existingIndex = modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
+    if (existingIndex !== -1) {
+      modifiedSchedules[existingIndex].status = newStatus;
+    } else {
+      modifiedSchedules.push({ agentName: operator, date, status: newStatus });
+    }
+
     // Update in-memory data
     const opIndex = cronoData.findIndex(o => o.nombre === operator);
     if (opIndex !== -1) {
@@ -970,9 +1377,89 @@ import { Icon } from "astro-icon/components";
     }
   }
 
+  async function discardChanges() {
+    try {
+      const res = await fetch('/api/cronograma');
+      cronoData = await res.json();
+      modifiedSchedules = [];
+      
+      const saveIndicator = document.getElementById('save-indicator');
+      if (saveIndicator) saveIndicator.classList.add('hidden');
+
+      renderDaily();
+      renderMonthly();
+    } catch (err) {
+      console.error("Error discarding/reloading data:", err);
+    }
+  }
+
+  async function saveChangesToServer() {
+    const saveBtn = document.getElementById('save-confirm-btn') as HTMLButtonElement | null;
+    const discardBtn = document.getElementById('save-discard-btn') as HTMLButtonElement | null;
+    const indicatorText = document.getElementById('save-indicator-text');
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Guardando...`;
+    }
+    if (discardBtn) discardBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/cronograma', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edits: modifiedSchedules })
+      });
+
+      if (!response.ok) throw new Error("Error al guardar cambios");
+
+      // Success visual feedback
+      if (indicatorText) {
+        indicatorText.innerText = "¡Cambios guardados con éxito!";
+      }
+
+      // Complete reset
+      modifiedSchedules = [];
+      
+      // Fetch latest merged data to be absolutely sure
+      const res = await fetch('/api/cronograma');
+      cronoData = await res.json();
+
+      setTimeout(() => {
+        const saveIndicator = document.getElementById('save-indicator');
+        if (saveIndicator) saveIndicator.classList.add('hidden');
+        
+        // Restore buttons
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = "Guardar";
+        }
+        if (discardBtn) discardBtn.disabled = false;
+        
+        if (indicatorText) {
+          indicatorText.innerText = "Edición en progreso: Cambios pendientes";
+        }
+
+        renderDaily();
+        renderMonthly();
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      if (indicatorText) {
+        indicatorText.innerText = "Error al guardar en el servidor";
+      }
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Reintentar";
+      }
+      if (discardBtn) discardBtn.disabled = false;
+    }
+  }
+
   function getDetailStatusClass(status: string) {
     if (status === 'Presencial') return 'text-secondary';
-    if (status === 'Home Office') return 'text-primary';
+    if (status === 'Home Office') return 'text-amber-600 dark:text-amber-400';
     if (status === 'Licencia') return 'text-error';
     if (status === 'Vacaciones') return 'text-success';
     return 'text-base-content/40';
@@ -980,25 +1467,35 @@ import { Icon } from "astro-icon/components";
 
   function getDetailIndicatorClass(status: string) {
     if (status === 'Presencial') return 'bg-secondary';
-    if (status === 'Home Office') return 'bg-primary';
+    if (status === 'Home Office') return 'bg-amber-500';
     if (status === 'Licencia') return 'bg-error';
     if (status === 'Vacaciones') return 'bg-success';
     return 'bg-base-300';
   }
 
   function openMonthlyDetail(trigger: HTMLElement) {
-    const overlay = document.getElementById('monthly-detail-overlay');
-    const modal = document.getElementById('monthly-detail-modal');
+    const overlay = document.getElementById('monthly-detail-overlay') as HTMLElement;
+    const modal = document.getElementById('monthly-detail-modal') as HTMLElement;
     const closeButton = document.getElementById('monthly-detail-close') as HTMLButtonElement | null;
-    const title = document.getElementById('monthly-detail-title');
-    const date = document.getElementById('monthly-detail-date');
-    const status = document.getElementById('monthly-detail-status');
-    const indicator = document.getElementById('modal-status-indicator');
-    const schedule = document.getElementById('monthly-detail-schedule');
-    const user = document.getElementById('monthly-detail-user');
-    const pointer = document.getElementById('modal-pointer');
+    const title = document.getElementById('monthly-detail-title') as HTMLElement;
+    const date = document.getElementById('monthly-detail-date') as HTMLElement;
+    const status = document.getElementById('monthly-detail-status') as HTMLElement;
+    const indicator = document.getElementById('modal-status-indicator') as HTMLElement;
+    const schedule = document.getElementById('monthly-detail-schedule') as HTMLElement;
+    const user = document.getElementById('monthly-detail-user') as HTMLElement;
+    const pointer = document.getElementById('modal-pointer') as HTMLElement;
 
-    if (!overlay || !modal || !title || !date || !status || !indicator || !schedule || !user || !pointer) return;
+    activeDetailTrigger = trigger;
+    const commentValue = trigger.dataset.comment || '';
+    const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
+    if (commentTextarea) {
+      commentTextarea.value = commentValue;
+    }
+    const commentIndicator = document.getElementById('monthly-comment-indicator');
+    if (commentIndicator) {
+      commentIndicator.classList.remove('opacity-100');
+      commentIndicator.classList.add('opacity-0');
+    }
 
     const operatorName = trigger.dataset.operator || '';
     const dateValue = trigger.dataset.date || '';
@@ -1076,6 +1573,44 @@ import { Icon } from "astro-icon/components";
     overlay.setAttribute('aria-hidden', 'true');
   }
 
+  function showDailyView() {
+    const dailyView = document.getElementById('daily-view');
+    const monthlyView = document.getElementById('monthly-view');
+    const statsContainer = document.getElementById('stats-container');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    
+    renderDaily();
+    
+    if (dailyView) dailyView.classList.remove('hidden');
+    if (monthlyView) monthlyView.classList.add('hidden');
+    if (statsContainer) statsContainer.classList.remove('hidden');
+    
+    if (datePickerContainer) {
+      datePickerContainer.classList.remove('hidden');
+      setTimeout(() => {
+        datePickerContainer.classList.remove('is-faded');
+      }, 50);
+    }
+  }
+
+  function showMonthlyView() {
+    const dailyView = document.getElementById('daily-view');
+    const monthlyView = document.getElementById('monthly-view');
+    const statsContainer = document.getElementById('stats-container');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    
+    if (dailyView) dailyView.classList.add('hidden');
+    if (monthlyView) monthlyView.classList.remove('hidden');
+    if (statsContainer) statsContainer.classList.add('hidden');
+    
+    if (datePickerContainer) {
+      datePickerContainer.classList.add('is-faded');
+      setTimeout(() => {
+        datePickerContainer.classList.add('hidden');
+      }, 300);
+    }
+  }
+
   function setupEventListeners() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     if (dateInput) {
@@ -1086,13 +1621,46 @@ import { Icon } from "astro-icon/components";
       });
     }
 
-    const viewBtns = document.querySelectorAll('.view-btn');
-    const datePickerContainer = document.getElementById('date-picker-container');
-    const dailyView = document.getElementById('daily-view');
-    const monthlyView = document.getElementById('monthly-view');
     const monthlyBody = document.getElementById('monthly-tbody');
+    const monthlyThead = document.getElementById('monthly-thead');
     const detailOverlay = document.getElementById('monthly-detail-overlay');
     const detailClose = document.getElementById('monthly-detail-close');
+    const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
+
+    // Click on specific day inside Monthly Matrix header
+    monthlyThead?.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-click-day]');
+      if (!button) return;
+
+      const selectedDate = button.dataset.clickDay;
+      if (selectedDate && dateInput) {
+        dateInput.value = selectedDate;
+        updateDateInputDisplay();
+        showDailyView();
+      }
+    });
+
+    // Go back to full month view from daily view
+    backToMonthlyBtn?.addEventListener('click', () => {
+      showMonthlyView();
+    });
+
+    // Month Navigator Buttons
+    document.getElementById('prev-month-btn')?.addEventListener('click', () => {
+      changeMonth(-1);
+    });
+
+    document.getElementById('next-month-btn')?.addEventListener('click', () => {
+      changeMonth(1);
+    });
+
+    // Minimize Coverage Summary Footer
+    document.getElementById('monthly-tfoot')?.addEventListener('click', (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
+      if (!btn) return;
+      isCoverageMinimized = !isCoverageMinimized;
+      renderMonthly();
+    });
 
     monthlyBody?.addEventListener('click', (event) => {
       const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
@@ -1110,39 +1678,95 @@ import { Icon } from "astro-icon/components";
       if (event.key === 'Escape') closeMonthlyDetail();
     });
 
-    viewBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const view = btn.getAttribute('data-view');
-        const statsContainer = document.getElementById('stats-container');
-        
-        if (dailyView) dailyView.classList.toggle('hidden', view !== 'daily');
-        if (monthlyView) monthlyView.classList.toggle('hidden', view !== 'monthly');
-        if (statsContainer) statsContainer.classList.toggle('hidden', view === 'monthly');
-        
-        if (datePickerContainer) {
-          datePickerContainer.classList.toggle('is-faded', view === 'monthly');
-          setTimeout(() => {
-              datePickerContainer.classList.toggle('hidden', view === 'monthly');
-          }, view === 'monthly' ? 300 : 0);
-        }
-
-        viewBtns.forEach(b => {
-          b.classList.remove('bg-secondary', 'text-secondary-content', 'shadow-sm');
-          b.classList.add('text-base-content/50');
-        });
-        
-        btn.classList.add('bg-secondary', 'text-secondary-content', 'shadow-sm');
-        btn.classList.remove('text-base-content/50');
-      });
-    });
-
     const searchInput = document.getElementById('monthly-search') as HTMLInputElement;
     searchInput?.addEventListener('input', (e) => {
-      const term = (e.target as HTMLInputElement).value.toLowerCase();
-      const rows = document.querySelectorAll('#monthly-tbody tr');
-      rows.forEach(row => {
-        const name = (row as HTMLElement).dataset.opName || '';
-        (row as HTMLElement).style.display = name.includes(term) ? '' : 'none';
+      searchQuery = (e.target as HTMLInputElement).value.trim();
+      renderMonthly();
+    });
+
+    // Wire up filter buttons
+    const filterAllBtn = document.getElementById('filter-all-btn');
+    const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+    const filterHoBtn = document.getElementById('filter-ho-btn');
+    const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
+    const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+
+    const filterBtns = [
+      { btn: filterAllBtn, value: 'all' },
+      { btn: filterPresencialBtn, value: 'Presencial' },
+      { btn: filterHoBtn, value: 'Home Office' },
+      { btn: filterLicenciaBtn, value: 'Licencia' },
+      { btn: filterVacacionesBtn, value: 'Vacaciones' }
+    ];
+
+    function updateFilterActiveStates() {
+      // "Todos" button classes
+      if (filterAllBtn) {
+        if (activeFilter === 'all') {
+          filterAllBtn.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterAllBtn.className = "btn btn-xs btn-outline border-base-300 text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+        }
+      }
+
+      // "Presencial" button classes
+      if (filterPresencialBtn) {
+        if (activeFilter === 'Presencial') {
+          filterPresencialBtn.className = "btn btn-xs btn-secondary gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200";
+          const dot = filterPresencialBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterPresencialBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterPresencialBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-secondary transition-colors duration-200";
+        }
+      }
+
+      // "Home Office" button classes
+      if (filterHoBtn) {
+        if (activeFilter === 'Home Office') {
+          filterHoBtn.className = "btn btn-xs btn-primary gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-primary/15 transition-all duration-200 text-primary-content";
+          const dot = filterHoBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHoBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterHoBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 transition-colors duration-200";
+        }
+      }
+
+      // "Licencia" button classes
+      if (filterLicenciaBtn) {
+        if (activeFilter === 'Licencia') {
+          filterLicenciaBtn.className = "btn btn-xs btn-error gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-error/15 text-error-content transition-all duration-200";
+          const dot = filterLicenciaBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterLicenciaBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterLicenciaBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-error transition-colors duration-200";
+        }
+      }
+
+      // "Vacaciones" button classes
+      if (filterVacacionesBtn) {
+        if (activeFilter === 'Vacaciones') {
+          filterVacacionesBtn.className = "btn btn-xs btn-success gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-success/15 text-success-content transition-all duration-200";
+          const dot = filterVacacionesBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterVacacionesBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterVacacionesBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-success transition-colors duration-200";
+        }
+      }
+    }
+
+    filterBtns.forEach(item => {
+      item.btn?.addEventListener('click', () => {
+        activeFilter = item.value;
+        updateFilterActiveStates();
+        renderMonthly();
       });
     });
 
@@ -1184,17 +1808,153 @@ import { Icon } from "astro-icon/components";
     });
 
     document.getElementById('save-confirm-btn')?.addEventListener('click', () => {
-        saveIndicator?.classList.add('hidden');
-        renderMonthly(); // Reset changes
+      saveChangesToServer();
+    });
+
+    document.getElementById('save-discard-btn')?.addEventListener('click', () => {
+      discardChanges();
     });
 
 
-    const printBtn = document.querySelector('.btn-secondary.gap-1');
-    printBtn?.addEventListener('click', () => window.print());
+    // --- FEATURE: Premium Exporters ---
+    function exportCSV() {
+      const dates = getDatesArrayForCurrentMonth();
+      const headers = ["Operador", "Presencial (P)", "Home Office (HO)", "Licencia/Vacaciones (L)"];
+      dates.forEach(d => {
+        headers.push(d);
+      });
+      
+      let csvRows = [headers.join(",")];
+      
+      cronoData.forEach(op => {
+        const stats = { P: 0, HO: 0, L: 0 };
+        dates.forEach(d => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial') stats.P++;
+          else if (s === 'Home Office') stats.HO++;
+          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+        });
+        
+        const row = [
+          `"${op.nombre}"`,
+          stats.P,
+          stats.HO,
+          stats.L
+        ];
+        
+        dates.forEach(d => {
+          const status = op.asistencia[d] || 'Franco';
+          const comment = op.comentarios?.[d] || '';
+          const cellValue = comment ? `${status} (${comment})` : status;
+          row.push(`"${cellValue.replace(/"/g, '""')}"`);
+        });
+        
+        csvRows.push(row.join(","));
+      });
+      
+      const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+      let monthName = 'reporte';
+      if (dateInput && dateInput.value) {
+        const d = new Date(dateInput.value + 'T12:00:00');
+        monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+      }
+      
+      link.setAttribute("download", `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
 
-    const exportBtn = document.querySelector('.btn-outline.gap-1');
-    exportBtn?.addEventListener('click', () => {
-      // ... export logic
+    async function exportAsImage() {
+      const tableContainer = document.querySelector('#monthly-table')?.parentElement;
+      if (!tableContainer) return;
+
+      const imgBtn = document.getElementById('export-image-btn') as HTMLButtonElement | null;
+      const originalText = imgBtn ? imgBtn.innerHTML : '';
+      if (imgBtn) {
+        imgBtn.disabled = true;
+        imgBtn.innerHTML = `<span class="loading loading-spinner loading-xs mr-1"></span> Procesando...`;
+      }
+
+      try {
+        const originalMaxHeight = tableContainer.style.maxHeight;
+        const originalOverflow = tableContainer.style.overflow;
+        tableContainer.style.maxHeight = 'none';
+        tableContainer.style.overflow = 'visible';
+
+        const { toPng } = await import('html-to-image');
+        
+        const dataUrl = await toPng(tableContainer, {
+          backgroundColor: 'var(--color-base-100, #ffffff)',
+          style: {
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+            width: tableContainer.scrollWidth + 'px',
+            height: tableContainer.scrollHeight + 'px'
+          },
+          quality: 1.0,
+          pixelRatio: 2
+        });
+
+        tableContainer.style.maxHeight = originalMaxHeight;
+        tableContainer.style.overflow = originalOverflow;
+
+        const link = document.createElement('a');
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        let monthName = 'reporte';
+        if (dateInput && dateInput.value) {
+          const d = new Date(dateInput.value + 'T12:00:00');
+          monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+        }
+        
+        link.download = `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+      } catch (error) {
+        console.error('Error generating image:', error);
+        alert('Hubo un error al generar la imagen. Intenta imprimir el reporte.');
+      } finally {
+        if (imgBtn) {
+          imgBtn.disabled = false;
+          imgBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    document.getElementById('export-csv-btn')?.addEventListener('click', exportCSV);
+    document.getElementById('export-image-btn')?.addEventListener('click', exportAsImage);
+    document.getElementById('print-report-btn')?.addEventListener('click', () => window.print());
+
+    // --- FEATURE: Maximize Mode Handler ---
+    const maxBtn = document.getElementById('maximize-cronograma-btn');
+    maxBtn?.addEventListener('click', () => {
+      const htmlEl = document.documentElement;
+      htmlEl.classList.toggle('cronograma-maximized');
+      
+      const maxIcon = maxBtn.querySelector('.max-icon');
+      const minIcon = maxBtn.querySelector('.min-icon');
+      const maxText = document.getElementById('maximize-text');
+      
+      if (htmlEl.classList.contains('cronograma-maximized')) {
+        maxIcon?.classList.add('hidden');
+        minIcon?.classList.remove('hidden');
+        if (maxText) maxText.innerText = "Restaurar";
+        maxBtn.setAttribute('title', 'Restaurar cronograma');
+      } else {
+        maxIcon?.classList.remove('hidden');
+        minIcon?.classList.add('hidden');
+        if (maxText) maxText.innerText = "Maximizar";
+        maxBtn.setAttribute('title', 'Maximizar cronograma');
+      }
     });
 
     // --- FEATURE: Operator Profile Drawer ---
@@ -1207,6 +1967,27 @@ import { Icon } from "astro-icon/components";
       if (!op || !drawerOverlay || !drawer) return;
 
       document.getElementById('drawer-op-name')!.innerText = op.nombre;
+
+      // Fetch supervisor notes from database
+      const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
+      const notesIndicator = document.getElementById('notes-status-indicator');
+      if (notesIndicator) notesIndicator.classList.add('opacity-0');
+      if (notesTextarea) {
+        notesTextarea.value = "Cargando notas...";
+        notesTextarea.disabled = true;
+        
+        fetch(`/api/cronograma/notes?agentName=${encodeURIComponent(op.nombre)}`)
+          .then(res => res.json())
+          .then(data => {
+            notesTextarea.value = data.notes || "";
+            notesTextarea.disabled = false;
+          })
+          .catch(err => {
+            console.error("Error loading notes:", err);
+            notesTextarea.value = "";
+            notesTextarea.disabled = false;
+          });
+      }
       document.getElementById('drawer-op-email')!.innerText = `${getUsername(op.nombre)}@correoargentino.com.ar`;
 
       // Stats
@@ -1255,6 +2036,20 @@ import { Icon } from "astro-icon/components";
     };
 
     document.addEventListener('click', (e) => {
+      const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
+      if (clickDayBtn) {
+        focusedDateStr = clickDayBtn.dataset.clickDay || null;
+        renderMonthly();
+        return;
+      }
+      
+      const closeHourlyBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-close-hourly]');
+      if (closeHourlyBtn) {
+        focusedDateStr = null;
+        renderMonthly();
+        return;
+      }
+
       const profileBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-op-profile]');
       if (profileBtn) {
         openDrawer(profileBtn.dataset.opProfile!);
@@ -1264,6 +2059,236 @@ import { Icon } from "astro-icon/components";
     closeDrawerBtn?.addEventListener('click', closeDrawer);
     drawerOverlay?.addEventListener('click', (e) => {
       if (e.target === drawerOverlay) closeDrawer();
+    });
+
+    // Supervisor Notes auto-save implementation
+    let saveTimeout: number | undefined;
+    const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
+    const notesIndicator = document.getElementById('notes-status-indicator');
+
+    notesTextarea?.addEventListener('input', () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName) return;
+
+      if (notesIndicator) {
+        notesIndicator.innerText = "Guardando...";
+        notesIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
+        notesIndicator.classList.add('opacity-100', 'text-warning/70');
+      }
+
+      clearTimeout(saveTimeout);
+      saveTimeout = window.setTimeout(async () => {
+        try {
+          const res = await fetch('/api/cronograma/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentName: opName, notes: notesTextarea.value })
+          });
+
+          if (!res.ok) throw new Error("Failed to save notes");
+
+          if (notesIndicator) {
+            notesIndicator.innerText = "Guardado";
+            notesIndicator.classList.remove('text-warning/70');
+            notesIndicator.classList.add('text-success/70');
+            
+            setTimeout(() => {
+              if (notesIndicator.innerText === "Guardado") {
+                notesIndicator.classList.add('opacity-0');
+                notesIndicator.classList.remove('opacity-100');
+              }
+            }, 1500);
+          }
+        } catch (err) {
+          console.error("Error saving notes:", err);
+          if (notesIndicator) {
+            notesIndicator.innerText = "Error";
+            notesIndicator.classList.remove('text-warning/70', 'text-success/70');
+            notesIndicator.classList.add('text-error');
+          }
+        }
+      }, 500);
+    });
+
+    notesTextarea?.addEventListener('blur', () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+        if (opName) {
+          fetch('/api/cronograma/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentName: opName, notes: notesTextarea.value })
+          }).then(() => {
+            if (notesIndicator) {
+              notesIndicator.innerText = "Guardado";
+              notesIndicator.classList.remove('text-warning/70');
+              notesIndicator.classList.add('text-success/70', 'opacity-100');
+              setTimeout(() => {
+                if (notesIndicator.innerText === "Guardado") {
+                  notesIndicator.classList.add('opacity-0');
+                  notesIndicator.classList.remove('opacity-100');
+                }
+              }, 1500);
+            }
+          });
+        }
+      }
+    });
+
+    const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
+    const commentIndicator = document.getElementById('monthly-comment-indicator');
+    let commentTimeout: number | null = null;
+
+    commentTextarea?.addEventListener('input', () => {
+      if (!activeDetailTrigger) return;
+      
+      if (commentIndicator) {
+        commentIndicator.innerText = "Guardando...";
+        commentIndicator.classList.remove('text-success/70', 'text-error', 'opacity-0');
+        commentIndicator.classList.add('text-warning/70', 'opacity-100');
+      }
+
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = commentTextarea.value.trim();
+
+      if (commentTimeout) clearTimeout(commentTimeout);
+      
+      commentTimeout = window.setTimeout(async () => {
+        try {
+          if (!opName || !dateVal) return;
+          
+          const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              edits: [
+                {
+                  agentName: opName,
+                  date: dateVal,
+                  comment: currentVal
+                }
+              ]
+            })
+          });
+
+          if (!res.ok) throw new Error("Error saving comment");
+
+          // Update local cronoData state too!
+          const op = cronoData.find(o => o.nombre === opName);
+          if (op) {
+            if (!op.comentarios) op.comentarios = {};
+            op.comentarios[dateVal] = currentVal;
+          }
+
+          // Update trigger button dataset
+          if (activeDetailTrigger) {
+            activeDetailTrigger.dataset.comment = currentVal;
+            
+            const indicatorEl = activeDetailTrigger.querySelector('.rounded-full');
+            const hasStatus = activeDetailTrigger.dataset.status !== 'Franco';
+            
+            if (currentVal) {
+              if (hasStatus) {
+                if (!indicatorEl) {
+                  activeDetailTrigger.insertAdjacentHTML('beforeend', '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>');
+                }
+              } else {
+                if (!indicatorEl) {
+                  activeDetailTrigger.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>';
+                }
+              }
+            } else {
+              if (indicatorEl) {
+                indicatorEl.remove();
+              }
+            }
+          }
+
+          if (commentIndicator) {
+            commentIndicator.innerText = "Guardado";
+            commentIndicator.classList.remove('text-warning/70');
+            commentIndicator.classList.add('text-success/70');
+            setTimeout(() => {
+              if (commentIndicator.innerText === "Guardado") {
+                commentIndicator.classList.remove('opacity-100');
+                commentIndicator.classList.add('opacity-0');
+              }
+            }, 1500);
+          }
+        } catch (err) {
+          console.error("Error auto-saving comment:", err);
+          if (commentIndicator) {
+            commentIndicator.innerText = "Error";
+            commentIndicator.classList.remove('text-warning/70', 'text-success/70');
+            commentIndicator.classList.add('text-error');
+          }
+        }
+      }, 500);
+    });
+
+    commentTextarea?.addEventListener('blur', () => {
+      if (!activeDetailTrigger || !commentTimeout) return;
+      clearTimeout(commentTimeout);
+      
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = commentTextarea.value.trim();
+      
+      if (opName && dateVal) {
+        fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            edits: [
+              {
+                agentName: opName,
+                date: dateVal,
+                comment: currentVal
+              }
+            ]
+          })
+        }).then((res) => {
+          if (!res.ok) return;
+          const op = cronoData.find(o => o.nombre === opName);
+          if (op) {
+            if (!op.comentarios) op.comentarios = {};
+            op.comentarios[dateVal] = currentVal;
+          }
+          if (activeDetailTrigger) {
+            activeDetailTrigger.dataset.comment = currentVal;
+            const indicatorEl = activeDetailTrigger.querySelector('.rounded-full');
+            const hasStatus = activeDetailTrigger.dataset.status !== 'Franco';
+            if (currentVal) {
+              if (hasStatus) {
+                if (!indicatorEl) {
+                  activeDetailTrigger.insertAdjacentHTML('beforeend', '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>');
+                }
+              } else {
+                if (!indicatorEl) {
+                  activeDetailTrigger.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>';
+                }
+              }
+            } else {
+              if (indicatorEl) {
+                indicatorEl.remove();
+              }
+            }
+          }
+          if (commentIndicator) {
+            commentIndicator.innerText = "Guardado";
+            commentIndicator.classList.remove('text-warning/70');
+            commentIndicator.classList.add('text-success/70', 'opacity-100');
+            setTimeout(() => {
+              if (commentIndicator.innerText === "Guardado") {
+                commentIndicator.classList.remove('opacity-100');
+                commentIndicator.classList.add('opacity-0');
+              }
+            }, 1500);
+          }
+        });
+      }
     });
   }
 
