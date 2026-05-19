@@ -59,6 +59,10 @@ const officeTypeBadgeClass: Record<string, string> = {
   paqueteria: "badge-accent",
 };
 
+const uniqueRegions = [
+  ...new Set(allOffices.map((o) => o.region).filter(Boolean)),
+].sort((a, b) => (a as string).localeCompare(b as string, "es", { sensitivity: "base" }));
+
 const headerGridClass = "grid-cols-[100px_1fr_120px_1fr_140px] gap-4";
 const rowGridClass =
   "grid grid-cols-[100px_1fr_120px_1fr_140px] items-center gap-4";
@@ -106,6 +110,26 @@ const rowGridClass =
       </div>
 
       <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+        <select
+          id="admin-office-type-filter"
+          class="select border-base-300 w-full sm:w-auto focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          aria-label="Filtrar por tipo"
+        >
+          <option value="all">Todos los tipos</option>
+          {Object.entries(officeTypeLabels).map(([val, label]) => (
+            <option value={val}>{label}</option>
+          ))}
+        </select>
+        <select
+          id="admin-office-region-filter"
+          class="select border-base-300 w-full sm:w-auto focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          aria-label="Filtrar por región"
+        >
+          <option value="all">Todas las regiones</option>
+          {uniqueRegions.map((region) => (
+            <option value={region}>{region}</option>
+          ))}
+        </select>
         <SearchInput
           id="admin-office-search"
           label="Buscar oficina"
@@ -177,7 +201,7 @@ const rowGridClass =
               {/* Código */}
               <div>
                 <span 
-                  data-search-target
+                  data-highlight-target
                   class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
                 >
                   {office.code}
@@ -187,14 +211,14 @@ const rowGridClass =
               {/* Nombre + Dirección */}
               <div class="min-w-0">
                 <p 
-                  data-search-target
+                  data-highlight-target
                   class="truncate text-sm font-semibold text-base-content"
                 >
                   {office.name}
                 </p>
                 {office.address && (
                   <p 
-                    data-search-target
+                    data-highlight-target
                     class="mt-0.5 truncate text-xs text-base-content/50"
                   >
                     {office.address}
@@ -205,7 +229,7 @@ const rowGridClass =
               {/* Tipo */}
               <div>
                 <span
-                  data-search-target
+                  data-highlight-target
                   class:list={[
                     "badge badge-sm font-bold uppercase tracking-wide",
                     officeTypeBadgeClass[office.type] ?? "badge-neutral",
@@ -218,7 +242,7 @@ const rowGridClass =
               {/* Región */}
               <div class="min-w-0">
                 <span 
-                  data-search-target
+                  data-highlight-target
                   class="truncate text-sm text-base-content/70"
                 >
                   {office.region || (
@@ -285,17 +309,28 @@ const rowGridClass =
       import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
 
       const searchInput = document.querySelector<HTMLInputElement>("#admin-office-search");
+      const typeFilter = document.querySelector<HTMLSelectElement>("#admin-office-type-filter");
+      const regionFilter = document.querySelector<HTMLSelectElement>("#admin-office-region-filter");
       const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
       const countBadge = document.querySelector<HTMLElement>("#office-count-badge");
       const emptyState = document.querySelector<HTMLElement>("#search-empty-state");
 
-      searchInput?.addEventListener("input", () => {
-        const query = searchInput.value.trim();
+      function applyFilters() {
+        const query = searchInput?.value.trim() || "";
+        const typeValue = typeFilter?.value || "all";
+        const regionValue = regionFilter?.value || "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
           const searchText = row.dataset.searchText || "";
-          const isVisible = matchesSearchQuery(query, [searchText]);
+          const rowType = row.dataset.sortType || "";
+          const rowRegion = row.dataset.sortRegion || "";
+
+          const matchSearch = matchesSearchQuery(query, [searchText]);
+          const matchType = typeValue === "all" || rowType === typeValue;
+          const matchRegion = regionValue === "all" || rowRegion === regionValue;
+
+          const isVisible = matchSearch && matchType && matchRegion;
           
           row.classList.toggle("hidden", !isVisible);
           highlightSearchTargets(row, isVisible ? query : "");
@@ -312,7 +347,11 @@ const rowGridClass =
         if (emptyState) {
           emptyState.classList.toggle("hidden", visibleCount > 0);
         }
-      });
+      }
+
+      searchInput?.addEventListener("input", applyFilters);
+      typeFilter?.addEventListener("change", applyFilters);
+      regionFilter?.addEventListener("change", applyFilters);
     </script>
   </PageContainer>
 </BaseLayout>

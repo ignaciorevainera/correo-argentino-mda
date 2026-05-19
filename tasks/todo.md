@@ -9,6 +9,7 @@
 ## Tareas
 - [x] Variar los colores de los iconos en el dashboard (`src/pages/index.astro`).
 - [x] Crear sistema de inferencia de títulos en `src/lib/navigation.ts`.
+- [x] Agregar fallback para `/login` en `src/lib/navigation.ts`.
 - [x] Refactorizar `BaseLayout` y `PageHeader` para usar la inferencia de títulos.
 - [x] Eliminar títulos hardcodeados en las páginas:
     - [x] `src/pages/buscador-usuarios/index.astro`
@@ -29,6 +30,7 @@
     - [x] `src/pages/admin/cubics/index.astro`
     - [x] `src/pages/admin/index.astro`
     - [x] `src/pages/admin/offices/index.astro`
+    - [x] `src/pages/login/index.astro`
 - [x] Quitar el sufijo " | Portal Mesa de Ayuda" en páginas dinámicas:
     - [x] `src/pages/admin/offices/[id].astro`
 - [x] Asegurar que la página de inicio se llame "Portal MDA".

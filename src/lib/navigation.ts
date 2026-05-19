@@ -178,6 +178,7 @@ export function getSectionTitle(pathname: string): string {
 
   // Default cases
   if (normalizedPath === "/") return "Portal MDA";
+  if (normalizedPath === "/login") return "Iniciar Sesión";
   
   return "";
 }
