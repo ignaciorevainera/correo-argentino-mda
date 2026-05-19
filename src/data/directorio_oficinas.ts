@@ -18,7 +18,6 @@ export interface OfficeAsset {
   type: OfficeAssetType;
   hostname: string;
   ip: string;
-  status?: "online";
 }
 
 export interface OfficeDirectoryItem {
