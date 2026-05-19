@@ -6,7 +6,7 @@ set FECHA=%DATE:/=-%
 set FECHA=%FECHA: =_%
 
 :: 2. Definimos dónde está la DB original y dónde queremos guardarla
-set RUTA_ORIGEN="C:\Projects\correo-argentino-mda\databasemda.db"
+set RUTA_ORIGEN="C:\Projects\correo-argentino-mda\database\mda.db"
 set RUTA_DESTINO_LOCAL="C:\Projects\correo-argentino-mda-database-backup\database\mda_backup_%FECHA%.db"
 :: set RUTA_DESTINO_RED="\\servidor-correo\backups\mda_backup_%FECHA%.db" (Descomentar si tienen red)
 
