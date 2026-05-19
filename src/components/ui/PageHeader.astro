@@ -1,6 +1,8 @@
 ---
+import { getSectionTitle } from "@lib/navigation";
+
 interface Props {
-  title: string;
+  title?: string;
   description?: string;
   headingLevel?: "h1" | "h2";
   class?: string;
@@ -17,6 +19,9 @@ const {
   descriptionClass,
 } = Astro.props;
 
+const currentPath = Astro.url.pathname;
+const inferredTitle = title || getSectionTitle(currentPath) || "Portal";
+
 const HeadingTag = headingLevel;
 ---
 
@@ -27,7 +32,7 @@ const HeadingTag = headingLevel;
       titleClass,
     ]}
   >
-    {title}
+    {inferredTitle}
   </HeadingTag>
 
   {
