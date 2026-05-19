@@ -6,7 +6,7 @@ export interface ContactResourceLink {
 }
 
 export interface UsefulContact {
-  id: string;
+  id: number;
   provider: string;
   service: string;
   phones: string[];
