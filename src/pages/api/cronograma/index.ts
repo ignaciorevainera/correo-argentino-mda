@@ -22,7 +22,9 @@ export const GET: APIRoute = async () => {
 
       const newAsistencia = { ...operator.asistencia };
       const newComentarios: Record<string, string> = {};
+      const newHorariosDias: Record<string, string> = {};
 
+      // Load specific DB overrides first
       opOverrides.forEach((s) => {
         if (s.status === "Franco" || s.status === "") {
           newAsistencia[s.date] = "Franco";
@@ -32,12 +34,34 @@ export const GET: APIRoute = async () => {
         if (s.comment) {
           newComentarios[s.date] = s.comment;
         }
+        if (s.horario !== undefined && s.horario !== null) {
+          newHorariosDias[s.date] = s.horario;
+        }
+      });
+
+      // Fill in default hours for any dates that exist in newAsistencia
+      const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+      Object.keys(newAsistencia).forEach(dateStr => {
+        if (newHorariosDias[dateStr] === undefined) {
+          const dateObj = new Date(dateStr + "T12:00:00");
+          const dayName = dayNames[dateObj.getDay()];
+          const status = newAsistencia[dateStr];
+          
+          if (operator.esquema_horario?.[dayName]) {
+            newHorariosDias[dateStr] = operator.esquema_horario[dayName];
+          } else if (status !== "Franco") {
+            newHorariosDias[dateStr] = operator.horario || "08:00 - 17:00";
+          } else {
+            newHorariosDias[dateStr] = "";
+          }
+        }
       });
 
       return {
         ...operator,
         asistencia: newAsistencia,
         comentarios: newComentarios,
+        horarios_dias: newHorariosDias,
       };
     });
 
@@ -57,7 +81,36 @@ export const GET: APIRoute = async () => {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const { edits } = body; // Array of { agentName, date, status, comment }
+    const { edits, weeklySchedules } = body; // Array of { agentName, date, status, comment, horario } or weeklySchedules
+
+    if (weeklySchedules && Array.isArray(weeklySchedules)) {
+      const jsonPath = path.resolve("./public/data/cronograma.json");
+      const jsonRaw = await fs.readFile(jsonPath, "utf-8");
+      const baseline = JSON.parse(jsonRaw);
+
+      for (const ws of weeklySchedules) {
+        const { agentName, esquema_semanal, esquema_horario } = ws;
+        if (!agentName) continue;
+        const op = baseline.find((o: any) => o.nombre === agentName);
+        if (op) {
+          if (esquema_semanal !== undefined) {
+            op.esquema_semanal = esquema_semanal;
+          }
+          if (esquema_horario !== undefined) {
+            op.esquema_horario = esquema_horario;
+          }
+        }
+      }
+
+      await fs.writeFile(jsonPath, JSON.stringify(baseline, null, 2), "utf-8");
+
+      if (!edits || !Array.isArray(edits)) {
+        return new Response(JSON.stringify({ success: true, message: "Weekly schedules updated" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
 
     if (!Array.isArray(edits)) {
       return new Response(JSON.stringify({ error: "Edits must be an array" }), {
@@ -68,7 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Process each edit
     for (const edit of edits) {
-      const { agentName, date, status, comment } = edit;
+      const { agentName, date, status, comment, horario } = edit;
       if (!agentName || !date) continue;
 
       const existing = await db
@@ -86,6 +139,7 @@ export const POST: APIRoute = async ({ request }) => {
         const updateData: any = {};
         if (status !== undefined) updateData.status = status;
         if (comment !== undefined) updateData.comment = comment;
+        if (horario !== undefined) updateData.horario = horario;
 
         await db
           .update(schedules)
@@ -97,6 +151,7 @@ export const POST: APIRoute = async ({ request }) => {
           date,
           status: status !== undefined ? status : "Franco",
           comment: comment || "",
+          horario: horario || "",
         });
       }
     }

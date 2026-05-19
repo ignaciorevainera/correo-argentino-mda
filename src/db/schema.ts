@@ -163,4 +163,6 @@ export const schedules = sqliteTable("schedules", {
   date: text("date").notNull(),
   status: text("status").notNull(),
   comment: text("comment"),
+  horario: text("horario"),
 });
+

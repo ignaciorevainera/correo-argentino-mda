@@ -97,9 +97,18 @@ import { Icon } from "astro-icon/components";
                 >
                   <Icon name="boxicons:chevron-left" size={14} />
                 </button>
-                <span id="current-month-display" class="text-[10px] font-black uppercase tracking-wider px-2 text-base-content min-w-[100px] text-center select-none">
-                  -
-                </span>
+                
+                <!-- Dropdown Month Selector -->
+                <div class="dropdown dropdown-bottom dropdown-end" id="month-selector-dropdown">
+                  <div tabindex="0" role="button" class="text-[10px] font-black uppercase tracking-wider px-2 py-1 text-base-content min-w-[120px] text-center select-none hover:bg-base-200 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 border border-base-300/50 bg-base-50/50 shadow-sm transition-all">
+                    <span id="current-month-display">-</span>
+                    <svg class="w-2.5 h-2.5 opacity-60 ml-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  </div>
+                  <ul tabindex="0" id="month-dropdown-list" class="dropdown-content menu p-2 shadow-xl bg-base-100 rounded-xl z-[100] w-48 border border-base-200 max-h-60 overflow-y-auto mt-1">
+                    <!-- Dynamic months list here -->
+                  </ul>
+                </div>
+
                 <button
                   type="button"
                   id="next-month-btn"
@@ -110,6 +119,17 @@ import { Icon } from "astro-icon/components";
                   <Icon name="boxicons:chevron-right" size={14} />
                 </button>
               </div>
+
+              <!-- Agregar nuevo mes -->
+              <button
+                type="button"
+                id="add-month-btn"
+                class="btn btn-xs btn-outline gap-1.5 px-2.5 border border-base-300 hover:bg-secondary hover:text-secondary-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7 ml-2"
+                title="Agregar nuevo mes"
+              >
+                <Icon name="boxicons:calendar-plus" size={13} />
+                <span>Agregar nuevo mes</span>
+              </button>
 
 
             </div>
@@ -135,6 +155,17 @@ import { Icon } from "astro-icon/components";
                  </div>
               </div>
               
+              <!-- Edit Mode Button -->
+              <button
+                type="button"
+                id="toggle-edit-mode-btn"
+                class="btn btn-xs btn-outline gap-1.5 px-2.5 border border-base-300/80 hover:bg-secondary hover:text-secondary-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7"
+                title="Modo Edición"
+              >
+                <Icon name="boxicons:edit-alt" size={13} />
+                <span id="edit-mode-text">Editar</span>
+              </button>
+
               <!-- Maximize Button -->
               <button
                 type="button"
@@ -216,6 +247,14 @@ import { Icon } from "astro-icon/components";
             >
               <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
             </button>
+            <button
+              type="button"
+              id="filter-he-btn"
+              data-filter="Horas Extras"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
+            </button>
           </div>
           <div class="flex gap-2">
             <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
@@ -258,6 +297,9 @@ import { Icon } from "astro-icon/components";
     </button>
     <button data-status="Vacaciones" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-success/10 hover:text-success transition-colors text-xs font-bold text-base-content/70 group">
       <div class="w-2 h-2 rounded-full bg-success"></div> Vacaciones
+    </button>
+    <button data-status="Horas Extras" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-info/10 hover:text-info transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-info"></div> Horas Extras
     </button>
     <button data-status="Franco" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-base-300 transition-colors text-xs font-bold text-base-content/70 group">
       <div class="w-2 h-2 rounded-full bg-base-300"></div> Franco
@@ -318,6 +360,7 @@ import { Icon } from "astro-icon/components";
               <span class="w-2 h-2 rounded-full bg-success"></span>
               <span id="drawer-op-email" class="text-xs font-bold text-base-content/50 lowercase"></span>
             </div>
+
           </div>
         </div>
         <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300">
@@ -326,8 +369,26 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin max-h-[70vh]">
+    <!-- Tabs Header -->
+    <div class="flex border-b border-base-200 bg-base-50/50">
+      <button 
+        type="button"
+        id="tab-profile-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all"
+      >
+        Perfil e Historial
+      </button>
+      <button 
+        type="button"
+        id="tab-weekly-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all"
+      >
+        Esquema Semanal Base
+      </button>
+    </div>
+
+    <!-- Content: Profile e Historial tab -->
+    <div id="drawer-profile-tab-content" class="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin max-h-[70vh]">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Stats Column -->
         <div class="space-y-6">
@@ -353,7 +414,7 @@ import { Icon } from "astro-icon/components";
             <textarea 
               id="drawer-op-notes"
               placeholder="Añadir seguimiento..." 
-              class="textarea textarea-bordered w-full bg-base-200/30 border-base-300 text-sm focus:ring-2 focus:ring-secondary/20 h-32 rounded-2xl p-4"
+              class="textarea textarea-bordered w-full bg-base-200/30 border-base-300 text-sm focus:ring-2 focus:ring-secondary/20 h-32 rounded-2xl p-4 bg-base-100"
             ></textarea>
           </section>
         </div>
@@ -368,10 +429,65 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
 
+    <!-- Content: Weekly base template tab -->
+    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-thin max-h-[70vh] hidden bg-base-50/20">
+      <!-- Info note -->
+      <div class="bg-info/5 border border-sky-600/10 rounded-2xl p-4 flex gap-3 text-xs text-base-content/80">
+        <Icon name="boxicons:info-circle" class="text-sky-600 flex-shrink-0" size={18} />
+        <div>
+          <strong class="text-sky-700 dark:text-sky-500 font-bold block mb-0.5">Acerca del Esquema Semanal Base</strong>
+          Este esquema se repite automáticamente todas las semanas del año de forma dinámica. Las ediciones individuales del mes se guardarán como excepciones específicas en ese día puntual sin alterar este esquema.
+        </div>
+      </div>
+
+      <!-- Template Select Panel -->
+      <div class="space-y-3 bg-base-200/30 border border-base-300/50 p-5 rounded-[1.5rem]">
+        <div class="flex items-center justify-between">
+          <label class="text-[10px] font-black uppercase tracking-widest text-base-content/50">Plantillas Reutilizables</label>
+          <div class="flex gap-2">
+            <button type="button" id="weekly-template-create-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Nueva Plantilla
+            </button>
+            <button type="button" id="weekly-template-duplicate-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Duplicar
+            </button>
+          </div>
+        </div>
+
+        <select id="weekly-template-select" class="select select-bordered select-sm w-full font-bold text-xs bg-base-100 focus:outline-none focus:border-secondary rounded-xl">
+          <!-- Loaded dynamically -->
+        </select>
+
+        <!-- Dynamic inputs for custom template names -->
+        <div id="template-custom-actions" class="hidden flex items-center gap-2 mt-2 bg-base-100 p-2.5 rounded-xl border border-base-200">
+          <input type="text" id="new-template-name" placeholder="Nombre de la plantilla..." class="input input-xs input-bordered flex-1 font-bold text-xs focus:outline-none focus:border-secondary rounded-lg bg-base-100" />
+          <button type="button" id="new-template-save-btn" class="btn btn-xs btn-secondary font-black text-[9px] uppercase rounded-lg">Guardar</button>
+          <button type="button" id="new-template-delete-btn" class="btn btn-xs btn-error btn-outline font-black text-[9px] uppercase rounded-lg">Eliminar</button>
+        </div>
+      </div>
+
+      <!-- Weekly Grid Days Editor -->
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
+        
+        <div id="weekly-days-list" class="space-y-2">
+          <!-- Populated dynamically via JS: Lunes to Domingo rows -->
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="pt-4 border-t border-base-200 flex justify-between items-center">
+        <span class="text-[10px] font-bold text-base-content/40">Edita los días arriba y haz click en aplicar</span>
+        <button type="button" id="save-operator-weekly-btn" class="btn btn-sm btn-secondary px-6 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-secondary/20 transition-all duration-200">
+          Aplicar Esquema a Operador
+        </button>
+      </div>
+    </div>
+
     <!-- Footer -->
     <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3">
-       <button class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
-       <button class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
+       <button type="button" id="drawer-footer-close-btn" class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
+       <button type="button" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
     </div>
   </div>
 </div>
@@ -412,14 +528,24 @@ import { Icon } from "astro-icon/components";
         <p class="text-sm font-bold text-base-content" id="monthly-detail-date"></p>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
+      <div class="flex items-center justify-between gap-4 py-1">
         <div class="space-y-1">
           <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Modalidad</p>
           <span id="monthly-detail-status" class="inline-block text-[11px] font-black uppercase tracking-wider"></span>
         </div>
-        <div class="space-y-1">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Horario</p>
-          <p class="font-mono text-xs font-bold text-base-content" id="monthly-detail-schedule"></p>
+        <div class="space-y-1 text-right min-w-[135px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 text-right">Horario</p>
+          <div id="monthly-detail-schedule-container" class="relative cursor-pointer inline-block w-full">
+            <span id="monthly-detail-schedule-text" class="inline-block text-xs font-bold text-base-content bg-base-200/40 hover:bg-base-200/80 px-2.5 py-1 rounded-lg border border-base-300/40 transition-all font-mono select-none text-center min-w-[115px]">
+              -
+            </span>
+            <input 
+              type="text" 
+              id="monthly-detail-schedule" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center" 
+              placeholder="Ej: 08:00 - 16:00" 
+            />
+          </div>
         </div>
       </div>
 
@@ -448,7 +574,147 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
   </section>
+  </section>
 </div>
+
+<!-- Edit Mode Toolbar -->
+<div id="edit-mode-toolbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-4 z-[100] transition-all duration-500 translate-y-32 opacity-0 pointer-events-none">
+    
+    <!-- Brush Tools -->
+    <div class="flex items-center gap-1.5 bg-base-200/50 p-1.5 rounded-xl border border-base-300/50">
+       <div class="text-[9px] font-black uppercase tracking-widest text-base-content/50 px-2 select-none">Pincel:</div>
+       
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-secondary/20 hover:text-secondary opacity-50 transition-all" data-brush="Presencial" data-active-class="bg-secondary text-secondary-content shadow-lg ring-2 ring-secondary/50">P</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-amber-500/20 hover:text-amber-500 opacity-50 transition-all" data-brush="Home Office" data-active-class="bg-amber-500 text-white shadow-lg ring-2 ring-amber-500/50">HO</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-base-300 hover:text-base-content/60 opacity-50 transition-all" data-brush="Franco" data-active-class="bg-base-300 text-base-content shadow-lg ring-2 ring-base-300/50">F</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-error/20 hover:text-error opacity-50 transition-all" data-brush="Licencia" data-active-class="bg-error text-error-content shadow-lg ring-2 ring-error/50">L</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-success/20 hover:text-success opacity-50 transition-all" data-brush="Vacaciones" data-active-class="bg-success text-success-content shadow-lg ring-2 ring-success/50">V</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-sky-500/20 hover:text-sky-600 opacity-50 transition-all" data-brush="Horas Extras" data-active-class="bg-sky-500 text-white shadow-lg ring-2 ring-sky-500/50">HE</button>
+    </div>
+
+    <div class="w-px h-8 bg-base-300/60"></div>
+
+    <!-- Settings Trigger -->
+    <button id="open-rules-settings" class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors">
+       <Icon name="boxicons:cog" size={14} />
+       Parámetros
+    </button>
+    
+    <div class="w-px h-8 bg-base-300/60"></div>
+
+    <!-- Save/Discard -->
+    <div class="flex items-center gap-2">
+       <span id="pending-edits-count" class="text-[10px] font-bold text-base-content/50 w-16 text-center select-none">0 cambios</span>
+       <button id="discard-edits-btn" class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200" disabled>Descartar</button>
+       <button id="save-edits-btn" class="btn btn-xs btn-primary gap-1" disabled>Guardar</button>
+    </div>
+</div>
+
+<!-- Rules Settings Modal -->
+<dialog id="rules-settings-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-3xl w-11/12 bg-base-100 border border-base-300 shadow-2xl">
+    <h3 class="font-black text-lg mb-4 text-base-content">Parámetros del Cronograma</h3>
+    
+    <div class="space-y-6">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Cobertura Presencial Mínima (%)</span>
+          <span class="label-text-alt font-black text-secondary" id="min-coverage-val">40%</span>
+        </label>
+        <input type="range" id="min-coverage-input" min="0" max="100" value="40" class="range range-secondary range-xs" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Si la presencialidad cae por debajo de este valor, el día se marcará en rojo.</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Límite HO Consecutivos</span>
+        </label>
+        <input type="number" id="max-ho-input" value="5" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Máximo de días seguidos de Home Office permitidos antes de generar alerta.</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Días Presenciales Mínimos (Por Semana)</span>
+        </label>
+        <input type="number" id="min-p-week-input" value="2" min="0" max="7" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila.</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200">Cancelar</button>
+        <button class="btn btn-sm btn-secondary ml-2" id="save-rules-btn" type="button">Guardar Reglas</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<!-- New Month Dialog -->
+<dialog id="new-month-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name="boxicons:calendar-plus" class="text-secondary" size={22} />
+      Agregar Nuevo Mes
+    </h3>
+    
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Año</span>
+        </label>
+        <input 
+          type="number" 
+          id="new-month-year" 
+          value="2026" 
+          min="2020" 
+          max="2035" 
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Mes</span>
+        </label>
+        <select id="new-month-month" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
+          <option value="0">Enero</option>
+          <option value="1">Febrero</option>
+          <option value="2">Marzo</option>
+          <option value="3">Abril</option>
+          <option value="4">Mayo</option>
+          <option value="5">Junio</option>
+          <option value="6">Julio</option>
+          <option value="7">Agosto</option>
+          <option value="8">Septiembre</option>
+          <option value="9">Octubre</option>
+          <option value="10">Noviembre</option>
+          <option value="11">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" type="button">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
 
 <style is:global>
   /* --- Maximize Mode Styles --- */
@@ -588,6 +854,9 @@ import { Icon } from "astro-icon/components";
     horario: string;
     asistencia: Record<string, string>;
     comentarios?: Record<string, string>;
+    esquema_semanal?: Record<string, string>;
+    esquema_horario?: Record<string, string>;
+    horarios_dias?: Record<string, string>;
   }
 
   const icons = {
@@ -600,12 +869,47 @@ import { Icon } from "astro-icon/components";
   };
 
   let cronoData: OperatorData[] = [];
-  let isCoverageMinimized = false;
+  let activeMonthsList: { year: number, month: number }[] = [];
+  let isCoverageMinimized = localStorage.getItem('cronoCoverageMinimized') === 'true';
   let modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
   let searchQuery = '';
-  let activeFilter = 'all'; // 'all', 'Presencial', 'Home Office', 'Licencia', 'Vacaciones'
+  let activeFilter = 'all'; // 'all', 'Presencial', 'Home Office', 'Licencia', 'Vacaciones', 'Horas Extras'
   let activeDetailTrigger: HTMLElement | null = null;
   let focusedDateStr: string | null = null;
+
+  // Edit Mode variables
+  let isEditMode = false;
+  let activeBrush: string | null = null;
+  let pendingEdits: Record<string, { agentName: string; date: string; status: string; originalStatus: string }> = {};
+  
+  let minCoveragePercent = parseInt(localStorage.getItem('cronoMinCoverage') || '40');
+  let maxConsecutiveHOLimit = parseInt(localStorage.getItem('cronoMaxConsecutiveHO') || '5');
+  let minPWeekLimit = parseInt(localStorage.getItem('cronoMinPWeek') || '2');
+
+  let currentWeeklyScheme: Record<string, string> = { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
+  let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
+  if (Object.keys(weeklyTemplates).length === 0) {
+    weeklyTemplates = {
+      "Estándar P/HO Alternado": {
+        dias: { Lunes: "Presencial", Martes: "Home Office", Miercoles: "Presencial", Jueves: "Home Office", Viernes: "Presencial", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "100% Presencial": {
+        dias: { Lunes: "Presencial", Martes: "Presencial", Miercoles: "Presencial", Jueves: "Presencial", Viernes: "Presencial", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "100% Home Office": {
+        dias: { Lunes: "Home Office", Martes: "Home Office", Miercoles: "Home Office", Jueves: "Home Office", Viernes: "Home Office", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "Guardia de Fin de Semana": {
+        dias: { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Presencial", Domingo: "Presencial" },
+        horarios: { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "08:00 - 17:00", Domingo: "08:00 - 17:00" }
+      }
+    };
+    localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+  }
 
   function getDaysInMonth(year: number, month: number) {
     return new Date(year, month + 1, 0).getDate();
@@ -713,6 +1017,53 @@ import { Icon } from "astro-icon/components";
     display.innerText = formatter.format(dateObj);
   }
 
+  function renderMonthDropdown() {
+    const list = document.getElementById('month-dropdown-list');
+    if (!list) return;
+
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueMonths = [...new Set(allDates.map(d => d.slice(0, 7)))].sort();
+
+    let html = '';
+    uniqueMonths.forEach(ymStr => {
+      const [yearStr, monthStr] = ymStr.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr) - 1;
+      const dateObj = new Date(year, month, 15);
+      const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+      const label = formatter.format(dateObj).toUpperCase();
+
+      html += `
+        <li>
+          <a class="text-[10px] font-bold py-1.5 px-3 rounded-lg hover:bg-secondary/10 hover:text-secondary focus:bg-secondary/20 transition-all cursor-pointer flex items-center justify-between" data-month-val="${ymStr}-01">
+            <span>${label}</span>
+          </a>
+        </li>
+      `;
+    });
+
+    list.innerHTML = html;
+
+    // Attach click listeners
+    list.querySelectorAll('[data-month-val]').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
+        if (val) {
+          const dateInput = document.getElementById('date-input') as HTMLInputElement;
+          if (dateInput) {
+            dateInput.value = val;
+            updateDateInputDisplay();
+            updateMonthDisplay();
+            renderDaily();
+            renderMonthly();
+          }
+        }
+        // Force close dropdown by blurring active element
+        (document.activeElement as HTMLElement)?.blur();
+      });
+    });
+  }
+
   function changeMonth(offset: number) {
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     if (!dateInput) return;
@@ -789,6 +1140,7 @@ import { Icon } from "astro-icon/components";
 
       renderDaily();
       renderMonthly();
+      renderMonthDropdown();
       setupEventListeners();
     } catch (err) {
       console.error("Error loading data:", err);
@@ -825,6 +1177,13 @@ import { Icon } from "astro-icon/components";
           color: 'var(--color-success)',
           bgClass: 'bg-success/10 text-success'
         };
+      case 'Horas Extras':
+        return {
+          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          icon: icons.timer,
+          color: '#0284c7',
+          bgClass: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/25 font-bold hover:bg-sky-500/30 shadow-sm transition-all duration-200'
+        };
       default:
         return {
           badge: 'bg-base-200 text-base-content/60 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border border-base-300/50',
@@ -848,13 +1207,14 @@ import { Icon } from "astro-icon/components";
       dateDisplay.innerText = formatter.format(dateObj);
     }
 
-    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0 };
+    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0, horasExtras: 0 };
     cronoData.forEach(op => {
       const status = op.asistencia[selectedDateStr];
       if (status === 'Presencial') stats.presencial++;
       else if (status === 'Home Office') stats.homeOffice++;
       else if (status === 'Licencia') stats.licencia++;
       else if (status === 'Vacaciones') stats.vacaciones++;
+      else if (status === 'Horas Extras') stats.horasExtras++;
     });
 
     const statItems = [
@@ -862,6 +1222,7 @@ import { Icon } from "astro-icon/components";
       { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
       { label: 'Licencia', value: stats.licencia, icon: icons.firstAid, borderClass: 'border-l-error', textClass: 'text-error' },
       { label: 'Vacaciones', value: stats.vacaciones, icon: icons.sun, borderClass: 'border-l-success', textClass: 'text-success' },
+      { label: 'Horas Extras', value: stats.horasExtras, icon: icons.timer, borderClass: 'border-l-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
     ];
 
     if (statsContainer) {
@@ -888,7 +1249,8 @@ import { Icon } from "astro-icon/components";
       const isAbsent = status === 'Licencia' || status === 'Vacaciones';
       const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
       const username = getUsername(op.nombre);
-      const liveStatus = isCurrentlyWorking(op.horario);
+      const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
+      const liveStatus = isCurrentlyWorking(dailyHorario);
       
       let liveIndicatorClass = "bg-base-content/10";
       if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
@@ -930,7 +1292,7 @@ import { Icon } from "astro-icon/components";
           </td>
           <td class="px-4 py-4">
             <div class="flex flex-col gap-1">
-              <span class="font-mono text-sm font-bold ${isAbsent ? 'text-base-content/20 italic' : 'text-base-content/80'}">${isAbsent ? 'Ausente' : op.horario}</span>
+              <span class="font-mono text-sm font-bold ${isAbsent ? 'text-base-content/20 italic' : 'text-base-content/80'}">${isAbsent ? 'Ausente' : ((op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario)}</span>
               <div class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black uppercase tracking-wider ${liveStatus.status === 'online' ? 'text-success' : liveStatus.status === 'break' ? 'text-warning' : 'text-base-content/30'}">${liveStatus.text}</span>
               </div>
@@ -972,7 +1334,7 @@ import { Icon } from "astro-icon/components";
     const tbody = document.getElementById('monthly-tbody');
     const tfoot = document.getElementById('monthly-tfoot');
     
-    const hours = Array.from({length: 16}, (_, i) => `${(i+7).toString().padStart(2, '0')}:00`);
+    const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
     const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
 
@@ -1015,7 +1377,7 @@ import { Icon } from "astro-icon/components";
     } else {
        filteredOps.forEach(op => {
           const status = op.asistencia[dateStr] || 'Franco';
-          const horario = op.horario;
+          const horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
           const styles = getStatusStyles(status);
           const isAbsent = status === 'Licencia' || status === 'Vacaciones';
           const isFranco = status === 'Franco';
@@ -1095,7 +1457,7 @@ import { Icon } from "astro-icon/components";
       const d = new Date(date + 'T12:00:00');
       const isToday = date === todayStr;
       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-      const isCritical = (coveragePerDay[date].total / teamSize) < 0.4;
+      const isCritical = (coveragePerDay[date].total / teamSize) < (minCoveragePercent / 100);
       
       let thClass = "text-center min-w-[3rem] px-0 border-r border-b border-base-200 transition-colors";
       if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
@@ -1173,9 +1535,14 @@ import { Icon } from "astro-icon/components";
           else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
         });
 
-        // --- RULE: Consecutive HO Check ---
+        // --- RULE: Consecutive HO Check & Min Presencial Check ---
         let maxConsecutiveHO = 0;
         let currentHO = 0;
+        
+        let pWeekViolation = false;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+
         dates.forEach(d => {
           if (op.asistencia[d] === 'Home Office') {
             currentHO++;
@@ -1183,19 +1550,35 @@ import { Icon } from "astro-icon/components";
           } else if (op.asistencia[d] !== 'Franco' && op.asistencia[d]) {
             currentHO = 0;
           }
-        });
-        const hoViolation = maxConsecutiveHO > 5;
-        if (hoViolation) totalInconsistencies++;
 
-        tbodyHtml += `<tr class="group ${hoViolation ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+          const dateObj = new Date(d + 'T12:00:00');
+          if (op.asistencia[d] === 'Presencial') currentWeekP++;
+          if (op.asistencia[d] !== 'Franco' && op.asistencia[d] !== 'Licencia' && op.asistencia[d] !== 'Vacaciones') {
+             currentWeekDays++;
+          }
+          if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+        });
+        
+        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        if (hoViolation || pWeekViolation) totalInconsistencies++;
+
+        tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
           <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-3">
-              <div class="w-1.5 h-1.5 rounded-full ${hoViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+              <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
+              <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
               <div class="flex flex-col min-w-0">
-                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">
+                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header" data-op-profile="${op.nombre}">
                   ${op.nombre}
                 </button>
                 ${hoViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+                ${pWeekViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Faltan días P.</span>` : ''}
               </div>
             </div>
           </td>
@@ -1211,7 +1594,8 @@ import { Icon } from "astro-icon/components";
           const safeName = escapeHtml(op.nombre);
           const safeDate = escapeHtml(date);
           const safeStatus = escapeHtml(status || 'Franco');
-          const safeHorario = escapeHtml(op.horario);
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
+          const safeHorario = escapeHtml(dailyHorario);
           const username = getUsername(op.nombre);
           
           // --- RULE: License Overlap Check ---
@@ -1248,6 +1632,7 @@ import { Icon } from "astro-icon/components";
           else if (status === 'Home Office') initials = "HO";
           else if (status === 'Licencia') initials = "L";
           else if (status === 'Vacaciones') initials = "V";
+          else if (status === 'Horas Extras') initials = "HE";
 
           tbodyHtml += `
             <td class="${cellClass}">
@@ -1462,6 +1847,7 @@ import { Icon } from "astro-icon/components";
     if (status === 'Home Office') return 'text-amber-600 dark:text-amber-400';
     if (status === 'Licencia') return 'text-error';
     if (status === 'Vacaciones') return 'text-success';
+    if (status === 'Horas Extras') return 'text-sky-600 dark:text-sky-400';
     return 'text-base-content/40';
   }
 
@@ -1470,6 +1856,7 @@ import { Icon } from "astro-icon/components";
     if (status === 'Home Office') return 'bg-amber-500';
     if (status === 'Licencia') return 'bg-error';
     if (status === 'Vacaciones') return 'bg-success';
+    if (status === 'Horas Extras') return 'bg-sky-500';
     return 'bg-base-300';
   }
 
@@ -1509,7 +1896,13 @@ import { Icon } from "astro-icon/components";
     status.innerText = statusValue;
     status.className = `inline-block text-[11px] font-black uppercase tracking-wider ${getDetailStatusClass(statusValue)}`;
     indicator.className = `w-2.5 h-2.5 rounded-full animate-pulse ${getDetailIndicatorClass(statusValue)}`;
-    schedule.innerText = isAbsent ? 'Ausente' : horario;
+    if (schedule instanceof HTMLInputElement) { schedule.value = isAbsent ? '' : horario; } else { schedule.innerText = isAbsent ? 'Ausente' : horario; }
+    const scheduleText = document.getElementById('monthly-detail-schedule-text');
+    if (scheduleText) {
+      scheduleText.innerText = isAbsent ? 'Franco' : (horario || '-');
+      scheduleText.classList.remove('hidden');
+      schedule.classList.add('hidden');
+    }
     user.innerText = username ? `${username}@correoargentino.com.ar` : '-';
 
     overlay.classList.remove('hidden');
@@ -1612,6 +2005,40 @@ import { Icon } from "astro-icon/components";
   }
 
   function setupEventListeners() {
+    const modal = document.getElementById('new-month-modal') as HTMLDialogElement;
+    document.getElementById('add-month-btn')?.addEventListener('click', () => {
+      modal.showModal();
+    });
+    document.getElementById('confirm-new-month')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const year = parseInt((document.getElementById('new-month-year') as HTMLInputElement).value);
+      const month = parseInt((document.getElementById('new-month-month') as HTMLSelectElement).value);
+      
+      const res = await fetch('/api/cronograma/months', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year, month })
+      });
+      if (res.ok) {
+        modal.close();
+        const freshRes = await fetch('/api/cronograma');
+        cronoData = await freshRes.json();
+        const dateInput = document.getElementById('date-input') as HTMLInputElement;
+        if (dateInput) {
+          dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+          const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+          const uniqueDates = [...new Set(allDates)].sort();
+          if (uniqueDates.length > 0) {
+            dateInput.min = uniqueDates[0];
+            dateInput.max = uniqueDates[uniqueDates.length - 1];
+          }
+          updateDateInputDisplay();
+          updateMonthDisplay();
+        }
+        renderMonthDropdown();
+        renderMonthly();
+      }
+    });
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     if (dateInput) {
       dateInput.addEventListener('change', () => {
@@ -1627,19 +2054,7 @@ import { Icon } from "astro-icon/components";
     const detailClose = document.getElementById('monthly-detail-close');
     const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
 
-    // Click on specific day inside Monthly Matrix header
-    monthlyThead?.addEventListener('click', (event) => {
-      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-click-day]');
-      if (!button) return;
-
-      const selectedDate = button.dataset.clickDay;
-      if (selectedDate && dateInput) {
-        dateInput.value = selectedDate;
-        updateDateInputDisplay();
-        showDailyView();
-      }
-    });
-
+    // (Legacy) Click on specific day inside Monthly Matrix header was removed to favor inline Hourly View
     // Go back to full month view from daily view
     backToMonthlyBtn?.addEventListener('click', () => {
       showMonthlyView();
@@ -1659,12 +2074,40 @@ import { Icon } from "astro-icon/components";
       const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
       if (!btn) return;
       isCoverageMinimized = !isCoverageMinimized;
+      localStorage.setItem('cronoCoverageMinimized', isCoverageMinimized ? 'true' : 'false');
       renderMonthly();
     });
 
+    let isDragging = false;
+    monthlyBody?.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !isEditMode || !activeBrush) return;
+      const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (trigger) {
+         isDragging = true;
+         applyBrushToCell(trigger);
+      }
+    });
+
+    monthlyBody?.addEventListener('mouseover', (event) => {
+      if (!isDragging || !isEditMode || !activeBrush) return;
+      const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (trigger) applyBrushToCell(trigger);
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+    
     monthlyBody?.addEventListener('click', (event) => {
+      // Row bulk edit
+      const rowHeader = (event.target as HTMLElement).closest<HTMLElement>('.op-row-header');
+      if (rowHeader && isEditMode && activeBrush) {
+         const tr = rowHeader.closest('tr');
+         tr?.querySelectorAll('[data-monthly-detail]').forEach(cell => applyBrushToCell(cell as HTMLElement));
+         return;
+      }
+      
       const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
       if (!trigger) return;
+      if (isEditMode && activeBrush) return; // Handled by mousedown
       openMonthlyDetail(trigger);
     });
 
@@ -1690,13 +2133,15 @@ import { Icon } from "astro-icon/components";
     const filterHoBtn = document.getElementById('filter-ho-btn');
     const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
     const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+    const filterHeBtn = document.getElementById('filter-he-btn');
 
     const filterBtns = [
       { btn: filterAllBtn, value: 'all' },
       { btn: filterPresencialBtn, value: 'Presencial' },
       { btn: filterHoBtn, value: 'Home Office' },
       { btn: filterLicenciaBtn, value: 'Licencia' },
-      { btn: filterVacacionesBtn, value: 'Vacaciones' }
+      { btn: filterVacacionesBtn, value: 'Vacaciones' },
+      { btn: filterHeBtn, value: 'Horas Extras' }
     ];
 
     function updateFilterActiveStates() {
@@ -1758,6 +2203,19 @@ import { Icon } from "astro-icon/components";
           filterVacacionesBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
           const dot = filterVacacionesBtn.querySelector('.rounded-full');
           if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-success transition-colors duration-200";
+        }
+      }
+
+      // "Horas Extras" button classes
+      if (filterHeBtn) {
+        if (activeFilter === 'Horas Extras') {
+          filterHeBtn.className = "btn btn-xs bg-sky-600 border-0 gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-sky-600/15 text-white transition-all duration-200";
+          const dot = filterHeBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHeBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterHeBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200";
         }
       }
     }
@@ -1936,25 +2394,37 @@ import { Icon } from "astro-icon/components";
 
     // --- FEATURE: Maximize Mode Handler ---
     const maxBtn = document.getElementById('maximize-cronograma-btn');
-    maxBtn?.addEventListener('click', () => {
+    
+    function updateMaximizeUI(isMax: boolean) {
       const htmlEl = document.documentElement;
-      htmlEl.classList.toggle('cronograma-maximized');
-      
-      const maxIcon = maxBtn.querySelector('.max-icon');
-      const minIcon = maxBtn.querySelector('.min-icon');
+      const maxIcon = maxBtn?.querySelector('.max-icon');
+      const minIcon = maxBtn?.querySelector('.min-icon');
       const maxText = document.getElementById('maximize-text');
       
-      if (htmlEl.classList.contains('cronograma-maximized')) {
+      if (isMax) {
+        htmlEl.classList.add('cronograma-maximized');
         maxIcon?.classList.add('hidden');
         minIcon?.classList.remove('hidden');
         if (maxText) maxText.innerText = "Restaurar";
-        maxBtn.setAttribute('title', 'Restaurar cronograma');
+        maxBtn?.setAttribute('title', 'Restaurar cronograma');
       } else {
+        htmlEl.classList.remove('cronograma-maximized');
         maxIcon?.classList.remove('hidden');
         minIcon?.classList.add('hidden');
         if (maxText) maxText.innerText = "Maximizar";
-        maxBtn.setAttribute('title', 'Maximizar cronograma');
+        maxBtn?.setAttribute('title', 'Maximizar cronograma');
       }
+    }
+
+    // Initialize Maximize state on load
+    if (localStorage.getItem('cronoMaximized') === 'true') {
+      updateMaximizeUI(true);
+    }
+
+    maxBtn?.addEventListener('click', () => {
+      const isMax = !document.documentElement.classList.contains('cronograma-maximized');
+      localStorage.setItem('cronoMaximized', isMax ? 'true' : 'false');
+      updateMaximizeUI(isMax);
     });
 
     // --- FEATURE: Operator Profile Drawer ---
@@ -1967,6 +2437,8 @@ import { Icon } from "astro-icon/components";
       if (!op || !drawerOverlay || !drawer) return;
 
       document.getElementById('drawer-op-name')!.innerText = op.nombre;
+      
+
 
       // Fetch supervisor notes from database
       const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
@@ -2015,6 +2487,17 @@ import { Icon } from "astro-icon/components";
         }).join('');
       }
 
+      // Set current weekly scheme and hours
+      const opWeekly = op.esquema_semanal || { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
+      currentWeeklyScheme = { ...opWeekly };
+
+      const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyScheduleTimes = { ...opWeeklyScheduleTimes };
+
+      // Reset active tab to profile
+      const tabProfileBtn = document.getElementById('tab-profile-btn');
+      tabProfileBtn?.dispatchEvent(new Event('click'));
+
       drawerOverlay.classList.remove('hidden');
       drawerOverlay.classList.add('flex');
       
@@ -2038,6 +2521,11 @@ import { Icon } from "astro-icon/components";
     document.addEventListener('click', (e) => {
       const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
       if (clickDayBtn) {
+        if (isEditMode && activeBrush) {
+           const dateVal = clickDayBtn.dataset.clickDay;
+           document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
+           return;
+        }
         focusedDateStr = clickDayBtn.dataset.clickDay || null;
         renderMonthly();
         return;
@@ -2228,6 +2716,75 @@ import { Icon } from "astro-icon/components";
       }, 500);
     });
 
+    const scheduleInput = document.getElementById('monthly-detail-schedule') as HTMLInputElement | null;
+    let scheduleTimeout: number | null = null;
+
+    scheduleInput?.addEventListener('input', () => {
+      if (!activeDetailTrigger) return;
+      
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = scheduleInput.value.trim();
+
+      if (scheduleTimeout) clearTimeout(scheduleTimeout);
+      
+      scheduleTimeout = window.setTimeout(async () => {
+        try {
+          if (!opName || !dateVal) return;
+          
+          const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              edits: [
+                {
+                  agentName: opName,
+                  date: dateVal,
+                  horario: currentVal
+                }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            if (activeDetailTrigger) activeDetailTrigger.dataset.horario = currentVal;
+            const op = cronoData.find(o => o.nombre === opName);
+            if (op) {
+              if (!op.horarios_dias) op.horarios_dias = {};
+              op.horarios_dias[dateVal] = currentVal;
+            }
+          }
+        } catch (err) {
+          console.error("Error saving schedule override:", err);
+        }
+      }, 500);
+    });
+
+    scheduleInput?.addEventListener('blur', () => {
+      if (!activeDetailTrigger || !scheduleTimeout) return;
+      clearTimeout(scheduleTimeout);
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = scheduleInput.value.trim();
+      if (opName && dateVal) {
+        fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ edits: [{ agentName: opName, date: dateVal, horario: currentVal }] })
+        }).then(res => {
+          if (res.ok) {
+            if (activeDetailTrigger) activeDetailTrigger.dataset.horario = currentVal;
+            const op = cronoData.find(o => o.nombre === opName);
+            if (op) {
+              if (!op.horarios_dias) op.horarios_dias = {};
+              op.horarios_dias[dateVal] = currentVal;
+            }
+          }
+        });
+      }
+    });
+
+
     commentTextarea?.addEventListener('blur', () => {
       if (!activeDetailTrigger || !commentTimeout) return;
       clearTimeout(commentTimeout);
@@ -2290,6 +2847,543 @@ import { Icon } from "astro-icon/components";
         });
       }
     });
+
+    // --- FEATURE: Edit Mode & Brush Tool ---
+    const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
+    const editToolbar = document.getElementById('edit-mode-toolbar');
+    
+    toggleEditBtn?.addEventListener('click', () => {
+      isEditMode = !isEditMode;
+      
+      if (isEditMode) {
+        toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
+        toggleEditBtn.classList.remove('btn-outline');
+        document.getElementById('monthly-tbody')?.classList.add('select-none');
+        document.querySelectorAll('.op-checkbox').forEach(cb => cb.classList.remove('hidden'));
+        if (editToolbar) {
+           editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
+        }
+      } else {
+        toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
+        toggleEditBtn.classList.add('btn-outline');
+        document.getElementById('monthly-tbody')?.classList.remove('select-none');
+        document.querySelectorAll('.op-checkbox').forEach(cb => {
+           cb.classList.add('hidden');
+           (cb as HTMLInputElement).checked = false;
+        });
+        if (editToolbar) {
+           editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+        }
+        activeBrush = null;
+        updateBrushUI();
+      }
+    });
+
+    function updateBrushUI() {
+      document.querySelectorAll('.brush-btn').forEach(btn => {
+        const activeClasses = (btn as HTMLElement).dataset.activeClass?.split(' ') || [];
+        if ((btn as HTMLElement).dataset.brush === activeBrush) {
+          btn.classList.remove('opacity-50', 'btn-ghost');
+          btn.classList.add('scale-110', 'font-black', ...activeClasses);
+        } else {
+          btn.classList.add('opacity-50', 'btn-ghost');
+          btn.classList.remove('scale-110', 'font-black', ...activeClasses);
+        }
+      });
+    }
+
+    document.querySelectorAll('.brush-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const brush = (e.currentTarget as HTMLElement).dataset.brush;
+        if (activeBrush === brush) activeBrush = null; // Toggle off
+        else activeBrush = brush || null;
+        updateBrushUI();
+      });
+    });
+
+    function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false) {
+      const opName = cell.dataset.operator;
+      const dateVal = cell.dataset.date;
+      const currentStatus = cell.dataset.status;
+      
+      if (!bypassCheckboxes) {
+         const checkedBoxes = Array.from(document.querySelectorAll('.op-checkbox:checked')) as HTMLInputElement[];
+         if (checkedBoxes.length > 0) {
+            let painted = false;
+            checkedBoxes.forEach(cb => {
+               const checkedOp = cb.dataset.opCheckbox;
+               if (checkedOp) {
+                  const safeName = checkedOp.replace(/"/g, '\\"');
+                  const targetCell = document.getElementById('monthly-tbody')?.querySelector(`[data-operator="${safeName}"][data-date="${dateVal}"]`);
+                  if (targetCell) {
+                     applyBrushToCell(targetCell as HTMLElement, true);
+                     painted = true;
+                  }
+               }
+            });
+            if (painted) return;
+         }
+      }
+
+      if (!opName || !dateVal || !activeBrush || currentStatus === activeBrush) return;
+
+      const key = `${opName}_${dateVal}`;
+      if (!pendingEdits[key]) {
+        pendingEdits[key] = { agentName: opName, date: dateVal, status: activeBrush, originalStatus: currentStatus || '' };
+      } else {
+        pendingEdits[key].status = activeBrush;
+        if (pendingEdits[key].status === pendingEdits[key].originalStatus) {
+           delete pendingEdits[key];
+        }
+      }
+
+      // Update local state temporarily for preview
+      const op = cronoData.find(o => o.nombre === opName);
+      if (op) {
+         op.asistencia[dateVal] = activeBrush;
+      }
+      
+      updatePendingEditsUI();
+      renderMonthly(); // Re-render to see the brush immediately
+    }
+
+    function updatePendingEditsUI() {
+       const count = Object.keys(pendingEdits).length;
+       const countEl = document.getElementById('pending-edits-count');
+       const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement;
+       const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement;
+       
+       if (countEl) countEl.innerText = `${count} cambios`;
+       if (saveBtn) saveBtn.disabled = count === 0;
+       if (discardBtn) discardBtn.disabled = count === 0;
+    }
+
+    document.getElementById('discard-edits-btn')?.addEventListener('click', () => {
+       // Revert local state
+       Object.values(pendingEdits).forEach(edit => {
+          const op = cronoData.find(o => o.nombre === edit.agentName);
+          if (op) op.asistencia[edit.date] = edit.originalStatus;
+       });
+       pendingEdits = {};
+       updatePendingEditsUI();
+       renderMonthly();
+    });
+
+    document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
+       const btn = e.currentTarget as HTMLButtonElement;
+       const editsToSave = Object.values(pendingEdits).map(e => ({
+          agentName: e.agentName,
+          date: e.date,
+          status: e.status
+       }));
+       
+       if (editsToSave.length === 0) return;
+       
+       btn.disabled = true;
+       btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+       
+       try {
+         const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ edits: editsToSave })
+         });
+         if (!res.ok) throw new Error("Error saving bulk edits");
+         
+         pendingEdits = {};
+         updatePendingEditsUI();
+         btn.innerText = "Guardado!";
+         setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+       } catch (err) {
+         console.error(err);
+         btn.innerText = "Error";
+         btn.classList.add('btn-error');
+         setTimeout(() => { 
+            btn.innerText = "Guardar"; 
+            btn.classList.remove('btn-error');
+            btn.disabled = false;
+         }, 2000);
+       }
+    });
+
+    // --- Rules Settings Dialog ---
+    const rulesModal = document.getElementById('rules-settings-modal') as HTMLDialogElement;
+    document.getElementById('open-rules-settings')?.addEventListener('click', () => rulesModal?.showModal());
+    
+    const minCovInput = document.getElementById('min-coverage-input') as HTMLInputElement;
+    const minCovVal = document.getElementById('min-coverage-val');
+    const maxHoInput = document.getElementById('max-ho-input') as HTMLInputElement;
+    
+    // Sync UI value on drag
+    minCovInput?.addEventListener('input', (e) => {
+       if (minCovVal) minCovVal.innerText = `${(e.target as HTMLInputElement).value}%`;
+    });
+
+    // Save rules
+    document.getElementById('save-rules-btn')?.addEventListener('click', () => {
+       if (minCovInput) {
+          minCoveragePercent = parseInt(minCovInput.value);
+          localStorage.setItem('cronoMinCoverage', minCovInput.value);
+       }
+       if (maxHoInput) {
+          maxConsecutiveHOLimit = parseInt(maxHoInput.value);
+          localStorage.setItem('cronoMaxConsecutiveHO', maxHoInput.value);
+       }
+       const minPWeekInput = document.getElementById('min-p-week-input') as HTMLInputElement;
+       if (minPWeekInput) {
+          minPWeekLimit = parseInt(minPWeekInput.value);
+          localStorage.setItem('cronoMinPWeek', minPWeekInput.value);
+       }
+       rulesModal?.close();
+       renderMonthly(); // Re-render to show updated alerts immediately!
+    });
+    
+
+
+    // --- FEATURE: Weekly Schedule Tab & Template Management ---
+    const tabProfileBtn = document.getElementById('tab-profile-btn');
+    const tabWeeklyBtn = document.getElementById('tab-weekly-btn');
+    const drawerProfileTabContent = document.getElementById('drawer-profile-tab-content');
+    const drawerWeeklyTabContent = document.getElementById('drawer-weekly-tab-content');
+    const drawerFooterCloseBtn = document.getElementById('drawer-footer-close-btn');
+
+    drawerFooterCloseBtn?.addEventListener('click', closeDrawer);
+
+    tabProfileBtn?.addEventListener('click', () => {
+      tabProfileBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabWeeklyBtn?.classList.remove('border-secondary', 'text-secondary');
+      tabWeeklyBtn?.classList.add('border-transparent', 'text-base-content/60');
+      
+      drawerProfileTabContent?.classList.remove('hidden');
+      drawerWeeklyTabContent?.classList.add('hidden');
+    });
+
+    tabWeeklyBtn?.addEventListener('click', () => {
+      tabWeeklyBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabProfileBtn?.classList.remove('border-secondary', 'text-secondary');
+      tabProfileBtn?.classList.add('border-transparent', 'text-base-content/60');
+      
+      drawerProfileTabContent?.classList.add('hidden');
+      drawerWeeklyTabContent?.classList.remove('hidden');
+      
+      // Populate templates select dropdown
+      populateWeeklyTemplatesDropdown();
+      renderWeeklyDaysList();
+    });
+
+    function populateWeeklyTemplatesDropdown() {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (!select) return;
+      
+      const prevVal = select.value;
+      let html = '<option value="">-- Seleccionar una plantilla o personalizar --</option>';
+      Object.keys(weeklyTemplates).forEach(name => {
+        html += `<option value="${name}">${name}</option>`;
+      });
+      select.innerHTML = html;
+      
+      if (weeklyTemplates[prevVal]) {
+        select.value = prevVal;
+      } else {
+        select.value = "";
+      }
+    }
+
+    const daysName = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
+    function renderWeeklyDaysList() {
+      const container = document.getElementById('weekly-days-list');
+      if (!container) return;
+      
+      container.innerHTML = daysName.map(day => {
+        const currentVal = currentWeeklyScheme[day] || "Franco";
+        const currentTime = currentWeeklyScheduleTimes[day] || "";
+        const options = ["Presencial", "Home Office", "Vacaciones", "Licencia", "Horas Extras", "Franco"];
+        
+        const optHtml = options.map(opt => {
+          let label = '';
+          if (opt === 'Presencial') label = 'P';
+          else if (opt === 'Home Office') label = 'HO';
+          else if (opt === 'Vacaciones') label = 'V';
+          else if (opt === 'Licencia') label = 'L';
+          else if (opt === 'Horas Extras') label = 'HE';
+          else if (opt === 'Franco') label = 'F';
+          
+          let btnClass = "weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+          if (currentVal === opt) {
+            if (opt === 'Presencial') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-secondary text-secondary-content shadow-md';
+            else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-amber-500 text-white shadow-md';
+            else if (opt === 'Vacaciones') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-success text-white shadow-md';
+            else if (opt === 'Licencia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-error text-white shadow-md';
+            else if (opt === 'Horas Extras') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-sky-500 text-white shadow-md';
+            else if (opt === 'Franco') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-300 text-base-content shadow-md';
+          }
+          
+          return `<button type="button" class="${btnClass}" data-weekly-option="${opt}">${label}</button>`;
+        }).join('');
+        
+        return `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3">
+            <div class="flex items-center justify-between sm:justify-start gap-4">
+              <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
+              <input 
+                type="text" 
+                class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
+                data-day="${day}" 
+                value="${currentTime}" 
+                placeholder="08:00 - 17:00" 
+              />
+            </div>
+            <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
+              ${optHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('weekly-template-select')?.addEventListener('change', (e) => {
+      const name = (e.target as HTMLSelectElement).value;
+      const customActions = document.getElementById('template-custom-actions');
+      
+      if (name && weeklyTemplates[name]) {
+        currentWeeklyScheme = { ...weeklyTemplates[name].dias };
+        currentWeeklyScheduleTimes = { ...weeklyTemplates[name].horarios };
+        renderWeeklyDaysList();
+        
+        if (customActions) {
+          customActions.classList.remove('hidden');
+          const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+          if (nameInput) nameInput.value = name;
+        }
+      } else {
+        if (customActions) customActions.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('weekly-template-create-btn')?.addEventListener('click', () => {
+      const customActions = document.getElementById('template-custom-actions');
+      if (customActions) {
+        customActions.classList.remove('hidden');
+        const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+        if (nameInput) {
+          nameInput.value = "";
+          nameInput.focus();
+        }
+      }
+    });
+
+    document.getElementById('new-template-save-btn')?.addEventListener('click', () => {
+      const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+      const name = nameInput?.value?.trim();
+      if (!name) {
+        alert("Por favor, ingresa un nombre para la plantilla.");
+        return;
+      }
+      
+      weeklyTemplates[name] = {
+        dias: { ...currentWeeklyScheme },
+        horarios: { ...currentWeeklyScheduleTimes }
+      };
+      localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+      
+      populateWeeklyTemplatesDropdown();
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (select) select.value = name;
+      
+      alert(`¡Plantilla "${name}" guardada con éxito!`);
+    });
+
+    document.getElementById('new-template-delete-btn')?.addEventListener('click', () => {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      const name = select?.value;
+      if (!name || !weeklyTemplates[name]) {
+        alert("Selecciona una plantilla válida para eliminar.");
+        return;
+      }
+      
+      if (confirm(`¿Estás seguro de que deseas eliminar la plantilla "${name}"?`)) {
+        delete weeklyTemplates[name];
+        localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+        
+        populateWeeklyTemplatesDropdown();
+        document.getElementById('template-custom-actions')?.classList.add('hidden');
+        alert(`Plantilla "${name}" eliminada.`);
+      }
+    });
+
+    document.getElementById('weekly-template-duplicate-btn')?.addEventListener('click', () => {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      const name = select?.value;
+      if (!name || !weeklyTemplates[name]) {
+        alert("Selecciona una plantilla para duplicar.");
+        return;
+      }
+      
+      const newName = prompt("Ingresa el nombre del duplicado:", `${name} (Copia)`);
+      if (!newName || !newName.trim()) return;
+      
+      weeklyTemplates[newName.trim()] = { ...weeklyTemplates[name] };
+      localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+      
+      populateWeeklyTemplatesDropdown();
+      if (select) select.value = newName.trim();
+      
+      select?.dispatchEvent(new Event('change'));
+      alert(`¡Plantilla duplicada como "${newName.trim()}"!`);
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('weekly-schedule-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyScheduleTimes[day] = target.value;
+        }
+      }
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-weekly-option]');
+      if (!btn) return;
+      
+      const day = btn.parentElement?.dataset.weeklyDay;
+      const option = btn.dataset.weeklyOption;
+      if (!day || !option) return;
+      
+      currentWeeklyScheme[day] = option;
+      
+      btn.parentElement.querySelectorAll('[data-weekly-option]').forEach(other => {
+        other.className = "weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+      });
+      
+      let activeClass = '';
+      if (option === 'Presencial') activeClass = 'bg-secondary text-secondary-content shadow-md';
+      else if (option === 'Home Office') activeClass = 'bg-amber-500 text-white shadow-md';
+      else if (option === 'Vacaciones') activeClass = 'bg-success text-white shadow-md';
+      else if (option === 'Licencia') activeClass = 'bg-error text-white shadow-md';
+      else if (option === 'Horas Extras') activeClass = 'bg-sky-500 text-white shadow-md';
+      else if (option === 'Franco') activeClass = 'bg-base-300 text-base-content shadow-md';
+      
+      btn.className = `weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
+      
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (select) select.value = "";
+      document.getElementById('template-custom-actions')?.classList.add('hidden');
+    });
+
+    document.getElementById('save-operator-weekly-btn')?.addEventListener('click', async () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName) return;
+      
+      const saveBtn = document.getElementById('save-operator-weekly-btn') as HTMLButtonElement | null;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Guardando...";
+      }
+      
+      try {
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        const activeDateStr = dateInput?.value || formatYMD(new Date());
+        const [yearStr, monthStr] = activeDateStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr) - 1; // 0-indexed
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthPrefix = `${yearStr}-${monthStr}`;
+        const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+
+        const edits = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+          const dateObj = new Date(year, month, d);
+          const dayName = dayNames[dateObj.getDay()];
+
+          const status = currentWeeklyScheme[dayName] || "Franco";
+          let horario = "";
+          if (currentWeeklyScheduleTimes[dayName]) {
+            horario = currentWeeklyScheduleTimes[dayName];
+          } else if (status !== "Franco") {
+            const op = cronoData.find(o => o.nombre === opName);
+            horario = op?.horario || "08:00 - 17:00";
+          }
+
+          edits.push({
+            agentName: opName,
+            date: dateStr,
+            status,
+            comment: "",
+            horario
+          });
+        }
+
+        const res = await fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weeklySchedules: [{
+              agentName: opName,
+              esquema_semanal: currentWeeklyScheme,
+              esquema_horario: currentWeeklyScheduleTimes
+            }],
+            edits
+          })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          const opIndex = cronoData.findIndex(o => o.nombre === opName);
+          if (opIndex !== -1) {
+            cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
+            cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
+          }
+          
+          const freshRes = await fetch('/api/cronograma');
+          cronoData = await freshRes.json();
+          renderMonthly();
+          
+          alert("¡Esquema semanal guardado y aplicado con éxito al mes activo!");
+        } else {
+          alert(`Error al guardar: ${data.message || 'Error desconocido'}`);
+        }
+      } catch (err) {
+        console.error("Error saving weekly schedule:", err);
+        alert("Ocurrió un error de red al intentar guardar.");
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = "Aplicar Esquema a Operador";
+        }
+      }
+    });
+
+    // Edit-in-place interaction for monthly-detail schedule
+    const detailScheduleText = document.getElementById('monthly-detail-schedule-text');
+    const detailScheduleInput = document.getElementById('monthly-detail-schedule') as HTMLInputElement | null;
+    const scheduleContainer = document.getElementById('monthly-detail-schedule-container');
+
+    if (scheduleContainer && detailScheduleText && detailScheduleInput) {
+      scheduleContainer.addEventListener('click', () => {
+        if (detailScheduleInput.classList.contains('hidden')) {
+          detailScheduleText.classList.add('hidden');
+          detailScheduleInput.classList.remove('hidden');
+          detailScheduleInput.focus();
+          detailScheduleInput.select();
+        }
+      });
+
+      detailScheduleInput.addEventListener('blur', () => {
+        detailScheduleText.innerText = detailScheduleInput.value || '-';
+        detailScheduleInput.classList.add('hidden');
+        detailScheduleText.classList.remove('hidden');
+      });
+
+      // Press Enter to submit/blur
+      detailScheduleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          detailScheduleInput.blur();
+        }
+      });
+    }
   }
 
   init();
