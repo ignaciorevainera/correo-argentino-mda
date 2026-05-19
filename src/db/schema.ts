@@ -105,6 +105,7 @@ export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   avatarInitials: text("avatar_initials"),
+  notes: text("notes"),
 });
 
 export const cubicAssignments = sqliteTable(
@@ -144,3 +145,14 @@ export const cubicAssignmentsRelations = relations(
     }),
   }),
 );
+
+// 8. TABLA DE SCHEDULES (Asistencia y modalidades de operadores)
+export const schedules = sqliteTable("schedules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentName: text("agent_name").notNull(),
+  date: text("date").notNull(),
+  status: text("status").notNull(),
+  comment: text("comment"),
+  horario: text("horario"),
+});
+

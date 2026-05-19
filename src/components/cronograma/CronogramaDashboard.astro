@@ -1,77 +1,72 @@
-<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+---
+// CronogramaDashboard.astro
+import { Icon } from "astro-icon/components";
+---
 
-<div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-10">
+<div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-8">
   
-  <!-- Stats Summary -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-container">
+  <!-- Stats Summary (hidden by default) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 hidden" id="stats-container">
     <!-- Stats will be injected here -->
   </div>
 
   <div class="w-full flex flex-col gap-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      
-      <!-- Modern Segmented Control -->
-      <div class="flex bg-base-200/60 p-1.5 rounded-2xl border border-base-300/50 backdrop-blur-md shadow-inner" id="view-switcher">
-        <button 
-          data-view="daily"
-          class="view-btn relative px-6 py-2.5 rounded-xl transition-all duration-300 text-sm font-semibold bg-base-100 shadow-sm ring-1 ring-base-300/50 text-base-content"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <i class="bx bx-calendar-event text-lg"></i>
-            <span>Vista Diaria</span>
-          </div>
-        </button>
-        <button 
-          data-view="monthly"
-          class="view-btn relative px-6 py-2.5 rounded-xl transition-all duration-300 text-sm font-medium text-base-content/60 hover:text-base-content hover:bg-base-200/50"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <i class="bx bx-calendar-alt text-lg"></i>
-            <span>Mes Completo</span>
-          </div>
-        </button>
-      </div>
+      <!-- Left side spacer replaces Segmented Control -->
+      <div></div>
 
-      <!-- Date Picker -->
-      <div id="date-picker-container" class="flex items-center bg-base-100 p-2.5 rounded-2xl border border-base-300/50 shadow-sm hover:shadow-md transition-shadow duration-300 px-5">
+      <!-- Date Picker (hidden by default) -->
+      <div id="date-picker-container" class="relative flex min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 hidden is-faded">
+        <Icon name="boxicons:calendar" size={18} class="text-base-content/40" />
         <label for="date-input" class="sr-only">Seleccionar fecha</label>
+        <span id="date-input-display" class="text-sm font-semibold tabular-nums text-base-content pointer-events-none">
+        </span>
         <input 
           type="date" 
           id="date-input"
-          class="w-auto border-none bg-transparent focus:ring-0 font-semibold cursor-pointer outline-none text-base-content"
+          class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-transparent caret-transparent"
         />
       </div>
     </div>
 
-    <!-- Daily View Section -->
-    <div id="daily-view" class="animate-in slide-in-from-bottom-4 fade-in duration-700">
-      <div class="bg-base-100 rounded-3xl border border-base-300/50 shadow-xl shadow-base-content/5 overflow-hidden">
-        <div class="bg-base-200/20 border-b border-base-300/50">
-          <div class="flex flex-col sm:flex-row justify-between items-center py-4 px-6 gap-4">
-            <h3 class="text-lg flex items-center gap-3 font-bold text-base-content">
-              <div class="p-2 rounded-xl bg-secondary/10 text-secondary">
-                <i class="bx bx-group"></i>
-              </div>
-              Estado de operadores
-            </h3>
-            <div class="flex items-center gap-2.5 bg-base-100/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-base-300/50 shadow-sm">
-               <i class="bx bxs-calendar-check text-primary text-lg"></i>
-               <span class="text-sm font-semibold tracking-wide" id="daily-date-display"></span>
+    <!-- Daily View Section (Hidden by default) -->
+    <div id="daily-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
+      <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden">
+        <div class="bg-base-200/70 border-b border-base-300">
+          <div class="flex flex-col sm:flex-row justify-between items-center py-3.5 px-6 gap-3">
+            <div class="flex items-center gap-4">
+              <button 
+                id="back-to-monthly-btn" 
+                type="button"
+                class="btn btn-xs btn-ghost gap-1.5 px-2.5 py-1.5 rounded-lg border border-base-300/60 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-all font-bold uppercase tracking-wider text-[10px]"
+                aria-label="Volver al Mes Completo"
+              >
+                <Icon name="boxicons:chevron-left" size={14} />
+                Volver al Mes
+              </button>
+              <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content border-l border-base-300 pl-4">
+                <Icon name="boxicons:group" size={18} />
+                Estado de operadores
+              </h3>
+            </div>
+            <div class="flex items-center gap-2 bg-base-100 px-3.5 py-1.5 rounded-lg border border-base-300 shadow-sm text-base-content/75">
+               <Icon name="boxicons:calendar-check" size={16} class="text-secondary" />
+               <span class="text-sm font-semibold tabular-nums" id="daily-date-display"></span>
             </div>
           </div>
         </div>
-        <div class="p-0 overflow-x-auto">
+        <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
-            <thead class="bg-base-200/30 text-xs uppercase font-bold text-base-content/50 tracking-wider">
+            <thead class="bg-base-200/60 text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300">
               <tr>
-                <th class="py-4 px-6 rounded-tl-3xl w-80">Operador</th>
-                <th class="py-4 px-4">Modalidad</th>
-                <th class="py-4 px-4">Horario</th>
-                <th class="py-4 px-4">Break</th>
-                <th class="py-4 px-6 text-right rounded-tr-3xl">Usuario</th>
+                <th class="py-3 px-6 w-72">Operador</th>
+                <th class="py-3 px-4">Modalidad</th>
+                <th class="py-3 px-4">Horario</th>
+                <th class="py-3 px-4">Break</th>
+                <th class="py-3 px-6 text-right">Usuario</th>
               </tr>
             </thead>
-            <tbody id="operators-table-body" class="divide-y divide-base-200/50">
+            <tbody id="operators-table-body" class="divide-y divide-base-200">
               <!-- Rows will be injected here -->
             </tbody>
           </table>
@@ -79,52 +74,767 @@
       </div>
     </div>
 
-    <!-- Monthly View Section (Hidden by default) -->
-    <div id="monthly-view" class="hidden animate-in slide-in-from-bottom-4 fade-in duration-700">
-      <div class="bg-base-100 rounded-3xl border border-base-300/50 shadow-xl shadow-base-content/5 overflow-hidden">
-        <div class="bg-base-200/20 border-b border-base-300/50">
-          <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 py-4 px-6">
-            <h3 class="text-lg flex items-center gap-3 font-bold">
-              <div class="p-2 rounded-xl bg-secondary/10 text-secondary">
-                <i class="bx bx-calendar-star"></i>
+    <!-- Monthly View Section (Shown by default) -->
+    <div id="monthly-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500">
+      <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden">
+        <div class="bg-base-200/70 border-b border-base-300">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6">
+            <!-- Left: Title, Navigation & Maximize button -->
+            <div class="flex items-center gap-3 shrink-0 flex-wrap">
+              <h3 class="text-xs flex items-center gap-2 font-black uppercase tracking-wider text-base-content select-none">
+                <Icon name="boxicons:calendar-star" size={18} class="text-secondary" />
+                Matriz Mensual
+              </h3>
+              
+              <!-- Month Navigator -->
+              <div class="flex items-center gap-1 bg-base-100 rounded-lg p-0.5 border border-base-300 shadow-sm ml-2">
+                <button
+                  type="button"
+                  id="prev-month-btn"
+                  class="btn btn-xs btn-ghost p-1 rounded hover:bg-base-200 text-base-content/70 hover:text-base-content transition-all"
+                  title="Mes anterior"
+                  aria-label="Mes anterior"
+                >
+                  <Icon name="boxicons:chevron-left" size={14} />
+                </button>
+                
+                <!-- Dropdown Month Selector -->
+                <div class="dropdown dropdown-bottom dropdown-end" id="month-selector-dropdown">
+                  <div tabindex="0" role="button" class="text-[10px] font-black uppercase tracking-wider px-2 py-1 text-base-content min-w-[120px] text-center select-none hover:bg-base-200 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 border border-base-300/50 bg-base-50/50 shadow-sm transition-all">
+                    <span id="current-month-display">-</span>
+                    <svg class="w-2.5 h-2.5 opacity-60 ml-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  </div>
+                  <ul tabindex="0" id="month-dropdown-list" class="dropdown-content menu p-2 shadow-xl bg-base-100 rounded-xl z-[100] w-48 border border-base-200 max-h-60 overflow-y-auto mt-1">
+                    <!-- Dynamic months list here -->
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  id="next-month-btn"
+                  class="btn btn-xs btn-ghost p-1 rounded hover:bg-base-200 text-base-content/70 hover:text-base-content transition-all"
+                  title="Mes siguiente"
+                  aria-label="Mes siguiente"
+                >
+                  <Icon name="boxicons:chevron-right" size={14} />
+                </button>
               </div>
-              Matriz Mensual
-            </h3>
-            <div class="flex flex-wrap gap-4 bg-base-100/50 px-5 py-2 rounded-2xl border border-base-300/50 shadow-sm backdrop-blur-sm">
-              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
-                <div class="w-3.5 h-3.5 rounded-md bg-primary shadow-sm"></div> HO
-              </div>
-              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
-                <div class="w-3.5 h-3.5 rounded-md bg-secondary shadow-sm"></div> Presencial
-              </div>
-              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
-                <div class="w-3.5 h-3.5 rounded-md bg-error shadow-sm"></div> Licencia
-              </div>
-              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/70">
-                <div class="w-3.5 h-3.5 rounded-md bg-success shadow-sm"></div> Vacaciones
+
+              <!-- Agregar nuevo mes -->
+              <button
+                type="button"
+                id="add-month-btn"
+                class="btn btn-xs btn-outline gap-1.5 px-2.5 border border-base-300 hover:bg-secondary hover:text-secondary-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7 ml-2"
+                title="Agregar nuevo mes"
+              >
+                <Icon name="boxicons:calendar-plus" size={13} />
+                <span>Agregar nuevo mes</span>
+              </button>
+
+
+            </div>
+
+            <!-- Center: Search input -->
+            <div class="flex-1 max-w-sm w-full mx-0 lg:mx-4">
+              <div class="relative w-full">
+                <Icon name="boxicons:search" size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30" />
+                <input 
+                  type="text" 
+                  id="monthly-search"
+                  placeholder="Buscar operador..." 
+                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8"
+                />
               </div>
             </div>
+
+            <div class="flex flex-wrap items-center gap-2.5 justify-start lg:justify-end shrink-0">
+              <div id="compliance-alert-badge" class="hidden">
+                 <div class="flex items-center gap-1.5 px-2.5 py-1 bg-error/10 text-error rounded-full border border-error/20 animate-pulse">
+                    <Icon name="boxicons:alert-triangle" size={13} />
+                    <span class="text-[9px] font-black uppercase tracking-tighter" id="compliance-alert-text">0 Inconsistencias</span>
+                 </div>
+              </div>
+              
+              <!-- Edit Mode Button -->
+              <button
+                type="button"
+                id="toggle-edit-mode-btn"
+                class="btn btn-xs btn-outline gap-1.5 px-2.5 border border-base-300/80 hover:bg-secondary hover:text-secondary-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7"
+                title="Modo Edición"
+              >
+                <Icon name="boxicons:edit-alt" size={13} />
+                <span id="edit-mode-text">Editar</span>
+              </button>
+
+              <!-- Maximize Button -->
+              <button
+                type="button"
+                id="maximize-cronograma-btn"
+                class="btn btn-xs btn-ghost gap-1.5 px-2.5 border border-base-300/80 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7"
+                title="Maximizar cronograma"
+                aria-label="Maximizar cronograma"
+              >
+                <span class="flex items-center gap-1 font-bold" id="maximize-icon-wrapper">
+                  <Icon name="boxicons:maximize" size={13} class="max-icon" />
+                  <Icon name="boxicons:minimize" size={13} class="min-icon hidden" />
+                </span>
+                <span id="maximize-text">Maximizar</span>
+              </button>
+            </div>
+
           </div>
         </div>
-        <div class="p-2">
-          <div class="overflow-x-auto max-h-150 overflow-y-auto scrollbar-thin rounded-2xl border border-base-200/50">
+        <div class="p-3">
+          <div class="overflow-x-auto max-h-[580px] overflow-y-auto scrollbar-thin rounded-xl border border-base-200 bg-base-100">
             <table class="w-full text-sm text-left border-separate border-spacing-0" id="monthly-table">
-              <thead class="sticky top-0 z-30 bg-base-100/90 backdrop-blur-xl shadow-sm" id="monthly-thead">
+              <thead class="sticky top-0 z-30 bg-base-100/98 backdrop-blur-sm shadow-sm" id="monthly-thead">
                 <!-- Headers injected here -->
               </thead>
               <tbody id="monthly-tbody">
                 <!-- Matrix injected here -->
               </tbody>
+              <tfoot id="monthly-tfoot" class="sticky bottom-0 z-40 bg-base-100/95 backdrop-blur-md border-t-2 border-base-300">
+                <!-- Coverage stats injected here -->
+              </tfoot>
             </table>
+          </div>
+        </div>
+        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex justify-between items-center no-print">
+          <!-- Status Filters Container -->
+          <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+            <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Filtrar:</span>
+            
+            <button
+              type="button"
+              id="filter-all-btn"
+              class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+            >
+              Todos
+            </button>
+            
+            <button
+              type="button"
+              id="filter-presencial-btn"
+              data-filter="Presencial"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> Presencial
+            </button>
+            
+            <button
+              type="button"
+              id="filter-ho-btn"
+              data-filter="Home Office"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-primary"></div> HO
+            </button>
+            
+            <button
+              type="button"
+              id="filter-licencia-btn"
+              data-filter="Licencia"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
+            </button>
+            
+            <button
+              type="button"
+              id="filter-vacaciones-btn"
+              data-filter="Vacaciones"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
+            </button>
+            <button
+              type="button"
+              id="filter-he-btn"
+              data-filter="Horas Extras"
+              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+            >
+              <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
+            </button>
+          </div>
+          <div class="flex gap-2">
+            <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
+              <Icon name="boxicons:file" size={14} />
+              Exportar CSV
+            </button>
+            <button id="export-image-btn" class="btn btn-xs btn-primary gap-1.5 font-bold text-[10px] uppercase rounded-lg shadow-sm shadow-primary/10">
+              <Icon name="boxicons:image" size={14} />
+              Exportar Imagen (PNG)
+            </button>
+            <button id="print-report-btn" class="btn btn-xs btn-secondary gap-1.5 font-bold text-[10px] uppercase rounded-lg shadow-sm shadow-secondary/10">
+              <Icon name="boxicons:printer" size={14} />
+              Imprimir Reporte
+            </button>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
-<style>
-  /* Premium custom scrollbar for the matrix */
+<!-- Quick Edit Context Menu -->
+<div 
+  id="quick-edit-menu" 
+  class="fixed z-[100] hidden min-w-[160px] bg-base-100/90 backdrop-blur-xl border border-base-300 rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
+>
+  <div class="px-3 py-2 border-b border-base-200 mb-1">
+    <p class="text-[9px] font-black uppercase tracking-widest text-base-content/40" id="quick-edit-target-name">Cambiar Estado</p>
+  </div>
+  <div class="space-y-0.5" id="quick-edit-options">
+    <button data-status="Presencial" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-secondary"></div> Presencial
+    </button>
+    <button data-status="Home Office" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-amber-500"></div> Home Office
+    </button>
+    <button data-status="Licencia" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-error/10 hover:text-error transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-error"></div> Licencia
+    </button>
+    <button data-status="Vacaciones" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-success/10 hover:text-success transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-success"></div> Vacaciones
+    </button>
+    <button data-status="Horas Extras" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-info/10 hover:text-info transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-info"></div> Horas Extras
+    </button>
+    <button data-status="Franco" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-base-300 transition-colors text-xs font-bold text-base-content/70 group">
+      <div class="w-2 h-2 rounded-full bg-base-300"></div> Franco
+    </button>
+  </div>
+</div>
+
+<!-- Floating Save Alert -->
+<div id="save-indicator" class="fixed bottom-6 right-6 z-50 hidden animate-in slide-in-from-right-10 fade-in duration-300">
+  <div class="bg-base-100/95 border-2 border-secondary/30 backdrop-blur-xl text-base-content px-6 py-4 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-5 min-w-[380px] max-w-md">
+    <div class="w-10 h-10 rounded-2xl bg-secondary/15 flex items-center justify-center text-secondary shrink-0 animate-pulse border border-secondary/20">
+      <Icon name="boxicons:save" size={22} />
+    </div>
+    <div class="flex-1 min-w-0">
+       <span class="text-[10px] font-black uppercase tracking-wider text-secondary">Base de Datos Activa</span>
+       <h4 id="save-indicator-text" class="text-xs font-black text-base-content uppercase tracking-tight truncate mt-0.5">
+         Edición en progreso: Cambios pendientes
+       </h4>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button 
+        type="button" 
+        id="save-discard-btn" 
+        class="btn btn-xs btn-ghost hover:bg-error/15 hover:text-error text-[10px] font-black uppercase tracking-wider rounded-lg px-2.5 transition-colors"
+      >
+        Descartar
+      </button>
+      <button 
+        type="button" 
+        id="save-confirm-btn" 
+        class="btn btn-xs btn-secondary text-[10px] font-black uppercase tracking-wider rounded-lg px-4 shadow-lg shadow-secondary/15 transition-all"
+      >
+        Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Operator Profile Modal -->
+<div 
+  id="operator-drawer-overlay" 
+  class="fixed inset-0 z-[110] hidden items-center justify-center bg-base-content/40 backdrop-blur-md transition-all duration-300 p-4"
+>
+  <div 
+    id="operator-drawer" 
+    class="relative w-full max-w-2xl bg-base-100 rounded-[2rem] shadow-2xl border border-base-300 flex flex-col overflow-hidden opacity-0 scale-95 transition-all duration-300"
+  >
+    <!-- Header with Background Gradient -->
+    <div class="p-8 border-b border-base-200 relative overflow-hidden bg-gradient-to-br from-base-200/50 to-transparent">
+      <div class="flex items-center justify-between relative z-10">
+        <div class="flex items-center gap-6">
+          <div class="w-16 h-16 rounded-3xl bg-secondary text-secondary-content flex items-center justify-center shadow-lg shadow-secondary/20">
+            <Icon name="boxicons:user" size={32} />
+          </div>
+          <div class="flex flex-col">
+            <h2 id="drawer-op-name" class="text-2xl font-black uppercase tracking-tight text-base-content"></h2>
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-success"></span>
+              <span id="drawer-op-email" class="text-xs font-bold text-base-content/50 lowercase"></span>
+            </div>
+
+          </div>
+        </div>
+        <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300">
+          <Icon name="boxicons:x" size={28} />
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs Header -->
+    <div class="flex border-b border-base-200 bg-base-50/50">
+      <button 
+        type="button"
+        id="tab-profile-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all"
+      >
+        Perfil e Historial
+      </button>
+      <button 
+        type="button"
+        id="tab-weekly-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all"
+      >
+        Esquema Semanal Base
+      </button>
+    </div>
+
+    <!-- Content: Profile e Historial tab -->
+    <div id="drawer-profile-tab-content" class="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin max-h-[70vh]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Stats Column -->
+        <div class="space-y-6">
+          <section>
+            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Rendimiento Mensual</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-primary/5 rounded-3xl p-5 border border-primary/10 flex flex-col items-center text-center">
+                <span class="text-3xl font-black text-amber-600 dark:text-amber-400" id="drawer-stat-ho">0</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mt-1">Home Office</span>
+              </div>
+              <div class="bg-secondary/5 rounded-3xl p-5 border border-secondary/10 flex flex-col items-center text-center">
+                <span class="text-3xl font-black text-secondary" id="drawer-stat-p">0</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-secondary/60 mt-1">Presencial</span>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Notas de Supervisión</h3>
+              <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <textarea 
+              id="drawer-op-notes"
+              placeholder="Añadir seguimiento..." 
+              class="textarea textarea-bordered w-full bg-base-200/30 border-base-300 text-sm focus:ring-2 focus:ring-secondary/20 h-32 rounded-2xl p-4 bg-base-100"
+            ></textarea>
+          </section>
+        </div>
+
+        <!-- History Column -->
+        <section>
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Historial de Asistencia</h3>
+          <div class="space-y-2" id="drawer-history-list">
+            <!-- Items -->
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Content: Weekly base template tab -->
+    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-thin max-h-[70vh] hidden bg-base-50/20">
+      <!-- Info note -->
+      <div class="bg-info/5 border border-sky-600/10 rounded-2xl p-4 flex gap-3 text-xs text-base-content/80">
+        <Icon name="boxicons:info-circle" class="text-sky-600 flex-shrink-0" size={18} />
+        <div>
+          <strong class="text-sky-700 dark:text-sky-500 font-bold block mb-0.5">Acerca del Esquema Semanal Base</strong>
+          Este esquema se repite automáticamente todas las semanas del año de forma dinámica. Las ediciones individuales del mes se guardarán como excepciones específicas en ese día puntual sin alterar este esquema.
+        </div>
+      </div>
+
+      <!-- Template Select Panel -->
+      <div class="space-y-3 bg-base-200/30 border border-base-300/50 p-5 rounded-[1.5rem]">
+        <div class="flex items-center justify-between">
+          <label class="text-[10px] font-black uppercase tracking-widest text-base-content/50">Plantillas Reutilizables</label>
+          <div class="flex gap-2">
+            <button type="button" id="weekly-template-create-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Nueva Plantilla
+            </button>
+            <button type="button" id="weekly-template-duplicate-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Duplicar
+            </button>
+          </div>
+        </div>
+
+        <select id="weekly-template-select" class="select select-bordered select-sm w-full font-bold text-xs bg-base-100 focus:outline-none focus:border-secondary rounded-xl">
+          <!-- Loaded dynamically -->
+        </select>
+
+        <!-- Dynamic inputs for custom template names -->
+        <div id="template-custom-actions" class="hidden flex items-center gap-2 mt-2 bg-base-100 p-2.5 rounded-xl border border-base-200">
+          <input type="text" id="new-template-name" placeholder="Nombre de la plantilla..." class="input input-xs input-bordered flex-1 font-bold text-xs focus:outline-none focus:border-secondary rounded-lg bg-base-100" />
+          <button type="button" id="new-template-save-btn" class="btn btn-xs btn-secondary font-black text-[9px] uppercase rounded-lg">Guardar</button>
+          <button type="button" id="new-template-delete-btn" class="btn btn-xs btn-error btn-outline font-black text-[9px] uppercase rounded-lg">Eliminar</button>
+        </div>
+      </div>
+
+      <!-- Weekly Grid Days Editor -->
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
+        
+        <div id="weekly-days-list" class="space-y-2">
+          <!-- Populated dynamically via JS: Lunes to Domingo rows -->
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="pt-4 border-t border-base-200 flex justify-between items-center">
+        <span class="text-[10px] font-bold text-base-content/40">Edita los días arriba y haz click en aplicar</span>
+        <button type="button" id="save-operator-weekly-btn" class="btn btn-sm btn-secondary px-6 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-secondary/20 transition-all duration-200">
+          Aplicar Esquema a Operador
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3">
+       <button type="button" id="drawer-footer-close-btn" class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
+       <button type="button" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
+    </div>
+  </div>
+</div>
+
+<div
+  id="monthly-detail-overlay"
+  class="fixed inset-0 z-50 hidden items-start justify-center bg-base-content/10 p-4 backdrop-blur-[2px] transition-all duration-200"
+  aria-hidden="true"
+>
+  <section
+    id="monthly-detail-modal"
+    class="monthly-detail-modal relative w-full max-w-72 border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="monthly-detail-title"
+  >
+    <!-- Chat Bubble Tail (Pointer) -->
+    <div id="modal-pointer" class="absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-base-100 border-base-300 z-[-1] transition-all duration-200"></div>
+
+    <div class="flex items-center justify-between gap-3 bg-base-200/50 px-4 py-3 border-b border-base-200">
+      <div class="flex items-center gap-2">
+        <div id="modal-status-indicator" class="w-2 h-2 rounded-full animate-pulse"></div>
+        <h3 class="truncate text-xs font-black uppercase tracking-widest text-base-content/70" id="monthly-detail-title"></h3>
+      </div>
+      <button
+        type="button"
+        id="monthly-detail-close"
+        class="btn btn-ghost btn-xs btn-square shrink-0 hover:bg-error/10 hover:text-error transition-colors"
+        aria-label="Cerrar detalle"
+      >
+        <Icon name="boxicons:x" size={16} />
+      </button>
+    </div>
+
+    <div class="p-5 space-y-5">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1" id="monthly-detail-date-label">Fecha del servicio</p>
+        <p class="text-sm font-bold text-base-content" id="monthly-detail-date"></p>
+      </div>
+
+      <div class="flex items-center justify-between gap-4 py-1">
+        <div class="space-y-1">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Modalidad</p>
+          <span id="monthly-detail-status" class="inline-block text-[11px] font-black uppercase tracking-wider"></span>
+        </div>
+        <div class="space-y-1 text-right min-w-[135px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 text-right">Horario</p>
+          <div id="monthly-detail-schedule-container" class="relative cursor-pointer inline-block w-full">
+            <span id="monthly-detail-schedule-text" class="inline-block text-xs font-bold text-base-content bg-base-200/40 hover:bg-base-200/80 px-2.5 py-1 rounded-lg border border-base-300/40 transition-all font-mono select-none text-center min-w-[115px]">
+              -
+            </span>
+            <input 
+              type="text" 
+              id="monthly-detail-schedule" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center" 
+              placeholder="Ej: 08:00 - 16:00" 
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Comentarios del Día -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Comentario del Día</p>
+          <span id="monthly-comment-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <textarea
+          id="monthly-detail-comment"
+          rows="2"
+          placeholder="Escribe un comentario específico para este día..."
+          class="textarea textarea-bordered w-full text-xs leading-relaxed focus:textarea-primary bg-base-100 border-base-300 rounded-lg py-2 px-3 resize-none focus:outline-none transition-all duration-200"
+        ></textarea>
+      </div>
+
+      <div class="pt-4 border-t border-dashed border-base-300">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1">ID Operador</p>
+             <code id="monthly-detail-user" class="block truncate font-mono text-[10px] font-bold text-base-content/50"></code>
+          </div>
+          <Icon name="boxicons:info-circle" size={20} class="text-base-content/20 shrink-0" />
+        </div>
+      </div>
+    </div>
+  </section>
+  </section>
+</div>
+
+<!-- Edit Mode Toolbar -->
+<div id="edit-mode-toolbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-4 z-[100] transition-all duration-500 translate-y-32 opacity-0 pointer-events-none">
+    
+    <!-- Brush Tools -->
+    <div class="flex items-center gap-1.5 bg-base-200/50 p-1.5 rounded-xl border border-base-300/50">
+       <div class="text-[9px] font-black uppercase tracking-widest text-base-content/50 px-2 select-none">Pincel:</div>
+       
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-secondary/20 hover:text-secondary opacity-50 transition-all" data-brush="Presencial" data-active-class="bg-secondary text-secondary-content shadow-lg ring-2 ring-secondary/50">P</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-amber-500/20 hover:text-amber-500 opacity-50 transition-all" data-brush="Home Office" data-active-class="bg-amber-500 text-white shadow-lg ring-2 ring-amber-500/50">HO</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-base-300 hover:text-base-content/60 opacity-50 transition-all" data-brush="Franco" data-active-class="bg-base-300 text-base-content shadow-lg ring-2 ring-base-300/50">F</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-error/20 hover:text-error opacity-50 transition-all" data-brush="Licencia" data-active-class="bg-error text-error-content shadow-lg ring-2 ring-error/50">L</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-success/20 hover:text-success opacity-50 transition-all" data-brush="Vacaciones" data-active-class="bg-success text-success-content shadow-lg ring-2 ring-success/50">V</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-sky-500/20 hover:text-sky-600 opacity-50 transition-all" data-brush="Horas Extras" data-active-class="bg-sky-500 text-white shadow-lg ring-2 ring-sky-500/50">HE</button>
+    </div>
+
+    <div class="w-px h-8 bg-base-300/60"></div>
+
+    <!-- Settings Trigger -->
+    <button id="open-rules-settings" class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors">
+       <Icon name="boxicons:cog" size={14} />
+       Parámetros
+    </button>
+    
+    <div class="w-px h-8 bg-base-300/60"></div>
+
+    <!-- Save/Discard -->
+    <div class="flex items-center gap-2">
+       <span id="pending-edits-count" class="text-[10px] font-bold text-base-content/50 w-16 text-center select-none">0 cambios</span>
+       <button id="discard-edits-btn" class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200" disabled>Descartar</button>
+       <button id="save-edits-btn" class="btn btn-xs btn-primary gap-1" disabled>Guardar</button>
+    </div>
+</div>
+
+<!-- Rules Settings Modal -->
+<dialog id="rules-settings-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-3xl w-11/12 bg-base-100 border border-base-300 shadow-2xl">
+    <h3 class="font-black text-lg mb-4 text-base-content">Parámetros del Cronograma</h3>
+    
+    <div class="space-y-6">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Cobertura Presencial Mínima (%)</span>
+          <span class="label-text-alt font-black text-secondary" id="min-coverage-val">40%</span>
+        </label>
+        <input type="range" id="min-coverage-input" min="0" max="100" value="40" class="range range-secondary range-xs" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Si la presencialidad cae por debajo de este valor, el día se marcará en rojo.</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Límite HO Consecutivos</span>
+        </label>
+        <input type="number" id="max-ho-input" value="5" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Máximo de días seguidos de Home Office permitidos antes de generar alerta.</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-bold">Días Presenciales Mínimos (Por Semana)</span>
+        </label>
+        <input type="number" id="min-p-week-input" value="2" min="0" max="7" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila.</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200">Cancelar</button>
+        <button class="btn btn-sm btn-secondary ml-2" id="save-rules-btn" type="button">Guardar Reglas</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<!-- New Month Dialog -->
+<dialog id="new-month-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name="boxicons:calendar-plus" class="text-secondary" size={22} />
+      Agregar Nuevo Mes
+    </h3>
+    
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Año</span>
+        </label>
+        <input 
+          type="number" 
+          id="new-month-year" 
+          value="2026" 
+          min="2020" 
+          max="2035" 
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Mes</span>
+        </label>
+        <select id="new-month-month" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
+          <option value="0">Enero</option>
+          <option value="1">Febrero</option>
+          <option value="2">Marzo</option>
+          <option value="3">Abril</option>
+          <option value="4">Mayo</option>
+          <option value="5">Junio</option>
+          <option value="6">Julio</option>
+          <option value="7">Agosto</option>
+          <option value="8">Septiembre</option>
+          <option value="9">Octubre</option>
+          <option value="10">Noviembre</option>
+          <option value="11">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" type="button">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<style is:global>
+  /* --- Maximize Mode Styles --- */
+  html.cronograma-maximized nav,
+  html.cronograma-maximized footer,
+  html.cronograma-maximized .mb-2.w-fit,
+  html.cronograma-maximized .mb-6.flex,
+  html.cronograma-maximized h1,
+  html.cronograma-maximized p.text-base-content\/70 {
+    display: none !important;
+  }
+
+  html.cronograma-maximized .mx-auto.max-w-6xl,
+  html.cronograma-maximized .mx-auto.max-w-7xl {
+    max-width: 98% !important;
+    width: 98% !important;
+    margin-top: 1.5rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  html.cronograma-maximized #cronograma-container {
+    padding-bottom: 2rem !important;
+  }
+
+  #date-picker-container {
+    transition: opacity 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  #date-picker-container.is-faded {
+    opacity: 0;
+  }
+
+  @media print {
+    .no-print, 
+    nav, 
+    footer, 
+    #view-switcher, 
+    #date-picker-container,
+    #monthly-search,
+    .btn,
+    #monthly-detail-overlay {
+      display: none !important;
+    }
+    
+    #cronograma-container {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    #monthly-view {
+      display: block !important;
+    }
+    
+    .bg-base-100 {
+      background-color: white !important;
+      color: black !important;
+    }
+    
+    .border {
+      border-color: #eee !important;
+    }
+  }
+
+  .crono-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .crono-icon svg {
+    width: 1em;
+    height: 1em;
+    stroke-width: 2.2;
+  }
+
+  .monthly-cell-button {
+    width: 100%;
+    border-radius: 0.5rem;
+    outline: none;
+  }
+
+  .monthly-cell-button:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-secondary) 35%, transparent);
+  }
+
+  .monthly-detail-modal {
+    animation: bubble-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top center;
+  }
+
+  #operator-drawer.is-active {
+    opacity: 1 !important;
+    scale: 1 !important;
+  }
+
+  @keyframes bubble-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .pointer-top {
+    top: -0.65rem;
+    border-left-width: 2px;
+    border-top-width: 2px;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .pointer-bottom {
+    bottom: -0.65rem;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -133,7 +843,7 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--fallback-bc,oklch(var(--bc)/0.2));
+    background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
     border-radius: 20px;
   }
 </style>
@@ -143,24 +853,294 @@
     nombre: string;
     horario: string;
     asistencia: Record<string, string>;
+    comentarios?: Record<string, string>;
+    esquema_semanal?: Record<string, string>;
+    esquema_horario?: Record<string, string>;
+    horarios_dias?: Record<string, string>;
   }
 
+  const icons = {
+    briefcase: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"/><path d="M4 12h16"/></svg></span>`,
+    home: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M10 20v-5h4v5"/></svg></span>`,
+    firstAid: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 4h4v4h4v4h-4v-4H6V8h4V4Z"/><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg></span>`,
+    sun: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>`,
+    help: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 1.8-1.7 2.3-2.3 3.2"/><path d="M12 17h.01"/></svg></span>`,
+    timer: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>`
+  };
+
   let cronoData: OperatorData[] = [];
-  const currentMonth = "2026-04";
-  const daysInMonth = 30; 
+  let activeMonthsList: { year: number, month: number }[] = [];
+  let isCoverageMinimized = localStorage.getItem('cronoCoverageMinimized') === 'true';
+  let modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
+  let searchQuery = '';
+  let activeFilter = 'all'; // 'all', 'Presencial', 'Home Office', 'Licencia', 'Vacaciones', 'Horas Extras'
+  let activeDetailTrigger: HTMLElement | null = null;
+  let focusedDateStr: string | null = null;
+
+  // Edit Mode variables
+  let isEditMode = false;
+  let activeBrush: string | null = null;
+  let pendingEdits: Record<string, { agentName: string; date: string; status: string; originalStatus: string }> = {};
+  
+  let minCoveragePercent = parseInt(localStorage.getItem('cronoMinCoverage') || '40');
+  let maxConsecutiveHOLimit = parseInt(localStorage.getItem('cronoMaxConsecutiveHO') || '5');
+  let minPWeekLimit = parseInt(localStorage.getItem('cronoMinPWeek') || '2');
+
+  let currentWeeklyScheme: Record<string, string> = { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
+  let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
+  if (Object.keys(weeklyTemplates).length === 0) {
+    weeklyTemplates = {
+      "Estándar P/HO Alternado": {
+        dias: { Lunes: "Presencial", Martes: "Home Office", Miercoles: "Presencial", Jueves: "Home Office", Viernes: "Presencial", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "100% Presencial": {
+        dias: { Lunes: "Presencial", Martes: "Presencial", Miercoles: "Presencial", Jueves: "Presencial", Viernes: "Presencial", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "100% Home Office": {
+        dias: { Lunes: "Home Office", Martes: "Home Office", Miercoles: "Home Office", Jueves: "Home Office", Viernes: "Home Office", Sabado: "Franco", Domingo: "Franco" },
+        horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+      },
+      "Guardia de Fin de Semana": {
+        dias: { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Presencial", Domingo: "Presencial" },
+        horarios: { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "08:00 - 17:00", Domingo: "08:00 - 17:00" }
+      }
+    };
+    localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+  }
+
+  function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function formatYMD(date: Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function formatDMY(dateStr: string) {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year.slice(-2)}`;
+  }
+
+  function formatDetailDate(dateStr: string) {
+    return new Intl.DateTimeFormat('es-AR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }).format(new Date(dateStr + 'T12:00:00'));
+  }
+
+  function getDatesArrayForCurrentMonth() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (!dateInput || !dateInput.value) return [];
+
+    const [year, month] = dateInput.value.split('-').map(Number);
+    const totalDays = getDaysInMonth(year, month - 1);
+    const dates: string[] = [];
+    for (let i = 1; i <= totalDays; i++) {
+      const dStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      dates.push(dStr);
+    }
+    return dates;
+  }
+
+  function escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function getUsername(nombre: string) {
+    const nameParts = nombre.toLowerCase().split(' ');
+    return nameParts[0][0] + (nameParts[1] || '');
+  }
+
+  function updateDateInputDisplay() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const dateDisplay = document.getElementById('date-input-display');
+
+    if (dateInput && dateDisplay && dateInput.value) {
+      dateDisplay.innerText = formatDMY(dateInput.value);
+    }
+  }
+
+  function isCurrentlyWorking(horario: string) {
+    if (!horario || horario === '-') return { status: 'offline', text: 'Fuera de horario' };
+    
+    const now = new Date();
+    const [start, end] = horario.split(' - ');
+    if (!start || !end) return { status: 'offline', text: 'Sin horario' };
+
+    const [hS, mS] = start.split(':').map(Number);
+    const [hE, mE] = end.split(':').map(Number);
+
+    const startTime = new Date(now);
+    startTime.setHours(hS, mS, 0);
+    
+    const endTime = new Date(now);
+    endTime.setHours(hE, mE, 0);
+
+    if (now >= startTime && now <= endTime) {
+      const shiftDuration = endTime.getTime() - startTime.getTime();
+      const breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+      const breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+
+      if (now >= breakStart && now <= breakEnd) {
+        return { status: 'break', text: 'En descanso' };
+      }
+      return { status: 'online', text: 'En servicio' };
+    }
+    
+    return { status: 'offline', text: 'Fuera de horario' };
+  }
+
+  function updateMonthDisplay() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const display = document.getElementById('current-month-display');
+    if (!dateInput || !display) return;
+
+    const [yearStr, monthStr] = dateInput.value.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+
+    const dateObj = new Date(year, month, 15);
+    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+    display.innerText = formatter.format(dateObj);
+  }
+
+  function renderMonthDropdown() {
+    const list = document.getElementById('month-dropdown-list');
+    if (!list) return;
+
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueMonths = [...new Set(allDates.map(d => d.slice(0, 7)))].sort();
+
+    let html = '';
+    uniqueMonths.forEach(ymStr => {
+      const [yearStr, monthStr] = ymStr.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr) - 1;
+      const dateObj = new Date(year, month, 15);
+      const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+      const label = formatter.format(dateObj).toUpperCase();
+
+      html += `
+        <li>
+          <a class="text-[10px] font-bold py-1.5 px-3 rounded-lg hover:bg-secondary/10 hover:text-secondary focus:bg-secondary/20 transition-all cursor-pointer flex items-center justify-between" data-month-val="${ymStr}-01">
+            <span>${label}</span>
+          </a>
+        </li>
+      `;
+    });
+
+    list.innerHTML = html;
+
+    // Attach click listeners
+    list.querySelectorAll('[data-month-val]').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
+        if (val) {
+          const dateInput = document.getElementById('date-input') as HTMLInputElement;
+          if (dateInput) {
+            dateInput.value = val;
+            updateDateInputDisplay();
+            updateMonthDisplay();
+            renderDaily();
+            renderMonthly();
+          }
+        }
+        // Force close dropdown by blurring active element
+        (document.activeElement as HTMLElement)?.blur();
+      });
+    });
+  }
+
+  function changeMonth(offset: number) {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (!dateInput) return;
+
+    const [yearStr, monthStr, dayStr] = dateInput.value.split('-');
+    let year = parseInt(yearStr);
+    let month = parseInt(monthStr) - 1; // 0-indexed month
+    let day = parseInt(dayStr);
+
+    month += offset;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    } else if (month < 0) {
+      month = 11;
+      year -= 1;
+    }
+
+    const daysInNewMonth = getDaysInMonth(year, month);
+    if (day > daysInNewMonth) {
+      day = daysInNewMonth;
+    }
+
+    const newDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    
+    // Constraints according to uniqueDates
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueDates = [...new Set(allDates)].sort();
+    if (uniqueDates.length > 0) {
+      const minDate = uniqueDates[0];
+      const maxDate = uniqueDates[uniqueDates.length - 1];
+      
+      if (newDateStr < minDate) {
+        dateInput.value = minDate;
+      } else if (newDateStr > maxDate) {
+        dateInput.value = maxDate;
+      } else {
+        dateInput.value = newDateStr;
+      }
+    } else {
+      dateInput.value = newDateStr;
+    }
+
+    updateDateInputDisplay();
+    updateMonthDisplay();
+    renderDaily();
+    renderMonthly();
+  }
 
   async function init() {
     try {
-      const res = await fetch('/data/cronograma.json');
+      const res = await fetch('/api/cronograma');
       cronoData = await res.json();
-      
-      const todayStr = new Date().toISOString().split('T')[0];
-      const defaultDate = todayStr.startsWith(currentMonth) ? todayStr : `${currentMonth}-01`;
+
       const dateInput = document.getElementById('date-input') as HTMLInputElement;
-      if (dateInput) dateInput.value = defaultDate;
+
+      const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+      const uniqueDates = [...new Set(allDates)].sort();
+      const latestDate = uniqueDates[uniqueDates.length - 1]; 
+
+      const todayStr = formatYMD(new Date());
+      const hasDataForToday = cronoData.some(op => op.asistencia[todayStr]);
+      const initialDate = hasDataForToday ? todayStr : latestDate;
+
+      if (dateInput) {
+        dateInput.value = initialDate;
+        updateDateInputDisplay();
+        updateMonthDisplay();
+        if (uniqueDates.length > 0) {
+          dateInput.min = uniqueDates[0];
+          dateInput.max = latestDate;
+        }
+      }
 
       renderDaily();
       renderMonthly();
+      renderMonthDropdown();
       setupEventListeners();
     } catch (err) {
       console.error("Error loading data:", err);
@@ -171,85 +1151,90 @@
     switch (type) {
       case 'Presencial':
         return {
-          badge: 'bg-secondary text-secondary-content shadow-sm font-semibold px-3 py-1 rounded-full text-xs tracking-wide',
-          icon: 'bxs-briefcase',
+          badge: 'bg-secondary/10 text-secondary border border-secondary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          icon: icons.briefcase,
           color: 'var(--color-secondary)',
-          bgClass: 'bg-secondary/10'
+          bgClass: 'bg-secondary/10 text-secondary'
         };
       case 'Home Office':
         return {
-          badge: 'bg-primary text-primary-content font-semibold px-3 py-1 rounded-full text-xs tracking-wide',
-          icon: 'bxs-home',
+          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          icon: icons.home,
           color: 'var(--color-primary)',
-          bgClass: 'bg-primary/10'
+          bgClass: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/25 shadow-sm'
         };
       case 'Licencia':
         return {
-          badge: 'bg-error text-error-content shadow-sm font-semibold px-3 py-1 rounded-full text-xs tracking-wide',
-          icon: 'bxs-first-aid',
+          badge: 'bg-error/10 text-error border border-error/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          icon: icons.firstAid,
           color: 'var(--color-error)',
-          bgClass: 'bg-error/10'
+          bgClass: 'bg-error/10 text-error'
         };
       case 'Vacaciones':
         return {
-          badge: 'bg-success text-success-content shadow-sm font-semibold px-3 py-1 rounded-full text-xs tracking-wide',
-          icon: 'bxs-sun',
+          badge: 'bg-success/10 text-success border border-success/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          icon: icons.sun,
           color: 'var(--color-success)',
-          bgClass: 'bg-success/10'
+          bgClass: 'bg-success/10 text-success'
+        };
+      case 'Horas Extras':
+        return {
+          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          icon: icons.timer,
+          color: '#0284c7',
+          bgClass: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/25 font-bold hover:bg-sky-500/30 shadow-sm transition-all duration-200'
         };
       default:
         return {
-          badge: 'bg-base-200 text-base-content/60 px-3 py-1 rounded-full text-xs font-semibold tracking-wide border border-base-300/50',
-          icon: 'bx-help-circle',
+          badge: 'bg-base-200 text-base-content/60 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border border-base-300/50',
+          icon: icons.help,
           color: 'var(--fallback-bc,oklch(var(--bc)/0.4))',
-          bgClass: 'bg-base-200/50'
+          bgClass: 'bg-base-200/50 text-base-content/50'
         };
     }
   }
 
-  function formatDateLong(dateStr: string) {
-    const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-  }
-
   function renderDaily() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
-    const selectedDate = dateInput?.value || "";
+    const selectedDateStr = dateInput?.value || formatYMD(new Date());
     const tableBody = document.getElementById('operators-table-body');
     const statsContainer = document.getElementById('stats-container');
     const dateDisplay = document.getElementById('daily-date-display');
 
-    if (dateDisplay) dateDisplay.innerText = formatDateLong(selectedDate);
+    if (dateDisplay) {
+      const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+      const dateObj = new Date(selectedDateStr + 'T12:00:00');
+      dateDisplay.innerText = formatter.format(dateObj);
+    }
 
-    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0 };
+    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0, horasExtras: 0 };
     cronoData.forEach(op => {
-      const status = op.asistencia[selectedDate];
+      const status = op.asistencia[selectedDateStr];
       if (status === 'Presencial') stats.presencial++;
       else if (status === 'Home Office') stats.homeOffice++;
       else if (status === 'Licencia') stats.licencia++;
       else if (status === 'Vacaciones') stats.vacaciones++;
+      else if (status === 'Horas Extras') stats.horasExtras++;
     });
 
     const statItems = [
-      { label: 'Presencial', value: stats.presencial, icon: 'bxs-briefcase', color: 'var(--color-secondary)', bg: 'bg-secondary/10' },
-      { label: 'Home Office', value: stats.homeOffice, icon: 'bxs-home', color: 'var(--color-primary)', bg: 'bg-primary/15' },
-      { label: 'Licencia', value: stats.licencia, icon: 'bxs-first-aid', color: 'var(--color-error)', bg: 'bg-error/10' },
-      { label: 'Vacaciones', value: stats.vacaciones, icon: 'bxs-sun', color: 'var(--color-success)', bg: 'bg-success/10' },
+      { label: 'Presencial', value: stats.presencial, icon: icons.briefcase, borderClass: 'border-l-secondary', textClass: 'text-secondary' },
+      { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
+      { label: 'Licencia', value: stats.licencia, icon: icons.firstAid, borderClass: 'border-l-error', textClass: 'text-error' },
+      { label: 'Vacaciones', value: stats.vacaciones, icon: icons.sun, borderClass: 'border-l-success', textClass: 'text-success' },
+      { label: 'Horas Extras', value: stats.horasExtras, icon: icons.timer, borderClass: 'border-l-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
     ];
 
     if (statsContainer) {
-      statsContainer.innerHTML = statItems.map((stat, i) => `
-        <div class="bg-base-100 rounded-3xl border border-base-300/40 shadow-lg shadow-base-content/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group" style="border-bottom: 4px solid ${stat.color}; animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.1}s both;">
-          <div class="absolute -right-2 -bottom-6 opacity-[0.15] group-hover:opacity-[0.25] group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 pointer-events-none">
-            <i class="bx ${stat.icon} text-9xl" style="color: ${stat.color}"></i>
-          </div>
-          <div class="p-6 relative z-10 flex flex-col h-full justify-between">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-xs font-bold uppercase tracking-widest" style="color: ${stat.color}">${stat.label}</span>
+      statsContainer.innerHTML = statItems.map((stat) => `
+        <div class="bg-base-100 rounded-xl border border-l-4 ${stat.borderClass} border-base-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-shadow duration-200 relative overflow-hidden">
+          <div class="p-4 flex flex-col gap-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm ${stat.textClass}">${stat.icon}</span>
+              <span class="text-xs font-bold uppercase tracking-wide text-base-content/60">${stat.label}</span>
             </div>
-            <div>
-              <span class="text-5xl font-black tracking-tight text-base-content">${stat.value}</span>
-            </div>
+            <span class="text-4xl font-black text-base-content tracking-tight leading-none">${stat.value}</span>
+            <span class="text-xs text-base-content/40 font-medium mt-0.5">operadores hoy</span>
           </div>
         </div>
       `).join('');
@@ -257,47 +1242,67 @@
 
     let rowsHtml = '';
     cronoData.forEach(op => {
-      const status = op.asistencia[selectedDate];
+      const status = op.asistencia[selectedDateStr];
       if (!status) return;
       
       const styles = getStatusStyles(status);
       const isAbsent = status === 'Licencia' || status === 'Vacaciones';
       const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-      const username = op.nombre.toLowerCase().split(' ')[0][0] + (op.nombre.toLowerCase().split(' ')[1] || '');
+      const username = getUsername(op.nombre);
+      const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
+      const liveStatus = isCurrentlyWorking(dailyHorario);
+      
+      let liveIndicatorClass = "bg-base-content/10";
+      if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
+      else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
 
-      let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200";
-      if (status === 'Presencial') ringClass = "bg-secondary text-secondary-content ring-secondary/30 shadow-md shadow-secondary/20";
-      else if (status === 'Home Office') ringClass = "bg-primary text-primary-content ring-primary/40 shadow-md shadow-primary/20";
+      let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
+      if (status === 'Presencial') ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
+      else if (status === 'Home Office') ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
 
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-colors duration-200 group">
+        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
           <td class="px-6 py-4">
             <div class="flex items-center gap-4">
-              <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-black ring-2 ring-offset-2 transition-transform duration-300 group-hover:scale-110 ${ringClass}">
-                ${initials}
+              <div class="relative w-10 h-10 shrink-0">
+                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : (status === 'Home Office' ? 'bg-amber-500' : 'bg-primary')}"></div>
+                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
+                  ${initials}
+                </div>
+                <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base-100 ${liveIndicatorClass}" title="${liveStatus.text}"></div>
               </div>
-              <div class="flex flex-col">
-                <span class="font-bold text-sm text-base-content">${op.nombre}</span>
-                <span class="text-xs text-base-content/50 font-medium">${username}@correoargentino.com.ar</span>
+              <div class="flex flex-col min-w-0">
+                <button 
+                  class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
+                  data-op-profile="${op.nombre}"
+                >
+                  ${op.nombre}
+                </button>
+                <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}@correoargentino.com.ar</span>
               </div>
             </div>
           </td>
           <td class="px-4 py-4">
             <div class="flex items-center gap-3">
-               <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${styles.bgClass}">
-                  <i class="bx text-lg ${styles.icon}" style="color: ${styles.color}"></i>
+               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
+                  ${styles.icon}
                </div>
                <span class="${styles.badge}">${status}</span>
             </div>
           </td>
-          <td class="px-4 py-4 font-mono text-xs font-semibold">
-            ${isAbsent ? '<span class="text-base-content/30 italic">Ausente</span>' : `<span class="text-base-content/80">${op.horario}</span>`}
+          <td class="px-4 py-4">
+            <div class="flex flex-col gap-1">
+              <span class="font-mono text-sm font-bold ${isAbsent ? 'text-base-content/20 italic' : 'text-base-content/80'}">${isAbsent ? 'Ausente' : ((op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario)}</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-black uppercase tracking-wider ${liveStatus.status === 'online' ? 'text-success' : liveStatus.status === 'break' ? 'text-warning' : 'text-base-content/30'}">${liveStatus.text}</span>
+              </div>
+            </div>
           </td>
-          <td class="px-4 py-4 font-mono text-xs font-semibold">
-            ${isAbsent ? '<span class="text-base-content/30">-</span>' : '<span class="text-base-content/80">1 hr</span>'}
+          <td class="px-4 py-4 font-mono text-sm font-bold">
+            ${isAbsent ? '<span class="text-base-content/20">-</span>' : '<span class="text-base-content/60 bg-base-200/50 px-2 py-0.5 rounded text-[11px] border border-base-300/20">1 hr</span>'}
           </td>
           <td class="px-6 py-4 text-right">
-            <code class="text-xs font-bold bg-base-200/50 px-3 py-1.5 rounded-lg text-base-content/60 border border-base-300/50 shadow-sm">${username}</code>
+            <code class="text-[10px] font-black bg-base-300/20 px-2.5 py-1.5 rounded text-base-content/40 border border-base-300/20 tracking-widest uppercase transition-all duration-200 group-hover:bg-base-300 group-hover:text-base-content/60">${username}</code>
           </td>
         </tr>
       `;
@@ -306,34 +1311,178 @@
     if (tableBody) tableBody.innerHTML = rowsHtml;
   }
 
-  function renderMonthly() {
+  function isWorkingAtHour(horario: string, hourStr: string) {
+    if (!horario || horario === '-' || horario === 'Franco') return false;
+    const parts = horario.split(' - ');
+    if (parts.length !== 2) return false;
+    const start = parts[0];
+    const end = parts[1];
+
+    const hS = parseInt(start.split(':')[0]);
+    const hE = parseInt(end.split(':')[0]);
+    const hC = parseInt(hourStr.split(':')[0]);
+
+    if (hS <= hE) {
+       return hC >= hS && hC < hE;
+    } else {
+       return hC >= hS || hC < hE;
+    }
+  }
+
+  function renderHourly(dateStr: string) {
     const thead = document.getElementById('monthly-thead');
     const tbody = document.getElementById('monthly-tbody');
+    const tfoot = document.getElementById('monthly-tfoot');
     
-    const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonth}-${(i + 1).toString().padStart(2, '0')}`);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
+    const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+
+    let theadHtml = `
+      <tr>
+        <th rowspan="2" class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+        <th colspan="${hours.length}" class="text-center py-3 bg-secondary/5 text-secondary border-b border-base-200 relative group">
+           <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
+              Volver al mes
+           </button>
+           <span class="font-black tracking-widest uppercase text-sm">Vista Diaria: ${formattedDate}</span>
+        </th>
+      </tr>
+      <tr>
+    `;
+    
+    hours.forEach(hour => {
+      theadHtml += `<th class="text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-200/20">
+        <span class="font-extrabold text-[10px] tracking-wide text-base-content/60">${hour}</span>
+      </th>`;
+    });
+    theadHtml += `</tr>`;
+    if (thead) thead.innerHTML = theadHtml;
+
+    const filteredOps = cronoData.filter(op => {
+      const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (activeFilter === 'all') return true;
+      const status = op.asistencia[dateStr];
+      if (activeFilter === 'Licencia') {
+        return status === 'Licencia' || status === 'Vacaciones';
+      }
+      return status === activeFilter;
+    });
+
+    let tbodyHtml = '';
+    if (filteredOps.length === 0) {
+       tbodyHtml = `<tr><td colspan="${hours.length + 1}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50">Sin resultados</td></tr>`;
+    } else {
+       filteredOps.forEach(op => {
+          const status = op.asistencia[dateStr] || 'Franco';
+          const horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
+          const styles = getStatusStyles(status);
+          const isAbsent = status === 'Licencia' || status === 'Vacaciones';
+          const isFranco = status === 'Franco';
+          
+          tbodyHtml += `<tr class="group hover:bg-base-200/40 transition-all border-b border-base-200/50">
+             <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors">
+                <div class="flex flex-col min-w-0">
+                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">${op.nombre}</button>
+                  <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
+                </div>
+             </td>
+          `;
+
+          hours.forEach(hour => {
+             const working = isWorkingAtHour(horario, hour);
+             if (working && !isFranco) {
+                tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
+                   <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                   </div>
+                </td>`;
+             } else {
+                tbodyHtml += `<td class="border-r border-b border-base-200/50 bg-base-100/50"></td>`;
+             }
+          });
+          tbodyHtml += `</tr>`;
+       });
+    }
+    if (tbody) tbody.innerHTML = tbodyHtml;
+    
+    if (tfoot) tfoot.innerHTML = `<tr><td colspan="${hours.length + 1}" class="bg-base-200 py-3 text-center border-t border-base-300 text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Fin del reporte diario</td></tr>`;
+  }
+
+  function renderMonthly() {
+    if (focusedDateStr) {
+      renderHourly(focusedDateStr);
+      return;
+    }
+
+    const thead = document.getElementById('monthly-thead');
+    const tbody = document.getElementById('monthly-tbody');
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const selectedDateStr = dateInput?.value || formatYMD(new Date());
+    
+    const [yearStr, monthStr] = selectedDateStr.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+    const daysInMonth = getDaysInMonth(year, month);
+    const currentMonthPrefix = `${yearStr}-${monthStr}`;
+    
+    const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonthPrefix}-${(i + 1).toString().padStart(2, '0')}`);
+    const todayStr = formatYMD(new Date());
+
+    // --- RULE: Coverage Pre-calculation ---
+    const coveragePerDay: Record<string, { total: number, licenses: number }> = {};
+    dates.forEach(d => {
+      let active = 0;
+      let lics = 0;
+      cronoData.forEach(op => {
+        const s = op.asistencia[d];
+        if (s === 'Presencial' || s === 'Home Office') active++;
+        if (s === 'Licencia' || s === 'Vacaciones') lics++;
+      });
+      coveragePerDay[d] = { total: active, licenses: lics };
+    });
+
+    const teamSize = cronoData.length;
+    let totalInconsistencies = 0;
 
     let theadHtml = `<tr>
-      <th class="sticky left-0 bg-base-100/95 backdrop-blur-xl z-40 min-w-50 border-r border-b border-base-200 px-6 py-3 font-bold text-xs uppercase tracking-wider text-base-content/60 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">Operador</th>`;
+      <th class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+      <th class="sticky left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
+      <th class="sticky left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
+      <th class="sticky left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+`;
     
     dates.forEach(date => {
       const d = new Date(date + 'T12:00:00');
       const isToday = date === todayStr;
       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      const isCritical = (coveragePerDay[date].total / teamSize) < (minCoveragePercent / 100);
       
-      let thClass = "text-center min-w-12 px-0 border-r border-b border-base-200 transition-colors";
-      if (isToday) thClass += " bg-primary/15 text-primary border-b-primary border-b-2";
-      else if (isWeekend) thClass += " bg-base-200/30 text-base-content/40";
+      let thClass = "text-center min-w-[3rem] px-0 border-r border-b border-base-200 transition-colors";
+      if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
+      else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
+      else if (isCritical) thClass += " bg-error/10 text-error";
       else thClass += " text-base-content/70";
       
-      const dayName = d.toLocaleDateString('es-AR', { weekday: 'short' }).substring(0, 2).toUpperCase();
+      const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'short' });
+      const dayName = formatter.format(d).substring(0, 2).toUpperCase();
       
       theadHtml += `
-        <th class="${thClass}">
-          <div class="flex flex-col items-center py-2 gap-0.5">
-            <span class="font-bold text-xs opacity-60 tracking-widest">${dayName}</span>
-            <span class="font-black text-xs ${isToday ? 'scale-110' : ''}">${d.getDate()}</span>
-          </div>
+        <th class="${thClass} p-0">
+          <button
+            type="button"
+            class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
+            data-click-day="${date}"
+            aria-label="Ver detalle del día ${d.getDate()} de ${new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(d)}"
+          >
+            <span class="font-extrabold text-[10px] tracking-wide ${isToday ? 'opacity-90' : 'opacity-60'}">${dayName}</span>
+            <div class="flex items-center gap-1">
+               <span class="font-black text-xs ${isToday ? 'scale-110' : ''}">${d.getDate()}</span>
+               ${isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
+            </div>
+            ${isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+          </button>
         </th>
       `;
     });
@@ -341,81 +1490,1900 @@
     if (thead) thead.innerHTML = theadHtml;
 
     let tbodyHtml = '';
-    cronoData.forEach(op => {
-      tbodyHtml += `<tr class="group">
-        <td class="sticky left-0 bg-base-100 z-30 font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200/40 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
-          <div class="flex items-center gap-3">
-            <div class="w-1.5 h-1.5 rounded-full bg-base-300 group-hover:bg-primary transition-colors"></div>
-            ${op.nombre}
-          </div>
-        </td>`;
-        
-      dates.forEach(date => {
-        const status = op.asistencia[date];
-        const styles = getStatusStyles(status);
-        
-        let cellClass = "p-1 border-r border-b border-base-200/50 text-center";
-        
-        if (status === 'Franco' || !status) {
-          tbodyHtml += `<td class="${cellClass}"><div class="h-10 w-full rounded-lg bg-base-200/10"></div></td>`;
-          return;
+    const filteredOps = cronoData.filter(op => {
+      // 1. Search Query filter (case-insensitive name check)
+      const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // 2. Status Filter
+      if (activeFilter === 'all') return true;
+      
+      // Check if the operator has at least one occurrence of the selected status in the current month
+      return dates.some(d => {
+        const status = op.asistencia[d];
+        if (activeFilter === 'Licencia') {
+          return status === 'Licencia' || status === 'Vacaciones';
         }
+        return status === activeFilter;
+      });
+    });
 
-        let initials = "";
-        if (status === 'Presencial') initials = "P";
-        else if (status === 'Home Office') initials = "HO";
-        else if (status === 'Licencia') initials = "L";
-        else if (status === 'Vacaciones') initials = "V";
+    if (filteredOps.length === 0) {
+      tbodyHtml = `<tr>
+        <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+          <div class="flex flex-col items-center justify-center gap-3 py-6">
+            <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs uppercase tracking-widest font-black text-base-content/70">Sin resultados</span>
+              <span class="text-[10px] text-base-content/40 font-medium normal-case mt-0.5">Ningún operador coincide con tu búsqueda o filtro.</span>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    } else {
+      filteredOps.forEach(op => {
+        const stats = { P: 0, HO: 0, L: 0 };
+        dates.forEach(d => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial') stats.P++;
+          else if (s === 'Home Office') stats.HO++;
+          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+        });
 
-        tbodyHtml += `
-          <td class="${cellClass}">
-            <div 
-              class="h-10 w-full rounded-xl flex flex-col items-center justify-center gap-[1px] transition-all duration-300 cursor-help hover:-translate-y-0.5 hover:shadow-md relative z-0 ${styles.bgClass}"
-              title="${op.nombre} - ${date}: ${status}"
-            >
-              <i class="bx text-xs ${styles.icon} opacity-90" style="color: ${styles.color}"></i>
-              <span class="font-black text-xs leading-none tracking-tighter" style="color: ${styles.color}">${initials}</span>
+        // --- RULE: Consecutive HO Check & Min Presencial Check ---
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        
+        let pWeekViolation = false;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+
+        dates.forEach(d => {
+          if (op.asistencia[d] === 'Home Office') {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (op.asistencia[d] !== 'Franco' && op.asistencia[d]) {
+            currentHO = 0;
+          }
+
+          const dateObj = new Date(d + 'T12:00:00');
+          if (op.asistencia[d] === 'Presencial') currentWeekP++;
+          if (op.asistencia[d] !== 'Franco' && op.asistencia[d] !== 'Licencia' && op.asistencia[d] !== 'Vacaciones') {
+             currentWeekDays++;
+          }
+          if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+        });
+        
+        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        if (hoViolation || pWeekViolation) totalInconsistencies++;
+
+        tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+          <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
+              <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+              <div class="flex flex-col min-w-0">
+                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header" data-op-profile="${op.nombre}">
+                  ${op.nombre}
+                </button>
+                ${hoViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+                ${pWeekViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Faltan días P.</span>` : ''}
+              </div>
             </div>
           </td>
-        `;
+          <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
+          <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+  `;
+          
+        dates.forEach(date => {
+          const status = op.asistencia[date];
+          const styles = getStatusStyles(status);
+          const isTodayCell = date === todayStr;
+          const safeName = escapeHtml(op.nombre);
+          const safeDate = escapeHtml(date);
+          const safeStatus = escapeHtml(status || 'Franco');
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
+          const safeHorario = escapeHtml(dailyHorario);
+          const username = getUsername(op.nombre);
+          
+          // --- RULE: License Overlap Check ---
+          const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
+          if (isLicenseOverlap) totalInconsistencies++;
+
+          let cellClass = `p-1.5 border-r border-b border-base-200/50 text-center transition-all duration-300`;
+          if (isTodayCell) cellClass += ' bg-secondary/10';
+          if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
+          
+          const hasComment = !!(op.comentarios && op.comentarios[date]);
+          if (status === 'Franco' || !status) {
+            tbodyHtml += `<td class="${cellClass}">
+              <button
+                type="button"
+                class="monthly-cell-button h-8 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'}"
+                data-monthly-detail
+                data-operator="${safeName}"
+                data-date="${safeDate}"
+                data-status="Franco"
+                data-horario="${safeHorario}"
+                data-username="${escapeHtml(username)}"
+                data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
+              >
+                ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
+              </button>
+            </td>`;
+            return;
+          }
+
+          let initials = "";
+          if (status === 'Presencial') initials = "P";
+          else if (status === 'Home Office') initials = "HO";
+          else if (status === 'Licencia') initials = "L";
+          else if (status === 'Vacaciones') initials = "V";
+          else if (status === 'Horas Extras') initials = "HE";
+
+          tbodyHtml += `
+            <td class="${cellClass}">
+              <button
+                type="button"
+                class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
+                title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
+                data-monthly-detail
+                data-operator="${safeName}"
+                data-date="${safeDate}"
+                data-status="${safeStatus}"
+                data-horario="${safeHorario}"
+                data-username="${escapeHtml(username)}"
+                data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
+              >
+                <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
+                ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
+                ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
+              </button>
+            </td>
+          `;
+        });
+        tbodyHtml += `</tr>`;
       });
-      tbodyHtml += `</tr>`;
-    });
+    }
+
     if (tbody) tbody.innerHTML = tbodyHtml;
+
+    // Update Global Alert Badge
+    const alertBadge = document.getElementById('compliance-alert-badge');
+    const alertText = document.getElementById('compliance-alert-text');
+    if (alertBadge && alertText) {
+      if (totalInconsistencies > 0) {
+        alertBadge.classList.remove('hidden');
+        alertText.innerText = `${totalInconsistencies} Inconsistencia${totalInconsistencies > 1 ? 's' : ''} detectada${totalInconsistencies > 1 ? 's' : ''}`;
+      } else {
+        alertBadge.classList.add('hidden');
+      }
+    }
+
+    // --- FEATURE: Coverage Visualizer (Heatmap Footer) ---
+    const dailyCoverage = dates.map(date => {
+      let p = 0, ho = 0;
+      cronoData.forEach(op => {
+        const s = op.asistencia[date];
+        if (s === 'Presencial') p++;
+        else if (s === 'Home Office') ho++;
+      });
+      return { p, ho, total: p + ho };
+    });
+
+    const pyClass = isCoverageMinimized ? 'py-1.5' : 'py-3.5';
+    const chevronIcon = isCoverageMinimized ? 
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up transition-transform duration-200"><path d="m18 15-6-6-6 6"/></svg>` : 
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>`;
+
+    let tfootHtml = `<tr>
+      <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
+          <button
+            type="button"
+            id="toggle-coverage-btn"
+            class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-300 text-base-content/50 hover:text-base-content transition-all"
+            title="${isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+            aria-label="${isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+          >
+            ${chevronIcon}
+          </button>
+        </div>
+      </td>
+      <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
+      <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
+      <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
+    `;
+
+    dailyCoverage.forEach(c => {
+      const hoPercent = (c.ho / teamSize) * 100;
+      const pPercent = (c.p / teamSize) * 100;
+      const totalPercent = ((c.p + c.ho) / teamSize) * 100;
+      const isLowCoverage = totalPercent < 40;
+
+      const cellPyClass = isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
+
+      tfootHtml += `
+        <td class="${cellPyClass} border-r border-base-200/50 min-w-[3rem] ${isLowCoverage ? 'bg-error/5' : ''}">
+          <div class="flex flex-col items-center gap-1.5">
+             ${isCoverageMinimized ? '' : `
+             <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+                <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
+                <div class="bg-secondary w-full transition-all duration-500" style="height: ${pPercent}%" title="Presencial: ${c.p}"></div>
+             </div>
+             `}
+             <div class="flex flex-col items-center leading-none">
+                <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.p + c.ho}</span>
+                <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
+             </div>
+          </div>
+        </td>
+      `;
+    });
+    tfootHtml += `</tr>`;
+
+    const tfoot = document.getElementById('monthly-tfoot');
+    if (tfoot) tfoot.innerHTML = tfootHtml;
+  }
+
+  function updateCellStatus(cell: HTMLElement, newStatus: string) {
+    const operator = cell.dataset.operator;
+    const date = cell.dataset.date;
+    if (!operator || !date) return;
+
+    // Track the changes in our pending changes array
+    const existingIndex = modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
+    if (existingIndex !== -1) {
+      modifiedSchedules[existingIndex].status = newStatus;
+    } else {
+      modifiedSchedules.push({ agentName: operator, date, status: newStatus });
+    }
+
+    // Update in-memory data
+    const opIndex = cronoData.findIndex(o => o.nombre === operator);
+    if (opIndex !== -1) {
+      cronoData[opIndex].asistencia[date] = newStatus;
+      renderMonthly(); // Full re-render to update stats and colors
+    }
+  }
+
+  async function discardChanges() {
+    try {
+      const res = await fetch('/api/cronograma');
+      cronoData = await res.json();
+      modifiedSchedules = [];
+      
+      const saveIndicator = document.getElementById('save-indicator');
+      if (saveIndicator) saveIndicator.classList.add('hidden');
+
+      renderDaily();
+      renderMonthly();
+    } catch (err) {
+      console.error("Error discarding/reloading data:", err);
+    }
+  }
+
+  async function saveChangesToServer() {
+    const saveBtn = document.getElementById('save-confirm-btn') as HTMLButtonElement | null;
+    const discardBtn = document.getElementById('save-discard-btn') as HTMLButtonElement | null;
+    const indicatorText = document.getElementById('save-indicator-text');
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Guardando...`;
+    }
+    if (discardBtn) discardBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/cronograma', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ edits: modifiedSchedules })
+      });
+
+      if (!response.ok) throw new Error("Error al guardar cambios");
+
+      // Success visual feedback
+      if (indicatorText) {
+        indicatorText.innerText = "¡Cambios guardados con éxito!";
+      }
+
+      // Complete reset
+      modifiedSchedules = [];
+      
+      // Fetch latest merged data to be absolutely sure
+      const res = await fetch('/api/cronograma');
+      cronoData = await res.json();
+
+      setTimeout(() => {
+        const saveIndicator = document.getElementById('save-indicator');
+        if (saveIndicator) saveIndicator.classList.add('hidden');
+        
+        // Restore buttons
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = "Guardar";
+        }
+        if (discardBtn) discardBtn.disabled = false;
+        
+        if (indicatorText) {
+          indicatorText.innerText = "Edición en progreso: Cambios pendientes";
+        }
+
+        renderDaily();
+        renderMonthly();
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      if (indicatorText) {
+        indicatorText.innerText = "Error al guardar en el servidor";
+      }
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Reintentar";
+      }
+      if (discardBtn) discardBtn.disabled = false;
+    }
+  }
+
+  function getDetailStatusClass(status: string) {
+    if (status === 'Presencial') return 'text-secondary';
+    if (status === 'Home Office') return 'text-amber-600 dark:text-amber-400';
+    if (status === 'Licencia') return 'text-error';
+    if (status === 'Vacaciones') return 'text-success';
+    if (status === 'Horas Extras') return 'text-sky-600 dark:text-sky-400';
+    return 'text-base-content/40';
+  }
+
+  function getDetailIndicatorClass(status: string) {
+    if (status === 'Presencial') return 'bg-secondary';
+    if (status === 'Home Office') return 'bg-amber-500';
+    if (status === 'Licencia') return 'bg-error';
+    if (status === 'Vacaciones') return 'bg-success';
+    if (status === 'Horas Extras') return 'bg-sky-500';
+    return 'bg-base-300';
+  }
+
+  function openMonthlyDetail(trigger: HTMLElement) {
+    const overlay = document.getElementById('monthly-detail-overlay') as HTMLElement;
+    const modal = document.getElementById('monthly-detail-modal') as HTMLElement;
+    const closeButton = document.getElementById('monthly-detail-close') as HTMLButtonElement | null;
+    const title = document.getElementById('monthly-detail-title') as HTMLElement;
+    const date = document.getElementById('monthly-detail-date') as HTMLElement;
+    const status = document.getElementById('monthly-detail-status') as HTMLElement;
+    const indicator = document.getElementById('modal-status-indicator') as HTMLElement;
+    const schedule = document.getElementById('monthly-detail-schedule') as HTMLElement;
+    const user = document.getElementById('monthly-detail-user') as HTMLElement;
+    const pointer = document.getElementById('modal-pointer') as HTMLElement;
+
+    activeDetailTrigger = trigger;
+    const commentValue = trigger.dataset.comment || '';
+    const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
+    if (commentTextarea) {
+      commentTextarea.value = commentValue;
+    }
+    const commentIndicator = document.getElementById('monthly-comment-indicator');
+    if (commentIndicator) {
+      commentIndicator.classList.remove('opacity-100');
+      commentIndicator.classList.add('opacity-0');
+    }
+
+    const operatorName = trigger.dataset.operator || '';
+    const dateValue = trigger.dataset.date || '';
+    const statusValue = trigger.dataset.status || 'Franco';
+    const horario = trigger.dataset.horario || '-';
+    const username = trigger.dataset.username || '';
+    const isAbsent = statusValue === 'Licencia' || statusValue === 'Vacaciones' || statusValue === 'Franco';
+
+    title.innerText = operatorName;
+    date.innerText = formatDetailDate(dateValue);
+    status.innerText = statusValue;
+    status.className = `inline-block text-[11px] font-black uppercase tracking-wider ${getDetailStatusClass(statusValue)}`;
+    indicator.className = `w-2.5 h-2.5 rounded-full animate-pulse ${getDetailIndicatorClass(statusValue)}`;
+    if (schedule instanceof HTMLInputElement) { schedule.value = isAbsent ? '' : horario; } else { schedule.innerText = isAbsent ? 'Ausente' : horario; }
+    const scheduleText = document.getElementById('monthly-detail-schedule-text');
+    if (scheduleText) {
+      scheduleText.innerText = isAbsent ? 'Franco' : (horario || '-');
+      scheduleText.classList.remove('hidden');
+      schedule.classList.add('hidden');
+    }
+    user.innerText = username ? `${username}@correoargentino.com.ar` : '-';
+
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    
+    const rect = trigger.getBoundingClientRect();
+    const modalWidth = 288;
+    const modalHeight = modal.offsetHeight || 320; 
+    const padding = 20;
+    
+    if (window.innerWidth > 768) {
+      overlay.classList.remove('items-start', 'justify-center');
+      overlay.style.backgroundColor = 'transparent';
+      overlay.style.pointerEvents = 'none';
+      modal.style.pointerEvents = 'auto';
+      modal.style.position = 'absolute';
+      
+      const left = Math.max(20, Math.min(window.innerWidth - modalWidth - 20, rect.left + rect.width/2 - modalWidth/2));
+      
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const showAbove = spaceBelow < (modalHeight + padding);
+      
+      if (showAbove) {
+        modal.style.top = `${rect.top - modalHeight - 12}px`;
+        modal.style.transformOrigin = 'bottom center';
+        pointer.className = "absolute w-5 h-5 bg-base-100 border-r-2 border-b-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -bottom-2.5";
+      } else {
+        modal.style.top = `${rect.bottom + 12}px`;
+        modal.style.transformOrigin = 'top center';
+        pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5";
+      }
+      
+      modal.style.left = `${left}px`;
+      modal.style.margin = '0';
+      
+      const pointerOffset = rect.left + rect.width/2 - left;
+      pointer.style.left = `${pointerOffset}px`;
+    } else {
+      overlay.classList.add('items-start', 'justify-center');
+      overlay.style.backgroundColor = '';
+      overlay.style.pointerEvents = '';
+      modal.style.pointerEvents = '';
+      modal.style.position = '';
+      modal.style.left = '';
+      modal.style.top = '';
+      modal.style.margin = '4rem auto';
+      pointer.style.left = '50%';
+      pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5";
+    }
+
+    overlay.setAttribute('aria-hidden', 'false');
+    closeButton?.focus();
+  }
+
+  function closeMonthlyDetail() {
+    const overlay = document.getElementById('monthly-detail-overlay');
+    if (!overlay) return;
+
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function showDailyView() {
+    const dailyView = document.getElementById('daily-view');
+    const monthlyView = document.getElementById('monthly-view');
+    const statsContainer = document.getElementById('stats-container');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    
+    renderDaily();
+    
+    if (dailyView) dailyView.classList.remove('hidden');
+    if (monthlyView) monthlyView.classList.add('hidden');
+    if (statsContainer) statsContainer.classList.remove('hidden');
+    
+    if (datePickerContainer) {
+      datePickerContainer.classList.remove('hidden');
+      setTimeout(() => {
+        datePickerContainer.classList.remove('is-faded');
+      }, 50);
+    }
+  }
+
+  function showMonthlyView() {
+    const dailyView = document.getElementById('daily-view');
+    const monthlyView = document.getElementById('monthly-view');
+    const statsContainer = document.getElementById('stats-container');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    
+    if (dailyView) dailyView.classList.add('hidden');
+    if (monthlyView) monthlyView.classList.remove('hidden');
+    if (statsContainer) statsContainer.classList.add('hidden');
+    
+    if (datePickerContainer) {
+      datePickerContainer.classList.add('is-faded');
+      setTimeout(() => {
+        datePickerContainer.classList.add('hidden');
+      }, 300);
+    }
   }
 
   function setupEventListeners() {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement;
-    if (dateInput) dateInput.addEventListener('change', renderDaily);
-
-    const viewBtns = document.querySelectorAll('.view-btn');
-    const datePickerContainer = document.getElementById('date-picker-container');
-    const dailyView = document.getElementById('daily-view');
-    const monthlyView = document.getElementById('monthly-view');
-
-    viewBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const view = btn.getAttribute('data-view');
-        
-        if (dailyView) dailyView.classList.toggle('hidden', view !== 'daily');
-        if (monthlyView) monthlyView.classList.toggle('hidden', view !== 'monthly');
-        
-        if (datePickerContainer) {
-          datePickerContainer.style.opacity = view === 'monthly' ? '0' : '1';
-          setTimeout(() => {
-              datePickerContainer.classList.toggle('hidden', view === 'monthly');
-          }, view === 'monthly' ? 300 : 0);
+    const modal = document.getElementById('new-month-modal') as HTMLDialogElement;
+    document.getElementById('add-month-btn')?.addEventListener('click', () => {
+      modal.showModal();
+    });
+    document.getElementById('confirm-new-month')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const year = parseInt((document.getElementById('new-month-year') as HTMLInputElement).value);
+      const month = parseInt((document.getElementById('new-month-month') as HTMLSelectElement).value);
+      
+      const res = await fetch('/api/cronograma/months', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year, month })
+      });
+      if (res.ok) {
+        modal.close();
+        const freshRes = await fetch('/api/cronograma');
+        cronoData = await freshRes.json();
+        const dateInput = document.getElementById('date-input') as HTMLInputElement;
+        if (dateInput) {
+          dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+          const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+          const uniqueDates = [...new Set(allDates)].sort();
+          if (uniqueDates.length > 0) {
+            dateInput.min = uniqueDates[0];
+            dateInput.max = uniqueDates[uniqueDates.length - 1];
+          }
+          updateDateInputDisplay();
+          updateMonthDisplay();
         }
+        renderMonthDropdown();
+        renderMonthly();
+      }
+    });
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    if (dateInput) {
+      dateInput.addEventListener('change', () => {
+        updateDateInputDisplay();
+        renderDaily();
+        renderMonthly(); 
+      });
+    }
 
-        viewBtns.forEach(b => {
-          b.classList.remove('bg-base-100', 'shadow-sm', 'ring-1', 'ring-base-300/50', 'text-base-content');
-          b.classList.add('text-base-content/60', 'hover:text-base-content', 'hover:bg-base-200/50');
-        });
-        
-        btn.classList.add('bg-base-100', 'shadow-sm', 'ring-1', 'ring-base-300/50', 'text-base-content');
-        btn.classList.remove('text-base-content/60', 'hover:text-base-content', 'hover:bg-base-200/50');
+    const monthlyBody = document.getElementById('monthly-tbody');
+    const monthlyThead = document.getElementById('monthly-thead');
+    const detailOverlay = document.getElementById('monthly-detail-overlay');
+    const detailClose = document.getElementById('monthly-detail-close');
+    const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
+
+    // (Legacy) Click on specific day inside Monthly Matrix header was removed to favor inline Hourly View
+    // Go back to full month view from daily view
+    backToMonthlyBtn?.addEventListener('click', () => {
+      showMonthlyView();
+    });
+
+    // Month Navigator Buttons
+    document.getElementById('prev-month-btn')?.addEventListener('click', () => {
+      changeMonth(-1);
+    });
+
+    document.getElementById('next-month-btn')?.addEventListener('click', () => {
+      changeMonth(1);
+    });
+
+    // Minimize Coverage Summary Footer
+    document.getElementById('monthly-tfoot')?.addEventListener('click', (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
+      if (!btn) return;
+      isCoverageMinimized = !isCoverageMinimized;
+      localStorage.setItem('cronoCoverageMinimized', isCoverageMinimized ? 'true' : 'false');
+      renderMonthly();
+    });
+
+    let isDragging = false;
+    monthlyBody?.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !isEditMode || !activeBrush) return;
+      const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (trigger) {
+         isDragging = true;
+         applyBrushToCell(trigger);
+      }
+    });
+
+    monthlyBody?.addEventListener('mouseover', (event) => {
+      if (!isDragging || !isEditMode || !activeBrush) return;
+      const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (trigger) applyBrushToCell(trigger);
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+    
+    monthlyBody?.addEventListener('click', (event) => {
+      // Row bulk edit
+      const rowHeader = (event.target as HTMLElement).closest<HTMLElement>('.op-row-header');
+      if (rowHeader && isEditMode && activeBrush) {
+         const tr = rowHeader.closest('tr');
+         tr?.querySelectorAll('[data-monthly-detail]').forEach(cell => applyBrushToCell(cell as HTMLElement));
+         return;
+      }
+      
+      const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (!trigger) return;
+      if (isEditMode && activeBrush) return; // Handled by mousedown
+      openMonthlyDetail(trigger);
+    });
+
+    detailClose?.addEventListener('click', closeMonthlyDetail);
+
+    detailOverlay?.addEventListener('click', (event) => {
+      if (event.target === detailOverlay) closeMonthlyDetail();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMonthlyDetail();
+    });
+
+    const searchInput = document.getElementById('monthly-search') as HTMLInputElement;
+    searchInput?.addEventListener('input', (e) => {
+      searchQuery = (e.target as HTMLInputElement).value.trim();
+      renderMonthly();
+    });
+
+    // Wire up filter buttons
+    const filterAllBtn = document.getElementById('filter-all-btn');
+    const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+    const filterHoBtn = document.getElementById('filter-ho-btn');
+    const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
+    const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+    const filterHeBtn = document.getElementById('filter-he-btn');
+
+    const filterBtns = [
+      { btn: filterAllBtn, value: 'all' },
+      { btn: filterPresencialBtn, value: 'Presencial' },
+      { btn: filterHoBtn, value: 'Home Office' },
+      { btn: filterLicenciaBtn, value: 'Licencia' },
+      { btn: filterVacacionesBtn, value: 'Vacaciones' },
+      { btn: filterHeBtn, value: 'Horas Extras' }
+    ];
+
+    function updateFilterActiveStates() {
+      // "Todos" button classes
+      if (filterAllBtn) {
+        if (activeFilter === 'all') {
+          filterAllBtn.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterAllBtn.className = "btn btn-xs btn-outline border-base-300 text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+        }
+      }
+
+      // "Presencial" button classes
+      if (filterPresencialBtn) {
+        if (activeFilter === 'Presencial') {
+          filterPresencialBtn.className = "btn btn-xs btn-secondary gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200";
+          const dot = filterPresencialBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterPresencialBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterPresencialBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-secondary transition-colors duration-200";
+        }
+      }
+
+      // "Home Office" button classes
+      if (filterHoBtn) {
+        if (activeFilter === 'Home Office') {
+          filterHoBtn.className = "btn btn-xs btn-primary gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-primary/15 transition-all duration-200 text-primary-content";
+          const dot = filterHoBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHoBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterHoBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 transition-colors duration-200";
+        }
+      }
+
+      // "Licencia" button classes
+      if (filterLicenciaBtn) {
+        if (activeFilter === 'Licencia') {
+          filterLicenciaBtn.className = "btn btn-xs btn-error gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-error/15 text-error-content transition-all duration-200";
+          const dot = filterLicenciaBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterLicenciaBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterLicenciaBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-error transition-colors duration-200";
+        }
+      }
+
+      // "Vacaciones" button classes
+      if (filterVacacionesBtn) {
+        if (activeFilter === 'Vacaciones') {
+          filterVacacionesBtn.className = "btn btn-xs btn-success gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-success/15 text-success-content transition-all duration-200";
+          const dot = filterVacacionesBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterVacacionesBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterVacacionesBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-success transition-colors duration-200";
+        }
+      }
+
+      // "Horas Extras" button classes
+      if (filterHeBtn) {
+        if (activeFilter === 'Horas Extras') {
+          filterHeBtn.className = "btn btn-xs bg-sky-600 border-0 gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-sky-600/15 text-white transition-all duration-200";
+          const dot = filterHeBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHeBtn.className = "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200";
+          const dot = filterHeBtn.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200";
+        }
+      }
+    }
+
+    filterBtns.forEach(item => {
+      item.btn?.addEventListener('click', () => {
+        activeFilter = item.value;
+        updateFilterActiveStates();
+        renderMonthly();
       });
     });
+
+    const quickEditMenu = document.getElementById('quick-edit-menu');
+    const saveIndicator = document.getElementById('save-indicator');
+    let activeCell: HTMLElement | null = null;
+
+    monthlyBody?.addEventListener('contextmenu', (e) => {
+      const trigger = (e.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+      if (!trigger || !quickEditMenu) return;
+      
+      e.preventDefault();
+      activeCell = trigger;
+      
+      const targetName = document.getElementById('quick-edit-target-name');
+      if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
+      
+      quickEditMenu.classList.remove('hidden');
+      quickEditMenu.style.left = `${e.clientX}px`;
+      quickEditMenu.style.top = `${e.clientY}px`;
+    });
+
+    document.getElementById('quick-edit-options')?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+      if (!btn || !activeCell || !quickEditMenu) return;
+      
+      const newStatus = btn.dataset.status;
+      if (newStatus) {
+        updateCellStatus(activeCell, newStatus);
+        saveIndicator?.classList.remove('hidden');
+        quickEditMenu.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (quickEditMenu && !quickEditMenu.contains(e.target as Node)) {
+        quickEditMenu.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('save-confirm-btn')?.addEventListener('click', () => {
+      saveChangesToServer();
+    });
+
+    document.getElementById('save-discard-btn')?.addEventListener('click', () => {
+      discardChanges();
+    });
+
+
+    // --- FEATURE: Premium Exporters ---
+    function exportCSV() {
+      const dates = getDatesArrayForCurrentMonth();
+      const headers = ["Operador", "Presencial (P)", "Home Office (HO)", "Licencia/Vacaciones (L)"];
+      dates.forEach(d => {
+        headers.push(d);
+      });
+      
+      let csvRows = [headers.join(",")];
+      
+      cronoData.forEach(op => {
+        const stats = { P: 0, HO: 0, L: 0 };
+        dates.forEach(d => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial') stats.P++;
+          else if (s === 'Home Office') stats.HO++;
+          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+        });
+        
+        const row = [
+          `"${op.nombre}"`,
+          stats.P,
+          stats.HO,
+          stats.L
+        ];
+        
+        dates.forEach(d => {
+          const status = op.asistencia[d] || 'Franco';
+          const comment = op.comentarios?.[d] || '';
+          const cellValue = comment ? `${status} (${comment})` : status;
+          row.push(`"${cellValue.replace(/"/g, '""')}"`);
+        });
+        
+        csvRows.push(row.join(","));
+      });
+      
+      const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+      let monthName = 'reporte';
+      if (dateInput && dateInput.value) {
+        const d = new Date(dateInput.value + 'T12:00:00');
+        monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+      }
+      
+      link.setAttribute("download", `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportAsImage() {
+      const tableContainer = document.querySelector('#monthly-table')?.parentElement;
+      if (!tableContainer) return;
+
+      const imgBtn = document.getElementById('export-image-btn') as HTMLButtonElement | null;
+      const originalText = imgBtn ? imgBtn.innerHTML : '';
+      if (imgBtn) {
+        imgBtn.disabled = true;
+        imgBtn.innerHTML = `<span class="loading loading-spinner loading-xs mr-1"></span> Procesando...`;
+      }
+
+      try {
+        const originalMaxHeight = tableContainer.style.maxHeight;
+        const originalOverflow = tableContainer.style.overflow;
+        tableContainer.style.maxHeight = 'none';
+        tableContainer.style.overflow = 'visible';
+
+        const { toPng } = await import('html-to-image');
+        
+        const dataUrl = await toPng(tableContainer, {
+          backgroundColor: 'var(--color-base-100, #ffffff)',
+          style: {
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+            width: tableContainer.scrollWidth + 'px',
+            height: tableContainer.scrollHeight + 'px'
+          },
+          quality: 1.0,
+          pixelRatio: 2
+        });
+
+        tableContainer.style.maxHeight = originalMaxHeight;
+        tableContainer.style.overflow = originalOverflow;
+
+        const link = document.createElement('a');
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        let monthName = 'reporte';
+        if (dateInput && dateInput.value) {
+          const d = new Date(dateInput.value + 'T12:00:00');
+          monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+        }
+        
+        link.download = `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+      } catch (error) {
+        console.error('Error generating image:', error);
+        alert('Hubo un error al generar la imagen. Intenta imprimir el reporte.');
+      } finally {
+        if (imgBtn) {
+          imgBtn.disabled = false;
+          imgBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    document.getElementById('export-csv-btn')?.addEventListener('click', exportCSV);
+    document.getElementById('export-image-btn')?.addEventListener('click', exportAsImage);
+    document.getElementById('print-report-btn')?.addEventListener('click', () => window.print());
+
+    // --- FEATURE: Maximize Mode Handler ---
+    const maxBtn = document.getElementById('maximize-cronograma-btn');
+    
+    function updateMaximizeUI(isMax: boolean) {
+      const htmlEl = document.documentElement;
+      const maxIcon = maxBtn?.querySelector('.max-icon');
+      const minIcon = maxBtn?.querySelector('.min-icon');
+      const maxText = document.getElementById('maximize-text');
+      
+      if (isMax) {
+        htmlEl.classList.add('cronograma-maximized');
+        maxIcon?.classList.add('hidden');
+        minIcon?.classList.remove('hidden');
+        if (maxText) maxText.innerText = "Restaurar";
+        maxBtn?.setAttribute('title', 'Restaurar cronograma');
+      } else {
+        htmlEl.classList.remove('cronograma-maximized');
+        maxIcon?.classList.remove('hidden');
+        minIcon?.classList.add('hidden');
+        if (maxText) maxText.innerText = "Maximizar";
+        maxBtn?.setAttribute('title', 'Maximizar cronograma');
+      }
+    }
+
+    // Initialize Maximize state on load
+    if (localStorage.getItem('cronoMaximized') === 'true') {
+      updateMaximizeUI(true);
+    }
+
+    maxBtn?.addEventListener('click', () => {
+      const isMax = !document.documentElement.classList.contains('cronograma-maximized');
+      localStorage.setItem('cronoMaximized', isMax ? 'true' : 'false');
+      updateMaximizeUI(isMax);
+    });
+
+    // --- FEATURE: Operator Profile Drawer ---
+    const drawerOverlay = document.getElementById('operator-drawer-overlay');
+    const drawer = document.getElementById('operator-drawer');
+    const closeDrawerBtn = document.getElementById('close-drawer');
+
+    const openDrawer = (opName: string) => {
+      const op = cronoData.find(o => o.nombre === opName);
+      if (!op || !drawerOverlay || !drawer) return;
+
+      document.getElementById('drawer-op-name')!.innerText = op.nombre;
+      
+
+
+      // Fetch supervisor notes from database
+      const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
+      const notesIndicator = document.getElementById('notes-status-indicator');
+      if (notesIndicator) notesIndicator.classList.add('opacity-0');
+      if (notesTextarea) {
+        notesTextarea.value = "Cargando notas...";
+        notesTextarea.disabled = true;
+        
+        fetch(`/api/cronograma/notes?agentName=${encodeURIComponent(op.nombre)}`)
+          .then(res => res.json())
+          .then(data => {
+            notesTextarea.value = data.notes || "";
+            notesTextarea.disabled = false;
+          })
+          .catch(err => {
+            console.error("Error loading notes:", err);
+            notesTextarea.value = "";
+            notesTextarea.disabled = false;
+          });
+      }
+      document.getElementById('drawer-op-email')!.innerText = `${getUsername(op.nombre)}@correoargentino.com.ar`;
+
+      // Stats
+      let p = 0, ho = 0;
+      Object.values(op.asistencia).forEach(s => {
+        if (s === 'Presencial') p++;
+        else if (s === 'Home Office') ho++;
+      });
+      document.getElementById('drawer-stat-p')!.innerText = p.toString();
+      document.getElementById('drawer-stat-ho')!.innerText = ho.toString();
+
+      // History list
+      const historyList = document.getElementById('drawer-history-list');
+      if (historyList) {
+        const sortedDates = Object.keys(op.asistencia).sort().reverse().slice(0, 10);
+        historyList.innerHTML = sortedDates.map(date => {
+          const status = op.asistencia[date];
+          const styles = getStatusStyles(status);
+          return `
+            <div class="flex items-center justify-between p-3 bg-base-200/30 rounded-xl border border-base-300/50">
+              <span class="text-xs font-bold text-base-content/60">${formatDMY(date)}</span>
+              <span class="${styles.badge} scale-90">${status}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Set current weekly scheme and hours
+      const opWeekly = op.esquema_semanal || { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
+      currentWeeklyScheme = { ...opWeekly };
+
+      const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyScheduleTimes = { ...opWeeklyScheduleTimes };
+
+      // Reset active tab to profile
+      const tabProfileBtn = document.getElementById('tab-profile-btn');
+      tabProfileBtn?.dispatchEvent(new Event('click'));
+
+      drawerOverlay.classList.remove('hidden');
+      drawerOverlay.classList.add('flex');
+      
+      setTimeout(() => {
+        if (drawer) drawer.classList.add('is-active');
+      }, 10);
+      
+      document.body.style.overflow = 'hidden';
+    };
+
+    const closeDrawer = () => {
+      if (!drawer || !drawerOverlay) return;
+      drawer.classList.remove('is-active');
+      setTimeout(() => {
+        drawerOverlay.classList.add('hidden');
+        drawerOverlay.classList.remove('flex');
+        document.body.style.overflow = '';
+      }, 300);
+    };
+
+    document.addEventListener('click', (e) => {
+      const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
+      if (clickDayBtn) {
+        if (isEditMode && activeBrush) {
+           const dateVal = clickDayBtn.dataset.clickDay;
+           document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
+           return;
+        }
+        focusedDateStr = clickDayBtn.dataset.clickDay || null;
+        renderMonthly();
+        return;
+      }
+      
+      const closeHourlyBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-close-hourly]');
+      if (closeHourlyBtn) {
+        focusedDateStr = null;
+        renderMonthly();
+        return;
+      }
+
+      const profileBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-op-profile]');
+      if (profileBtn) {
+        openDrawer(profileBtn.dataset.opProfile!);
+      }
+    });
+
+    closeDrawerBtn?.addEventListener('click', closeDrawer);
+    drawerOverlay?.addEventListener('click', (e) => {
+      if (e.target === drawerOverlay) closeDrawer();
+    });
+
+    // Supervisor Notes auto-save implementation
+    let saveTimeout: number | undefined;
+    const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
+    const notesIndicator = document.getElementById('notes-status-indicator');
+
+    notesTextarea?.addEventListener('input', () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName) return;
+
+      if (notesIndicator) {
+        notesIndicator.innerText = "Guardando...";
+        notesIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
+        notesIndicator.classList.add('opacity-100', 'text-warning/70');
+      }
+
+      clearTimeout(saveTimeout);
+      saveTimeout = window.setTimeout(async () => {
+        try {
+          const res = await fetch('/api/cronograma/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentName: opName, notes: notesTextarea.value })
+          });
+
+          if (!res.ok) throw new Error("Failed to save notes");
+
+          if (notesIndicator) {
+            notesIndicator.innerText = "Guardado";
+            notesIndicator.classList.remove('text-warning/70');
+            notesIndicator.classList.add('text-success/70');
+            
+            setTimeout(() => {
+              if (notesIndicator.innerText === "Guardado") {
+                notesIndicator.classList.add('opacity-0');
+                notesIndicator.classList.remove('opacity-100');
+              }
+            }, 1500);
+          }
+        } catch (err) {
+          console.error("Error saving notes:", err);
+          if (notesIndicator) {
+            notesIndicator.innerText = "Error";
+            notesIndicator.classList.remove('text-warning/70', 'text-success/70');
+            notesIndicator.classList.add('text-error');
+          }
+        }
+      }, 500);
+    });
+
+    notesTextarea?.addEventListener('blur', () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+        if (opName) {
+          fetch('/api/cronograma/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentName: opName, notes: notesTextarea.value })
+          }).then(() => {
+            if (notesIndicator) {
+              notesIndicator.innerText = "Guardado";
+              notesIndicator.classList.remove('text-warning/70');
+              notesIndicator.classList.add('text-success/70', 'opacity-100');
+              setTimeout(() => {
+                if (notesIndicator.innerText === "Guardado") {
+                  notesIndicator.classList.add('opacity-0');
+                  notesIndicator.classList.remove('opacity-100');
+                }
+              }, 1500);
+            }
+          });
+        }
+      }
+    });
+
+    const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
+    const commentIndicator = document.getElementById('monthly-comment-indicator');
+    let commentTimeout: number | null = null;
+
+    commentTextarea?.addEventListener('input', () => {
+      if (!activeDetailTrigger) return;
+      
+      if (commentIndicator) {
+        commentIndicator.innerText = "Guardando...";
+        commentIndicator.classList.remove('text-success/70', 'text-error', 'opacity-0');
+        commentIndicator.classList.add('text-warning/70', 'opacity-100');
+      }
+
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = commentTextarea.value.trim();
+
+      if (commentTimeout) clearTimeout(commentTimeout);
+      
+      commentTimeout = window.setTimeout(async () => {
+        try {
+          if (!opName || !dateVal) return;
+          
+          const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              edits: [
+                {
+                  agentName: opName,
+                  date: dateVal,
+                  comment: currentVal
+                }
+              ]
+            })
+          });
+
+          if (!res.ok) throw new Error("Error saving comment");
+
+          // Update local cronoData state too!
+          const op = cronoData.find(o => o.nombre === opName);
+          if (op) {
+            if (!op.comentarios) op.comentarios = {};
+            op.comentarios[dateVal] = currentVal;
+          }
+
+          // Update trigger button dataset
+          if (activeDetailTrigger) {
+            activeDetailTrigger.dataset.comment = currentVal;
+            
+            const indicatorEl = activeDetailTrigger.querySelector('.rounded-full');
+            const hasStatus = activeDetailTrigger.dataset.status !== 'Franco';
+            
+            if (currentVal) {
+              if (hasStatus) {
+                if (!indicatorEl) {
+                  activeDetailTrigger.insertAdjacentHTML('beforeend', '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>');
+                }
+              } else {
+                if (!indicatorEl) {
+                  activeDetailTrigger.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>';
+                }
+              }
+            } else {
+              if (indicatorEl) {
+                indicatorEl.remove();
+              }
+            }
+          }
+
+          if (commentIndicator) {
+            commentIndicator.innerText = "Guardado";
+            commentIndicator.classList.remove('text-warning/70');
+            commentIndicator.classList.add('text-success/70');
+            setTimeout(() => {
+              if (commentIndicator.innerText === "Guardado") {
+                commentIndicator.classList.remove('opacity-100');
+                commentIndicator.classList.add('opacity-0');
+              }
+            }, 1500);
+          }
+        } catch (err) {
+          console.error("Error auto-saving comment:", err);
+          if (commentIndicator) {
+            commentIndicator.innerText = "Error";
+            commentIndicator.classList.remove('text-warning/70', 'text-success/70');
+            commentIndicator.classList.add('text-error');
+          }
+        }
+      }, 500);
+    });
+
+    const scheduleInput = document.getElementById('monthly-detail-schedule') as HTMLInputElement | null;
+    let scheduleTimeout: number | null = null;
+
+    scheduleInput?.addEventListener('input', () => {
+      if (!activeDetailTrigger) return;
+      
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = scheduleInput.value.trim();
+
+      if (scheduleTimeout) clearTimeout(scheduleTimeout);
+      
+      scheduleTimeout = window.setTimeout(async () => {
+        try {
+          if (!opName || !dateVal) return;
+          
+          const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              edits: [
+                {
+                  agentName: opName,
+                  date: dateVal,
+                  horario: currentVal
+                }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            if (activeDetailTrigger) activeDetailTrigger.dataset.horario = currentVal;
+            const op = cronoData.find(o => o.nombre === opName);
+            if (op) {
+              if (!op.horarios_dias) op.horarios_dias = {};
+              op.horarios_dias[dateVal] = currentVal;
+            }
+          }
+        } catch (err) {
+          console.error("Error saving schedule override:", err);
+        }
+      }, 500);
+    });
+
+    scheduleInput?.addEventListener('blur', () => {
+      if (!activeDetailTrigger || !scheduleTimeout) return;
+      clearTimeout(scheduleTimeout);
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = scheduleInput.value.trim();
+      if (opName && dateVal) {
+        fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ edits: [{ agentName: opName, date: dateVal, horario: currentVal }] })
+        }).then(res => {
+          if (res.ok) {
+            if (activeDetailTrigger) activeDetailTrigger.dataset.horario = currentVal;
+            const op = cronoData.find(o => o.nombre === opName);
+            if (op) {
+              if (!op.horarios_dias) op.horarios_dias = {};
+              op.horarios_dias[dateVal] = currentVal;
+            }
+          }
+        });
+      }
+    });
+
+
+    commentTextarea?.addEventListener('blur', () => {
+      if (!activeDetailTrigger || !commentTimeout) return;
+      clearTimeout(commentTimeout);
+      
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const currentVal = commentTextarea.value.trim();
+      
+      if (opName && dateVal) {
+        fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            edits: [
+              {
+                agentName: opName,
+                date: dateVal,
+                comment: currentVal
+              }
+            ]
+          })
+        }).then((res) => {
+          if (!res.ok) return;
+          const op = cronoData.find(o => o.nombre === opName);
+          if (op) {
+            if (!op.comentarios) op.comentarios = {};
+            op.comentarios[dateVal] = currentVal;
+          }
+          if (activeDetailTrigger) {
+            activeDetailTrigger.dataset.comment = currentVal;
+            const indicatorEl = activeDetailTrigger.querySelector('.rounded-full');
+            const hasStatus = activeDetailTrigger.dataset.status !== 'Franco';
+            if (currentVal) {
+              if (hasStatus) {
+                if (!indicatorEl) {
+                  activeDetailTrigger.insertAdjacentHTML('beforeend', '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>');
+                }
+              } else {
+                if (!indicatorEl) {
+                  activeDetailTrigger.innerHTML = '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>';
+                }
+              }
+            } else {
+              if (indicatorEl) {
+                indicatorEl.remove();
+              }
+            }
+          }
+          if (commentIndicator) {
+            commentIndicator.innerText = "Guardado";
+            commentIndicator.classList.remove('text-warning/70');
+            commentIndicator.classList.add('text-success/70', 'opacity-100');
+            setTimeout(() => {
+              if (commentIndicator.innerText === "Guardado") {
+                commentIndicator.classList.remove('opacity-100');
+                commentIndicator.classList.add('opacity-0');
+              }
+            }, 1500);
+          }
+        });
+      }
+    });
+
+    // --- FEATURE: Edit Mode & Brush Tool ---
+    const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
+    const editToolbar = document.getElementById('edit-mode-toolbar');
+    
+    toggleEditBtn?.addEventListener('click', () => {
+      isEditMode = !isEditMode;
+      
+      if (isEditMode) {
+        toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
+        toggleEditBtn.classList.remove('btn-outline');
+        document.getElementById('monthly-tbody')?.classList.add('select-none');
+        document.querySelectorAll('.op-checkbox').forEach(cb => cb.classList.remove('hidden'));
+        if (editToolbar) {
+           editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
+        }
+      } else {
+        toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
+        toggleEditBtn.classList.add('btn-outline');
+        document.getElementById('monthly-tbody')?.classList.remove('select-none');
+        document.querySelectorAll('.op-checkbox').forEach(cb => {
+           cb.classList.add('hidden');
+           (cb as HTMLInputElement).checked = false;
+        });
+        if (editToolbar) {
+           editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+        }
+        activeBrush = null;
+        updateBrushUI();
+      }
+    });
+
+    function updateBrushUI() {
+      document.querySelectorAll('.brush-btn').forEach(btn => {
+        const activeClasses = (btn as HTMLElement).dataset.activeClass?.split(' ') || [];
+        if ((btn as HTMLElement).dataset.brush === activeBrush) {
+          btn.classList.remove('opacity-50', 'btn-ghost');
+          btn.classList.add('scale-110', 'font-black', ...activeClasses);
+        } else {
+          btn.classList.add('opacity-50', 'btn-ghost');
+          btn.classList.remove('scale-110', 'font-black', ...activeClasses);
+        }
+      });
+    }
+
+    document.querySelectorAll('.brush-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const brush = (e.currentTarget as HTMLElement).dataset.brush;
+        if (activeBrush === brush) activeBrush = null; // Toggle off
+        else activeBrush = brush || null;
+        updateBrushUI();
+      });
+    });
+
+    function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false) {
+      const opName = cell.dataset.operator;
+      const dateVal = cell.dataset.date;
+      const currentStatus = cell.dataset.status;
+      
+      if (!bypassCheckboxes) {
+         const checkedBoxes = Array.from(document.querySelectorAll('.op-checkbox:checked')) as HTMLInputElement[];
+         if (checkedBoxes.length > 0) {
+            let painted = false;
+            checkedBoxes.forEach(cb => {
+               const checkedOp = cb.dataset.opCheckbox;
+               if (checkedOp) {
+                  const safeName = checkedOp.replace(/"/g, '\\"');
+                  const targetCell = document.getElementById('monthly-tbody')?.querySelector(`[data-operator="${safeName}"][data-date="${dateVal}"]`);
+                  if (targetCell) {
+                     applyBrushToCell(targetCell as HTMLElement, true);
+                     painted = true;
+                  }
+               }
+            });
+            if (painted) return;
+         }
+      }
+
+      if (!opName || !dateVal || !activeBrush || currentStatus === activeBrush) return;
+
+      const key = `${opName}_${dateVal}`;
+      if (!pendingEdits[key]) {
+        pendingEdits[key] = { agentName: opName, date: dateVal, status: activeBrush, originalStatus: currentStatus || '' };
+      } else {
+        pendingEdits[key].status = activeBrush;
+        if (pendingEdits[key].status === pendingEdits[key].originalStatus) {
+           delete pendingEdits[key];
+        }
+      }
+
+      // Update local state temporarily for preview
+      const op = cronoData.find(o => o.nombre === opName);
+      if (op) {
+         op.asistencia[dateVal] = activeBrush;
+      }
+      
+      updatePendingEditsUI();
+      renderMonthly(); // Re-render to see the brush immediately
+    }
+
+    function updatePendingEditsUI() {
+       const count = Object.keys(pendingEdits).length;
+       const countEl = document.getElementById('pending-edits-count');
+       const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement;
+       const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement;
+       
+       if (countEl) countEl.innerText = `${count} cambios`;
+       if (saveBtn) saveBtn.disabled = count === 0;
+       if (discardBtn) discardBtn.disabled = count === 0;
+    }
+
+    document.getElementById('discard-edits-btn')?.addEventListener('click', () => {
+       // Revert local state
+       Object.values(pendingEdits).forEach(edit => {
+          const op = cronoData.find(o => o.nombre === edit.agentName);
+          if (op) op.asistencia[edit.date] = edit.originalStatus;
+       });
+       pendingEdits = {};
+       updatePendingEditsUI();
+       renderMonthly();
+    });
+
+    document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
+       const btn = e.currentTarget as HTMLButtonElement;
+       const editsToSave = Object.values(pendingEdits).map(e => ({
+          agentName: e.agentName,
+          date: e.date,
+          status: e.status
+       }));
+       
+       if (editsToSave.length === 0) return;
+       
+       btn.disabled = true;
+       btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+       
+       try {
+         const res = await fetch('/api/cronograma', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ edits: editsToSave })
+         });
+         if (!res.ok) throw new Error("Error saving bulk edits");
+         
+         pendingEdits = {};
+         updatePendingEditsUI();
+         btn.innerText = "Guardado!";
+         setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+       } catch (err) {
+         console.error(err);
+         btn.innerText = "Error";
+         btn.classList.add('btn-error');
+         setTimeout(() => { 
+            btn.innerText = "Guardar"; 
+            btn.classList.remove('btn-error');
+            btn.disabled = false;
+         }, 2000);
+       }
+    });
+
+    // --- Rules Settings Dialog ---
+    const rulesModal = document.getElementById('rules-settings-modal') as HTMLDialogElement;
+    document.getElementById('open-rules-settings')?.addEventListener('click', () => rulesModal?.showModal());
+    
+    const minCovInput = document.getElementById('min-coverage-input') as HTMLInputElement;
+    const minCovVal = document.getElementById('min-coverage-val');
+    const maxHoInput = document.getElementById('max-ho-input') as HTMLInputElement;
+    
+    // Sync UI value on drag
+    minCovInput?.addEventListener('input', (e) => {
+       if (minCovVal) minCovVal.innerText = `${(e.target as HTMLInputElement).value}%`;
+    });
+
+    // Save rules
+    document.getElementById('save-rules-btn')?.addEventListener('click', () => {
+       if (minCovInput) {
+          minCoveragePercent = parseInt(minCovInput.value);
+          localStorage.setItem('cronoMinCoverage', minCovInput.value);
+       }
+       if (maxHoInput) {
+          maxConsecutiveHOLimit = parseInt(maxHoInput.value);
+          localStorage.setItem('cronoMaxConsecutiveHO', maxHoInput.value);
+       }
+       const minPWeekInput = document.getElementById('min-p-week-input') as HTMLInputElement;
+       if (minPWeekInput) {
+          minPWeekLimit = parseInt(minPWeekInput.value);
+          localStorage.setItem('cronoMinPWeek', minPWeekInput.value);
+       }
+       rulesModal?.close();
+       renderMonthly(); // Re-render to show updated alerts immediately!
+    });
+    
+
+
+    // --- FEATURE: Weekly Schedule Tab & Template Management ---
+    const tabProfileBtn = document.getElementById('tab-profile-btn');
+    const tabWeeklyBtn = document.getElementById('tab-weekly-btn');
+    const drawerProfileTabContent = document.getElementById('drawer-profile-tab-content');
+    const drawerWeeklyTabContent = document.getElementById('drawer-weekly-tab-content');
+    const drawerFooterCloseBtn = document.getElementById('drawer-footer-close-btn');
+
+    drawerFooterCloseBtn?.addEventListener('click', closeDrawer);
+
+    tabProfileBtn?.addEventListener('click', () => {
+      tabProfileBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabWeeklyBtn?.classList.remove('border-secondary', 'text-secondary');
+      tabWeeklyBtn?.classList.add('border-transparent', 'text-base-content/60');
+      
+      drawerProfileTabContent?.classList.remove('hidden');
+      drawerWeeklyTabContent?.classList.add('hidden');
+    });
+
+    tabWeeklyBtn?.addEventListener('click', () => {
+      tabWeeklyBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabProfileBtn?.classList.remove('border-secondary', 'text-secondary');
+      tabProfileBtn?.classList.add('border-transparent', 'text-base-content/60');
+      
+      drawerProfileTabContent?.classList.add('hidden');
+      drawerWeeklyTabContent?.classList.remove('hidden');
+      
+      // Populate templates select dropdown
+      populateWeeklyTemplatesDropdown();
+      renderWeeklyDaysList();
+    });
+
+    function populateWeeklyTemplatesDropdown() {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (!select) return;
+      
+      const prevVal = select.value;
+      let html = '<option value="">-- Seleccionar una plantilla o personalizar --</option>';
+      Object.keys(weeklyTemplates).forEach(name => {
+        html += `<option value="${name}">${name}</option>`;
+      });
+      select.innerHTML = html;
+      
+      if (weeklyTemplates[prevVal]) {
+        select.value = prevVal;
+      } else {
+        select.value = "";
+      }
+    }
+
+    const daysName = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
+    function renderWeeklyDaysList() {
+      const container = document.getElementById('weekly-days-list');
+      if (!container) return;
+      
+      container.innerHTML = daysName.map(day => {
+        const currentVal = currentWeeklyScheme[day] || "Franco";
+        const currentTime = currentWeeklyScheduleTimes[day] || "";
+        const options = ["Presencial", "Home Office", "Vacaciones", "Licencia", "Horas Extras", "Franco"];
+        
+        const optHtml = options.map(opt => {
+          let label = '';
+          if (opt === 'Presencial') label = 'P';
+          else if (opt === 'Home Office') label = 'HO';
+          else if (opt === 'Vacaciones') label = 'V';
+          else if (opt === 'Licencia') label = 'L';
+          else if (opt === 'Horas Extras') label = 'HE';
+          else if (opt === 'Franco') label = 'F';
+          
+          let btnClass = "weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+          if (currentVal === opt) {
+            if (opt === 'Presencial') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-secondary text-secondary-content shadow-md';
+            else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-amber-500 text-white shadow-md';
+            else if (opt === 'Vacaciones') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-success text-white shadow-md';
+            else if (opt === 'Licencia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-error text-white shadow-md';
+            else if (opt === 'Horas Extras') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-sky-500 text-white shadow-md';
+            else if (opt === 'Franco') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-300 text-base-content shadow-md';
+          }
+          
+          return `<button type="button" class="${btnClass}" data-weekly-option="${opt}">${label}</button>`;
+        }).join('');
+        
+        return `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3">
+            <div class="flex items-center justify-between sm:justify-start gap-4">
+              <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
+              <input 
+                type="text" 
+                class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
+                data-day="${day}" 
+                value="${currentTime}" 
+                placeholder="08:00 - 17:00" 
+              />
+            </div>
+            <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
+              ${optHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('weekly-template-select')?.addEventListener('change', (e) => {
+      const name = (e.target as HTMLSelectElement).value;
+      const customActions = document.getElementById('template-custom-actions');
+      
+      if (name && weeklyTemplates[name]) {
+        currentWeeklyScheme = { ...weeklyTemplates[name].dias };
+        currentWeeklyScheduleTimes = { ...weeklyTemplates[name].horarios };
+        renderWeeklyDaysList();
+        
+        if (customActions) {
+          customActions.classList.remove('hidden');
+          const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+          if (nameInput) nameInput.value = name;
+        }
+      } else {
+        if (customActions) customActions.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('weekly-template-create-btn')?.addEventListener('click', () => {
+      const customActions = document.getElementById('template-custom-actions');
+      if (customActions) {
+        customActions.classList.remove('hidden');
+        const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+        if (nameInput) {
+          nameInput.value = "";
+          nameInput.focus();
+        }
+      }
+    });
+
+    document.getElementById('new-template-save-btn')?.addEventListener('click', () => {
+      const nameInput = document.getElementById('new-template-name') as HTMLInputElement | null;
+      const name = nameInput?.value?.trim();
+      if (!name) {
+        alert("Por favor, ingresa un nombre para la plantilla.");
+        return;
+      }
+      
+      weeklyTemplates[name] = {
+        dias: { ...currentWeeklyScheme },
+        horarios: { ...currentWeeklyScheduleTimes }
+      };
+      localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+      
+      populateWeeklyTemplatesDropdown();
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (select) select.value = name;
+      
+      alert(`¡Plantilla "${name}" guardada con éxito!`);
+    });
+
+    document.getElementById('new-template-delete-btn')?.addEventListener('click', () => {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      const name = select?.value;
+      if (!name || !weeklyTemplates[name]) {
+        alert("Selecciona una plantilla válida para eliminar.");
+        return;
+      }
+      
+      if (confirm(`¿Estás seguro de que deseas eliminar la plantilla "${name}"?`)) {
+        delete weeklyTemplates[name];
+        localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+        
+        populateWeeklyTemplatesDropdown();
+        document.getElementById('template-custom-actions')?.classList.add('hidden');
+        alert(`Plantilla "${name}" eliminada.`);
+      }
+    });
+
+    document.getElementById('weekly-template-duplicate-btn')?.addEventListener('click', () => {
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      const name = select?.value;
+      if (!name || !weeklyTemplates[name]) {
+        alert("Selecciona una plantilla para duplicar.");
+        return;
+      }
+      
+      const newName = prompt("Ingresa el nombre del duplicado:", `${name} (Copia)`);
+      if (!newName || !newName.trim()) return;
+      
+      weeklyTemplates[newName.trim()] = { ...weeklyTemplates[name] };
+      localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
+      
+      populateWeeklyTemplatesDropdown();
+      if (select) select.value = newName.trim();
+      
+      select?.dispatchEvent(new Event('change'));
+      alert(`¡Plantilla duplicada como "${newName.trim()}"!`);
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('weekly-schedule-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyScheduleTimes[day] = target.value;
+        }
+      }
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-weekly-option]');
+      if (!btn) return;
+      
+      const day = btn.parentElement?.dataset.weeklyDay;
+      const option = btn.dataset.weeklyOption;
+      if (!day || !option) return;
+      
+      currentWeeklyScheme[day] = option;
+      
+      btn.parentElement.querySelectorAll('[data-weekly-option]').forEach(other => {
+        other.className = "weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+      });
+      
+      let activeClass = '';
+      if (option === 'Presencial') activeClass = 'bg-secondary text-secondary-content shadow-md';
+      else if (option === 'Home Office') activeClass = 'bg-amber-500 text-white shadow-md';
+      else if (option === 'Vacaciones') activeClass = 'bg-success text-white shadow-md';
+      else if (option === 'Licencia') activeClass = 'bg-error text-white shadow-md';
+      else if (option === 'Horas Extras') activeClass = 'bg-sky-500 text-white shadow-md';
+      else if (option === 'Franco') activeClass = 'bg-base-300 text-base-content shadow-md';
+      
+      btn.className = `weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
+      
+      const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+      if (select) select.value = "";
+      document.getElementById('template-custom-actions')?.classList.add('hidden');
+    });
+
+    document.getElementById('save-operator-weekly-btn')?.addEventListener('click', async () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName) return;
+      
+      const saveBtn = document.getElementById('save-operator-weekly-btn') as HTMLButtonElement | null;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerText = "Guardando...";
+      }
+      
+      try {
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        const activeDateStr = dateInput?.value || formatYMD(new Date());
+        const [yearStr, monthStr] = activeDateStr.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr) - 1; // 0-indexed
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthPrefix = `${yearStr}-${monthStr}`;
+        const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+
+        const edits = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+          const dateObj = new Date(year, month, d);
+          const dayName = dayNames[dateObj.getDay()];
+
+          const status = currentWeeklyScheme[dayName] || "Franco";
+          let horario = "";
+          if (currentWeeklyScheduleTimes[dayName]) {
+            horario = currentWeeklyScheduleTimes[dayName];
+          } else if (status !== "Franco") {
+            const op = cronoData.find(o => o.nombre === opName);
+            horario = op?.horario || "08:00 - 17:00";
+          }
+
+          edits.push({
+            agentName: opName,
+            date: dateStr,
+            status,
+            comment: "",
+            horario
+          });
+        }
+
+        const res = await fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weeklySchedules: [{
+              agentName: opName,
+              esquema_semanal: currentWeeklyScheme,
+              esquema_horario: currentWeeklyScheduleTimes
+            }],
+            edits
+          })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          const opIndex = cronoData.findIndex(o => o.nombre === opName);
+          if (opIndex !== -1) {
+            cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
+            cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
+          }
+          
+          const freshRes = await fetch('/api/cronograma');
+          cronoData = await freshRes.json();
+          renderMonthly();
+          
+          alert("¡Esquema semanal guardado y aplicado con éxito al mes activo!");
+        } else {
+          alert(`Error al guardar: ${data.message || 'Error desconocido'}`);
+        }
+      } catch (err) {
+        console.error("Error saving weekly schedule:", err);
+        alert("Ocurrió un error de red al intentar guardar.");
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = "Aplicar Esquema a Operador";
+        }
+      }
+    });
+
+    // Edit-in-place interaction for monthly-detail schedule
+    const detailScheduleText = document.getElementById('monthly-detail-schedule-text');
+    const detailScheduleInput = document.getElementById('monthly-detail-schedule') as HTMLInputElement | null;
+    const scheduleContainer = document.getElementById('monthly-detail-schedule-container');
+
+    if (scheduleContainer && detailScheduleText && detailScheduleInput) {
+      scheduleContainer.addEventListener('click', () => {
+        if (detailScheduleInput.classList.contains('hidden')) {
+          detailScheduleText.classList.add('hidden');
+          detailScheduleInput.classList.remove('hidden');
+          detailScheduleInput.focus();
+          detailScheduleInput.select();
+        }
+      });
+
+      detailScheduleInput.addEventListener('blur', () => {
+        detailScheduleText.innerText = detailScheduleInput.value || '-';
+        detailScheduleInput.classList.add('hidden');
+        detailScheduleText.classList.remove('hidden');
+      });
+
+      // Press Enter to submit/blur
+      detailScheduleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          detailScheduleInput.blur();
+        }
+      });
+    }
   }
 
   init();
