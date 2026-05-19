@@ -279,5 +279,40 @@ export const bindMasterDetailTableSort = (
     root.querySelectorAll<HTMLElement>("[data-master-detail-table-root]"),
   );
 
-  tableRoots.forEach(bindMasterDetailTableRoot);
+  tableRoots.forEach((tableRoot) => {
+    bindMasterDetailTableRoot(tableRoot);
+    bindTableEmptyState(tableRoot);
+  });
 };
+
+const bindTableEmptyState = (root: HTMLElement): void => {
+  if (root.dataset.tableEmptyStateBound === "true") {
+    return;
+  }
+
+  const body = getBody(root);
+  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state]");
+
+  if (!body || !emptyState) {
+    return;
+  }
+
+  const updateEmptyState = () => {
+    const items = getItems(body);
+    if (items.length === 0) return;
+
+    const visibleItems = items.filter(item => !item.classList.contains("hidden"));
+    emptyState.classList.toggle("hidden", visibleItems.length > 0);
+  };
+
+  const observer = new MutationObserver(updateEmptyState);
+  observer.observe(body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    subtree: true,
+  });
+
+  root.dataset.tableEmptyStateBound = "true";
+  updateEmptyState();
+};
+

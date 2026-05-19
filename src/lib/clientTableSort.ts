@@ -174,5 +174,43 @@ export const bindClientTableSort = (root: ParentNode = document): void => {
     root.querySelectorAll<HTMLElement>("[data-table-sort-root]"),
   );
 
-  tableRoots.forEach(bindTableSortRoot);
+  tableRoots.forEach((tableRoot) => {
+    bindTableSortRoot(tableRoot);
+    bindTableEmptyState(tableRoot);
+  });
 };
+
+const bindTableEmptyState = (root: HTMLElement): void => {
+  if (root.dataset.tableEmptyStateBound === "true") {
+    return;
+  }
+
+  const body = root.querySelector<HTMLElement>("[data-table-sort-body]");
+  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state]");
+
+  if (!body || !emptyState) {
+    return;
+  }
+
+  const updateEmptyState = () => {
+    const rows = getRows(body);
+    // Ignore the empty state if there are no rows to begin with (e.g. "No records in db")
+    // Wait, some pages might have 0 rows from DB. If so, they probably have their own empty state. 
+    // We only show search empty state if there are rows, but all are hidden.
+    if (rows.length === 0) return;
+
+    const visibleRows = rows.filter(row => !row.classList.contains("hidden"));
+    emptyState.classList.toggle("hidden", visibleRows.length > 0);
+  };
+
+  const observer = new MutationObserver(updateEmptyState);
+  observer.observe(body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    subtree: true,
+  });
+
+  root.dataset.tableEmptyStateBound = "true";
+  updateEmptyState();
+};
+
