@@ -5,10 +5,9 @@ import { eq, asc } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import Button from "@components/ui/Button.astro";
 import { Icon } from "astro-icon/components";
 
-// --- Verificación de rol ---
+
 const user = Astro.locals.user;
 if (user.role !== "admin") return Astro.redirect("/login");
 
@@ -17,7 +16,7 @@ const isNew = id === "new";
 let successMsg = "";
 let errorMsg = "";
 
-// --- LÓGICA POST: Guardar ---
+
 if (Astro.request.method === "POST") {
   try {
     const fd = await Astro.request.formData();
@@ -46,7 +45,7 @@ if (Astro.request.method === "POST") {
           .where(eq(cubics.id, cubicId));
       }
 
-      // --- Asignaciones: borrar vínculos viejos y recrear ---
+      
       await db
         .delete(cubicAssignments)
         .where(eq(cubicAssignments.cubicId, cubicId));
@@ -63,7 +62,7 @@ if (Astro.request.method === "POST") {
 
         if (!shift || !agentName) continue;
 
-        // Buscar agente existente por nombre para evitar duplicados
+        
         let agentId: number;
         const existing = await db
           .select({ id: agents.id })
@@ -73,7 +72,7 @@ if (Astro.request.method === "POST") {
 
         if (existing) {
           agentId = existing.id;
-          // Actualizar iniciales si cambiaron
+          
           if (agentInitials) {
             await db
               .update(agents)
@@ -95,7 +94,7 @@ if (Astro.request.method === "POST") {
             shift,
           });
         } catch (e: any) {
-          // Ignorar si se intenta duplicar la misma asignación
+          
         }
       }
 
@@ -111,7 +110,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-// --- LÓGICA GET: Cargar datos ---
+
 type CubicRecord = {
   id: number;
   name: string;
@@ -309,10 +308,10 @@ const shiftOptions = [
 
       {/* ── Acciones ── */}
       <div class="flex items-center justify-between gap-3 pt-1">
-        <Button variant="neutral" appearance="ghost" href="/admin/cubics">
-          <Icon name="boxicons:arrow-left-filled" size={16} slot="icon-left" />
+        <a href="/admin/cubics" class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10">
+          <Icon name="boxicons:arrow-left-filled" size={16} />
           Volver al listado
-        </Button>
+        </a>
         <button type="submit" class="btn btn-secondary btn-sm gap-2">
           <Icon name="boxicons:save-filled" size={16} />
           {isNew ? "Crear cubic" : "Guardar cambios"}

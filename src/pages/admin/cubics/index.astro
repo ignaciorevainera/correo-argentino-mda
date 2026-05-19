@@ -7,13 +7,12 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import Button from "@components/ui/Button.astro";
 import { Icon } from "astro-icon/components";
 
 let successMsg = "";
 let errorMsg = "";
 
-// --- LÓGICA POST: Eliminar Cubic ---
+
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
   const action = formData.get("action")?.toString();
@@ -39,7 +38,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-// --- LÓGICA GET: Listar Cubics con asignaciones ---
+
 const allCubics = await db.query.cubics.findMany({
   orderBy: [asc(cubics.name)],
   with: {
@@ -123,10 +122,10 @@ const rowGridClass =
         )}
       </div>
 
-      <Button variant="secondary" href="/admin/cubics/new">
-        <Icon name="boxicons:plus" size={18} slot="icon-left" />
+      <a href="/admin/cubics/new" class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        <Icon name="boxicons:plus" size={18} />
         Registrar nuevo cubic
-      </Button>
+      </a>
     </div>
 
     {/* ── Tabla ── */}
@@ -248,21 +247,17 @@ const rowGridClass =
 
               {/* Acciones */}
               <div class="flex items-center justify-end gap-1">
-                <Button
-                  variant="secondary"
-                  appearance="ghost"
-                  size="sm"
+                <a
                   href={`/admin/cubics/${cubic.id}`}
-                  class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                  class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   aria-label={`Editar ${cubic.name}`}
                 >
                   <Icon
                     name="boxicons:pencil-filled"
                     size={14}
-                    slot="icon-left"
                   />
                   <span class="hidden sm:inline">Editar</span>
-                </Button>
+                </a>
 
                 <form
                   method="POST"
@@ -290,7 +285,7 @@ const rowGridClass =
 </BaseLayout>
 
 <script>
-  // Recarga la página automáticamente cada 5 minutos (300000 ms)
+  
   setTimeout(() => {
     window.location.reload();
   }, 300000);

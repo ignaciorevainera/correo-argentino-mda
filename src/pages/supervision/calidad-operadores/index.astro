@@ -761,11 +761,11 @@ const avgSection2 = Math.round(
   }
 
   function initQualityMasterDetail() {
-    // Referencias a paneles
+
     const generalPanel = document.getElementById("general-info-panel");
     const detailsPanel = document.getElementById("operator-details-panel");
 
-    // Referencias a elementos del detalle
+
     const dAvatar = document.getElementById("detail-avatar");
     const dName = document.getElementById("detail-name");
     const dId = document.getElementById("detail-id");
@@ -775,7 +775,7 @@ const avgSection2 = Math.round(
     const callsContainer = document.getElementById("detail-calls-container");
     const btnBack = document.getElementById("btn-back-to-summary");
 
-    // Lógica botón volver al resumen
+
     if (btnBack) {
       const newBtnBack = btnBack.cloneNode(true) as HTMLButtonElement;
       btnBack.parentNode?.replaceChild(newBtnBack, btnBack);
@@ -784,7 +784,7 @@ const avgSection2 = Math.round(
         if (generalPanel) generalPanel.classList.remove("hidden");
         if (detailsPanel) detailsPanel.classList.add("hidden");
 
-        // Limpiar selección de la lista
+
         document.querySelectorAll(".operator-item").forEach((el) => {
           el.classList.remove("border-l-primary", "bg-primary/5", "shadow-md");
           el.classList.add("border-l-transparent");
@@ -792,7 +792,7 @@ const avgSection2 = Math.round(
       });
     }
 
-    // 1. Buscador y Filtro de la lista
+
     const searchInput = document.getElementById(
       "operator-search",
     ) as HTMLInputElement;
@@ -849,7 +849,7 @@ const avgSection2 = Math.round(
           item.classList.add("hidden");
         }
 
-        // Re-append to sort visually
+
         if (operatorListContainer && noResultsMsg) {
           operatorListContainer.insertBefore(item, noResultsMsg);
         }
@@ -862,7 +862,7 @@ const avgSection2 = Math.round(
       }
     };
 
-    // Lógica selector de mes (Simulación visual)
+
     const monthSelector = document.getElementById(
       "month-selector",
     ) as HTMLSelectElement;
@@ -875,7 +875,7 @@ const avgSection2 = Math.round(
       newMonthSelector.addEventListener("change", (e) => {
         const select = e.target as HTMLSelectElement;
 
-        // Simular un efecto de carga en la lista y las tarjetas
+
         document.querySelectorAll(".stat-value").forEach((el) => {
           el.classList.add("opacity-0");
           setTimeout(() => el.classList.remove("opacity-0"), 300);
@@ -885,7 +885,7 @@ const avgSection2 = Math.round(
           item.classList.add("opacity-50", "pointer-events-none");
           setTimeout(() => {
             item.classList.remove("opacity-50", "pointer-events-none");
-            // Resetear vista a panel general
+
             const gp = document.getElementById("general-info-panel");
             const dp = document.getElementById("operator-details-panel");
             if (gp) gp.classList.remove("hidden");
@@ -925,8 +925,8 @@ const avgSection2 = Math.round(
       newOperatorSort.addEventListener("change", updateOperatorsList);
     }
 
-    // 2. Lógica de selección Maestro-Detalle
-    // Reemplazamos los botones para evitar listeners duplicados en caso de HMR
+
+
     operatorItems.forEach((item) => {
       const newItem = item.cloneNode(true) as HTMLButtonElement;
       item.parentNode?.replaceChild(newItem, item);
@@ -939,7 +939,7 @@ const avgSection2 = Math.round(
         try {
           const operator = JSON.parse(operatorData);
 
-          // Actualizar estado visual de la lista
+
           document.querySelectorAll(".operator-item").forEach((el) => {
             el.classList.remove(
               "border-l-secondary",
@@ -955,7 +955,7 @@ const avgSection2 = Math.round(
             "shadow-md",
           );
 
-          // Llenar datos de cabecera
+
           if (dAvatar)
             dAvatar.textContent = operator.name
               .split(" ")
@@ -975,7 +975,7 @@ const avgSection2 = Math.round(
             dScore.className = `text-5xl font-black tracking-tighter ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
           }
 
-          // Render History Chart (SVG Line Chart)
+
           const historyContainer = document.getElementById(
             "detail-history-chart",
           );
@@ -984,8 +984,8 @@ const avgSection2 = Math.round(
             const width = 300;
             const height = 60;
 
-            // Calculate coordinates (Y inverted since SVG 0,0 is top-left)
-            // Using 0-100 scale for Y
+
+
             const coords = points.map((score: number, i: number) => {
               const x = (i / (points.length - 1)) * width;
               const y = height - (score / 100) * height;
@@ -998,7 +998,7 @@ const avgSection2 = Math.round(
               )
               .join(" ");
 
-            historyContainer.className = "relative w-full h-16 mt-2 mb-4"; // Ensure absolute positioning context and height
+            historyContainer.className = "relative w-full h-16 mt-2 mb-4";
             historyContainer.innerHTML = `
                <svg class="w-full h-full overflow-visible" viewBox="-4 -4 ${width + 8} ${height + 8}" preserveAspectRatio="none">
                  <path d="${pathD}" fill="none" stroke="currentColor" stroke-width="3" class="text-secondary drop-shadow-sm" stroke-linecap="round" stroke-linejoin="round" />
@@ -1016,11 +1016,11 @@ const avgSection2 = Math.round(
              `;
           }
 
-          // Render Insights
+
           const insightsContainer = document.getElementById("detail-insights");
           if (insightsContainer && operator.calls) {
             const failures: Record<string, number> = {};
-            // Count failures
+
             operator.calls.forEach((c: any) => {
               Object.entries(c.section1.details).forEach(([key, val]) => {
                 if (!val) failures[key] = (failures[key] || 0) + 1;
@@ -1029,7 +1029,7 @@ const avgSection2 = Math.round(
                 if (!val) failures[key] = (failures[key] || 0) + 1;
               });
             });
-            // Sort failures
+
             const sortedFailures = Object.entries(failures)
               .sort((a, b) => b[1] - a[1])
               .slice(0, 2);
@@ -1050,18 +1050,18 @@ const avgSection2 = Math.round(
             }
           }
 
-          // Llenar contenedor de llamadas
+
           if (callsContainer) {
             callsContainer.innerHTML = operator.calls
               .map((call: any, index: number) => renderCallCard(call, index))
               .join("");
           }
 
-          // Ocultar info general y mostrar el detalle
+
           if (generalPanel) generalPanel.classList.add("hidden");
           if (detailsPanel) {
             detailsPanel.classList.remove("hidden");
-            // Hacer scroll hacia arriba en mobile
+
             if (window.innerWidth < 1024) {
               detailsPanel.scrollIntoView({
                 behavior: "smooth",
@@ -1076,9 +1076,9 @@ const avgSection2 = Math.round(
     });
   }
 
-  // Inicializar al ejecutar script
+
   initQualityMasterDetail();
 
-  // Compatibilidad con Astro View Transitions
+
   document.addEventListener("astro:page-load", initQualityMasterDetail);
 </script>

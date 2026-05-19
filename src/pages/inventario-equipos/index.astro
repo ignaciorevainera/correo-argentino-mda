@@ -16,7 +16,7 @@ import {
 } from "@lib/cubics";
 import { db } from "@db/index";
 
-// --- Lógica de Terminales ---
+
 type OsFamily = "windows" | "linux" | "legacy";
 type BoxiconName = `boxicons:${string}`;
 
@@ -168,7 +168,7 @@ const rowIcons: Record<
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
 
-// --- Lógica de Cúbics ---
+
 const cubicMachines = await db.query.cubics.findMany({
   with: {
     assignments: {
@@ -179,7 +179,7 @@ const cubicMachines = await db.query.cubics.findMany({
   },
 });
 
-// Casteamos la respuesta a CubicMachine[] (o similar) para usar las funciones existentes
+
 const onlineCount = getActiveMachineCount(cubicMachines as any);
 const totalMachines = cubicMachines.length;
 
@@ -605,7 +605,7 @@ const inventoryTabs = [
                         </span>
                       </div>
                       <p class="text-[10px] text-base-content/50">
-                        Último escaneo: {formatLastPing((machine as any).lastPing)}
+                        Último ping: {formatLastPing((machine as any).lastPing)}
                       </p>
                     </div>
                   </div>
@@ -680,7 +680,7 @@ const inventoryTabs = [
       matchesSearchQuery,
     } from "@lib/clientSearch";
 
-    // --- Tab Switching Logic ---
+
     const switcher = document.getElementById("inventory-view-switcher");
     const viewTerminales = document.getElementById("view-terminales");
     const viewCubics = document.getElementById("view-cubics");
@@ -695,7 +695,7 @@ const inventoryTabs = [
       updateTabs(e.detail.value);
     });
 
-    // --- Terminal Search Logic ---
+
     const terminalSearchInput =
       document.querySelector<HTMLInputElement>("#terminal-search");
     const terminalRows = Array.from(
@@ -726,7 +726,7 @@ const inventoryTabs = [
 
     terminalSearchInput?.addEventListener("input", updateTerminalRows);
 
-    // --- Cubics Logic (Search + Filter) ---
+
     const machineSearchInput =
       document.querySelector<HTMLInputElement>("#machine-search");
     const filterTabs = Array.from(
@@ -773,7 +773,7 @@ const inventoryTabs = [
       });
     });
 
-    // --- Sorting Logic ---
+
     function bindSorting(tableId: string, rows: HTMLElement[]) {
       const table = document.getElementById(tableId);
       if (!table || rows.length === 0) return;
@@ -801,7 +801,7 @@ const inventoryTabs = [
           currentSortDirection = "asc";
         }
 
-        // Update icons
+
         headerCells.forEach((cell) => {
           const cellKey = (cell as HTMLElement).dataset.tableSortKey;
           const isActive = cellKey === currentSortColumn;
@@ -820,7 +820,7 @@ const inventoryTabs = [
           });
         });
 
-        // Perform sort
+
         if (currentSortColumn) {
           const dataKey = `sort${currentSortColumn.charAt(0).toUpperCase()}${currentSortColumn.slice(1)}`;
           rows.sort((a, b) => {
@@ -848,7 +848,7 @@ const inventoryTabs = [
             return 0;
           });
 
-          // Re-append to parent
+
           const parent = rows[0].parentElement;
           if (parent) {
             rows.forEach((row) => parent.appendChild(row));
@@ -860,7 +860,7 @@ const inventoryTabs = [
     bindSorting("table-terminales", terminalRows);
     bindSorting("table-cubics", machineRows);
 
-    // Initialize searches
+
     updateTerminalRows();
     updateMachineRows();
   </script>

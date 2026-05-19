@@ -2,7 +2,7 @@
 import { db } from '@db/index';
 import { users } from '@db/schema';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs'; // <-- Importamos bcrypt
+import bcrypt from 'bcryptjs';
 import BaseLayout from '@layouts/BaseLayout.astro';
 
 if (Astro.locals.user.id !== 0) {
@@ -14,13 +14,13 @@ let errorMsg = '';
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const usernameInput = formData.get('username')?.toString().trim();
-  const passwordInput = formData.get('password')?.toString(); // Obtenemos la pass
+  const passwordInput = formData.get('password')?.toString();
 
   if (usernameInput && passwordInput) {
     const [userFound] = await db.select().from(users).where(eq(users.username, usernameInput));
 
     if (userFound) {
-      // Magia de Bcrypt: Compara la pass en texto plano con el Hash de la DB
+
       const isPasswordValid = await bcrypt.compare(passwordInput, userFound.password);
 
       if (isPasswordValid) {

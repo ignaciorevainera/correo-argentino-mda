@@ -8,7 +8,6 @@ import PageContainer from '@components/ui/PageContainer.astro';
 import PageHeader from '@components/ui/PageHeader.astro';
 import DataTable from '@components/ui/DataTable.astro';
 import DataTableHeaderCell from '@components/ui/DataTableHeaderCell.astro';
-import Button from '@components/ui/Button.astro';
 import { Icon } from 'astro-icon/components';
 
 let successMsg = '';
@@ -18,7 +17,7 @@ if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const action = formData.get('action')?.toString() ?? 'create';
 
-  // --- LÓGICA POST: Crear Usuario ---
+  
   if (action === 'create') {
     const username = formData.get('username')?.toString().trim().toLowerCase();
     const password = formData.get('password')?.toString();
@@ -39,7 +38,7 @@ if (Astro.request.method === 'POST') {
     }
   }
 
-  // --- LÓGICA POST: Blanquear Contraseña ---
+  
   if (action === 'reset-password') {
     const userId = Number(formData.get('userId'));
     const newPassword = formData.get('newPassword')?.toString();
@@ -54,7 +53,7 @@ if (Astro.request.method === 'POST') {
     }
   }
 
-  // --- LÓGICA POST: Renombrar Usuario ---
+  
   if (action === 'rename-username') {
     const userId = Number(formData.get('userId'));
     const newUsername = formData.get('newUsername')?.toString().trim().toLowerCase();
@@ -69,7 +68,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-// --- LÓGICA GET: Listar Usuarios ---
+
 const allUsers = await db.select().from(users);
 
 const headerGridClass = "grid-cols-[1fr_120px_160px] gap-4";
@@ -283,29 +282,25 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
                   </div>
 
                   <div class="flex items-center justify-end gap-1">
-                    <Button
-                      variant="secondary"
-                      appearance="ghost"
-                      size="sm"
-                      class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost text-secondary hover:bg-secondary/10 h-7 px-2 text-base-content/60 hover:text-secondary"
                       onclick={`document.getElementById('modal-rename-${u.id}').showModal()`}
                       aria-label={`Renombrar usuario ${u.username}`}
                     >
-                      <Icon name="boxicons:pencil-filled" size={14} slot="icon-left" />
+                      <Icon name="boxicons:pencil-filled" size={14} />
                       <span class="hidden sm:inline">Renombrar</span>
-                    </Button>
+                    </button>
 
-                    <Button
-                      variant="warning"
-                      appearance="ghost"
-                      size="sm"
-                      class="h-7 px-2 text-base-content/60 hover:text-warning"
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-ghost text-warning hover:bg-warning/10 h-7 px-2 text-base-content/60 hover:text-warning"
                       onclick={`document.getElementById('modal-reset-${u.id}').showModal()`}
                       aria-label={`Blanquear contraseña de ${u.username}`}
                     >
-                      <Icon name="boxicons:lock-open-filled" size={14} slot="icon-left" />
+                      <Icon name="boxicons:lock-open-filled" size={14} />
                       <span class="hidden sm:inline">Contraseña</span>
-                    </Button>
+                    </button>
                   </div>
 
                   {/* ── Modales (Fuera del flujo visual de la fila) ── */}

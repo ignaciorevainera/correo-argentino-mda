@@ -7,7 +7,6 @@ async function main() {
   console.log("Iniciando migración de Cubics...");
 
   for (const cubicData of cubicMachines) {
-    // Insertar Cubic
     console.log(`Procesando Cubic: ${cubicData.name}`);
     const [insertedCubic] = await db
       .insert(cubics)
@@ -26,7 +25,6 @@ async function main() {
 
     const cubicId = insertedCubic.id;
 
-    // Iterar sobre assignments si existen
     if (cubicData.assignments && Array.isArray(cubicData.assignments)) {
       for (const assignment of cubicData.assignments) {
         const agentData = assignment.agent;
@@ -34,7 +32,6 @@ async function main() {
 
         let agentId: number;
 
-        // Buscar si el agente ya existe
         const existingAgent = await db
           .select({ id: agents.id })
           .from(agents)
@@ -44,10 +41,9 @@ async function main() {
         if (existingAgent) {
           agentId = existingAgent.id;
           console.log(
-            `  -> Agente existente encontrado: ${agentData.name} (ID: ${agentId})`
+            `  -> Agente existente encontrado: ${agentData.name} (ID: ${agentId})`,
           );
         } else {
-          // Insertar nuevo agente
           const [insertedAgent] = await db
             .insert(agents)
             .values({
@@ -58,11 +54,10 @@ async function main() {
 
           agentId = insertedAgent.id;
           console.log(
-            `  -> Nuevo agente insertado: ${agentData.name} (ID: ${agentId})`
+            `  -> Nuevo agente insertado: ${agentData.name} (ID: ${agentId})`,
           );
         }
 
-        // Insertar asignación
         await db.insert(cubicAssignments).values({
           cubicId: cubicId,
           agentId: agentId,

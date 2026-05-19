@@ -38,9 +38,9 @@ export interface QualityCall {
 }
 
 export interface OperatorQuality {
-  id: string; // legajo
+  id: string;
   name: string;
-  status: 'Activo' | 'Vacaciones' | 'Licencia';
+  status: "Activo" | "Vacaciones" | "Licencia";
   month: string;
   calls: QualityCall[];
   history: number[];
@@ -52,10 +52,14 @@ const generateRandomCalls = (): QualityCall[] => {
     const s1Score = Math.floor(Math.random() * 20) + 80;
     const s2Score = Math.floor(Math.random() * 20) + 80;
     const total = Math.round((s1Score + s2Score) / 2);
-    
+
     return {
-      callId: `CALL-${Math.floor(Math.random() * 100000).toString().padStart(6, '0')}`,
-      ticketId: `INC-${Math.floor(Math.random() * 1000000).toString().padStart(7, '0')}`,
+      callId: `CALL-${Math.floor(Math.random() * 100000)
+        .toString()
+        .padStart(6, "0")}`,
+      ticketId: `INC-${Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(7, "0")}`,
       duration: `${Math.floor(Math.random() * 10) + 2}:${Math.floor(Math.random() * 50) + 10}`,
       date: `2026-05-0${Math.floor(Math.random() * 9) + 1}T10:00:00Z`,
       section1: {
@@ -72,7 +76,7 @@ const generateRandomCalls = (): QualityCall[] => {
           despedida: Math.random() > 0.1,
           solicitud: Math.random() > 0.15,
           lenguaje: Math.random() > 0.1,
-        }
+        },
       },
       section2: {
         score: s2Score,
@@ -87,17 +91,17 @@ const generateRandomCalls = (): QualityCall[] => {
           cierre: Math.random() > 0.15,
           descripcion: Math.random() > 0.1,
           exactitud: Math.random() > 0.15,
-        }
+        },
       },
       totalScore: total,
     };
   });
-}
+};
 
 const createOperator = (id: string, name: string): OperatorQuality => {
   const calls = generateRandomCalls();
   const averageScore = Math.round(
-    calls.reduce((acc, call) => acc + call.totalScore, 0) / calls.length
+    calls.reduce((acc, call) => acc + call.totalScore, 0) / calls.length,
   );
 
   const history = Array.from({ length: 5 }, () => {
@@ -109,7 +113,12 @@ const createOperator = (id: string, name: string): OperatorQuality => {
   return {
     id,
     name,
-    status: Math.random() > 0.8 ? (Math.random() > 0.5 ? 'Vacaciones' : 'Licencia') : 'Activo',
+    status:
+      Math.random() > 0.8
+        ? Math.random() > 0.5
+          ? "Vacaciones"
+          : "Licencia"
+        : "Activo",
     month: "Mayo 2026",
     calls,
     history,

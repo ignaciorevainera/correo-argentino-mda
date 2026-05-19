@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import readline from "readline";
 
-// Configuramos la interfaz de lectura por terminal
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -9,7 +8,6 @@ const rl = readline.createInterface({
 
 console.log("=== GENERADOR DE HASH PARA PORTAL MDA ===");
 
-// Pedimos la contraseña al usuario
 rl.question("Ingresa la contraseña que deseas hashear: ", (password) => {
   if (!password) {
     console.log("Error: No ingresaste ninguna contraseña.");
@@ -17,7 +15,6 @@ rl.question("Ingresa la contraseña que deseas hashear: ", (password) => {
     return;
   }
 
-  // Generamos el hash
   const saltRounds = 10;
   const hash = bcrypt.hashSync(password, saltRounds);
 

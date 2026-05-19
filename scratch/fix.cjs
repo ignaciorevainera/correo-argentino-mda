@@ -1,8 +1,10 @@
-const fs = require('fs');
+const fs = require("fs");
 
-const content = fs.readFileSync('src/data/mock_telegrafia.ts', 'utf8');
+const content = fs.readFileSync("src/data/mock_telegrafia.ts", "utf8");
 
-const match = content.match(/export const mockTelegrafia: Office\[\] = (\[[\s\S]*\]);/);
+const match = content.match(
+  /export const mockTelegrafia: Office\[\] = (\[[\s\S]*\]);/,
+);
 if (!match) {
   console.error("Could not find array");
   process.exit(1);
@@ -10,83 +12,81 @@ if (!match) {
 
 let arrayStr = match[1];
 
-// We need to parse this. Since it's JS and not strict JSON, eval is easiest.
-let offices = eval('(' + arrayStr + ')');
+let offices = eval("(" + arrayStr + ")");
 
-offices.forEach(office => {
+offices.forEach((office) => {
   let newNotes = office.notes ? office.notes + " " : "";
   let newContacts = [];
-  
-  office.contacts.forEach(c => {
+
+  office.contacts.forEach((c) => {
     let name = c.name ? c.name.trim() : "";
     let phone = c.phone ? c.phone.trim() : "";
     let timeSlot = c.timeSlot ? c.timeSlot.trim() : "";
     let role = c.role ? c.role.trim() : "";
-    
-    // Check if it's a "Se envía mail" note
-    if (name.toLowerCase().includes("se envia mail") || name.toLowerCase().includes("se envía mail")) {
+
+    if (
+      name.toLowerCase().includes("se envia mail") ||
+      name.toLowerCase().includes("se envía mail")
+    ) {
       newNotes += "Se envió mail solicitando datos. ";
       if (phone) newNotes += phone + " ";
       if (timeSlot) newNotes += timeSlot + " ";
       if (role) newNotes += role + " ";
-      return; // Skip adding to contacts
-    }
-    
-    // Check if it's just "Oficina" or "Sucursal"
-    if ((name.toLowerCase() === "oficina" || name.toLowerCase() === "sucursal" || name.toLowerCase() === "fijo del cdd") && role === "") {
-       newNotes += `${name} Tel: ${phone} `;
-       if (timeSlot) newNotes += `(${timeSlot}) `;
-       return;
+      return;
     }
 
-    // Sometimes the name contains "TM:" or "TT:"
+    if (
+      (name.toLowerCase() === "oficina" ||
+        name.toLowerCase() === "sucursal" ||
+        name.toLowerCase() === "fijo del cdd") &&
+      role === ""
+    ) {
+      newNotes += `${name} Tel: ${phone} `;
+      if (timeSlot) newNotes += `(${timeSlot}) `;
+      return;
+    }
+
     if (name.startsWith("TM:") || name.startsWith("TT:")) {
       timeSlot = name.substring(0, 3) + " " + timeSlot;
       name = name.substring(3).trim();
     }
-    
-    // Sometimes timeSlot has name
+
     if (timeSlot.includes(":") && !timeSlot.match(/\d+ a \d+/)) {
-       let parts = timeSlot.split(":");
-       if (parts.length == 2 && parts[1].trim() === name) {
-           timeSlot = parts[0].trim();
-       }
+      let parts = timeSlot.split(":");
+      if (parts.length == 2 && parts[1].trim() === name) {
+        timeSlot = parts[0].trim();
+      }
     }
 
-    // Often the name contains " / " separating multiple people. We will leave it if there's no clear way to split, or split it.
-    // Given the constraints, let's just make sure fields don't bleed into each other.
     if (timeSlot.endsWith(":")) {
-        timeSlot = timeSlot.substring(0, timeSlot.length - 1).trim();
+      timeSlot = timeSlot.substring(0, timeSlot.length - 1).trim();
     }
     if (name.endsWith(":")) {
-        name = name.substring(0, name.length - 1).trim();
+      name = name.substring(0, name.length - 1).trim();
     }
-    
-    // Sometimes the role is just a phone or a timeSlot bleeding over. 
-    // We keep things simple and try to reconstruct
+
     if (name) {
-       newContacts.push({ name, phone, timeSlot, role });
+      newContacts.push({ name, phone, timeSlot, role });
     }
   });
-  
+
   office.notes = newNotes.trim();
-  office.contacts = newContacts.filter(c => c.name !== "");
+  office.contacts = newContacts.filter((c) => c.name !== "");
 });
 
-// Serialize back
 function serialize(obj) {
   if (Array.isArray(obj)) {
-    return "[\n" + obj.map(o => serialize(o)).join(",\n") + "\n]";
-  } else if (typeof obj === 'object' && obj !== null) {
+    return "[\n" + obj.map((o) => serialize(o)).join(",\n") + "\n]";
+  } else if (typeof obj === "object" && obj !== null) {
     let props = [];
     for (let key in obj) {
       let val = obj[key];
       if (val === undefined) continue;
-      // if key is one of the known ones, don't quote it
+
       let strVal;
-      if (typeof val === 'string') {
+      if (typeof val === "string") {
         strVal = JSON.stringify(val);
-      } else if (typeof val === 'number') {
+      } else if (typeof val === "number") {
         strVal = val;
       } else {
         strVal = serialize(val);
@@ -99,7 +99,11 @@ function serialize(obj) {
 }
 
 const newArrayStr = serialize(offices);
-const newContent = content.substring(0, match.index) + "export const mockTelegrafia: Office[] = " + newArrayStr + ";\n";
+const newContent =
+  content.substring(0, match.index) +
+  "export const mockTelegrafia: Office[] = " +
+  newArrayStr +
+  ";\n";
 
-fs.writeFileSync('src/data/mock_telegrafia.ts', newContent);
+fs.writeFileSync("src/data/mock_telegrafia.ts", newContent);
 console.log("File updated");

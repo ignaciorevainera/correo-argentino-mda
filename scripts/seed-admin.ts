@@ -12,7 +12,6 @@ async function seed() {
   ];
 
   for (const adminData of adminsToCreate) {
-    // 1. Verificamos si el usuario ya existe en la base de datos
     const existingUser = await db
       .select()
       .from(users)
@@ -21,15 +20,13 @@ async function seed() {
 
     if (existingUser) {
       console.log(
-        `⚠️  El usuario '${adminData.username}' ya existe en la base de datos. Omitiendo.`
+        `⚠️  El usuario '${adminData.username}' ya existe en la base de datos. Omitiendo.`,
       );
       continue;
     }
 
-    // 2. Si no existe, hasheamos la contraseña
     const hashedPassword = await bcrypt.hash(adminData.password, 10);
 
-    // 3. Insertamos el nuevo usuario
     await db.insert(users).values({
       username: adminData.username,
       password: hashedPassword,
@@ -37,7 +34,7 @@ async function seed() {
     });
 
     console.log(
-      `✅ Usuario administrador '${adminData.username}' creado correctamente.`
+      `✅ Usuario administrador '${adminData.username}' creado correctamente.`,
     );
   }
 

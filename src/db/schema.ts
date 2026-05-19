@@ -8,7 +8,6 @@ import {
 
 import { relations } from "drizzle-orm";
 
-// 1. TABLA DE USUARIOS
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
@@ -16,7 +15,6 @@ export const users = sqliteTable("users", {
   role: text("role").notNull().default("agent"),
 });
 
-// 1. TABLA DE OFICINAS
 export const offices = sqliteTable("offices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   code: text("code").notNull().unique(),
@@ -30,14 +28,12 @@ export const offices = sqliteTable("offices", {
   notes: text("notes"),
 });
 
-// 2. TABLA DE CONTACTOS (Independiente)
 export const contacts = sqliteTable("contacts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   phone: text("phone"),
 });
 
-// 3. TABLA INTERMEDIA (El puente entre Oficinas y Contactos)
 export const officeContacts = sqliteTable(
   "office_contacts",
   {
@@ -48,19 +44,14 @@ export const officeContacts = sqliteTable(
       .notNull()
       .references(() => contacts.id, { onDelete: "cascade" }),
 
-    // ¡Dato clave!: El rol y el horario van en la tabla intermedia.
-    // ¿Por qué? Porque "Ariel" podría ser 'Jefe' en la oficina A de mañana,
-    // y 'Supervisor' en la oficina B de tarde.
     role: text("role"),
     timeSlot: text("time_slot"),
   },
   (table) => ({
-    // Clave primaria compuesta para que no agregues por error a la misma persona 2 veces a la misma oficina
     pk: primaryKey({ columns: [table.officeId, table.contactId] }),
   }),
 );
 
-// 4. TABLA DE EQUIPAMIENTO (Se mantiene igual, 1 a Muchos)
 export const officeAssets = sqliteTable("office_assets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   officeId: integer("office_id")
@@ -71,13 +62,11 @@ export const officeAssets = sqliteTable("office_assets", {
   ip: text("ip"),
 });
 
-// Relaciones de Oficinas
 export const officesRelations = relations(offices, ({ many }) => ({
   contacts: many(officeContacts),
   assets: many(officeAssets),
 }));
 
-// Relaciones de la tabla intermedia (Puente)
 export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   office: one(offices, {
     fields: [officeContacts.officeId],
@@ -89,7 +78,6 @@ export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   }),
 }));
 
-// Relaciones de Activos
 export const officeAssetsRelations = relations(officeAssets, ({ one }) => ({
   office: one(offices, {
     fields: [officeAssets.officeId],
@@ -97,7 +85,6 @@ export const officeAssetsRelations = relations(officeAssets, ({ one }) => ({
   }),
 }));
 
-// 5. TABLA DE CUBICS (PCs)
 export const cubics = sqliteTable("cubics", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
@@ -106,7 +93,6 @@ export const cubics = sqliteTable("cubics", {
   lastPing: text("last_ping"),
 });
 
-// 6. TABLA DE AGENTES (Operadores)
 export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -114,7 +100,6 @@ export const agents = sqliteTable("agents", {
   notes: text("notes"),
 });
 
-// 7. TABLA INTERMEDIA (Asignaciones de Cubics)
 export const cubicAssignments = sqliteTable(
   "cubic_assignments",
   {
@@ -131,17 +116,14 @@ export const cubicAssignments = sqliteTable(
   }),
 );
 
-// Relaciones de Cubics
 export const cubicsRelations = relations(cubics, ({ many }) => ({
   assignments: many(cubicAssignments),
 }));
 
-// Relaciones de Agentes
 export const agentsRelations = relations(agents, ({ many }) => ({
   assignments: many(cubicAssignments),
 }));
 
-// Relaciones de Asignaciones (Intermedia)
 export const cubicAssignmentsRelations = relations(
   cubicAssignments,
   ({ one }) => ({

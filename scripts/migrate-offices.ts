@@ -1,7 +1,3 @@
-// scripts/migrate-offices.ts
-// Ejecutar con: npx tsx scripts/migrate-offices.ts
-// IMPORTANTE: Ejecutar desde la raíz del proyecto para que ./database/mda.db se resuelva correctamente.
-
 import { db } from "../src/db/index";
 import {
   offices,
@@ -16,7 +12,6 @@ async function runMigration() {
   console.log("🚀 Iniciando migración de Oficinas a la Base de Datos...");
   console.log(`📦 Total de oficinas a procesar: ${mockTelegrafia.length}\n`);
 
-  // Limpiar tablas antes de insertar (orden inverso por FK constraints)
   console.log("🗑️  Limpiando tablas existentes...");
   await db.delete(officeContacts);
   await db.delete(officeAssets);
@@ -37,7 +32,6 @@ async function runMigration() {
         `📍 [${totalOffices + 1}/${mockTelegrafia.length}] Procesando: ${officeData.name} (${officeData.code})`,
       );
 
-      // 1. INSERTAR LA OFICINA
       const [insertedOffice] = await db
         .insert(offices)
         .values({
@@ -56,14 +50,10 @@ async function runMigration() {
       const officeId = insertedOffice.id;
       totalOffices++;
 
-      // 2. INSERTAR CONTACTOS Y CREAR LA RELACIÓN (MUCHOS A MUCHOS)
       for (const c of officeData.contacts) {
-        // Normalizar phone: si está vacío o undefined, usar null
         const normalizedPhone = c.phone?.trim() || null;
         let contactId: number;
 
-        // a) Buscar si la persona ya existe en la tabla general de contactos
-        // IMPORTANTE: En SQL, NULL = NULL es FALSE, por eso usamos isNull()
         const existingContacts = await db
           .select()
           .from(contacts)
@@ -79,12 +69,10 @@ async function runMigration() {
         const existingContact = existingContacts[0];
 
         if (existingContact) {
-          // b) Ya existe → reutilizar su ID
           contactId = existingContact.id;
           totalContactsReused++;
           console.log(`   ♻️  Contacto reutilizado: ${c.name}`);
         } else {
-          // c) No existe → crearlo
           const [newContact] = await db
             .insert(contacts)
             .values({
@@ -97,7 +85,6 @@ async function runMigration() {
           console.log(`   ✨ Contacto creado: ${c.name}`);
         }
 
-        // d) Insertar la relación en la Tabla Intermedia
         await db.insert(officeContacts).values({
           officeId: officeId,
           contactId: contactId,
@@ -107,7 +94,6 @@ async function runMigration() {
         totalRelations++;
       }
 
-      // 3. INSERTAR EQUIPAMIENTO (ACTIVOS)
       for (const asset of officeData.assets) {
         await db.insert(officeAssets).values({
           officeId: officeId,
@@ -126,7 +112,6 @@ async function runMigration() {
     }
   }
 
-  // Resumen final
   console.log("\n" + "═".repeat(50));
   console.log("📊 RESUMEN DE MIGRACIÓN");
   console.log("═".repeat(50));
@@ -145,7 +130,6 @@ async function runMigration() {
   }
 }
 
-// Ejecutar
 runMigration().catch((error) => {
   console.error("❌ Error fatal durante la migración:", error);
   process.exit(1);

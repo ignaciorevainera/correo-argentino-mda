@@ -7,14 +7,13 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import Button from "@components/ui/Button.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
 
 let successMsg = "";
 let errorMsg = "";
 
-// --- LÓGICA POST: Eliminar Oficina ---
+
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
   const action = formData.get("action")?.toString();
@@ -40,7 +39,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-// --- LÓGICA GET: Listar Oficinas ---
+
 const allOffices = await db
   .select()
   .from(offices)
@@ -114,10 +113,10 @@ const rowGridClass =
           placeholder="Buscar por código, nombre o región"
           class="w-full sm:w-64"
         />
-        <Button variant="secondary" href="/admin/offices/new" class="w-full sm:w-auto">
-          <Icon name="boxicons:plus" size={18} slot="icon-left" />
+        <a href="/admin/offices/new" class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent w-full sm:w-auto">
+          <Icon name="boxicons:plus" size={18} />
           Nueva sucursal
-        </Button>
+        </a>
       </div>
     </div>
 
@@ -231,21 +230,17 @@ const rowGridClass =
 
               {/* Acciones */}
               <div class="flex items-center justify-end gap-1">
-                <Button
-                  variant="secondary"
-                  appearance="ghost"
-                  size="sm"
+                <a
                   href={`/admin/offices/${office.id}`}
-                  class="h-7 px-2 text-base-content/60 hover:text-secondary"
+                  class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   aria-label={`Editar ${office.name}`}
                 >
                   <Icon
                     name="boxicons:pencil-filled"
                     size={14}
-                    slot="icon-left"
                   />
                   <span class="hidden sm:inline">Editar</span>
-                </Button>
+                </a>
 
                 <form
                   method="POST"
@@ -288,7 +283,7 @@ const rowGridClass =
       )}
     </DataTable>
     <script>
-      import { matchesSearchQuery, highlightSearchTargets } from "@lib/searchUtils";
+      import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
 
       const searchInput = document.querySelector<HTMLInputElement>("#admin-office-search");
       const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");

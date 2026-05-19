@@ -5,10 +5,9 @@ import { eq, and, isNull } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import Button from "@components/ui/Button.astro";
 import { Icon } from "astro-icon/components";
 
-// --- Verificación de rol ---
+
 const user = Astro.locals.user;
 if (user.role !== "admin") return Astro.redirect("/login");
 
@@ -17,7 +16,7 @@ const isNew = id === "new";
 let successMsg = "";
 let errorMsg = "";
 
-// --- LÓGICA POST: Guardar ---
+
 if (Astro.request.method === "POST") {
   try {
     const fd = await Astro.request.formData();
@@ -45,7 +44,7 @@ if (Astro.request.method === "POST") {
         await db.update(offices).set(officeData).where(eq(offices.id, officeId));
       }
 
-      // --- Activos: borrar viejos y recrear ---
+      
       await db.delete(officeAssets).where(eq(officeAssets.officeId, officeId));
 
       const assetTypes = fd.getAll("asset_type");
@@ -63,7 +62,7 @@ if (Astro.request.method === "POST") {
         });
       }
 
-      // --- Contactos: borrar vínculos viejos y recrear ---
+      
       await db.delete(officeContacts).where(eq(officeContacts.officeId, officeId));
 
       const cIds = fd.getAll("contact_id");
@@ -83,7 +82,7 @@ if (Astro.request.method === "POST") {
           contactId = Number(cIdStr);
           await db.update(contacts).set({ name: cName, phone: cPhone }).where(eq(contacts.id, contactId));
         } else {
-          // Buscar contacto existente por nombre + teléfono
+          
           let existing;
           if (cPhone) {
             [existing] = await db.select().from(contacts)
@@ -109,7 +108,7 @@ if (Astro.request.method === "POST") {
             timeSlot: cTimeSlots[i]?.toString().trim() || null,
           });
         } catch (e: any) {
-          // Ignorar si el mismo contacto se intenta vincular 2 veces
+          
         }
       }
 
@@ -123,7 +122,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-// --- LÓGICA GET: Cargar datos ---
+
 type OfficeRecord = {
   id: number; code: string; name: string; type: string;
   region: string | null; address: string | null; email: string | null; notes: string | null;
@@ -364,10 +363,10 @@ const assetTypeOptions = [
 
       {/* ── Acciones ── */}
       <div class="flex items-center justify-between gap-3 pt-1">
-        <Button variant="neutral" appearance="ghost" href="/admin/offices">
-          <Icon name="boxicons:arrow-left-filled" size={16} slot="icon-left" />
+        <a href="/admin/offices" class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10">
+          <Icon name="boxicons:arrow-left-filled" size={16} />
           Volver al listado
-        </Button>
+        </a>
         <button type="submit" class="btn btn-secondary btn-sm gap-2">
           <Icon name="boxicons:save-filled" size={16} />
           {isNew ? "Crear sucursal" : "Guardar cambios"}
