@@ -6,28 +6,17 @@ import logo from "@assets/logo.svg";
 import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import geistMonoLatinWoff2 from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 import packageJson from "../../package.json";
+import { navSections, getSectionTitle, type NavItem } from "@lib/navigation";
 
 interface Props {
   title?: string;
 }
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
-  children?: NavItem[];
-  parentLabel?: string;
-  nested?: boolean;
-}
 
-interface NavSection {
-  id: string;
-  label: string;
-  items: NavItem[];
-}
 
-const { title = "Portal Mesa de Ayuda" } = Astro.props;
+const { title } = Astro.props;
 const currentPath = Astro.url.pathname;
+const inferredTitle = title || getSectionTitle(currentPath) || "Portal Mesa de Ayuda";
 const globalFontFaceCss = `
   @font-face {
     font-family: "Geist Variable";
@@ -53,123 +42,7 @@ const aboutProjectOwners: string[] = [
   "Darío Altamirano",
 ];
 
-const navSections: NavSection[] = [
-  {
-    id: "mesa-ayuda",
-    label: "Mesa de ayuda",
-    items: [
-      {
-        href: "/supervision",
-        label: "Supervisión",
-        icon: "boxicons:shield-quarter-filled",
-        children: [
-          {
-            href: "/supervision/cronograma",
-            label: "Cronograma",
-            icon: "boxicons:calendar-filled",
-          },
-          {
-            href: "/supervision/calidad-operadores",
-            label: "Calidad de operadores",
-            icon: "boxicons:bar-chart-big-filled",
-          },
-          {
-            href: "/supervision/asignacion-autogestiones",
-            label: "Asignación de autogestiones",
-            icon: "boxicons:git-branch-filled",
-          },
-        ],
-      },
-      {
-        href: "/titulos-tickets",
-        label: "Títulos de tickets",
-        icon: "boxicons:list-ul-filled",
-      },
-      {
-        href: "/guia-soportes",
-        label: "Guía de soportes",
-        icon: "boxicons:buoy-filled",
-      },
-    ],
-  },
-  {
-    id: "consultas-recursos",
-    label: "Consultas y recursos",
-    items: [
-      {
-        href: "/buscador-usuarios",
-        label: "Buscador de usuarios",
-        icon: "boxicons:group-filled",
-      },
-      {
-        href: "/generador-firmas",
-        label: "Generador de firmas",
-        icon: "boxicons:pencil-draw-filled",
-      },
-      {
-        href: "/contactos",
-        label: "Contactos",
-        icon: "boxicons:phone-filled",
-      },
-      {
-        href: "/enlaces-recursos",
-        label: "Enlaces y recursos",
-        icon: "boxicons:link-filled",
-        children: [
-          {
-            href: "/catalogo-aplicativos",
-            label: "Catálogo de aplicativos",
-            icon: "boxicons:link-filled",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "referencia",
-    label: "Referencia",
-    items: [
-      {
-        href: "/design-system",
-        label: "Estándar de diseño",
-        icon: "boxicons:palette-filled",
-      },
-    ],
-  },
-  {
-    id: "directorio-oficinas",
-    label: "Directorio de oficinas",
-    items: [
-      {
-        href: "/directorio-oficinas",
-        label: "Directorio de oficinas",
-        icon: "boxicons:building-filled",
-      },
-    ],
-  },
-  {
-    id: "terminales",
-    label: "Inventario",
-    items: [
-      {
-        href: "/inventario-equipos",
-        label: "Inventario de equipos",
-        icon: "boxicons:desktop-filled",
-      },
-    ],
-  },
-  {
-    id: "admin",
-    label: "Administración",
-    items: [
-      {
-        href: "/admin",
-        label: "Panel de administración",
-        icon: "boxicons:apps-filled",
-      }
-    ],
-  },
-];
+
 
 const flattenQuickAccessItems = (items: NavItem[]): NavItem[] =>
   items.flatMap((item) => {
@@ -279,7 +152,7 @@ const isRouteLocked = (href: string): boolean => {
 
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
+    <title>{inferredTitle}</title>
   </head>
   <body class="min-h-screen bg-base-100 text-base-content">
     <div class="drawer lg:drawer-open">

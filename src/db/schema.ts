@@ -15,6 +15,14 @@ export const users = sqliteTable("users", {
   role: text("role").notNull().default("agent"),
 });
 
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("userId")
+    .notNull()
+    .references(() => users.id),
+  expiresAt: integer("expiresAt").notNull(),
+});
+
 export const offices = sqliteTable("offices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   code: text("code").notNull().unique(),

@@ -1,6 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 import { db } from "./db/index";
-import { users } from "./db/schema";
+import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -13,18 +13,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
     role: "agent",
   };
 
-  const sessionUsername = cookies.get("mda_session")?.value;
+  const sessionId = cookies.get("session_id")?.value;
 
-  if (sessionUsername) {
-    const [dbUser] = await db
+  if (sessionId) {
+    const [session] = await db
       .select()
-      .from(users)
-      .where(eq(users.username, sessionUsername));
+      .from(sessions)
+      .where(eq(sessions.id, sessionId));
 
-    if (dbUser) {
-      currentUser = dbUser;
+    if (session && session.expiresAt > Date.now()) {
+      const [dbUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, session.userId));
+
+      if (dbUser) {
+        currentUser = dbUser;
+      }
     } else {
-      cookies.delete("mda_session");
+      cookies.delete("session_id", { path: "/" });
+      if (session) {
+        await db.delete(sessions).where(eq(sessions.id, sessionId));
+      }
+      if (path !== "/login") {
+        return redirect("/login");
+      }
     }
   }
 
