@@ -1,42 +1,51 @@
-import { db } from "../src/db";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+import { db } from "../src/db/index"; // Ajusta esta ruta si es necesario
 import { resourceCategories, resourceLinks } from "../src/db/schema";
-import * as fs from "fs";
-import * as path from "path";
 
-async function main() {
-  const filePath = path.join(process.cwd(), "src", "data", "enlaces_recursos.json");
-  const rawData = fs.readFileSync(filePath, "utf-8");
-  const categories = JSON.parse(rawData);
+function importRecursos() {
+  console.log("[Importer] Procesando enlaces y recursos...");
 
-  console.log("Iniciando importación de recursos y enlaces...");
+  const jsonPath = resolve(process.cwd(), "src/data/enlaces_recursos.json");
+  const data = JSON.parse(readFileSync(jsonPath, "utf-8"));
 
-  await db.transaction(async (tx) => {
-    for (const cat of categories) {
-      console.log(`Insertando categoría: ${cat.title}`);
-      
-      await tx.insert(resourceCategories).values({
-        id: cat.id,
-        title: cat.title,
-        iconName: cat.iconName,
-      });
+  try {
+    // Para better-sqlite3 la transacción DEBE ser síncrona (sin async)
+    db.transaction((tx) => {
+      for (const cat of data) {
+        console.log(` -> Insertando categoría: ${cat.title}`);
 
-      for (const link of cat.links) {
-        console.log(`  - Insertando enlace: ${link.title}`);
-        await tx.insert(resourceLinks).values({
-          id: link.id,
-          categoryId: cat.id,
-          title: link.title,
-          url: link.url,
-          subtitle: link.subtitle || null,
-        });
+        // 1. Insertar categoría. Usamos .run() en lugar de await
+        tx.insert(resourceCategories)
+          .values({
+            id: cat.id,
+            title: cat.title,
+            iconName: cat.iconName,
+          })
+          .onConflictDoNothing()
+          .run();
+
+        // 2. Insertar enlaces asociados
+        for (const link of cat.links) {
+          tx.insert(resourceLinks)
+            .values({
+              id: link.id,
+              categoryId: cat.id,
+              title: link.title,
+              url: link.url,
+              subtitle: link.subtitle || null,
+            })
+            .onConflictDoNothing()
+            .run();
+        }
       }
-    }
-  });
+    });
 
-  console.log("Importación finalizada con éxito.");
+    console.log("\n[Importer] 🎉 Recursos migrados exitosamente a la DB.");
+  } catch (error) {
+    console.error("\n[Importer] ❌ Error durante la migración:");
+    console.error(error);
+  }
 }
 
-main().catch((err) => {
-  console.error("Error durante la importación:", err);
-  process.exit(1);
-});
+importRecursos();

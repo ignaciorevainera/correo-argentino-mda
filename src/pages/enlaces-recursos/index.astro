@@ -2,10 +2,7 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import ImportantLinksView from "./_components/ImportantLinksView.astro";
 import { db } from "../../db";
-import type {
-  CategoryTone,
-  CategoryViewModel,
-} from "./_components/types";
+import type { CategoryTone, CategoryViewModel } from "./_components/types";
 
 const categoryTones: CategoryTone[] = [
   "primary",
@@ -25,11 +22,11 @@ const importantCategories = rawCategories.map(
   (category, index): CategoryViewModel => ({
     id: category.id,
     category: category.title,
-    icon: `boxicons:${category.iconName}`,
+    icon: category.iconName as unknown as `boxicons:${string}`,
     tone: categoryTones[index % categoryTones.length],
-    links: category.links.map(link => ({
+    links: category.links.map((link) => ({
       ...link,
-      subtitle: link.subtitle ?? undefined
+      subtitle: link.subtitle ?? undefined,
     })),
   }),
 );
