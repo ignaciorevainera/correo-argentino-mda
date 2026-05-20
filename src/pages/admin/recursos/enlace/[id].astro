@@ -1,0 +1,188 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { resourceCategories, resourceLinks } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+const { id } = Astro.params;
+const isNew = id === "nuevo";
+const initialCategoryId = Astro.url.searchParams.get("categoryId") || "";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let link = {
+  id: "",
+  categoryId: initialCategoryId,
+  title: "",
+  url: "",
+  subtitle: "",
+};
+
+const categories = await db.select().from(resourceCategories);
+
+if (!isNew && id) {
+  const existingLink = await db.query.resourceLinks.findFirst({
+    where: eq(resourceLinks.id, id),
+  });
+  if (existingLink) {
+    link = {
+      ...existingLink,
+      subtitle: existingLink.subtitle || "",
+    };
+  } else {
+    return Astro.redirect(resolveUrl("/admin/recursos"));
+  }
+}
+
+let formSnapshot = null;
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    formSnapshot = formData;
+
+    const title = formData.get("title")?.toString().trim();
+    const url = formData.get("url")?.toString().trim();
+    const categoryId = formData.get("categoryId")?.toString().trim();
+    const subtitle = formData.get("subtitle")?.toString().trim() || null;
+
+    if (!title || !url || !categoryId) {
+      throw new Error("El título, la url y la categoría son obligatorios.");
+    }
+
+    if (isNew) {
+      const newId = crypto.randomUUID();
+      await db.insert(resourceLinks).values({
+        id: newId,
+        categoryId,
+        title,
+        url,
+        subtitle,
+      });
+    } else if (id) {
+      await db
+        .update(resourceLinks)
+        .set({
+          categoryId,
+          title,
+          url,
+          subtitle,
+        })
+        .where(eq(resourceLinks.id, id));
+    }
+
+    return Astro.redirect(resolveUrl("/admin/recursos"));
+  } catch (error: any) {
+    errorMsg = error.message || "Error al guardar el enlace.";
+    if (formSnapshot) {
+      link.title = formSnapshot.get("title")?.toString() || "";
+      link.url = formSnapshot.get("url")?.toString() || "";
+      link.categoryId = formSnapshot.get("categoryId")?.toString() || "";
+      link.subtitle = formSnapshot.get("subtitle")?.toString() || "";
+    }
+  }
+}
+---
+
+<BaseLayout title={isNew ? "Nuevo Enlace" : "Editar Enlace"}>
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div class="flex items-start justify-between mb-6 border-b border-base-200 pb-4">
+            <div>
+              <h1 class="text-xl font-bold text-base-content">{isNew ? "Nuevo Enlace" : "Editar Enlace"}</h1>
+              <p class="text-sm text-base-content/60 mt-1">Configuración del acceso directo para operadores.</p>
+            </div>
+            <a href={resolveUrl("/admin/recursos")} class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200" title="Cerrar">
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <div role="alert" class="alert alert-error alert-soft text-sm mb-6">
+                <Icon name="boxicons:alert-circle-filled" size={20} class="shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+              <fieldset class="fieldset">
+                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">Título del Enlace</legend>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  value={link.title}
+                  placeholder="Ej: Portal de Autogestión"
+                  class="input input-bordered w-full"
+                  autofocus={isNew}
+                />
+              </fieldset>
+
+              <fieldset class="fieldset">
+                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">Categoría</legend>
+                <select
+                  name="categoryId"
+                  required
+                  class="select select-bordered w-full font-medium"
+                >
+                  <option value="" disabled selected={!link.categoryId}>Seleccionar...</option>
+                  {
+                    categories.map((cat) => (
+                      <option value={cat.id} selected={cat.id === link.categoryId}>{cat.title}</option>
+                    ))
+                  }
+                </select>
+              </fieldset>
+
+              <fieldset class="fieldset sm:col-span-2">
+                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">URL de Destino</legend>
+                <input
+                  type="url"
+                  name="url"
+                  required
+                  value={link.url}
+                  placeholder="https://..."
+                  class="input input-bordered w-full font-mono text-sm"
+                />
+              </fieldset>
+
+              <fieldset class="fieldset sm:col-span-2">
+                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">
+                  Subtítulo Descriptivo <span class="text-base-content/40 font-normal normal-case ml-1">(Opcional)</span>
+                </legend>
+                <input
+                  type="text"
+                  name="subtitle"
+                  value={link.subtitle}
+                  placeholder="Breve explicación del propósito del enlace"
+                  class="input input-bordered w-full"
+                />
+              </fieldset>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200">
+              <a href={resolveUrl("/admin/recursos")} class="btn btn-ghost">Cancelar</a>
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Enlace
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>

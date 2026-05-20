@@ -1,0 +1,371 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { resourceCategories } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+const { id } = Astro.params;
+const isNew = id === "nueva";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let category = { id: "", title: "", iconName: "", tone: "primary" };
+
+const PREDEFINED_ICONS = [
+  { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
+  { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
+  { value: "boxicons:group-filled", label: "Grupo (Usuarios / RRHH)" },
+  { value: "boxicons:building-filled", label: "Edificio (Intranet)" },
+  { value: "boxicons:chip-filled", label: "Microchip (Hardware)" },
+  { value: "boxicons:spanner-filled", label: "Llave (Herramientas)" },
+  { value: "boxicons:check-shield-filled", label: "Escudo (Seguridad / VPN)" },
+  { value: "boxicons:link-filled", label: "Enlace (Portales / Accesos)" },
+  { value: "boxicons:help-circle-filled", label: "Ayuda (Soporte / FAQ)" },
+  { value: "boxicons:calendar-filled", label: "Calendario (Cronograma)" },
+];
+
+const currentIcon = category.iconName || "boxicons:star-filled";
+const iconExistsInPredefined = PREDEFINED_ICONS.some(
+  (icon) => icon.value === currentIcon,
+);
+const iconsList = [...PREDEFINED_ICONS];
+if (category.iconName && !iconExistsInPredefined) {
+  iconsList.push({
+    value: category.iconName,
+    label: `Personalizado (${category.iconName})`,
+  });
+}
+
+if (!isNew && id) {
+  const existingCategory = await db.query.resourceCategories.findFirst({
+    where: eq(resourceCategories.id, id),
+  });
+  if (existingCategory) {
+    category = existingCategory;
+  } else {
+    return Astro.redirect(resolveUrl("/admin/recursos"));
+  }
+}
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const title = formData.get("title")?.toString().trim();
+    const iconName = formData.get("iconName")?.toString().trim();
+
+    if (!title || !iconName) {
+      throw new Error("El título y el icono son obligatorios.");
+    }
+
+    const tone = formData.get("tone")?.toString().trim() || "primary";
+
+    if (isNew) {
+      const newId = crypto.randomUUID();
+      await db.insert(resourceCategories).values({
+        id: newId,
+        title,
+        iconName,
+        tone,
+      });
+    } else if (id) {
+      await db
+        .update(resourceCategories)
+        .set({
+          title,
+          iconName,
+          tone,
+        })
+        .where(eq(resourceCategories.id, id));
+    }
+
+    return Astro.redirect(resolveUrl("/admin/recursos"));
+  } catch (error: any) {
+    errorMsg = error.message || "Error al guardar la categoría.";
+  }
+}
+---
+
+<BaseLayout title={isNew ? "Nueva Categoría" : "Editar Categoría"}>
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                {isNew ? "Nueva Categoría" : "Editar Categoría"}
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Definí cómo se agruparán y visualizarán los enlaces.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/recursos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <div
+                role="alert"
+                class="alert alert-error alert-soft text-sm mb-6"
+              >
+                <Icon
+                  name="boxicons:alert-circle-filled"
+                  size={20}
+                  class="shrink-0"
+                />
+                <span>{errorMsg}</span>
+              </div>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 gap-y-5">
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+                  >Título de la Categoría</legend
+                >
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  value={category.title}
+                  placeholder="Ej: Sistemas operativos"
+                  class="input input-bordered w-full font-medium"
+                  autofocus={isNew}
+                />
+              </fieldset>
+
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
+                  >Ícono Visual</legend
+                >
+                <input
+                  type="hidden"
+                  name="iconName"
+                  id="category-icon-input"
+                  value={currentIcon}
+                />
+                <div class="dropdown w-full" id="icon-dropdown">
+                  <div
+                    tabindex="0"
+                    role="button"
+                    class="input input-bordered w-full flex justify-between items-center cursor-pointer select-none bg-base-100 font-medium"
+                    id="dropdown-trigger"
+                  >
+                    <span
+                      class="flex items-center gap-2"
+                      id="selected-icon-preview"
+                    >
+                      <Icon name={currentIcon} size={20} class="text-primary" />
+                    </span>
+                    <Icon
+                      name="boxicons:chevron-down"
+                      size={16}
+                      class="opacity-60 shrink-0"
+                    />
+                  </div>
+                  <ul
+                    tabindex="0"
+                    class="dropdown-content menu flex flex-col gap-1 bg-base-100 rounded-box z-[1] w-full p-2 shadow-lg border border-base-300 max-h-60 overflow-y-auto mt-1"
+                  >
+                    {
+                      iconsList.map((icon) => (
+                        <li>
+                          <button
+                            type="button"
+                            class="flex items-start justify-start p-2 hover:bg-base-200 rounded-lg w-full"
+                            data-icon-value={icon.value}
+                            data-icon-label={icon.label}
+                            title={icon.label}
+                          >
+                            <Icon
+                              name={icon.value}
+                              size={20}
+                              class="text-primary shrink-0"
+                            />
+                          </button>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                </div>
+              </fieldset>
+
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
+                  >Color de Identificación (Tono)</legend
+                >
+                <div
+                  class="flex flex-col gap-2.5 bg-base-200/50 p-4 rounded-xl border border-base-300 w-full"
+                >
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="primary"
+                      class="radio radio-primary radio-sm"
+                      checked={category.tone === "primary" || !category.tone}
+                    />
+                    <span class="text-sm font-medium">Amarillo (Principal)</span
+                    >
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="secondary"
+                      class="radio radio-secondary radio-sm"
+                      checked={category.tone === "secondary"}
+                    />
+                    <span class="text-sm font-medium">Azul (Secundario)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="accent"
+                      class="radio radio-accent radio-sm"
+                      checked={category.tone === "accent"}
+                    />
+                    <span class="text-sm font-medium">Celeste (Acento)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="success"
+                      class="radio radio-success radio-sm"
+                      checked={category.tone === "success"}
+                    />
+                    <span class="text-sm font-medium">Verde (Éxito)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="info"
+                      class="radio radio-info radio-sm"
+                      checked={category.tone === "info"}
+                    />
+                    <span class="text-sm font-medium">Azul claro (Info)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="warning"
+                      class="radio radio-warning radio-sm"
+                      checked={category.tone === "warning"}
+                    />
+                    <span class="text-sm font-medium">Naranja (Alerta)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="error"
+                      class="radio radio-error radio-sm"
+                      checked={category.tone === "error"}
+                    />
+                    <span class="text-sm font-medium">Rojo (Error)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="neutral"
+                      class="radio radio-neutral radio-sm"
+                      checked={category.tone === "neutral"}
+                    />
+                    <span class="text-sm font-medium">Gris (Neutral)</span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/recursos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Categoría
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  function initIconDropdown() {
+    const dropdown = document.getElementById("icon-dropdown");
+    const input = document.getElementById(
+      "category-icon-input",
+    ) as HTMLInputElement | null;
+    const preview = document.getElementById("selected-icon-preview");
+
+    if (!dropdown || !input || !preview) return;
+
+    const buttons = dropdown.querySelectorAll("button[data-icon-value]");
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const value = btn.getAttribute("data-icon-value") || "";
+        const label = btn.getAttribute("data-icon-label") || "";
+
+        // Update hidden input value
+        input.value = value;
+
+        // Update trigger UI text
+        const labelEl = preview.querySelector("#selected-icon-label");
+        if (labelEl) labelEl.textContent = label;
+
+        // Update Icon Preview SVG
+        const btnSvg = btn.querySelector("svg");
+        const previewSvg = preview.querySelector("svg");
+        if (btnSvg && previewSvg) {
+          previewSvg.outerHTML = btnSvg.outerHTML;
+        }
+
+        // Close dropdown by blurring active element
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      });
+    });
+  }
+
+  // Initialize dropdown logic
+  initIconDropdown();
+</script>

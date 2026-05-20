@@ -1,0 +1,138 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith('/') ? base : base + '/';
+
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+const categories = await db.query.resourceCategories.findMany({
+  with: {
+    links: true,
+  },
+});
+---
+
+<BaseLayout title="Administración de Recursos - Portal">
+  <PageContainer>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+      <PageHeader
+        title="Gestión de Recursos"
+        description="Administración de categorías y enlaces útiles del portal."
+      />
+      <div class="shrink-0 mt-4 sm:mt-0">
+        <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-primary gap-2 w-full sm:w-auto">
+          <Icon name="boxicons:plus" size={20} />
+          Nueva Categoría
+        </a>
+      </div>
+    </div>
+
+    {categories.length === 0 ? (
+      <div class="flex flex-col items-center gap-3 py-16 text-base-content/50 bg-base-100 rounded-box border border-base-300">
+        <div class="rounded-full bg-base-200 p-4">
+          <Icon name="boxicons:folder-open" size={32} class="opacity-30" aria-hidden="true" />
+        </div>
+        <div class="space-y-1 text-center">
+          <p class="text-sm font-semibold">No hay categorías registradas</p>
+          <p class="text-xs">Comenzá creando una nueva categoría.</p>
+        </div>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {categories.map((cat) => {
+          const tone = (cat.tone || "primary") as "primary" | "secondary" | "accent" | "neutral" | "success" | "info" | "warning" | "error";
+          const borderClasses = {
+            primary: "border-t-primary border-t-4",
+            secondary: "border-t-secondary border-t-4",
+            accent: "border-t-accent border-t-4",
+            neutral: "border-t-neutral border-t-4",
+            success: "border-t-success border-t-4",
+            info: "border-t-info border-t-4",
+            warning: "border-t-warning border-t-4",
+            error: "border-t-error border-t-4",
+          };
+          const iconClasses = {
+            primary: "bg-primary/10 text-primary",
+            secondary: "bg-secondary/10 text-secondary",
+            accent: "bg-accent/10 text-accent",
+            neutral: "bg-neutral/10 text-neutral",
+            success: "bg-success/10 text-success",
+            info: "bg-info/10 text-info",
+            warning: "bg-warning/10 text-warning",
+            error: "bg-error/10 text-error",
+          };
+          return (
+            <div class={`card bg-base-100 border border-base-300 shadow-sm h-full flex flex-col ${borderClasses[tone]}`}>
+              <div class="card-body p-5 flex flex-col h-full">
+                <div class="flex items-start justify-between gap-4 mb-4">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClasses[tone]}`}>
+                      <Icon name={cat.iconName} size={24} />
+                    </div>
+                  <h3 class="card-title text-base font-semibold truncate" title={cat.title}>{cat.title}</h3>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                  <a
+                    href={resolveUrl(`/admin/recursos/categoria/${cat.id}`)}
+                    class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:text-secondary hover:bg-secondary/10"
+                    aria-label={`Editar categoría ${cat.title}`}
+                    title="Editar Categoría"
+                  >
+                    <Icon name="boxicons:pencil" size={18} />
+                  </a>
+                  <a
+                    href={resolveUrl(`/admin/recursos/enlace/nuevo?categoryId=${cat.id}`)}
+                    class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
+                    aria-label={`Nuevo enlace en ${cat.title}`}
+                    title="Nuevo Enlace"
+                  >
+                    <Icon name="boxicons:plus" size={20} />
+                  </a>
+                </div>
+              </div>
+
+              {cat.links.length === 0 ? (
+                <div class="text-center py-6 mt-auto text-sm text-base-content/40 bg-base-200/50 rounded-lg border border-base-300 border-dashed">
+                  Sin enlaces
+                </div>
+              ) : (
+                <ul class="space-y-3 flex-grow flex flex-col">
+                  {cat.links.map((link) => (
+                    <li class="flex items-center justify-between gap-3 p-3 bg-base-200/40 rounded-xl border border-base-200 hover:bg-base-200/80 hover:border-base-300 transition-all group shadow-sm">
+                      <div class="min-w-0 flex-1">
+                        <div class="text-sm font-semibold text-base-content truncate" title={link.title}>{link.title}</div>
+                        {link.subtitle && (
+                          <div class="text-xs text-base-content/70 truncate mt-0.5" title={link.subtitle}>{link.subtitle}</div>
+                        )}
+                        <a href={link.url} target="_blank" rel="noopener noreferrer" class="text-xs text-secondary hover:text-secondary-focus hover:underline truncate block mt-1.5 font-medium" title={link.url}>
+                          {link.url}
+                        </a>
+                      </div>
+                      <a
+                        href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
+                        class="btn btn-sm btn-ghost btn-square bg-base-100 border border-base-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shrink-0 text-base-content/70 shadow-xs"
+                        aria-label={`Editar enlace ${link.title}`}
+                        title="Editar Enlace"
+                      >
+                        <Icon name="boxicons:pencil" size={16} />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    )}
+  </PageContainer>
+</BaseLayout>
