@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import ImportantLinksView from "./_components/ImportantLinksView.astro";
-import linksData from "../../data/enlaces_recursos.json";
+import { db } from "../../db";
 import type {
   CategoryTone,
   CategoryViewModel,
-  RawLinkCategory,
 } from "./_components/types";
 
 const categoryTones: CategoryTone[] = [
@@ -16,15 +15,22 @@ const categoryTones: CategoryTone[] = [
   "success",
 ];
 
-const rawCategories = linksData as RawLinkCategory[];
+const rawCategories = await db.query.resourceCategories.findMany({
+  with: {
+    links: true,
+  },
+});
 
 const importantCategories = rawCategories.map(
   (category, index): CategoryViewModel => ({
     id: category.id,
     category: category.title,
-    icon: category.iconName,
+    icon: `boxicons:${category.iconName}`,
     tone: categoryTones[index % categoryTones.length],
-    links: category.links,
+    links: category.links.map(link => ({
+      ...link,
+      subtitle: link.subtitle ?? undefined
+    })),
   }),
 );
 ---

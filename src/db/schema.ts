@@ -188,3 +188,31 @@ export const schedules = sqliteTable("schedules", {
   horario: text("horario"),
 });
 
+// 9. RECURSOS Y ENLACES (Migración de JSON a BD)
+export const resourceCategories = sqliteTable("resource_categories", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  iconName: text("iconName").notNull(),
+});
+
+export const resourceLinks = sqliteTable("resource_links", {
+  id: text("id").primaryKey(),
+  categoryId: text("category_id")
+    .notNull()
+    .references(() => resourceCategories.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  subtitle: text("subtitle"),
+});
+
+export const resourceCategoriesRelations = relations(resourceCategories, ({ many }) => ({
+  links: many(resourceLinks),
+}));
+
+export const resourceLinksRelations = relations(resourceLinks, ({ one }) => ({
+  category: one(resourceCategories, {
+    fields: [resourceLinks.categoryId],
+    references: [resourceCategories.id],
+  }),
+}));
+
