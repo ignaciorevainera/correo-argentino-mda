@@ -13,8 +13,29 @@ import {
   type OfficeAssetType,
   type OfficeType,
 } from "@/data/directorio_oficinas";
+import { db } from "@db/index";
+import { provinces, regions } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 const officeDirectoryItems = await getOfficeDirectoryItems();
+
+const allProvincesWithRegion = await db
+  .select({
+    code: provinces.code,
+    name: provinces.name,
+    regionId: provinces.regionId,
+    regionName: regions.name,
+  })
+  .from(provinces)
+  .leftJoin(regions, eq(provinces.regionId, regions.id))
+  .orderBy(regions.name, provinces.name);
+
+const provincesByRegion: Record<string, { code: string; name: string }[]> = {};
+for (const p of allProvincesWithRegion) {
+  const rName = p.regionName ?? "Sin región";
+  if (!provincesByRegion[rName]) provincesByRegion[rName] = [];
+  provincesByRegion[rName].push({ code: p.code, name: p.name });
+}
 
 
 const sucursales = [
@@ -146,11 +167,15 @@ const officeTypeTabs: OfficeTypeTab[] = [
 ];
 
 const uniqueRegions = [
-  ...new Set(officeDirectoryItems.map((s) => s.region).filter(Boolean)),
+  ...new Set(
+    allProvincesWithRegion
+      .map((p) => p.regionName)
+      .filter((r): r is string => Boolean(r)),
+  ),
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
 const officeCountByType = officeDirectoryItems.reduce(
-  (counts, office) => {
+  (counts: Record<OfficeType | "all", number>, office) => {
     counts.all += 1;
     counts[office.type] += 1;
     return counts;
@@ -161,7 +186,7 @@ const officeCountByType = officeDirectoryItems.reduce(
     telegrafia: 0,
     distribucion: 0,
     paqueteria: 0,
-  } satisfies Record<OfficeType | "all", number>,
+  }
 );
 
 const officeTypeLabelByType: Record<OfficeType, string> = {
@@ -214,8 +239,8 @@ const assetOrderByType: Record<OfficeAssetType, number> = {
   printer: 3,
 };
 
-const officeDirectoryHeaderGridClass = "grid-cols-12 gap-4";
-const officeDirectoryRowGridClass = "grid grid-cols-12 items-center gap-4";
+const officeDirectoryHeaderGridClass = "grid-cols-10 gap-4";
+const officeDirectoryRowGridClass = "grid grid-cols-10 items-center gap-4";
 
 const groupedOffices = Array.from(
   officeDirectoryItems.reduce((groups, office) => {
@@ -309,7 +334,6 @@ const mainTabs = [
           </div>
         </div>
 
-        <!-- Fila 2: Select y Búsqueda -->
         <div class="flex flex-col sm:flex-row gap-3 w-full">
           <select
             id="regionFilter"
@@ -321,10 +345,18 @@ const mainTabs = [
               <option value={region}>{region}</option>
             ))}
           </select>
+          <select
+            id="provinceFilter"
+            class="select border-base-300 w-full sm:w-auto sm:min-w-48 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Filtrar por provincia"
+            disabled
+          >
+            <option value="all">Todas las provincias</option>
+          </select>
           <SearchInput
             id="office-search"
-            label="Buscar oficina por nombre, código, región, centro de costo o código postal"
-            placeholder="Buscar por nombre, código, región, centro de costo o CP"
+            label="Buscar oficina por nombre, código, región o código postal"
+            placeholder="Buscar por nombre, código, región o CP"
             class="flex-1"
           />
         </div>
@@ -360,16 +392,11 @@ const mainTabs = [
         <div slot="header" class="col-span-4">
           <DataTableHeaderCell sortKey="address">Dirección</DataTableHeaderCell>
         </div>
-        <div slot="header" class="col-span-2">
-          <DataTableHeaderCell sortKey="cost-center">
-            Centro de costo
-          </DataTableHeaderCell>
-        </div>
         {
           groupedOffices.map((group) =>
             group.offices.map((office, index) => {
               const isVisibleByDefault = defaultOfficeType === "all" || office.type === defaultOfficeType;
-              const searchText = `${office.name} ${office.code} ${office.region} ${office.location} ${office.costCenter} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
+              const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
 
               return (
                 <>
@@ -405,11 +432,11 @@ const mainTabs = [
                     data-office-type={office.type}
                     data-office-location={office.location}
                     data-region={office.region}
+                    data-province-code={office.provinceCode}
                     data-search-text={searchText}
                     data-sort-code={office.code}
                     data-sort-name={office.name}
                     data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
-                    data-sort-cost-center={office.costCenter}
                     data-sort-group={office.location}
                     class:list={["block", !isVisibleByDefault && "hidden"]}
                   >
@@ -496,15 +523,6 @@ const mainTabs = [
                             )}
                           </div>
                         </div>
-                      </div>
-
-                      <div class="col-span-2">
-                        <span
-                          class="font-mono text-sm text-base-content/75"
-                          data-highlight-target
-                        >
-                          {office.costCenter || <span class="text-base-content/35">&mdash;</span>}
-                        </span>
                       </div>
                     </div>
 
@@ -732,9 +750,10 @@ const mainTabs = [
   </PageContainer>
 
   <!-- Data para client-side (Astro Islands) -->
-  <script is:inline define:vars={{ sucursales }}>
+  <script is:inline define:vars={{ sucursales, provincesByRegion }}>
 
     window._SUCURSALES_DATA = sucursales;
+    window._PROVINCES_BY_REGION = provincesByRegion;
   </script>
 
   <!-- Script de Leaflet (CDN) y lógica combinada -->
@@ -780,6 +799,8 @@ const mainTabs = [
       document.querySelector<HTMLInputElement>("#office-search");
     const regionFilter =
       document.querySelector<HTMLSelectElement>("#regionFilter");
+    const provinceFilter =
+      document.querySelector<HTMLSelectElement>("#provinceFilter");
     const categoryEmptyState = document.querySelector<HTMLElement>(
       "#office-category-empty-state",
     );
@@ -809,12 +830,16 @@ const mainTabs = [
       const regionValue = regionFilter?.value || "all";
       const matchesRegion =
         regionValue === "all" || item.dataset.region === regionValue;
+
+      const provinceValue = provinceFilter?.value || "all";
+      const matchesProvince =
+        provinceValue === "all" || item.dataset.provinceCode === provinceValue;
         
       const matchesSearch = matchesSearchQuery(searchInput?.value.trim(), [
         item.dataset.searchText,
       ]);
 
-      return matchesType && matchesRegion && matchesSearch;
+      return matchesType && matchesRegion && matchesProvince && matchesSearch;
     };
 
     const updateRows = (): void => {
@@ -886,6 +911,44 @@ const mainTabs = [
     const initializeMap = () => {
       if (map) return;
       const dataMap = (window as any)._SUCURSALES_DATA || [];
+      const provincesData = (window as any)._PROVINCES_BY_REGION || {};
+      
+      const provinceToRegion: Record<string, string> = {};
+      const regionsArray: string[] = [];
+      for (const [regionName, provs] of Object.entries(provincesData)) {
+        regionsArray.push(regionName);
+        for (const p of provs as any[]) {
+          provinceToRegion[p.name] = regionName;
+        }
+      }
+      
+      const regionColors = [
+        "#003B71", // Azul Institucional
+        "#FFCC00", // Amarillo Institucional
+        "#2ECC71", // Verde
+        "#E74C3C", // Rojo
+        "#9B59B6", // Púrpura
+        "#F39C12", // Naranja
+        "#1ABC9C", // Turquesa
+        "#34495E", // Gris oscuro
+        "#D35400", // Naranja oscuro
+        "#2980B9"  // Azul claro
+      ];
+
+      const normalizeProvinceName = (geoName: string) => {
+        if (geoName === "Tierra del Fuego, Antártida e Islas del Atlántico Sur") return "Tierra del Fuego";
+        if (geoName === "Ciudad Autónoma de Buenos Aires") return "CABA";
+        return geoName;
+      };
+
+      const getRegionColor = (provinceName: string) => {
+        const dbName = normalizeProvinceName(provinceName);
+        const region = provinceToRegion[dbName];
+        if (!region) return "#7F8C8D"; // Gris default si no tiene región
+        const idx = regionsArray.indexOf(region);
+        return regionColors[idx % regionColors.length];
+      };
+
       const bounds = [
         [-56.0, -74.0],
         [-21.0, -53.0],
@@ -1032,6 +1095,7 @@ const mainTabs = [
       const labelOverrides: Record<string, [number, number]> = {
         "Santa Fe": [-30.8, -61.6],
         "Buenos Aires": [-36.8, -60.1],
+        "Tierra del Fuego, Antártida e Islas del Atlántico Sur": [-54.3, -67.0],
       };
 
       fetch("/data/argentina_provincias.geojson")
@@ -1040,32 +1104,22 @@ const mainTabs = [
           L.geoJSON(geoData, {
             style: function (feature: any) {
               const name = feature.properties.nombre;
-              const isYellow = [
-                "Buenos Aires",
-                "Córdoba",
-                "La Pampa",
-                "Mendoza",
-                "La Rioja",
-                "Chubut",
-                "Formosa",
-                "Santiago del Estero",
-                "Misiones",
-                "Jujuy",
-                "Santa Cruz",
-              ].includes(name);
-              const color = isYellow ? "#FFCC00" : "#003B71";
+              const color = getRegionColor(name);
               return {
                 color: color,
                 weight: 1.5,
                 fillColor: color,
                 fillOpacity:
-                  name === "Ciudad Autónoma de Buenos Aires" ? 0.25 : 0.12,
+                  name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15,
               };
             },
             onEachFeature: function (feature: any, layer: any) {
               const name = feature.properties.nombre;
+              const dbName = normalizeProvinceName(name);
+              const regionName = provinceToRegion[dbName] || "Sin región";
+              const color = getRegionColor(name);
               layer.bindPopup(
-                `<div class='text-center p-1'><b style='color: ${provinceLetters[name] === "C" || provinceLetters[name] === "S" ? "#003B71" : "#FFCC00"};'>${name}</b><br/>Provincia de la República Argentina.</div>`,
+                `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-gray-600'>${regionName}</span></div>`,
                 { className: "custom-popup" },
               );
               const letter = provinceLetters[name];
@@ -1075,25 +1129,7 @@ const mainTabs = [
                   centroid.lat,
                   centroid.lon,
                 ];
-                const isBlue = [
-                  "C",
-                  "S",
-                  "E",
-                  "W",
-                  "A",
-                  "G",
-                  "T",
-                  "F",
-                  "J",
-                  "D",
-                  "Q",
-                  "R",
-                  "V",
-                ].includes(letter);
-                const color = isBlue ? "#003B71" : "#FFCC00";
-                const shadow = isBlue
-                  ? "rgba(255,255,255,0.9)"
-                  : "rgba(0,0,0,0.5)";
+                const shadow = "rgba(255,255,255,0.8)";
                 let fontSize = "3.5rem";
                 if (letter === "C") fontSize = "2rem";
                 if (["B", "S", "X"].includes(letter)) fontSize = "4.2rem";
@@ -1180,7 +1216,34 @@ const mainTabs = [
     });
 
     searchInput?.addEventListener("input", updateRows);
-    regionFilter?.addEventListener("change", updateRows);
+
+    const provincesData = (window as any)._PROVINCES_BY_REGION as Record<string, { code: string; name: string }[]> | undefined;
+
+    regionFilter?.addEventListener("change", () => {
+      const selectedRegion = regionFilter.value;
+
+      if (provinceFilter) {
+        provinceFilter.innerHTML = '<option value="all">Todas las provincias</option>';
+
+        if (selectedRegion !== "all" && provincesData?.[selectedRegion]) {
+          for (const p of provincesData[selectedRegion]) {
+            const opt = document.createElement("option");
+            opt.value = p.code;
+            opt.textContent = p.name;
+            provinceFilter.appendChild(opt);
+          }
+          provinceFilter.disabled = false;
+        } else {
+          provinceFilter.disabled = true;
+        }
+        provinceFilter.value = "all";
+      }
+
+      updateRows();
+    });
+
+    provinceFilter?.addEventListener("change", updateRows);
+
     updateRows();
     refreshMasterDetailTableSort();
   </script>

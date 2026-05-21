@@ -4,13 +4,6 @@ import type {
   OfficeAssetType,
 } from "@/data/directorio_oficinas";
 
-/**
- * Consulta todas las oficinas de telegrafía desde la base de datos
- * y las devuelve mapeadas al formato OfficeDirectoryItem que espera el UI.
- *
- * La consulta usa el API Relacional de Drizzle para traer contactos
- * (a través de la tabla intermedia officeContacts) y activos en una sola query.
- */
 export async function getTelegrafiaOfficesFromDB(): Promise<
   OfficeDirectoryItem[]
 > {
@@ -19,11 +12,8 @@ export async function getTelegrafiaOfficesFromDB(): Promise<
     orderBy: (offices, { asc }) => [asc(offices.code), asc(offices.name)],
     with: {
       assets: true,
-      contacts: {
-        with: {
-          contact: true,
-        },
-      },
+      contacts: { with: { contact: true } },
+      province: { with: { region: true } },
     },
   });
 
@@ -32,10 +22,12 @@ export async function getTelegrafiaOfficesFromDB(): Promise<
     type: "telegrafia" as const,
     code: office.code,
     name: office.name,
-    location: office.region ?? "",
+    provinceCode: office.provinceCode,
+    provinceName: office.province?.name ?? "",
+    location: office.province?.name ?? "",
     costCenter: "",
     postalCode: "",
-    region: office.region ?? "",
+    region: office.province?.region?.name ?? "",
     address: office.address ?? "",
     email: office.email ?? "",
     notes: office.notes ?? "",

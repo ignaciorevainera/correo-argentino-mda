@@ -28,7 +28,9 @@ export const offices = sqliteTable("offices", {
   code: text("code").notNull().unique(),
   name: text("name").notNull(),
   type: text("type").notNull(),
-  region: text("region"),
+  provinceCode: text("provinceCode")
+    .notNull()
+    .references(() => provinces.code),
   address: text("address"),
   lat: real("lat"),
   lng: real("lng"),
@@ -50,7 +52,9 @@ export const providerContacts = sqliteTable("provider_contacts", {
   service: text("service").notNull(),
   phones: text("phones", { mode: "json" }).$type<string[]>(),
   emails: text("emails", { mode: "json" }).$type<string[]>(),
-  urls: text("urls", { mode: "json" }).$type<{label: string; url: string}[]>(),
+  urls: text("urls", { mode: "json" }).$type<
+    { label: string; url: string }[]
+  >(),
 });
 
 export const contacts = sqliteTable("contacts", {
@@ -59,9 +63,12 @@ export const contacts = sqliteTable("contacts", {
   phone: text("phone"),
 });
 
-export const contactCategoriesRelations = relations(contactCategories, ({ many }) => ({
-  contacts: many(providerContacts),
-}));
+export const contactCategoriesRelations = relations(
+  contactCategories,
+  ({ many }) => ({
+    contacts: many(providerContacts),
+  }),
+);
 
 export const officeContacts = sqliteTable(
   "office_contacts",
@@ -91,7 +98,11 @@ export const officeAssets = sqliteTable("office_assets", {
   ip: text("ip"),
 });
 
-export const officesRelations = relations(offices, ({ many }) => ({
+export const officesRelations = relations(offices, ({ one, many }) => ({
+  province: one(provinces, {
+    fields: [offices.provinceCode],
+    references: [provinces.code],
+  }),
   contacts: many(officeContacts),
   assets: many(officeAssets),
 }));
@@ -107,12 +118,15 @@ export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   }),
 }));
 
-export const providerContactsRelations = relations(providerContacts, ({ one }) => ({
-  category: one(contactCategories, {
-    fields: [providerContacts.categoryId],
-    references: [contactCategories.id],
+export const providerContactsRelations = relations(
+  providerContacts,
+  ({ one }) => ({
+    category: one(contactCategories, {
+      fields: [providerContacts.categoryId],
+      references: [contactCategories.id],
+    }),
   }),
-}));
+);
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
   officeContacts: many(officeContacts),
@@ -123,6 +137,29 @@ export const officeAssetsRelations = relations(officeAssets, ({ one }) => ({
     fields: [officeAssets.officeId],
     references: [offices.id],
   }),
+}));
+
+export const regions = sqliteTable("regions", {
+  id: text("id").primaryKey(), // Ej: 'SUR'
+  name: text("name").notNull(),
+});
+
+export const provinces = sqliteTable("provinces", {
+  code: text("code", { length: 1 }).primaryKey(), // Ej: 'Q'
+  name: text("name").notNull(),
+  regionId: text("regionId").references(() => regions.id),
+});
+
+export const provincesRelations = relations(provinces, ({ one, many }) => ({
+  region: one(regions, {
+    fields: [provinces.regionId],
+    references: [regions.id],
+  }),
+  offices: many(offices),
+}));
+
+export const regionsRelations = relations(regions, ({ many }) => ({
+  provinces: many(provinces),
 }));
 
 export const cubics = sqliteTable("cubics", {
@@ -208,9 +245,12 @@ export const resourceLinks = sqliteTable("resource_links", {
   subtitle: text("subtitle"),
 });
 
-export const resourceCategoriesRelations = relations(resourceCategories, ({ many }) => ({
-  links: many(resourceLinks),
-}));
+export const resourceCategoriesRelations = relations(
+  resourceCategories,
+  ({ many }) => ({
+    links: many(resourceLinks),
+  }),
+);
 
 export const resourceLinksRelations = relations(resourceLinks, ({ one }) => ({
   category: one(resourceCategories, {
@@ -218,4 +258,3 @@ export const resourceLinksRelations = relations(resourceLinks, ({ one }) => ({
     references: [resourceCategories.id],
   }),
 }));
-

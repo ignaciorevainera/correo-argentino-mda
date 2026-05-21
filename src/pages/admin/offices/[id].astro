@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { offices, contacts, officeContacts, officeAssets } from "@db/schema";
+import { offices, contacts, officeContacts, officeAssets, provinces, regions } from "@db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
@@ -28,7 +28,7 @@ if (Astro.request.method === "POST") {
       code: fd.get("code")?.toString().trim() ?? "",
       name: fd.get("name")?.toString().trim() ?? "",
       type: fd.get("type")?.toString() ?? "telegrafia",
-      region: fd.get("region")?.toString().trim() || null,
+      provinceCode: fd.get("provinceCode")?.toString().trim() ?? "",
       address: fd.get("address")?.toString().trim() || null,
       email: fd.get("email")?.toString().trim() || null,
       notes: fd.get("notes")?.toString().trim() || null,
@@ -128,7 +128,7 @@ if (Astro.request.method === "POST") {
 
 type OfficeRecord = {
   id: number; code: string; name: string; type: string;
-  region: string | null; address: string | null; email: string | null; notes: string | null;
+  provinceCode: string; address: string | null; email: string | null; notes: string | null;
   contacts: { role: string | null; timeSlot: string | null; contact: { id: number; name: string; phone: string | null } }[];
   assets: { id: number; type: string; hostname: string | null; ip: string | null }[];
 };
@@ -146,6 +146,26 @@ if (!isNew) {
   if (!result) return Astro.redirect(`${cleanBase}admin/offices`);
   office = result as unknown as OfficeRecord;
 }
+
+const allProvincesWithRegion = await db
+  .select({
+    code: provinces.code,
+    name: provinces.name,
+    regionId: provinces.regionId,
+    regionName: regions.name,
+  })
+  .from(provinces)
+  .leftJoin(regions, eq(provinces.regionId, regions.id))
+  .orderBy(regions.name, provinces.name);
+
+const groupedProvinces = Array.from(
+  allProvincesWithRegion.reduce((map, p) => {
+    const rName = p.regionName ?? "Sin región";
+    if (!map.has(rName)) map.set(rName, []);
+    map.get(rName)!.push({ code: p.code, name: p.name });
+    return map;
+  }, new Map<string, { code: string; name: string }[]>()),
+).map(([regionName, provs]) => ({ regionName, provinces: provs }));
 
 const pageTitle = isNew ? "Nueva sucursal" : `Editar: ${office!.name}`;
 
@@ -242,8 +262,19 @@ const assetTypeOptions = [
 
             <div class="space-y-3">
               <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs">Región</legend>
-                <input type="text" name="region" value={office?.region ?? ""} placeholder="ej: Neuquén" class="input input-sm w-full" />
+                <legend class="fieldset-legend text-xs">Provincia *</legend>
+                <select name="provinceCode" required class="select select-sm w-full">
+                  <option value="" disabled selected={!office?.provinceCode}>Seleccionar provincia</option>
+                  {groupedProvinces.map((group) => (
+                    <optgroup label={group.regionName}>
+                      {group.provinces.map((p) => (
+                        <option value={p.code} selected={office?.provinceCode === p.code}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </fieldset>
 
               <fieldset class="fieldset gap-1">

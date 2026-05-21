@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { offices } from "@db/schema";
+import { offices, provinces, regions } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
@@ -40,10 +40,42 @@ if (Astro.request.method === "POST") {
 }
 
 
-const allOffices = await db
-  .select()
+const allOfficesRaw = await db
+  .select({
+    id: offices.id,
+    code: offices.code,
+    name: offices.name,
+    type: offices.type,
+    provinceCode: offices.provinceCode,
+    address: offices.address,
+    email: offices.email,
+    notes: offices.notes,
+    provinceName: provinces.name,
+    regionName: regions.name,
+  })
   .from(offices)
+  .leftJoin(provinces, eq(offices.provinceCode, provinces.code))
+  .leftJoin(regions, eq(provinces.regionId, regions.id))
   .orderBy(asc(offices.code), asc(offices.name));
+
+const allOffices = allOfficesRaw.map((o) => ({
+  ...o,
+  provinceName: o.provinceName ?? "",
+  regionName: o.regionName ?? "",
+}));
+
+const provincesByRegion: Record<string, { code: string; name: string }[]> = {};
+for (const p of allOfficesRaw) {
+  const rName = p.regionName ?? "Sin región";
+  if (!provincesByRegion[rName]) provincesByRegion[rName] = [];
+  if (!provincesByRegion[rName].find(x => x.code === p.provinceCode)) {
+    provincesByRegion[rName].push({ code: p.provinceCode, name: p.provinceName ?? "" });
+  }
+}
+// Sort provinces within each region
+Object.values(provincesByRegion).forEach(provs => 
+  provs.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }))
+);
 
 const officeTypeLabels: Record<string, string> = {
   telegrafia: "Telegrafía",
@@ -60,8 +92,8 @@ const officeTypeBadgeClass: Record<string, string> = {
 };
 
 const uniqueRegions = [
-  ...new Set(allOffices.map((o) => o.region).filter(Boolean)),
-].sort((a, b) => (a as string).localeCompare(b as string, "es", { sensitivity: "base" }));
+  ...new Set(allOffices.map((o) => o.regionName).filter(Boolean)),
+].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
 const headerGridClass = "grid-cols-[100px_1fr_120px_1fr_140px] gap-4";
 const rowGridClass =
@@ -132,6 +164,14 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
             <option value={region}>{region}</option>
           ))}
         </select>
+        <select
+          id="admin-office-province-filter"
+          class="select border-base-300 w-full sm:w-auto focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          aria-label="Filtrar por provincia"
+          disabled
+        >
+          <option value="all">Todas las provincias</option>
+        </select>
         <SearchInput
           id="admin-office-search"
           label="Buscar oficina"
@@ -162,7 +202,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         <DataTableHeaderCell sortKey="type">Tipo</DataTableHeaderCell>
       </div>
       <div slot="header">
-        <DataTableHeaderCell sortKey="region">Región</DataTableHeaderCell>
+        <DataTableHeaderCell sortKey="region">Provincia / Región</DataTableHeaderCell>
       </div>
       <div slot="header" class="text-right">
         <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
@@ -193,8 +233,9 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
               data-sort-code={office.code}
               data-sort-name={office.name}
               data-sort-type={office.type}
-              data-sort-region={office.region ?? ""}
-              data-search-text={`${office.code} ${office.name} ${office.region ?? ""} ${officeTypeLabels[office.type] ?? office.type}`.toLowerCase()}
+              data-sort-region={office.regionName}
+              data-sort-province-code={office.provinceCode}
+              data-search-text={`${office.code} ${office.name} ${office.regionName} ${office.provinceName} ${officeTypeLabels[office.type] ?? office.type}`.toLowerCase()}
               class:list={[
                 rowGridClass,
                 "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
@@ -247,10 +288,15 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
                   data-highlight-target
                   class="truncate text-sm text-base-content/70"
                 >
-                  {office.region || (
+                  {office.provinceName || (
                     <span class="text-base-content/30">&mdash;</span>
                   )}
                 </span>
+                {office.regionName && (
+                  <p class="mt-0.5 truncate text-xs text-base-content/50">
+                    {office.regionName}
+                  </p>
+                )}
               </div>
 
               {/* Acciones */}
@@ -290,12 +336,16 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         </>
       )}
     </DataTable>
+    <script is:inline define:vars={{ provincesByRegion }}>
+      window._ADMIN_PROVINCES_BY_REGION = provincesByRegion;
+    </script>
     <script>
       import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
 
       const searchInput = document.querySelector<HTMLInputElement>("#admin-office-search");
       const typeFilter = document.querySelector<HTMLSelectElement>("#admin-office-type-filter");
       const regionFilter = document.querySelector<HTMLSelectElement>("#admin-office-region-filter");
+      const provinceFilter = document.querySelector<HTMLSelectElement>("#admin-office-province-filter");
       const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
       const countBadge = document.querySelector<HTMLElement>("#office-count-badge");
 
@@ -303,18 +353,21 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         const query = searchInput?.value.trim() || "";
         const typeValue = typeFilter?.value || "all";
         const regionValue = regionFilter?.value || "all";
+        const provinceValue = provinceFilter?.value || "all";
         let visibleCount = 0;
 
         rows.forEach((row) => {
           const searchText = row.dataset.searchText || "";
           const rowType = row.dataset.sortType || "";
           const rowRegion = row.dataset.sortRegion || "";
+          const rowProvinceCode = row.dataset.sortProvinceCode || "";
 
           const matchSearch = matchesSearchQuery(query, [searchText]);
           const matchType = typeValue === "all" || rowType === typeValue;
           const matchRegion = regionValue === "all" || rowRegion === regionValue;
+          const matchProvince = provinceValue === "all" || rowProvinceCode === provinceValue;
 
-          const isVisible = matchSearch && matchType && matchRegion;
+          const isVisible = matchSearch && matchType && matchRegion && matchProvince;
           
           row.classList.toggle("hidden", !isVisible);
           highlightSearchTargets(row, isVisible ? query : "");
@@ -331,7 +384,33 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
       searchInput?.addEventListener("input", applyFilters);
       typeFilter?.addEventListener("change", applyFilters);
-      regionFilter?.addEventListener("change", applyFilters);
+      
+      const provincesData = (window as any)._ADMIN_PROVINCES_BY_REGION as Record<string, { code: string; name: string }[]> | undefined;
+
+      regionFilter?.addEventListener("change", () => {
+        const selectedRegion = regionFilter.value;
+
+        if (provinceFilter) {
+          provinceFilter.innerHTML = '<option value="all">Todas las provincias</option>';
+
+          if (selectedRegion !== "all" && provincesData?.[selectedRegion]) {
+            for (const p of provincesData[selectedRegion]) {
+              const opt = document.createElement("option");
+              opt.value = p.code;
+              opt.textContent = p.name;
+              provinceFilter.appendChild(opt);
+            }
+            provinceFilter.disabled = false;
+          } else {
+            provinceFilter.disabled = true;
+          }
+          provinceFilter.value = "all";
+        }
+
+        applyFilters();
+      });
+
+      provinceFilter?.addEventListener("change", applyFilters);
     </script>
   </PageContainer>
 </BaseLayout>

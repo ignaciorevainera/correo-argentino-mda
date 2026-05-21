@@ -28,6 +28,8 @@ export interface OfficeDirectoryItem {
   location: string;
   costCenter: string;
   postalCode: string;
+  provinceCode: string;
+  provinceName: string;
   region: string;
   address: string;
   email: string;
