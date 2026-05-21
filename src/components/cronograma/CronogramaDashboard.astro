@@ -131,6 +131,17 @@ import { Icon } from "astro-icon/components";
                 <span>Agregar nuevo mes</span>
               </button>
 
+              <!-- Borrar mes actual -->
+              <button
+                type="button"
+                id="delete-month-btn"
+                class="btn btn-xs btn-outline btn-error gap-1.5 px-2.5 hover:bg-error hover:text-error-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7 ml-2"
+                title="Borrar mes actual"
+              >
+                <Icon name="boxicons:calendar-minus" size={13} />
+                <span>Borrar mes actual</span>
+              </button>
+
 
             </div>
 
@@ -574,7 +585,6 @@ import { Icon } from "astro-icon/components";
       </div>
     </div>
   </section>
-  </section>
 </div>
 
 <!-- Edit Mode Toolbar -->
@@ -706,7 +716,7 @@ import { Icon } from "astro-icon/components";
     
     <div class="modal-action mt-6 flex justify-end gap-2">
       <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" type="button">Cancelar</button>
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
         <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
       </form>
     </div>
@@ -869,7 +879,6 @@ import { Icon } from "astro-icon/components";
   };
 
   let cronoData: OperatorData[] = [];
-  let activeMonthsList: { year: number, month: number }[] = [];
   let isCoverageMinimized = localStorage.getItem('cronoCoverageMinimized') === 'true';
   let modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
   let searchQuery = '';
@@ -1003,6 +1012,49 @@ import { Icon } from "astro-icon/components";
     return { status: 'offline', text: 'Fuera de horario' };
   }
 
+  function updateNavigationButtons() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement;
+    const nextBtn = document.getElementById('next-month-btn') as HTMLButtonElement;
+    const prevBtn = document.getElementById('prev-month-btn') as HTMLButtonElement;
+    if (!dateInput || !cronoData) return;
+
+    const currentYM = dateInput.value.slice(0, 7);
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueMonths = [...new Set(allDates.map(d => d.slice(0, 7)))].sort();
+
+    if (uniqueMonths.length === 0) {
+      if (nextBtn) nextBtn.disabled = true;
+      if (prevBtn) prevBtn.disabled = true;
+      return;
+    }
+
+    const currentIndex = uniqueMonths.indexOf(currentYM);
+
+    if (nextBtn) {
+      const hasNext = currentIndex !== -1 && currentIndex < uniqueMonths.length - 1;
+      nextBtn.disabled = !hasNext;
+      if (!hasNext) {
+        nextBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        nextBtn.classList.remove('hover:bg-base-200');
+      } else {
+        nextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+        nextBtn.classList.add('hover:bg-base-200');
+      }
+    }
+
+    if (prevBtn) {
+      const hasPrev = currentIndex > 0;
+      prevBtn.disabled = !hasPrev;
+      if (!hasPrev) {
+        prevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        prevBtn.classList.remove('hover:bg-base-200');
+      } else {
+        prevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+        prevBtn.classList.add('hover:bg-base-200');
+      }
+    }
+  }
+
   function updateMonthDisplay() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     const display = document.getElementById('current-month-display');
@@ -1015,6 +1067,8 @@ import { Icon } from "astro-icon/components";
     const dateObj = new Date(year, month, 15);
     const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
     display.innerText = formatter.format(dateObj);
+
+    updateNavigationButtons();
   }
 
   function renderMonthDropdown() {
@@ -1068,44 +1122,35 @@ import { Icon } from "astro-icon/components";
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     if (!dateInput) return;
 
-    const [yearStr, monthStr, dayStr] = dateInput.value.split('-');
-    let year = parseInt(yearStr);
-    let month = parseInt(monthStr) - 1; // 0-indexed month
+    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+    const uniqueMonths = [...new Set(allDates.map(d => d.slice(0, 7)))].sort();
+    
+    if (uniqueMonths.length === 0) return;
+
+    const currentYM = dateInput.value.slice(0, 7);
+    const currentIndex = uniqueMonths.indexOf(currentYM);
+    
+    if (currentIndex === -1) return;
+
+    let newIndex = currentIndex + offset;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= uniqueMonths.length) newIndex = uniqueMonths.length - 1;
+
+    const targetYM = uniqueMonths[newIndex];
+    if (targetYM === currentYM) return;
+
+    const [yearStr, monthStr] = targetYM.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+
+    const [_, __, dayStr] = dateInput.value.split('-');
     let day = parseInt(dayStr);
-
-    month += offset;
-    if (month > 11) {
-      month = 0;
-      year += 1;
-    } else if (month < 0) {
-      month = 11;
-      year -= 1;
-    }
-
     const daysInNewMonth = getDaysInMonth(year, month);
     if (day > daysInNewMonth) {
       day = daysInNewMonth;
     }
 
-    const newDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    
-    // Constraints according to uniqueDates
-    const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
-    const uniqueDates = [...new Set(allDates)].sort();
-    if (uniqueDates.length > 0) {
-      const minDate = uniqueDates[0];
-      const maxDate = uniqueDates[uniqueDates.length - 1];
-      
-      if (newDateStr < minDate) {
-        dateInput.value = minDate;
-      } else if (newDateStr > maxDate) {
-        dateInput.value = maxDate;
-      } else {
-        dateInput.value = newDateStr;
-      }
-    } else {
-      dateInput.value = newDateStr;
-    }
+    dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
     updateDateInputDisplay();
     updateMonthDisplay();
@@ -1577,8 +1622,8 @@ import { Icon } from "astro-icon/components";
                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header" data-op-profile="${op.nombre}">
                   ${op.nombre}
                 </button>
-                ${hoViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
-                ${pWeekViolation ? `<span class="text-[7px] font-black text-error uppercase tracking-tighter">⚠️ Faltan días P.</span>` : ''}
+                ${hoViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+                ${pWeekViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Faltan días P.</span>` : ''}
               </div>
             </div>
           </td>
@@ -1760,6 +1805,26 @@ import { Icon } from "astro-icon/components";
       cronoData[opIndex].asistencia[date] = newStatus;
       renderMonthly(); // Full re-render to update stats and colors
     }
+
+    // Update toolbar pending edits if we are in general edit mode
+    if (isEditMode) {
+      updatePendingEditsUI();
+    }
+  }
+
+  function updatePendingEditsUI() {
+     const uniqueKeys = new Set<string>();
+     Object.keys(pendingEdits).forEach(k => uniqueKeys.add(k));
+     modifiedSchedules.forEach(m => uniqueKeys.add(`${m.agentName}_${m.date}`));
+     
+     const count = uniqueKeys.size;
+     const countEl = document.getElementById('pending-edits-count');
+     const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
+     const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+     
+     if (countEl) countEl.innerText = `${count} cambios`;
+     if (saveBtn) saveBtn.disabled = count === 0;
+     if (discardBtn) discardBtn.disabled = count === 0;
   }
 
   async function discardChanges() {
@@ -2005,15 +2070,32 @@ import { Icon } from "astro-icon/components";
   }
 
   function setupEventListeners() {
-    const modal = document.getElementById('new-month-modal') as HTMLDialogElement;
+    const modal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
     document.getElementById('add-month-btn')?.addEventListener('click', () => {
       modal.showModal();
+    });
+
+    document.getElementById('cancel-new-month')?.addEventListener('click', () => {
+      const yearInput = document.getElementById('new-month-year') as HTMLInputElement;
+      const monthInput = document.getElementById('new-month-month') as HTMLSelectElement;
+      if (yearInput) yearInput.value = '2026';
+      if (monthInput) monthInput.value = '0';
+      modal.close();
     });
     document.getElementById('confirm-new-month')?.addEventListener('click', async (e) => {
       e.preventDefault();
       const year = parseInt((document.getElementById('new-month-year') as HTMLInputElement).value);
       const month = parseInt((document.getElementById('new-month-month') as HTMLSelectElement).value);
       
+      const newMonthStr = `${year}-${(month + 1).toString().padStart(2, '0')}`;
+      const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+      const uniqueMonths = [...new Set(allDates.map(d => d.slice(0, 7)))];
+      
+      if (uniqueMonths.includes(newMonthStr)) {
+        alert("El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.");
+        return;
+      }
+
       const res = await fetch('/api/cronograma/months', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2039,6 +2121,77 @@ import { Icon } from "astro-icon/components";
         renderMonthly();
       }
     });
+    document.getElementById('delete-month-btn')?.addEventListener('click', async () => {
+      const dateInput = document.getElementById('date-input') as HTMLInputElement;
+      if (!dateInput || !dateInput.value) return;
+
+      const [yearStr, monthStr] = dateInput.value.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr) - 1; // 0-indexed month
+
+      const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+      const monthName = formatter.format(new Date(year, month, 15)).toUpperCase();
+
+      if (!confirm(`¿Estás seguro de que deseas eliminar el mes de ${monthName}? Esta acción borrará permanentemente todos los registros de asistencia y comentarios para este periodo y no se puede deshacer.`)) {
+        return;
+      }
+
+      const deleteBtn = document.getElementById('delete-month-btn') as HTMLButtonElement | null;
+      const originalText = deleteBtn ? deleteBtn.innerHTML : '';
+      if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Borrando...`;
+      }
+
+      try {
+        const res = await fetch('/api/cronograma/months', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year, month })
+        });
+
+        if (res.ok) {
+          // Re-fetch data
+          const freshRes = await fetch('/api/cronograma');
+          cronoData = await freshRes.json();
+
+          const allDates = cronoData.flatMap(op => Object.keys(op.asistencia));
+          const uniqueDates = [...new Set(allDates)].sort();
+
+          if (uniqueDates.length > 0) {
+            // Find closest month or fallback to latest
+            const targetDate = uniqueDates[uniqueDates.length - 1];
+            dateInput.value = targetDate;
+            dateInput.min = uniqueDates[0];
+            dateInput.max = targetDate;
+          } else {
+            // No data left
+            const todayStr = formatYMD(new Date());
+            dateInput.value = todayStr;
+            dateInput.removeAttribute('min');
+            dateInput.removeAttribute('max');
+          }
+
+          updateDateInputDisplay();
+          updateMonthDisplay();
+          renderMonthDropdown();
+          renderDaily();
+          renderMonthly();
+          alert(`El mes de ${monthName} ha sido eliminado correctamente.`);
+        } else {
+          alert('Error al intentar eliminar el mes.');
+        }
+      } catch (err) {
+        console.error("Error deleting month:", err);
+        alert('Ocurrió un error al intentar eliminar el mes.');
+      } finally {
+        if (deleteBtn) {
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = originalText;
+        }
+      }
+    });
+
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     if (dateInput) {
       dateInput.addEventListener('change', () => {
@@ -2254,7 +2407,9 @@ import { Icon } from "astro-icon/components";
       const newStatus = btn.dataset.status;
       if (newStatus) {
         updateCellStatus(activeCell, newStatus);
-        saveIndicator?.classList.remove('hidden');
+        if (!isEditMode) {
+           saveIndicator?.classList.remove('hidden');
+        }
         quickEditMenu.classList.add('hidden');
       }
     });
@@ -2847,7 +3002,7 @@ import { Icon } from "astro-icon/components";
         });
       }
     });
-
+    
     // --- FEATURE: Edit Mode & Brush Tool ---
     const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
     const editToolbar = document.getElementById('edit-mode-toolbar');
@@ -2856,6 +3011,8 @@ import { Icon } from "astro-icon/components";
       isEditMode = !isEditMode;
       
       if (isEditMode) {
+        const saveIndicator = document.getElementById('save-indicator');
+        if (saveIndicator) saveIndicator.classList.add('hidden');
         toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
         toggleEditBtn.classList.remove('btn-outline');
         document.getElementById('monthly-tbody')?.classList.add('select-none');
@@ -2863,6 +3020,7 @@ import { Icon } from "astro-icon/components";
         if (editToolbar) {
            editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
         }
+        updatePendingEditsUI();
       } else {
         toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
         toggleEditBtn.classList.add('btn-outline');
@@ -2870,12 +3028,18 @@ import { Icon } from "astro-icon/components";
         document.querySelectorAll('.op-checkbox').forEach(cb => {
            cb.classList.add('hidden');
            (cb as HTMLInputElement).checked = false;
-        });
+         });
         if (editToolbar) {
            editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
         }
         activeBrush = null;
         updateBrushUI();
+        
+        // Restore save indicator if there are pending quick edits
+        if (modifiedSchedules.length > 0) {
+           const saveIndicator = document.getElementById('save-indicator');
+           if (saveIndicator) saveIndicator.classList.remove('hidden');
+        }
       }
     });
 
@@ -2944,79 +3108,92 @@ import { Icon } from "astro-icon/components";
       }
       
       updatePendingEditsUI();
-      renderMonthly(); // Re-render to see the brush immediately
+      renderMonthly(); 
     }
 
-    function updatePendingEditsUI() {
-       const count = Object.keys(pendingEdits).length;
-       const countEl = document.getElementById('pending-edits-count');
-       const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement;
-       const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement;
-       
-       if (countEl) countEl.innerText = `${count} cambios`;
-       if (saveBtn) saveBtn.disabled = count === 0;
-       if (discardBtn) discardBtn.disabled = count === 0;
-    }
 
-    document.getElementById('discard-edits-btn')?.addEventListener('click', () => {
-       // Revert local state
-       Object.values(pendingEdits).forEach(edit => {
-          const op = cronoData.find(o => o.nombre === edit.agentName);
-          if (op) op.asistencia[edit.date] = edit.originalStatus;
-       });
-       pendingEdits = {};
-       updatePendingEditsUI();
-       renderMonthly();
-    });
+    document.getElementById('discard-edits-btn')?.addEventListener('click', async () => {
+        pendingEdits = {};
+        updatePendingEditsUI();
+        await discardChanges();
+     });
 
-    document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
-       const btn = e.currentTarget as HTMLButtonElement;
-       const editsToSave = Object.values(pendingEdits).map(e => ({
-          agentName: e.agentName,
-          date: e.date,
-          status: e.status
-       }));
-       
-       if (editsToSave.length === 0) return;
-       
-       btn.disabled = true;
-       btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
-       
-       try {
-         const res = await fetch('/api/cronograma', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ edits: editsToSave })
-         });
-         if (!res.ok) throw new Error("Error saving bulk edits");
-         
-         pendingEdits = {};
-         updatePendingEditsUI();
-         btn.innerText = "Guardado!";
-         setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
-       } catch (err) {
-         console.error(err);
-         btn.innerText = "Error";
-         btn.classList.add('btn-error');
-         setTimeout(() => { 
-            btn.innerText = "Guardar"; 
-            btn.classList.remove('btn-error');
-            btn.disabled = false;
-         }, 2000);
-       }
-    });
+     document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        
+        // Consolida todos los cambios: pendingEdits (pincel) y modifiedSchedules (quick edits)
+        const mergedEditsMap = new Map<string, { agentName: string, date: string, status: string }>();
+        
+        // Primero agregamos los cambios de Quick Edit
+        modifiedSchedules.forEach(m => {
+           mergedEditsMap.set(`${m.agentName}_${m.date}`, { agentName: m.agentName, date: m.date, status: m.status });
+        });
+        
+        // Luego los de Modo Editar (pincel), que sobrescriben si hay duplicados
+        Object.values(pendingEdits).forEach(p => {
+           mergedEditsMap.set(`${p.agentName}_${p.date}`, { agentName: p.agentName, date: p.date, status: p.status });
+        });
+        
+        const editsToSave = Array.from(mergedEditsMap.values());
+        
+        if (editsToSave.length === 0) return;
+        
+        btn.disabled = true;
+        btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+        
+        try {
+          const res = await fetch('/api/cronograma', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ edits: editsToSave })
+          });
+          if (!res.ok) throw new Error("Error saving bulk edits");
+          
+          pendingEdits = {};
+          modifiedSchedules = []; // Limpieza absoluta de quick edits
+          updatePendingEditsUI();
+          
+          // Ocultar indicador flotante definitivamente
+          const saveIndicator = document.getElementById('save-indicator');
+          if (saveIndicator) saveIndicator.classList.add('hidden');
+          
+          btn.innerText = "Guardado!";
+          setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+        } catch (err) {
+          console.error(err);
+          btn.innerText = "Error";
+          btn.classList.add('btn-error');
+          setTimeout(() => { 
+             btn.innerText = "Guardar"; 
+             btn.classList.remove('btn-error');
+             btn.disabled = false;
+          }, 2000);
+        }
+     });
 
     // --- Rules Settings Dialog ---
-    const rulesModal = document.getElementById('rules-settings-modal') as HTMLDialogElement;
-    document.getElementById('open-rules-settings')?.addEventListener('click', () => rulesModal?.showModal());
+    const rulesModal = document.getElementById('rules-settings-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
     
     const minCovInput = document.getElementById('min-coverage-input') as HTMLInputElement;
     const minCovVal = document.getElementById('min-coverage-val');
     const maxHoInput = document.getElementById('max-ho-input') as HTMLInputElement;
+
+    const updateMinCovDisplay = (val: string) => {
+       if (minCovVal) {
+          const opsCount = cronoData ? cronoData.length : 0;
+          const presenciales = Math.ceil((parseInt(val) / 100) * opsCount);
+          minCovVal.innerText = `${val}% (${presenciales} operadores)`;
+       }
+    };
+
+    document.getElementById('open-rules-settings')?.addEventListener('click', () => {
+       if (minCovInput) updateMinCovDisplay(minCovInput.value);
+       rulesModal?.showModal();
+    });
     
     // Sync UI value on drag
     minCovInput?.addEventListener('input', (e) => {
-       if (minCovVal) minCovVal.innerText = `${(e.target as HTMLInputElement).value}%`;
+       updateMinCovDisplay((e.target as HTMLInputElement).value);
     });
 
     // Save rules
