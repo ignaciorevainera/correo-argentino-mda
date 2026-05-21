@@ -10,7 +10,7 @@ import node from "@astrojs/node";
 
 export default defineConfig({
   site: "http://mda.correo.local",
-  base: "/mda",
+  base: "/",
 
   security: {
     checkOrigin: false,
