@@ -5,15 +5,26 @@ import { Icon } from "astro-icon/components";
 
 <div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-8">
   
-  <!-- Stats Summary (hidden by default) -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 hidden" id="stats-container">
-    <!-- Stats will be injected here -->
-  </div>
+
 
   <div class="w-full flex flex-col gap-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <!-- Left side spacer replaces Segmented Control -->
-      <div></div>
+      <div id="view-switcher" class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0">
+        <button 
+          type="button" 
+          id="switch-to-monthly-btn" 
+          class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200"
+        >
+          Mensual
+        </button>
+        <button 
+          type="button" 
+          id="switch-to-daily-btn" 
+          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+        >
+          Diario
+        </button>
+      </div>
 
       <!-- Date Picker (hidden by default) -->
       <div id="date-picker-container" class="relative flex min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 hidden is-faded">
@@ -56,18 +67,32 @@ import { Icon } from "astro-icon/components";
           </div>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
+          <table class="w-full text-sm text-left border-separate border-spacing-0">
             <thead class="bg-base-200/60 text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300">
               <tr>
-                <th class="py-3 px-6 w-72">Operador</th>
-                <th class="py-3 px-4">Modalidad</th>
-                <th class="py-3 px-4">Horario</th>
-                <th class="py-3 px-4">Break</th>
-                <th class="py-3 px-6 text-right">Usuario</th>
+                <th class="py-3 px-6 w-64 border-r border-base-300/40">Operador</th>
+                <th class="py-3 px-4 w-44 border-r border-base-300/40">Modalidad</th>
+                <th class="py-3 px-6">
+                  <div class="flex justify-between w-full text-[10px] font-black text-base-content/40 px-2 select-none">
+                    <span>00:00</span>
+                    <span>02:00</span>
+                    <span>04:00</span>
+                    <span>06:00</span>
+                    <span>08:00</span>
+                    <span>10:00</span>
+                    <span>12:00</span>
+                    <span>14:00</span>
+                    <span>16:00</span>
+                    <span>18:00</span>
+                    <span>20:00</span>
+                    <span>22:00</span>
+                    <span>24:00</span>
+                  </div>
+                </th>
               </tr>
             </thead>
-            <tbody id="operators-table-body" class="divide-y divide-base-200">
-              <!-- Rows will be injected here -->
+            <tbody id="operators-table-body" class="divide-y divide-base-200 bg-base-100">
+              <!-- Inyectado dinámicamente -->
             </tbody>
           </table>
         </div>
@@ -921,6 +946,76 @@ import { Icon } from "astro-icon/components";
     background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
     border-radius: 20px;
   }
+
+  /* Gantt Layout Styles */
+  .gantt-container {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    background-color: var(--color-base-200, #f3f4f6);
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-base-300, #e5e7eb);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  .gantt-grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: color-mix(in oklab, var(--color-base-content) 5%, transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .gantt-bar-work {
+    position: absolute;
+    height: 24px;
+    border-radius: 0.5rem;
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .gantt-bar-break {
+    position: absolute;
+    height: 100%;
+    background-color: rgba(245, 158, 11, 0.45); /* Amber con opacidad */
+    border-left: 1px dashed rgba(245, 158, 11, 0.6);
+    border-right: 1px dashed rgba(245, 158, 11, 0.6);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gantt-bar-actual {
+    position: absolute;
+    bottom: 4px;
+    height: 6px;
+    border-radius: 9999px;
+    z-index: 4;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .gantt-inactive-bar {
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    height: 32px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
 </style>
 
 <script>
@@ -943,6 +1038,18 @@ import { Icon } from "astro-icon/components";
     const h = parts[0].padStart(2, '0');
     const m = parts[1].padStart(2, '0');
     return `${h}:${m}`;
+  }
+
+  function timeToMinutes(timeStr: string): number {
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  function getGanttPosition(timeStr: string): number {
+    const totalMinutes = 24 * 60; // 1440
+    const minutes = timeToMinutes(timeStr);
+    return (minutes / totalMinutes) * 100;
   }
 
   function checkTimeAlerts(dailyHorario: string | undefined | null, entradaReal: string | undefined | null, salidaReal: string | undefined | null) {
@@ -1298,42 +1405,42 @@ import { Icon } from "astro-icon/components";
     switch (type) {
       case 'Presencial':
         return {
-          badge: 'bg-secondary/10 text-secondary border border-secondary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-secondary/10 text-secondary border border-secondary/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.briefcase,
           color: 'var(--color-secondary)',
           bgClass: 'bg-secondary/10 text-secondary'
         };
       case 'Home Office':
         return {
-          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
           icon: icons.home,
           color: 'var(--color-primary)',
           bgClass: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/25 shadow-sm'
         };
       case 'Licencia':
         return {
-          badge: 'bg-error/10 text-error border border-error/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-error/10 text-error border border-error/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.firstAid,
           color: 'var(--color-error)',
           bgClass: 'bg-error/10 text-error'
         };
       case 'Vacaciones':
         return {
-          badge: 'bg-success/10 text-success border border-success/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-success/10 text-success border border-success/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.sun,
           color: 'var(--color-success)',
           bgClass: 'bg-success/10 text-success'
         };
       case 'Horas Extras':
         return {
-          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
           icon: icons.timer,
           color: '#0284c7',
           bgClass: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/25 font-bold hover:bg-sky-500/30 shadow-sm transition-all duration-200'
         };
       default:
         return {
-          badge: 'bg-base-200 text-base-content/60 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border border-base-300/50',
+          badge: 'bg-base-200 text-base-content/60 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border border-base-300/50 whitespace-nowrap',
           icon: icons.help,
           color: 'var(--fallback-bc,oklch(var(--bc)/0.4))',
           bgClass: 'bg-base-200/50 text-base-content/50'
@@ -1345,46 +1452,12 @@ import { Icon } from "astro-icon/components";
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     const selectedDateStr = dateInput?.value || formatYMD(new Date());
     const tableBody = document.getElementById('operators-table-body');
-    const statsContainer = document.getElementById('stats-container');
     const dateDisplay = document.getElementById('daily-date-display');
 
     if (dateDisplay) {
       const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
       const dateObj = new Date(selectedDateStr + 'T12:00:00');
       dateDisplay.innerText = formatter.format(dateObj);
-    }
-
-    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0, horasExtras: 0 };
-    cronoData.forEach(op => {
-      const status = op.asistencia[selectedDateStr];
-      if (status === 'Presencial') stats.presencial++;
-      else if (status === 'Home Office') stats.homeOffice++;
-      else if (status === 'Licencia') stats.licencia++;
-      else if (status === 'Vacaciones') stats.vacaciones++;
-      else if (status === 'Horas Extras') stats.horasExtras++;
-    });
-
-    const statItems = [
-      { label: 'Presencial', value: stats.presencial, icon: icons.briefcase, borderClass: 'border-l-secondary', textClass: 'text-secondary' },
-      { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
-      { label: 'Licencia', value: stats.licencia, icon: icons.firstAid, borderClass: 'border-l-error', textClass: 'text-error' },
-      { label: 'Vacaciones', value: stats.vacaciones, icon: icons.sun, borderClass: 'border-l-success', textClass: 'text-success' },
-      { label: 'Horas Extras', value: stats.horasExtras, icon: icons.timer, borderClass: 'border-l-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
-    ];
-
-    if (statsContainer) {
-      statsContainer.innerHTML = statItems.map((stat) => `
-        <div class="bg-base-100 rounded-xl border border-l-4 ${stat.borderClass} border-base-300 shadow-md relative overflow-hidden">
-          <div class="p-4 flex flex-col gap-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-sm ${stat.textClass}">${stat.icon}</span>
-              <span class="text-xs font-bold uppercase tracking-wide text-base-content/60">${stat.label}</span>
-            </div>
-            <span class="text-4xl font-black text-base-content tracking-tight leading-none">${stat.value}</span>
-            <span class="text-xs text-base-content/40 font-medium mt-0.5">operadores hoy</span>
-          </div>
-        </div>
-      `).join('');
     }
 
     let rowsHtml = '';
@@ -1394,12 +1467,13 @@ import { Icon } from "astro-icon/components";
       
       const styles = getStatusStyles(status);
       const isAbsent = status === 'Licencia' || status === 'Vacaciones';
+      const isFranco = status === 'Franco';
       const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
       const username = getUsername(op.nombre);
       const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
       const liveStatus = isCurrentlyWorking(dailyHorario);
       
-      // Calculate real time alerts (lateness / early departure)
+      // Asistencia real
       const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
       const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
       const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
@@ -1430,39 +1504,85 @@ import { Icon } from "astro-icon/components";
       if (status === 'Presencial') ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
       else if (status === 'Home Office') ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
 
-      let horarioHtml = '';
-      const isFranco = status === 'Franco';
-      if (isAbsent || isFranco) {
-        horarioHtml = `
-          <span class="font-mono text-xs font-bold text-base-content/20 italic">${isAbsent ? 'Ausente' : 'Franco'}</span>
-        `;
-      } else {
-        const plannedIn = dailyHorario.split(' - ')[0] || '--:--';
-        const plannedOut = dailyHorario.split(' - ')[1] || '--:--';
+      // Contenido del Gantt
+      let ganttContentHtml = '';
 
-        horarioHtml = `
-          <div class="flex flex-col gap-0.5">
-            <div class="flex items-center gap-1">
-              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/30 w-12 shrink-0">Teórico:</span>
-              <span class="font-mono text-xs font-semibold text-base-content/60">${plannedIn} - ${plannedOut}</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/30 w-12 shrink-0">Real:</span>
-              ${(entradaReal || salidaReal) ? `
-                <span class="font-mono text-xs font-bold ${late ? 'text-error bg-error/10 px-1 rounded font-black' : 'text-base-content/85 bg-base-200/50 px-1 rounded'}" ${late ? `title="Tarde (Planificado: ${plannedIn})"` : ''}>${entradaReal || '--:--'}</span>
-                <span class="text-xs text-base-content/30 font-bold">-</span>
-                <span class="font-mono text-xs font-bold ${early ? 'text-amber-600 dark:text-amber-400 bg-warning/10 px-1 rounded font-black' : 'text-base-content/85 bg-base-200/50 px-1 rounded'}" ${early ? `title="Salida Anticipada (Planificado: ${plannedOut})"` : ''}>${salidaReal || '--:--'}</span>
-              ` : `
-                <span class="text-xs text-base-content/35 italic font-medium">Sin registros</span>
-              `}
-            </div>
+      if (isAbsent || isFranco) {
+        let inactiveText = isFranco ? 'Franco / Día Libre' : (status === 'Vacaciones' ? 'Vacaciones' : 'Licencia Médica');
+        let inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === 'Vacaciones' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        ganttContentHtml = `
+          <div class="gantt-inactive-bar ${inactiveBg}">
+            ${inactiveText}
           </div>
         `;
+      } else {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          const startPct = getGanttPosition(times[0]);
+          const endPct = getGanttPosition(times[1]);
+          let widthPct = endPct - startPct;
+          if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
+
+          // Calcular descanso (1hr en el medio del shift)
+          const startMin = timeToMinutes(times[0]);
+          const endMin = timeToMinutes(times[1]);
+          const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+          const breakStartMin = startMin + (totalMin / 2) - 30;
+          const breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+          
+          const breakStartPct = getGanttPosition(breakStartHourStr);
+          const breakWidthPct = (60 / 1440) * 100; // 1 hora de break
+
+          // Calcular posición del break relativa a la barra de trabajo
+          const relativeBreakLeft = ((breakStartPct - startPct + 100) % 100);
+
+          let workBarBg = status === 'Presencial' ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+
+          let actualBarHtml = '';
+          if (entradaReal || salidaReal) {
+            const actIn = entradaReal || times[0];
+            const actOut = salidaReal || times[1];
+            const actInPct = getGanttPosition(actIn);
+            const actOutPct = getGanttPosition(actOut);
+            let actWidthPct = actOutPct - actInPct;
+            if (actWidthPct < 0) actWidthPct += 100;
+
+            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
+            actualBarHtml = `<div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal || '--'} - ${salidaReal || '--'}"></div>`;
+          }
+
+          ganttContentHtml = `
+            <!-- Líneas de cuadrícula de fondo -->
+            <div class="gantt-grid-line" style="left: 8.33%;"></div>
+            <div class="gantt-grid-line" style="left: 16.66%;"></div>
+            <div class="gantt-grid-line" style="left: 25.00%;"></div>
+            <div class="gantt-grid-line" style="left: 33.33%;"></div>
+            <div class="gantt-grid-line" style="left: 41.66%;"></div>
+            <div class="gantt-grid-line" style="left: 50.00%;"></div>
+            <div class="gantt-grid-line" style="left: 58.33%;"></div>
+            <div class="gantt-grid-line" style="left: 66.66%;"></div>
+            <div class="gantt-grid-line" style="left: 75.00%;"></div>
+            <div class="gantt-grid-line" style="left: 83.33%;"></div>
+            <div class="gantt-grid-line" style="left: 91.66%;"></div>
+
+            <!-- Barra de Turno Planificado -->
+            <div class="gantt-bar-work ${workBarBg}" style="left: ${startPct}%; width: ${widthPct}%;">
+              <span class="text-[9px] font-extrabold tracking-tighter uppercase px-1 pointer-events-none">${times[0]} - ${times[1]}</span>
+              <!-- Bloque de Break interno -->
+              <div class="gantt-bar-break" style="left: ${relativeBreakLeft}%; width: ${breakWidthPct}%;" title="Break planificado">
+                <span class="text-[7px] font-black text-amber-800 uppercase pointer-events-none">B</span>
+              </div>
+            </div>
+
+            <!-- Barra de Asistencia Real -->
+            ${actualBarHtml}
+          `;
+        }
       }
 
       rowsHtml += `
         <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
-          <td class="px-6 py-4 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+          <td class="px-6 py-4 border-r border-base-300/40 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : (status === 'Home Office' ? 'bg-amber-500' : 'bg-primary')}"></div>
@@ -1478,34 +1598,25 @@ import { Icon } from "astro-icon/components";
                 >
                   ${op.nombre}
                 </button>
-                <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}@correoargentino.com.ar</span>
+                <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}</span>
               </div>
             </div>
           </td>
-          <td class="px-4 py-4">
+          <td class="px-4 py-4 border-r border-base-300/40">
             <div class="flex items-center gap-3">
                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                 <span class="${styles.badge}">${status}</span>
+                 <span class="${styles.badge} whitespace-nowrap">${status}</span>
                  ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
                </div>
             </div>
           </td>
-          <td class="px-4 py-4">
-            <div class="flex flex-col gap-1">
-              ${horarioHtml}
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span class="text-[9px] font-black uppercase tracking-wider ${liveStatus.status === 'online' ? 'text-success' : liveStatus.status === 'break' ? 'text-warning' : 'text-base-content/30'}">${liveStatus.text}</span>
-              </div>
+          <td class="px-6 py-4">
+            <div class="gantt-container">
+              ${ganttContentHtml}
             </div>
-          </td>
-          <td class="px-4 py-4 font-mono text-sm font-bold">
-            ${isAbsent || isFranco ? '<span class="text-base-content/20">-</span>' : '<span class="text-base-content/60 bg-base-200/50 px-2 py-0.5 rounded text-[11px] border border-base-300/20">1 hr</span>'}
-          </td>
-          <td class="px-6 py-4 text-right">
-            <code class="text-[10px] font-black bg-base-300/20 px-2.5 py-1.5 rounded text-base-content/40 border border-base-300/20 tracking-widest uppercase transition-all duration-200 group-hover:bg-base-300 group-hover:text-base-content/60">${username}</code>
           </td>
         </tr>
       `;
@@ -2218,9 +2329,6 @@ import { Icon } from "astro-icon/components";
     
     if (window.innerWidth > 768) {
       overlay.classList.remove('items-start', 'items-center', 'justify-center');
-      overlay.style.backgroundColor = 'transparent';
-      overlay.style.pointerEvents = 'none';
-      modal.style.pointerEvents = 'auto';
       modal.style.position = 'absolute';
       
       const left = Math.max(20, Math.min(window.innerWidth - modalWidth - 20, rect.left + rect.width/2 - modalWidth/2));
@@ -2250,9 +2358,6 @@ import { Icon } from "astro-icon/components";
     } else {
       overlay.classList.remove('items-start');
       overlay.classList.add('items-center', 'justify-center');
-      overlay.style.backgroundColor = '';
-      overlay.style.pointerEvents = '';
-      modal.style.pointerEvents = '';
       modal.style.position = '';
       modal.style.left = '';
       modal.style.top = '';
@@ -2274,17 +2379,32 @@ import { Icon } from "astro-icon/components";
     overlay.setAttribute('aria-hidden', 'true');
   }
 
+  function updateViewSwitcherUI(activeView: 'monthly' | 'daily') {
+    const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
+    const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+    if (activeView === 'monthly') {
+      switchToMonthlyBtn?.classList.add('btn-secondary', 'shadow-sm');
+      switchToMonthlyBtn?.classList.remove('btn-outline', 'text-base-content/60');
+      switchToDailyBtn?.classList.remove('btn-secondary', 'shadow-sm');
+      switchToDailyBtn?.classList.add('btn-outline', 'text-base-content/60');
+    } else {
+      switchToDailyBtn?.classList.add('btn-secondary', 'shadow-sm');
+      switchToDailyBtn?.classList.remove('btn-outline', 'text-base-content/60');
+      switchToMonthlyBtn?.classList.remove('btn-secondary', 'shadow-sm');
+      switchToMonthlyBtn?.classList.add('btn-outline', 'text-base-content/60');
+    }
+  }
+
   function showDailyView() {
     const dailyView = document.getElementById('daily-view');
     const monthlyView = document.getElementById('monthly-view');
-    const statsContainer = document.getElementById('stats-container');
     const datePickerContainer = document.getElementById('date-picker-container');
     
     renderDaily();
+    updateViewSwitcherUI('daily');
     
     if (dailyView) dailyView.classList.remove('hidden');
     if (monthlyView) monthlyView.classList.add('hidden');
-    if (statsContainer) statsContainer.classList.remove('hidden');
     
     if (datePickerContainer) {
       datePickerContainer.classList.remove('hidden');
@@ -2297,12 +2417,12 @@ import { Icon } from "astro-icon/components";
   function showMonthlyView() {
     const dailyView = document.getElementById('daily-view');
     const monthlyView = document.getElementById('monthly-view');
-    const statsContainer = document.getElementById('stats-container');
     const datePickerContainer = document.getElementById('date-picker-container');
+    
+    updateViewSwitcherUI('monthly');
     
     if (dailyView) dailyView.classList.add('hidden');
     if (monthlyView) monthlyView.classList.remove('hidden');
-    if (statsContainer) statsContainer.classList.add('hidden');
     
     if (datePickerContainer) {
       datePickerContainer.classList.add('is-faded');
@@ -2313,6 +2433,14 @@ import { Icon } from "astro-icon/components";
   }
 
   function setupEventListeners() {
+    document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
+      showMonthlyView();
+    });
+
+    document.getElementById('switch-to-daily-btn')?.addEventListener('click', () => {
+      showDailyView();
+    });
+
     const modal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
     document.getElementById('add-month-btn')?.addEventListener('click', () => {
       modal.showModal();
@@ -2975,8 +3103,15 @@ import { Icon } from "astro-icon/components";
            document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
            return;
         }
-        focusedDateStr = clickDayBtn.dataset.clickDay || null;
-        renderMonthly();
+        const dateVal = clickDayBtn.dataset.clickDay;
+        if (dateVal) {
+          const dateInput = document.getElementById('date-input') as HTMLInputElement;
+          if (dateInput) {
+            dateInput.value = dateVal;
+            updateDateInputDisplay();
+          }
+          showDailyView();
+        }
         return;
       }
       
