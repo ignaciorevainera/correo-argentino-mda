@@ -186,6 +186,8 @@ export const schedules = sqliteTable("schedules", {
   status: text("status").notNull(),
   comment: text("comment"),
   horario: text("horario"),
+  entradaReal: text("entrada_real"),
+  salidaReal: text("salida_real"),
 });
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)

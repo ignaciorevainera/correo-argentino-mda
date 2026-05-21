@@ -23,6 +23,8 @@ export const GET: APIRoute = async () => {
       const newAsistencia = { ...operator.asistencia };
       const newComentarios: Record<string, string> = {};
       const newHorariosDias: Record<string, string> = {};
+      const newEntradasReales: Record<string, string> = {};
+      const newSalidasReales: Record<string, string> = {};
 
       // Load specific DB overrides first
       opOverrides.forEach((s) => {
@@ -36,6 +38,12 @@ export const GET: APIRoute = async () => {
         }
         if (s.horario !== undefined && s.horario !== null) {
           newHorariosDias[s.date] = s.horario;
+        }
+        if (s.entradaReal) {
+          newEntradasReales[s.date] = s.entradaReal;
+        }
+        if (s.salidaReal) {
+          newSalidasReales[s.date] = s.salidaReal;
         }
       });
 
@@ -62,6 +70,8 @@ export const GET: APIRoute = async () => {
         asistencia: newAsistencia,
         comentarios: newComentarios,
         horarios_dias: newHorariosDias,
+        entradas_reales: newEntradasReales,
+        salidas_reales: newSalidasReales,
       };
     });
 
@@ -121,7 +131,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Process each edit
     for (const edit of edits) {
-      const { agentName, date, status, comment, horario } = edit;
+      const { agentName, date, status, comment, horario, entradaReal, salidaReal } = edit;
       if (!agentName || !date) continue;
 
       const existing = await db
@@ -140,6 +150,8 @@ export const POST: APIRoute = async ({ request }) => {
         if (status !== undefined) updateData.status = status;
         if (comment !== undefined) updateData.comment = comment;
         if (horario !== undefined) updateData.horario = horario;
+        if (entradaReal !== undefined) updateData.entradaReal = entradaReal;
+        if (salidaReal !== undefined) updateData.salidaReal = salidaReal;
 
         await db
           .update(schedules)
@@ -152,6 +164,8 @@ export const POST: APIRoute = async ({ request }) => {
           status: status !== undefined ? status : "Franco",
           comment: comment || "",
           horario: horario || "",
+          entradaReal: entradaReal || "",
+          salidaReal: salidaReal || "",
         });
       }
     }

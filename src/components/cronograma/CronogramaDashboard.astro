@@ -560,6 +560,32 @@ import { Icon } from "astro-icon/components";
         </div>
       </div>
 
+      <!-- Registro de Asistencia Real (Entrada / Salida) -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Asistencia Real</p>
+          <span id="monthly-real-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="monthly-detail-entrada" class="text-[9px] font-bold uppercase text-base-content/40">Entrada Real</label>
+            <input 
+              type="time" 
+              id="monthly-detail-entrada" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+          <div class="space-y-1">
+            <label for="monthly-detail-salida" class="text-[9px] font-bold uppercase text-base-content/40">Salida Real</label>
+            <input 
+              type="time" 
+              id="monthly-detail-salida" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Comentarios del Día -->
       <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
         <div class="flex items-center justify-between">
@@ -867,7 +893,38 @@ import { Icon } from "astro-icon/components";
     esquema_semanal?: Record<string, string>;
     esquema_horario?: Record<string, string>;
     horarios_dias?: Record<string, string>;
+    entradas_reales?: Record<string, string>;
+    salidas_reales?: Record<string, string>;
   }
+
+  function normalizeTimeStr(timeStr: string | undefined | null): string {
+    if (!timeStr) return '';
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return '';
+    const h = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    return `${h}:${m}`;
+  }
+
+  function checkTimeAlerts(dailyHorario: string | undefined | null, entradaReal: string | undefined | null, salidaReal: string | undefined | null) {
+    if (!dailyHorario || dailyHorario === '-' || dailyHorario === 'Franco' || dailyHorario === 'Vacaciones' || dailyHorario === 'Licencia') {
+      return { late: false, early: false };
+    }
+    const parts = dailyHorario.split(' - ');
+    if (parts.length !== 2) return { late: false, early: false };
+    
+    const plannedIn = normalizeTimeStr(parts[0]);
+    const plannedOut = normalizeTimeStr(parts[1]);
+    
+    const realInNormal = normalizeTimeStr(entradaReal);
+    const realOutNormal = normalizeTimeStr(salidaReal);
+    
+    const late = !!(realInNormal && plannedIn && realInNormal > plannedIn);
+    const early = !!(realOutNormal && plannedOut && realOutNormal < plannedOut);
+    
+    return { late, early };
+  }
+
 
   const icons = {
     briefcase: `<span class="crono-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"/><path d="M4 12h16"/></svg></span>`,
@@ -1642,6 +1699,20 @@ import { Icon } from "astro-icon/components";
           const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
           const safeHorario = escapeHtml(dailyHorario);
           const username = getUsername(op.nombre);
+
+          const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
+          const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
+          const hasRealTimes = !!(entradaReal || salidaReal);
+
+          const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+          const hasAlert = late || early;
+
+          let alertClass = "";
+          let timeTextClass = "text-base-content/60";
+          if (hasAlert) {
+            alertClass = "border-error/80 bg-error/5 ring-1 ring-error/20";
+            timeTextClass = "text-error font-black";
+          }
           
           // --- RULE: License Overlap Check ---
           const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
@@ -1656,7 +1727,7 @@ import { Icon } from "astro-icon/components";
             tbodyHtml += `<td class="${cellClass}">
               <button
                 type="button"
-                class="monthly-cell-button h-8 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'}"
+                class="monthly-cell-button h-8 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
                 data-monthly-detail
                 data-operator="${safeName}"
                 data-date="${safeDate}"
@@ -1664,9 +1735,15 @@ import { Icon } from "astro-icon/components";
                 data-horario="${safeHorario}"
                 data-username="${escapeHtml(username)}"
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                data-entrada-real="${escapeHtml(entradaReal)}"
+                data-salida-real="${escapeHtml(salidaReal)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
               >
-                ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
+                ${hasRealTimes ? `
+                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-none">
+                    <span class="text-[7px] font-mono leading-none tracking-tighter ${timeTextClass} tabular-nums">${entradaReal || '--'}/${salidaReal || '--'}</span>
+                  </div>
+                ` : (hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : '')}
               </button>
             </td>`;
             return;
@@ -1683,7 +1760,7 @@ import { Icon } from "astro-icon/components";
             <td class="${cellClass}">
               <button
                 type="button"
-                class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
+                class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''} ${alertClass}"
                 title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
                 data-monthly-detail
                 data-operator="${safeName}"
@@ -1692,9 +1769,16 @@ import { Icon } from "astro-icon/components";
                 data-horario="${safeHorario}"
                 data-username="${escapeHtml(username)}"
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+                data-entrada-real="${escapeHtml(entradaReal)}"
+                data-salida-real="${escapeHtml(salidaReal)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
               >
-                <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
+                ${hasRealTimes ? `
+                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-none">
+                    <span class="font-black text-[9px] leading-none tracking-tight">${initials}</span>
+                    <span class="text-[7px] font-mono leading-none tracking-tighter ${timeTextClass} tabular-nums">${entradaReal || '--'}/${salidaReal || '--'}</span>
+                  </div>
+                ` : `<span class="font-black text-xs leading-none tracking-tight">${initials}</span>`}
                 ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
                 ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
               </button>
@@ -1947,6 +2031,18 @@ import { Icon } from "astro-icon/components";
     if (commentIndicator) {
       commentIndicator.classList.remove('opacity-100');
       commentIndicator.classList.add('opacity-0');
+    }
+
+    const entradaRealValue = trigger.dataset.entradaReal || '';
+    const salidaRealValue = trigger.dataset.salidaReal || '';
+    const detailEntradaInput = document.getElementById('monthly-detail-entrada') as HTMLInputElement | null;
+    const detailSalidaInput = document.getElementById('monthly-detail-salida') as HTMLInputElement | null;
+    if (detailEntradaInput) detailEntradaInput.value = entradaRealValue;
+    if (detailSalidaInput) detailSalidaInput.value = salidaRealValue;
+    const realTimeIndicator = document.getElementById('monthly-real-time-indicator');
+    if (realTimeIndicator) {
+      realTimeIndicator.classList.remove('opacity-100');
+      realTimeIndicator.classList.add('opacity-0');
     }
 
     const operatorName = trigger.dataset.operator || '';
@@ -2633,10 +2729,34 @@ import { Icon } from "astro-icon/components";
         historyList.innerHTML = sortedDates.map(date => {
           const status = op.asistencia[date];
           const styles = getStatusStyles(status);
+          const entradaVal = op.entradas_reales?.[date] || '';
+          const salidaVal = op.salidas_reales?.[date] || '';
           return `
-            <div class="flex items-center justify-between p-3 bg-base-200/30 rounded-xl border border-base-300/50">
-              <span class="text-xs font-bold text-base-content/60">${formatDMY(date)}</span>
-              <span class="${styles.badge} scale-90">${status}</span>
+            <div class="flex flex-col p-3 bg-base-200/30 rounded-xl border border-base-300/50 gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-base-content/60">${formatDMY(date)}</span>
+                <span class="${styles.badge} scale-90">${status}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mt-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[8px] font-black uppercase text-base-content/40">Entrada:</span>
+                  <input 
+                    type="time" 
+                    class="drawer-history-entrada input input-xs input-bordered w-full font-mono text-[10px] bg-base-100 h-6 px-1 text-center" 
+                    data-date="${date}" 
+                    value="${entradaVal}"
+                  />
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[8px] font-black uppercase text-base-content/40">Salida:</span>
+                  <input 
+                    type="time" 
+                    class="drawer-history-salida input input-xs input-bordered w-full font-mono text-[10px] bg-base-100 h-6 px-1 text-center" 
+                    data-date="${date}" 
+                    value="${salidaVal}"
+                  />
+                </div>
+              </div>
             </div>
           `;
         }).join('');
@@ -3000,6 +3120,146 @@ import { Icon } from "astro-icon/components";
             }, 1500);
           }
         });
+      }
+    });
+
+    // --- FEATURE: Actual Attendance (Entrada/Salida Real) Auto-save ---
+    const detailEntradaInput = document.getElementById('monthly-detail-entrada') as HTMLInputElement | null;
+    const detailSalidaInput = document.getElementById('monthly-detail-salida') as HTMLInputElement | null;
+    const realTimeIndicator = document.getElementById('monthly-real-time-indicator');
+    let realTimeTimeout: number | null = null;
+
+    async function saveDetailRealTimes() {
+      if (!activeDetailTrigger || !detailEntradaInput || !detailSalidaInput) return;
+
+      if (realTimeIndicator) {
+        realTimeIndicator.innerText = "Guardando...";
+        realTimeIndicator.classList.remove('text-success/70', 'text-error', 'opacity-0');
+        realTimeIndicator.classList.add('text-warning/70', 'opacity-100');
+      }
+
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const entradaVal = detailEntradaInput.value;
+      const salidaVal = detailSalidaInput.value;
+
+      try {
+        if (!opName || !dateVal) return;
+
+        const res = await fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            edits: [
+              {
+                agentName: opName,
+                date: dateVal,
+                entradaReal: entradaVal,
+                salidaReal: salidaVal
+              }
+            ]
+          })
+        });
+
+        if (!res.ok) throw new Error("Error saving real times");
+
+        // Update local cronoData state
+        const op = cronoData.find(o => o.nombre === opName);
+        if (op) {
+          if (!op.entradas_reales) op.entradas_reales = {};
+          if (!op.salidas_reales) op.salidas_reales = {};
+          op.entradas_reales[dateVal] = entradaVal;
+          op.salidas_reales[dateVal] = salidaVal;
+        }
+
+        // Re-render monthly matrix to apply all colors and totals
+        renderMonthly();
+
+        // Restore trigger references after re-render (since the DOM elements were recreated)
+        const newTrigger = document.querySelector(`[data-operator="${opName.replace(/"/g, '\\"')}"][data-date="${dateVal}"]`) as HTMLElement | null;
+        if (newTrigger) {
+          activeDetailTrigger = newTrigger;
+        }
+
+        if (realTimeIndicator) {
+          realTimeIndicator.innerText = "Guardado";
+          realTimeIndicator.classList.remove('text-warning/70');
+          realTimeIndicator.classList.add('text-success/70');
+          setTimeout(() => {
+            if (realTimeIndicator.innerText === "Guardado") {
+              realTimeIndicator.classList.remove('opacity-100');
+              realTimeIndicator.classList.add('opacity-0');
+            }
+          }, 1500);
+        }
+      } catch (err) {
+        console.error("Error auto-saving real times:", err);
+        if (realTimeIndicator) {
+          realTimeIndicator.innerText = "Error";
+          realTimeIndicator.classList.remove('text-warning/70', 'text-success/70');
+          realTimeIndicator.classList.add('text-error');
+        }
+      }
+    }
+
+    detailEntradaInput?.addEventListener('input', () => {
+      if (realTimeTimeout) clearTimeout(realTimeTimeout);
+      realTimeTimeout = window.setTimeout(saveDetailRealTimes, 500);
+    });
+
+    detailSalidaInput?.addEventListener('input', () => {
+      if (realTimeTimeout) clearTimeout(realTimeTimeout);
+      realTimeTimeout = window.setTimeout(saveDetailRealTimes, 500);
+    });
+
+    // Auto-save for Operator Drawer History Inputs
+    document.getElementById('drawer-history-list')?.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida')) {
+        const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+        const dateVal = target.getAttribute('data-date');
+        if (!opName || !dateVal) return;
+
+        const rowContainer = target.closest('.flex-col');
+        const entradaInput = rowContainer?.querySelector('.drawer-history-entrada') as HTMLInputElement | null;
+        const salidaInput = rowContainer?.querySelector('.drawer-history-salida') as HTMLInputElement | null;
+        const entradaVal = entradaInput?.value || '';
+        const salidaVal = salidaInput?.value || '';
+
+        if (realTimeTimeout) clearTimeout(realTimeTimeout);
+        realTimeTimeout = window.setTimeout(async () => {
+          try {
+            const res = await fetch('/api/cronograma', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                edits: [
+                  {
+                    agentName: opName,
+                    date: dateVal,
+                    entradaReal: entradaVal,
+                    salidaReal: salidaVal
+                  }
+                ]
+              })
+            });
+
+            if (!res.ok) throw new Error("Error saving drawer real times");
+
+            // Update in-memory data
+            const op = cronoData.find(o => o.nombre === opName);
+            if (op) {
+              if (!op.entradas_reales) op.entradas_reales = {};
+              if (!op.salidas_reales) op.salidas_reales = {};
+              op.entradas_reales[dateVal] = entradaVal;
+              op.salidas_reales[dateVal] = salidaVal;
+            }
+
+            renderMonthly();
+          } catch (err) {
+            console.error("Error saving drawer real times:", err);
+          }
+        }, 500);
       }
     });
     
