@@ -19,6 +19,17 @@ const resolveUrl = (path: string) => {
 let errorMsg = "";
 let category = { id: "", title: "", iconName: "", tone: "primary" };
 
+if (!isNew && id) {
+  const existingCategory = await db.query.resourceCategories.findFirst({
+    where: eq(resourceCategories.id, id),
+  });
+  if (existingCategory) {
+    category = existingCategory;
+  } else {
+    return Astro.redirect(resolveUrl("/admin/recursos"));
+  }
+}
+
 const PREDEFINED_ICONS = [
   { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
   { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
@@ -42,17 +53,6 @@ if (category.iconName && !iconExistsInPredefined) {
     value: category.iconName,
     label: `Personalizado (${category.iconName})`,
   });
-}
-
-if (!isNew && id) {
-  const existingCategory = await db.query.resourceCategories.findFirst({
-    where: eq(resourceCategories.id, id),
-  });
-  if (existingCategory) {
-    category = existingCategory;
-  } else {
-    return Astro.redirect(resolveUrl("/admin/recursos"));
-  }
 }
 
 if (Astro.request.method === "POST") {
@@ -157,56 +157,22 @@ if (Astro.request.method === "POST") {
                   class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
                   >Ícono Visual</legend
                 >
-                <input
-                  type="hidden"
+                <select
                   name="iconName"
-                  id="category-icon-input"
-                  value={currentIcon}
-                />
-                <div class="dropdown w-full" id="icon-dropdown">
-                  <div
-                    tabindex="0"
-                    role="button"
-                    class="input input-bordered w-full flex justify-between items-center cursor-pointer select-none bg-base-100 font-medium"
-                    id="dropdown-trigger"
-                  >
-                    <span
-                      class="flex items-center gap-2"
-                      id="selected-icon-preview"
-                    >
-                      <Icon name={currentIcon} size={20} class="text-primary" />
-                    </span>
-                    <Icon
-                      name="boxicons:chevron-down"
-                      size={16}
-                      class="opacity-60 shrink-0"
-                    />
-                  </div>
-                  <ul
-                    tabindex="0"
-                    class="dropdown-content menu flex flex-col gap-1 bg-base-100 rounded-box z-[1] w-full p-2 shadow-lg border border-base-300 max-h-60 overflow-y-auto mt-1"
-                  >
-                    {
-                      iconsList.map((icon) => (
-                        <li>
-                          <button
-                            type="button"
-                            class="flex items-start justify-start p-2 hover:bg-base-200 rounded-lg w-full"
-                            data-icon-value={icon.value}
-                            data-icon-label={icon.label}
-                            title={icon.label}
-                          >
-                            <Icon
-                              name={icon.value}
-                              size={20}
-                              class="text-primary shrink-0"
-                            />
-                          </button>
-                        </li>
-                      ))
-                    }
-                  </ul>
-                </div>
+                  class="select select-bordered w-full font-medium"
+                >
+                  {
+                    iconsList.map((icon) => (
+                      <option
+                        value={icon.value}
+                        selected={icon.value === currentIcon}
+                      >
+                        <Icon name={icon.value} size={20} class="text-neutral" />
+                        {icon.label}
+                      </option>
+                    ))
+                  }
+                </select>
               </fieldset>
 
               <fieldset class="fieldset">
@@ -327,45 +293,4 @@ if (Astro.request.method === "POST") {
   </PageContainer>
 </BaseLayout>
 
-<script>
-  function initIconDropdown() {
-    const dropdown = document.getElementById("icon-dropdown");
-    const input = document.getElementById(
-      "category-icon-input",
-    ) as HTMLInputElement | null;
-    const preview = document.getElementById("selected-icon-preview");
 
-    if (!dropdown || !input || !preview) return;
-
-    const buttons = dropdown.querySelectorAll("button[data-icon-value]");
-    buttons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        const value = btn.getAttribute("data-icon-value") || "";
-        const label = btn.getAttribute("data-icon-label") || "";
-
-        // Update hidden input value
-        input.value = value;
-
-        // Update trigger UI text
-        const labelEl = preview.querySelector("#selected-icon-label");
-        if (labelEl) labelEl.textContent = label;
-
-        // Update Icon Preview SVG
-        const btnSvg = btn.querySelector("svg");
-        const previewSvg = preview.querySelector("svg");
-        if (btnSvg && previewSvg) {
-          previewSvg.outerHTML = btnSvg.outerHTML;
-        }
-
-        // Close dropdown by blurring active element
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
-      });
-    });
-  }
-
-  // Initialize dropdown logic
-  initIconDropdown();
-</script>

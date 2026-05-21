@@ -2,22 +2,52 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
+import { resourceCategories, resourceLinks } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
-
+const cleanBase = base.endsWith("/") ? base : base + "/";
 const resolveUrl = (path: string) => {
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
   return `${cleanBase}${cleanPath}`;
 };
 
-const categories = await db.query.resourceCategories.findMany({
-  with: {
-    links: true,
-  },
-});
+const q = Astro.url.searchParams.get("q")?.trim() || "";
+const categoryFilter = Astro.url.searchParams.get("category")?.trim() || "";
+
+const categories = await db.select().from(resourceCategories).orderBy(resourceCategories.title);
+
+const links = await db
+  .select({
+    id: resourceLinks.id,
+    title: resourceLinks.title,
+    subtitle: resourceLinks.subtitle,
+    url: resourceLinks.url,
+    categoryName: resourceCategories.title,
+    categoryId: resourceLinks.categoryId,
+  })
+  .from(resourceLinks)
+  .leftJoin(resourceCategories, eq(resourceLinks.categoryId, resourceCategories.id))
+  .orderBy(resourceLinks.title);
+
+const linksGridCols = "grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_100px]";
+const categoriesGridCols = "grid-cols-[60px_minmax(0,1.5fr)_100px_100px]";
+
+const toneColors: Record<string, string> = {
+  primary: "text-primary bg-primary/10",
+  secondary: "text-secondary bg-secondary/10",
+  accent: "text-accent bg-accent/10",
+  info: "text-info bg-info/10",
+  success: "text-success bg-success/10",
+  warning: "text-warning bg-warning/10",
+  error: "text-error bg-error/10",
+  neutral: "text-neutral bg-neutral/10",
+};
 ---
 
 <BaseLayout title="Administración de Recursos - Portal">
@@ -25,114 +55,387 @@ const categories = await db.query.resourceCategories.findMany({
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
       <PageHeader
         title="Gestión de Recursos"
-        description="Administración de categorías y enlaces útiles del portal."
+        description="Administración de enlaces y categorías útiles del portal."
       />
-      <div class="shrink-0 mt-4 sm:mt-0">
-        <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-primary gap-2 w-full sm:w-auto">
-          <Icon name="boxicons:plus" size={20} />
+      <div class="flex gap-2 shrink-0 mt-4 sm:mt-0">
+        <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-outline gap-2">
+          <Icon name="boxicons:folder-plus" size={20} />
           Nueva Categoría
+        </a>
+        <a href={resolveUrl("/admin/recursos/enlace/nuevo")} class="btn btn-primary gap-2">
+          <Icon name="boxicons:plus" size={20} />
+          Agregar Sitio Web
         </a>
       </div>
     </div>
 
-    {categories.length === 0 ? (
-      <div class="flex flex-col items-center gap-3 py-16 text-base-content/50 bg-base-100 rounded-box border border-base-300">
-        <div class="rounded-full bg-base-200 p-4">
-          <Icon name="boxicons:folder-open" size={32} class="opacity-30" aria-hidden="true" />
-        </div>
-        <div class="space-y-1 text-center">
-          <p class="text-sm font-semibold">No hay categorías registradas</p>
-          <p class="text-xs">Comenzá creando una nueva categoría.</p>
+    <!-- SECCIÓN DE CATEGORÍAS -->
+    <section class="mb-10">
+      <h2 class="text-xl font-bold mb-4">Categorías</h2>
+      
+      <!-- Buscador de Categorías -->
+      <div class="bg-base-100 p-4 rounded-box border border-base-300 mb-6 shadow-sm">
+        <div class="w-full max-w-xs">
+          <SearchInput
+            id="categories-search"
+            name="q_cat"
+            label="Buscar categoría"
+            placeholder="Buscar categoría..."
+          />
         </div>
       </div>
-    ) : (
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {categories.map((cat) => {
-          const tone = (cat.tone || "primary") as "primary" | "secondary" | "accent" | "neutral" | "success" | "info" | "warning" | "error";
-          const borderClasses = {
-            primary: "border-t-primary border-t-4",
-            secondary: "border-t-secondary border-t-4",
-            accent: "border-t-accent border-t-4",
-            neutral: "border-t-neutral border-t-4",
-            success: "border-t-success border-t-4",
-            info: "border-t-info border-t-4",
-            warning: "border-t-warning border-t-4",
-            error: "border-t-error border-t-4",
-          };
-          const iconClasses = {
-            primary: "bg-primary/10 text-primary",
-            secondary: "bg-secondary/10 text-secondary",
-            accent: "bg-accent/10 text-accent",
-            neutral: "bg-neutral/10 text-neutral",
-            success: "bg-success/10 text-success",
-            info: "bg-info/10 text-info",
-            warning: "bg-warning/10 text-warning",
-            error: "bg-error/10 text-error",
-          };
-          return (
-            <div class={`card bg-base-100 border border-base-300 shadow-sm h-full flex flex-col ${borderClasses[tone]}`}>
-              <div class="card-body p-5 flex flex-col h-full">
-                <div class="flex items-start justify-between gap-4 mb-4">
-                  <div class="flex items-center gap-3 min-w-0">
-                    <div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClasses[tone]}`}>
-                      <Icon name={cat.iconName} size={24} />
-                    </div>
-                  <h3 class="card-title text-base font-semibold truncate" title={cat.title}>{cat.title}</h3>
+
+      <!-- Tabla de Categorías -->
+      <DataTable
+        id="categories-table"
+        ariaLabel="Listado de categorías"
+        headerGridClass={categoriesGridCols}
+        rowGridClass={categoriesGridCols}
+      >
+        <Fragment slot="header">
+          <DataTableHeaderCell>Ícono</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="tone">Tono</DataTableHeaderCell>
+          <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+        </Fragment>
+
+        {
+          categories.length === 0 ? (
+            <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+              <div class="rounded-full bg-base-200 p-4">
+                <Icon name="boxicons:folder" size={32} class="opacity-30" aria-hidden="true" />
+              </div>
+              <div class="space-y-1 text-center">
+                <p class="text-sm font-semibold">No hay categorías registradas</p>
+                <p class="text-xs">Comenzá agregando una nueva categoría.</p>
+              </div>
+            </div>
+          ) : (
+            categories.map((cat) => (
+              <div
+                class="group grid items-center gap-4 border-b border-base-200 px-4 py-3 transition-colors hover:bg-base-200/50"
+                data-table-row
+                data-category-row
+                data-category-search={cat.title.toLowerCase()}
+                data-sort-title={cat.title}
+                data-sort-tone={cat.tone}
+              >
+                <div>
+                  <div class={`flex items-center justify-center size-10 rounded-lg ${toneColors[cat.tone] || toneColors.primary}`}>
+                    <Icon name={cat.iconName} size={24} />
+                  </div>
                 </div>
-                <div class="flex gap-1 shrink-0">
+                <div class="truncate font-semibold" title={cat.title} data-highlight-category-target>{cat.title}</div>
+                <div>
+                  <span class={`badge badge-outline capitalize border-${cat.tone} text-${cat.tone}`}>{cat.tone}</span>
+                </div>
+                <div class="flex items-center justify-end gap-1">
                   <a
                     href={resolveUrl(`/admin/recursos/categoria/${cat.id}`)}
-                    class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:text-secondary hover:bg-secondary/10"
-                    aria-label={`Editar categoría ${cat.title}`}
+                    class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-primary hover:bg-primary/10"
                     title="Editar Categoría"
                   >
                     <Icon name="boxicons:pencil" size={18} />
                   </a>
-                  <a
-                    href={resolveUrl(`/admin/recursos/enlace/nuevo?categoryId=${cat.id}`)}
-                    class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
-                    aria-label={`Nuevo enlace en ${cat.title}`}
-                    title="Nuevo Enlace"
-                  >
-                    <Icon name="boxicons:plus" size={20} />
-                  </a>
+                  {
+                    cat.id !== "uncategorized" && (
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-error hover:bg-error/10"
+                        title="Eliminar Categoría"
+                        onclick={`window.openDeleteCategoryModal('${cat.id}')`}
+                      >
+                        <Icon name="boxicons:trash" size={18} />
+                      </button>
+                    )
+                  }
                 </div>
               </div>
+            ))
+          )
+        }
+      </DataTable>
+    </section>
 
-              {cat.links.length === 0 ? (
-                <div class="text-center py-6 mt-auto text-sm text-base-content/40 bg-base-200/50 rounded-lg border border-base-300 border-dashed">
-                  Sin enlaces
-                </div>
-              ) : (
-                <ul class="space-y-3 flex-grow flex flex-col">
-                  {cat.links.map((link) => (
-                    <li class="flex items-center justify-between gap-3 p-3 bg-base-200/40 rounded-xl border border-base-200 hover:bg-base-200/80 hover:border-base-300 transition-all group shadow-sm">
-                      <div class="min-w-0 flex-1">
-                        <div class="text-sm font-semibold text-base-content truncate" title={link.title}>{link.title}</div>
-                        {link.subtitle && (
-                          <div class="text-xs text-base-content/70 truncate mt-0.5" title={link.subtitle}>{link.subtitle}</div>
-                        )}
-                        <a href={link.url} target="_blank" rel="noopener noreferrer" class="text-xs text-secondary hover:text-secondary-focus hover:underline truncate block mt-1.5 font-medium" title={link.url}>
-                          {link.url}
-                        </a>
-                      </div>
-                      <a
-                        href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
-                        class="btn btn-sm btn-ghost btn-square bg-base-100 border border-base-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shrink-0 text-base-content/70 shadow-xs"
-                        aria-label={`Editar enlace ${link.title}`}
-                        title="Editar Enlace"
-                      >
-                        <Icon name="boxicons:pencil" size={16} />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+    <!-- SECCIÓN DE ENLACES -->
+    <section>
+      <h2 class="text-xl font-bold mb-4">Sitios Web</h2>
+      
+      <!-- Buscador y Filtros de Enlaces -->
+      <div class="bg-base-100 p-4 rounded-box border border-base-300 mb-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row gap-4 items-center">
+          <div class="w-full max-w-xs">
+            <SearchInput
+              id="recursos-search"
+              name="q"
+              value={q}
+              label="Buscar enlace"
+              placeholder="Buscar enlace o URL..."
+            />
           </div>
-        );
-      })}
-    </div>
-    )}
+          <select id="category-filter" name="category" class="select select-bordered w-full max-w-xs" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+            {
+              categories.map((cat) => (
+                <option value={cat.id} selected={cat.id === categoryFilter}>
+                  {cat.title}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Tabla Única de Enlaces -->
+      <DataTable
+        id="recursos-table"
+        ariaLabel="Listado de enlaces útiles"
+        headerGridClass={linksGridCols}
+        rowGridClass={linksGridCols}
+      >
+        <Fragment slot="header">
+          <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="subtitle">Descripción</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="url">URL</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
+          <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+        </Fragment>
+
+        {
+          links.length === 0 ? (
+            <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+              <div class="rounded-full bg-base-200 p-4">
+                <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+              </div>
+              <div class="space-y-1 text-center">
+                <p class="text-sm font-semibold">No hay enlaces registrados</p>
+                <p class="text-xs">Comenzá agregando un nuevo sitio web.</p>
+              </div>
+            </div>
+          ) : (
+            links.map((link) => (
+              <div
+                class="group grid items-center gap-4 border-b border-base-200 px-4 py-3 transition-colors hover:bg-base-200/50"
+                data-table-row
+                data-link-row
+                data-link-search={`${link.title} ${link.subtitle || ""} ${link.url}`.toLowerCase()}
+                data-link-category={link.categoryId}
+                data-sort-title={link.title}
+                data-sort-subtitle={link.subtitle || ""}
+                data-sort-url={link.url}
+                data-sort-category={link.categoryName || ""}
+              >
+                <div class="truncate font-semibold" title={link.title} data-highlight-target>{link.title}</div>
+                <div class="truncate text-sm text-base-content/70" title={link.subtitle || ""} data-highlight-target>{link.subtitle || "-"}</div>
+                <div class="truncate">
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary hover:underline hover:text-primary-focus block truncate"
+                    title={link.url}
+                    data-highlight-target
+                  >
+                    {link.url}
+                  </a>
+                </div>
+                <div class="truncate">
+                  <span class="badge badge-ghost font-medium truncate" title={link.categoryName || "Sin categoría"}>
+                    {link.categoryName || "Sin categoría"}
+                  </span>
+                </div>
+                <div class="flex items-center justify-end gap-1">
+                  <a
+                    href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
+                    class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-primary hover:bg-primary/10"
+                    title="Editar Enlace"
+                  >
+                    <Icon name="boxicons:pencil" size={18} />
+                  </a>
+                  <form 
+                    method="POST" 
+                    action={resolveUrl(`/admin/recursos/enlace/${link.id}/eliminar`)} 
+                    class="inline"
+                    onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
+                  >
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-error hover:bg-error/10"
+                      title="Eliminar Enlace"
+                    >
+                      <Icon name="boxicons:trash" size={18} />
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))
+          )
+        }
+      </DataTable>
+    </section>
+
+    <!-- Modal de Eliminación de Categoría -->
+    <dialog id="delete-category-modal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box max-w-lg w-full">
+        <h3 class="font-bold text-lg text-base-content">Eliminar Categoría</h3>
+        <p class="py-4 text-base-content/80 text-sm">¿Qué deseas hacer con los enlaces que están asignados a esta categoría?</p>
+        <form id="delete-category-form" method="POST" action="">
+          <div class="flex flex-col gap-3 mt-2">
+            <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+              <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
+                <span class="label-text font-bold text-base leading-tight whitespace-normal break-words">Desvincular y conservar enlaces</span>
+                <span class="text-xs text-base-content/60 whitespace-normal break-words leading-relaxed">La categoría será eliminada, pero los enlaces se conservarán y se moverán a "Sin categoría".</span>
+              </div>
+            </label>
+
+            <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+              <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
+                <span class="label-text font-bold text-error text-base leading-tight whitespace-normal break-words">Eliminar todo en Cascada</span>
+                <span class="text-xs text-base-content/60 whitespace-normal break-words leading-relaxed">La categoría y todos los enlaces que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+              </div>
+            </label>
+          </div>
+          
+          <div class="modal-action flex-col sm:flex-row mt-6 gap-2">
+            <button type="button" class="btn btn-ghost w-full sm:w-auto" onclick="document.getElementById('delete-category-modal').close()">Cancelar</button>
+            <button type="submit" class="btn btn-error gap-2 w-full sm:w-auto ml-0 sm:ml-2">
+              <Icon name="boxicons:trash" size={20} />
+              Confirmar Eliminación
+            </button>
+          </div>
+        </form>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>cerrar</button>
+      </form>
+    </dialog>
   </PageContainer>
 </BaseLayout>
+
+<script>
+  // Utils
+  const normalizeValue = (value: string): string =>
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const highlightText = (element: HTMLElement, query: string): void => {
+    const originalText = element.dataset.originalText ?? element.textContent ?? "";
+
+    if (!element.dataset.originalText) {
+      element.dataset.originalText = originalText;
+    }
+
+    if (query.length === 0) {
+      element.textContent = originalText;
+      return;
+    }
+
+    const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
+
+    if (!matcher.test(originalText)) {
+      element.textContent = originalText;
+      return;
+    }
+
+    matcher.lastIndex = 0;
+    const highlighted = originalText
+      .split(matcher)
+      .map((chunk, index) =>
+        index % 2 === 1
+          ? `<mark class="rounded bg-warning/30 px-0.5 text-base-content">${escapeHtml(chunk)}</mark>`
+          : escapeHtml(chunk),
+      )
+      .join("");
+
+    element.innerHTML = highlighted;
+  };
+
+  // Links Filtering
+  const linksSearchInput = document.querySelector<HTMLInputElement>("#recursos-search");
+  const categoryFilterSelect = document.querySelector<HTMLSelectElement>("#category-filter");
+  const linkRows = Array.from(document.querySelectorAll<HTMLElement>("[data-link-row]"));
+
+  const updateLinksFilter = () => {
+    if (!linksSearchInput || !categoryFilterSelect) return;
+
+    const rawSearchValue = linksSearchInput.value.trim();
+    const searchValue = normalizeValue(rawSearchValue);
+    const selectedCategory = categoryFilterSelect.value;
+
+    linkRows.forEach((row) => {
+      const searchableContent = normalizeValue(row.dataset.linkSearch ?? "");
+      const rowCategory = row.dataset.linkCategory ?? "";
+
+      const matchesSearch = searchValue.length === 0 || searchableContent.includes(searchValue);
+      const matchesCategory = selectedCategory === "" || rowCategory === selectedCategory;
+      const isVisible = matchesSearch && matchesCategory;
+
+      row.classList.toggle("hidden", !isVisible);
+
+      const rowTargets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+      rowTargets.forEach((target) => {
+        highlightText(target, isVisible ? rawSearchValue : "");
+      });
+    });
+  };
+
+  if (linksSearchInput) linksSearchInput.addEventListener("input", updateLinksFilter);
+  if (categoryFilterSelect) categoryFilterSelect.addEventListener("change", updateLinksFilter);
+  updateLinksFilter();
+
+  // Categories Filtering
+  const categoriesSearchInput = document.querySelector<HTMLInputElement>("#categories-search");
+  const categoryRows = Array.from(document.querySelectorAll<HTMLElement>("[data-category-row]"));
+
+  const updateCategoriesFilter = () => {
+    if (!categoriesSearchInput) return;
+    
+    const rawSearchValue = categoriesSearchInput.value.trim();
+    const searchValue = normalizeValue(rawSearchValue);
+
+    categoryRows.forEach((row) => {
+      const searchableContent = normalizeValue(row.dataset.categorySearch ?? "");
+      const isVisible = searchValue.length === 0 || searchableContent.includes(searchValue);
+
+      row.classList.toggle("hidden", !isVisible);
+
+      const rowTargets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-category-target]"));
+      rowTargets.forEach((target) => {
+        highlightText(target, isVisible ? rawSearchValue : "");
+      });
+    });
+  };
+
+  if (categoriesSearchInput) categoriesSearchInput.addEventListener("input", updateCategoriesFilter);
+  updateCategoriesFilter();
+
+  // Modal logic attached to window for inline onclick handler
+  window.openDeleteCategoryModal = (categoryId: string) => {
+    const modal = document.getElementById("delete-category-modal") as HTMLDialogElement | null;
+    const form = document.getElementById("delete-category-form") as HTMLFormElement | null;
+    
+    if (modal && form) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      const cleanPath = `admin/recursos/categoria/${categoryId}/eliminar`;
+      
+      form.action = `${cleanBase}${cleanPath}`;
+      modal.showModal();
+    }
+  };
+</script>
