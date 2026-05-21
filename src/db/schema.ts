@@ -98,7 +98,11 @@ export const officeAssets = sqliteTable("office_assets", {
   ip: text("ip"),
 });
 
-export const officesRelations = relations(offices, ({ many }) => ({
+export const officesRelations = relations(offices, ({ one, many }) => ({
+  province: one(provinces, {
+    fields: [offices.provinceCode],
+    references: [provinces.code],
+  }),
   contacts: many(officeContacts),
   assets: many(officeAssets),
 }));
@@ -145,6 +149,18 @@ export const provinces = sqliteTable("provinces", {
   name: text("name").notNull(),
   regionId: text("regionId").references(() => regions.id),
 });
+
+export const provincesRelations = relations(provinces, ({ one, many }) => ({
+  region: one(regions, {
+    fields: [provinces.regionId],
+    references: [regions.id],
+  }),
+  offices: many(offices),
+}));
+
+export const regionsRelations = relations(regions, ({ many }) => ({
+  provinces: many(provinces),
+}));
 
 export const cubics = sqliteTable("cubics", {
   id: integer("id").primaryKey({ autoIncrement: true }),
