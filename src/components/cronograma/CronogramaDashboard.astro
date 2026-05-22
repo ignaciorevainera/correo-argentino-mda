@@ -1084,6 +1084,18 @@ import { Icon } from "astro-icon/components";
   }
 
   @media print {
+    @page {
+      size: landscape;
+      margin: 8mm;
+    }
+
+    /* Force background colors to print */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Hide elements that shouldn't appear in the printout */
     .no-print, 
     nav, 
     footer, 
@@ -1091,26 +1103,117 @@ import { Icon } from "astro-icon/components";
     #date-picker-container,
     #monthly-search,
     .btn,
-    #monthly-detail-overlay {
+    button,
+    #monthly-detail-overlay,
+    #edit-mode-toolbar,
+    #save-indicator,
+    #compliance-alert-badge,
+    .op-checkbox {
       display: none !important;
     }
     
     #cronograma-container {
       margin: 0 !important;
       padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
     }
     
     #monthly-view {
       display: block !important;
+      width: 100% !important;
     }
-    
-    .bg-base-100 {
-      background-color: white !important;
-      color: black !important;
+
+    /* Unbound scroll containers for print flow */
+    .overflow-x-auto,
+    .overflow-y-auto,
+    .max-h-\[580px\],
+    .max-h-\[740px\] {
+      max-height: none !important;
+      overflow: visible !important;
+      height: auto !important;
+      width: 100% !important;
+      border: none !important;
     }
-    
-    .border {
-      border-color: #eee !important;
+
+    /* Reset sticky styles so everything flows normally in print grid */
+    th.sticky, 
+    td.sticky {
+      position: static !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      left: auto !important;
+      right: auto !important;
+      z-index: 1 !important;
+    }
+
+    /* Print table optimizations */
+    table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important;
+    }
+
+    /* Set default widths for operator and stats columns in printout */
+    th:nth-child(1), td:nth-child(1) {
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
+      font-size: 9px !important;
+    }
+    /* P, HO, L status columns */
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(3), td:nth-child(3),
+    th:nth-child(4), td:nth-child(4) {
+      width: 24px !important;
+      min-width: 24px !important;
+      font-size: 8px !important;
+      padding: 2px 0 !important;
+    }
+
+    th, td {
+      padding: 4px 2px !important;
+      font-size: 8px !important;
+      border: 1px solid #ddd !important;
+    }
+
+    /* Make daily cells clean and compact in printed report */
+    .monthly-cell-button {
+      height: 28px !important;
+      border-radius: 4px !important;
+      font-size: 8px !important;
+      box-shadow: none !important;
+      border: 1px solid rgba(0,0,0,0.1) !important;
+      background-color: #f8f9fa !important;
+      color: #333 !important;
+      scale: 1 !important;
+    }
+
+    /* Keep color accents for quick recognition in printout */
+    .monthly-cell-button.bg-secondary\/10 {
+      background-color: #e8effe !important;
+      color: #254888 !important;
+    }
+    .monthly-cell-button.bg-primary\/10 {
+      background-color: #fff8e6 !important;
+      color: #b25e00 !important;
+    }
+    .monthly-cell-button.bg-error\/10 {
+      background-color: #fde8e8 !important;
+      color: #e02424 !important;
+    }
+    .monthly-cell-button.bg-success\/10 {
+      background-color: #def7ec !important;
+      color: #03543f !important;
+    }
+    .monthly-cell-button.bg-sky-500\/20 {
+      background-color: #e0f2fe !important;
+      color: #0369a1 !important;
+    }
+
+    /* Print header title */
+    .bg-base-200\/40 {
+      background-color: transparent !important;
     }
   }
 
@@ -3337,51 +3440,192 @@ import { Icon } from "astro-icon/components";
     // --- FEATURE: Premium Exporters ---
     function exportCSV() {
       const dates = getDatesArrayForCurrentMonth();
-      const headers = ["Operador", "Presencial (P)", "Home Office (HO)", "Licencia/Vacaciones (L)"];
+      const headers = [
+        "Operador",
+        "Email",
+        "Sede",
+        "Turno Base",
+        "Presencial (P)",
+        "Home Office (HO)",
+        "Licencia (L)",
+        "Vacaciones (V)",
+        "Horas Extras (HE)",
+        "Franco (F)",
+        "Llegadas Tarde",
+        "Salidas Anticipadas",
+        "Inconsistencias Normativas",
+        "Horas Reales Trabajadas",
+        ...dates
+      ];
+
+      function escapeCSVCell(val: any): string {
+        const str = (val === null || val === undefined) ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+
+      // Pre-calculate daily license coverage for compliance checks
+      const coveragePerDay: Record<string, { total: number, licenses: number }> = {};
       dates.forEach(d => {
-        headers.push(d);
+        let active = 0;
+        let lics = 0;
+        cronoData.forEach(op => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial' || s === 'Home Office') active++;
+          if (s === 'Licencia' || s === 'Vacaciones') lics++;
+        });
+        coveragePerDay[d] = { total: active, licenses: lics };
       });
-      
-      let csvRows = [headers.join(",")];
-      
+
+      let csvRows = [headers.map(escapeCSVCell).join(",")];
+
       cronoData.forEach(op => {
-        const stats = { P: 0, HO: 0, L: 0 };
+        const stats = { P: 0, HO: 0, L: 0, V: 0, HE: 0, F: 0 };
+        let llegadasTarde = 0;
+        let salidasAnticipadas = 0;
+        let totalMinutesWorked = 0;
+
+        // Policy compliance calculations
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+        let pWeekViolation = false;
+        let licenseOverlapCount = 0;
+
         dates.forEach(d => {
           const s = op.asistencia[d];
+
+          // Count statuses
           if (s === 'Presencial') stats.P++;
           else if (s === 'Home Office') stats.HO++;
-          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+          else if (s === 'Licencia') stats.L++;
+          else if (s === 'Vacaciones') stats.V++;
+          else if (s === 'Horas Extras') stats.HE++;
+          else stats.F++; // Franco / No set
+
+          // Late & Early check
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[d]) || op.horario;
+          const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
+          const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
+          const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+          if (late) llegadasTarde++;
+          if (early) salidasAnticipadas++;
+
+          // Real Worked Hours check
+          if (entradaReal && salidaReal) {
+            const startMin = timeToMinutes(entradaReal);
+            const endMin = timeToMinutes(salidaReal);
+            let diff = endMin - startMin;
+            if (diff < 0) diff += 1440; // overnight shift
+
+            const breakInicio = op.breaks_inicio?.[d];
+            const breakFin = op.breaks_fin?.[d];
+            if (breakInicio && breakFin) {
+              const bStartMin = timeToMinutes(breakInicio);
+              const bEndMin = timeToMinutes(breakFin);
+              let bDiff = bEndMin - bStartMin;
+              if (bDiff < 0) bDiff += 1440;
+              diff -= bDiff;
+            }
+            totalMinutesWorked += Math.max(0, diff);
+          }
+
+          // Compliance rules: HO consecutive
+          if (s === 'Home Office') {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (s !== 'Franco' && s) {
+            currentHO = 0;
+          }
+
+          // Compliance rules: Weekly P limit
+          const dateObj = new Date(d + 'T12:00:00');
+          if (s === 'Presencial') currentWeekP++;
+          if (s !== 'Franco' && s !== 'Licencia' && s !== 'Vacaciones' && s) {
+             currentWeekDays++;
+          }
+          if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+
+          // Compliance rules: License overlap limit (> 2 licenses on same day)
+          const isLicenseOverlap = (s === 'Licencia' || s === 'Vacaciones') && coveragePerDay[d].licenses > 2;
+          if (isLicenseOverlap) {
+            licenseOverlapCount++;
+          }
         });
-        
+
+        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        const totalInconsistencias = (hoViolation ? 1 : 0) + (pWeekViolation ? 1 : 0) + licenseOverlapCount;
+
+        const email = getUsername(op.nombre) + "@correoargentino.com.ar";
+        const sede = op.location || "Monte Grande";
+        const turnoBase = op.horario || '-';
+        const horasReales = (totalMinutesWorked / 60).toFixed(2);
+
         const row = [
-          `"${op.nombre}"`,
-          stats.P,
-          stats.HO,
-          stats.L
+          escapeCSVCell(op.nombre),
+          escapeCSVCell(email),
+          escapeCSVCell(sede),
+          escapeCSVCell(turnoBase),
+          escapeCSVCell(stats.P),
+          escapeCSVCell(stats.HO),
+          escapeCSVCell(stats.L),
+          escapeCSVCell(stats.V),
+          escapeCSVCell(stats.HE),
+          escapeCSVCell(stats.F),
+          escapeCSVCell(llegadasTarde),
+          escapeCSVCell(salidasAnticipadas),
+          escapeCSVCell(totalInconsistencias),
+          escapeCSVCell(horasReales)
         ];
-        
+
+        // Format daily cells
         dates.forEach(d => {
           const status = op.asistencia[d] || 'Franco';
           const comment = op.comentarios?.[d] || '';
-          const cellValue = comment ? `${status} (${comment})` : status;
-          row.push(`"${cellValue.replace(/"/g, '""')}"`);
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[d]) || op.horario;
+          const isAbsent = status === 'Licencia' || status === 'Vacaciones' || status === 'Franco';
+
+          let cellValue = '';
+          if (isAbsent) {
+            cellValue = status;
+          } else {
+            const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
+            const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
+            const breakInicio = (op.breaks_inicio && op.breaks_inicio[d]) || '';
+            const breakFin = (op.breaks_fin && op.breaks_fin[d]) || '';
+
+            cellValue = `${status} [${dailyHorario || '-'}] (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'} | Break: ${breakInicio || '--:--'} - ${breakFin || '--:--'})`;
+          }
+
+          if (comment) {
+            cellValue += ` {Nota: ${comment}}`;
+          }
+
+          row.push(escapeCSVCell(cellValue));
         });
-        
+
         csvRows.push(row.join(","));
       });
-      
+
+      // Use BOM UTF-8 (\uFEFF) to make sure Excel detects the encoding correctly
       const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      
+
       const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
       let monthName = 'reporte';
       if (dateInput && dateInput.value) {
         const d = new Date(dateInput.value + 'T12:00:00');
         monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
       }
-      
+
       link.setAttribute("download", `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.csv`);
       document.body.appendChild(link);
       link.click();
@@ -3400,16 +3644,31 @@ import { Icon } from "astro-icon/components";
         imgBtn.innerHTML = `<span class="loading loading-spinner loading-xs mr-1"></span> Procesando...`;
       }
 
+      // Save original styles to restore them later
+      const originalWidth = tableContainer.style.width;
+      const originalHeight = tableContainer.style.height;
+      const originalMaxWidth = tableContainer.style.maxWidth;
+      const originalMaxHeight = tableContainer.style.maxHeight;
+      const originalOverflow = tableContainer.style.overflow;
+
       try {
-        const originalMaxHeight = tableContainer.style.maxHeight;
-        const originalOverflow = tableContainer.style.overflow;
+        // Expand container to match scroll dimensions to capture all rows & columns
+        tableContainer.style.width = tableContainer.scrollWidth + 'px';
+        tableContainer.style.height = tableContainer.scrollHeight + 'px';
+        tableContainer.style.maxWidth = 'none';
         tableContainer.style.maxHeight = 'none';
         tableContainer.style.overflow = 'visible';
 
+        // Force a layout reflow
+        tableContainer.offsetHeight;
+
         const { toPng } = await import('html-to-image');
         
+        // Resolve computed background color to prevent transparency issues with DaisyUI themes
+        const computedBg = window.getComputedStyle(tableContainer).backgroundColor || '#ffffff';
+
         const dataUrl = await toPng(tableContainer, {
-          backgroundColor: 'var(--color-base-100, #ffffff)',
+          backgroundColor: computedBg,
           style: {
             transform: 'scale(1)',
             transformOrigin: 'top left',
@@ -3420,6 +3679,10 @@ import { Icon } from "astro-icon/components";
           pixelRatio: 2
         });
 
+        // Restore original styles
+        tableContainer.style.width = originalWidth;
+        tableContainer.style.height = originalHeight;
+        tableContainer.style.maxWidth = originalMaxWidth;
         tableContainer.style.maxHeight = originalMaxHeight;
         tableContainer.style.overflow = originalOverflow;
 
@@ -3439,6 +3702,13 @@ import { Icon } from "astro-icon/components";
 
       } catch (error) {
         console.error('Error generating image:', error);
+        // Ensure styles are restored even if generation failed
+        tableContainer.style.width = originalWidth;
+        tableContainer.style.height = originalHeight;
+        tableContainer.style.maxWidth = originalMaxWidth;
+        tableContainer.style.maxHeight = originalMaxHeight;
+        tableContainer.style.overflow = originalOverflow;
+        
         alert('Hubo un error al generar la imagen. Intenta imprimir el reporte.');
       } finally {
         if (imgBtn) {
