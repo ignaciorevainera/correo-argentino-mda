@@ -175,6 +175,7 @@ export const agents = sqliteTable("agents", {
   name: text("name").notNull().unique(),
   avatarInitials: text("avatar_initials"),
   notes: text("notes"),
+  location: text("location").notNull().default("Monte Grande"),
   horarioDefault: text("horario_default").notNull().default("08:00 - 17:00"),
   esquemaSemanal: text("esquema_semanal", { mode: "json" }).$type<Record<string, string>>(),
   esquemaHorario: text("esquema_horario", { mode: "json" }).$type<Record<string, string>>(),

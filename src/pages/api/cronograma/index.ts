@@ -12,6 +12,7 @@ export const GET: APIRoute = async () => {
       id: agent.id,
       nombre: agent.name,
       horario: agent.horarioDefault,
+      location: agent.location || "Monte Grande",
       asistencia: {},
       esquema_semanal: agent.esquemaSemanal || {},
       esquema_horario: agent.esquemaHorario || {},
