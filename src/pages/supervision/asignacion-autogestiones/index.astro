@@ -5,233 +5,259 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { operators, operatorShifts } from "@db/schema";
+import { eq, asc } from "drizzle-orm";
 
+let flashMessage: { type: "success" | "error"; text: string } | null = null;
 
-const operadores = [
-  {
-    id: "OPE-001",
-    nombre: "Ana García",
-    horarioP: "09:00 - 18:00",
-    horarioH: "N/A",
-    breakP: "13:00 - 14:00",
-    breakH: "N/A",
-    estado: "Disponible",
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action") as string;
+
+    if (action === "update_mode") {
+      const operatorId = formData.get("operatorId") as string;
+      const currentMode = formData.get("currentMode") === "home" ? "home" : "presencial";
+      if (operatorId) {
+        await db
+          .update(operators)
+          .set({ currentMode })
+          .where(eq(operators.id, operatorId));
+
+        flashMessage = {
+          type: "success",
+          text: `Modo de trabajo actualizado correctamente.`,
+        };
+      }
+    } else if (action === "assign_manual") {
+      const operatorId = formData.get("operatorId") as string;
+      if (operatorId) {
+        // Liberar al operador actualmente asignado
+        await db
+          .update(operators)
+          .set({ status: "disponible" })
+          .where(eq(operators.status, "asignado"));
+
+        await db
+          .update(operators)
+          .set({
+            status: "asignado",
+            lastAutogestionAssignedAt: Date.now(),
+          })
+          .where(eq(operators.id, operatorId));
+
+        const [op] = await db
+          .select({ name: operators.name })
+          .from(operators)
+          .where(eq(operators.id, operatorId));
+
+        flashMessage = {
+          type: "success",
+          text: `Autogestión asignada manualmente a ${op?.name ?? operatorId}.`,
+        };
+      }
+    } else if (action === "assign_cyclic") {
+      const availableOps = await db.query.operators.findMany({
+        where: eq(operators.status, "disponible"),
+        with: {
+          shifts: true,
+        },
+        orderBy: [asc(operators.lastAutogestionAssignedAt)],
+      });
+
+      const now = new Date();
+      const currentTime =
+        now.getHours().toString().padStart(2, "0") +
+        ":" +
+        now.getMinutes().toString().padStart(2, "0");
+
+      let nextOp = null;
+
+      for (const op of availableOps) {
+        const activeShift = op.shifts.find((s: { type: string; }) => s.type === op.currentMode);
+        if (!activeShift) continue;
+
+        const { shiftStart, shiftEnd, breakTime } = activeShift;
+
+        if (currentTime >= shiftStart && currentTime <= shiftEnd) {
+          const [bHour, bMin] = breakTime.split(":").map(Number);
+          const breakEndHour = (bHour + 1).toString().padStart(2, "0");
+          const breakEnd = `${breakEndHour}:${bMin.toString().padStart(2, "0")}`;
+
+          const inBreak = currentTime >= breakTime && currentTime < breakEnd;
+
+          if (!inBreak) {
+            nextOp = op;
+            break;
+          }
+        }
+      }
+
+      if (nextOp) {
+        // Liberar al operador actualmente asignado
+        await db
+          .update(operators)
+          .set({ status: "disponible" })
+          .where(eq(operators.status, "asignado"));
+
+        await db
+          .update(operators)
+          .set({
+            status: "asignado",
+            lastAutogestionAssignedAt: Date.now(),
+          })
+          .where(eq(operators.id, nextOp.id));
+
+        flashMessage = {
+          type: "success",
+          text: `Autogestión asignada cíclicamente a ${nextOp.name}.`,
+        };
+      } else {
+        flashMessage = {
+          type: "error",
+          text: "No hay operadores disponibles o dentro de horario operativo para asignar.",
+        };
+      }
+    } else if (action === "update_status") {
+      const operatorId = formData.get("operatorId") as string;
+      const newStatus = formData.get("status") as string;
+      if (operatorId && newStatus) {
+        if (newStatus === "asignado") {
+          // Si lo pasamos manualmente a asignado desde el select, liberamos al actual
+          await db
+            .update(operators)
+            .set({ status: "disponible" })
+            .where(eq(operators.status, "asignado"));
+        }
+
+        await db
+          .update(operators)
+          .set({ status: newStatus })
+          .where(eq(operators.id, operatorId));
+
+        flashMessage = {
+          type: "success",
+          text: `Estado actualizado correctamente.`,
+        };
+      }
+    }
+  } catch (e) {
+    flashMessage = {
+      type: "error",
+      text: "Ocurrió un error al procesar la acción.",
+    };
+  }
+}
+
+const allOperators = await db.query.operators.findMany({
+  with: {
+    shifts: true,
   },
-  {
-    id: "OPE-002",
-    nombre: "Carlos Rodríguez",
-    horarioP: "08:00 - 17:00",
-    horarioH: "08:00 - 17:00",
-    breakP: "12:00 - 13:00",
-    breakH: "12:00 - 13:00",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-003",
-    nombre: "María Fernández",
-    horarioP: "N/A",
-    horarioH: "10:00 - 19:00",
-    breakP: "N/A",
-    breakH: "14:00 - 15:00",
-    estado: "En reunión",
-  },
-  {
-    id: "OPE-004",
-    nombre: "Juan Pérez",
-    horarioP: "09:00 - 18:00",
-    horarioH: "N/A",
-    breakP: "13:00 - 14:00",
-    breakH: "N/A",
-    estado: "Vacaciones",
-  },
-  {
-    id: "OPE-005",
-    nombre: "Lucía Gómez",
-    horarioP: "11:00 - 20:00",
-    horarioH: "11:00 - 20:00",
-    breakP: "15:00 - 16:00",
-    breakH: "15:00 - 16:00",
-    estado: "Tarea administrativa",
-  },
-  {
-    id: "OPE-006",
-    nombre: "Diego Torres",
-    horarioP: "07:00 - 16:00",
-    horarioH: "N/A",
-    breakP: "11:00 - 12:00",
-    breakH: "N/A",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-007",
-    nombre: "Laura Martínez",
-    horarioP: "N/A",
-    horarioH: "09:00 - 18:00",
-    breakP: "N/A",
-    breakH: "13:00 - 14:00",
-    estado: "Licencia",
-  },
-  {
-    id: "OPE-008",
-    nombre: "Roberto Sánchez",
-    horarioP: "08:00 - 17:00",
-    horarioH: "N/A",
-    breakP: "12:30 - 13:30",
-    breakH: "N/A",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-009",
-    nombre: "Elena Ruiz",
-    horarioP: "09:00 - 18:00",
-    horarioH: "09:00 - 18:00",
-    breakP: "13:00 - 14:00",
-    breakH: "13:00 - 14:00",
-    estado: "En reunión",
-  },
-  {
-    id: "OPE-010",
-    nombre: "Ricardo López",
-    horarioP: "10:00 - 19:00",
-    horarioH: "N/A",
-    breakP: "14:00 - 15:00",
-    breakH: "N/A",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-011",
-    nombre: "Sofía Castro",
-    horarioP: "N/A",
-    horarioH: "08:00 - 17:00",
-    breakP: "N/A",
-    breakH: "12:00 - 13:00",
-    estado: "Tarea administrativa",
-  },
-  {
-    id: "OPE-012",
-    nombre: "Javier Méndez",
-    horarioP: "07:00 - 16:00",
-    horarioH: "07:00 - 16:00",
-    breakP: "11:30 - 12:30",
-    breakH: "11:30 - 12:30",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-013",
-    nombre: "Patricia Sosa",
-    horarioP: "09:00 - 18:00",
-    horarioH: "N/A",
-    breakP: "13:00 - 14:00",
-    breakH: "N/A",
-    estado: "Vacaciones",
-  },
-  {
-    id: "OPE-014",
-    nombre: "Fernando Díaz",
-    horarioP: "08:30 - 17:30",
-    horarioH: "N/A",
-    breakP: "12:30 - 13:30",
-    breakH: "N/A",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-015",
-    nombre: "Gabriela Blanco",
-    horarioP: "11:00 - 20:00",
-    horarioH: "11:00 - 20:00",
-    breakP: "15:00 - 16:00",
-    breakH: "15:00 - 16:00",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-016",
-    nombre: "Martín Guzmán",
-    horarioP: "09:00 - 18:00",
-    horarioH: "N/A",
-    breakP: "13:00 - 14:00",
-    breakH: "N/A",
-    estado: "En reunión",
-  },
-  {
-    id: "OPE-017",
-    nombre: "Valeria Ortiz",
-    horarioP: "N/A",
-    horarioH: "10:00 - 19:00",
-    breakP: "N/A",
-    breakH: "14:00 - 15:00",
-    estado: "Disponible",
-  },
-  {
-    id: "OPE-018",
-    nombre: "Sergio Ramos",
-    horarioP: "08:00 - 17:00",
-    horarioH: "N/A",
-    breakP: "12:00 - 13:00",
-    breakH: "N/A",
-    estado: "Tarea administrativa",
-  },
-  {
-    id: "OPE-019",
-    nombre: "Natalia Herrera",
-    horarioP: "09:00 - 18:00",
-    horarioH: "09:00 - 18:00",
-    breakP: "13:00 - 14:00",
-    breakH: "13:00 - 14:00",
-    estado: "Licencia",
-  },
-  {
-    id: "OPE-020",
-    nombre: "Pablo Vaca",
-    horarioP: "07:30 - 16:30",
-    horarioH: "N/A",
-    breakP: "11:30 - 12:30",
-    breakH: "N/A",
-    estado: "Disponible",
-  },
+  orderBy: [asc(operators.name)],
+});
+
+const STATUSES = [
+  "disponible",
+  "asignado",
+  "break",
+  "reunion",
+  "supervision",
+  "licencia",
+  "vacaciones",
+] as const;
+
+type OperatorStatus = (typeof STATUSES)[number];
+
+const STATUS_LABELS: Record<OperatorStatus, string> = {
+  disponible: "Disponible",
+  asignado: "Asignado",
+  break: "Break",
+  reunion: "Reunión",
+  supervision: "Supervisión",
+  licencia: "Licencia",
+  vacaciones: "Vacaciones",
+};
+
+const STATUS_GROUPS = [
+  { label: "Operativos", statuses: ["disponible", "asignado"] as const },
+  { label: "Pausas Cortas", statuses: ["break", "reunion", "supervision"] as const },
+  { label: "Ausencias", statuses: ["licencia", "vacaciones"] as const },
 ];
 
-const getBadgeColor = (estado: string) => {
-  switch (estado) {
-    case "Disponible":
+const getBadgeColor = (status: string): string => {
+  switch (status) {
+    case "disponible":
       return "badge-success";
-    case "Vacaciones":
-    case "Licencia":
-      return "badge-error";
-    case "En reunión":
+    case "asignado":
+      return "badge-primary";
+    case "break":
+    case "reunion":
+    case "supervision":
       return "badge-warning";
-    case "Tarea administrativa":
-      return "badge-info";
+    case "licencia":
+    case "vacaciones":
+      return "badge-error";
     default:
       return "badge-neutral";
   }
 };
 
-const disponiblesCount = operadores.filter(
-  (op) => op.estado === "Disponible",
+const getSelectColor = (status: string): string => {
+  return getBadgeColor(status).replace("badge-", "select-");
+};
+
+const disponiblesCount = allOperators.filter(
+  (op) => op.status === "disponible",
 ).length;
-const noDisponiblesList = operadores.filter((op) => op.estado !== "Disponible");
+const noDisponiblesList = allOperators.filter(
+  (op) => op.status !== "disponible",
+);
 const noDisponiblesCount = noDisponiblesList.length;
 
-const breakdown: Record<string, number> = {
-  Vacaciones: 0,
-  Licencia: 0,
-  "En reunión": 0,
-  "Tarea administrativa": 0,
-};
+const breakdown: Record<string, number> = {};
+for (const s of STATUSES) {
+  if (s !== "disponible") {
+    breakdown[s] = 0;
+  }
+}
 noDisponiblesList.forEach((op) => {
-  if (breakdown[op.estado] !== undefined) {
-    breakdown[op.estado]++;
+  if (breakdown[op.status] !== undefined) {
+    breakdown[op.status]++;
   } else {
-    breakdown[op.estado] = 1;
+    breakdown[op.status] = 1;
   }
 });
+
+const breakdownBadge = (status: string): string => {
+  return getBadgeColor(status).replace("badge-", "bg-");
+};
 ---
 
 <BaseLayout>
   <PageContainer>
     <PageHeader
-      description="Distribución equitativa y controlada de tickets entre operadores técnicos. Utiliza el botón de asignar próximo para rotar de manera circular."
+      description="Distribución equitativa y controlada de autogestiones entre operadores técnicos. Utiliza el botón de asignar próximo para rotar de manera circular."
     />
+
+    {
+      flashMessage && (
+        <div
+          class={`alert mb-6 shadow-md ${flashMessage.type === "success" ? "alert-success" : "alert-error"}`}
+          role="alert"
+        >
+          <Icon
+            name={
+              flashMessage.type === "success"
+                ? "boxicons:check-circle"
+                : "boxicons:error-circle"
+            }
+            size={20}
+          />
+          <span>{flashMessage.text}</span>
+        </div>
+      )
+    }
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
       <!-- Card Disponibles -->
@@ -271,14 +297,18 @@ noDisponiblesList.forEach((op) => {
               <span class="text-base-content/40">Tasa de disponibilidad</span>
               <span class="text-success font-mono" id="stat-percentage"
                 >{
-                  Math.round((disponiblesCount / operadores.length) * 100)
+                  allOperators.length > 0
+                    ? Math.round(
+                        (disponiblesCount / allOperators.length) * 100,
+                      )
+                    : 0
                 }%</span
               >
             </div>
             <progress
               class="progress progress-success w-full h-2.5 bg-base-200"
               value={disponiblesCount}
-              max={operadores.length}
+              max={allOperators.length || 1}
               id="stat-progress"></progress>
           </div>
         </div>
@@ -319,22 +349,18 @@ noDisponiblesList.forEach((op) => {
             {
               Object.entries(breakdown).map(([estado, count]) => (
                 <div
-                  class="flex items-center justify-between p-2 rounded-lg bg-base-200/50 border border-transparent hover:border-base-300 transition-all duration-200 group/stat data-[count='0']:opacity-40"
-                  data-stat-estado={estado}
+                  class="flex items-center justify-between p-2 rounded-lg bg-base-200/50 border border-transparent hover:border-base-300 transition-all duration-200 data-[count='0']:opacity-40"
                   data-count={count}
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <span
-                      class={`size-2 rounded-full shrink-0 ${getBadgeColor(estado).replace("badge-", "bg-")}`}
+                      class={`size-2 rounded-full shrink-0 ${breakdownBadge(estado)}`}
                     />
                     <span class="text-xs font-bold truncate text-base-content/60 uppercase tracking-tight">
-                      {estado}
+                      {STATUS_LABELS[estado as OperatorStatus] ?? estado}
                     </span>
                   </div>
-                  <span
-                    class="text-xs font-mono font-bold text-base-content/90"
-                    data-stat-count
-                  >
+                  <span class="text-xs font-mono font-bold text-base-content/90">
                     {count}
                   </span>
                 </div>
@@ -356,418 +382,173 @@ noDisponiblesList.forEach((op) => {
           <span class="label-text">Ver solo operadores disponibles</span>
         </label>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="btn-reset" class="btn btn-secondary btn-soft">
-          <Icon name="boxicons:rewind" size={24} aria-hidden="true" />
-          Reset Historial
-        </button>
-        <button id="btn-asignar-proximo" class="btn btn-primary">
+      <form method="POST">
+        <input type="hidden" name="action" value="assign_cyclic" />
+        <button type="submit" class="btn btn-primary">
           <Icon name="boxicons:user-check" size={24} aria-hidden="true" />
-          Asignar próximo
+          Asignar Siguiente (Cíclico)
         </button>
-      </div>
+      </form>
     </div>
 
     <DataTable
-      ariaLabel="Lista de operadores para asignación"
-      headerGridClass="grid-cols-[1.5fr_1fr_1fr_1fr_minmax(120px,auto)] gap-4"
-      rowGridClass="grid grid-cols-[1.5fr_1fr_1fr_1fr_minmax(120px,auto)] items-center gap-4"
+      ariaLabel="Lista de operadores para asignación de autogestiones"
+      headerGridClass="grid-cols-[1.5fr_1.2fr_0.8fr_minmax(140px,auto)_minmax(90px,auto)] gap-2 md:gap-4"
+      rowGridClass="grid grid-cols-[1.5fr_1.2fr_0.8fr_minmax(140px,auto)_minmax(90px,auto)] items-center gap-2 md:gap-4"
     >
       <Fragment slot="header">
         <DataTableHeaderCell sortKey="nombre">Operador</DataTableHeaderCell>
-        <DataTableHeaderCell>Jornada</DataTableHeaderCell>
-        <DataTableHeaderCell>Break</DataTableHeaderCell>
+        <DataTableHeaderCell>Horario / Modo</DataTableHeaderCell>
         <DataTableHeaderCell sortKey="estado">Estado</DataTableHeaderCell>
+        <DataTableHeaderCell>Cambiar Estado</DataTableHeaderCell>
         <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
       </Fragment>
 
       {
-        operadores.map((op) => (
+        allOperators.map((op) => {
+          const activeShift = op.shifts.find((s: { type: string; }) => s.type === op.currentMode);
+          
+          return (
           <div
-            class="group border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 data-[ultimo=true]:bg-primary/10 data-[ultimo=true]:border-primary"
+            class={`group border-b border-base-300 px-4 py-1.5 transition-colors hover:bg-base-200/50 ${op.status === "asignado" ? "bg-primary/10 border-l-4 border-l-primary" : ""}`}
             data-table-row
             data-op-id={op.id}
-            data-op-estado={op.estado}
-            data-op-nombre={op.nombre}
-            data-sort-nombre={op.nombre}
-            data-sort-estado={op.estado}
+            data-op-estado={op.status}
+            data-sort-nombre={op.name}
+            data-sort-estado={op.status}
           >
+            {/* Nombre + ID */}
             <div class="flex min-w-0 flex-col">
-              <span class="truncate font-medium text-base-content">
-                {op.nombre}
+              <span class="truncate text-xs font-semibold text-base-content">
+                {op.name}
               </span>
-              <span class="font-mono text-xs text-base-content/60">
+              <span class="font-mono text-[10px] text-base-content/50">
                 {op.id}
               </span>
             </div>
 
-            <div class="flex flex-col gap-1">
-              {op.horarioP !== "N/A" && (
-                <span
-                  class="flex items-center gap-1.5 text-xs text-base-content/70"
-                  title="Presencial"
-                >
-                  <Icon name="boxicons:building" size={18} class="opacity-60" />
-                  {op.horarioP}
-                </span>
-              )}
-              {op.horarioH !== "N/A" && (
-                <span
-                  class="flex items-center gap-1.5 text-xs text-base-content/70"
-                  title="Home Office"
-                >
-                  <Icon name="boxicons:home" size={18} class="opacity-60" />
-                  {op.horarioH}
-                </span>
-              )}
+            {/* Horario y Modo */}
+            <div class="flex flex-col gap-1 min-w-0">
+              <div class="text-[11px] text-base-content/70 leading-normal">
+                {activeShift ? (
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span class="flex items-center gap-1 font-medium">
+                      <Icon
+                        name="boxicons:clock-dashed-half-filled"
+                        size={14}
+                        class="opacity-60 shrink-0"
+                      />
+                      {activeShift.shiftStart} - {activeShift.shiftEnd}
+                    </span>
+                    <span class="flex items-center gap-1 opacity-70">
+                      <Icon
+                        name="boxicons:coffee"
+                        size={12}
+                        class="opacity-60 shrink-0"
+                      />
+                      {activeShift.breakTime}
+                    </span>
+                  </div>
+                ) : (
+                  <span class="text-base-content/40 italic">Sin horario</span>
+                )}
+              </div>
+              
+              <form method="POST" class="m-0">
+                <input type="hidden" name="action" value="update_mode" />
+                <input type="hidden" name="operatorId" value={op.id} />
+                <div class="form-control">
+                  <label class="label cursor-pointer justify-start gap-1 p-0">
+                    <span class="label-text text-[10px] font-bold opacity-60 uppercase tracking-tight">Presencial</span>
+                    <input 
+                      type="checkbox" 
+                      class="toggle toggle-xs toggle-primary shrink-0" 
+                      name="currentMode"
+                      value="home"
+                      checked={op.currentMode === "home"}
+                      onchange="this.form.submit()"
+                    />
+                    <span class="label-text text-[10px] font-bold opacity-60 uppercase tracking-tight">Home</span>
+                  </label>
+                </div>
+              </form>
             </div>
 
-            <div class="flex flex-col gap-1 text-base-content/70">
-              {op.breakP !== "N/A" && (
-                <span
-                  class="flex items-center gap-1.5 text-xs"
-                  title="Break Presencial"
-                >
-                  <Icon name="boxicons:coffee" size={18} class="opacity-60" />
-                  {op.breakP}
-                </span>
-              )}
-              {op.breakH !== "N/A" && (
-                <span
-                  class="flex items-center gap-1.5 text-xs"
-                  title="Break Home Office"
-                >
-                  <Icon
-                    name="boxicons:home-heart"
-                    size={18}
-                    class="opacity-60"
-                  />
-                  {op.breakH}
-                </span>
-              )}
-            </div>
-
+            {/* Badge estado */}
             <div>
-              <select
-                class={`select select-bordered select-sm w-full max-w-[160px] ${getBadgeColor(op.estado).replace("badge-", "select-")}`}
-                data-estado-select
+              <span
+                class={`badge ${getBadgeColor(op.status)} badge-xs font-semibold uppercase text-[9px] tracking-wider py-1.5`}
               >
-                <option
-                  value="Disponible"
-                  class="text-success"
-                  selected={op.estado === "Disponible"}
-                >
-                  Disponible
-                </option>
-                <option
-                  value="En reunión"
-                  class="text-warning"
-                  selected={op.estado === "En reunión"}
-                >
-                  En reunión
-                </option>
-                <option
-                  value="Tarea administrativa"
-                  class="text-info"
-                  selected={op.estado === "Tarea administrativa"}
-                >
-                  Tarea administrativa
-                </option>
-                <option
-                  value="Vacaciones"
-                  class="text-error"
-                  selected={op.estado === "Vacaciones"}
-                >
-                  Vacaciones
-                </option>
-                <option
-                  value="Licencia"
-                  class="text-error"
-                  selected={op.estado === "Licencia"}
-                >
-                  Licencia
-                </option>
-              </select>
+                {STATUS_LABELS[op.status as OperatorStatus] ?? op.status}
+              </span>
             </div>
 
+            {/* Select cambiar estado */}
+            <div>
+              <form method="POST" class="m-0">
+                <input type="hidden" name="action" value="update_status" />
+                <input type="hidden" name="operatorId" value={op.id} />
+                <select
+                  name="status"
+                  class={`select select-bordered select-xs w-full max-w-[130px] font-medium text-xs ${getSelectColor(op.status)}`}
+                  onchange="this.form.submit()"
+                >
+                  {STATUS_GROUPS.map((group) => (
+                    <optgroup label={group.label} class="text-xs">
+                      {group.statuses.map((s) => (
+                        <option value={s} selected={op.status === s} class="text-xs text-base-content bg-base-100">
+                          {STATUS_LABELS[s]}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </form>
+            </div>
+
+            {/* Botón asignar manual */}
             <div class="flex items-center justify-end">
-              <button
-                class="btn btn-secondary btn-sm btn-soft btn-asignar-manual"
-                title={`Asignar a ${op.nombre}`}
-              >
-                Asignar
-              </button>
+              <form method="POST" class="m-0">
+                <input type="hidden" name="action" value="assign_manual" />
+                <input type="hidden" name="operatorId" value={op.id} />
+                <button
+                  type="submit"
+                  class="btn btn-secondary btn-xs btn-soft"
+                  title={`Asignar autogestión a ${op.name}`}
+                  disabled={!activeShift}
+                >
+                  Asignar
+                </button>
+              </form>
             </div>
           </div>
-        ))
+        )})
       }
     </DataTable>
-
-    <!-- Modal de confirmación -->
-    <dialog id="modal-asignacion" class="modal">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg text-success flex items-center gap-2">
-          <Icon name="boxicons:check-circle" size={24} />
-          ¡Asignación exitosa!
-        </h3>
-        <p class="py-4">Se ha asignado el ticket al operador:</p>
-        <div class="bg-base-200 p-4 rounded-lg text-center mb-4">
-          <span
-            class="block text-2xl font-bold text-base-content"
-            id="modal-op-nombre">...</span
-          >
-          <span class="font-mono text-sm text-base-content/70" id="modal-op-id"
-            >...</span
-          >
-        </div>
-        <div class="modal-action">
-          <form method="dialog">
-            <button class="btn btn-primary">Aceptar</button>
-          </form>
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button>cerrar</button>
-      </form>
-    </dialog>
   </PageContainer>
 </BaseLayout>
 
 <script>
-
   document.addEventListener("DOMContentLoaded", () => {
-    const LOCAL_STORAGE_KEY = "mda_ultimo_asignado_id";
-    const ROWS_SELECTOR = "[data-op-id]";
-    const ESTADO_DISPONIBLE = "Disponible";
-
-    const rows = document.querySelectorAll<HTMLElement>(ROWS_SELECTOR);
-    const btnAsignarProximo = document.getElementById("btn-asignar-proximo");
-    const btnReset = document.getElementById("btn-reset");
-    const toggleDisponibles = document.getElementById(
+    const toggle = document.getElementById(
       "toggle-disponibles",
-    ) as HTMLInputElement;
+    ) as HTMLInputElement | null;
+    if (!toggle) return;
 
-    const modal = document.getElementById(
-      "modal-asignacion",
-    ) as HTMLDialogElement;
-    const modalNombre = document.getElementById("modal-op-nombre");
-    const modalId = document.getElementById("modal-op-id");
-
-    const statDisponiblesCount = document.getElementById(
-      "stat-disponibles-count",
-    );
-    const statNoDisponiblesCount = document.getElementById(
-      "stat-no-disponibles-count",
-    );
-    const statPercentage = document.getElementById("stat-percentage");
-    const statProgress = document.getElementById(
-      "stat-progress",
-    ) as HTMLProgressElement;
-    const statBreakdownItems = document.querySelectorAll("[data-stat-estado]");
-
-    const getUltimoAsignado = () => localStorage.getItem(LOCAL_STORAGE_KEY);
-    const setUltimoAsignado = (id: string) =>
-      localStorage.setItem(LOCAL_STORAGE_KEY, id);
-    const clearUltimoAsignado = () =>
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-
-    const getEstadoColorClass = (estado: string) => {
-      switch (estado) {
-        case "Disponible":
-          return "select-success";
-        case "Vacaciones":
-        case "Licencia":
-          return "select-error";
-        case "En reunión":
-          return "select-warning";
-        case "Tarea administrativa":
-          return "select-info";
-        default:
-          return "select-neutral";
-      }
-    };
-
-
-    const updateUI = () => {
-      const ultimoId = getUltimoAsignado();
-      const soloDisponibles = toggleDisponibles.checked;
-
-      let countDisp = 0;
-      let countNoDisp = 0;
-      const counts: Record<string, number> = {
-        Vacaciones: 0,
-        Licencia: 0,
-        "En reunión": 0,
-        "Tarea administrativa": 0,
-      };
-
+    const updateVisibility = () => {
+      const soloDisponibles = toggle.checked;
+      const rows =
+        document.querySelectorAll<HTMLElement>("[data-op-estado]");
       rows.forEach((row) => {
-        const id = row.getAttribute("data-op-id");
         const estado = row.getAttribute("data-op-estado") || "";
-
-        if (estado === ESTADO_DISPONIBLE) {
-          countDisp++;
-        } else {
-          countNoDisp++;
-          if (counts[estado] !== undefined) {
-            counts[estado]++;
-          }
-        }
-
-
-        if (id === ultimoId) {
-          row.setAttribute("data-ultimo", "true");
-        } else {
-          row.removeAttribute("data-ultimo");
-        }
-
-
-        if (soloDisponibles && estado !== ESTADO_DISPONIBLE) {
+        if (soloDisponibles && estado !== "disponible") {
           row.classList.add("hidden");
         } else {
           row.classList.remove("hidden");
         }
       });
-
-
-      const total = rows.length;
-      if (statDisponiblesCount)
-        statDisponiblesCount.textContent = countDisp.toString();
-      if (statNoDisponiblesCount)
-        statNoDisponiblesCount.textContent = countNoDisp.toString();
-      if (statProgress) statProgress.value = countDisp;
-      if (statPercentage)
-        statPercentage.textContent = `${Math.round((countDisp / total) * 100)}%`;
-
-      statBreakdownItems.forEach((item) => {
-        const estado = item.getAttribute("data-stat-estado");
-        if (estado && counts[estado] !== undefined) {
-          const count = counts[estado];
-          item.setAttribute("data-count", count.toString());
-          const countSpan = item.querySelector("[data-stat-count]");
-          if (countSpan) countSpan.textContent = count.toString();
-        }
-      });
     };
 
-
-    const selects = document.querySelectorAll<HTMLSelectElement>(
-      "[data-estado-select]",
-    );
-    selects.forEach((select) => {
-      select.addEventListener("change", (e) => {
-        const target = e.target as HTMLSelectElement;
-        const newEstado = target.value;
-        const row = target.closest(ROWS_SELECTOR) as HTMLElement;
-        if (row) {
-          row.setAttribute("data-op-estado", newEstado);
-          row.setAttribute("data-sort-estado", newEstado);
-        }
-
-        const getSelectVariant = (estado: string) => {
-          switch (estado) {
-            case "Disponible":
-              return "select-success";
-            case "Vacaciones":
-            case "Licencia":
-              return "select-error";
-            case "En reunión":
-              return "select-warning";
-            case "Tarea administrativa":
-              return "select-info";
-            default:
-              return "";
-          }
-        };
-
-        target.className = `select select-bordered select-sm w-full max-w-[160px] ${getSelectVariant(newEstado)}`;
-
-        updateUI();
-      });
-    });
-
-
-    const showModal = (nombre: string, id: string) => {
-      if (modalNombre) modalNombre.textContent = nombre;
-      if (modalId) modalId.textContent = id;
-      modal.showModal();
-    };
-
-
-    const asignar = (id: string, nombre: string) => {
-      setUltimoAsignado(id);
-      updateUI();
-      showModal(nombre, id);
-    };
-
-
-    const asignarProximo = () => {
-
-      const disponibles: { id: string; nombre: string }[] = [];
-      rows.forEach((row) => {
-        if (row.getAttribute("data-op-estado") === ESTADO_DISPONIBLE) {
-          disponibles.push({
-            id: row.getAttribute("data-op-id")!,
-            nombre: row.getAttribute("data-op-nombre")!,
-          });
-        }
-      });
-
-      if (disponibles.length === 0) {
-        alert("No hay operadores disponibles en este momento.");
-        return;
-      }
-
-      const ultimoId = getUltimoAsignado();
-
-
-      let nextIndex = 0;
-
-      if (ultimoId) {
-        const indexUltimo = disponibles.findIndex((op) => op.id === ultimoId);
-        if (indexUltimo !== -1) {
-
-          nextIndex = (indexUltimo + 1) % disponibles.length;
-        } else {
-
-
-          nextIndex = 0;
-        }
-      }
-
-      const proximo = disponibles[nextIndex];
-      asignar(proximo.id, proximo.nombre);
-    };
-
-
-    if (btnAsignarProximo) {
-      btnAsignarProximo.addEventListener("click", asignarProximo);
-    }
-
-    if (btnReset) {
-      btnReset.addEventListener("click", () => {
-        clearUltimoAsignado();
-        updateUI();
-      });
-    }
-
-    if (toggleDisponibles) {
-      toggleDisponibles.addEventListener("change", updateUI);
-    }
-
-
-    rows.forEach((row) => {
-      const btnManual = row.querySelector(".btn-asignar-manual");
-      if (btnManual) {
-        btnManual.addEventListener("click", () => {
-          const id = row.getAttribute("data-op-id")!;
-          const nombre = row.getAttribute("data-op-nombre")!;
-          asignar(id, nombre);
-        });
-      }
-    });
-
-
-    updateUI();
+    toggle.addEventListener("change", updateVisibility);
   });
 </script>
