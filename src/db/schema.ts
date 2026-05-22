@@ -172,9 +172,15 @@ export const cubics = sqliteTable("cubics", {
 
 export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   avatarInitials: text("avatar_initials"),
   notes: text("notes"),
+  location: text("location").notNull().default("Monte Grande"),
+  horarioDefault: text("horario_default").notNull().default("08:00 - 17:00"),
+  esquemaSemanal: text("esquema_semanal", { mode: "json" }).$type<Record<string, string>>(),
+  esquemaHorario: text("esquema_horario", { mode: "json" }).$type<Record<string, string>>(),
+  esquemaBreakInicio: text("esquema_break_inicio", { mode: "json" }).$type<Record<string, string>>(),
+  esquemaBreakFin: text("esquema_break_fin", { mode: "json" }).$type<Record<string, string>>(),
 });
 
 export const cubicAssignments = sqliteTable(
@@ -225,6 +231,8 @@ export const schedules = sqliteTable("schedules", {
   horario: text("horario"),
   entradaReal: text("entrada_real"),
   salidaReal: text("salida_real"),
+  breakInicio: text("break_inicio"),
+  breakFin: text("break_fin"),
 });
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)

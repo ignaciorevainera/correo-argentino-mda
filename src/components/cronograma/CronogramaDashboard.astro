@@ -5,15 +5,26 @@ import { Icon } from "astro-icon/components";
 
 <div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-8">
   
-  <!-- Stats Summary (hidden by default) -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 hidden" id="stats-container">
-    <!-- Stats will be injected here -->
-  </div>
+
 
   <div class="w-full flex flex-col gap-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <!-- Left side spacer replaces Segmented Control -->
-      <div></div>
+      <div id="view-switcher" class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0">
+        <button 
+          type="button" 
+          id="switch-to-monthly-btn" 
+          class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200"
+        >
+          Mensual
+        </button>
+        <button 
+          type="button" 
+          id="switch-to-daily-btn" 
+          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+        >
+          Diario
+        </button>
+      </div>
 
       <!-- Date Picker (hidden by default) -->
       <div id="date-picker-container" class="relative flex min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 hidden is-faded">
@@ -24,7 +35,7 @@ import { Icon } from "astro-icon/components";
         <input 
           type="date" 
           id="date-input"
-          class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 bg-transparent text-transparent caret-transparent"
+          class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
         />
       </div>
     </div>
@@ -33,8 +44,9 @@ import { Icon } from "astro-icon/components";
     <div id="daily-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
       <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden">
         <div class="bg-base-200/70 border-b border-base-300">
-          <div class="flex flex-col sm:flex-row justify-between items-center py-3.5 px-6 gap-3">
-            <div class="flex items-center gap-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6">
+            <!-- Left: Back Button & Title -->
+            <div class="flex items-center gap-3 shrink-0 flex-wrap">
               <button 
                 id="back-to-monthly-btn" 
                 type="button"
@@ -44,32 +56,167 @@ import { Icon } from "astro-icon/components";
                 <Icon name="boxicons:chevron-left" size={14} />
                 Volver al Mes
               </button>
-              <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content border-l border-base-300 pl-4">
+              <h3 class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content border-l border-base-300 pl-4 select-none">
                 <Icon name="boxicons:group" size={18} />
                 Estado de operadores
               </h3>
             </div>
-            <div class="flex items-center gap-2 bg-base-100 px-3.5 py-1.5 rounded-lg border border-base-300 shadow-sm text-base-content/75">
-               <Icon name="boxicons:calendar-check" size={16} class="text-secondary" />
-               <span class="text-sm font-semibold tabular-nums" id="daily-date-display"></span>
+
+            <!-- Center: Search input -->
+            <div class="flex-1 max-w-sm w-full mx-0 lg:mx-4">
+              <div class="relative w-full">
+                <Icon name="boxicons:search" size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30" />
+                <input 
+                  type="text" 
+                  id="daily-search"
+                  placeholder="Buscar operador..." 
+                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8"
+                />
+              </div>
+            </div>
+
+            <!-- Right: Date Display & Maximize button -->
+            <div class="flex flex-wrap items-center gap-2.5 justify-start lg:justify-end shrink-0">
+              <div class="flex items-center gap-2 bg-base-100 px-3.5 py-1 rounded-lg border border-base-300 shadow-sm text-base-content/75 h-7">
+                 <Icon name="boxicons:calendar-check" size={16} class="text-secondary" />
+                 <span class="text-xs font-semibold tabular-nums" id="daily-date-display"></span>
+              </div>
+              
+              <!-- Maximize Button -->
+              <button
+                type="button"
+                id="maximize-cronograma-btn-daily"
+                class="btn btn-xs btn-ghost gap-1.5 px-2.5 border border-base-300/80 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-all font-bold uppercase tracking-wider text-[9px] rounded-lg shadow-sm h-7"
+                title="Maximizar cronograma"
+                aria-label="Maximizar cronograma"
+              >
+                <span class="flex items-center gap-1 font-bold" id="maximize-icon-wrapper-daily">
+                  <Icon name="boxicons:maximize" size={13} class="max-icon" />
+                  <Icon name="boxicons:minimize" size={13} class="min-icon hidden" />
+                </span>
+                <span id="maximize-text-daily">Maximizar</span>
+              </button>
             </div>
           </div>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left">
+          <table class="w-full text-sm text-left border-separate border-spacing-0">
             <thead class="bg-base-200/60 text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300">
               <tr>
-                <th class="py-3 px-6 w-72">Operador</th>
-                <th class="py-3 px-4">Modalidad</th>
-                <th class="py-3 px-4">Horario</th>
-                <th class="py-3 px-4">Break</th>
-                <th class="py-3 px-6 text-right">Usuario</th>
+                <th class="py-3 px-6 w-64 border-r border-base-300/40">Operador</th>
+                <th class="py-3 px-4 w-44 border-r border-base-300/40">Modalidad</th>
+                <th class="py-3 px-6">
+                  <div class="flex justify-between w-full text-[10px] font-black text-base-content/40 px-2 select-none">
+                    <span>00:00</span>
+                    <span>02:00</span>
+                    <span>04:00</span>
+                    <span>06:00</span>
+                    <span>08:00</span>
+                    <span>10:00</span>
+                    <span>12:00</span>
+                    <span>14:00</span>
+                    <span>16:00</span>
+                    <span>18:00</span>
+                    <span>20:00</span>
+                    <span>22:00</span>
+                    <span>24:00</span>
+                  </div>
+                </th>
               </tr>
             </thead>
-            <tbody id="operators-table-body" class="divide-y divide-base-200">
-              <!-- Rows will be injected here -->
+            <tbody id="operators-table-body" class="divide-y divide-base-200 bg-base-100">
+              <!-- Inyectado dinámicamente -->
             </tbody>
           </table>
+        </div>
+        <!-- Daily View Footer / Status Filters -->
+        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+          <div class="flex flex-wrap items-center gap-4">
+            <!-- Status Filters -->
+            <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Estado:</span>
+              
+              <button
+                type="button"
+                id="filter-all-btn-daily"
+                class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+              >
+                Todos
+              </button>
+              
+              <button
+                type="button"
+                id="filter-presencial-btn-daily"
+                data-filter="Presencial"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> Presencial
+              </button>
+              
+              <button
+                type="button"
+                id="filter-ho-btn-daily"
+                data-filter="Home Office"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-primary"></div> HO
+              </button>
+              
+              <button
+                type="button"
+                id="filter-licencia-btn-daily"
+                data-filter="Licencia"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
+              </button>
+              
+              <button
+                type="button"
+                id="filter-vacaciones-btn-daily"
+                data-filter="Vacaciones"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
+              </button>
+              <button
+                type="button"
+                id="filter-he-btn-daily"
+                data-filter="Horas Extras"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
+              </button>
+            </div>
+
+            <!-- Location Filters -->
+            <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Sede:</span>
+              <button
+                type="button"
+                id="filter-location-all-btn-daily"
+                class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+              >
+                Todas
+              </button>
+              <button
+                type="button"
+                id="filter-location-mg-btn-daily"
+                data-location="Monte Grande"
+                class="btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                Monte Grande
+              </button>
+              <button
+                type="button"
+                id="filter-location-pp-btn-daily"
+                data-location="Parque Patricios"
+                class="btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                Parque Patricios
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -210,62 +357,92 @@ import { Icon } from "astro-icon/components";
             </table>
           </div>
         </div>
-        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex justify-between items-center no-print">
-          <!-- Status Filters Container -->
-          <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
-            <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Filtrar:</span>
-            
-            <button
-              type="button"
-              id="filter-all-btn"
-              class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
-            >
-              Todos
-            </button>
-            
-            <button
-              type="button"
-              id="filter-presencial-btn"
-              data-filter="Presencial"
-              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> Presencial
-            </button>
-            
-            <button
-              type="button"
-              id="filter-ho-btn"
-              data-filter="Home Office"
-              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-primary"></div> HO
-            </button>
-            
-            <button
-              type="button"
-              id="filter-licencia-btn"
-              data-filter="Licencia"
-              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
-            </button>
-            
-            <button
-              type="button"
-              id="filter-vacaciones-btn"
-              data-filter="Vacaciones"
-              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
-            </button>
-            <button
-              type="button"
-              id="filter-he-btn"
-              data-filter="Horas Extras"
-              class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
-            </button>
+        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+          <div class="flex flex-wrap items-center gap-4">
+            <!-- Status Filters Container -->
+            <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Estado:</span>
+              
+              <button
+                type="button"
+                id="filter-all-btn"
+                class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+              >
+                Todos
+              </button>
+              
+              <button
+                type="button"
+                id="filter-presencial-btn"
+                data-filter="Presencial"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> Presencial
+              </button>
+              
+              <button
+                type="button"
+                id="filter-ho-btn"
+                data-filter="Home Office"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-primary"></div> HO
+              </button>
+              
+              <button
+                type="button"
+                id="filter-licencia-btn"
+                data-filter="Licencia"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
+              </button>
+              
+              <button
+                type="button"
+                id="filter-vacaciones-btn"
+                data-filter="Vacaciones"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
+              </button>
+              <button
+                type="button"
+                id="filter-he-btn"
+                data-filter="Horas Extras"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
+              </button>
+            </div>
+
+            <!-- Location Filters Container -->
+            <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40 px-2 select-none">Sede:</span>
+              <button
+                type="button"
+                id="filter-location-all-btn"
+                class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
+              >
+                Todas
+              </button>
+              <button
+                type="button"
+                id="filter-location-mg-btn"
+                data-location="Monte Grande"
+                class="btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                Monte Grande
+              </button>
+              <button
+                type="button"
+                id="filter-location-pp-btn"
+                data-location="Parque Patricios"
+                class="btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                Parque Patricios
+              </button>
+            </div>
           </div>
           <div class="flex gap-2">
             <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
@@ -356,32 +533,31 @@ import { Icon } from "astro-icon/components";
 >
   <div 
     id="operator-drawer" 
-    class="relative w-full max-w-2xl bg-base-100 rounded-[2rem] shadow-2xl border border-base-300 flex flex-col overflow-hidden opacity-0 scale-95 transition-all duration-300"
+    class="relative w-full max-w-3xl bg-base-100 rounded-[2rem] shadow-2xl border border-base-300 flex flex-col overflow-hidden opacity-0 scale-95 transition-all duration-300 h-[740px] max-h-[90vh]"
   >
     <!-- Header with Background Gradient -->
-    <div class="p-8 border-b border-base-200 relative overflow-hidden bg-gradient-to-br from-base-200/50 to-transparent">
+    <div class="p-8 border-b border-base-200 relative overflow-hidden bg-gradient-to-br from-base-200/50 to-transparent shrink-0">
       <div class="flex items-center justify-between relative z-10">
         <div class="flex items-center gap-6">
-          <div class="w-16 h-16 rounded-3xl bg-secondary text-secondary-content flex items-center justify-center shadow-lg shadow-secondary/20">
-            <Icon name="boxicons:user" size={32} />
+          <div class="w-16 h-16 rounded-2xl bg-secondary/15 border border-secondary/20 text-secondary flex items-center justify-center shadow-md shrink-0 select-none">
+            <span id="drawer-op-avatar-initials" class="text-xl font-black tracking-wider"></span>
           </div>
           <div class="flex flex-col">
             <h2 id="drawer-op-name" class="text-2xl font-black uppercase tracking-tight text-base-content"></h2>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 mt-0.5">
               <span class="w-2 h-2 rounded-full bg-success"></span>
               <span id="drawer-op-email" class="text-xs font-bold text-base-content/50 lowercase"></span>
             </div>
-
           </div>
         </div>
-        <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300">
+        <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300" type="button">
           <Icon name="boxicons:x" size={28} />
         </button>
       </div>
     </div>
 
     <!-- Tabs Header -->
-    <div class="flex border-b border-base-200 bg-base-50/50">
+    <div class="flex border-b border-base-200 bg-base-50/50 shrink-0">
       <button 
         type="button"
         id="tab-profile-btn" 
@@ -399,49 +575,107 @@ import { Icon } from "astro-icon/components";
     </div>
 
     <!-- Content: Profile e Historial tab -->
-    <div id="drawer-profile-tab-content" class="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin max-h-[70vh]">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Stats Column -->
-        <div class="space-y-6">
-          <section>
-            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Rendimiento Mensual</h3>
+    <div id="drawer-profile-tab-content" class="flex-1 p-6 md:p-8 min-h-0 flex flex-col bg-base-50/10">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 flex-1 min-h-0 overflow-y-auto md:overflow-y-hidden md:h-full">
+        <!-- Stats & Notes Column -->
+        <div class="space-y-6 flex flex-col min-h-0 md:h-full md:overflow-y-auto scrollbar-thin pl-1 pr-2 pb-2">
+          <section class="shrink-0">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-3 flex items-center gap-1.5">
+              <Icon name="boxicons:chart-line" size={14} class="text-base-content/50" />
+              Rendimiento Mensual
+            </h3>
             <div class="grid grid-cols-2 gap-4">
-              <div class="bg-primary/5 rounded-3xl p-5 border border-primary/10 flex flex-col items-center text-center">
+              <!-- Home Office Card -->
+              <div class="bg-amber-500/5 dark:bg-amber-400/5 rounded-2xl p-4 border border-amber-500/10 flex flex-col items-center text-center relative overflow-hidden group">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Icon name="boxicons:home" size={64} />
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-2">
+                  <Icon name="boxicons:home" size={18} />
+                </div>
                 <span class="text-3xl font-black text-amber-600 dark:text-amber-400" id="drawer-stat-ho">0</span>
-                <span class="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mt-1">Home Office</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/70 mt-1">Home Office</span>
               </div>
-              <div class="bg-secondary/5 rounded-3xl p-5 border border-secondary/10 flex flex-col items-center text-center">
+              <!-- Presencial Card -->
+              <div class="bg-secondary/5 rounded-2xl p-4 border border-secondary/10 flex flex-col items-center text-center relative overflow-hidden group">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-secondary group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Icon name="boxicons:building" size={64} />
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary mb-2">
+                  <Icon name="boxicons:building" size={18} />
+                </div>
                 <span class="text-3xl font-black text-secondary" id="drawer-stat-p">0</span>
-                <span class="text-[9px] font-black uppercase tracking-widest text-secondary/60 mt-1">Presencial</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-secondary/70 mt-1">Presencial</span>
               </div>
             </div>
           </section>
 
-          <section>
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Notas de Supervisión</h3>
+          <!-- Ubicación de Trabajo -->
+          <section class="shrink-0">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:map" size={14} class="text-base-content/50" />
+                Ubicación de Trabajo
+              </h3>
+              <span id="location-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <div class="join w-full grid grid-cols-2 bg-base-200/50 p-1 rounded-2xl border border-base-300/50">
+              <button 
+                type="button" 
+                id="btn-location-mg" 
+                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
+              >
+                Monte Grande
+              </button>
+              <button 
+                type="button" 
+                id="btn-location-pp" 
+                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
+              >
+                Parque Patricios
+              </button>
+            </div>
+            <select 
+              id="drawer-op-location"
+              class="sr-only"
+            >
+              <option value="Monte Grande">Monte Grande</option>
+              <option value="Parque Patricios">Parque Patricios</option>
+            </select>
+          </section>
+
+          <!-- Notas de Supervisión -->
+          <section class="flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:edit-alt" size={14} class="text-base-content/50" />
+                Notas de Supervisión
+              </h3>
               <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
             </div>
             <textarea 
               id="drawer-op-notes"
-              placeholder="Añadir seguimiento..." 
-              class="textarea textarea-bordered w-full bg-base-200/30 border-base-300 text-sm focus:ring-2 focus:ring-secondary/20 h-32 rounded-2xl p-4 bg-base-100"
+              placeholder="Escribe notas de seguimiento para el operador..." 
+              class="textarea textarea-bordered w-full flex-1 bg-base-200/20 border-base-300/80 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all resize-none min-h-[120px] rounded-2xl p-4 bg-base-100 placeholder:text-base-content/30"
             ></textarea>
           </section>
         </div>
 
         <!-- History Column -->
-        <section>
-          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-4">Historial de Asistencia</h3>
-          <div class="space-y-2" id="drawer-history-list">
-            <!-- Items -->
+        <section class="flex flex-col min-h-0 md:h-full">
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-4 shrink-0 flex items-center gap-1.5">
+            <Icon name="boxicons:history" size={14} class="text-base-content/50" />
+            Historial de Asistencia
+          </h3>
+          <div id="drawer-history-list" class="space-y-0 h-auto md:flex-1 md:overflow-y-auto scrollbar-thin pr-1 pb-2 pl-1">
+            <!-- Items will be injected here -->
           </div>
         </section>
       </div>
     </div>
 
     <!-- Content: Weekly base template tab -->
-    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-thin max-h-[70vh] hidden bg-base-50/20">
+    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 scrollbar-thin hidden bg-base-50/20 min-h-0">
       <!-- Info note -->
       <div class="bg-info/5 border border-sky-600/10 rounded-2xl p-4 flex gap-3 text-xs text-base-content/80">
         <Icon name="boxicons:info-circle" class="text-sky-600 flex-shrink-0" size={18} />
@@ -510,7 +744,7 @@ import { Icon } from "astro-icon/components";
 >
   <section
     id="monthly-detail-modal"
-    class="monthly-detail-modal relative w-full max-w-72 border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+    class="monthly-detail-modal relative w-full max-w-72 flex flex-col border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
     role="dialog"
     aria-modal="true"
     aria-labelledby="monthly-detail-title"
@@ -533,7 +767,7 @@ import { Icon } from "astro-icon/components";
       </button>
     </div>
 
-    <div class="p-5 space-y-5">
+    <div class="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
       <div>
         <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1" id="monthly-detail-date-label">Fecha del servicio</p>
         <p class="text-sm font-bold text-base-content" id="monthly-detail-date"></p>
@@ -570,16 +804,54 @@ import { Icon } from "astro-icon/components";
           <div class="space-y-1">
             <label for="monthly-detail-entrada" class="text-[9px] font-bold uppercase text-base-content/40">Entrada Real</label>
             <input 
-              type="time" 
+              type="text" 
               id="monthly-detail-entrada" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
               class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
             />
           </div>
           <div class="space-y-1">
             <label for="monthly-detail-salida" class="text-[9px] font-bold uppercase text-base-content/40">Salida Real</label>
             <input 
-              type="time" 
+              type="text" 
               id="monthly-detail-salida" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Horario de Break Planificado (Inicio / Fin) -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Horario de Break Planificado</p>
+          <span id="monthly-break-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="monthly-detail-break-inicio" class="text-[9px] font-bold uppercase text-base-content/40">Inicio Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-inicio" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+          <div class="space-y-1">
+            <label for="monthly-detail-break-fin" class="text-[9px] font-bold uppercase text-base-content/40">Fin Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-fin" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
               class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
             />
           </div>
@@ -783,7 +1055,47 @@ import { Icon } from "astro-icon/components";
     opacity: 0;
   }
 
+  /* Prevent browser native date input text, highlights, or selection fields from showing */
+  #date-input {
+    color-scheme: light dark;
+  }
+
+  #date-input::-webkit-datetime-edit,
+  #date-input::-webkit-datetime-edit-fields-wrapper,
+  #date-input::-webkit-datetime-edit-month-field,
+  #date-input::-webkit-datetime-edit-day-field,
+  #date-input::-webkit-datetime-edit-year-field {
+    display: none !important;
+    opacity: 0 !important;
+    -webkit-appearance: none !important;
+  }
+
+  #date-input::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0 !important;
+    cursor: pointer;
+    -webkit-appearance: none !important;
+  }
+
   @media print {
+    @page {
+      size: landscape;
+      margin: 8mm;
+    }
+
+    /* Force background colors to print */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Hide elements that shouldn't appear in the printout */
     .no-print, 
     nav, 
     footer, 
@@ -791,26 +1103,117 @@ import { Icon } from "astro-icon/components";
     #date-picker-container,
     #monthly-search,
     .btn,
-    #monthly-detail-overlay {
+    button,
+    #monthly-detail-overlay,
+    #edit-mode-toolbar,
+    #save-indicator,
+    #compliance-alert-badge,
+    .op-checkbox {
       display: none !important;
     }
     
     #cronograma-container {
       margin: 0 !important;
       padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
     }
     
     #monthly-view {
       display: block !important;
+      width: 100% !important;
     }
-    
-    .bg-base-100 {
-      background-color: white !important;
-      color: black !important;
+
+    /* Unbound scroll containers for print flow */
+    .overflow-x-auto,
+    .overflow-y-auto,
+    .max-h-\[580px\],
+    .max-h-\[740px\] {
+      max-height: none !important;
+      overflow: visible !important;
+      height: auto !important;
+      width: 100% !important;
+      border: none !important;
     }
-    
-    .border {
-      border-color: #eee !important;
+
+    /* Reset sticky styles so everything flows normally in print grid */
+    th.sticky, 
+    td.sticky {
+      position: static !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      left: auto !important;
+      right: auto !important;
+      z-index: 1 !important;
+    }
+
+    /* Print table optimizations */
+    table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important;
+    }
+
+    /* Set default widths for operator and stats columns in printout */
+    th:nth-child(1), td:nth-child(1) {
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
+      font-size: 9px !important;
+    }
+    /* P, HO, L status columns */
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(3), td:nth-child(3),
+    th:nth-child(4), td:nth-child(4) {
+      width: 24px !important;
+      min-width: 24px !important;
+      font-size: 8px !important;
+      padding: 2px 0 !important;
+    }
+
+    th, td {
+      padding: 4px 2px !important;
+      font-size: 8px !important;
+      border: 1px solid #ddd !important;
+    }
+
+    /* Make daily cells clean and compact in printed report */
+    .monthly-cell-button {
+      height: 28px !important;
+      border-radius: 4px !important;
+      font-size: 8px !important;
+      box-shadow: none !important;
+      border: 1px solid rgba(0,0,0,0.1) !important;
+      background-color: #f8f9fa !important;
+      color: #333 !important;
+      scale: 1 !important;
+    }
+
+    /* Keep color accents for quick recognition in printout */
+    .monthly-cell-button.bg-secondary\/10 {
+      background-color: #e8effe !important;
+      color: #254888 !important;
+    }
+    .monthly-cell-button.bg-primary\/10 {
+      background-color: #fff8e6 !important;
+      color: #b25e00 !important;
+    }
+    .monthly-cell-button.bg-error\/10 {
+      background-color: #fde8e8 !important;
+      color: #e02424 !important;
+    }
+    .monthly-cell-button.bg-success\/10 {
+      background-color: #def7ec !important;
+      color: #03543f !important;
+    }
+    .monthly-cell-button.bg-sky-500\/20 {
+      background-color: #e0f2fe !important;
+      color: #0369a1 !important;
+    }
+
+    /* Print header title */
+    .bg-base-200\/40 {
+      background-color: transparent !important;
     }
   }
 
@@ -836,14 +1239,31 @@ import { Icon } from "astro-icon/components";
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-secondary) 35%, transparent);
   }
 
+  /* Improved legibility for actual times in the monthly matrix */
+  .monthly-cell-button span.font-mono {
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.015em;
+  }
+
   .monthly-detail-modal {
     animation: bubble-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
     transform-origin: top center;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2rem);
   }
 
   #operator-drawer.is-active {
     opacity: 1 !important;
     scale: 1 !important;
+  }
+
+  /* Ensure native dropdown menus / select options inside the drawer are solid and readable */
+  #operator-drawer select option,
+  #drawer-op-location option {
+    background-color: var(--color-base-100, #ffffff) !important;
+    color: var(--color-base-content, #1f2937) !important;
   }
 
   @keyframes bubble-in {
@@ -882,12 +1302,72 @@ import { Icon } from "astro-icon/components";
     background-color: color-mix(in oklab, var(--color-base-content) 20%, transparent);
     border-radius: 20px;
   }
+
+  /* Gantt Layout Styles */
+  .gantt-container {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    background-color: var(--color-base-200, #f3f4f6);
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-base-300, #e5e7eb);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  .gantt-grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: color-mix(in oklab, var(--color-base-content) 5%, transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .gantt-bar-work {
+    position: absolute;
+    height: 24px;
+    border-radius: 0.5rem;
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+
+  .gantt-bar-actual {
+    position: absolute;
+    bottom: 4px;
+    height: 6px;
+    border-radius: 9999px;
+    z-index: 4;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .gantt-inactive-bar {
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    height: 32px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
 </style>
 
 <script>
   interface OperatorData {
     nombre: string;
     horario: string;
+    location?: string;
     asistencia: Record<string, string>;
     comentarios?: Record<string, string>;
     esquema_semanal?: Record<string, string>;
@@ -895,6 +1375,10 @@ import { Icon } from "astro-icon/components";
     horarios_dias?: Record<string, string>;
     entradas_reales?: Record<string, string>;
     salidas_reales?: Record<string, string>;
+    breaks_inicio?: Record<string, string>;
+    breaks_fin?: Record<string, string>;
+    esquema_break_inicio?: Record<string, string>;
+    esquema_break_fin?: Record<string, string>;
   }
 
   function normalizeTimeStr(timeStr: string | undefined | null): string {
@@ -904,6 +1388,18 @@ import { Icon } from "astro-icon/components";
     const h = parts[0].padStart(2, '0');
     const m = parts[1].padStart(2, '0');
     return `${h}:${m}`;
+  }
+
+  function timeToMinutes(timeStr: string): number {
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  function getGanttPosition(timeStr: string): number {
+    const totalMinutes = 24 * 60; // 1440
+    const minutes = timeToMinutes(timeStr);
+    return (minutes / totalMinutes) * 100;
   }
 
   function checkTimeAlerts(dailyHorario: string | undefined | null, entradaReal: string | undefined | null, salidaReal: string | undefined | null) {
@@ -940,6 +1436,7 @@ import { Icon } from "astro-icon/components";
   let modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
   let searchQuery = '';
   let activeFilter = 'all'; // 'all', 'Presencial', 'Home Office', 'Licencia', 'Vacaciones', 'Horas Extras'
+  let activeLocationFilter = 'all'; // 'all', 'Monte Grande', 'Parque Patricios'
   let activeDetailTrigger: HTMLElement | null = null;
   let focusedDateStr: string | null = null;
 
@@ -954,7 +1451,9 @@ import { Icon } from "astro-icon/components";
 
   let currentWeeklyScheme: Record<string, string> = { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
   let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
+  let currentWeeklyBreakInicioTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let currentWeeklyBreakFinTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string>, breaks_inicio?: Record<string, string>, breaks_fin?: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
   if (Object.keys(weeklyTemplates).length === 0) {
     weeklyTemplates = {
       "Estándar P/HO Alternado": {
@@ -1039,7 +1538,7 @@ import { Icon } from "astro-icon/components";
     }
   }
 
-  function isCurrentlyWorking(horario: string) {
+  function isCurrentlyWorking(horario: string, breakInicio?: string, breakFin?: string) {
     if (!horario || horario === '-') return { status: 'offline', text: 'Fuera de horario' };
     
     const now = new Date();
@@ -1056,9 +1555,21 @@ import { Icon } from "astro-icon/components";
     endTime.setHours(hE, mE, 0);
 
     if (now >= startTime && now <= endTime) {
-      const shiftDuration = endTime.getTime() - startTime.getTime();
-      const breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
-      const breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+      let breakStart: Date;
+      let breakEnd: Date;
+
+      if (breakInicio && breakFin) {
+        const [bhS, bmS] = breakInicio.split(':').map(Number);
+        const [bhE, bmE] = breakFin.split(':').map(Number);
+        breakStart = new Date(now);
+        breakStart.setHours(bhS, bmS, 0);
+        breakEnd = new Date(now);
+        breakEnd.setHours(bhE, bmE, 0);
+      } else {
+        const shiftDuration = endTime.getTime() - startTime.getTime();
+        breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+        breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+      }
 
       if (now >= breakStart && now <= breakEnd) {
         return { status: 'break', text: 'En descanso' };
@@ -1117,7 +1628,13 @@ import { Icon } from "astro-icon/components";
     const display = document.getElementById('current-month-display');
     if (!dateInput || !display) return;
 
-    const [yearStr, monthStr] = dateInput.value.split('-');
+    const value = dateInput.value;
+    if (!value || !value.includes('-')) {
+      display.innerText = "-";
+      return;
+    }
+
+    const [yearStr, monthStr] = value.split('-');
     const year = parseInt(yearStr);
     const month = parseInt(monthStr) - 1;
 
@@ -1228,7 +1745,7 @@ import { Icon } from "astro-icon/components";
 
       const todayStr = formatYMD(new Date());
       const hasDataForToday = cronoData.some(op => op.asistencia[todayStr]);
-      const initialDate = hasDataForToday ? todayStr : latestDate;
+      const initialDate = hasDataForToday ? todayStr : (latestDate || todayStr);
 
       if (dateInput) {
         dateInput.value = initialDate;
@@ -1253,42 +1770,42 @@ import { Icon } from "astro-icon/components";
     switch (type) {
       case 'Presencial':
         return {
-          badge: 'bg-secondary/10 text-secondary border border-secondary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-secondary/10 text-secondary border border-secondary/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.briefcase,
           color: 'var(--color-secondary)',
           bgClass: 'bg-secondary/10 text-secondary'
         };
       case 'Home Office':
         return {
-          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          badge: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
           icon: icons.home,
           color: 'var(--color-primary)',
           bgClass: 'bg-primary/10 text-amber-600 dark:text-amber-400 border border-primary/25 shadow-sm'
         };
       case 'Licencia':
         return {
-          badge: 'bg-error/10 text-error border border-error/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-error/10 text-error border border-error/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.firstAid,
           color: 'var(--color-error)',
           bgClass: 'bg-error/10 text-error'
         };
       case 'Vacaciones':
         return {
-          badge: 'bg-success/10 text-success border border-success/20 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase',
+          badge: 'bg-success/10 text-success border border-success/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase whitespace-nowrap',
           icon: icons.sun,
           color: 'var(--color-success)',
           bgClass: 'bg-success/10 text-success'
         };
       case 'Horas Extras':
         return {
-          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-3 py-1.5 rounded-full text-xs tracking-wide uppercase shadow-sm',
+          badge: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/30 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
           icon: icons.timer,
           color: '#0284c7',
           bgClass: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/25 font-bold hover:bg-sky-500/30 shadow-sm transition-all duration-200'
         };
       default:
         return {
-          badge: 'bg-base-200 text-base-content/60 px-3 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border border-base-300/50',
+          badge: 'bg-base-200 text-base-content/60 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border border-base-300/50 whitespace-nowrap',
           icon: icons.help,
           color: 'var(--fallback-bc,oklch(var(--bc)/0.4))',
           bgClass: 'bg-base-200/50 text-base-content/50'
@@ -1300,7 +1817,6 @@ import { Icon } from "astro-icon/components";
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
     const selectedDateStr = dateInput?.value || formatYMD(new Date());
     const tableBody = document.getElementById('operators-table-body');
-    const statsContainer = document.getElementById('stats-container');
     const dateDisplay = document.getElementById('daily-date-display');
 
     if (dateDisplay) {
@@ -1309,107 +1825,229 @@ import { Icon } from "astro-icon/components";
       dateDisplay.innerText = formatter.format(dateObj);
     }
 
-    const stats = { presencial: 0, homeOffice: 0, licencia: 0, vacaciones: 0, horasExtras: 0 };
-    cronoData.forEach(op => {
+    const filteredOps = cronoData.filter(op => {
       const status = op.asistencia[selectedDateStr];
-      if (status === 'Presencial') stats.presencial++;
-      else if (status === 'Home Office') stats.homeOffice++;
-      else if (status === 'Licencia') stats.licencia++;
-      else if (status === 'Vacaciones') stats.vacaciones++;
-      else if (status === 'Horas Extras') stats.horasExtras++;
+      if (!status) return false;
+
+      // 1. Search Query filter (case-insensitive name check)
+      const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // 2. Location Filter
+      if (activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== activeLocationFilter) {
+        return false;
+      }
+
+      // 3. Status Filter
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'Licencia') {
+        return status === 'Licencia' || status === 'Vacaciones';
+      }
+      return status === activeFilter;
     });
 
-    const statItems = [
-      { label: 'Presencial', value: stats.presencial, icon: icons.briefcase, borderClass: 'border-l-secondary', textClass: 'text-secondary' },
-      { label: 'Home Office', value: stats.homeOffice, icon: icons.home, borderClass: 'border-l-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
-      { label: 'Licencia', value: stats.licencia, icon: icons.firstAid, borderClass: 'border-l-error', textClass: 'text-error' },
-      { label: 'Vacaciones', value: stats.vacaciones, icon: icons.sun, borderClass: 'border-l-success', textClass: 'text-success' },
-      { label: 'Horas Extras', value: stats.horasExtras, icon: icons.timer, borderClass: 'border-l-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
-    ];
-
-    if (statsContainer) {
-      statsContainer.innerHTML = statItems.map((stat) => `
-        <div class="bg-base-100 rounded-xl border border-l-4 ${stat.borderClass} border-base-300 shadow-md relative overflow-hidden">
-          <div class="p-4 flex flex-col gap-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-sm ${stat.textClass}">${stat.icon}</span>
-              <span class="text-xs font-bold uppercase tracking-wide text-base-content/60">${stat.label}</span>
-            </div>
-            <span class="text-4xl font-black text-base-content tracking-tight leading-none">${stat.value}</span>
-            <span class="text-xs text-base-content/40 font-medium mt-0.5">operadores hoy</span>
-          </div>
-        </div>
-      `).join('');
-    }
-
     let rowsHtml = '';
-    cronoData.forEach(op => {
-      const status = op.asistencia[selectedDateStr];
-      if (!status) return;
-      
-      const styles = getStatusStyles(status);
-      const isAbsent = status === 'Licencia' || status === 'Vacaciones';
-      const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-      const username = getUsername(op.nombre);
-      const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
-      const liveStatus = isCurrentlyWorking(dailyHorario);
-      
-      let liveIndicatorClass = "bg-base-content/10";
-      if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
-      else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
-
-      let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
-      if (status === 'Presencial') ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
-      else if (status === 'Home Office') ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
-
-      rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-4">
-              <div class="relative w-10 h-10 shrink-0">
-                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : (status === 'Home Office' ? 'bg-amber-500' : 'bg-primary')}"></div>
-                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
-                  ${initials}
-                </div>
-                <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base-100 ${liveIndicatorClass}" title="${liveStatus.text}"></div>
+    if (filteredOps.length === 0) {
+      rowsHtml = `
+        <tr>
+          <td colspan="3" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+            <div class="flex flex-col items-center justify-center gap-3 py-6">
+              <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
               </div>
-              <div class="flex flex-col min-w-0">
-                <button 
-                  class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
-                  data-op-profile="${op.nombre}"
-                >
-                  ${op.nombre}
-                </button>
-                <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}@correoargentino.com.ar</span>
+              <div class="flex flex-col">
+                <span class="text-xs uppercase tracking-widest font-black text-base-content/70">Sin resultados</span>
+                <span class="text-[10px] text-base-content/40 font-medium normal-case mt-0.5">Ningún operador coincide con tu búsqueda o filtro.</span>
               </div>
             </div>
-          </td>
-          <td class="px-4 py-4">
-            <div class="flex items-center gap-3">
-               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
-                  ${styles.icon}
-               </div>
-               <span class="${styles.badge}">${status}</span>
-            </div>
-          </td>
-          <td class="px-4 py-4">
-            <div class="flex flex-col gap-1">
-              <span class="font-mono text-sm font-bold ${isAbsent ? 'text-base-content/20 italic' : 'text-base-content/80'}">${isAbsent ? 'Ausente' : ((op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario)}</span>
-              <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black uppercase tracking-wider ${liveStatus.status === 'online' ? 'text-success' : liveStatus.status === 'break' ? 'text-warning' : 'text-base-content/30'}">${liveStatus.text}</span>
-              </div>
-            </div>
-          </td>
-          <td class="px-4 py-4 font-mono text-sm font-bold">
-            ${isAbsent ? '<span class="text-base-content/20">-</span>' : '<span class="text-base-content/60 bg-base-200/50 px-2 py-0.5 rounded text-[11px] border border-base-300/20">1 hr</span>'}
-          </td>
-          <td class="px-6 py-4 text-right">
-            <code class="text-[10px] font-black bg-base-300/20 px-2.5 py-1.5 rounded text-base-content/40 border border-base-300/20 tracking-widest uppercase transition-all duration-200 group-hover:bg-base-300 group-hover:text-base-content/60">${username}</code>
           </td>
         </tr>
       `;
-    });
-    
+    } else {
+      filteredOps.forEach(op => {
+        const status = op.asistencia[selectedDateStr];
+        const styles = getStatusStyles(status);
+        const isAbsent = status === 'Licencia' || status === 'Vacaciones';
+        const isFranco = status === 'Franco';
+        const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+        const username = getUsername(op.nombre);
+        const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
+        const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
+        const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
+        const liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin);
+        
+        // Asistencia real
+        const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
+        const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
+        const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+
+        let alertBadgesHtml = '';
+        if (late) {
+          alertBadgesHtml += `
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${dailyHorario.split(' - ')[0] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+              Tarde
+            </span>
+          `;
+        }
+        if (early) {
+          alertBadgesHtml += `
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Salida Temp.
+            </span>
+          `;
+        }
+
+        let liveIndicatorClass = "bg-base-content/10";
+        if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
+        else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
+
+        let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
+        if (status === 'Presencial') ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
+        else if (status === 'Home Office') ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+
+        // Contenido del Gantt
+        let ganttContentHtml = '';
+
+        if (isAbsent || isFranco) {
+          let inactiveText = isFranco ? 'Franco / Día Libre' : (status === 'Vacaciones' ? 'Vacaciones' : 'Licencia Médica');
+          let inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === 'Vacaciones' ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+          ganttContentHtml = `
+            <div class="gantt-inactive-bar ${inactiveBg}">
+              ${inactiveText}
+            </div>
+          `;
+        } else {
+          const times = dailyHorario.split(' - ');
+          if (times.length === 2) {
+            const startPct = getGanttPosition(times[0]);
+            const endPct = getGanttPosition(times[1]);
+            let widthPct = endPct - startPct;
+            if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
+
+            // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
+            let breakStartHourStr = '';
+            let breakEndHourStr = '';
+            let breakStartPct = 0;
+            let breakWidthPct = 0;
+
+            if (customBreakInicio && customBreakFin) {
+              breakStartHourStr = customBreakInicio;
+              breakEndHourStr = customBreakFin;
+              const bStartPct = getGanttPosition(breakStartHourStr);
+              const bEndPct = getGanttPosition(breakEndHourStr);
+              let bWidth = bEndPct - bStartPct;
+              if (bWidth < 0) bWidth += 100;
+              breakStartPct = bStartPct;
+              breakWidthPct = bWidth;
+            } else {
+              const startMin = timeToMinutes(times[0]);
+              const endMin = timeToMinutes(times[1]);
+              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+              const breakStartMin = startMin + (totalMin / 2) - 30;
+              breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+              breakStartPct = getGanttPosition(breakStartHourStr);
+              breakWidthPct = (60 / 1440) * 100; // 1 hora de break
+              const breakEndMin = (breakStartMin + 60) % 1440;
+              breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+            }
+
+            // Calcular posición del break relativa a la barra de trabajo (dividiendo por widthPct ya que es un elemento hijo absoluto)
+            const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
+            const relativeBreakWidth = widthPct > 0 ? (breakWidthPct / widthPct) * 100 : 0;
+
+            let workBarBg = status === 'Presencial' ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+
+            let actualBarHtml = '';
+            if (entradaReal || salidaReal) {
+              const actIn = entradaReal || times[0];
+              const actOut = salidaReal || times[1];
+              const actInPct = getGanttPosition(actIn);
+              const actOutPct = getGanttPosition(actOut);
+              let actWidthPct = actOutPct - actInPct;
+              if (actWidthPct < 0) actWidthPct += 100;
+
+              const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
+              actualBarHtml = `<div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal || '--'} - ${salidaReal || '--'}"></div>`;
+            }
+
+            ganttContentHtml = `
+              <!-- Líneas de cuadrícula de fondo -->
+              <div class="gantt-grid-line" style="left: 8.33%;"></div>
+              <div class="gantt-grid-line" style="left: 16.66%;"></div>
+              <div class="gantt-grid-line" style="left: 25.00%;"></div>
+              <div class="gantt-grid-line" style="left: 33.33%;"></div>
+              <div class="gantt-grid-line" style="left: 41.66%;"></div>
+              <div class="gantt-grid-line" style="left: 50.00%;"></div>
+              <div class="gantt-grid-line" style="left: 58.33%;"></div>
+              <div class="gantt-grid-line" style="left: 66.66%;"></div>
+              <div class="gantt-grid-line" style="left: 75.00%;"></div>
+              <div class="gantt-grid-line" style="left: 83.33%;"></div>
+              <div class="gantt-grid-line" style="left: 91.66%;"></div>
+
+              <!-- Barra de Turno Planificado -->
+              <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
+                <!-- Bloque de Break interno (Patrón de rayas diagonales para no tapar el texto) -->
+                <div class="gantt-bar-break absolute h-full top-0 z-[1] border-x border-dashed border-current opacity-60 cursor-help transition-all duration-200 hover:opacity-100 hover:bg-current/10" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
+                  <div class="w-full h-full opacity-30" style="background-image: repeating-linear-gradient(-45deg, currentColor, currentColor 3px, transparent 3px, transparent 8px);"></div>
+                </div>
+                <!-- Texto del horario con z-index alto para quedar por encima del break, con fondo sólido para enmascarar el patrón de rayas y asegurar una legibilidad premium -->
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === 'Presencial' ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+              </div>
+
+              <!-- Barra de Asistencia Real -->
+              ${actualBarHtml}
+            `;
+          }
+        }
+
+        rowsHtml += `
+          <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
+            <td class="px-6 py-4 border-r border-base-300/40 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+              <div class="flex items-center gap-4">
+                <div class="relative w-10 h-10 shrink-0">
+                  <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === 'Presencial' ? 'bg-secondary' : (status === 'Home Office' ? 'bg-amber-500' : 'bg-primary')}"></div>
+                  <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
+                    ${initials}
+                  </div>
+                  <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base-100 ${liveIndicatorClass}" title="${liveStatus.text}"></div>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <button 
+                    class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
+                    data-op-profile="${op.nombre}"
+                  >
+                    ${op.nombre}
+                  </button>
+                  <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}</span>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-4 border-r border-base-300/40">
+              <div class="flex items-center gap-3">
+                 <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
+                    ${styles.icon}
+                 </div>
+                 <div class="flex flex-col gap-1 items-start">
+                   <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                   ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
+                 </div>
+              </div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="gantt-container">
+                ${ganttContentHtml}
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
     if (tableBody) tableBody.innerHTML = rowsHtml;
   }
 
@@ -1463,8 +2101,16 @@ import { Icon } from "astro-icon/components";
     if (thead) thead.innerHTML = theadHtml;
 
     const filteredOps = cronoData.filter(op => {
+      // 1. Search Query filter (case-insensitive name check)
       const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
+
+      // 2. Location Filter
+      if (activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== activeLocationFilter) {
+        return false;
+      }
+
+      // 3. Status Filter
       if (activeFilter === 'all') return true;
       const status = op.asistencia[dateStr];
       if (activeFilter === 'Licencia') {
@@ -1484,11 +2130,50 @@ import { Icon } from "astro-icon/components";
           const isAbsent = status === 'Licencia' || status === 'Vacaciones';
           const isFranco = status === 'Franco';
           
-          tbodyHtml += `<tr class="group hover:bg-base-200/40 transition-all border-b border-base-200/50">
-             <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors">
+          const entradaReal = (op.entradas_reales && op.entradas_reales[dateStr]) || '';
+          const salidaReal = (op.salidas_reales && op.salidas_reales[dateStr]) || '';
+          const { late, early } = checkTimeAlerts(horario, entradaReal, salidaReal);
+
+          let alertBadgesHtml = '';
+          if (late) {
+            alertBadgesHtml += `
+              <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${horario.split(' - ')[0] || '--:--'})">
+                <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+                Tarde
+              </span>
+            `;
+          }
+          if (early) {
+            alertBadgesHtml += `
+              <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                Salida Temp.
+              </span>
+            `;
+          }
+
+          let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
+          let tdClass = "sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
+
+          if (late) {
+            rowClass += " bg-error/[0.03]";
+            tdClass += " border-l-4 border-l-error pl-5";
+          } else if (early) {
+            rowClass += " bg-warning/[0.02]";
+            tdClass += " border-l-4 border-l-warning pl-5";
+          }
+
+          const hasRealTimes = !!(entradaReal || salidaReal);
+          const realTimesSubHtml = hasRealTimes ? ` (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'})` : '';
+
+          tbodyHtml += `<tr class="${rowClass}">
+             <td class="${tdClass}">
                 <div class="flex flex-col min-w-0">
-                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate" data-op-profile="${op.nombre}">${op.nombre}</button>
-                  <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
+                  <div class="flex items-center gap-1.5 overflow-hidden">
+                    <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1" data-op-profile="${op.nombre}">${op.nombre}</button>
+                    ${alertBadgesHtml}
+                  </div>
+                  <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}${realTimesSubHtml}</span>
                 </div>
              </td>
           `;
@@ -1561,7 +2246,7 @@ import { Icon } from "astro-icon/components";
       const isWeekend = d.getDay() === 0 || d.getDay() === 6;
       const isCritical = (coveragePerDay[date].total / teamSize) < (minCoveragePercent / 100);
       
-      let thClass = "text-center min-w-[3rem] px-0 border-r border-b border-base-200 transition-colors";
+      let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
       if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
       else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
       else if (isCritical) thClass += " bg-error/10 text-error";
@@ -1597,7 +2282,12 @@ import { Icon } from "astro-icon/components";
       const matchesSearch = !searchQuery || op.nombre.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
-      // 2. Status Filter
+      // 2. Location Filter
+      if (activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== activeLocationFilter) {
+        return false;
+      }
+
+      // 3. Status Filter
       if (activeFilter === 'all') return true;
       
       // Check if the operator has at least one occurrence of the selected status in the current month
@@ -1702,6 +2392,8 @@ import { Icon } from "astro-icon/components";
 
           const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
           const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
+          const breakInicio = (op.breaks_inicio && op.breaks_inicio[date]) || '';
+          const breakFin = (op.breaks_fin && op.breaks_fin[date]) || '';
           const hasRealTimes = !!(entradaReal || salidaReal);
 
           const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
@@ -1718,7 +2410,7 @@ import { Icon } from "astro-icon/components";
           const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
           if (isLicenseOverlap) totalInconsistencies++;
 
-          let cellClass = `p-1.5 border-r border-b border-base-200/50 text-center transition-all duration-300`;
+          let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
           if (isTodayCell) cellClass += ' bg-secondary/10';
           if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
           
@@ -1727,7 +2419,7 @@ import { Icon } from "astro-icon/components";
             tbodyHtml += `<td class="${cellClass}">
               <button
                 type="button"
-                class="monthly-cell-button h-8 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
+                class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
                 data-monthly-detail
                 data-operator="${safeName}"
                 data-date="${safeDate}"
@@ -1737,11 +2429,14 @@ import { Icon } from "astro-icon/components";
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
                 data-entrada-real="${escapeHtml(entradaReal)}"
                 data-salida-real="${escapeHtml(salidaReal)}"
+                data-break-inicio="${escapeHtml(breakInicio)}"
+                data-break-fin="${escapeHtml(breakFin)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
               >
                 ${hasRealTimes ? `
-                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-none">
-                    <span class="text-[7px] font-mono leading-none tracking-tighter ${timeTextClass} tabular-nums">${entradaReal || '--'}/${salidaReal || '--'}</span>
+                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
+                    <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
+                    <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
                   </div>
                 ` : (hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : '')}
               </button>
@@ -1760,7 +2455,7 @@ import { Icon } from "astro-icon/components";
             <td class="${cellClass}">
               <button
                 type="button"
-                class="monthly-cell-button h-8 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''} ${alertClass}"
+                class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''} ${alertClass}"
                 title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
                 data-monthly-detail
                 data-operator="${safeName}"
@@ -1771,12 +2466,15 @@ import { Icon } from "astro-icon/components";
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
                 data-entrada-real="${escapeHtml(entradaReal)}"
                 data-salida-real="${escapeHtml(salidaReal)}"
+                data-break-inicio="${escapeHtml(breakInicio)}"
+                data-break-fin="${escapeHtml(breakFin)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
               >
                 ${hasRealTimes ? `
-                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-none">
-                    <span class="font-black text-[9px] leading-none tracking-tight">${initials}</span>
-                    <span class="text-[7px] font-mono leading-none tracking-tighter ${timeTextClass} tabular-nums">${entradaReal || '--'}/${salidaReal || '--'}</span>
+                  <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
+                    <span class="font-black text-[9px] leading-none tracking-wider opacity-90">${initials}</span>
+                    <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
+                    <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
                   </div>
                 ` : `<span class="font-black text-xs leading-none tracking-tight">${initials}</span>`}
                 ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
@@ -1848,7 +2546,7 @@ import { Icon } from "astro-icon/components";
       const cellPyClass = isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
 
       tfootHtml += `
-        <td class="${cellPyClass} border-r border-base-200/50 min-w-[3rem] ${isLowCoverage ? 'bg-error/5' : ''}">
+        <td class="${cellPyClass} border-r border-base-200/50 min-w-[4rem] ${isLowCoverage ? 'bg-error/5' : ''}">
           <div class="flex flex-col items-center gap-1.5">
              ${isCoverageMinimized ? '' : `
              <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
@@ -2045,6 +2743,18 @@ import { Icon } from "astro-icon/components";
       realTimeIndicator.classList.add('opacity-0');
     }
 
+    const breakInicioValue = trigger.dataset.breakInicio || '';
+    const breakFinValue = trigger.dataset.breakFin || '';
+    const detailBreakInicioInput = document.getElementById('monthly-detail-break-inicio') as HTMLInputElement | null;
+    const detailBreakFinInput = document.getElementById('monthly-detail-break-fin') as HTMLInputElement | null;
+    if (detailBreakInicioInput) detailBreakInicioInput.value = breakInicioValue;
+    if (detailBreakFinInput) detailBreakFinInput.value = breakFinValue;
+    const breakTimeIndicator = document.getElementById('monthly-break-time-indicator');
+    if (breakTimeIndicator) {
+      breakTimeIndicator.classList.remove('opacity-100');
+      breakTimeIndicator.classList.add('opacity-0');
+    }
+
     const operatorName = trigger.dataset.operator || '';
     const dateValue = trigger.dataset.date || '';
     const statusValue = trigger.dataset.status || 'Franco';
@@ -2075,10 +2785,7 @@ import { Icon } from "astro-icon/components";
     const padding = 20;
     
     if (window.innerWidth > 768) {
-      overlay.classList.remove('items-start', 'justify-center');
-      overlay.style.backgroundColor = 'transparent';
-      overlay.style.pointerEvents = 'none';
-      modal.style.pointerEvents = 'auto';
+      overlay.classList.remove('items-start', 'items-center', 'justify-center');
       modal.style.position = 'absolute';
       
       const left = Math.max(20, Math.min(window.innerWidth - modalWidth - 20, rect.left + rect.width/2 - modalWidth/2));
@@ -2086,15 +2793,19 @@ import { Icon } from "astro-icon/components";
       const spaceBelow = window.innerHeight - rect.bottom;
       const showAbove = spaceBelow < (modalHeight + padding);
       
+      let top = 0;
       if (showAbove) {
-        modal.style.top = `${rect.top - modalHeight - 12}px`;
+        top = rect.top - modalHeight - 12;
         modal.style.transformOrigin = 'bottom center';
         pointer.className = "absolute w-5 h-5 bg-base-100 border-r-2 border-b-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -bottom-2.5";
       } else {
-        modal.style.top = `${rect.bottom + 12}px`;
+        top = rect.bottom + 12;
         modal.style.transformOrigin = 'top center';
         pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5";
       }
+      
+      const clampedTop = Math.max(12, Math.min(window.innerHeight - modalHeight - 12, top));
+      modal.style.top = `${clampedTop}px`;
       
       modal.style.left = `${left}px`;
       modal.style.margin = '0';
@@ -2102,16 +2813,14 @@ import { Icon } from "astro-icon/components";
       const pointerOffset = rect.left + rect.width/2 - left;
       pointer.style.left = `${pointerOffset}px`;
     } else {
-      overlay.classList.add('items-start', 'justify-center');
-      overlay.style.backgroundColor = '';
-      overlay.style.pointerEvents = '';
-      modal.style.pointerEvents = '';
+      overlay.classList.remove('items-start');
+      overlay.classList.add('items-center', 'justify-center');
       modal.style.position = '';
       modal.style.left = '';
       modal.style.top = '';
-      modal.style.margin = '4rem auto';
+      modal.style.margin = '0';
       pointer.style.left = '50%';
-      pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5";
+      pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5 hidden";
     }
 
     overlay.setAttribute('aria-hidden', 'false');
@@ -2127,17 +2836,32 @@ import { Icon } from "astro-icon/components";
     overlay.setAttribute('aria-hidden', 'true');
   }
 
+  function updateViewSwitcherUI(activeView: 'monthly' | 'daily') {
+    const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
+    const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+    if (activeView === 'monthly') {
+      switchToMonthlyBtn?.classList.add('btn-secondary', 'shadow-sm');
+      switchToMonthlyBtn?.classList.remove('btn-outline', 'text-base-content/60');
+      switchToDailyBtn?.classList.remove('btn-secondary', 'shadow-sm');
+      switchToDailyBtn?.classList.add('btn-outline', 'text-base-content/60');
+    } else {
+      switchToDailyBtn?.classList.add('btn-secondary', 'shadow-sm');
+      switchToDailyBtn?.classList.remove('btn-outline', 'text-base-content/60');
+      switchToMonthlyBtn?.classList.remove('btn-secondary', 'shadow-sm');
+      switchToMonthlyBtn?.classList.add('btn-outline', 'text-base-content/60');
+    }
+  }
+
   function showDailyView() {
     const dailyView = document.getElementById('daily-view');
     const monthlyView = document.getElementById('monthly-view');
-    const statsContainer = document.getElementById('stats-container');
     const datePickerContainer = document.getElementById('date-picker-container');
     
     renderDaily();
+    updateViewSwitcherUI('daily');
     
     if (dailyView) dailyView.classList.remove('hidden');
     if (monthlyView) monthlyView.classList.add('hidden');
-    if (statsContainer) statsContainer.classList.remove('hidden');
     
     if (datePickerContainer) {
       datePickerContainer.classList.remove('hidden');
@@ -2150,12 +2874,12 @@ import { Icon } from "astro-icon/components";
   function showMonthlyView() {
     const dailyView = document.getElementById('daily-view');
     const monthlyView = document.getElementById('monthly-view');
-    const statsContainer = document.getElementById('stats-container');
     const datePickerContainer = document.getElementById('date-picker-container');
+    
+    updateViewSwitcherUI('monthly');
     
     if (dailyView) dailyView.classList.add('hidden');
     if (monthlyView) monthlyView.classList.remove('hidden');
-    if (statsContainer) statsContainer.classList.add('hidden');
     
     if (datePickerContainer) {
       datePickerContainer.classList.add('is-faded');
@@ -2166,6 +2890,14 @@ import { Icon } from "astro-icon/components";
   }
 
   function setupEventListeners() {
+    document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
+      showMonthlyView();
+    });
+
+    document.getElementById('switch-to-daily-btn')?.addEventListener('click', () => {
+      showDailyView();
+    });
+
     const modal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
     document.getElementById('add-month-btn')?.addEventListener('click', () => {
       modal.showModal();
@@ -2370,11 +3102,19 @@ import { Icon } from "astro-icon/components";
       if (event.key === 'Escape') closeMonthlyDetail();
     });
 
-    const searchInput = document.getElementById('monthly-search') as HTMLInputElement;
-    searchInput?.addEventListener('input', (e) => {
+    const monthlySearch = document.getElementById('monthly-search') as HTMLInputElement | null;
+    const dailySearch = document.getElementById('daily-search') as HTMLInputElement | null;
+
+    function handleSearchInput(e: Event) {
       searchQuery = (e.target as HTMLInputElement).value.trim();
+      if (monthlySearch && monthlySearch !== e.target) monthlySearch.value = searchQuery;
+      if (dailySearch && dailySearch !== e.target) dailySearch.value = searchQuery;
       renderMonthly();
-    });
+      renderDaily();
+    }
+
+    monthlySearch?.addEventListener('input', handleSearchInput);
+    dailySearch?.addEventListener('input', handleSearchInput);
 
     // Wire up filter buttons
     const filterAllBtn = document.getElementById('filter-all-btn');
@@ -2384,16 +3124,30 @@ import { Icon } from "astro-icon/components";
     const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
     const filterHeBtn = document.getElementById('filter-he-btn');
 
+    const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
+    const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+    const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
+    const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
+    const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
+    const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+
     const filterBtns = [
       { btn: filterAllBtn, value: 'all' },
       { btn: filterPresencialBtn, value: 'Presencial' },
       { btn: filterHoBtn, value: 'Home Office' },
       { btn: filterLicenciaBtn, value: 'Licencia' },
       { btn: filterVacacionesBtn, value: 'Vacaciones' },
-      { btn: filterHeBtn, value: 'Horas Extras' }
+      { btn: filterHeBtn, value: 'Horas Extras' },
+      { btn: filterAllBtnDaily, value: 'all' },
+      { btn: filterPresencialBtnDaily, value: 'Presencial' },
+      { btn: filterHoBtnDaily, value: 'Home Office' },
+      { btn: filterLicenciaBtnDaily, value: 'Licencia' },
+      { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
+      { btn: filterHeBtnDaily, value: 'Horas Extras' }
     ];
 
     function updateFilterActiveStates() {
+      // Monthly buttons
       // "Todos" button classes
       if (filterAllBtn) {
         if (activeFilter === 'all') {
@@ -2467,6 +3221,81 @@ import { Icon } from "astro-icon/components";
           if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200";
         }
       }
+
+      // Daily buttons
+      // "Todos" button classes
+      if (filterAllBtnDaily) {
+        if (activeFilter === 'all') {
+          filterAllBtnDaily.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterAllBtnDaily.className = "btn btn-xs btn-outline border-transparent hover:bg-base-200/50 text-base-content/60 font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      // "Presencial" button classes
+      if (filterPresencialBtnDaily) {
+        if (activeFilter === 'Presencial') {
+          filterPresencialBtnDaily.className = "btn btn-xs btn-secondary gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+          const dot = filterPresencialBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterPresencialBtnDaily.className = "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+          const dot = filterPresencialBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-secondary transition-colors duration-200";
+        }
+      }
+
+      // "Home Office" button classes
+      if (filterHoBtnDaily) {
+        if (activeFilter === 'Home Office') {
+          filterHoBtnDaily.className = "btn btn-xs btn-primary gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-primary/15 transition-all duration-200 text-primary-content";
+          const dot = filterHoBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHoBtnDaily.className = "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+          const dot = filterHoBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 transition-colors duration-200";
+        }
+      }
+
+      // "Licencia" button classes
+      if (filterLicenciaBtnDaily) {
+        if (activeFilter === 'Licencia') {
+          filterLicenciaBtnDaily.className = "btn btn-xs btn-error gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-error/15 text-error-content transition-all duration-200";
+          const dot = filterLicenciaBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterLicenciaBtnDaily.className = "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+          const dot = filterLicenciaBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-error transition-colors duration-200";
+        }
+      }
+
+      // "Vacaciones" button classes
+      if (filterVacacionesBtnDaily) {
+        if (activeFilter === 'Vacaciones') {
+          filterVacacionesBtnDaily.className = "btn btn-xs btn-success gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-success/15 text-success-content transition-all duration-200";
+          const dot = filterVacacionesBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterVacacionesBtnDaily.className = "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+          const dot = filterVacacionesBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-success transition-colors duration-200";
+        }
+      }
+
+      // "Horas Extras" button classes
+      if (filterHeBtnDaily) {
+        if (activeFilter === 'Horas Extras') {
+          filterHeBtnDaily.className = "btn btn-xs bg-sky-600 border-0 gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-sky-600/15 text-white transition-all duration-200";
+          const dot = filterHeBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200";
+        } else {
+          filterHeBtnDaily.className = "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+          const dot = filterHeBtnDaily.querySelector('.rounded-full');
+          if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200";
+        }
+      }
     }
 
     filterBtns.forEach(item => {
@@ -2474,8 +3303,91 @@ import { Icon } from "astro-icon/components";
         activeFilter = item.value;
         updateFilterActiveStates();
         renderMonthly();
+        renderDaily();
       });
     });
+
+    // Location filter buttons
+    const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
+    const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
+    const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
+
+    const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
+    const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
+    const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
+
+    function updateLocationFilterActiveStates() {
+      // Monthly Location Buttons
+      if (filterLocationAllBtn) {
+        if (activeLocationFilter === 'all') {
+          filterLocationAllBtn.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationAllBtn.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      if (filterLocationMgBtn) {
+        if (activeLocationFilter === 'Monte Grande') {
+          filterLocationMgBtn.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationMgBtn.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      if (filterLocationPpBtn) {
+        if (activeLocationFilter === 'Parque Patricios') {
+          filterLocationPpBtn.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationPpBtn.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      // Daily Location Buttons
+      if (filterLocationAllBtnDaily) {
+        if (activeLocationFilter === 'all') {
+          filterLocationAllBtnDaily.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationAllBtnDaily.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      if (filterLocationMgBtnDaily) {
+        if (activeLocationFilter === 'Monte Grande') {
+          filterLocationMgBtnDaily.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationMgBtnDaily.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+
+      if (filterLocationPpBtnDaily) {
+        if (activeLocationFilter === 'Parque Patricios') {
+          filterLocationPpBtnDaily.className = "btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200";
+        } else {
+          filterLocationPpBtnDaily.className = "btn btn-xs btn-outline font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200";
+        }
+      }
+    }
+
+    const locationFilterBtns = [
+      { btn: filterLocationAllBtn, value: 'all' },
+      { btn: filterLocationMgBtn, value: 'Monte Grande' },
+      { btn: filterLocationPpBtn, value: 'Parque Patricios' },
+      { btn: filterLocationAllBtnDaily, value: 'all' },
+      { btn: filterLocationMgBtnDaily, value: 'Monte Grande' },
+      { btn: filterLocationPpBtnDaily, value: 'Parque Patricios' }
+    ];
+
+    locationFilterBtns.forEach(item => {
+      item.btn?.addEventListener('click', () => {
+        activeLocationFilter = item.value;
+        updateLocationFilterActiveStates();
+        renderMonthly();
+        renderDaily();
+      });
+    });
+
+    // Initialize location filter button states
+    updateLocationFilterActiveStates();
 
     const quickEditMenu = document.getElementById('quick-edit-menu');
     const saveIndicator = document.getElementById('save-indicator');
@@ -2528,51 +3440,192 @@ import { Icon } from "astro-icon/components";
     // --- FEATURE: Premium Exporters ---
     function exportCSV() {
       const dates = getDatesArrayForCurrentMonth();
-      const headers = ["Operador", "Presencial (P)", "Home Office (HO)", "Licencia/Vacaciones (L)"];
+      const headers = [
+        "Operador",
+        "Email",
+        "Sede",
+        "Turno Base",
+        "Presencial (P)",
+        "Home Office (HO)",
+        "Licencia (L)",
+        "Vacaciones (V)",
+        "Horas Extras (HE)",
+        "Franco (F)",
+        "Llegadas Tarde",
+        "Salidas Anticipadas",
+        "Inconsistencias Normativas",
+        "Horas Reales Trabajadas",
+        ...dates
+      ];
+
+      function escapeCSVCell(val: any): string {
+        const str = (val === null || val === undefined) ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+
+      // Pre-calculate daily license coverage for compliance checks
+      const coveragePerDay: Record<string, { total: number, licenses: number }> = {};
       dates.forEach(d => {
-        headers.push(d);
+        let active = 0;
+        let lics = 0;
+        cronoData.forEach(op => {
+          const s = op.asistencia[d];
+          if (s === 'Presencial' || s === 'Home Office') active++;
+          if (s === 'Licencia' || s === 'Vacaciones') lics++;
+        });
+        coveragePerDay[d] = { total: active, licenses: lics };
       });
-      
-      let csvRows = [headers.join(",")];
-      
+
+      let csvRows = [headers.map(escapeCSVCell).join(",")];
+
       cronoData.forEach(op => {
-        const stats = { P: 0, HO: 0, L: 0 };
+        const stats = { P: 0, HO: 0, L: 0, V: 0, HE: 0, F: 0 };
+        let llegadasTarde = 0;
+        let salidasAnticipadas = 0;
+        let totalMinutesWorked = 0;
+
+        // Policy compliance calculations
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+        let pWeekViolation = false;
+        let licenseOverlapCount = 0;
+
         dates.forEach(d => {
           const s = op.asistencia[d];
+
+          // Count statuses
           if (s === 'Presencial') stats.P++;
           else if (s === 'Home Office') stats.HO++;
-          else if (s === 'Licencia' || s === 'Vacaciones') stats.L++;
+          else if (s === 'Licencia') stats.L++;
+          else if (s === 'Vacaciones') stats.V++;
+          else if (s === 'Horas Extras') stats.HE++;
+          else stats.F++; // Franco / No set
+
+          // Late & Early check
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[d]) || op.horario;
+          const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
+          const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
+          const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+          if (late) llegadasTarde++;
+          if (early) salidasAnticipadas++;
+
+          // Real Worked Hours check
+          if (entradaReal && salidaReal) {
+            const startMin = timeToMinutes(entradaReal);
+            const endMin = timeToMinutes(salidaReal);
+            let diff = endMin - startMin;
+            if (diff < 0) diff += 1440; // overnight shift
+
+            const breakInicio = op.breaks_inicio?.[d];
+            const breakFin = op.breaks_fin?.[d];
+            if (breakInicio && breakFin) {
+              const bStartMin = timeToMinutes(breakInicio);
+              const bEndMin = timeToMinutes(breakFin);
+              let bDiff = bEndMin - bStartMin;
+              if (bDiff < 0) bDiff += 1440;
+              diff -= bDiff;
+            }
+            totalMinutesWorked += Math.max(0, diff);
+          }
+
+          // Compliance rules: HO consecutive
+          if (s === 'Home Office') {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (s !== 'Franco' && s) {
+            currentHO = 0;
+          }
+
+          // Compliance rules: Weekly P limit
+          const dateObj = new Date(d + 'T12:00:00');
+          if (s === 'Presencial') currentWeekP++;
+          if (s !== 'Franco' && s !== 'Licencia' && s !== 'Vacaciones' && s) {
+             currentWeekDays++;
+          }
+          if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+
+          // Compliance rules: License overlap limit (> 2 licenses on same day)
+          const isLicenseOverlap = (s === 'Licencia' || s === 'Vacaciones') && coveragePerDay[d].licenses > 2;
+          if (isLicenseOverlap) {
+            licenseOverlapCount++;
+          }
         });
-        
+
+        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        const totalInconsistencias = (hoViolation ? 1 : 0) + (pWeekViolation ? 1 : 0) + licenseOverlapCount;
+
+        const email = getUsername(op.nombre) + "@correoargentino.com.ar";
+        const sede = op.location || "Monte Grande";
+        const turnoBase = op.horario || '-';
+        const horasReales = (totalMinutesWorked / 60).toFixed(2);
+
         const row = [
-          `"${op.nombre}"`,
-          stats.P,
-          stats.HO,
-          stats.L
+          escapeCSVCell(op.nombre),
+          escapeCSVCell(email),
+          escapeCSVCell(sede),
+          escapeCSVCell(turnoBase),
+          escapeCSVCell(stats.P),
+          escapeCSVCell(stats.HO),
+          escapeCSVCell(stats.L),
+          escapeCSVCell(stats.V),
+          escapeCSVCell(stats.HE),
+          escapeCSVCell(stats.F),
+          escapeCSVCell(llegadasTarde),
+          escapeCSVCell(salidasAnticipadas),
+          escapeCSVCell(totalInconsistencias),
+          escapeCSVCell(horasReales)
         ];
-        
+
+        // Format daily cells
         dates.forEach(d => {
           const status = op.asistencia[d] || 'Franco';
           const comment = op.comentarios?.[d] || '';
-          const cellValue = comment ? `${status} (${comment})` : status;
-          row.push(`"${cellValue.replace(/"/g, '""')}"`);
+          const dailyHorario = (op.horarios_dias && op.horarios_dias[d]) || op.horario;
+          const isAbsent = status === 'Licencia' || status === 'Vacaciones' || status === 'Franco';
+
+          let cellValue = '';
+          if (isAbsent) {
+            cellValue = status;
+          } else {
+            const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
+            const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
+            const breakInicio = (op.breaks_inicio && op.breaks_inicio[d]) || '';
+            const breakFin = (op.breaks_fin && op.breaks_fin[d]) || '';
+
+            cellValue = `${status} [${dailyHorario || '-'}] (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'} | Break: ${breakInicio || '--:--'} - ${breakFin || '--:--'})`;
+          }
+
+          if (comment) {
+            cellValue += ` {Nota: ${comment}}`;
+          }
+
+          row.push(escapeCSVCell(cellValue));
         });
-        
+
         csvRows.push(row.join(","));
       });
-      
+
+      // Use BOM UTF-8 (\uFEFF) to make sure Excel detects the encoding correctly
       const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      
+
       const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
       let monthName = 'reporte';
       if (dateInput && dateInput.value) {
         const d = new Date(dateInput.value + 'T12:00:00');
         monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
       }
-      
+
       link.setAttribute("download", `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.csv`);
       document.body.appendChild(link);
       link.click();
@@ -2591,16 +3644,31 @@ import { Icon } from "astro-icon/components";
         imgBtn.innerHTML = `<span class="loading loading-spinner loading-xs mr-1"></span> Procesando...`;
       }
 
+      // Save original styles to restore them later
+      const originalWidth = tableContainer.style.width;
+      const originalHeight = tableContainer.style.height;
+      const originalMaxWidth = tableContainer.style.maxWidth;
+      const originalMaxHeight = tableContainer.style.maxHeight;
+      const originalOverflow = tableContainer.style.overflow;
+
       try {
-        const originalMaxHeight = tableContainer.style.maxHeight;
-        const originalOverflow = tableContainer.style.overflow;
+        // Expand container to match scroll dimensions to capture all rows & columns
+        tableContainer.style.width = tableContainer.scrollWidth + 'px';
+        tableContainer.style.height = tableContainer.scrollHeight + 'px';
+        tableContainer.style.maxWidth = 'none';
         tableContainer.style.maxHeight = 'none';
         tableContainer.style.overflow = 'visible';
 
+        // Force a layout reflow
+        tableContainer.offsetHeight;
+
         const { toPng } = await import('html-to-image');
         
+        // Resolve computed background color to prevent transparency issues with DaisyUI themes
+        const computedBg = window.getComputedStyle(tableContainer).backgroundColor || '#ffffff';
+
         const dataUrl = await toPng(tableContainer, {
-          backgroundColor: 'var(--color-base-100, #ffffff)',
+          backgroundColor: computedBg,
           style: {
             transform: 'scale(1)',
             transformOrigin: 'top left',
@@ -2611,6 +3679,10 @@ import { Icon } from "astro-icon/components";
           pixelRatio: 2
         });
 
+        // Restore original styles
+        tableContainer.style.width = originalWidth;
+        tableContainer.style.height = originalHeight;
+        tableContainer.style.maxWidth = originalMaxWidth;
         tableContainer.style.maxHeight = originalMaxHeight;
         tableContainer.style.overflow = originalOverflow;
 
@@ -2630,6 +3702,13 @@ import { Icon } from "astro-icon/components";
 
       } catch (error) {
         console.error('Error generating image:', error);
+        // Ensure styles are restored even if generation failed
+        tableContainer.style.width = originalWidth;
+        tableContainer.style.height = originalHeight;
+        tableContainer.style.maxWidth = originalMaxWidth;
+        tableContainer.style.maxHeight = originalMaxHeight;
+        tableContainer.style.overflow = originalOverflow;
+        
         alert('Hubo un error al generar la imagen. Intenta imprimir el reporte.');
       } finally {
         if (imgBtn) {
@@ -2645,25 +3724,47 @@ import { Icon } from "astro-icon/components";
 
     // --- FEATURE: Maximize Mode Handler ---
     const maxBtn = document.getElementById('maximize-cronograma-btn');
+    const maxBtnDaily = document.getElementById('maximize-cronograma-btn-daily');
     
     function updateMaximizeUI(isMax: boolean) {
       const htmlEl = document.documentElement;
+      
       const maxIcon = maxBtn?.querySelector('.max-icon');
       const minIcon = maxBtn?.querySelector('.min-icon');
       const maxText = document.getElementById('maximize-text');
+
+      const maxIconDaily = maxBtnDaily?.querySelector('.max-icon');
+      const minIconDaily = maxBtnDaily?.querySelector('.min-icon');
+      const maxTextDaily = document.getElementById('maximize-text-daily');
       
       if (isMax) {
         htmlEl.classList.add('cronograma-maximized');
+        
         maxIcon?.classList.add('hidden');
         minIcon?.classList.remove('hidden');
         if (maxText) maxText.innerText = "Restaurar";
         maxBtn?.setAttribute('title', 'Restaurar cronograma');
+        maxBtn?.setAttribute('aria-label', 'Restaurar cronograma');
+
+        maxIconDaily?.classList.add('hidden');
+        minIconDaily?.classList.remove('hidden');
+        if (maxTextDaily) maxTextDaily.innerText = "Restaurar";
+        maxBtnDaily?.setAttribute('title', 'Restaurar cronograma');
+        maxBtnDaily?.setAttribute('aria-label', 'Restaurar cronograma');
       } else {
         htmlEl.classList.remove('cronograma-maximized');
+        
         maxIcon?.classList.remove('hidden');
         minIcon?.classList.add('hidden');
         if (maxText) maxText.innerText = "Maximizar";
         maxBtn?.setAttribute('title', 'Maximizar cronograma');
+        maxBtn?.setAttribute('aria-label', 'Maximizar cronograma');
+
+        maxIconDaily?.classList.remove('hidden');
+        minIconDaily?.classList.add('hidden');
+        if (maxTextDaily) maxTextDaily.innerText = "Maximizar";
+        maxBtnDaily?.setAttribute('title', 'Maximizar cronograma');
+        maxBtnDaily?.setAttribute('aria-label', 'Maximizar cronograma');
       }
     }
 
@@ -2672,24 +3773,61 @@ import { Icon } from "astro-icon/components";
       updateMaximizeUI(true);
     }
 
-    maxBtn?.addEventListener('click', () => {
+    const handleMaximizeClick = () => {
       const isMax = !document.documentElement.classList.contains('cronograma-maximized');
       localStorage.setItem('cronoMaximized', isMax ? 'true' : 'false');
       updateMaximizeUI(isMax);
-    });
+    };
+
+    maxBtn?.addEventListener('click', handleMaximizeClick);
+    maxBtnDaily?.addEventListener('click', handleMaximizeClick);
 
     // --- FEATURE: Operator Profile Drawer ---
     const drawerOverlay = document.getElementById('operator-drawer-overlay');
     const drawer = document.getElementById('operator-drawer');
     const closeDrawerBtn = document.getElementById('close-drawer');
 
+    const mgBtn = document.getElementById('btn-location-mg');
+    const ppBtn = document.getElementById('btn-location-pp');
+    const locSelect = document.getElementById('drawer-op-location') as HTMLSelectElement | null;
+
+    function updateLocationButtonsUI(val: string) {
+      if (val === 'Monte Grande') {
+        mgBtn?.classList.remove('btn-ghost', 'text-base-content/60');
+        mgBtn?.classList.add('btn-secondary', 'text-secondary-content', 'shadow-sm', 'shadow-secondary/15');
+        
+        ppBtn?.classList.remove('btn-secondary', 'text-secondary-content', 'shadow-sm', 'shadow-secondary/15');
+        ppBtn?.classList.add('btn-ghost', 'text-base-content/60');
+      } else {
+        ppBtn?.classList.remove('btn-ghost', 'text-base-content/60');
+        ppBtn?.classList.add('btn-secondary', 'text-secondary-content', 'shadow-sm', 'shadow-secondary/15');
+        
+        mgBtn?.classList.remove('btn-secondary', 'text-secondary-content', 'shadow-sm', 'shadow-secondary/15');
+        mgBtn?.classList.add('btn-ghost', 'text-base-content/60');
+      }
+    }
+
     const openDrawer = (opName: string) => {
       const op = cronoData.find(o => o.nombre === opName);
       if (!op || !drawerOverlay || !drawer) return;
 
       document.getElementById('drawer-op-name')!.innerText = op.nombre;
-      
 
+      // Set location select value
+      if (locSelect) {
+        locSelect.value = op.location || "Monte Grande";
+        updateLocationButtonsUI(locSelect.value);
+      }
+      const locIndicator = document.getElementById('location-status-indicator');
+      if (locIndicator) locIndicator.classList.add('opacity-0');
+      
+      // Dynamic avatar initials
+      const nameParts = op.nombre.trim().split(/\s+/);
+      const initials = nameParts.length > 1 
+        ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+        : nameParts[0].substring(0, 2).toUpperCase();
+      const initialsEl = document.getElementById('drawer-op-avatar-initials');
+      if (initialsEl) initialsEl.innerText = initials;
 
       // Fetch supervisor notes from database
       const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
@@ -2722,39 +3860,60 @@ import { Icon } from "astro-icon/components";
       document.getElementById('drawer-stat-p')!.innerText = p.toString();
       document.getElementById('drawer-stat-ho')!.innerText = ho.toString();
 
-      // History list
+      // History list (Timeline redesign, showing all days)
       const historyList = document.getElementById('drawer-history-list');
       if (historyList) {
-        const sortedDates = Object.keys(op.asistencia).sort().reverse().slice(0, 10);
+        const sortedDates = Object.keys(op.asistencia).sort().reverse();
         historyList.innerHTML = sortedDates.map(date => {
           const status = op.asistencia[date];
           const styles = getStatusStyles(status);
           const entradaVal = op.entradas_reales?.[date] || '';
           const salidaVal = op.salidas_reales?.[date] || '';
+          
+          // Localized date formatting for the timeline
+          const dateObj = new Date(date + 'T12:00:00');
+          const weekday = new Intl.DateTimeFormat('es-AR', { weekday: 'long' }).format(dateObj);
+          const dayMonth = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short' }).format(dateObj);
+          const displayDate = `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${dayMonth}`;
+
           return `
-            <div class="flex flex-col p-3 bg-base-200/30 rounded-xl border border-base-300/50 gap-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-base-content/60">${formatDMY(date)}</span>
-                <span class="${styles.badge} scale-90">${status}</span>
-              </div>
-              <div class="grid grid-cols-2 gap-2 mt-1">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black uppercase text-base-content/40">Entrada:</span>
-                  <input 
-                    type="time" 
-                    class="drawer-history-entrada input input-xs input-bordered w-full font-mono text-[10px] bg-base-100 h-6 px-1 text-center" 
-                    data-date="${date}" 
-                    value="${entradaVal}"
-                  />
+            <div class="relative pl-6 pb-5 border-l border-base-300 last:pb-0 last:border-l-transparent flex-col">
+              <!-- Timeline node dot -->
+              <div class="absolute -left-[5.5px] top-2.5 w-2.5 h-2.5 rounded-full border-2 bg-base-100 transition-colors duration-200" style="border-color: ${styles.color || 'var(--color-base-content)'}"></div>
+              
+              <!-- Content card -->
+              <div class="bg-base-200/30 hover:bg-base-200/60 border border-base-300/40 rounded-2xl p-3.5 transition-all duration-200 shadow-sm flex flex-col gap-2">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-base-content/85">${displayDate}</span>
+                  <span class="${styles.badge} text-[9px] px-2 py-0.5 leading-none h-auto shrink-0 select-none">${status}</span>
                 </div>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[8px] font-black uppercase text-base-content/40">Salida:</span>
-                  <input 
-                    type="time" 
-                    class="drawer-history-salida input input-xs input-bordered w-full font-mono text-[10px] bg-base-100 h-6 px-1 text-center" 
-                    data-date="${date}" 
-                    value="${salidaVal}"
-                  />
+                
+                <!-- Time Inputs Grid -->
+                <div class="grid grid-cols-2 gap-3 mt-1">
+                  <div class="flex items-center gap-2 bg-base-100 px-2.5 py-1 rounded-xl border border-base-300/50 focus-within:border-secondary/40 focus-within:ring-1 focus-within:ring-secondary/20 transition-all">
+                    <span class="text-[8px] font-black uppercase text-base-content/40 shrink-0">Entrada</span>
+                    <input 
+                      type="text" 
+                      placeholder="HH:MM"
+                      maxlength="5"
+                      pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+                      class="drawer-history-entrada w-full font-mono text-[10px] font-bold bg-transparent text-base-content text-center focus:outline-none" 
+                      data-date="${date}" 
+                      value="${entradaVal}"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2 bg-base-100 px-2.5 py-1 rounded-xl border border-base-300/50 focus-within:border-secondary/40 focus-within:ring-1 focus-within:ring-secondary/20 transition-all">
+                    <span class="text-[8px] font-black uppercase text-base-content/40 shrink-0">Salida</span>
+                    <input 
+                      type="text" 
+                      placeholder="HH:MM"
+                      maxlength="5"
+                      pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+                      class="drawer-history-salida w-full font-mono text-[10px] font-bold bg-transparent text-base-content text-center focus:outline-none" 
+                      data-date="${date}" 
+                      value="${salidaVal}"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -2768,6 +3927,12 @@ import { Icon } from "astro-icon/components";
 
       const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
       currentWeeklyScheduleTimes = { ...opWeeklyScheduleTimes };
+
+      const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyBreakInicioTimes = { ...opWeeklyBreakInicioTimes };
+
+      const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyBreakFinTimes = { ...opWeeklyBreakFinTimes };
 
       // Reset active tab to profile
       const tabProfileBtn = document.getElementById('tab-profile-btn');
@@ -2801,8 +3966,15 @@ import { Icon } from "astro-icon/components";
            document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
            return;
         }
-        focusedDateStr = clickDayBtn.dataset.clickDay || null;
-        renderMonthly();
+        const dateVal = clickDayBtn.dataset.clickDay;
+        if (dateVal) {
+          const dateInput = document.getElementById('date-input') as HTMLInputElement;
+          if (dateInput) {
+            dateInput.value = dateVal;
+            updateDateInputDisplay();
+          }
+          showDailyView();
+        }
         return;
       }
       
@@ -2896,6 +4068,76 @@ import { Icon } from "astro-icon/components";
             }
           });
         }
+      }
+    });
+
+    const locationSelect = document.getElementById('drawer-op-location') as HTMLSelectElement | null;
+    const locationIndicator = document.getElementById('location-status-indicator');
+
+    locationSelect?.addEventListener('change', async () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName) return;
+
+      updateLocationButtonsUI(locationSelect.value);
+
+      if (locationIndicator) {
+        locationIndicator.innerText = "Guardando...";
+        locationIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
+        locationIndicator.classList.add('opacity-100', 'text-warning/70');
+      }
+
+      try {
+        const res = await fetch('/api/cronograma/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentName: opName, location: locationSelect.value })
+        });
+
+        if (!res.ok) throw new Error("Failed to save location");
+
+        // Update local cronoData state too!
+        const op = cronoData.find(o => o.nombre === opName);
+        if (op) {
+          op.location = locationSelect.value;
+        }
+
+        if (locationIndicator) {
+          locationIndicator.innerText = "Guardado";
+          locationIndicator.classList.remove('text-warning/70');
+          locationIndicator.classList.add('text-success/70');
+          
+          setTimeout(() => {
+            if (locationIndicator.innerText === "Guardado") {
+              locationIndicator.classList.add('opacity-0');
+              locationIndicator.classList.remove('opacity-100');
+            }
+          }, 1500);
+        }
+
+        // Re-render both views
+        renderMonthly();
+        renderDaily();
+      } catch (err) {
+        console.error("Error saving location:", err);
+        if (locationIndicator) {
+          locationIndicator.innerText = "Error";
+          locationIndicator.classList.remove('text-warning/70', 'text-success/70');
+          locationIndicator.classList.add('text-error');
+        }
+      }
+    });
+
+    mgBtn?.addEventListener('click', () => {
+      if (locationSelect && locationSelect.value !== 'Monte Grande') {
+        locationSelect.value = 'Monte Grande';
+        locationSelect.dispatchEvent(new Event('change'));
+      }
+    });
+
+    ppBtn?.addEventListener('click', () => {
+      if (locationSelect && locationSelect.value !== 'Parque Patricios') {
+        locationSelect.value = 'Parque Patricios';
+        locationSelect.dispatchEvent(new Event('change'));
       }
     });
 
@@ -3202,20 +4444,154 @@ import { Icon } from "astro-icon/components";
       }
     }
 
-    detailEntradaInput?.addEventListener('input', () => {
-      if (realTimeTimeout) clearTimeout(realTimeTimeout);
-      realTimeTimeout = window.setTimeout(saveDetailRealTimes, 500);
+    function formatTimeInput(val: string): string {
+      val = val.trim();
+      if (!val) return '';
+      // Support patterns like "0800" or "830"
+      if (/^\d{3,4}$/.test(val)) {
+        const pad = val.padStart(4, '0');
+        const hh = parseInt(pad.slice(0, 2), 10);
+        const mm = parseInt(pad.slice(2, 4), 10);
+        if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+          return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+        }
+      }
+      // Support patterns like "8" -> "08:00"
+      if (/^\d{1,2}$/.test(val)) {
+        const num = parseInt(val, 10);
+        if (num >= 0 && num <= 23) {
+          return `${num.toString().padStart(2, '0')}:00`;
+        }
+      }
+      // Support patterns like "8:30" or "08:30"
+      const parts = val.split(':');
+      if (parts.length === 2) {
+        const hh = parseInt(parts[0], 10);
+        const mm = parseInt(parts[1], 10);
+        if (!isNaN(hh) && !isNaN(mm) && hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+          return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+        }
+      }
+      return '';
+    }
+
+    const handleTimeInputBlur = (input: HTMLInputElement) => {
+      const formatted = formatTimeInput(input.value);
+      input.value = formatted;
+      saveDetailRealTimes();
+    };
+
+    detailEntradaInput?.addEventListener('blur', () => handleTimeInputBlur(detailEntradaInput));
+    detailSalidaInput?.addEventListener('blur', () => handleTimeInputBlur(detailSalidaInput));
+    
+    detailEntradaInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailEntradaInput.blur();
+    });
+    detailSalidaInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailSalidaInput.blur();
     });
 
-    detailSalidaInput?.addEventListener('input', () => {
-      if (realTimeTimeout) clearTimeout(realTimeTimeout);
-      realTimeTimeout = window.setTimeout(saveDetailRealTimes, 500);
+    // --- FEATURE: Break Time (Inicio/Fin Break) Auto-save ---
+    const detailBreakInicioInput = document.getElementById('monthly-detail-break-inicio') as HTMLInputElement | null;
+    const detailBreakFinInput = document.getElementById('monthly-detail-break-fin') as HTMLInputElement | null;
+    const breakTimeIndicator = document.getElementById('monthly-break-time-indicator');
+
+    async function saveDetailBreakTimes() {
+      if (!activeDetailTrigger || !detailBreakInicioInput || !detailBreakFinInput) return;
+
+      if (breakTimeIndicator) {
+        breakTimeIndicator.innerText = "Guardando...";
+        breakTimeIndicator.classList.remove('text-success/70', 'text-error', 'opacity-0');
+        breakTimeIndicator.classList.add('text-warning/70', 'opacity-100');
+      }
+
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const breakInicioVal = detailBreakInicioInput.value;
+      const breakFinVal = detailBreakFinInput.value;
+
+      try {
+        if (!opName || !dateVal) return;
+
+        const res = await fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            edits: [
+              {
+                agentName: opName,
+                date: dateVal,
+                breakInicio: breakInicioVal,
+                breakFin: breakFinVal
+              }
+            ]
+          })
+        });
+
+        if (!res.ok) throw new Error("Error saving break times");
+
+        // Update local cronoData state
+        const op = cronoData.find(o => o.nombre === opName);
+        if (op) {
+          if (!op.breaks_inicio) op.breaks_inicio = {};
+          if (!op.breaks_fin) op.breaks_fin = {};
+          op.breaks_inicio[dateVal] = breakInicioVal;
+          op.breaks_fin[dateVal] = breakFinVal;
+        }
+
+        // Re-render monthly matrix to apply all colors and totals
+        renderMonthly();
+
+        // Restore trigger references after re-render (since the DOM elements were recreated)
+        const newTrigger = document.querySelector(`[data-operator="${opName.replace(/"/g, '\\"')}"][data-date="${dateVal}"]`) as HTMLElement | null;
+        if (newTrigger) {
+          activeDetailTrigger = newTrigger;
+        }
+
+        if (breakTimeIndicator) {
+          breakTimeIndicator.innerText = "Guardado";
+          breakTimeIndicator.classList.remove('text-warning/70');
+          breakTimeIndicator.classList.add('text-success/70');
+          setTimeout(() => {
+            if (breakTimeIndicator.innerText === "Guardado") {
+              breakTimeIndicator.classList.remove('opacity-100');
+              breakTimeIndicator.classList.add('opacity-0');
+            }
+          }, 1500);
+        }
+      } catch (err) {
+        console.error("Error auto-saving break times:", err);
+        if (breakTimeIndicator) {
+          breakTimeIndicator.innerText = "Error";
+          breakTimeIndicator.classList.remove('text-warning/70', 'text-success/70');
+          breakTimeIndicator.classList.add('text-error');
+        }
+      }
+    }
+
+    const handleBreakTimeInputBlur = (input: HTMLInputElement) => {
+      const formatted = formatTimeInput(input.value);
+      input.value = formatted;
+      saveDetailBreakTimes();
+    };
+
+    detailBreakInicioInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakInicioInput));
+    detailBreakFinInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakFinInput));
+    
+    detailBreakInicioInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailBreakInicioInput.blur();
+    });
+    detailBreakFinInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailBreakFinInput.blur();
     });
 
-    // Auto-save for Operator Drawer History Inputs
-    document.getElementById('drawer-history-list')?.addEventListener('input', (e) => {
+    // Auto-save for Operator Drawer History Inputs on change/blur
+    document.getElementById('drawer-history-list')?.addEventListener('change', (e) => {
       const target = e.target as HTMLInputElement;
       if (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida')) {
+        const formatted = formatTimeInput(target.value);
+        target.value = formatted;
+
         const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
         const dateVal = target.getAttribute('data-date');
         if (!opName || !dateVal) return;
@@ -3260,6 +4636,13 @@ import { Icon } from "astro-icon/components";
             console.error("Error saving drawer real times:", err);
           }
         }, 500);
+      }
+    });
+
+    document.getElementById('drawer-history-list')?.addEventListener('keydown', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (e.key === 'Enter' && (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida'))) {
+        target.blur();
       }
     });
     
@@ -3534,6 +4917,8 @@ import { Icon } from "astro-icon/components";
       container.innerHTML = daysName.map(day => {
         const currentVal = currentWeeklyScheme[day] || "Franco";
         const currentTime = currentWeeklyScheduleTimes[day] || "";
+        const currentBreakInicio = currentWeeklyBreakInicioTimes[day] || "";
+        const currentBreakFin = currentWeeklyBreakFinTimes[day] || "";
         const options = ["Presencial", "Home Office", "Vacaciones", "Licencia", "Horas Extras", "Franco"];
         
         const optHtml = options.map(opt => {
@@ -3559,19 +4944,47 @@ import { Icon } from "astro-icon/components";
         }).join('');
         
         return `
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3">
-            <div class="flex items-center justify-between sm:justify-start gap-4">
-              <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
-              <input 
-                type="text" 
-                class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
-                data-day="${day}" 
-                value="${currentTime}" 
-                placeholder="08:00 - 17:00" 
-              />
+          <div class="flex flex-col p-4 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center justify-between sm:justify-start gap-4">
+                <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
+                <input 
+                  type="text" 
+                  class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentTime}" 
+                  placeholder="08:00 - 17:00" 
+                />
+              </div>
+              <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
+                ${optHtml}
+              </div>
             </div>
-            <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
-              ${optHtml}
+            
+            <div class="flex items-center gap-4 pl-20 border-t border-dashed border-base-300/40 pt-2.5">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Break:</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[8px] font-black uppercase text-base-content/30">Inicio</span>
+                <input 
+                  type="text" 
+                  class="weekly-break-inicio-input input input-xs input-bordered w-16 font-mono text-[10px] font-bold text-center bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentBreakInicio}" 
+                  placeholder="HH:MM" 
+                  maxlength="5"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[8px] font-black uppercase text-base-content/30">Fin</span>
+                <input 
+                  type="text" 
+                  class="weekly-break-fin-input input input-xs input-bordered w-16 font-mono text-[10px] font-bold text-center bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentBreakFin}" 
+                  placeholder="HH:MM" 
+                  maxlength="5"
+                />
+              </div>
             </div>
           </div>
         `;
@@ -3585,6 +4998,8 @@ import { Icon } from "astro-icon/components";
       if (name && weeklyTemplates[name]) {
         currentWeeklyScheme = { ...weeklyTemplates[name].dias };
         currentWeeklyScheduleTimes = { ...weeklyTemplates[name].horarios };
+        currentWeeklyBreakInicioTimes = { ...(weeklyTemplates[name].breaks_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
+        currentWeeklyBreakFinTimes = { ...(weeklyTemplates[name].breaks_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
         renderWeeklyDaysList();
         
         if (customActions) {
@@ -3619,7 +5034,9 @@ import { Icon } from "astro-icon/components";
       
       weeklyTemplates[name] = {
         dias: { ...currentWeeklyScheme },
-        horarios: { ...currentWeeklyScheduleTimes }
+        horarios: { ...currentWeeklyScheduleTimes },
+        breaks_inicio: { ...currentWeeklyBreakInicioTimes },
+        breaks_fin: { ...currentWeeklyBreakFinTimes }
       };
       localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
       
@@ -3675,6 +5092,34 @@ import { Icon } from "astro-icon/components";
         const day = target.getAttribute('data-day');
         if (day) {
           currentWeeklyScheduleTimes[day] = target.value;
+        }
+      }
+      if (target.classList.contains('weekly-break-inicio-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyBreakInicioTimes[day] = target.value;
+        }
+      }
+      if (target.classList.contains('weekly-break-fin-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyBreakFinTimes[day] = target.value;
+        }
+      }
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('focusout', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('weekly-break-inicio-input') || target.classList.contains('weekly-break-fin-input')) {
+        const formatted = formatTimeInput(target.value);
+        target.value = formatted;
+        const day = target.getAttribute('data-day');
+        if (day) {
+          if (target.classList.contains('weekly-break-inicio-input')) {
+            currentWeeklyBreakInicioTimes[day] = formatted;
+          } else {
+            currentWeeklyBreakFinTimes[day] = formatted;
+          }
         }
       }
     });
@@ -3744,12 +5189,17 @@ import { Icon } from "astro-icon/components";
             horario = op?.horario || "08:00 - 17:00";
           }
 
+          const breakInicio = currentWeeklyBreakInicioTimes[dayName] || "";
+          const breakFin = currentWeeklyBreakFinTimes[dayName] || "";
+
           edits.push({
             agentName: opName,
             date: dateStr,
             status,
             comment: "",
-            horario
+            horario,
+            breakInicio,
+            breakFin
           });
         }
 
@@ -3760,7 +5210,9 @@ import { Icon } from "astro-icon/components";
             weeklySchedules: [{
               agentName: opName,
               esquema_semanal: currentWeeklyScheme,
-              esquema_horario: currentWeeklyScheduleTimes
+              esquema_horario: currentWeeklyScheduleTimes,
+              esquema_break_inicio: currentWeeklyBreakInicioTimes,
+              esquema_break_fin: currentWeeklyBreakFinTimes
             }],
             edits
           })
@@ -3772,6 +5224,8 @@ import { Icon } from "astro-icon/components";
           if (opIndex !== -1) {
             cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
             cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
+            cronoData[opIndex].esquema_break_inicio = { ...currentWeeklyBreakInicioTimes };
+            cronoData[opIndex].esquema_break_fin = { ...currentWeeklyBreakFinTimes };
           }
           
           const freshRes = await fetch('/api/cronograma');

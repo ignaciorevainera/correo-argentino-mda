@@ -1,9 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { schedules } from "@/db/schema";
+import { agents, schedules } from "@/db/schema";
 import { and, eq, like } from "drizzle-orm";
-import fs from "fs/promises";
-import path from "path";
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -17,17 +15,15 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // 1. Read baseline JSON to get all operators and their weekly schemes
-    const jsonPath = path.resolve("./public/data/cronograma.json");
-    const jsonRaw = await fs.readFile(jsonPath, "utf-8");
-    const baseline = JSON.parse(jsonRaw);
+    // 1. Fetch all agents (operators) from SQLite to get all operators
+    const dbAgents = await db.select().from(agents);
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
     // 2. Generate and write schedules for all operators
-    for (const op of baseline) {
-      const agentName = op.nombre;
+    for (const op of dbAgents) {
+      const agentName = op.name;
       
       // Delete existing DB schedules for this agent and month to avoid duplicates
       await db.delete(schedules).where(
@@ -49,6 +45,10 @@ export const POST: APIRoute = async ({ request }) => {
           status: "Franco",
           comment: "",
           horario: "",
+          entradaReal: "",
+          salidaReal: "",
+          breakInicio: "",
+          breakFin: "",
         });
       }
 
@@ -89,46 +89,6 @@ export const DELETE: APIRoute = async ({ request }) => {
     await db.delete(schedules).where(
       like(schedules.date, `${monthPrefix}-%`)
     );
-
-    // 2. Remove keys from baseline JSON to completely remove the month if it exists there
-    const jsonPath = path.resolve("./public/data/cronograma.json");
-    const jsonRaw = await fs.readFile(jsonPath, "utf-8");
-    const baseline = JSON.parse(jsonRaw);
-
-    let baselineModified = false;
-    for (const op of baseline) {
-      if (op.asistencia) {
-        const keys = Object.keys(op.asistencia);
-        for (const key of keys) {
-          if (key.startsWith(monthPrefix)) {
-            delete op.asistencia[key];
-            baselineModified = true;
-          }
-        }
-      }
-      if (op.comentarios) {
-        const keys = Object.keys(op.comentarios);
-        for (const key of keys) {
-          if (key.startsWith(monthPrefix)) {
-            delete op.comentarios[key];
-            baselineModified = true;
-          }
-        }
-      }
-      if (op.horarios_dias) {
-        const keys = Object.keys(op.horarios_dias);
-        for (const key of keys) {
-          if (key.startsWith(monthPrefix)) {
-            delete op.horarios_dias[key];
-            baselineModified = true;
-          }
-        }
-      }
-    }
-
-    if (baselineModified) {
-      await fs.writeFile(jsonPath, JSON.stringify(baseline, null, 2), "utf-8");
-    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
