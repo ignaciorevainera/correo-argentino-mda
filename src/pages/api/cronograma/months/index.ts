@@ -49,6 +49,10 @@ export const POST: APIRoute = async ({ request }) => {
           status: "Franco",
           comment: "",
           horario: "",
+          entradaReal: "",
+          salidaReal: "",
+          breakInicio: "",
+          breakFin: "",
         });
       }
 

@@ -25,6 +25,8 @@ export const GET: APIRoute = async () => {
       const newHorariosDias: Record<string, string> = {};
       const newEntradasReales: Record<string, string> = {};
       const newSalidasReales: Record<string, string> = {};
+      const newBreaksInicio: Record<string, string> = {};
+      const newBreaksFin: Record<string, string> = {};
 
       // Load specific DB overrides first
       opOverrides.forEach((s) => {
@@ -45,22 +47,44 @@ export const GET: APIRoute = async () => {
         if (s.salidaReal) {
           newSalidasReales[s.date] = s.salidaReal;
         }
+        if (s.breakInicio) {
+          newBreaksInicio[s.date] = s.breakInicio;
+        }
+        if (s.breakFin) {
+          newBreaksFin[s.date] = s.breakFin;
+        }
       });
 
-      // Fill in default hours for any dates that exist in newAsistencia
+      // Fill in default hours and breaks for any dates that exist in newAsistencia
       const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
       Object.keys(newAsistencia).forEach(dateStr => {
+        const dateObj = new Date(dateStr + "T12:00:00");
+        const dayName = dayNames[dateObj.getDay()];
+        const status = newAsistencia[dateStr];
+
         if (newHorariosDias[dateStr] === undefined) {
-          const dateObj = new Date(dateStr + "T12:00:00");
-          const dayName = dayNames[dateObj.getDay()];
-          const status = newAsistencia[dateStr];
-          
           if (operator.esquema_horario?.[dayName]) {
             newHorariosDias[dateStr] = operator.esquema_horario[dayName];
           } else if (status !== "Franco") {
             newHorariosDias[dateStr] = operator.horario || "08:00 - 17:00";
           } else {
             newHorariosDias[dateStr] = "";
+          }
+        }
+
+        if (newBreaksInicio[dateStr] === undefined) {
+          if (operator.esquema_break_inicio?.[dayName]) {
+            newBreaksInicio[dateStr] = operator.esquema_break_inicio[dayName];
+          } else {
+            newBreaksInicio[dateStr] = "";
+          }
+        }
+
+        if (newBreaksFin[dateStr] === undefined) {
+          if (operator.esquema_break_fin?.[dayName]) {
+            newBreaksFin[dateStr] = operator.esquema_break_fin[dayName];
+          } else {
+            newBreaksFin[dateStr] = "";
           }
         }
       });
@@ -72,6 +96,8 @@ export const GET: APIRoute = async () => {
         horarios_dias: newHorariosDias,
         entradas_reales: newEntradasReales,
         salidas_reales: newSalidasReales,
+        breaks_inicio: newBreaksInicio,
+        breaks_fin: newBreaksFin,
       };
     });
 
@@ -99,7 +125,7 @@ export const POST: APIRoute = async ({ request }) => {
       const baseline = JSON.parse(jsonRaw);
 
       for (const ws of weeklySchedules) {
-        const { agentName, esquema_semanal, esquema_horario } = ws;
+        const { agentName, esquema_semanal, esquema_horario, esquema_break_inicio, esquema_break_fin } = ws;
         if (!agentName) continue;
         const op = baseline.find((o: any) => o.nombre === agentName);
         if (op) {
@@ -108,6 +134,12 @@ export const POST: APIRoute = async ({ request }) => {
           }
           if (esquema_horario !== undefined) {
             op.esquema_horario = esquema_horario;
+          }
+          if (esquema_break_inicio !== undefined) {
+            op.esquema_break_inicio = esquema_break_inicio;
+          }
+          if (esquema_break_fin !== undefined) {
+            op.esquema_break_fin = esquema_break_fin;
           }
         }
       }
@@ -131,7 +163,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Process each edit
     for (const edit of edits) {
-      const { agentName, date, status, comment, horario, entradaReal, salidaReal } = edit;
+      const { agentName, date, status, comment, horario, entradaReal, salidaReal, breakInicio, breakFin } = edit;
       if (!agentName || !date) continue;
 
       const existing = await db
@@ -152,6 +184,8 @@ export const POST: APIRoute = async ({ request }) => {
         if (horario !== undefined) updateData.horario = horario;
         if (entradaReal !== undefined) updateData.entradaReal = entradaReal;
         if (salidaReal !== undefined) updateData.salidaReal = salidaReal;
+        if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
+        if (breakFin !== undefined) updateData.breakFin = breakFin;
 
         await db
           .update(schedules)
@@ -166,6 +200,8 @@ export const POST: APIRoute = async ({ request }) => {
           horario: horario || "",
           entradaReal: entradaReal || "",
           salidaReal: salidaReal || "",
+          breakInicio: breakInicio || "",
+          breakFin: breakFin || "",
         });
       }
     }

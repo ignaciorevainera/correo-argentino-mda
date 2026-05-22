@@ -640,6 +640,38 @@ import { Icon } from "astro-icon/components";
         </div>
       </div>
 
+      <!-- Horario de Break Planificado (Inicio / Fin) -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Horario de Break Planificado</p>
+          <span id="monthly-break-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="monthly-detail-break-inicio" class="text-[9px] font-bold uppercase text-base-content/40">Inicio Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-inicio" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+          <div class="space-y-1">
+            <label for="monthly-detail-break-fin" class="text-[9px] font-bold uppercase text-base-content/40">Fin Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-fin" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Comentarios del Día -->
       <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
         <div class="flex items-center justify-between">
@@ -982,17 +1014,6 @@ import { Icon } from "astro-icon/components";
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .gantt-bar-break {
-    position: absolute;
-    height: 100%;
-    background-color: rgba(245, 158, 11, 0.45); /* Amber con opacidad */
-    border-left: 1px dashed rgba(245, 158, 11, 0.6);
-    border-right: 1px dashed rgba(245, 158, 11, 0.6);
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 
   .gantt-bar-actual {
     position: absolute;
@@ -1029,6 +1050,10 @@ import { Icon } from "astro-icon/components";
     horarios_dias?: Record<string, string>;
     entradas_reales?: Record<string, string>;
     salidas_reales?: Record<string, string>;
+    breaks_inicio?: Record<string, string>;
+    breaks_fin?: Record<string, string>;
+    esquema_break_inicio?: Record<string, string>;
+    esquema_break_fin?: Record<string, string>;
   }
 
   function normalizeTimeStr(timeStr: string | undefined | null): string {
@@ -1100,7 +1125,9 @@ import { Icon } from "astro-icon/components";
 
   let currentWeeklyScheme: Record<string, string> = { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
   let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
+  let currentWeeklyBreakInicioTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let currentWeeklyBreakFinTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  let weeklyTemplates: Record<string, { dias: Record<string, string>, horarios: Record<string, string>, breaks_inicio?: Record<string, string>, breaks_fin?: Record<string, string> }> = JSON.parse(localStorage.getItem('cronoWeeklyTemplatesV2') || '{}');
   if (Object.keys(weeklyTemplates).length === 0) {
     weeklyTemplates = {
       "Estándar P/HO Alternado": {
@@ -1185,7 +1212,7 @@ import { Icon } from "astro-icon/components";
     }
   }
 
-  function isCurrentlyWorking(horario: string) {
+  function isCurrentlyWorking(horario: string, breakInicio?: string, breakFin?: string) {
     if (!horario || horario === '-') return { status: 'offline', text: 'Fuera de horario' };
     
     const now = new Date();
@@ -1202,9 +1229,21 @@ import { Icon } from "astro-icon/components";
     endTime.setHours(hE, mE, 0);
 
     if (now >= startTime && now <= endTime) {
-      const shiftDuration = endTime.getTime() - startTime.getTime();
-      const breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
-      const breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+      let breakStart: Date;
+      let breakEnd: Date;
+
+      if (breakInicio && breakFin) {
+        const [bhS, bmS] = breakInicio.split(':').map(Number);
+        const [bhE, bmE] = breakFin.split(':').map(Number);
+        breakStart = new Date(now);
+        breakStart.setHours(bhS, bmS, 0);
+        breakEnd = new Date(now);
+        breakEnd.setHours(bhE, bmE, 0);
+      } else {
+        const shiftDuration = endTime.getTime() - startTime.getTime();
+        breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+        breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+      }
 
       if (now >= breakStart && now <= breakEnd) {
         return { status: 'break', text: 'En descanso' };
@@ -1471,7 +1510,9 @@ import { Icon } from "astro-icon/components";
       const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
       const username = getUsername(op.nombre);
       const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
-      const liveStatus = isCurrentlyWorking(dailyHorario);
+      const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
+      const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
+      const liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin);
       
       // Asistencia real
       const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
@@ -1523,18 +1564,36 @@ import { Icon } from "astro-icon/components";
           let widthPct = endPct - startPct;
           if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
 
-          // Calcular descanso (1hr en el medio del shift)
-          const startMin = timeToMinutes(times[0]);
-          const endMin = timeToMinutes(times[1]);
-          const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-          const breakStartMin = startMin + (totalMin / 2) - 30;
-          const breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
-          
-          const breakStartPct = getGanttPosition(breakStartHourStr);
-          const breakWidthPct = (60 / 1440) * 100; // 1 hora de break
+          // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
+          let breakStartHourStr = '';
+          let breakEndHourStr = '';
+          let breakStartPct = 0;
+          let breakWidthPct = 0;
 
-          // Calcular posición del break relativa a la barra de trabajo
-          const relativeBreakLeft = ((breakStartPct - startPct + 100) % 100);
+          if (customBreakInicio && customBreakFin) {
+            breakStartHourStr = customBreakInicio;
+            breakEndHourStr = customBreakFin;
+            const bStartPct = getGanttPosition(breakStartHourStr);
+            const bEndPct = getGanttPosition(breakEndHourStr);
+            let bWidth = bEndPct - bStartPct;
+            if (bWidth < 0) bWidth += 100;
+            breakStartPct = bStartPct;
+            breakWidthPct = bWidth;
+          } else {
+            const startMin = timeToMinutes(times[0]);
+            const endMin = timeToMinutes(times[1]);
+            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+            const breakStartMin = startMin + (totalMin / 2) - 30;
+            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+            breakStartPct = getGanttPosition(breakStartHourStr);
+            breakWidthPct = (60 / 1440) * 100; // 1 hora de break
+            const breakEndMin = (breakStartMin + 60) % 1440;
+            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+          }
+
+          // Calcular posición del break relativa a la barra de trabajo (dividiendo por widthPct ya que es un elemento hijo absoluto)
+          const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
+          const relativeBreakWidth = widthPct > 0 ? (breakWidthPct / widthPct) * 100 : 0;
 
           let workBarBg = status === 'Presencial' ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
 
@@ -1566,12 +1625,13 @@ import { Icon } from "astro-icon/components";
             <div class="gantt-grid-line" style="left: 91.66%;"></div>
 
             <!-- Barra de Turno Planificado -->
-            <div class="gantt-bar-work ${workBarBg}" style="left: ${startPct}%; width: ${widthPct}%;">
-              <span class="text-[9px] font-extrabold tracking-tighter uppercase px-1 pointer-events-none">${times[0]} - ${times[1]}</span>
-              <!-- Bloque de Break interno -->
-              <div class="gantt-bar-break" style="left: ${relativeBreakLeft}%; width: ${breakWidthPct}%;" title="Break planificado">
-                <span class="text-[7px] font-black text-amber-800 uppercase pointer-events-none">B</span>
+            <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
+              <!-- Bloque de Break interno (Patrón de rayas diagonales para no tapar el texto) -->
+              <div class="gantt-bar-break absolute h-full top-0 z-[1] border-x border-dashed border-current opacity-60 cursor-help transition-all duration-200 hover:opacity-100 hover:bg-current/10" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
+                <div class="w-full h-full opacity-30" style="background-image: repeating-linear-gradient(-45deg, currentColor, currentColor 3px, transparent 3px, transparent 8px);"></div>
               </div>
+              <!-- Texto del horario con z-index alto para quedar por encima del break, con fondo sólido para enmascarar el patrón de rayas y asegurar una legibilidad premium -->
+              <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === 'Presencial' ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
             </div>
 
             <!-- Barra de Asistencia Real -->
@@ -1953,6 +2013,8 @@ import { Icon } from "astro-icon/components";
 
           const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
           const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
+          const breakInicio = (op.breaks_inicio && op.breaks_inicio[date]) || '';
+          const breakFin = (op.breaks_fin && op.breaks_fin[date]) || '';
           const hasRealTimes = !!(entradaReal || salidaReal);
 
           const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
@@ -1988,6 +2050,8 @@ import { Icon } from "astro-icon/components";
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
                 data-entrada-real="${escapeHtml(entradaReal)}"
                 data-salida-real="${escapeHtml(salidaReal)}"
+                data-break-inicio="${escapeHtml(breakInicio)}"
+                data-break-fin="${escapeHtml(breakFin)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
               >
                 ${hasRealTimes ? `
@@ -2023,6 +2087,8 @@ import { Icon } from "astro-icon/components";
                 data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
                 data-entrada-real="${escapeHtml(entradaReal)}"
                 data-salida-real="${escapeHtml(salidaReal)}"
+                data-break-inicio="${escapeHtml(breakInicio)}"
+                data-break-fin="${escapeHtml(breakFin)}"
                 aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
               >
                 ${hasRealTimes ? `
@@ -2296,6 +2362,18 @@ import { Icon } from "astro-icon/components";
     if (realTimeIndicator) {
       realTimeIndicator.classList.remove('opacity-100');
       realTimeIndicator.classList.add('opacity-0');
+    }
+
+    const breakInicioValue = trigger.dataset.breakInicio || '';
+    const breakFinValue = trigger.dataset.breakFin || '';
+    const detailBreakInicioInput = document.getElementById('monthly-detail-break-inicio') as HTMLInputElement | null;
+    const detailBreakFinInput = document.getElementById('monthly-detail-break-fin') as HTMLInputElement | null;
+    if (detailBreakInicioInput) detailBreakInicioInput.value = breakInicioValue;
+    if (detailBreakFinInput) detailBreakFinInput.value = breakFinValue;
+    const breakTimeIndicator = document.getElementById('monthly-break-time-indicator');
+    if (breakTimeIndicator) {
+      breakTimeIndicator.classList.remove('opacity-100');
+      breakTimeIndicator.classList.add('opacity-0');
     }
 
     const operatorName = trigger.dataset.operator || '';
@@ -3071,6 +3149,12 @@ import { Icon } from "astro-icon/components";
       const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
       currentWeeklyScheduleTimes = { ...opWeeklyScheduleTimes };
 
+      const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyBreakInicioTimes = { ...opWeeklyBreakInicioTimes };
+
+      const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+      currentWeeklyBreakFinTimes = { ...opWeeklyBreakFinTimes };
+
       // Reset active tab to profile
       const tabProfileBtn = document.getElementById('tab-profile-btn');
       tabProfileBtn?.dispatchEvent(new Event('click'));
@@ -3558,6 +3642,100 @@ import { Icon } from "astro-icon/components";
       if (e.key === 'Enter') detailSalidaInput.blur();
     });
 
+    // --- FEATURE: Break Time (Inicio/Fin Break) Auto-save ---
+    const detailBreakInicioInput = document.getElementById('monthly-detail-break-inicio') as HTMLInputElement | null;
+    const detailBreakFinInput = document.getElementById('monthly-detail-break-fin') as HTMLInputElement | null;
+    const breakTimeIndicator = document.getElementById('monthly-break-time-indicator');
+
+    async function saveDetailBreakTimes() {
+      if (!activeDetailTrigger || !detailBreakInicioInput || !detailBreakFinInput) return;
+
+      if (breakTimeIndicator) {
+        breakTimeIndicator.innerText = "Guardando...";
+        breakTimeIndicator.classList.remove('text-success/70', 'text-error', 'opacity-0');
+        breakTimeIndicator.classList.add('text-warning/70', 'opacity-100');
+      }
+
+      const opName = activeDetailTrigger.dataset.operator;
+      const dateVal = activeDetailTrigger.dataset.date;
+      const breakInicioVal = detailBreakInicioInput.value;
+      const breakFinVal = detailBreakFinInput.value;
+
+      try {
+        if (!opName || !dateVal) return;
+
+        const res = await fetch('/api/cronograma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            edits: [
+              {
+                agentName: opName,
+                date: dateVal,
+                breakInicio: breakInicioVal,
+                breakFin: breakFinVal
+              }
+            ]
+          })
+        });
+
+        if (!res.ok) throw new Error("Error saving break times");
+
+        // Update local cronoData state
+        const op = cronoData.find(o => o.nombre === opName);
+        if (op) {
+          if (!op.breaks_inicio) op.breaks_inicio = {};
+          if (!op.breaks_fin) op.breaks_fin = {};
+          op.breaks_inicio[dateVal] = breakInicioVal;
+          op.breaks_fin[dateVal] = breakFinVal;
+        }
+
+        // Re-render monthly matrix to apply all colors and totals
+        renderMonthly();
+
+        // Restore trigger references after re-render (since the DOM elements were recreated)
+        const newTrigger = document.querySelector(`[data-operator="${opName.replace(/"/g, '\\"')}"][data-date="${dateVal}"]`) as HTMLElement | null;
+        if (newTrigger) {
+          activeDetailTrigger = newTrigger;
+        }
+
+        if (breakTimeIndicator) {
+          breakTimeIndicator.innerText = "Guardado";
+          breakTimeIndicator.classList.remove('text-warning/70');
+          breakTimeIndicator.classList.add('text-success/70');
+          setTimeout(() => {
+            if (breakTimeIndicator.innerText === "Guardado") {
+              breakTimeIndicator.classList.remove('opacity-100');
+              breakTimeIndicator.classList.add('opacity-0');
+            }
+          }, 1500);
+        }
+      } catch (err) {
+        console.error("Error auto-saving break times:", err);
+        if (breakTimeIndicator) {
+          breakTimeIndicator.innerText = "Error";
+          breakTimeIndicator.classList.remove('text-warning/70', 'text-success/70');
+          breakTimeIndicator.classList.add('text-error');
+        }
+      }
+    }
+
+    const handleBreakTimeInputBlur = (input: HTMLInputElement) => {
+      const formatted = formatTimeInput(input.value);
+      input.value = formatted;
+      saveDetailBreakTimes();
+    };
+
+    detailBreakInicioInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakInicioInput));
+    detailBreakFinInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakFinInput));
+    
+    detailBreakInicioInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailBreakInicioInput.blur();
+    });
+    detailBreakFinInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') detailBreakFinInput.blur();
+    });
+
     // Auto-save for Operator Drawer History Inputs on change/blur
     document.getElementById('drawer-history-list')?.addEventListener('change', (e) => {
       const target = e.target as HTMLInputElement;
@@ -3890,6 +4068,8 @@ import { Icon } from "astro-icon/components";
       container.innerHTML = daysName.map(day => {
         const currentVal = currentWeeklyScheme[day] || "Franco";
         const currentTime = currentWeeklyScheduleTimes[day] || "";
+        const currentBreakInicio = currentWeeklyBreakInicioTimes[day] || "";
+        const currentBreakFin = currentWeeklyBreakFinTimes[day] || "";
         const options = ["Presencial", "Home Office", "Vacaciones", "Licencia", "Horas Extras", "Franco"];
         
         const optHtml = options.map(opt => {
@@ -3915,19 +4095,47 @@ import { Icon } from "astro-icon/components";
         }).join('');
         
         return `
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3">
-            <div class="flex items-center justify-between sm:justify-start gap-4">
-              <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
-              <input 
-                type="text" 
-                class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
-                data-day="${day}" 
-                value="${currentTime}" 
-                placeholder="08:00 - 17:00" 
-              />
+          <div class="flex flex-col p-4 bg-base-200/20 border border-base-300/30 rounded-2xl gap-3.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center justify-between sm:justify-start gap-4">
+                <span class="text-xs font-bold text-base-content/70 min-w-16">${day}</span>
+                <input 
+                  type="text" 
+                  class="weekly-schedule-input input input-xs input-bordered w-32 font-mono font-bold text-[11px] bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentTime}" 
+                  placeholder="08:00 - 17:00" 
+                />
+              </div>
+              <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
+                ${optHtml}
+              </div>
             </div>
-            <div class="flex gap-1.5 justify-end" data-weekly-day="${day}">
-              ${optHtml}
+            
+            <div class="flex items-center gap-4 pl-20 border-t border-dashed border-base-300/40 pt-2.5">
+              <span class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Break:</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[8px] font-black uppercase text-base-content/30">Inicio</span>
+                <input 
+                  type="text" 
+                  class="weekly-break-inicio-input input input-xs input-bordered w-16 font-mono text-[10px] font-bold text-center bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentBreakInicio}" 
+                  placeholder="HH:MM" 
+                  maxlength="5"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[8px] font-black uppercase text-base-content/30">Fin</span>
+                <input 
+                  type="text" 
+                  class="weekly-break-fin-input input input-xs input-bordered w-16 font-mono text-[10px] font-bold text-center bg-base-100 focus:outline-none focus:border-secondary" 
+                  data-day="${day}" 
+                  value="${currentBreakFin}" 
+                  placeholder="HH:MM" 
+                  maxlength="5"
+                />
+              </div>
             </div>
           </div>
         `;
@@ -3941,6 +4149,8 @@ import { Icon } from "astro-icon/components";
       if (name && weeklyTemplates[name]) {
         currentWeeklyScheme = { ...weeklyTemplates[name].dias };
         currentWeeklyScheduleTimes = { ...weeklyTemplates[name].horarios };
+        currentWeeklyBreakInicioTimes = { ...(weeklyTemplates[name].breaks_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
+        currentWeeklyBreakFinTimes = { ...(weeklyTemplates[name].breaks_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
         renderWeeklyDaysList();
         
         if (customActions) {
@@ -3975,7 +4185,9 @@ import { Icon } from "astro-icon/components";
       
       weeklyTemplates[name] = {
         dias: { ...currentWeeklyScheme },
-        horarios: { ...currentWeeklyScheduleTimes }
+        horarios: { ...currentWeeklyScheduleTimes },
+        breaks_inicio: { ...currentWeeklyBreakInicioTimes },
+        breaks_fin: { ...currentWeeklyBreakFinTimes }
       };
       localStorage.setItem('cronoWeeklyTemplatesV2', JSON.stringify(weeklyTemplates));
       
@@ -4031,6 +4243,34 @@ import { Icon } from "astro-icon/components";
         const day = target.getAttribute('data-day');
         if (day) {
           currentWeeklyScheduleTimes[day] = target.value;
+        }
+      }
+      if (target.classList.contains('weekly-break-inicio-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyBreakInicioTimes[day] = target.value;
+        }
+      }
+      if (target.classList.contains('weekly-break-fin-input')) {
+        const day = target.getAttribute('data-day');
+        if (day) {
+          currentWeeklyBreakFinTimes[day] = target.value;
+        }
+      }
+    });
+
+    document.getElementById('weekly-days-list')?.addEventListener('focusout', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains('weekly-break-inicio-input') || target.classList.contains('weekly-break-fin-input')) {
+        const formatted = formatTimeInput(target.value);
+        target.value = formatted;
+        const day = target.getAttribute('data-day');
+        if (day) {
+          if (target.classList.contains('weekly-break-inicio-input')) {
+            currentWeeklyBreakInicioTimes[day] = formatted;
+          } else {
+            currentWeeklyBreakFinTimes[day] = formatted;
+          }
         }
       }
     });
@@ -4100,12 +4340,17 @@ import { Icon } from "astro-icon/components";
             horario = op?.horario || "08:00 - 17:00";
           }
 
+          const breakInicio = currentWeeklyBreakInicioTimes[dayName] || "";
+          const breakFin = currentWeeklyBreakFinTimes[dayName] || "";
+
           edits.push({
             agentName: opName,
             date: dateStr,
             status,
             comment: "",
-            horario
+            horario,
+            breakInicio,
+            breakFin
           });
         }
 
@@ -4116,7 +4361,9 @@ import { Icon } from "astro-icon/components";
             weeklySchedules: [{
               agentName: opName,
               esquema_semanal: currentWeeklyScheme,
-              esquema_horario: currentWeeklyScheduleTimes
+              esquema_horario: currentWeeklyScheduleTimes,
+              esquema_break_inicio: currentWeeklyBreakInicioTimes,
+              esquema_break_fin: currentWeeklyBreakFinTimes
             }],
             edits
           })
@@ -4128,6 +4375,8 @@ import { Icon } from "astro-icon/components";
           if (opIndex !== -1) {
             cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
             cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
+            cronoData[opIndex].esquema_break_inicio = { ...currentWeeklyBreakInicioTimes };
+            cronoData[opIndex].esquema_break_fin = { ...currentWeeklyBreakFinTimes };
           }
           
           const freshRes = await fetch('/api/cronograma');
