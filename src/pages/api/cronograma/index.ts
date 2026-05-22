@@ -11,6 +11,7 @@ export const GET: APIRoute = async () => {
     const baseline = dbAgents.map((agent) => ({
       id: agent.id,
       nombre: agent.name,
+      username: agent.username || undefined,
       horario: agent.horarioDefault,
       location: agent.location || "Monte Grande",
       asistencia: {},

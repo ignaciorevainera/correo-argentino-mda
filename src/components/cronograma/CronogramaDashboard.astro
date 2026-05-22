@@ -1366,6 +1366,7 @@ import { Icon } from "astro-icon/components";
 <script>
   interface OperatorData {
     nombre: string;
+    username?: string;
     horario: string;
     location?: string;
     asistencia: Record<string, string>;
@@ -1524,10 +1525,6 @@ import { Icon } from "astro-icon/components";
       .replace(/'/g, '&#39;');
   }
 
-  function getUsername(nombre: string) {
-    const nameParts = nombre.toLowerCase().split(' ');
-    return nameParts[0][0] + (nameParts[1] || '');
-  }
 
   function updateDateInputDisplay() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement;
@@ -1873,7 +1870,7 @@ import { Icon } from "astro-icon/components";
         const isAbsent = status === 'Licencia' || status === 'Vacaciones';
         const isFranco = status === 'Franco';
         const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-        const username = getUsername(op.nombre);
+        const username = op.username || '';
         const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
         const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
         const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
@@ -2388,7 +2385,7 @@ import { Icon } from "astro-icon/components";
           const safeStatus = escapeHtml(status || 'Franco');
           const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
           const safeHorario = escapeHtml(dailyHorario);
-          const username = getUsername(op.nombre);
+          const username = op.username || '';
 
           const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
           const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
@@ -3562,7 +3559,7 @@ import { Icon } from "astro-icon/components";
         const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
         const totalInconsistencias = (hoViolation ? 1 : 0) + (pWeekViolation ? 1 : 0) + licenseOverlapCount;
 
-        const email = getUsername(op.nombre) + "@correoargentino.com.ar";
+        const email = op.username ? op.username + "@correoargentino.com.ar" : "";
         const sede = op.location || "Monte Grande";
         const turnoBase = op.horario || '-';
         const horasReales = (totalMinutesWorked / 60).toFixed(2);
@@ -3849,7 +3846,7 @@ import { Icon } from "astro-icon/components";
             notesTextarea.disabled = false;
           });
       }
-      document.getElementById('drawer-op-email')!.innerText = `${getUsername(op.nombre)}@correoargentino.com.ar`;
+      document.getElementById('drawer-op-email')!.innerText = op.username ? `${op.username}@correoargentino.com.ar` : '';
 
       // Stats
       let p = 0, ho = 0;
