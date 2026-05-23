@@ -1010,6 +1010,7 @@ import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
   let minCoveragePercent = parseInt(localStorage.getItem('cronoMinCoverage') || '40');
   let maxConsecutiveHOLimit = parseInt(localStorage.getItem('cronoMaxConsecutiveHO') || '5');
   let minPWeekLimit = parseInt(localStorage.getItem('cronoMinPWeek') || '2');
+  let maxLicenseOverlapLimit = parseInt(localStorage.getItem('cronoMaxLicenseOverlap') || '2');
 
   let currentWeeklyScheme: Record<string, string> = { Lunes: "Franco", Martes: "Franco", Miercoles: "Franco", Jueves: "Franco", Viernes: "Franco", Sabado: "Franco", Domingo: "Franco" };
   let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
@@ -2002,7 +2003,7 @@ import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
           }
           
           // --- RULE: License Overlap Check ---
-          const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > 2;
+          const isLicenseOverlap = (status === 'Licencia' || status === 'Vacaciones') && coveragePerDay[date].licenses > maxLicenseOverlapLimit;
           if (isLicenseOverlap) totalInconsistencies++;
 
           let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
@@ -3358,8 +3359,8 @@ import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
              currentWeekDays = 0;
           }
 
-          // Compliance rules: License overlap limit (> 2 licenses on same day)
-          const isLicenseOverlap = (s === 'Licencia' || s === 'Vacaciones') && coveragePerDay[d].licenses > 2;
+          // Compliance rules: License overlap limit (> maxLicenseOverlapLimit licenses on same day)
+          const isLicenseOverlap = (s === 'Licencia' || s === 'Vacaciones') && coveragePerDay[d].licenses > maxLicenseOverlapLimit;
           if (isLicenseOverlap) {
             licenseOverlapCount++;
           }
@@ -4713,8 +4714,11 @@ import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
        }
     };
 
+    const maxLicenseOverlapInput = document.getElementById('max-license-overlap-input') as HTMLInputElement;
+
     document.getElementById('open-rules-settings')?.addEventListener('click', () => {
        if (minCovInput) updateMinCovDisplay(minCovInput.value);
+       if (maxLicenseOverlapInput) maxLicenseOverlapInput.value = String(maxLicenseOverlapLimit);
        rulesModal?.showModal();
     });
     
@@ -4737,6 +4741,10 @@ import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
        if (minPWeekInput) {
           minPWeekLimit = parseInt(minPWeekInput.value);
           localStorage.setItem('cronoMinPWeek', minPWeekInput.value);
+       }
+       if (maxLicenseOverlapInput) {
+          maxLicenseOverlapLimit = parseInt(maxLicenseOverlapInput.value);
+          localStorage.setItem('cronoMaxLicenseOverlap', maxLicenseOverlapInput.value);
        }
        rulesModal?.close();
        renderMonthly(); // Re-render to show updated alerts immediately!
