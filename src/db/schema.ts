@@ -269,3 +269,69 @@ export const resourceLinksRelations = relations(resourceLinks, ({ one }) => ({
     references: [resourceCategories.id],
   }),
 }));
+
+// 10. UBICACIONES DE TRABAJO (Normalización de sedes presenciales)
+export const workLocations = sqliteTable("work_locations", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
+// 11. OPERADORES (Asignación de autogestiones)
+export const operators = sqliteTable("operators", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("disponible"),
+  locationId: text("location_id").references(() => workLocations.id),
+  currentMode: text("current_mode").notNull().default("presencial"),
+  lastAutogestionAssignedAt: integer("last_autogestion_assigned_at"),
+});
+
+export const operatorShifts = sqliteTable("operator_shifts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  operatorId: text("operator_id")
+    .notNull()
+    .references(() => operators.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'home' | 'presencial'
+  shiftStart: text("shift_start").notNull(),
+  shiftEnd: text("shift_end").notNull(),
+  breakTime: text("break_time").notNull(),
+});
+
+export const operatorSchedules = sqliteTable("operator_schedules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  operatorId: text("operator_id")
+    .notNull()
+    .references(() => operators.id, { onDelete: "cascade" }),
+  dayOfWeek: text("day_of_week").notNull(),
+  modality: text("modality").notNull(),
+  shiftStart: text("shift_start"),
+  shiftEnd: text("shift_end"),
+  breakTime: text("break_time"),
+});
+
+export const workLocationsRelations = relations(workLocations, ({ many }) => ({
+  operators: many(operators),
+}));
+
+export const operatorsRelations = relations(operators, ({ one, many }) => ({
+  shifts: many(operatorShifts),
+  schedules: many(operatorSchedules),
+  location: one(workLocations, {
+    fields: [operators.locationId],
+    references: [workLocations.id],
+  }),
+}));
+
+export const operatorShiftsRelations = relations(operatorShifts, ({ one }) => ({
+  operator: one(operators, {
+    fields: [operatorShifts.operatorId],
+    references: [operators.id],
+  }),
+}));
+
+export const operatorSchedulesRelations = relations(operatorSchedules, ({ one }) => ({
+  operator: one(operators, {
+    fields: [operatorSchedules.operatorId],
+    references: [operators.id],
+  }),
+}));

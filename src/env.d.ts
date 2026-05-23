@@ -1,4 +1,5 @@
 /// <reference path="../.astro/types.d.ts" />
+/// <reference types="astro/client" />
 
 declare namespace App {
   interface Locals {
@@ -13,12 +14,8 @@ declare namespace App {
 interface HTMLDialogElement extends HTMLElement {
   showModal(): void;
   close(returnValue?: string): void;
-/// <reference types="astro/client" />
-
-interface ImportMetaEnv {
-  readonly BASE_URL: string;
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+interface HTMLInputElement extends HTMLElement {
+  value: string;
 }

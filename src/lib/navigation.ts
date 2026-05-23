@@ -152,6 +152,11 @@ export const navSections: NavSection[] = [
             label: "Gestión de recursos",
             icon: "boxicons:link-filled",
           },
+          {
+            href: "/admin/operadores",
+            label: "Gestión de operadores",
+            icon: "boxicons:user-id-card-filled",
+          },
         ],
       }
     ],
