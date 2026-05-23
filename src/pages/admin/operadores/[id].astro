@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { operators, workLocations } from "@db/schema";
+import { operators, workLocations, operatorSchedules } from "@db/schema";
 import { eq } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
@@ -18,6 +18,9 @@ const isNew = id === "nuevo";
 let successMsg = "";
 let errorMsg = "";
 
+const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const modalities = ['home', 'presencial'];
+
 if (Astro.request.method === "POST") {
   try {
     const fd = await Astro.request.formData();
@@ -32,24 +35,56 @@ if (Astro.request.method === "POST") {
     if (!operatorData.id || !operatorData.name) {
       errorMsg = "ID y nombre son obligatorios.";
     } else {
-      if (isNew) {
-        await db.insert(operators).values({
-          id: operatorData.id,
-          name: operatorData.name,
-          status: operatorData.status,
-          locationId: operatorData.locationId,
-        });
-        return Astro.redirect(`${cleanBase}admin/operadores`);
-      } else {
-        await db
-          .update(operators)
-          .set({
+      const newSchedules: any[] = [];
+      for (const day of daysOfWeek) {
+        for (const mod of modalities) {
+          const start = fd.get(`${mod}_${day}_start`)?.toString().trim();
+          const end = fd.get(`${mod}_${day}_end`)?.toString().trim();
+          const breakTime = fd.get(`${mod}_${day}_break`)?.toString().trim();
+
+          if (start || end || breakTime) {
+            newSchedules.push({
+              operatorId: operatorData.id,
+              dayOfWeek: day,
+              modality: mod,
+              shiftStart: start || null,
+              shiftEnd: end || null,
+              breakTime: breakTime || null,
+            });
+          }
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        if (isNew) {
+          await tx.insert(operators).values({
+            id: operatorData.id,
             name: operatorData.name,
             status: operatorData.status,
             locationId: operatorData.locationId,
-          })
-          .where(eq(operators.id, id!));
-        successMsg = "Operador actualizado con éxito.";
+          });
+        } else {
+          await tx
+            .update(operators)
+            .set({
+              name: operatorData.name,
+              status: operatorData.status,
+              locationId: operatorData.locationId,
+            })
+            .where(eq(operators.id, id!));
+          
+          await tx.delete(operatorSchedules).where(eq(operatorSchedules.operatorId, id!));
+        }
+
+        if (newSchedules.length > 0) {
+          await tx.insert(operatorSchedules).values(newSchedules);
+        }
+      });
+
+      if (isNew) {
+        return Astro.redirect(`${cleanBase}admin/operadores`);
+      } else {
+        successMsg = "Operador y horarios actualizados con éxito.";
       }
     }
   } catch (e: unknown) {
@@ -70,6 +105,7 @@ type OperatorRecord = {
 };
 
 let operator: OperatorRecord | null = null;
+let operatorSchedulesData: Record<string, Record<string, any>> = {};
 
 if (!isNew) {
   const [result] = await db
@@ -79,6 +115,18 @@ if (!isNew) {
 
   if (!result) return Astro.redirect(`${cleanBase}admin/operadores`);
   operator = result;
+
+  const scheds = await db
+    .select()
+    .from(operatorSchedules)
+    .where(eq(operatorSchedules.operatorId, id!));
+
+  for (const s of scheds) {
+    if (!operatorSchedulesData[s.dayOfWeek]) {
+      operatorSchedulesData[s.dayOfWeek] = {};
+    }
+    operatorSchedulesData[s.dayOfWeek][s.modality] = s;
+  }
 }
 
 const allLocations = await db
@@ -112,7 +160,7 @@ const statusOptions = [
     <PageHeader
       title={pageTitle}
       description={isNew
-        ? "Completá los datos para registrar un nuevo operador."
+        ? "Completá los datos y horarios para registrar un nuevo operador."
         : `ID: ${operator!.id}`}
     />
 
@@ -217,6 +265,69 @@ const statusOptions = [
         </div>
       </section>
 
+      <section class="card bg-base-100 border border-base-300 shadow-md">
+        <div class="card-body gap-4 p-5">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+              <Icon name="boxicons:calendar" size={15} />
+            </span>
+            Matriz de Horarios
+          </h2>
+          <div class="space-y-2">
+            {daysOfWeek.map((day) => (
+              <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+                <input type="checkbox" /> 
+                <div class="collapse-title text-sm font-medium">
+                  {day}
+                </div>
+                <div class="collapse-content">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-3">
+                      <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                        <span>🏠</span> Home Office
+                      </h3>
+                      <div class="grid grid-cols-3 gap-2">
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Entrada</legend>
+                          <input type="time" name={`home_${day}_start`} value={operatorSchedulesData[day]?.home?.shiftStart || ""} class="input input-sm w-full" />
+                        </fieldset>
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Salida</legend>
+                          <input type="time" name={`home_${day}_end`} value={operatorSchedulesData[day]?.home?.shiftEnd || ""} class="input input-sm w-full" />
+                        </fieldset>
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Break</legend>
+                          <input type="time" name={`home_${day}_break`} value={operatorSchedulesData[day]?.home?.breakTime || ""} class="input input-sm w-full" />
+                        </fieldset>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                        <span>🏢</span> Presencial
+                      </h3>
+                      <div class="grid grid-cols-3 gap-2">
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Entrada</legend>
+                          <input type="time" name={`presencial_${day}_start`} value={operatorSchedulesData[day]?.presencial?.shiftStart || ""} class="input input-sm w-full" />
+                        </fieldset>
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Salida</legend>
+                          <input type="time" name={`presencial_${day}_end`} value={operatorSchedulesData[day]?.presencial?.shiftEnd || ""} class="input input-sm w-full" />
+                        </fieldset>
+                        <fieldset class="fieldset gap-1">
+                          <legend class="fieldset-legend text-[10px]">Break</legend>
+                          <input type="time" name={`presencial_${day}_break`} value={operatorSchedulesData[day]?.presencial?.breakTime || ""} class="input input-sm w-full" />
+                        </fieldset>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div class="flex items-center justify-between gap-3 pt-1">
         <a
           href={`${cleanBase}admin/operadores`}
@@ -225,7 +336,7 @@ const statusOptions = [
           <Icon name="boxicons:arrow-left-filled" size={16} />
           Volver al listado
         </a>
-        <button type="submit" class="btn btn-secondary btn-sm gap-2">
+        <button type="submit" class="btn btn-primary btn-sm gap-2">
           <Icon name="boxicons:save-filled" size={16} />
           {isNew ? "Crear operador" : "Guardar cambios"}
         </button>

@@ -294,12 +294,25 @@ export const operatorShifts = sqliteTable("operator_shifts", {
   breakTime: text("break_time").notNull(),
 });
 
+export const operatorSchedules = sqliteTable("operator_schedules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  operatorId: text("operator_id")
+    .notNull()
+    .references(() => operators.id, { onDelete: "cascade" }),
+  dayOfWeek: text("day_of_week").notNull(),
+  modality: text("modality").notNull(),
+  shiftStart: text("shift_start"),
+  shiftEnd: text("shift_end"),
+  breakTime: text("break_time"),
+});
+
 export const workLocationsRelations = relations(workLocations, ({ many }) => ({
   operators: many(operators),
 }));
 
 export const operatorsRelations = relations(operators, ({ one, many }) => ({
   shifts: many(operatorShifts),
+  schedules: many(operatorSchedules),
   location: one(workLocations, {
     fields: [operators.locationId],
     references: [workLocations.id],
@@ -309,6 +322,13 @@ export const operatorsRelations = relations(operators, ({ one, many }) => ({
 export const operatorShiftsRelations = relations(operatorShifts, ({ one }) => ({
   operator: one(operators, {
     fields: [operatorShifts.operatorId],
+    references: [operators.id],
+  }),
+}));
+
+export const operatorSchedulesRelations = relations(operatorSchedules, ({ one }) => ({
+  operator: one(operators, {
+    fields: [operatorSchedules.operatorId],
     references: [operators.id],
   }),
 }));

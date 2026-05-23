@@ -1,4 +1,5 @@
 /// <reference path="../.astro/types.d.ts" />
+/// <reference types="astro/client" />
 
 declare namespace App {
   interface Locals {
@@ -17,14 +18,4 @@ interface HTMLDialogElement extends HTMLElement {
 
 interface HTMLInputElement extends HTMLElement {
   value: string;
-}
-
-/// <reference types="astro/client" />
-
-interface ImportMetaEnv {
-  readonly BASE_URL: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
 }
