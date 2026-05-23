@@ -1,0 +1,259 @@
+---
+// OperatorDrawer.astro
+import { Icon } from "astro-icon/components";
+---
+
+<!-- Operator Profile Modal -->
+<div 
+  id="operator-drawer-overlay" 
+  class="fixed inset-0 z-[110] hidden items-center justify-center bg-base-content/40 backdrop-blur-md transition-all duration-300 p-4"
+>
+  <div 
+    id="operator-drawer" 
+    class="relative w-full max-w-3xl bg-base-100 rounded-[2rem] shadow-2xl border border-base-300 flex flex-col overflow-hidden opacity-0 scale-95 transition-all duration-300 h-[740px] max-h-[90vh]"
+  >
+    <!-- Header with Background Gradient -->
+    <div class="p-8 border-b border-base-200 relative overflow-hidden bg-gradient-to-br from-base-200/50 to-transparent shrink-0">
+      <div class="flex items-center justify-between relative z-10">
+        <div class="flex items-center gap-6">
+          <div class="w-16 h-16 rounded-2xl bg-secondary/15 border border-secondary/20 text-secondary flex items-center justify-center shadow-md shrink-0 select-none">
+            <span id="drawer-op-avatar-initials" class="text-xl font-black tracking-wider"></span>
+          </div>
+          <div class="flex flex-col">
+            <h2 id="drawer-op-name" class="text-2xl font-black uppercase tracking-tight text-base-content"></h2>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="w-2 h-2 rounded-full bg-success"></span>
+              <span id="drawer-op-email" class="text-xs font-bold text-base-content/50 lowercase"></span>
+            </div>
+          </div>
+        </div>
+        <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300" type="button">
+          <Icon name="boxicons:x" size={28} />
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs Header -->
+    <div class="flex border-b border-base-200 bg-base-50/50 shrink-0">
+      <button 
+        type="button"
+        id="tab-profile-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all"
+      >
+        Perfil e Historial
+      </button>
+      <button 
+        type="button"
+        id="tab-weekly-btn" 
+        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all"
+      >
+        Esquema Semanal Base
+      </button>
+    </div>
+
+    <!-- Content: Profile e Historial tab -->
+    <div id="drawer-profile-tab-content" class="flex-1 p-6 md:p-8 min-h-0 flex flex-col bg-base-50/10">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 flex-1 min-h-0 overflow-y-auto md:overflow-y-hidden md:h-full">
+        <!-- Stats & Notes Column -->
+        <div class="space-y-6 flex flex-col min-h-0 md:h-full md:overflow-y-auto scrollbar-thin pl-1 pr-2 pb-2">
+          <section class="shrink-0">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-3 flex items-center gap-1.5">
+              <Icon name="boxicons:chart-line" size={14} class="text-base-content/50" />
+              Rendimiento Mensual
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Home Office Card -->
+              <div class="bg-amber-500/5 dark:bg-amber-400/5 rounded-2xl p-4 border border-amber-500/10 flex flex-col items-center text-center relative overflow-hidden group">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Icon name="boxicons:home" size={64} />
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-2">
+                  <Icon name="boxicons:home" size={18} />
+                </div>
+                <span class="text-3xl font-black text-amber-600 dark:text-amber-400" id="drawer-stat-ho">0</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/70 mt-1">Home Office</span>
+              </div>
+              <!-- Presencial Card -->
+              <div class="bg-secondary/5 rounded-2xl p-4 border border-secondary/10 flex flex-col items-center text-center relative overflow-hidden group">
+                <div class="absolute -right-2 -bottom-2 opacity-5 text-secondary group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Icon name="boxicons:building" size={64} />
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary mb-2">
+                  <Icon name="boxicons:building" size={18} />
+                </div>
+                <span class="text-3xl font-black text-secondary" id="drawer-stat-p">0</span>
+                <span class="text-[9px] font-black uppercase tracking-widest text-secondary/70 mt-1">Presencial</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Ubicación de Trabajo -->
+          <section class="shrink-0">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:map" size={14} class="text-base-content/50" />
+                Ubicación de Trabajo
+              </h3>
+              <span id="location-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <div class="join w-full grid grid-cols-2 bg-base-200/50 p-1 rounded-2xl border border-base-300/50">
+              <button 
+                type="button" 
+                id="btn-location-mg" 
+                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
+              >
+                Monte Grande
+              </button>
+              <button 
+                type="button" 
+                id="btn-location-pp" 
+                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
+              >
+                Parque Patricios
+              </button>
+            </div>
+            <select 
+              id="drawer-op-location"
+              class="sr-only"
+            >
+              <option value="Monte Grande">Monte Grande</option>
+              <option value="Parque Patricios">Parque Patricios</option>
+            </select>
+          </section>
+
+          <!-- Reglas Personalizadas -->
+          <section class="shrink-0 pt-4 border-t border-dashed border-base-300">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:badge-check" size={14} class="text-base-content/50" />
+                Reglas de Control de Asistencia
+              </h3>
+              <span id="rules-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-control">
+                <label for="drawer-op-min-p-week" class="label py-1">
+                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Mínimo Días Presenciales / Sem</span>
+                </label>
+                <select id="drawer-op-min-p-week" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
+                  <option value="">Por Defecto (Global)</option>
+                  <option value="0">Sin Mínimo (0)</option>
+                  <option value="1">1 día</option>
+                  <option value="2">2 días</option>
+                  <option value="3">3 días</option>
+                  <option value="4">4 días</option>
+                  <option value="5">5 días</option>
+                </select>
+              </div>
+
+              <div class="form-control">
+                <label for="drawer-op-max-ho" class="label py-1">
+                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Límite HO Consecutivos</span>
+                </label>
+                <select id="drawer-op-max-ho" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
+                  <option value="">Por Defecto (Global)</option>
+                  <option value="1">1 día</option>
+                  <option value="2">2 días</option>
+                  <option value="3">3 días</option>
+                  <option value="4">4 días</option>
+                  <option value="5">5 días</option>
+                  <option value="6">6 días</option>
+                  <option value="7">7 días</option>
+                  <option value="10">10 días</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <!-- Notas de Supervisión -->
+          <section class="flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:edit-alt" size={14} class="text-base-content/50" />
+                Notas de Supervisión
+              </h3>
+              <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <textarea 
+              id="drawer-op-notes"
+              placeholder="Escribe notas de seguimiento para el operador..." 
+              class="textarea textarea-bordered w-full flex-1 bg-base-200/20 border-base-300/80 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all resize-none min-h-[120px] rounded-2xl p-4 bg-base-100 placeholder:text-base-content/30"
+            ></textarea>
+          </section>
+        </div>
+
+        <!-- History Column -->
+        <section class="flex flex-col min-h-0 md:h-full">
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-4 shrink-0 flex items-center gap-1.5">
+            <Icon name="boxicons:history" size={14} class="text-base-content/50" />
+            Historial de Asistencia
+          </h3>
+          <div id="drawer-history-list" class="space-y-0 h-auto md:flex-1 md:overflow-y-auto scrollbar-thin pr-1 pb-2 pl-1">
+            <!-- Items will be injected here -->
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Content: Weekly base template tab -->
+    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 scrollbar-thin hidden bg-base-50/20 min-h-0">
+      <!-- Info note -->
+      <div class="bg-info/5 border border-sky-600/10 rounded-2xl p-4 flex gap-3 text-xs text-base-content/80">
+        <Icon name="boxicons:info-circle" class="text-sky-600 flex-shrink-0" size={18} />
+        <div>
+          <strong class="text-sky-700 dark:text-sky-500 font-bold block mb-0.5">Acerca del Esquema Semanal Base</strong>
+          Este esquema se repite automáticamente todas las semanas del año de forma dinámica. Las ediciones individuales del mes se guardarán como excepciones específicas en ese día puntual sin alterar este esquema.
+        </div>
+      </div>
+
+      <!-- Template Select Panel -->
+      <div class="space-y-3 bg-base-200/30 border border-base-300/50 p-5 rounded-[1.5rem]">
+        <div class="flex items-center justify-between">
+          <label class="text-[10px] font-black uppercase tracking-widest text-base-content/50">Plantillas Reutilizables</label>
+          <div class="flex gap-2">
+            <button type="button" id="weekly-template-create-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Nueva Plantilla
+            </button>
+            <button type="button" id="weekly-template-duplicate-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
+              Duplicar
+            </button>
+          </div>
+        </div>
+
+        <select id="weekly-template-select" class="select select-bordered select-sm w-full font-bold text-xs bg-base-100 focus:outline-none focus:border-secondary rounded-xl">
+          <!-- Loaded dynamically -->
+        </select>
+
+        <!-- Dynamic inputs for custom template names -->
+        <div id="template-custom-actions" class="hidden flex items-center gap-2 mt-2 bg-base-100 p-2.5 rounded-xl border border-base-200">
+          <input type="text" id="new-template-name" placeholder="Nombre de la plantilla..." class="input input-xs input-bordered flex-1 font-bold text-xs focus:outline-none focus:border-secondary rounded-lg bg-base-100" />
+          <button type="button" id="new-template-save-btn" class="btn btn-xs btn-secondary font-black text-[9px] uppercase rounded-lg">Guardar</button>
+          <button type="button" id="new-template-delete-btn" class="btn btn-xs btn-error btn-outline font-black text-[9px] uppercase rounded-lg">Eliminar</button>
+        </div>
+      </div>
+
+      <!-- Weekly Grid Days Editor -->
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
+        
+        <div id="weekly-days-list" class="space-y-2">
+          <!-- Populated dynamically via JS: Lunes to Domingo rows -->
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="pt-4 border-t border-base-200 flex justify-between items-center">
+        <span class="text-[10px] font-bold text-base-content/40">Edita los días arriba y haz click en aplicar</span>
+        <button type="button" id="save-operator-weekly-btn" class="btn btn-sm btn-secondary px-6 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-secondary/20 transition-all duration-200">
+          Aplicar Esquema a Operador
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3">
+       <button type="button" id="drawer-footer-close-btn" class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
+       <button type="button" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
+    </div>
+  </div>
+</div>

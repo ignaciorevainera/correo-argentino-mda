@@ -1,0 +1,152 @@
+---
+// MonthlyDetailModal.astro
+import { Icon } from "astro-icon/components";
+---
+
+<div
+  id="monthly-detail-overlay"
+  class="fixed inset-0 z-50 hidden items-start justify-center bg-base-content/10 p-4 backdrop-blur-[2px] transition-all duration-200"
+  aria-hidden="true"
+>
+  <section
+    id="monthly-detail-modal"
+    class="monthly-detail-modal relative w-full max-w-72 flex flex-col border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="monthly-detail-title"
+  >
+    <!-- Chat Bubble Tail (Pointer) -->
+    <div id="modal-pointer" class="absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-base-100 border-base-300 z-[-1] transition-all duration-200"></div>
+
+    <div class="flex items-center justify-between gap-3 bg-base-200/50 px-4 py-3 border-b border-base-200">
+      <div class="flex items-center gap-2">
+        <div id="modal-status-indicator" class="w-2 h-2 rounded-full animate-pulse"></div>
+        <h3 class="truncate text-xs font-black uppercase tracking-widest text-base-content/70" id="monthly-detail-title"></h3>
+      </div>
+      <button
+        type="button"
+        id="monthly-detail-close"
+        class="btn btn-ghost btn-xs btn-square shrink-0 hover:bg-error/10 hover:text-error transition-colors"
+        aria-label="Cerrar detalle"
+      >
+        <Icon name="boxicons:x" size={16} />
+      </button>
+    </div>
+
+    <div class="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1" id="monthly-detail-date-label">Fecha del servicio</p>
+        <p class="text-sm font-bold text-base-content" id="monthly-detail-date"></p>
+      </div>
+
+      <div class="flex items-center justify-between gap-4 py-1">
+        <div class="space-y-1">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Modalidad</p>
+          <span id="monthly-detail-status" class="inline-block text-[11px] font-black uppercase tracking-wider"></span>
+        </div>
+        <div class="space-y-1 text-right min-w-[135px]">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 text-right">Horario</p>
+          <div id="monthly-detail-schedule-container" class="relative cursor-pointer inline-block w-full">
+            <span id="monthly-detail-schedule-text" class="inline-block text-xs font-bold text-base-content bg-base-200/40 hover:bg-base-200/80 px-2.5 py-1 rounded-lg border border-base-300/40 transition-all font-mono select-none text-center min-w-[115px]">
+              -
+            </span>
+            <input 
+              type="text" 
+              id="monthly-detail-schedule" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center" 
+              placeholder="Ej: 08:00 - 16:00" 
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Registro de Asistencia Real (Entrada / Salida) -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Asistencia Real</p>
+          <span id="monthly-real-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="monthly-detail-entrada" class="text-[9px] font-bold uppercase text-base-content/40">Entrada Real</label>
+            <input 
+              type="text" 
+              id="monthly-detail-entrada" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+          <div class="space-y-1">
+            <label for="monthly-detail-salida" class="text-[9px] font-bold uppercase text-base-content/40">Salida Real</label>
+            <input 
+              type="text" 
+              id="monthly-detail-salida" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Horario de Break Planificado (Inicio / Fin) -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Horario de Break Planificado</p>
+          <span id="monthly-break-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="monthly-detail-break-inicio" class="text-[9px] font-bold uppercase text-base-content/40">Inicio Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-inicio" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+          <div class="space-y-1">
+            <label for="monthly-detail-break-fin" class="text-[9px] font-bold uppercase text-base-content/40">Fin Break</label>
+            <input 
+              type="text" 
+              id="monthly-detail-break-fin" 
+              placeholder="HH:MM"
+              maxlength="5"
+              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Comentarios del Día -->
+      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Comentario del Día</p>
+          <span id="monthly-comment-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
+        </div>
+        <textarea
+          id="monthly-detail-comment"
+          rows="2"
+          placeholder="Escribe un comentario específico para este día..."
+          class="textarea textarea-bordered w-full text-xs leading-relaxed focus:textarea-primary bg-base-100 border-base-300 rounded-lg py-2 px-3 resize-none focus:outline-none transition-all duration-200"
+        ></textarea>
+      </div>
+
+      <div class="pt-4 border-t border-dashed border-base-300">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1">ID Operador</p>
+             <code id="monthly-detail-user" class="block truncate font-mono text-[10px] font-bold text-base-content/50"></code>
+          </div>
+          <Icon name="boxicons:info-circle" size={20} class="text-base-content/20 shrink-0" />
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

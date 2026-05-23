@@ -1,6 +1,13 @@
 ---
 // CronogramaDashboard.astro
 import { Icon } from "astro-icon/components";
+
+import OperatorDrawer from "./subcomponents/OperatorDrawer.astro";
+import MonthlyDetailModal from "./subcomponents/MonthlyDetailModal.astro";
+import RulesSettingsModal from "./subcomponents/RulesSettingsModal.astro";
+import NewMonthModal from "./subcomponents/NewMonthModal.astro";
+import NewOperatorModal from "./subcomponents/NewOperatorModal.astro";
+import EditOperatorModal from "./subcomponents/EditOperatorModal.astro";
 ---
 
 <div id="cronograma-container" class="animate-in fade-in duration-700 w-full pb-12 space-y-8">
@@ -526,408 +533,9 @@ import { Icon } from "astro-icon/components";
   </div>
 </div>
 
-<!-- Operator Profile Modal -->
-<div 
-  id="operator-drawer-overlay" 
-  class="fixed inset-0 z-[110] hidden items-center justify-center bg-base-content/40 backdrop-blur-md transition-all duration-300 p-4"
->
-  <div 
-    id="operator-drawer" 
-    class="relative w-full max-w-3xl bg-base-100 rounded-[2rem] shadow-2xl border border-base-300 flex flex-col overflow-hidden opacity-0 scale-95 transition-all duration-300 h-[740px] max-h-[90vh]"
-  >
-    <!-- Header with Background Gradient -->
-    <div class="p-8 border-b border-base-200 relative overflow-hidden bg-gradient-to-br from-base-200/50 to-transparent shrink-0">
-      <div class="flex items-center justify-between relative z-10">
-        <div class="flex items-center gap-6">
-          <div class="w-16 h-16 rounded-2xl bg-secondary/15 border border-secondary/20 text-secondary flex items-center justify-center shadow-md shrink-0 select-none">
-            <span id="drawer-op-avatar-initials" class="text-xl font-black tracking-wider"></span>
-          </div>
-          <div class="flex flex-col">
-            <h2 id="drawer-op-name" class="text-2xl font-black uppercase tracking-tight text-base-content"></h2>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="w-2 h-2 rounded-full bg-success"></span>
-              <span id="drawer-op-email" class="text-xs font-bold text-base-content/50 lowercase"></span>
-            </div>
-          </div>
-        </div>
-        <button id="close-drawer" class="btn btn-ghost btn-circle hover:bg-base-300" type="button">
-          <Icon name="boxicons:x" size={28} />
-        </button>
-      </div>
-    </div>
+<OperatorDrawer />
 
-    <!-- Tabs Header -->
-    <div class="flex border-b border-base-200 bg-base-50/50 shrink-0">
-      <button 
-        type="button"
-        id="tab-profile-btn" 
-        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all"
-      >
-        Perfil e Historial
-      </button>
-      <button 
-        type="button"
-        id="tab-weekly-btn" 
-        class="px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all"
-      >
-        Esquema Semanal Base
-      </button>
-    </div>
-
-    <!-- Content: Profile e Historial tab -->
-    <div id="drawer-profile-tab-content" class="flex-1 p-6 md:p-8 min-h-0 flex flex-col bg-base-50/10">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 flex-1 min-h-0 overflow-y-auto md:overflow-y-hidden md:h-full">
-        <!-- Stats & Notes Column -->
-        <div class="space-y-6 flex flex-col min-h-0 md:h-full md:overflow-y-auto scrollbar-thin pl-1 pr-2 pb-2">
-          <section class="shrink-0">
-            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-3 flex items-center gap-1.5">
-              <Icon name="boxicons:chart-line" size={14} class="text-base-content/50" />
-              Rendimiento Mensual
-            </h3>
-            <div class="grid grid-cols-2 gap-4">
-              <!-- Home Office Card -->
-              <div class="bg-amber-500/5 dark:bg-amber-400/5 rounded-2xl p-4 border border-amber-500/10 flex flex-col items-center text-center relative overflow-hidden group">
-                <div class="absolute -right-2 -bottom-2 opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                  <Icon name="boxicons:home" size={64} />
-                </div>
-                <div class="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-2">
-                  <Icon name="boxicons:home" size={18} />
-                </div>
-                <span class="text-3xl font-black text-amber-600 dark:text-amber-400" id="drawer-stat-ho">0</span>
-                <span class="text-[9px] font-black uppercase tracking-widest text-amber-600/70 dark:text-amber-400/70 mt-1">Home Office</span>
-              </div>
-              <!-- Presencial Card -->
-              <div class="bg-secondary/5 rounded-2xl p-4 border border-secondary/10 flex flex-col items-center text-center relative overflow-hidden group">
-                <div class="absolute -right-2 -bottom-2 opacity-5 text-secondary group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                  <Icon name="boxicons:building" size={64} />
-                </div>
-                <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary mb-2">
-                  <Icon name="boxicons:building" size={18} />
-                </div>
-                <span class="text-3xl font-black text-secondary" id="drawer-stat-p">0</span>
-                <span class="text-[9px] font-black uppercase tracking-widest text-secondary/70 mt-1">Presencial</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- Ubicación de Trabajo -->
-          <section class="shrink-0">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
-                <Icon name="boxicons:map" size={14} class="text-base-content/50" />
-                Ubicación de Trabajo
-              </h3>
-              <span id="location-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
-            </div>
-            <div class="join w-full grid grid-cols-2 bg-base-200/50 p-1 rounded-2xl border border-base-300/50">
-              <button 
-                type="button" 
-                id="btn-location-mg" 
-                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
-              >
-                Monte Grande
-              </button>
-              <button 
-                type="button" 
-                id="btn-location-pp" 
-                class="btn btn-sm rounded-xl font-black uppercase text-[10px] tracking-wider transition-all duration-200 btn-ghost text-base-content/60"
-              >
-                Parque Patricios
-              </button>
-            </div>
-            <select 
-              id="drawer-op-location"
-              class="sr-only"
-            >
-              <option value="Monte Grande">Monte Grande</option>
-              <option value="Parque Patricios">Parque Patricios</option>
-            </select>
-          </section>
-
-          <!-- Reglas Personalizadas -->
-          <section class="shrink-0 pt-4 border-t border-dashed border-base-300">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
-                <Icon name="boxicons:badge-check" size={14} class="text-base-content/50" />
-                Reglas de Control de Asistencia
-              </h3>
-              <span id="rules-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="form-control">
-                <label for="drawer-op-min-p-week" class="label py-1">
-                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Mínimo Días Presenciales / Sem</span>
-                </label>
-                <select id="drawer-op-min-p-week" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
-                  <option value="">Por Defecto (Global)</option>
-                  <option value="0">Sin Mínimo (0)</option>
-                  <option value="1">1 día</option>
-                  <option value="2">2 días</option>
-                  <option value="3">3 días</option>
-                  <option value="4">4 días</option>
-                  <option value="5">5 días</option>
-                </select>
-              </div>
-
-              <div class="form-control">
-                <label for="drawer-op-max-ho" class="label py-1">
-                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Límite HO Consecutivos</span>
-                </label>
-                <select id="drawer-op-max-ho" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
-                  <option value="">Por Defecto (Global)</option>
-                  <option value="1">1 día</option>
-                  <option value="2">2 días</option>
-                  <option value="3">3 días</option>
-                  <option value="4">4 días</option>
-                  <option value="5">5 días</option>
-                  <option value="6">6 días</option>
-                  <option value="7">7 días</option>
-                  <option value="10">10 días</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          <!-- Notas de Supervisión -->
-          <section class="flex-1 flex flex-col min-h-0">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
-                <Icon name="boxicons:edit-alt" size={14} class="text-base-content/50" />
-                Notas de Supervisión
-              </h3>
-              <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
-            </div>
-            <textarea 
-              id="drawer-op-notes"
-              placeholder="Escribe notas de seguimiento para el operador..." 
-              class="textarea textarea-bordered w-full flex-1 bg-base-200/20 border-base-300/80 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all resize-none min-h-[120px] rounded-2xl p-4 bg-base-100 placeholder:text-base-content/30"
-            ></textarea>
-          </section>
-        </div>
-
-        <!-- History Column -->
-        <section class="flex flex-col min-h-0 md:h-full">
-          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 mb-4 shrink-0 flex items-center gap-1.5">
-            <Icon name="boxicons:history" size={14} class="text-base-content/50" />
-            Historial de Asistencia
-          </h3>
-          <div id="drawer-history-list" class="space-y-0 h-auto md:flex-1 md:overflow-y-auto scrollbar-thin pr-1 pb-2 pl-1">
-            <!-- Items will be injected here -->
-          </div>
-        </section>
-      </div>
-    </div>
-
-    <!-- Content: Weekly base template tab -->
-    <div id="drawer-weekly-tab-content" class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 scrollbar-thin hidden bg-base-50/20 min-h-0">
-      <!-- Info note -->
-      <div class="bg-info/5 border border-sky-600/10 rounded-2xl p-4 flex gap-3 text-xs text-base-content/80">
-        <Icon name="boxicons:info-circle" class="text-sky-600 flex-shrink-0" size={18} />
-        <div>
-          <strong class="text-sky-700 dark:text-sky-500 font-bold block mb-0.5">Acerca del Esquema Semanal Base</strong>
-          Este esquema se repite automáticamente todas las semanas del año de forma dinámica. Las ediciones individuales del mes se guardarán como excepciones específicas en ese día puntual sin alterar este esquema.
-        </div>
-      </div>
-
-      <!-- Template Select Panel -->
-      <div class="space-y-3 bg-base-200/30 border border-base-300/50 p-5 rounded-[1.5rem]">
-        <div class="flex items-center justify-between">
-          <label class="text-[10px] font-black uppercase tracking-widest text-base-content/50">Plantillas Reutilizables</label>
-          <div class="flex gap-2">
-            <button type="button" id="weekly-template-create-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
-              Nueva Plantilla
-            </button>
-            <button type="button" id="weekly-template-duplicate-btn" class="btn btn-xs btn-outline border-base-300 font-black text-[9px] uppercase hover:bg-secondary/10 hover:text-secondary hover:border-secondary transition-all">
-              Duplicar
-            </button>
-          </div>
-        </div>
-
-        <select id="weekly-template-select" class="select select-bordered select-sm w-full font-bold text-xs bg-base-100 focus:outline-none focus:border-secondary rounded-xl">
-          <!-- Loaded dynamically -->
-        </select>
-
-        <!-- Dynamic inputs for custom template names -->
-        <div id="template-custom-actions" class="hidden flex items-center gap-2 mt-2 bg-base-100 p-2.5 rounded-xl border border-base-200">
-          <input type="text" id="new-template-name" placeholder="Nombre de la plantilla..." class="input input-xs input-bordered flex-1 font-bold text-xs focus:outline-none focus:border-secondary rounded-lg bg-base-100" />
-          <button type="button" id="new-template-save-btn" class="btn btn-xs btn-secondary font-black text-[9px] uppercase rounded-lg">Guardar</button>
-          <button type="button" id="new-template-delete-btn" class="btn btn-xs btn-error btn-outline font-black text-[9px] uppercase rounded-lg">Eliminar</button>
-        </div>
-      </div>
-
-      <!-- Weekly Grid Days Editor -->
-      <div class="space-y-4">
-        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
-        
-        <div id="weekly-days-list" class="space-y-2">
-          <!-- Populated dynamically via JS: Lunes to Domingo rows -->
-        </div>
-      </div>
-
-      <!-- Save Button -->
-      <div class="pt-4 border-t border-base-200 flex justify-between items-center">
-        <span class="text-[10px] font-bold text-base-content/40">Edita los días arriba y haz click en aplicar</span>
-        <button type="button" id="save-operator-weekly-btn" class="btn btn-sm btn-secondary px-6 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-secondary/20 transition-all duration-200">
-          Aplicar Esquema a Operador
-        </button>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3">
-       <button type="button" id="drawer-footer-close-btn" class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
-       <button type="button" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
-    </div>
-  </div>
-</div>
-
-<div
-  id="monthly-detail-overlay"
-  class="fixed inset-0 z-50 hidden items-start justify-center bg-base-content/10 p-4 backdrop-blur-[2px] transition-all duration-200"
-  aria-hidden="true"
->
-  <section
-    id="monthly-detail-modal"
-    class="monthly-detail-modal relative w-full max-w-72 flex flex-col border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="monthly-detail-title"
-  >
-    <!-- Chat Bubble Tail (Pointer) -->
-    <div id="modal-pointer" class="absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-base-100 border-base-300 z-[-1] transition-all duration-200"></div>
-
-    <div class="flex items-center justify-between gap-3 bg-base-200/50 px-4 py-3 border-b border-base-200">
-      <div class="flex items-center gap-2">
-        <div id="modal-status-indicator" class="w-2 h-2 rounded-full animate-pulse"></div>
-        <h3 class="truncate text-xs font-black uppercase tracking-widest text-base-content/70" id="monthly-detail-title"></h3>
-      </div>
-      <button
-        type="button"
-        id="monthly-detail-close"
-        class="btn btn-ghost btn-xs btn-square shrink-0 hover:bg-error/10 hover:text-error transition-colors"
-        aria-label="Cerrar detalle"
-      >
-        <Icon name="boxicons:x" size={16} />
-      </button>
-    </div>
-
-    <div class="p-5 space-y-5 flex-1 overflow-y-auto min-h-0">
-      <div>
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1" id="monthly-detail-date-label">Fecha del servicio</p>
-        <p class="text-sm font-bold text-base-content" id="monthly-detail-date"></p>
-      </div>
-
-      <div class="flex items-center justify-between gap-4 py-1">
-        <div class="space-y-1">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Modalidad</p>
-          <span id="monthly-detail-status" class="inline-block text-[11px] font-black uppercase tracking-wider"></span>
-        </div>
-        <div class="space-y-1 text-right min-w-[135px]">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 text-right">Horario</p>
-          <div id="monthly-detail-schedule-container" class="relative cursor-pointer inline-block w-full">
-            <span id="monthly-detail-schedule-text" class="inline-block text-xs font-bold text-base-content bg-base-200/40 hover:bg-base-200/80 px-2.5 py-1 rounded-lg border border-base-300/40 transition-all font-mono select-none text-center min-w-[115px]">
-              -
-            </span>
-            <input 
-              type="text" 
-              id="monthly-detail-schedule" 
-              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center" 
-              placeholder="Ej: 08:00 - 16:00" 
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Registro de Asistencia Real (Entrada / Salida) -->
-      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Asistencia Real</p>
-          <span id="monthly-real-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <label for="monthly-detail-entrada" class="text-[9px] font-bold uppercase text-base-content/40">Entrada Real</label>
-            <input 
-              type="text" 
-              id="monthly-detail-entrada" 
-              placeholder="HH:MM"
-              maxlength="5"
-              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
-              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
-            />
-          </div>
-          <div class="space-y-1">
-            <label for="monthly-detail-salida" class="text-[9px] font-bold uppercase text-base-content/40">Salida Real</label>
-            <input 
-              type="text" 
-              id="monthly-detail-salida" 
-              placeholder="HH:MM"
-              maxlength="5"
-              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
-              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Horario de Break Planificado (Inicio / Fin) -->
-      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Horario de Break Planificado</p>
-          <span id="monthly-break-time-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <label for="monthly-detail-break-inicio" class="text-[9px] font-bold uppercase text-base-content/40">Inicio Break</label>
-            <input 
-              type="text" 
-              id="monthly-detail-break-inicio" 
-              placeholder="HH:MM"
-              maxlength="5"
-              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
-              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
-            />
-          </div>
-          <div class="space-y-1">
-            <label for="monthly-detail-break-fin" class="text-[9px] font-bold uppercase text-base-content/40">Fin Break</label>
-            <input 
-              type="text" 
-              id="monthly-detail-break-fin" 
-              placeholder="HH:MM"
-              maxlength="5"
-              pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
-              class="input input-xs input-bordered w-full font-mono text-xs font-semibold focus:border-secondary focus:outline-none text-center bg-base-100 border-base-300 rounded-lg h-8"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Comentarios del Día -->
-      <div class="pt-4 border-t border-dashed border-base-300 space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30">Comentario del Día</p>
-          <span id="monthly-comment-indicator" class="text-[9px] font-bold text-success/70 opacity-0 transition-all duration-200">Guardado</span>
-        </div>
-        <textarea
-          id="monthly-detail-comment"
-          rows="2"
-          placeholder="Escribe un comentario específico para este día..."
-          class="textarea textarea-bordered w-full text-xs leading-relaxed focus:textarea-primary bg-base-100 border-base-300 rounded-lg py-2 px-3 resize-none focus:outline-none transition-all duration-200"
-        ></textarea>
-      </div>
-
-      <div class="pt-4 border-t border-dashed border-base-300">
-        <div class="flex items-center justify-between gap-2">
-          <div class="min-w-0">
-             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mb-1">ID Operador</p>
-             <code id="monthly-detail-user" class="block truncate font-mono text-[10px] font-bold text-base-content/50"></code>
-          </div>
-          <Icon name="boxicons:info-circle" size={20} class="text-base-content/20 shrink-0" />
-        </div>
-      </div>
-    </div>
-  </section>
-</div>
+<MonthlyDetailModal />
 
 <!-- Edit Mode Toolbar -->
 <div id="edit-mode-toolbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-4 z-[100] transition-all duration-500 translate-y-32 opacity-0 pointer-events-none">
@@ -970,251 +578,10 @@ import { Icon } from "astro-icon/components";
     </div>
 </div>
 
-<!-- Rules Settings Modal -->
-<dialog id="rules-settings-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-3xl w-11/12 bg-base-100 border border-base-300 shadow-2xl">
-    <h3 class="font-black text-lg mb-4 text-base-content">Parámetros del Cronograma</h3>
-    
-    <div class="space-y-6">
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text font-bold">Cobertura Presencial Mínima (%)</span>
-          <span class="label-text-alt font-black text-secondary" id="min-coverage-val">40%</span>
-        </label>
-        <input type="range" id="min-coverage-input" min="0" max="100" value="40" class="range range-secondary range-xs" />
-        <label class="label">
-          <span class="label-text-alt text-base-content/50">Si la presencialidad cae por debajo de este valor, el día se marcará en rojo.</span>
-        </label>
-      </div>
-
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text font-bold">Límite HO Consecutivos</span>
-        </label>
-        <input type="number" id="max-ho-input" value="5" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
-        <label class="label">
-          <span class="label-text-alt text-base-content/50">Máximo de días seguidos de Home Office permitidos antes de generar alerta.</span>
-        </label>
-      </div>
-
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text font-bold">Días Presenciales Mínimos (Por Semana)</span>
-        </label>
-        <input type="number" id="min-p-week-input" value="2" min="0" max="7" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
-        <label class="label">
-          <span class="label-text-alt text-base-content/50">Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila.</span>
-        </label>
-      </div>
-    </div>
-    
-    <div class="modal-action">
-      <form method="dialog">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200">Cancelar</button>
-        <button class="btn btn-sm btn-secondary ml-2" id="save-rules-btn" type="button">Guardar Reglas</button>
-      </form>
-    </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
-
-<!-- New Month Dialog -->
-<dialog id="new-month-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
-      <Icon name="boxicons:calendar-plus" class="text-secondary" size={22} />
-      Agregar Nuevo Mes
-    </h3>
-    
-    <div class="space-y-4">
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Año</span>
-        </label>
-        <input 
-          type="number" 
-          id="new-month-year" 
-          value="2026" 
-          min="2020" 
-          max="2035" 
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Seleccionar Mes</span>
-        </label>
-        <select id="new-month-month" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
-          <option value="0">Enero</option>
-          <option value="1">Febrero</option>
-          <option value="2">Marzo</option>
-          <option value="3">Abril</option>
-          <option value="4">Mayo</option>
-          <option value="5">Junio</option>
-          <option value="6">Julio</option>
-          <option value="7">Agosto</option>
-          <option value="8">Septiembre</option>
-          <option value="9">Octubre</option>
-          <option value="10">Noviembre</option>
-          <option value="11">Diciembre</option>
-        </select>
-      </div>
-    </div>
-    
-    <div class="modal-action mt-6 flex justify-end gap-2">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
-      </form>
-    </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
-
-<!-- New Operator Dialog -->
-<dialog id="new-operator-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
-      <Icon name="boxicons:user-plus" class="text-secondary" size={22} />
-      Agregar Nuevo Operador
-    </h3>
-    
-    <div class="space-y-4">
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre Completo</span>
-        </label>
-        <input 
-          type="text" 
-          id="new-op-name" 
-          placeholder="Ej: Juan Pérez"
-          class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre de Usuario (Red)</span>
-        </label>
-        <input 
-          type="text" 
-          id="new-op-username" 
-          placeholder="Ej: jperez"
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Sede Principal</span>
-        </label>
-        <select id="new-op-location" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
-          <option value="Monte Grande">Monte Grande</option>
-          <option value="Parque Patricios">Parque Patricios</option>
-        </select>
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
-        </label>
-        <input 
-          type="text" 
-          id="new-op-schedule" 
-          placeholder="Ej: 08:00 - 17:00"
-          value="08:00 - 17:00"
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-    </div>
-    
-    <div class="modal-action mt-6 flex justify-end gap-2">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-op" type="button">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-op" type="button">Agregar Operador</button>
-      </form>
-    </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
-
-<!-- Edit Operator Dialog -->
-<dialog id="edit-operator-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
-      <Icon name="boxicons:edit-alt" class="text-secondary" size={22} />
-      Editar Operador
-    </h3>
-    
-    <!-- Hidden field for original name to query the record -->
-    <input type="hidden" id="edit-op-original-name" />
-
-    <div class="space-y-4">
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre Completo</span>
-        </label>
-        <input 
-          type="text" 
-          id="edit-op-name" 
-          placeholder="Ej: Juan Pérez"
-          class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre de Usuario (Red)</span>
-        </label>
-        <input 
-          type="text" 
-          id="edit-op-username" 
-          placeholder="Ej: jperez"
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Sede Principal</span>
-        </label>
-        <select id="edit-op-location" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
-          <option value="Monte Grande">Monte Grande</option>
-          <option value="Parque Patricios">Parque Patricios</option>
-        </select>
-      </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
-        </label>
-        <input 
-          type="text" 
-          id="edit-op-schedule" 
-          placeholder="Ej: 08:00 - 17:00"
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
-    </div>
-    
-    <div class="modal-action mt-6 flex justify-end gap-2">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-edit-op" type="button">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-edit-op" type="button">Guardar Cambios</button>
-      </form>
-    </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+<RulesSettingsModal />
+<NewMonthModal />
+<NewOperatorModal />
+<EditOperatorModal />
 
 <style is:global>
   /* --- Maximize Mode Styles --- */
@@ -2424,6 +1791,41 @@ import { Icon } from "astro-icon/components";
     const teamSize = cronoData.length;
     let totalInconsistencies = 0;
 
+    const shortDayFormatter = new Intl.DateTimeFormat('es-AR', { weekday: 'short' });
+    const monthLongFormatter = new Intl.DateTimeFormat('es-AR', { month: 'long' });
+
+    const parsedDates = dates.map(date => {
+      const d = new Date(date + 'T12:00:00');
+      const isToday = date === todayStr;
+      const day = d.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const coverage = coveragePerDay[date];
+      const isCritical = teamSize > 0 ? (coverage.total / teamSize) < (minCoveragePercent / 100) : false;
+      
+      let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
+      if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
+      else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
+      else if (isCritical) thClass += " bg-error/10 text-error";
+      else thClass += " text-base-content/70";
+
+      const dayName = shortDayFormatter.format(d).substring(0, 2).toUpperCase();
+      const dateNum = d.getDate();
+      const monthName = monthLongFormatter.format(d);
+
+      return {
+        str: date,
+        dateObj: d,
+        isToday,
+        day,
+        isWeekend,
+        isCritical,
+        thClass,
+        dayName,
+        dateNum,
+        monthName
+      };
+    });
+
     let theadHtml = `<tr>
       <th class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
       <th class="sticky left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
@@ -2431,35 +1833,21 @@ import { Icon } from "astro-icon/components";
       <th class="sticky left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
 `;
     
-    dates.forEach(date => {
-      const d = new Date(date + 'T12:00:00');
-      const isToday = date === todayStr;
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-      const isCritical = (coveragePerDay[date].total / teamSize) < (minCoveragePercent / 100);
-      
-      let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
-      if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
-      else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
-      else if (isCritical) thClass += " bg-error/10 text-error";
-      else thClass += " text-base-content/70";
-      
-      const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'short' });
-      const dayName = formatter.format(d).substring(0, 2).toUpperCase();
-      
+    parsedDates.forEach(pd => {
       theadHtml += `
-        <th class="${thClass} p-0">
+        <th class="${pd.thClass} p-0">
           <button
             type="button"
             class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
-            data-click-day="${date}"
-            aria-label="Ver detalle del día ${d.getDate()} de ${new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(d)}"
+            data-click-day="${pd.str}"
+            aria-label="Ver detalle del día ${pd.dateNum} de ${pd.monthName}"
           >
-            <span class="font-extrabold text-[10px] tracking-wide ${isToday ? 'opacity-90' : 'opacity-60'}">${dayName}</span>
+            <span class="font-extrabold text-[10px] tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-60'}">${pd.dayName}</span>
             <div class="flex items-center gap-1">
-               <span class="font-black text-xs ${isToday ? 'scale-110' : ''}">${d.getDate()}</span>
-               ${isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
+               <span class="font-black text-xs ${pd.isToday ? 'scale-110' : ''}">${pd.dateNum}</span>
+               ${pd.isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
             </div>
-            ${isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+            ${pd.isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
           </button>
         </th>
       `;
@@ -2530,20 +1918,21 @@ import { Icon } from "astro-icon/components";
         let currentWeekP = 0;
         let currentWeekDays = 0;
 
-        dates.forEach(d => {
-          if (op.asistencia[d] === 'Home Office') {
+        parsedDates.forEach(pd => {
+          const d = pd.str;
+          const status = op.asistencia[d];
+          if (status === 'Home Office') {
             currentHO++;
             maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
-          } else if (op.asistencia[d] !== 'Franco' && op.asistencia[d]) {
+          } else if (status !== 'Franco' && status) {
             currentHO = 0;
           }
 
-          const dateObj = new Date(d + 'T12:00:00');
-          if (op.asistencia[d] === 'Presencial') currentWeekP++;
-          if (op.asistencia[d] !== 'Franco' && op.asistencia[d] !== 'Licencia' && op.asistencia[d] !== 'Vacaciones') {
+          if (status === 'Presencial') currentWeekP++;
+          if (status !== 'Franco' && status !== 'Licencia' && status !== 'Vacaciones' && status) {
              currentWeekDays++;
           }
-          if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
+          if (pd.day === 0 || d === dates[dates.length - 1]) {
              if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
                 pWeekViolation = true;
              }
@@ -2584,10 +1973,11 @@ import { Icon } from "astro-icon/components";
           <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
   `;
           
-        dates.forEach(date => {
+        parsedDates.forEach(pd => {
+          const date = pd.str;
           const status = op.asistencia[date];
           const styles = getStatusStyles(status);
-          const isTodayCell = date === todayStr;
+          const isTodayCell = pd.isToday;
           const safeName = escapeHtml(op.nombre);
           const safeDate = escapeHtml(date);
           const safeStatus = escapeHtml(status || 'Franco');
