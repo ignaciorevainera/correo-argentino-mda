@@ -357,7 +357,7 @@ import { Icon } from "astro-icon/components";
             </table>
           </div>
         </div>
-        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+        <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 no-print">
           <div class="flex flex-wrap items-center gap-4">
             <!-- Status Filters Container -->
             <div class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap">
@@ -444,7 +444,7 @@ import { Icon } from "astro-icon/components";
               </button>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2 justify-start xl:justify-end shrink-0">
             <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
               <Icon name="boxicons:file" size={14} />
               Exportar CSV
@@ -642,6 +642,50 @@ import { Icon } from "astro-icon/components";
               <option value="Monte Grande">Monte Grande</option>
               <option value="Parque Patricios">Parque Patricios</option>
             </select>
+          </section>
+
+          <!-- Reglas Personalizadas -->
+          <section class="shrink-0 pt-4 border-t border-dashed border-base-300">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
+                <Icon name="boxicons:badge-check" size={14} class="text-base-content/50" />
+                Reglas de Control de Asistencia
+              </h3>
+              <span id="rules-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="form-control">
+                <label for="drawer-op-min-p-week" class="label py-1">
+                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Mínimo Días Presenciales / Sem</span>
+                </label>
+                <select id="drawer-op-min-p-week" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
+                  <option value="">Por Defecto (Global)</option>
+                  <option value="0">Sin Mínimo (0)</option>
+                  <option value="1">1 día</option>
+                  <option value="2">2 días</option>
+                  <option value="3">3 días</option>
+                  <option value="4">4 días</option>
+                  <option value="5">5 días</option>
+                </select>
+              </div>
+
+              <div class="form-control">
+                <label for="drawer-op-max-ho" class="label py-1">
+                  <span class="label-text text-[9px] font-black uppercase text-base-content/50">Límite HO Consecutivos</span>
+                </label>
+                <select id="drawer-op-max-ho" class="select select-bordered select-xs font-bold w-full bg-base-100 focus:outline-none focus:border-secondary rounded-lg">
+                  <option value="">Por Defecto (Global)</option>
+                  <option value="1">1 día</option>
+                  <option value="2">2 días</option>
+                  <option value="3">3 días</option>
+                  <option value="4">4 días</option>
+                  <option value="5">5 días</option>
+                  <option value="6">6 días</option>
+                  <option value="7">7 días</option>
+                  <option value="10">10 días</option>
+                </select>
+              </div>
+            </div>
           </section>
 
           <!-- Notas de Supervisión -->
@@ -910,6 +954,14 @@ import { Icon } from "astro-icon/components";
     
     <div class="w-px h-8 bg-base-300/60"></div>
 
+    <!-- Add Operator Trigger -->
+    <button id="open-new-op-modal" class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors" type="button">
+       <Icon name="boxicons:user-plus" size={14} class="text-secondary" />
+       Agregar Operador
+    </button>
+    
+    <div class="w-px h-8 bg-base-300/60"></div>
+
     <!-- Save/Discard -->
     <div class="flex items-center gap-2">
        <span id="pending-edits-count" class="text-[10px] font-bold text-base-content/50 w-16 text-center select-none">0 cambios</span>
@@ -1016,6 +1068,146 @@ import { Icon } from "astro-icon/components";
       <form method="dialog" class="flex gap-2">
         <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
         <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<!-- New Operator Dialog -->
+<dialog id="new-operator-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name="boxicons:user-plus" class="text-secondary" size={22} />
+      Agregar Nuevo Operador
+    </h3>
+    
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre Completo</span>
+        </label>
+        <input 
+          type="text" 
+          id="new-op-name" 
+          placeholder="Ej: Juan Pérez"
+          class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre de Usuario (Red)</span>
+        </label>
+        <input 
+          type="text" 
+          id="new-op-username" 
+          placeholder="Ej: jperez"
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Sede Principal</span>
+        </label>
+        <select id="new-op-location" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
+          <option value="Monte Grande">Monte Grande</option>
+          <option value="Parque Patricios">Parque Patricios</option>
+        </select>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
+        </label>
+        <input 
+          type="text" 
+          id="new-op-schedule" 
+          placeholder="Ej: 08:00 - 17:00"
+          value="08:00 - 17:00"
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+    </div>
+    
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-op" type="button">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-op" type="button">Agregar Operador</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<!-- Edit Operator Dialog -->
+<dialog id="edit-operator-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name="boxicons:edit-alt" class="text-secondary" size={22} />
+      Editar Operador
+    </h3>
+    
+    <!-- Hidden field for original name to query the record -->
+    <input type="hidden" id="edit-op-original-name" />
+
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre Completo</span>
+        </label>
+        <input 
+          type="text" 
+          id="edit-op-name" 
+          placeholder="Ej: Juan Pérez"
+          class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre de Usuario (Red)</span>
+        </label>
+        <input 
+          type="text" 
+          id="edit-op-username" 
+          placeholder="Ej: jperez"
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Sede Principal</span>
+        </label>
+        <select id="edit-op-location" class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
+          <option value="Monte Grande">Monte Grande</option>
+          <option value="Parque Patricios">Parque Patricios</option>
+        </select>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
+        </label>
+        <input 
+          type="text" 
+          id="edit-op-schedule" 
+          placeholder="Ej: 08:00 - 17:00"
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+    </div>
+    
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-edit-op" type="button">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-edit-op" type="button">Guardar Cambios</button>
       </form>
     </div>
   </div>
@@ -1380,6 +1572,8 @@ import { Icon } from "astro-icon/components";
     breaks_fin?: Record<string, string>;
     esquema_break_inicio?: Record<string, string>;
     esquema_break_fin?: Record<string, string>;
+    maxConsecutiveHO?: number | null;
+    minPWeek?: number | null;
   }
 
   function normalizeTimeStr(timeStr: string | undefined | null): string {
@@ -2317,6 +2511,7 @@ import { Icon } from "astro-icon/components";
     } else {
       filteredOps.forEach(op => {
         const stats = { P: 0, HO: 0, L: 0 };
+        const username = op.username || '';
         dates.forEach(d => {
           const s = op.asistencia[d];
           if (s === 'Presencial') stats.P++;
@@ -2325,6 +2520,9 @@ import { Icon } from "astro-icon/components";
         });
 
         // --- RULE: Consecutive HO Check & Min Presencial Check ---
+        const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : maxConsecutiveHOLimit;
+        const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : minPWeekLimit;
+
         let maxConsecutiveHO = 0;
         let currentHO = 0;
         
@@ -2346,7 +2544,7 @@ import { Icon } from "astro-icon/components";
              currentWeekDays++;
           }
           if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
-             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+             if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
                 pWeekViolation = true;
              }
              currentWeekP = 0;
@@ -2354,7 +2552,7 @@ import { Icon } from "astro-icon/components";
           }
         });
         
-        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        const hoViolation = maxConsecutiveHO > opMaxHO;
         if (hoViolation || pWeekViolation) totalInconsistencies++;
 
         tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
@@ -2362,10 +2560,20 @@ import { Icon } from "astro-icon/components";
             <div class="flex items-center gap-3">
               <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
               <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
-              <div class="flex flex-col min-w-0">
-                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header" data-op-profile="${op.nombre}">
-                  ${op.nombre}
-                </button>
+              <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex items-center justify-between w-full">
+                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header font-bold text-xs" data-op-profile="${op.nombre}">
+                    ${op.nombre}
+                  </button>
+                  <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${isEditMode ? '' : 'hidden'}">
+                    <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-secondary edit-op-btn" data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-username="${escapeHtml(username)}" data-edit-op-location="${escapeHtml(op.location || 'Monte Grande')}" data-edit-op-schedule="${escapeHtml(op.horario || '08:00 - 17:00')}" title="Editar operador">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-error delete-op-btn" data-delete-op-name="${escapeHtml(op.nombre)}" title="Eliminar operador">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
                 ${hoViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
                 ${pWeekViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Faltan días P.</span>` : ''}
               </div>
@@ -2836,16 +3044,22 @@ import { Icon } from "astro-icon/components";
   function updateViewSwitcherUI(activeView: 'monthly' | 'daily') {
     const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
     const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+    
+    const activeClasses = ['btn-secondary', 'shadow-sm', 'shadow-secondary/15'];
+    const inactiveClasses = ['btn-outline', 'border-transparent', 'text-base-content/60', 'hover:bg-base-200/50'];
+    
     if (activeView === 'monthly') {
-      switchToMonthlyBtn?.classList.add('btn-secondary', 'shadow-sm');
-      switchToMonthlyBtn?.classList.remove('btn-outline', 'text-base-content/60');
-      switchToDailyBtn?.classList.remove('btn-secondary', 'shadow-sm');
-      switchToDailyBtn?.classList.add('btn-outline', 'text-base-content/60');
+      switchToMonthlyBtn?.classList.add(...activeClasses);
+      switchToMonthlyBtn?.classList.remove(...inactiveClasses);
+      
+      switchToDailyBtn?.classList.add(...inactiveClasses);
+      switchToDailyBtn?.classList.remove(...activeClasses);
     } else {
-      switchToDailyBtn?.classList.add('btn-secondary', 'shadow-sm');
-      switchToDailyBtn?.classList.remove('btn-outline', 'text-base-content/60');
-      switchToMonthlyBtn?.classList.remove('btn-secondary', 'shadow-sm');
-      switchToMonthlyBtn?.classList.add('btn-outline', 'text-base-content/60');
+      switchToDailyBtn?.classList.add(...activeClasses);
+      switchToDailyBtn?.classList.remove(...inactiveClasses);
+      
+      switchToMonthlyBtn?.classList.add(...inactiveClasses);
+      switchToMonthlyBtn?.classList.remove(...activeClasses);
     }
   }
 
@@ -2887,6 +3101,145 @@ import { Icon } from "astro-icon/components";
   }
 
   function setupEventListeners() {
+    // --- New Operator Modal Handlers ---
+    const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
+    const openNewOpBtn = document.getElementById('open-new-op-modal');
+    const cancelNewOpBtn = document.getElementById('cancel-new-op');
+    const confirmNewOpBtn = document.getElementById('confirm-new-op') as HTMLButtonElement | null;
+
+    openNewOpBtn?.addEventListener('click', () => {
+      newOpModal.showModal();
+    });
+
+    cancelNewOpBtn?.addEventListener('click', () => {
+      const nameInput = document.getElementById('new-op-name') as HTMLInputElement;
+      const usernameInput = document.getElementById('new-op-username') as HTMLInputElement;
+      const locSelect = document.getElementById('new-op-location') as HTMLSelectElement;
+      const scheduleInput = document.getElementById('new-op-schedule') as HTMLInputElement;
+      
+      if (nameInput) nameInput.value = '';
+      if (usernameInput) usernameInput.value = '';
+      if (locSelect) locSelect.value = 'Monte Grande';
+      if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
+      newOpModal.close();
+    });
+
+    confirmNewOpBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById('new-op-name') as HTMLInputElement;
+      const usernameInput = document.getElementById('new-op-username') as HTMLInputElement;
+      const locSelect = document.getElementById('new-op-location') as HTMLSelectElement;
+      const scheduleInput = document.getElementById('new-op-schedule') as HTMLInputElement;
+
+      const name = nameInput?.value?.trim();
+      const username = usernameInput?.value?.trim();
+      const location = locSelect?.value;
+      const horarioDefault = scheduleInput?.value?.trim();
+
+      if (!name) {
+        alert("El nombre completo es requerido.");
+        return;
+      }
+
+      if (confirmNewOpBtn) confirmNewOpBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/cronograma/operators', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, username, location, horarioDefault })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Error al agregar operador");
+        }
+
+        // Fetch fresh data
+        const freshRes = await fetch('/api/cronograma');
+        cronoData = await freshRes.json();
+
+        // Clear and close
+        if (nameInput) nameInput.value = '';
+        if (usernameInput) usernameInput.value = '';
+        if (locSelect) locSelect.value = 'Monte Grande';
+        if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
+        newOpModal.close();
+
+        // Re-render
+        renderMonthly();
+        renderDaily();
+        
+        alert(`Operador "${name}" agregado con éxito.`);
+      } catch (err: any) {
+        console.error("Error creating operator:", err);
+        alert(err.message || "Error al intentar crear operador.");
+      } finally {
+        if (confirmNewOpBtn) confirmNewOpBtn.disabled = false;
+      }
+    });
+
+    // --- Edit Operator Modal Handlers ---
+    const editOpModal = document.getElementById('edit-operator-modal') as HTMLDialogElement & { showModal: () => void, close: () => void };
+    const cancelEditOpBtn = document.getElementById('cancel-edit-op');
+    const confirmEditOpBtn = document.getElementById('confirm-edit-op') as HTMLButtonElement | null;
+
+    cancelEditOpBtn?.addEventListener('click', () => {
+      editOpModal.close();
+    });
+
+    confirmEditOpBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement;
+      const nameInput = document.getElementById('edit-op-name') as HTMLInputElement;
+      const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement;
+      const locSelect = document.getElementById('edit-op-location') as HTMLSelectElement;
+      const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement;
+
+      const originalName = originalNameInput?.value;
+      const name = nameInput?.value?.trim();
+      const username = usernameInput?.value?.trim();
+      const location = locSelect?.value;
+      const horarioDefault = scheduleInput?.value?.trim();
+
+      if (!name || !originalName) {
+        alert("El nombre completo es requerido.");
+        return;
+      }
+
+      if (confirmEditOpBtn) confirmEditOpBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/cronograma/operators', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ originalName, name, username, location, horarioDefault })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Error al modificar operador");
+        }
+
+        // Fetch fresh data
+        const freshRes = await fetch('/api/cronograma');
+        cronoData = await freshRes.json();
+
+        editOpModal.close();
+
+        // Re-render
+        renderMonthly();
+        renderDaily();
+
+        alert(`Operador "${name}" modificado con éxito.`);
+      } catch (err: any) {
+        console.error("Error editing operator:", err);
+        alert(err.message || "Error al intentar modificar operador.");
+      } finally {
+        if (confirmEditOpBtn) confirmEditOpBtn.disabled = false;
+      }
+    });
+
     document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
       showMonthlyView();
     });
@@ -3074,7 +3427,70 @@ import { Icon } from "astro-icon/components";
 
     document.addEventListener('mouseup', () => { isDragging = false; });
     
-    monthlyBody?.addEventListener('click', (event) => {
+    monthlyBody?.addEventListener('click', async (event) => {
+      // Click on edit operator button
+      const editOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.edit-op-btn');
+      if (editOpBtn) {
+        event.stopPropagation();
+        const originalName = editOpBtn.dataset.editOpName;
+        const username = editOpBtn.dataset.editOpUsername;
+        const location = editOpBtn.dataset.editOpLocation;
+        const schedule = editOpBtn.dataset.editOpSchedule;
+
+        const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement;
+        const nameInput = document.getElementById('edit-op-name') as HTMLInputElement;
+        const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement;
+        const locSelect = document.getElementById('edit-op-location') as HTMLSelectElement;
+        const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement;
+
+        if (originalNameInput) originalNameInput.value = originalName || '';
+        if (nameInput) nameInput.value = originalName || '';
+        if (usernameInput) usernameInput.value = username || '';
+        if (locSelect) locSelect.value = location || 'Monte Grande';
+        if (scheduleInput) scheduleInput.value = schedule || '08:00 - 17:00';
+
+        const editOpModal = document.getElementById('edit-operator-modal') as HTMLDialogElement & { showModal: () => void };
+        editOpModal?.showModal();
+        return;
+      }
+
+      // Click on delete operator button
+      const deleteOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.delete-op-btn');
+      if (deleteOpBtn) {
+        event.stopPropagation();
+        const opName = deleteOpBtn.dataset.deleteOpName;
+        if (!opName) return;
+
+        if (confirm(`¿Estás seguro de que deseas eliminar al operador "${opName}"? Esta acción borrará permanentemente sus datos y asistencias registradas.`)) {
+          deleteOpBtn.disabled = true;
+          try {
+            const res = await fetch('/api/cronograma/operators', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: opName })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Error al eliminar operador");
+
+            // Fetch fresh data
+            const freshRes = await fetch('/api/cronograma');
+            cronoData = await freshRes.json();
+
+            // Re-render
+            renderMonthly();
+            renderDaily();
+
+            alert(`Operador "${opName}" eliminado con éxito.`);
+          } catch (err: any) {
+            console.error("Error deleting operator:", err);
+            alert(err.message || "Error al intentar eliminar operador.");
+            deleteOpBtn.disabled = false;
+          }
+        }
+        return;
+      }
+
       // Row bulk edit
       const rowHeader = (event.target as HTMLElement).closest<HTMLElement>('.op-row-header');
       if (rowHeader && isEditMode && activeBrush) {
@@ -3482,6 +3898,9 @@ import { Icon } from "astro-icon/components";
         let totalMinutesWorked = 0;
 
         // Policy compliance calculations
+        const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : maxConsecutiveHOLimit;
+        const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : minPWeekLimit;
+
         let maxConsecutiveHO = 0;
         let currentHO = 0;
         let currentWeekP = 0;
@@ -3542,7 +3961,7 @@ import { Icon } from "astro-icon/components";
              currentWeekDays++;
           }
           if (dateObj.getDay() === 0 || d === dates[dates.length - 1]) {
-             if (currentWeekDays >= 5 && currentWeekP < minPWeekLimit) {
+             if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
                 pWeekViolation = true;
              }
              currentWeekP = 0;
@@ -3556,7 +3975,7 @@ import { Icon } from "astro-icon/components";
           }
         });
 
-        const hoViolation = maxConsecutiveHO > maxConsecutiveHOLimit;
+        const hoViolation = maxConsecutiveHO > opMaxHO;
         const totalInconsistencias = (hoViolation ? 1 : 0) + (pWeekViolation ? 1 : 0) + licenseOverlapCount;
 
         const email = op.username ? op.username + "@correoargentino.com.ar" : "";
@@ -3848,6 +4267,21 @@ import { Icon } from "astro-icon/components";
       }
       document.getElementById('drawer-op-email')!.innerText = op.username ? `${op.username}@correoargentino.com.ar` : '';
 
+      // Set rule selects
+      const minPWeekSelectEl = document.getElementById('drawer-op-min-p-week') as HTMLSelectElement | null;
+      const maxHoSelectEl = document.getElementById('drawer-op-max-ho') as HTMLSelectElement | null;
+      if (minPWeekSelectEl) {
+        minPWeekSelectEl.value = op.minPWeek !== undefined && op.minPWeek !== null ? String(op.minPWeek) : "";
+      }
+      if (maxHoSelectEl) {
+        maxHoSelectEl.value = op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null ? String(op.maxConsecutiveHO) : "";
+      }
+      const rulesIndicatorEl = document.getElementById('rules-status-indicator');
+      if (rulesIndicatorEl) {
+        rulesIndicatorEl.classList.add('opacity-0');
+        rulesIndicatorEl.classList.remove('opacity-100');
+      }
+
       // Stats
       let p = 0, ho = 0;
       Object.values(op.asistencia).forEach(s => {
@@ -4137,6 +4571,73 @@ import { Icon } from "astro-icon/components";
         locationSelect.dispatchEvent(new Event('change'));
       }
     });
+
+    // Custom Rules Auto-save implementation
+    const opMinPWeekSelect = document.getElementById('drawer-op-min-p-week') as HTMLSelectElement | null;
+    const opMaxHoSelect = document.getElementById('drawer-op-max-ho') as HTMLSelectElement | null;
+    const rulesIndicator = document.getElementById('rules-status-indicator');
+
+    async function saveOperatorRules() {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (!opName || !opMinPWeekSelect || !opMaxHoSelect) return;
+
+      if (rulesIndicator) {
+        rulesIndicator.innerText = "Guardando...";
+        rulesIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
+        rulesIndicator.classList.add('opacity-100', 'text-warning/70');
+      }
+
+      try {
+        const valMinP = opMinPWeekSelect.value;
+        const valMaxHo = opMaxHoSelect.value;
+
+        const res = await fetch('/api/cronograma/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentName: opName,
+            minPWeek: valMinP === "" ? null : parseInt(valMinP),
+            maxConsecutiveHO: valMaxHo === "" ? null : parseInt(valMaxHo)
+          })
+        });
+
+        if (!res.ok) throw new Error("Failed to save rules");
+
+        // Update local cronoData state too!
+        const op = cronoData.find(o => o.nombre === opName);
+        if (op) {
+          op.minPWeek = valMinP === "" ? null : parseInt(valMinP);
+          op.maxConsecutiveHO = valMaxHo === "" ? null : parseInt(valMaxHo);
+        }
+
+        if (rulesIndicator) {
+          rulesIndicator.innerText = "Guardado";
+          rulesIndicator.classList.remove('text-warning/70');
+          rulesIndicator.classList.add('text-success/70');
+          
+          setTimeout(() => {
+            if (rulesIndicator.innerText === "Guardado") {
+              rulesIndicator.classList.add('opacity-0');
+              rulesIndicator.classList.remove('opacity-100');
+            }
+          }, 1500);
+        }
+
+        // Re-render views
+        renderMonthly();
+        renderDaily();
+      } catch (err) {
+        console.error("Error saving rules:", err);
+        if (rulesIndicator) {
+          rulesIndicator.innerText = "Error";
+          rulesIndicator.classList.remove('text-warning/70', 'text-success/70');
+          rulesIndicator.classList.add('text-error');
+        }
+      }
+    }
+
+    opMinPWeekSelect?.addEventListener('change', saveOperatorRules);
+    opMaxHoSelect?.addEventListener('change', saveOperatorRules);
 
     const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
     const commentIndicator = document.getElementById('monthly-comment-indicator');
@@ -4656,7 +5157,6 @@ import { Icon } from "astro-icon/components";
         toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
         toggleEditBtn.classList.remove('btn-outline');
         document.getElementById('monthly-tbody')?.classList.add('select-none');
-        document.querySelectorAll('.op-checkbox').forEach(cb => cb.classList.remove('hidden'));
         if (editToolbar) {
            editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
         }
@@ -4665,10 +5165,6 @@ import { Icon } from "astro-icon/components";
         toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
         toggleEditBtn.classList.add('btn-outline');
         document.getElementById('monthly-tbody')?.classList.remove('select-none');
-        document.querySelectorAll('.op-checkbox').forEach(cb => {
-           cb.classList.add('hidden');
-           (cb as HTMLInputElement).checked = false;
-         });
         if (editToolbar) {
            editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
         }
@@ -4681,6 +5177,7 @@ import { Icon } from "astro-icon/components";
            if (saveIndicator) saveIndicator.classList.remove('hidden');
         }
       }
+      renderMonthly();
     });
 
     function updateBrushUI() {

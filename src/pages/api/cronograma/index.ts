@@ -19,6 +19,8 @@ export const GET: APIRoute = async () => {
       esquema_horario: agent.esquemaHorario || {},
       esquema_break_inicio: agent.esquemaBreakInicio || {},
       esquema_break_fin: agent.esquemaBreakFin || {},
+      maxConsecutiveHO: agent.maxConsecutiveHO,
+      minPWeek: agent.minPWeek,
     }));
 
     // 2. Fetch all persistent schedule overrides from DB
