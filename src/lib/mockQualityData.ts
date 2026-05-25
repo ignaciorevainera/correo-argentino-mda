@@ -3,36 +3,18 @@ export interface QualityCall {
   ticketId: string;
   duration: string;
   date: string;
+  notes?: string;
+  monthSummary?: string;
+  isCriticalFailure?: boolean;
   section1: {
     score: number;
     maxScore: number;
-    details: {
-      cordialidad: boolean;
-      saludo: boolean;
-      interes: boolean;
-      sondeo: boolean;
-      escucha: boolean;
-      control: boolean;
-      contencion: boolean;
-      despedida: boolean;
-      solicitud: boolean;
-      lenguaje: boolean;
-    };
+    details: Record<string, boolean>;
   };
   section2: {
     score: number;
     maxScore: number;
-    details: {
-      origen: boolean;
-      tipo: boolean;
-      categorizacion: boolean;
-      ortografia: boolean;
-      prioridad: boolean;
-      titulo: boolean;
-      cierre: boolean;
-      descripcion: boolean;
-      exactitud: boolean;
-    };
+    details: Record<string, boolean>;
   };
   totalScore: number;
 }
