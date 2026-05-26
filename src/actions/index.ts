@@ -3,52 +3,47 @@ import { z } from "astro:schema";
 import { db } from "@db/index";
 import { qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { calculateAuditScores } from "../lib/qualityCalculator";
 
 export const server = {
   saveAudit: defineAction({
     accept: "form",
     input: z.object({
-      id: z.string().optional().transform(v => v ? parseInt(v, 10) : undefined),
+      id: z.string().nullable().optional().transform(v => v ? parseInt(v, 10) : undefined),
       agentId: z.string().transform(v => parseInt(v, 10)),
       callId: z.string().min(1, "El ID de llamada es requerido"),
       ticketId: z.string().min(1, "El ID de ticket es requerido"),
       duration: z.string().min(1, "La duración es requerida"),
       date: z.string().min(1, "La fecha es requerida"),
       month: z.string().min(1, "El período es requerido"),
-      notes: z.string().optional().default(""),
-      isCriticalFailure: z.any().transform(v => v === "on"),
+      notes: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
+      isCriticalFailure: z.any().transform(v => v === "on" || v === true || v === "true" || v === 1 || v === "1"),
     }).passthrough(),
     handler: async (input) => {
       // 1. Obtener todos los parámetros dinámicos
       const allParams = await db.select().from(auditParameters);
 
-      // 2. Preparar el listado de scores y calcular pesos ponderados
+      // 2. Preparar el listado de scores y recopilar códigos seleccionados
       const scoresToInsert: { parameterId: number; score: boolean }[] = [];
-      let s1CheckedWeight = 0;
-      let s1TotalWeight = 0;
-      let s2CheckedWeight = 0;
-      let s2TotalWeight = 0;
+      const checkedCodes = new Set<string>();
 
       for (const param of allParams) {
-        const isChecked = (input as any)[param.code] === "on" || (input as any)[param.code] === true;
+        const isChecked = (input as any)[param.code] === "on" || (input as any)[param.code] === true || (input as any)[param.code] === "true";
+        if (isChecked) {
+          checkedCodes.add(param.code);
+        }
         scoresToInsert.push({
           parameterId: param.id,
           score: isChecked,
         });
-
-        if (param.category === "Interacción con Usuario") {
-          s1TotalWeight += param.weight;
-          if (isChecked) s1CheckedWeight += param.weight;
-        } else if (param.category === "Gestión del Ticket") {
-          s2TotalWeight += param.weight;
-          if (isChecked) s2CheckedWeight += param.weight;
-        }
       }
 
-      // Calcular scores basados en pesos
-      const section1Score = s1TotalWeight > 0 ? Math.round((s1CheckedWeight / s1TotalWeight) * 100) : 0;
-      const section2Score = s2TotalWeight > 0 ? Math.round((s2CheckedWeight / s2TotalWeight) * 100) : 0;
-      const totalScore = Math.round((section1Score + section2Score) / 2);
+      // 3. Calcular scores ponderados usando la utilidad compartida
+      const { section1Score, section2Score, totalScore } = calculateAuditScores(
+        allParams,
+        checkedCodes,
+        input.isCriticalFailure
+      );
 
       const auditData = {
         agentId: input.agentId,
@@ -66,31 +61,40 @@ export const server = {
 
       try {
         if (input.id) {
-          // Actualizar auditoría principal
-          await db.update(qualityAudits)
-            .set(auditData)
-            .where(eq(qualityAudits.id, input.id));
+          db.transaction((tx) => {
+            // Actualizar auditoría principal
+            tx.update(qualityAudits)
+              .set(auditData)
+              .where(eq(qualityAudits.id, input.id!))
+              .run();
 
-          // Actualizar scores (eliminar viejos e insertar nuevos)
-          await db.delete(auditScores).where(eq(auditScores.auditId, input.id));
-          if (scoresToInsert.length > 0) {
-            await db.insert(auditScores).values(
-              scoresToInsert.map(s => ({ auditId: input.id!, ...s }))
-            );
-          }
+            // Actualizar scores (eliminar viejos e insertar nuevos)
+            tx.delete(auditScores).where(eq(auditScores.auditId, input.id!)).run();
+            if (scoresToInsert.length > 0) {
+              tx.insert(auditScores).values(
+                scoresToInsert.map(s => ({ auditId: input.id!, ...s }))
+              ).run();
+            }
+          });
           return { success: true, id: input.id };
         } else {
-          // Insertar nueva auditoría
-          const [inserted] = await db.insert(qualityAudits)
-            .values(auditData)
-            .returning({ id: qualityAudits.id });
+          let insertedId: number;
+          db.transaction((tx) => {
+            // Insertar nueva auditoría
+            const [inserted] = tx.insert(qualityAudits)
+              .values(auditData)
+              .returning({ id: qualityAudits.id })
+              .all();
 
-          if (scoresToInsert.length > 0) {
-            await db.insert(auditScores).values(
-              scoresToInsert.map(s => ({ auditId: inserted.id, ...s }))
-            );
-          }
-          return { success: true, id: inserted.id };
+            insertedId = inserted.id;
+
+            if (scoresToInsert.length > 0) {
+              tx.insert(auditScores).values(
+                scoresToInsert.map(s => ({ auditId: inserted.id, ...s }))
+              ).run();
+            }
+          });
+          return { success: true, id: insertedId! };
         }
       } catch (error: any) {
         console.error("Error saving audit:", error);
@@ -120,7 +124,7 @@ export const server = {
     input: z.object({
       agentId: z.string().transform(v => parseInt(v, 10)),
       month: z.string().min(1),
-      summary: z.string()
+      summary: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
     }),
     handler: async (input) => {
       try {
