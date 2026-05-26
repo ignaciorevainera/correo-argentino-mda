@@ -208,6 +208,7 @@ export const cubicsRelations = relations(cubics, ({ many }) => ({
 
 export const agentsRelations = relations(agents, ({ many }) => ({
   assignments: many(cubicAssignments),
+  audits: many(qualityAudits),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -335,3 +336,82 @@ export const operatorSchedulesRelations = relations(operatorSchedules, ({ one })
     references: [operators.id],
   }),
 }));
+
+// 12. TABLA DE AUDITORIAS DE CALIDAD
+export const qualityAudits = sqliteTable("quality_audits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  callId: text("call_id").notNull(),
+  ticketId: text("ticket_id").notNull(),
+  duration: text("duration").notNull(),
+  date: text("date").notNull(),
+  month: text("month").notNull(),
+  totalScore: integer("total_score").notNull(),
+  section1Score: integer("section1_score").notNull(),
+  section2Score: integer("section2_score").notNull(),
+  notes: text("notes"),
+  isCriticalFailure: integer("is_critical_failure", { mode: "boolean" }).notNull().default(false),
+});
+
+export const auditParameters = sqliteTable("audit_parameters", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  weight: real("weight").notNull().default(1.0),
+  category: text("category").notNull(), // 'Interacción con Usuario' | 'Gestión del Ticket'
+});
+
+export const auditScores = sqliteTable("audit_scores", {
+  auditId: integer("audit_id")
+    .notNull()
+    .references(() => qualityAudits.id, { onDelete: "cascade" }),
+  parameterId: integer("parameter_id")
+    .notNull()
+    .references(() => auditParameters.id, { onDelete: "cascade" }),
+  score: integer("score", { mode: "boolean" }).notNull().default(false),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.auditId, table.parameterId] }),
+}));
+
+export const qualityAuditsRelations = relations(qualityAudits, ({ one, many }) => ({
+  agent: one(agents, {
+    fields: [qualityAudits.agentId],
+    references: [agents.id],
+  }),
+  scores: many(auditScores),
+}));
+
+export const monthlySummaries = sqliteTable("monthly_summaries", {
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  month: text("month").notNull(),
+  summary: text("summary").notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.agentId, table.month] }),
+}));
+
+export const monthlySummariesRelations = relations(monthlySummaries, ({ one }) => ({
+  agent: one(agents, {
+    fields: [monthlySummaries.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const auditParametersRelations = relations(auditParameters, ({ many }) => ({
+  scores: many(auditScores),
+}));
+
+export const auditScoresRelations = relations(auditScores, ({ one }) => ({
+  audit: one(qualityAudits, {
+    fields: [auditScores.auditId],
+    references: [qualityAudits.id],
+  }),
+  parameter: one(auditParameters, {
+    fields: [auditScores.parameterId],
+    references: [auditParameters.id],
+  }),
+}));
+
