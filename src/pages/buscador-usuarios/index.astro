@@ -658,6 +658,54 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     let isLoaded = false;
     let currentUsers: any[] = [];
 
+    function fallbackCopyToClipboard(value: string): boolean {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.setAttribute("aria-hidden", "true");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      let copied = false;
+      try {
+        const legacyCopyApi = document as unknown as {
+          execCommand?: (commandId: string) => boolean;
+        };
+        copied =
+          typeof legacyCopyApi.execCommand === "function"
+            ? legacyCopyApi.execCommand("copy")
+            : false;
+      } catch {
+        copied = false;
+      }
+
+      textarea.remove();
+      return copied;
+    }
+
+    async function copyText(value: string): Promise<boolean> {
+      const canUseClipboardApi =
+        typeof navigator !== "undefined" &&
+        typeof navigator.clipboard !== "undefined" &&
+        typeof navigator.clipboard.writeText === "function";
+
+      if (canUseClipboardApi) {
+        try {
+          await navigator.clipboard.writeText(value);
+          return true;
+        } catch {
+          return fallbackCopyToClipboard(value);
+        }
+      }
+      return fallbackCopyToClipboard(value);
+    }
+
     const searchInput = document.getElementById(
       "search-input",
     ) as HTMLInputElement | null;
@@ -921,34 +969,30 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
     async function copyToClipboard(text: string, btn: HTMLElement) {
       if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
+      const copied = await copyText(text);
+      if (!copied) return;
 
-        
-        const tooltip = btn.closest(".tooltip") as HTMLElement | null;
-        const originalTip = tooltip?.getAttribute("data-tip");
-        const originalIcon = btn.innerHTML;
+      const tooltip = btn.closest(".tooltip") as HTMLElement | null;
+      const originalTip = tooltip?.getAttribute("data-tip");
+      const originalIcon = btn.innerHTML;
 
-        if (tooltip) {
-          tooltip.setAttribute("data-tip", "¡Copiado!");
-          tooltip.classList.replace("tooltip-neutral", "tooltip-success");
-          tooltip.classList.add("tooltip-open"); 
-        }
-
-        btn.innerHTML =
-          '<svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
-
-        setTimeout(() => {
-          if (tooltip) {
-            tooltip.setAttribute("data-tip", originalTip || "");
-            tooltip.classList.replace("tooltip-success", "tooltip-neutral");
-            tooltip.classList.remove("tooltip-open");
-          }
-          btn.innerHTML = originalIcon;
-        }, 2000);
-      } catch (err) {
-        console.error(err);
+      if (tooltip) {
+        tooltip.setAttribute("data-tip", "¡Copiado!");
+        tooltip.classList.replace("tooltip-neutral", "tooltip-success");
+        tooltip.classList.add("tooltip-open"); 
       }
+
+      btn.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+
+      setTimeout(() => {
+        if (tooltip) {
+          tooltip.setAttribute("data-tip", originalTip || "");
+          tooltip.classList.replace("tooltip-success", "tooltip-neutral");
+          tooltip.classList.remove("tooltip-open");
+        }
+        btn.innerHTML = originalIcon;
+      }, 2000);
     }
 
     let searchTimeout: number;
@@ -1361,8 +1405,8 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         const text = targetEl?.textContent || "";
         if (!text || text === "-") return;
 
-        try {
-          await navigator.clipboard.writeText(text);
+        const copied = await copyText(text);
+        if (copied) {
           const originalHTML = btn.innerHTML;
           btn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1374,8 +1418,6 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
             btn.innerHTML = originalHTML;
             btn.classList.remove("text-success");
           }, 1500);
-        } catch (err) {
-          console.error(err);
         }
       });
     });
@@ -1389,8 +1431,8 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         const groupName = copyBtn.getAttribute("data-copy-group") || "";
         if (!groupName) return;
 
-        try {
-          await navigator.clipboard.writeText(groupName);
+        const copied = await copyText(groupName);
+        if (copied) {
           const originalHTML = copyBtn.innerHTML;
           copyBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1402,8 +1444,6 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
             copyBtn.innerHTML = originalHTML;
             copyBtn.classList.remove("text-success");
           }, 1500);
-        } catch (err) {
-          console.error(err);
         }
       }
     });
@@ -1424,8 +1464,8 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       if (filtered.length === 0) return;
 
       const textToCopy = filtered.join("\n");
-      try {
-        await navigator.clipboard.writeText(textToCopy);
+      const copied = await copyText(textToCopy);
+      if (copied) {
         const originalText = copyAllGroupsBtn.innerHTML;
         copyAllGroupsBtn.innerHTML = `
           <svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
@@ -1434,8 +1474,6 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         setTimeout(() => {
           copyAllGroupsBtn.innerHTML = originalText;
         }, 1500);
-      } catch (err) {
-        console.error(err);
       }
     });
 
@@ -1529,15 +1567,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       const text = terminalOutput.textContent || "";
       if (!text) return;
 
-      try {
-        await navigator.clipboard.writeText(text);
+      const copied = await copyText(text);
+      if (copied) {
         const originalIcon = copyTerminalBtn.innerHTML;
         copyTerminalBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copiado';
         setTimeout(() => {
           if (copyTerminalBtn) copyTerminalBtn.innerHTML = originalIcon;
         }, 2000);
-      } catch (err) {
-        console.error(err);
       }
     });
 
