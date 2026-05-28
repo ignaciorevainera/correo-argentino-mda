@@ -1,0 +1,1920 @@
+import { state, safeGetItem, safeSetItem } from './state';
+import { fetchCronogramaData, saveEdits, deleteOperator, deleteMonth } from './api';
+import { getStatusStyles } from './styles';
+import { 
+  getGanttPosition, 
+  checkTimeAlerts, 
+  getDaysInMonth, 
+  formatYMD, 
+  formatDMY, 
+  escapeHtml, 
+  isCurrentlyWorking, 
+  debounce, 
+  timeToMinutes
+} from './utils';
+import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
+import { exportCSV, exportAsImage } from './exporters';
+import { showToast, showConfirm } from './notifications';
+import { OperatorStatus } from './types';
+
+function getDatesArrayForCurrentMonth(): string[] {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  if (!dateInput || !dateInput.value) return [];
+
+  const [year, month] = dateInput.value.split('-').map(Number);
+  const totalDays = getDaysInMonth(year, month - 1);
+  const dates: string[] = [];
+  for (let i = 1; i <= totalDays; i++) {
+    const dStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    dates.push(dStr);
+  }
+  return dates;
+}
+
+function updateDateInputDisplay(): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const dateDisplay = document.getElementById('date-input-display');
+
+  if (dateInput && dateDisplay && dateInput.value) {
+    dateDisplay.innerText = formatDMY(dateInput.value);
+  }
+}
+
+function updateNavigationButtons(): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const nextBtn = document.getElementById('next-month-btn') as HTMLButtonElement | null;
+  const prevBtn = document.getElementById('prev-month-btn') as HTMLButtonElement | null;
+  if (!dateInput || !state.cronoData) return;
+
+  const currentYM = dateInput.value.slice(0, 7);
+  const currentIndex = state.uniqueMonths.indexOf(currentYM);
+
+  if (state.uniqueMonths.length === 0) {
+    if (nextBtn) nextBtn.disabled = true;
+    if (prevBtn) prevBtn.disabled = true;
+    return;
+  }
+
+  if (nextBtn) {
+    const hasNext = currentIndex !== -1 && currentIndex < state.uniqueMonths.length - 1;
+    nextBtn.disabled = !hasNext;
+    if (!hasNext) {
+      nextBtn.classList.add('opacity-30', 'cursor-not-allowed');
+      nextBtn.classList.remove('hover:bg-base-200');
+    } else {
+      nextBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+      nextBtn.classList.add('hover:bg-base-200');
+    }
+  }
+
+  if (prevBtn) {
+    const hasPrev = currentIndex > 0;
+    prevBtn.disabled = !hasPrev;
+    if (!hasPrev) {
+      prevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+      prevBtn.classList.remove('hover:bg-base-200');
+    } else {
+      prevBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+      prevBtn.classList.add('hover:bg-base-200');
+    }
+  }
+}
+
+function updateMonthDisplay(): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const display = document.getElementById('current-month-display');
+  if (!dateInput || !display) return;
+
+  const value = dateInput.value;
+  if (!value || !value.includes('-')) {
+    display.innerText = "-";
+    return;
+  }
+
+  const [yearStr, monthStr] = value.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10) - 1;
+
+  const dateObj = new Date(year, month, 15);
+  const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+  display.innerText = formatter.format(dateObj);
+
+  updateNavigationButtons();
+}
+
+function renderMonthDropdown(): void {
+  const list = document.getElementById('month-dropdown-list');
+  if (!list) return;
+
+  let html = '';
+  state.uniqueMonths.forEach(ymStr => {
+    const [yearStr, monthStr] = ymStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const dateObj = new Date(year, month, 15);
+    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+    const label = formatter.format(dateObj).toUpperCase();
+
+    html += `
+      <li>
+        <a class="text-[10px] font-bold py-1.5 px-3 rounded-lg hover:bg-secondary/10 hover:text-secondary focus:bg-secondary/20 transition-all cursor-pointer flex items-center justify-between" data-month-val="${ymStr}-01">
+          <span>${label}</span>
+        </a>
+      </li>
+    `;
+  });
+
+  list.innerHTML = html;
+
+  // Attach click listeners
+  list.querySelectorAll('[data-month-val]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
+      if (val) {
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        if (dateInput) {
+          dateInput.value = val;
+          updateDateInputDisplay();
+          updateMonthDisplay();
+          renderDaily();
+          renderMonthly();
+        }
+      }
+      // Force close dropdown by blurring active element
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+  });
+}
+
+function changeMonth(offset: number): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  if (!dateInput) return;
+
+  if (state.uniqueMonths.length === 0) return;
+
+  const currentYM = dateInput.value.slice(0, 7);
+  const currentIndex = state.uniqueMonths.indexOf(currentYM);
+  
+  if (currentIndex === -1) return;
+
+  let newIndex = currentIndex + offset;
+  if (newIndex < 0) newIndex = 0;
+  if (newIndex >= state.uniqueMonths.length) newIndex = state.uniqueMonths.length - 1;
+
+  const targetYM = state.uniqueMonths[newIndex];
+  if (targetYM === currentYM) return;
+
+  const [yearStr, monthStr] = targetYM.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10) - 1;
+
+  const dayStr = dateInput.value.split('-')[2];
+  let day = parseInt(dayStr, 10);
+  const daysInNewMonth = getDaysInMonth(year, month);
+  if (day > daysInNewMonth) {
+    day = daysInNewMonth;
+  }
+
+  dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+
+  updateDateInputDisplay();
+  updateMonthDisplay();
+  renderDaily();
+  renderMonthly();
+}
+
+async function init(): Promise<void> {
+  try {
+    const data = await fetchCronogramaData();
+    state.cronoData = data;
+
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const todayStr = formatYMD(new Date());
+    const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
+    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || todayStr);
+
+    if (dateInput) {
+      dateInput.value = initialDate;
+      updateDateInputDisplay();
+      updateMonthDisplay();
+      if (state.uniqueDates.length > 0) {
+        dateInput.min = state.uniqueDates[0];
+        dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
+      }
+    }
+
+    renderDaily();
+    renderMonthly();
+    renderMonthDropdown();
+    setupEventListeners();
+  } catch (err: unknown) {
+    console.error("Error loading data:", err);
+    showToast("Error al cargar datos del cronograma", "error");
+  }
+}
+
+function renderDaily(): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const selectedDateStr = dateInput?.value || formatYMD(new Date());
+  const tableBody = document.getElementById('operators-table-body');
+  const dateDisplay = document.getElementById('daily-date-display');
+
+  if (dateDisplay) {
+    const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const dateObj = new Date(selectedDateStr + 'T12:00:00');
+    dateDisplay.innerText = formatter.format(dateObj);
+  }
+
+  const filteredOps = state.cronoData.filter(op => {
+    const status = op.asistencia[selectedDateStr];
+    if (!status) return false;
+
+    // 1. Search Query filter (case-insensitive name check)
+    const matchesSearch = !state.searchQuery || op.nombre.toLowerCase().includes(state.searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // 2. Location Filter
+    if (state.activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== state.activeLocationFilter) {
+      return false;
+    }
+
+    // 3. Status Filter
+    if (state.activeFilter === 'all') return true;
+    if (state.activeFilter === 'Licencia') {
+      return status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
+    }
+    return status === state.activeFilter;
+  });
+
+  let rowsHtml = '';
+  if (filteredOps.length === 0) {
+    rowsHtml = `
+      <tr>
+        <td colspan="3" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+          <div class="flex flex-col items-center justify-center gap-3 py-6">
+            <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-xs uppercase tracking-widest font-black text-base-content/70">Sin resultados</span>
+              <span class="text-[10px] text-base-content/40 font-medium normal-case mt-0.5">Ningún operador coincide con tu búsqueda o filtro.</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  } else {
+    filteredOps.forEach(op => {
+      const status = op.asistencia[selectedDateStr];
+      const styles = getStatusStyles(status);
+      const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
+      const isFranco = status === OperatorStatus.Franco;
+      const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+      const username = op.username || '';
+      const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
+      const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
+      const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
+      const liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin);
+      
+      // Asistencia real
+      const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
+      const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
+      const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+
+      let alertBadgesHtml = '';
+      if (late) {
+        alertBadgesHtml += `
+          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${dailyHorario.split(' - ')[0] || '--:--'})">
+            <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+            Tarde
+          </span>
+        `;
+      }
+      if (early) {
+        alertBadgesHtml += `
+          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            Salida Temp.
+          </span>
+        `;
+      }
+
+      let liveIndicatorClass = "bg-base-content/10";
+      if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
+      else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
+
+      let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
+      if (status === OperatorStatus.Presencial) ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
+      else if (status === OperatorStatus.HomeOffice) ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+
+      // Contenido del Gantt
+      let ganttContentHtml = '';
+
+      if (isAbsent || isFranco) {
+        const inactiveText = isFranco ? 'Franco / Día Libre' : (status === OperatorStatus.Vacaciones ? 'Vacaciones' : 'Licencia Médica');
+        const inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        ganttContentHtml = `
+          <div class="gantt-inactive-bar ${inactiveBg}">
+            ${inactiveText}
+          </div>
+        `;
+      } else {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          const startPct = getGanttPosition(times[0]);
+          const endPct = getGanttPosition(times[1]);
+          let widthPct = endPct - startPct;
+          if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
+
+          // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
+          let breakStartHourStr = '';
+          let breakEndHourStr = '';
+          let breakStartPct = 0;
+          let breakWidthPct = 0;
+
+          if (customBreakInicio && customBreakFin) {
+            breakStartHourStr = customBreakInicio;
+            breakEndHourStr = customBreakFin;
+            const bStartPct = getGanttPosition(breakStartHourStr);
+            const bEndPct = getGanttPosition(breakEndHourStr);
+            let bWidth = bEndPct - bStartPct;
+            if (bWidth < 0) bWidth += 100;
+            breakStartPct = bStartPct;
+            breakWidthPct = bWidth;
+          } else {
+            const startMin = timeToMinutes(times[0]);
+            const endMin = timeToMinutes(times[1]);
+            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+            const breakStartMin = startMin + (totalMin / 2) - 30;
+            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+            breakStartPct = getGanttPosition(breakStartHourStr);
+            breakWidthPct = (60 / 1440) * 100; // 1 hora de break
+            const breakEndMin = (breakStartMin + 60) % 1440;
+            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+          }
+
+          // Calcular posición del break relativa a la barra de trabajo
+          const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
+          const relativeBreakWidth = widthPct > 0 ? (breakWidthPct / widthPct) * 100 : 0;
+
+          const workBarBg = status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+
+          let actualBarHtml = '';
+          if (entradaReal || salidaReal) {
+            const actIn = entradaReal || times[0];
+            const actOut = salidaReal || times[1];
+            const actInPct = getGanttPosition(actIn);
+            const actOutPct = getGanttPosition(actOut);
+            let actWidthPct = actOutPct - actInPct;
+            if (actWidthPct < 0) actWidthPct += 100;
+
+            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
+            actualBarHtml = `<div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal || '--'} - ${salidaReal || '--'}"></div>`;
+          }
+
+          ganttContentHtml = `
+            <!-- Líneas de cuadrícula de fondo -->
+            <div class="gantt-grid-line" style="left: 8.33%;"></div>
+            <div class="gantt-grid-line" style="left: 16.66%;"></div>
+            <div class="gantt-grid-line" style="left: 25.00%;"></div>
+            <div class="gantt-grid-line" style="left: 33.33%;"></div>
+            <div class="gantt-grid-line" style="left: 41.66%;"></div>
+            <div class="gantt-grid-line" style="left: 50.00%;"></div>
+            <div class="gantt-grid-line" style="left: 58.33%;"></div>
+            <div class="gantt-grid-line" style="left: 66.66%;"></div>
+            <div class="gantt-grid-line" style="left: 75.00%;"></div>
+            <div class="gantt-grid-line" style="left: 83.33%;"></div>
+            <div class="gantt-grid-line" style="left: 91.66%;"></div>
+
+            <!-- Barra de Turno Planificado -->
+            <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
+              <!-- Bloque de Break interno -->
+              <div class="gantt-bar-break absolute h-full top-0 z-[1] border-x border-dashed border-current opacity-60 cursor-help transition-all duration-200 hover:opacity-100 hover:bg-current/10" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
+                <div class="w-full h-full opacity-30" style="background-image: repeating-linear-gradient(-45deg, currentColor, currentColor 3px, transparent 3px, transparent 8px);"></div>
+              </div>
+              <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+            </div>
+
+            <!-- Barra de Asistencia Real -->
+            ${actualBarHtml}
+          `;
+        }
+      }
+
+      rowsHtml += `
+        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
+          <td class="px-6 py-4 border-r border-base-300/40 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+            <div class="flex items-center gap-4">
+              <div class="relative w-10 h-10 shrink-0">
+                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.Presencial ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
+                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
+                  ${initials}
+                </div>
+                <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base-100 ${liveIndicatorClass}" title="${liveStatus.text}"></div>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <button 
+                  class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
+                  data-op-profile="${op.nombre}"
+                >
+                  ${op.nombre}
+                </button>
+                <span class="text-[10px] text-base-content/40 font-black tracking-widest uppercase truncate">${username}</span>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 border-r border-base-300/40">
+            <div class="flex items-center gap-3">
+               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
+                  ${styles.icon}
+               </div>
+               <div class="flex flex-col gap-1 items-start">
+                 <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                 ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
+               </div>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="gantt-container">
+              ${ganttContentHtml}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  if (tableBody) tableBody.innerHTML = rowsHtml;
+}
+
+function isWorkingAtHour(horario: string, hourStr: string): boolean {
+  if (!horario || horario === '-' || horario === 'Franco') return false;
+  const parts = horario.split(' - ');
+  if (parts.length !== 2) return false;
+  const start = parts[0];
+  const end = parts[1];
+
+  const hS = parseInt(start.split(':')[0], 10);
+  const hE = parseInt(end.split(':')[0], 10);
+  const hC = parseInt(hourStr.split(':')[0], 10);
+
+  if (hS <= hE) {
+     return hC >= hS && hC < hE;
+  } else {
+     return hC >= hS || hC < hE;
+  }
+}
+
+function renderHourly(dateStr: string): void {
+  const thead = document.getElementById('monthly-thead');
+  const tbody = document.getElementById('monthly-tbody');
+  const tfoot = document.getElementById('monthly-tfoot');
+  
+  const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+  const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+
+  let theadHtml = `
+    <tr>
+      <th rowspan="2" class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+      <th colspan="${hours.length}" class="text-center py-3 bg-secondary/5 text-secondary border-b border-base-200 relative group">
+         <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
+            Volver al mes
+         </button>
+         <span class="font-black tracking-widest uppercase text-sm">Vista Diaria: ${formattedDate}</span>
+      </th>
+    </tr>
+    <tr>
+  `;
+  
+  hours.forEach(hour => {
+    theadHtml += `<th class="text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-200/20">
+      <span class="font-extrabold text-[10px] tracking-wide text-base-content/60">${hour}</span>
+    </th>`;
+  });
+  theadHtml += `</tr>`;
+  if (thead) thead.innerHTML = theadHtml;
+
+  const filteredOps = state.cronoData.filter(op => {
+    const matchesSearch = !state.searchQuery || op.nombre.toLowerCase().includes(state.searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (state.activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== state.activeLocationFilter) {
+      return false;
+    }
+
+    if (state.activeFilter === 'all') return true;
+    const status = op.asistencia[dateStr];
+    if (state.activeFilter === 'Licencia') {
+      return status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
+    }
+    return status === state.activeFilter;
+  });
+
+  let tbodyHtml = '';
+  if (filteredOps.length === 0) {
+     tbodyHtml = `<tr><td colspan="${hours.length + 1}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50">Sin resultados</td></tr>`;
+  } else {
+     filteredOps.forEach(op => {
+        const status = op.asistencia[dateStr] || OperatorStatus.Franco;
+        const horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
+        const styles = getStatusStyles(status);
+        const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
+        const isFranco = status === OperatorStatus.Franco;
+        
+        const entradaReal = (op.entradas_reales && op.entradas_reales[dateStr]) || '';
+        const salidaReal = (op.salidas_reales && op.salidas_reales[dateStr]) || '';
+        const { late, early } = checkTimeAlerts(horario, entradaReal, salidaReal);
+
+        let alertBadgesHtml = '';
+        if (late) {
+          alertBadgesHtml += `
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${horario.split(' - ')[0] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+              Tarde
+            </span>
+          `;
+        }
+        if (early) {
+          alertBadgesHtml += `
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Salida Temp.
+            </span>
+          `;
+        }
+
+        let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
+        let tdClass = "sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
+
+        if (late) {
+          rowClass += " bg-error/[0.03]";
+          tdClass += " border-l-4 border-l-error pl-5";
+        } else if (early) {
+          rowClass += " bg-warning/[0.02]";
+          tdClass += " border-l-4 border-l-warning pl-5";
+        }
+
+        const hasRealTimes = !!(entradaReal || salidaReal);
+        const realTimesSubHtml = hasRealTimes ? ` (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'})` : '';
+
+        tbodyHtml += `<tr class="${rowClass}">
+           <td class="${tdClass}">
+              <div class="flex flex-col min-w-0">
+                <div class="flex items-center gap-1.5 overflow-hidden">
+                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs" data-op-profile="${op.nombre}">${op.nombre}</button>
+                  ${alertBadgesHtml}
+                </div>
+                <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}${realTimesSubHtml}</span>
+              </div>
+           </td>
+        `;
+
+        hours.forEach(hour => {
+           const working = isWorkingAtHour(horario, hour);
+           if (working && !isFranco) {
+              tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
+                 <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                 </div>
+              </td>`;
+           } else {
+              tbodyHtml += `<td class="border-r border-b border-base-200/50 bg-base-100/50"></td>`;
+           }
+        });
+        tbodyHtml += `</tr>`;
+     });
+  }
+  if (tbody) tbody.innerHTML = tbodyHtml;
+  
+  if (tfoot) tfoot.innerHTML = `<tr><td colspan="${hours.length + 1}" class="bg-base-200 py-3 text-center border-t border-base-300 text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Fin del reporte diario</td></tr>`;
+}
+
+function renderMonthly(): void {
+  if (state.focusedDateStr) {
+    renderHourly(state.focusedDateStr);
+    return;
+  }
+
+  const thead = document.getElementById('monthly-thead');
+  const tbody = document.getElementById('monthly-tbody');
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const selectedDateStr = dateInput?.value || formatYMD(new Date());
+  
+  const [yearStr, monthStr] = selectedDateStr.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10) - 1;
+  const daysInMonth = getDaysInMonth(year, month);
+  const currentMonthPrefix = `${yearStr}-${monthStr}`;
+  
+  const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonthPrefix}-${(i + 1).toString().padStart(2, '0')}`);
+  const todayStr = formatYMD(new Date());
+
+  // --- RULE: Coverage Pre-calculation ---
+  const coveragePerDay: Record<string, { total: number; licenses: number }> = {};
+  dates.forEach(d => {
+    let active = 0;
+    let lics = 0;
+    state.cronoData.forEach(op => {
+      const s = op.asistencia[d];
+      if (s === OperatorStatus.Presencial || s === OperatorStatus.HomeOffice) active++;
+      if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) lics++;
+    });
+    coveragePerDay[d] = { total: active, licenses: lics };
+  });
+
+  const teamSize = state.cronoData.length;
+  let totalInconsistencies = 0;
+
+  const shortDayFormatter = new Intl.DateTimeFormat('es-AR', { weekday: 'short' });
+  const monthLongFormatter = new Intl.DateTimeFormat('es-AR', { month: 'long' });
+
+  const parsedDates = dates.map(date => {
+    const d = new Date(date + 'T12:00:00');
+    const isToday = date === todayStr;
+    const day = d.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const coverage = coveragePerDay[date];
+    const isCritical = teamSize > 0 ? (coverage.total / teamSize) < (state.minCoveragePercent / 100) : false;
+    
+    let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
+    if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
+    else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
+    else if (isCritical) thClass += " bg-error/10 text-error";
+    else thClass += " text-base-content/70";
+
+    const dayName = shortDayFormatter.format(d).substring(0, 2).toUpperCase();
+    const dateNum = d.getDate();
+    const monthName = monthLongFormatter.format(d);
+
+    return {
+      str: date,
+      dateObj: d,
+      isToday,
+      day,
+      isWeekend,
+      isCritical,
+      thClass,
+      dayName,
+      dateNum,
+      monthName
+    };
+  });
+
+  let theadHtml = `<tr>
+    <th class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+    <th class="sticky left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
+    <th class="sticky left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
+    <th class="sticky left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+  `;
+  
+  parsedDates.forEach(pd => {
+    theadHtml += `
+      <th class="${pd.thClass} p-0">
+        <button
+          type="button"
+          class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
+          data-click-day="${pd.str}"
+          aria-label="Ver detalle del día ${pd.dateNum} de ${pd.monthName}"
+        >
+          <span class="font-extrabold text-[10px] tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-60'}">${pd.dayName}</span>
+          <div class="flex items-center gap-1">
+             <span class="font-black text-xs ${pd.isToday ? 'scale-110' : ''}">${pd.dateNum}</span>
+             ${pd.isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
+          </div>
+          ${pd.isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+        </button>
+      </th>
+    `;
+  });
+  theadHtml += `</tr>`;
+  if (thead) thead.innerHTML = theadHtml;
+
+  let tbodyHtml = '';
+  const filteredOps = state.cronoData.filter(op => {
+    const matchesSearch = !state.searchQuery || op.nombre.toLowerCase().includes(state.searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (state.activeLocationFilter !== 'all' && (op.location || "Monte Grande") !== state.activeLocationFilter) {
+      return false;
+    }
+
+    if (state.activeFilter === 'all') return true;
+    
+    return dates.some(d => {
+      const status = op.asistencia[d];
+      if (state.activeFilter === 'Licencia') {
+        return status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
+      }
+      return status === state.activeFilter;
+    });
+  });
+
+  if (filteredOps.length === 0) {
+    tbodyHtml = `<tr>
+      <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+        <div class="flex flex-col items-center justify-center gap-3 py-6">
+          <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs uppercase tracking-widest font-black text-base-content/70">Sin resultados</span>
+            <span class="text-[10px] text-base-content/40 font-medium normal-case mt-0.5">Ningún operador coincide con tu búsqueda o filtro.</span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  } else {
+    filteredOps.forEach(op => {
+      const stats = { P: 0, HO: 0, L: 0 };
+      const username = op.username || '';
+      dates.forEach(d => {
+        const s = op.asistencia[d];
+        if (s === OperatorStatus.Presencial) stats.P++;
+        else if (s === OperatorStatus.HomeOffice) stats.HO++;
+        else if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) stats.L++;
+      });
+
+      // --- RULE: Consecutive HO Check & Min Presencial Check ---
+      const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : state.maxConsecutiveHOLimit;
+      const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : state.minPWeekLimit;
+
+      let maxConsecutiveHO = 0;
+      let currentHO = 0;
+      
+      let pWeekViolation = false;
+      let currentWeekP = 0;
+      let currentWeekDays = 0;
+
+      parsedDates.forEach(pd => {
+        const d = pd.str;
+        const status = op.asistencia[d];
+        if (status === OperatorStatus.HomeOffice) {
+          currentHO++;
+          maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+        } else if (status !== OperatorStatus.Franco && status) {
+          currentHO = 0;
+        }
+
+        if (status === OperatorStatus.Presencial) currentWeekP++;
+        if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
+           currentWeekDays++;
+        }
+        if (pd.day === 0 || d === dates[dates.length - 1]) {
+           if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
+              pWeekViolation = true;
+           }
+           currentWeekP = 0;
+           currentWeekDays = 0;
+        }
+      });
+      
+      const hoViolation = maxConsecutiveHO > opMaxHO;
+      if (hoViolation || pWeekViolation) totalInconsistencies++;
+
+      tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+        <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
+            <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+            <div class="flex flex-col min-w-0 flex-1">
+              <div class="flex items-center justify-between w-full">
+                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header font-bold text-xs" data-op-profile="${op.nombre}">
+                  ${op.nombre}
+                </button>
+                <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${state.isEditMode ? '' : 'hidden'}">
+                  <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-secondary edit-op-btn" data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-username="${escapeHtml(username)}" data-edit-op-location="${escapeHtml(op.location || 'Monte Grande')}" data-edit-op-schedule="${escapeHtml(op.horario || '08:00 - 17:00')}" title="Editar operador">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-error delete-op-btn" data-delete-op-name="${escapeHtml(op.nombre)}" title="Eliminar operador">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+              ${hoViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+              ${pWeekViolation ? `<span class="text-[9px] bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Faltan días P.</span>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
+        <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+        <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+      `;
+        
+      parsedDates.forEach(pd => {
+        const date = pd.str;
+        const status = op.asistencia[date];
+        const styles = getStatusStyles(status);
+        const isTodayCell = pd.isToday;
+        const safeName = escapeHtml(op.nombre);
+        const safeDate = escapeHtml(date);
+        const safeStatus = escapeHtml(status || 'Franco');
+        const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
+        const safeHorario = escapeHtml(dailyHorario);
+        const username = op.username || '';
+
+        const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
+        const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
+        const breakInicio = (op.breaks_inicio && op.breaks_inicio[date]) || '';
+        const breakFin = (op.breaks_fin && op.breaks_fin[date]) || '';
+        const hasRealTimes = !!(entradaReal || salidaReal);
+
+        const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+        const hasAlert = late || early;
+
+        let alertClass = "";
+        let timeTextClass = "text-base-content/60";
+        if (hasAlert) {
+          alertClass = "border-error/80 bg-error/5 ring-1 ring-error/20";
+          timeTextClass = "text-error font-black";
+        }
+        
+        // --- RULE: License Overlap Check ---
+        const isLicenseOverlap = (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) && coveragePerDay[date].licenses > state.maxLicenseOverlapLimit;
+        if (isLicenseOverlap) totalInconsistencies++;
+
+        let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
+        if (isTodayCell) cellClass += ' bg-secondary/10';
+        if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
+        
+        const hasComment = !!(op.comentarios && op.comentarios[date]);
+        if (status === OperatorStatus.Franco || !status) {
+          tbodyHtml += `<td class="${cellClass}">
+            <button
+              type="button"
+              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
+              data-monthly-detail
+              data-operator="${safeName}"
+              data-date="${safeDate}"
+              data-status="Franco"
+              data-horario="${safeHorario}"
+              data-username="${escapeHtml(username)}"
+              data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+              data-entrada-real="${escapeHtml(entradaReal)}"
+              data-salida-real="${escapeHtml(salidaReal)}"
+              data-break-inicio="${escapeHtml(breakInicio)}"
+              data-break-fin="${escapeHtml(breakFin)}"
+              aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
+            >
+              ${hasRealTimes ? `
+                <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
+                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
+                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
+                </div>
+              ` : (hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : '')}
+            </button>
+          </td>`;
+          return;
+        }
+
+        let initials = "";
+        if (status === OperatorStatus.Presencial) initials = "P";
+        else if (status === OperatorStatus.HomeOffice) initials = "HO";
+        else if (status === OperatorStatus.Licencia) initials = "L";
+        else if (status === OperatorStatus.Vacaciones) initials = "V";
+        else if (status === OperatorStatus.HorasExtras) initials = "HE";
+
+        tbodyHtml += `
+          <td class="${cellClass}">
+            <button
+              type="button"
+              class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''} ${alertClass}"
+              title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
+              data-monthly-detail
+              data-operator="${safeName}"
+              data-date="${safeDate}"
+              data-status="${safeStatus}"
+              data-horario="${safeHorario}"
+              data-username="${escapeHtml(username)}"
+              data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
+              data-entrada-real="${escapeHtml(entradaReal)}"
+              data-salida-real="${escapeHtml(salidaReal)}"
+              data-break-inicio="${escapeHtml(breakInicio)}"
+              data-break-fin="${escapeHtml(breakFin)}"
+              aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
+            >
+              ${hasRealTimes ? `
+                <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
+                  <span class="font-black text-[9px] leading-none tracking-wider opacity-90">${initials}</span>
+                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
+                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
+                </div>
+              ` : `<span class="font-black text-xs leading-none tracking-tight">${initials}</span>`}
+              ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
+              ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
+            </button>
+          </td>
+        `;
+      });
+      tbodyHtml += `</tr>`;
+    });
+  }
+
+  if (tbody) tbody.innerHTML = tbodyHtml;
+
+  // Update Global Alert Badge
+  const alertBadge = document.getElementById('compliance-alert-badge');
+  const alertText = document.getElementById('compliance-alert-text');
+  if (alertBadge && alertText) {
+    if (totalInconsistencies > 0) {
+      alertBadge.classList.remove('hidden');
+      alertText.innerText = `${totalInconsistencies} Inconsistencia${totalInconsistencies > 1 ? 's' : ''} detectada${totalInconsistencies > 1 ? 's' : ''}`;
+    } else {
+      alertBadge.classList.add('hidden');
+    }
+  }
+
+  // --- FEATURE: Coverage Visualizer (Heatmap Footer) ---
+  const dailyCoverage = dates.map(date => {
+    let p = 0, ho = 0;
+    state.cronoData.forEach(op => {
+      const s = op.asistencia[date];
+      if (s === OperatorStatus.Presencial) p++;
+      else if (s === OperatorStatus.HomeOffice) ho++;
+    });
+    return { p, ho, total: p + ho };
+  });
+
+  const pyClass = state.isCoverageMinimized ? 'py-1.5' : 'py-3.5';
+  const chevronIcon = state.isCoverageMinimized ? 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up transition-transform duration-200"><path d="m18 15-6-6-6 6"/></svg>` : 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>`;
+
+  let tfootHtml = `<tr>
+    <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
+        <button
+          type="button"
+          id="toggle-coverage-btn"
+          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-300 text-base-content/50 hover:text-base-content transition-all"
+          title="${state.isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+          aria-label="${state.isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
+        >
+          ${chevronIcon}
+        </button>
+      </div>
+    </td>
+    <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
+    <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
+    <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
+  `;
+
+  dailyCoverage.forEach(c => {
+    const hoPercent = teamSize > 0 ? (c.ho / teamSize) * 100 : 0;
+    const pPercent = teamSize > 0 ? (c.p / teamSize) * 100 : 0;
+    const totalPercent = teamSize > 0 ? ((c.p + c.ho) / teamSize) * 100 : 0;
+    const isLowCoverage = totalPercent < 40;
+
+    const cellPyClass = state.isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
+
+    tfootHtml += `
+      <td class="${cellPyClass} border-r border-base-200/50 min-w-[4rem] ${isLowCoverage ? 'bg-error/5' : ''}">
+        <div class="flex flex-col items-center gap-1.5">
+           ${state.isCoverageMinimized ? '' : `
+           <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
+              <div class="bg-secondary w-full transition-all duration-500" style="height: ${pPercent}%" title="Presencial: ${c.p}"></div>
+           </div>
+           `}
+           <div class="flex flex-col items-center leading-none">
+              <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.p + c.ho}</span>
+              <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
+           </div>
+        </div>
+      </td>
+    `;
+  });
+  tfootHtml += `</tr>`;
+
+  const tfoot = document.getElementById('monthly-tfoot');
+  if (tfoot) tfoot.innerHTML = tfootHtml;
+}
+
+function updateCellStatus(cell: HTMLElement, newStatus: string): void {
+  const operator = cell.dataset.operator;
+  const date = cell.dataset.date;
+  if (!operator || !date) return;
+
+  const existingIndex = state.modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
+  if (existingIndex !== -1) {
+    state.modifiedSchedules[existingIndex].status = newStatus;
+  } else {
+    state.modifiedSchedules.push({ agentName: operator, date, status: newStatus });
+  }
+
+  const opIndex = state.cronoData.findIndex(o => o.nombre === operator);
+  if (opIndex !== -1) {
+    state.cronoData[opIndex].asistencia[date] = newStatus as OperatorStatus;
+    renderMonthly();
+  }
+
+  if (state.isEditMode) {
+    updatePendingEditsUI();
+  }
+}
+
+function updatePendingEditsUI(): void {
+   const uniqueKeys = new Set<string>();
+   Object.keys(state.pendingEdits).forEach(k => uniqueKeys.add(k));
+   state.modifiedSchedules.forEach(m => uniqueKeys.add(`${m.agentName}_${m.date}`));
+   
+   const count = uniqueKeys.size;
+   const countEl = document.getElementById('pending-edits-count');
+   const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
+   const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+   
+   if (countEl) countEl.innerText = `${count} cambios`;
+   if (saveBtn) saveBtn.disabled = count === 0;
+   if (discardBtn) discardBtn.disabled = count === 0;
+}
+
+async function discardChanges(): Promise<void> {
+  try {
+    const data = await fetchCronogramaData();
+    state.cronoData = data;
+    state.modifiedSchedules = [];
+    
+    const saveIndicator = document.getElementById('save-indicator');
+    if (saveIndicator) saveIndicator.classList.add('hidden');
+
+    renderDaily();
+    renderMonthly();
+  } catch (err: unknown) {
+    console.error("Error discarding/reloading data:", err);
+    showToast("Error al recargar el cronograma", "error");
+  }
+}
+
+async function saveChangesToServer(): Promise<void> {
+  const saveBtn = document.getElementById('save-confirm-btn') as HTMLButtonElement | null;
+  const discardBtn = document.getElementById('save-discard-btn') as HTMLButtonElement | null;
+  const indicatorText = document.getElementById('save-indicator-text');
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Guardando...`;
+  }
+  if (discardBtn) discardBtn.disabled = true;
+
+  try {
+    const payload = state.modifiedSchedules.map(m => ({ agentName: m.agentName, date: m.date, status: m.status }));
+    await saveEdits(payload);
+
+    if (indicatorText) {
+      indicatorText.innerText = "¡Cambios guardados con éxito!";
+    }
+
+    state.modifiedSchedules = [];
+    const data = await fetchCronogramaData();
+    state.cronoData = data;
+
+    setTimeout(() => {
+      const saveIndicator = document.getElementById('save-indicator');
+      if (saveIndicator) saveIndicator.classList.add('hidden');
+      
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Guardar";
+      }
+      if (discardBtn) discardBtn.disabled = false;
+      
+      if (indicatorText) {
+        indicatorText.innerText = "Edición en progreso: Cambios pendientes";
+      }
+
+      renderDaily();
+      renderMonthly();
+      showToast("Cambios guardados con éxito", "success");
+    }, 1500);
+
+  } catch (error: unknown) {
+    console.error("Error saving changes:", error);
+    if (indicatorText) {
+      indicatorText.innerText = "Error al guardar en el servidor";
+    }
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = "Reintentar";
+    }
+    if (discardBtn) discardBtn.disabled = false;
+    showToast("Error al guardar cambios", "error");
+  }
+}
+
+function updateViewSwitcherUI(activeView: 'monthly' | 'daily'): void {
+  const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
+  const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+  
+  const activeClasses = ['btn-secondary', 'shadow-sm', 'shadow-secondary/15'];
+  const inactiveClasses = ['btn-outline', 'border-transparent', 'text-base-content/60', 'hover:bg-base-200/50'];
+  
+  if (activeView === 'monthly') {
+    switchToMonthlyBtn?.classList.add(...activeClasses);
+    switchToMonthlyBtn?.classList.remove(...inactiveClasses);
+    
+    switchToDailyBtn?.classList.add(...inactiveClasses);
+    switchToDailyBtn?.classList.remove(...activeClasses);
+  } else {
+    switchToDailyBtn?.classList.add(...activeClasses);
+    switchToDailyBtn?.classList.remove(...inactiveClasses);
+    
+    switchToMonthlyBtn?.classList.add(...inactiveClasses);
+    switchToMonthlyBtn?.classList.remove(...activeClasses);
+  }
+}
+
+function showDailyView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+  
+  renderDaily();
+  updateViewSwitcherUI('daily');
+  
+  if (dailyView) dailyView.classList.remove('hidden');
+  if (monthlyView) monthlyView.classList.add('hidden');
+  
+  if (datePickerContainer) {
+    datePickerContainer.classList.remove('hidden');
+    setTimeout(() => {
+      datePickerContainer.classList.remove('is-faded');
+    }, 50);
+  }
+}
+
+function showMonthlyView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+  
+  updateViewSwitcherUI('monthly');
+  
+  if (dailyView) dailyView.classList.add('hidden');
+  if (monthlyView) monthlyView.classList.remove('hidden');
+  
+  if (datePickerContainer) {
+    datePickerContainer.classList.add('is-faded');
+    setTimeout(() => {
+      datePickerContainer.classList.add('hidden');
+    }, 300);
+  }
+}
+
+function updateFilterActiveStates(): void {
+  const filterAllBtn = document.getElementById('filter-all-btn');
+  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterHoBtn = document.getElementById('filter-ho-btn');
+  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
+  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+  const filterHeBtn = document.getElementById('filter-he-btn');
+
+  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
+  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
+  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
+  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
+  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+
+  const buttons = [
+    { el: filterAllBtn, value: 'all' },
+    { el: filterPresencialBtn, value: 'Presencial' },
+    { el: filterHoBtn, value: 'Home Office' },
+    { el: filterLicenciaBtn, value: 'Licencia' },
+    { el: filterVacacionesBtn, value: 'Vacaciones' },
+    { el: filterHeBtn, value: 'Horas Extras' }
+  ];
+
+  const dailyButtons = [
+    { el: filterAllBtnDaily, value: 'all' },
+    { el: filterPresencialBtnDaily, value: 'Presencial' },
+    { el: filterHoBtnDaily, value: 'Home Office' },
+    { el: filterLicenciaBtnDaily, value: 'Licencia' },
+    { el: filterVacacionesBtnDaily, value: 'Vacaciones' },
+    { el: filterHeBtnDaily, value: 'Horas Extras' }
+  ];
+
+  updateButtonGroupState(buttons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
+  updateButtonGroupState(dailyButtons, state.activeFilter, STATUS_FILTER_CONFIGS.daily);
+}
+
+function updateLocationFilterActiveStates(): void {
+  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
+  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
+  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
+
+  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
+  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
+  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
+
+  const buttons = [
+    { el: filterLocationAllBtn, value: 'all' },
+    { el: filterLocationMgBtn, value: 'Monte Grande' },
+    { el: filterLocationPpBtn, value: 'Parque Patricios' }
+  ];
+
+  const dailyButtons = [
+    { el: filterLocationAllBtnDaily, value: 'all' },
+    { el: filterLocationMgBtnDaily, value: 'Monte Grande' },
+    { el: filterLocationPpBtnDaily, value: 'Parque Patricios' }
+  ];
+
+  updateButtonGroupState(buttons, state.activeLocationFilter, LOCATION_FILTER_CONFIG);
+  updateButtonGroupState(dailyButtons, state.activeLocationFilter, LOCATION_FILTER_CONFIG);
+}
+
+function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false): void {
+  const opName = cell.dataset.operator;
+  const dateVal = cell.dataset.date;
+  const currentStatus = cell.dataset.status;
+  
+  if (!bypassCheckboxes) {
+     const checkedBoxes = Array.from(document.querySelectorAll('.op-checkbox:checked')) as HTMLInputElement[];
+     if (checkedBoxes.length > 0) {
+        let painted = false;
+        checkedBoxes.forEach(cb => {
+           const checkedOp = cb.dataset.opCheckbox;
+           if (checkedOp) {
+              const safeName = checkedOp.replace(/"/g, '\\"');
+              const targetCell = document.getElementById('monthly-tbody')?.querySelector(`[data-operator="${safeName}"][data-date="${dateVal}"]`);
+              if (targetCell) {
+                 applyBrushToCell(targetCell as HTMLElement, true);
+                 painted = true;
+              }
+           }
+        });
+        if (painted) return;
+     }
+  }
+
+  if (!opName || !dateVal || !state.activeBrush || currentStatus === state.activeBrush) return;
+
+  const key = `${opName}_${dateVal}`;
+  if (!state.pendingEdits[key]) {
+    state.pendingEdits[key] = { agentName: opName, date: dateVal, status: state.activeBrush, originalStatus: currentStatus || '' };
+  } else {
+    state.pendingEdits[key].status = state.activeBrush;
+    if (state.pendingEdits[key].status === state.pendingEdits[key].originalStatus) {
+       delete state.pendingEdits[key];
+    }
+  }
+
+  const op = state.cronoData.find(o => o.nombre === opName);
+  if (op) {
+     op.asistencia[dateVal] = state.activeBrush as OperatorStatus;
+  }
+  
+  updatePendingEditsUI();
+  renderMonthly(); 
+}
+
+function updateBrushUI(): void {
+  document.querySelectorAll('.brush-btn').forEach(btn => {
+    const activeClasses = (btn as HTMLElement).dataset.activeClass?.split(' ') || [];
+    if ((btn as HTMLElement).dataset.brush === state.activeBrush) {
+      btn.classList.remove('opacity-50', 'btn-ghost');
+      btn.classList.add('scale-110', 'font-black', ...activeClasses);
+    } else {
+      btn.classList.add('opacity-50', 'btn-ghost');
+      btn.classList.remove('scale-110', 'font-black', ...activeClasses);
+    }
+  });
+}
+
+function updateMaximizeUI(isMax: boolean): void {
+  const htmlEl = document.documentElement;
+  
+  const maxBtn = document.getElementById('maximize-cronograma-btn');
+  const maxIcon = maxBtn?.querySelector('.max-icon');
+  const minIcon = maxBtn?.querySelector('.min-icon');
+  const maxText = document.getElementById('maximize-text');
+
+  const maxBtnDaily = document.getElementById('maximize-cronograma-btn-daily');
+  const maxIconDaily = maxBtnDaily?.querySelector('.max-icon');
+  const minIconDaily = maxBtnDaily?.querySelector('.min-icon');
+  const maxTextDaily = document.getElementById('maximize-text-daily');
+  
+  if (isMax) {
+    htmlEl.classList.add('cronograma-maximized');
+    
+    maxIcon?.classList.add('hidden');
+    minIcon?.classList.remove('hidden');
+    if (maxText) maxText.innerText = "Restaurar";
+    maxBtn?.setAttribute('title', 'Restaurar cronograma');
+    maxBtn?.setAttribute('aria-label', 'Restaurar cronograma');
+
+    maxIconDaily?.classList.add('hidden');
+    minIconDaily?.classList.remove('hidden');
+    if (maxTextDaily) maxTextDaily.innerText = "Restaurar";
+    maxBtnDaily?.setAttribute('title', 'Restaurar cronograma');
+    maxBtnDaily?.setAttribute('aria-label', 'Restaurar cronograma');
+  } else {
+    htmlEl.classList.remove('cronograma-maximized');
+    
+    maxIcon?.classList.remove('hidden');
+    minIcon?.classList.add('hidden');
+    if (maxText) maxText.innerText = "Maximizar";
+    maxBtn?.setAttribute('title', 'Maximizar cronograma');
+    maxBtn?.setAttribute('aria-label', 'Maximizar cronograma');
+
+    maxIconDaily?.classList.remove('hidden');
+    minIconDaily?.classList.add('hidden');
+    if (maxTextDaily) maxTextDaily.innerText = "Maximizar";
+    maxBtnDaily?.setAttribute('title', 'Maximizar cronograma');
+    maxBtnDaily?.setAttribute('aria-label', 'Maximizar cronograma');
+  }
+}
+
+function setupEventListeners(): void {
+  // New Operator Modal Handlers
+  const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
+  const openNewOpBtn = document.getElementById('open-new-op-modal');
+
+  openNewOpBtn?.addEventListener('click', () => {
+    newOpModal?.showModal();
+  });
+
+  document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
+    showMonthlyView();
+  });
+
+  document.getElementById('switch-to-daily-btn')?.addEventListener('click', () => {
+    showDailyView();
+  });
+
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  if (dateInput) {
+    dateInput.addEventListener('change', () => {
+      updateDateInputDisplay();
+      renderDaily();
+      renderMonthly(); 
+    });
+  }
+
+  const monthlyBody = document.getElementById('monthly-tbody');
+  const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
+
+  backToMonthlyBtn?.addEventListener('click', () => {
+    showMonthlyView();
+  });
+
+  document.getElementById('prev-month-btn')?.addEventListener('click', () => {
+    changeMonth(-1);
+  });
+
+  document.getElementById('next-month-btn')?.addEventListener('click', () => {
+    changeMonth(1);
+  });
+
+  document.getElementById('monthly-tfoot')?.addEventListener('click', (event) => {
+    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
+    if (!btn) return;
+    state.isCoverageMinimized = !state.isCoverageMinimized;
+    renderMonthly();
+  });
+
+  let isDragging = false;
+  monthlyBody?.addEventListener('mousedown', (event) => {
+    if (event.button !== 0 || !state.isEditMode || !state.activeBrush) return;
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    if (trigger) {
+       isDragging = true;
+       applyBrushToCell(trigger);
+    }
+  });
+
+  monthlyBody?.addEventListener('mouseover', (event) => {
+    if (!isDragging || !state.isEditMode || !state.activeBrush) return;
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    if (trigger) applyBrushToCell(trigger);
+  });
+
+  document.addEventListener('mouseup', () => { isDragging = false; });
+  
+  monthlyBody?.addEventListener('click', async (event) => {
+    // Click on edit operator button
+    const editOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.edit-op-btn');
+    if (editOpBtn) {
+      event.stopPropagation();
+      const originalName = editOpBtn.dataset.editOpName;
+      const username = editOpBtn.dataset.editOpUsername;
+      const location = editOpBtn.dataset.editOpLocation;
+      const schedule = editOpBtn.dataset.editOpSchedule;
+
+      const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement | null;
+      const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
+      const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
+      const locSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
+      const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement | null;
+
+      if (originalNameInput) originalNameInput.value = originalName || '';
+      if (nameInput) nameInput.value = originalName || '';
+      if (usernameInput) usernameInput.value = username || '';
+      if (locSelect) locSelect.value = location || 'Monte Grande';
+      if (scheduleInput) scheduleInput.value = schedule || '08:00 - 17:00';
+
+      const editOpModal = document.getElementById('edit-operator-modal') as HTMLDialogElement & { showModal: () => void } | null;
+      editOpModal?.showModal();
+      return;
+    }
+
+    // Click on delete operator button
+    const deleteOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.delete-op-btn');
+    if (deleteOpBtn) {
+      event.stopPropagation();
+      const opName = deleteOpBtn.dataset.deleteOpName;
+      if (!opName) return;
+
+      const confirmed = await showConfirm(`¿Estás seguro de que deseas eliminar al operador "${opName}"? Esta acción borrará permanentemente sus datos y asistencias registradas.`);
+      if (confirmed) {
+        deleteOpBtn.disabled = true;
+        try {
+          await deleteOperator(opName);
+          
+          const data = await fetchCronogramaData();
+          state.cronoData = data;
+
+          renderMonthly();
+          renderDaily();
+          showToast(`Operador "${opName}" eliminado con éxito.`, "success");
+        } catch (err: unknown) {
+          console.error("Error deleting operator:", err);
+          const msg = err instanceof Error ? err.message : "Error al intentar eliminar operador.";
+          showToast(msg, "error");
+          deleteOpBtn.disabled = false;
+        }
+      }
+      return;
+    }
+
+    // Row bulk edit
+    const rowHeader = (event.target as HTMLElement).closest<HTMLElement>('.op-row-header');
+    if (rowHeader && state.isEditMode && state.activeBrush) {
+       const tr = rowHeader.closest('tr');
+       tr?.querySelectorAll('[data-monthly-detail]').forEach(cell => applyBrushToCell(cell as HTMLElement));
+       return;
+    }
+    
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    if (!trigger) return;
+    if (state.isEditMode && state.activeBrush) return;
+    
+    document.dispatchEvent(new CustomEvent('cronograma:open-monthly-detail', {
+      detail: { trigger }
+    }));
+  });
+
+  const monthlySearch = document.getElementById('monthly-search') as HTMLInputElement | null;
+  const dailySearch = document.getElementById('daily-search') as HTMLInputElement | null;
+
+  const handleSearchInput = debounce((e: Event) => {
+    state.searchQuery = (e.target as HTMLInputElement).value.trim();
+    if (monthlySearch && monthlySearch !== e.target) monthlySearch.value = state.searchQuery;
+    if (dailySearch && dailySearch !== e.target) dailySearch.value = state.searchQuery;
+    renderMonthly();
+    renderDaily();
+  }, 150);
+
+  monthlySearch?.addEventListener('input', handleSearchInput);
+  dailySearch?.addEventListener('input', handleSearchInput);
+
+  // Wire up filter buttons
+  const filterAllBtn = document.getElementById('filter-all-btn');
+  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterHoBtn = document.getElementById('filter-ho-btn');
+  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
+  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+  const filterHeBtn = document.getElementById('filter-he-btn');
+
+  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
+  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
+  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
+  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
+  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+
+  const filterBtns = [
+    { btn: filterAllBtn, value: 'all' },
+    { btn: filterPresencialBtn, value: 'Presencial' },
+    { btn: filterHoBtn, value: 'Home Office' },
+    { btn: filterLicenciaBtn, value: 'Licencia' },
+    { btn: filterVacacionesBtn, value: 'Vacaciones' },
+    { btn: filterHeBtn, value: 'Horas Extras' },
+    { btn: filterAllBtnDaily, value: 'all' },
+    { btn: filterPresencialBtnDaily, value: 'Presencial' },
+    { btn: filterHoBtnDaily, value: 'Home Office' },
+    { btn: filterLicenciaBtnDaily, value: 'Licencia' },
+    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
+    { btn: filterHeBtnDaily, value: 'Horas Extras' }
+  ];
+
+  filterBtns.forEach(item => {
+    item.btn?.addEventListener('click', () => {
+      state.activeFilter = item.value;
+      updateFilterActiveStates();
+      renderMonthly();
+      renderDaily();
+    });
+  });
+
+  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
+  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
+  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
+
+  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
+  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
+  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
+
+  const locationFilterBtns = [
+    { btn: filterLocationAllBtn, value: 'all' },
+    { btn: filterLocationMgBtn, value: 'Monte Grande' },
+    { btn: filterLocationPpBtn, value: 'Parque Patricios' },
+    { btn: filterLocationAllBtnDaily, value: 'all' },
+    { btn: filterLocationMgBtnDaily, value: 'Monte Grande' },
+    { btn: filterLocationPpBtnDaily, value: 'Parque Patricios' }
+  ];
+
+  locationFilterBtns.forEach(item => {
+    item.btn?.addEventListener('click', () => {
+      state.activeLocationFilter = item.value;
+      updateLocationFilterActiveStates();
+      renderMonthly();
+      renderDaily();
+    });
+  });
+
+  // Initialize filter button states
+  updateFilterActiveStates();
+  updateLocationFilterActiveStates();
+
+  const quickEditMenu = document.getElementById('quick-edit-menu');
+  const saveIndicator = document.getElementById('save-indicator');
+  let activeCell: HTMLElement | null = null;
+
+  monthlyBody?.addEventListener('contextmenu', (e) => {
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    if (!trigger || !quickEditMenu) return;
+    
+    e.preventDefault();
+    activeCell = trigger;
+    
+    const targetName = document.getElementById('quick-edit-target-name');
+    if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
+    
+    quickEditMenu.classList.remove('hidden');
+    quickEditMenu.style.left = `${e.clientX}px`;
+    quickEditMenu.style.top = `${e.clientY}px`;
+  });
+
+  document.getElementById('quick-edit-options')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!btn || !activeCell || !quickEditMenu) return;
+    
+    const newStatus = btn.dataset.status;
+    if (newStatus) {
+      updateCellStatus(activeCell, newStatus);
+      if (!state.isEditMode) {
+         saveIndicator?.classList.remove('hidden');
+      }
+      quickEditMenu.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (quickEditMenu && !quickEditMenu.contains(e.target as Node)) {
+      quickEditMenu.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('save-confirm-btn')?.addEventListener('click', () => {
+    saveChangesToServer();
+  });
+
+  document.getElementById('save-discard-btn')?.addEventListener('click', () => {
+    discardChanges();
+  });
+
+  // Delete active Month Listener
+  document.getElementById('delete-month-btn')?.addEventListener('click', async () => {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (!dateInput || !dateInput.value) return;
+
+    const [yearStr, monthStr] = dateInput.value.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1; // 0-indexed month
+
+    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+    const monthName = formatter.format(new Date(year, month, 15)).toUpperCase();
+
+    const confirmed = await showConfirm(`¿Estás seguro de que deseas eliminar el mes de ${monthName}? Esta acción borrará permanentemente todos los registros de asistencia y comentarios para este periodo y no se puede deshacer.`);
+    if (!confirmed) return;
+
+    const deleteBtn = document.getElementById('delete-month-btn') as HTMLButtonElement | null;
+    const originalText = deleteBtn ? deleteBtn.innerHTML : '';
+    if (deleteBtn) {
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Borrando...`;
+    }
+
+    try {
+      await deleteMonth(year, month);
+
+      const data = await fetchCronogramaData();
+      state.cronoData = data;
+
+      if (state.uniqueDates.length > 0) {
+        const targetDate = state.uniqueDates[state.uniqueDates.length - 1];
+        dateInput.value = targetDate;
+        dateInput.min = state.uniqueDates[0];
+        dateInput.max = targetDate;
+      } else {
+        const todayStr = formatYMD(new Date());
+        dateInput.value = todayStr;
+        dateInput.removeAttribute('min');
+        dateInput.removeAttribute('max');
+      }
+
+      updateDateInputDisplay();
+      updateMonthDisplay();
+      renderMonthDropdown();
+      renderDaily();
+      renderMonthly();
+      showToast(`El mes de ${monthName} ha sido eliminado correctamente.`, "success");
+    } catch (err: unknown) {
+      console.error("Error deleting month:", err);
+      showToast("Ocurrió un error al intentar eliminar el mes.", "error");
+    } finally {
+      if (deleteBtn) {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
+      }
+    }
+  });
+
+  const newMonthModal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void } | null;
+  document.getElementById('add-month-btn')?.addEventListener('click', () => {
+    newMonthModal?.showModal();
+  });
+
+  // --- Premium Exporters ---
+  function handleExportCSV() {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    let monthName = 'reporte';
+    if (dateInput && dateInput.value) {
+      const d = new Date(dateInput.value + 'T12:00:00');
+      monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+    }
+    const dates = getDatesArrayForCurrentMonth();
+    exportCSV(state.cronoData, dates, {
+      minCoveragePercent: state.minCoveragePercent,
+      maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
+      minPWeekLimit: state.minPWeekLimit,
+      maxLicenseOverlapLimit: state.maxLicenseOverlapLimit
+    }, monthName);
+  }
+
+  async function handleExportAsImage() {
+    const tableContainer = document.querySelector('#monthly-table')?.parentElement as HTMLElement | null;
+    if (!tableContainer) return;
+
+    const imgBtn = document.getElementById('export-image-btn') as HTMLButtonElement | null;
+    const originalText = imgBtn ? imgBtn.innerHTML : '';
+
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    let monthName = 'reporte';
+    if (dateInput && dateInput.value) {
+      const d = new Date(dateInput.value + 'T12:00:00');
+      monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+    }
+
+    try {
+      await exportAsImage(
+        tableContainer,
+        monthName,
+        () => {
+          if (imgBtn) {
+            imgBtn.disabled = true;
+            imgBtn.innerHTML = `<span class="loading loading-spinner loading-xs mr-1"></span> Procesando...`;
+          }
+        },
+        () => {
+          if (imgBtn) {
+            imgBtn.disabled = false;
+            imgBtn.innerHTML = originalText;
+          }
+        }
+      );
+      showToast("Imagen exportada con éxito", "success");
+    } catch (err: unknown) {
+      console.error(err);
+      showToast("Hubo un error al generar la imagen. Intenta imprimir el reporte.", "error");
+    }
+  }
+
+  document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
+  document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
+  document.getElementById('print-report-btn')?.addEventListener('click', () => window.print());
+
+  // --- Maximize Mode Handler ---
+  const maxBtn = document.getElementById('maximize-cronograma-btn');
+  const maxBtnDaily = document.getElementById('maximize-cronograma-btn-daily');
+
+  const handleMaximizeClick = () => {
+    const isMax = !document.documentElement.classList.contains('cronograma-maximized');
+    safeSetItem('cronoMaximized', isMax ? 'true' : 'false');
+    updateMaximizeUI(isMax);
+  };
+
+  maxBtn?.addEventListener('click', handleMaximizeClick);
+  maxBtnDaily?.addEventListener('click', handleMaximizeClick);
+
+  document.addEventListener('click', (e) => {
+    const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
+    if (clickDayBtn) {
+      if (state.isEditMode && state.activeBrush) {
+         const dateVal = clickDayBtn.dataset.clickDay;
+         document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
+         return;
+      }
+      const dateVal = clickDayBtn.dataset.clickDay;
+      if (dateVal) {
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        if (dateInput) {
+          dateInput.value = dateVal;
+          updateDateInputDisplay();
+        }
+        showDailyView();
+      }
+      return;
+    }
+    
+    const closeHourlyBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-close-hourly]');
+    if (closeHourlyBtn) {
+      state.focusedDateStr = null;
+      renderMonthly();
+      return;
+    }
+
+    const profileBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-op-profile]');
+    if (profileBtn) {
+      const operatorName = profileBtn.dataset.opProfile;
+      if (operatorName) {
+        document.dispatchEvent(new CustomEvent('cronograma:open-drawer', {
+          detail: { operatorName }
+        }));
+      }
+    }
+  });
+
+  // --- Edit Mode & Brush Tool ---
+  const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
+  const editToolbar = document.getElementById('edit-mode-toolbar');
+  
+  toggleEditBtn?.addEventListener('click', () => {
+    state.isEditMode = !state.isEditMode;
+    
+    if (state.isEditMode) {
+      const saveIndicator = document.getElementById('save-indicator');
+      if (saveIndicator) saveIndicator.classList.add('hidden');
+      toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
+      toggleEditBtn.classList.remove('btn-outline');
+      document.getElementById('monthly-tbody')?.classList.add('select-none');
+      if (editToolbar) {
+         editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
+      }
+      updatePendingEditsUI();
+    } else {
+      toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
+      toggleEditBtn.classList.add('btn-outline');
+      document.getElementById('monthly-tbody')?.classList.remove('select-none');
+      if (editToolbar) {
+         editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+      }
+      state.activeBrush = null;
+      updateBrushUI();
+      
+      if (state.modifiedSchedules.length > 0) {
+         const saveIndicator = document.getElementById('save-indicator');
+         if (saveIndicator) saveIndicator.classList.remove('hidden');
+      }
+    }
+    renderMonthly();
+  });
+
+  document.querySelectorAll('.brush-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const brush = (e.currentTarget as HTMLElement).dataset.brush;
+      if (state.activeBrush === brush) state.activeBrush = null;
+      else state.activeBrush = brush || null;
+      updateBrushUI();
+    });
+  });
+
+  document.getElementById('discard-edits-btn')?.addEventListener('click', async () => {
+      state.pendingEdits = {};
+      updatePendingEditsUI();
+      await discardChanges();
+   });
+
+   document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      
+      const mergedEditsMap = new Map<string, { agentName: string; date: string; status: string }>();
+      
+      state.modifiedSchedules.forEach(m => {
+         mergedEditsMap.set(`${m.agentName}_${m.date}`, { agentName: m.agentName, date: m.date, status: m.status });
+      });
+      
+      Object.values(state.pendingEdits).forEach(p => {
+         mergedEditsMap.set(`${p.agentName}_${p.date}`, { agentName: p.agentName, date: p.date, status: p.status });
+      });
+      
+      const editsToSave = Array.from(mergedEditsMap.values());
+      
+      if (editsToSave.length === 0) return;
+      
+      btn.disabled = true;
+      btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+      
+      try {
+        await saveEdits(editsToSave);
+        
+        state.pendingEdits = {};
+        state.modifiedSchedules = [];
+        updatePendingEditsUI();
+        
+        const saveIndicator = document.getElementById('save-indicator');
+        if (saveIndicator) saveIndicator.classList.add('hidden');
+        
+        btn.innerText = "Guardado!";
+        setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+        showToast("Cambios guardados con éxito", "success");
+      } catch (err: unknown) {
+        console.error(err);
+        btn.innerText = "Error";
+        btn.classList.add('btn-error');
+        setTimeout(() => { 
+           btn.innerText = "Guardar"; 
+           btn.classList.remove('btn-error');
+           btn.disabled = false;
+        }, 2000);
+        showToast("Error al guardar los cambios", "error");
+      }
+   });
+}
+
+// --- GLOBAL EVENT LISTENERS ---
+
+document.addEventListener('cronograma:data-changed', async () => {
+  try {
+    const data = await fetchCronogramaData();
+    state.cronoData = data;
+    renderMonthly();
+    renderDaily();
+  } catch (err: unknown) {
+    console.error("Error refreshing data:", err);
+    showToast("Error al actualizar datos", "error");
+  }
+});
+
+document.addEventListener('cronograma:month-created', async (e: any) => {
+  const { year, month } = e.detail;
+  try {
+    const data = await fetchCronogramaData();
+    state.cronoData = data;
+
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (dateInput) {
+      dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+      if (state.uniqueDates.length > 0) {
+        dateInput.min = state.uniqueDates[0];
+        dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
+      }
+      updateDateInputDisplay();
+      updateMonthDisplay();
+    }
+    renderMonthDropdown();
+    renderMonthly();
+    showToast("Nuevo mes agregado con éxito", "success");
+  } catch (err: unknown) {
+    console.error("Error refreshing data after month creation:", err);
+  }
+});
+
+document.addEventListener('cronograma:rules-changed', () => {
+  renderMonthly();
+  renderDaily();
+  showToast("Reglas de control actualizadas", "success");
+});
+
+if (safeGetItem('cronoMaximized', 'false') === 'true') {
+  updateMaximizeUI(true);
+}
+
+init();

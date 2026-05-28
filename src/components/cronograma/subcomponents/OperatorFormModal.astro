@@ -1,0 +1,187 @@
+---
+// OperatorFormModal.astro
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  mode: 'create' | 'edit';
+}
+
+const { mode } = Astro.props;
+const isEdit = mode === 'edit';
+
+const dialogId = isEdit ? "edit-operator-modal" : "new-operator-modal";
+const titleIcon = isEdit ? "boxicons:edit-alt" : "boxicons:user-plus";
+const titleText = isEdit ? "Editar Operador" : "Agregar Nuevo Operador";
+const confirmBtnId = isEdit ? "confirm-edit-op" : "confirm-new-op";
+const cancelBtnId = isEdit ? "cancel-edit-op" : "cancel-new-op";
+const nameInputId = isEdit ? "edit-op-name" : "new-op-name";
+const usernameInputId = isEdit ? "edit-op-username" : "new-op-username";
+const locationSelectId = isEdit ? "edit-op-location" : "new-op-location";
+const scheduleInputId = isEdit ? "edit-op-schedule" : "new-op-schedule";
+const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
+---
+
+<dialog id={dialogId} class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name={titleIcon} class="text-secondary" size={22} />
+      {titleText}
+    </h3>
+    
+    {isEdit && <input type="hidden" id="edit-op-original-name" />}
+
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre Completo</span>
+        </label>
+        <input 
+          type="text" 
+          id={nameInputId} 
+          placeholder="Ej: Juan Pérez"
+          class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Nombre de Usuario (Red)</span>
+        </label>
+        <input 
+          type="text" 
+          id={usernameInputId} 
+          placeholder="Ej: jperez"
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Sede Principal</span>
+        </label>
+        <select id={locationSelectId} class="select select-bordered select-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100">
+          <option value="Monte Grande">Monte Grande</option>
+          <option value="Parque Patricios">Parque Patricios</option>
+        </select>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
+        </label>
+        <input 
+          type="text" 
+          id={scheduleInputId} 
+          placeholder="Ej: 08:00 - 17:00"
+          value={isEdit ? undefined : "08:00 - 17:00"}
+          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
+        />
+      </div>
+    </div>
+    
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id={cancelBtnId} type="button">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id={confirmBtnId} type="button">{confirmBtnText}</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<script>
+  import { createOperator, editOperator } from "../lib/api";
+  import { showToast } from "../lib/notifications";
+
+  // --- NEW OPERATOR LOGIC ---
+  const newModal = document.getElementById('new-operator-modal') as HTMLDialogElement | null;
+  if (newModal) {
+    const nameInput = document.getElementById('new-op-name') as HTMLInputElement | null;
+    const usernameInput = document.getElementById('new-op-username') as HTMLInputElement | null;
+    const locationSelect = document.getElementById('new-op-location') as HTMLSelectElement | null;
+    const scheduleInput = document.getElementById('new-op-schedule') as HTMLInputElement | null;
+    const confirmBtn = document.getElementById('confirm-new-op') as HTMLButtonElement | null;
+    const cancelBtn = document.getElementById('cancel-new-op') as HTMLButtonElement | null;
+
+    cancelBtn?.addEventListener('click', () => {
+      if (nameInput) nameInput.value = '';
+      if (usernameInput) usernameInput.value = '';
+      if (locationSelect) locationSelect.value = 'Monte Grande';
+      if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
+      newModal.close();
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+      const name = nameInput?.value?.trim();
+      const username = usernameInput?.value?.trim() || '';
+      const location = locationSelect?.value || 'Monte Grande';
+      const horarioDefault = scheduleInput?.value?.trim() || '08:00 - 17:00';
+
+      if (!name) {
+        showToast("El nombre completo es requerido.", "warning");
+        return;
+      }
+
+      confirmBtn.disabled = true;
+      try {
+        await createOperator({ name, username, location, horarioDefault });
+        if (nameInput) nameInput.value = '';
+        if (usernameInput) usernameInput.value = '';
+        if (locationSelect) locationSelect.value = 'Monte Grande';
+        if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
+        newModal.close();
+        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+      } catch (err: unknown) {
+        console.error("Error creating operator:", err);
+        const msg = err instanceof Error ? err.message : "Error al intentar crear operador.";
+        showToast(msg, "error");
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+  }
+
+  // --- EDIT OPERATOR LOGIC ---
+  const editModal = document.getElementById('edit-operator-modal') as HTMLDialogElement | null;
+  if (editModal) {
+    const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement | null;
+    const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
+    const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
+    const locationSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
+    const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement | null;
+    const confirmBtn = document.getElementById('confirm-edit-op') as HTMLButtonElement | null;
+    const cancelBtn = document.getElementById('cancel-edit-op') as HTMLButtonElement | null;
+
+    cancelBtn?.addEventListener('click', () => {
+      editModal.close();
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+      const originalName = originalNameInput?.value?.trim();
+      const name = nameInput?.value?.trim();
+      const username = usernameInput?.value?.trim() || '';
+      const location = locationSelect?.value || 'Monte Grande';
+      const horarioDefault = scheduleInput?.value?.trim() || '';
+
+      if (!name || !originalName) {
+        showToast("El nombre completo es requerido.", "warning");
+        return;
+      }
+
+      confirmBtn.disabled = true;
+      try {
+        await editOperator({ originalName, name, username, location, horarioDefault });
+        editModal.close();
+        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+      } catch (err: unknown) {
+        console.error("Error editing operator:", err);
+        const msg = err instanceof Error ? err.message : "Error al intentar modificar operador.";
+        showToast(msg, "error");
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+  }
+</script>

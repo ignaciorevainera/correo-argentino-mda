@@ -57,3 +57,56 @@ import { Icon } from "astro-icon/components";
     <button>close</button>
   </form>
 </dialog>
+
+<script>
+  import { createMonth } from '../lib/api';
+  import { state } from '../lib/state';
+  import { showToast } from '../lib/notifications';
+
+  const modal = document.getElementById('new-month-modal') as HTMLDialogElement | null;
+  if (modal) {
+    const yearInput = document.getElementById('new-month-year') as HTMLInputElement | null;
+    const monthSelect = document.getElementById('new-month-month') as HTMLSelectElement | null;
+    const cancelBtn = document.getElementById('cancel-new-month');
+    const confirmBtn = document.getElementById('confirm-new-month') as HTMLButtonElement | null;
+
+    cancelBtn?.addEventListener('click', () => {
+      if (yearInput) yearInput.value = '2026';
+      if (monthSelect) monthSelect.value = '0';
+      modal.close();
+    });
+
+    confirmBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (!yearInput || !monthSelect) return;
+
+      const year = parseInt(yearInput.value, 10);
+      const month = parseInt(monthSelect.value, 10);
+      
+      const newMonthStr = `${year}-${(month + 1).toString().padStart(2, '0')}`;
+      const uniqueMonths = state.uniqueMonths;
+      
+      if (uniqueMonths.includes(newMonthStr)) {
+        showToast("El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.", "error");
+        return;
+      }
+
+      confirmBtn.disabled = true;
+      try {
+        await createMonth(year, month);
+        modal.close();
+        
+        // Dispatch custom event with month/year payload so parent can jump to it
+        document.dispatchEvent(new CustomEvent('cronograma:month-created', {
+          detail: { year, month }
+        }));
+      } catch (err: unknown) {
+        console.error("Error creating month:", err);
+        const msg = err instanceof Error ? err.message : "Error al intentar crear el mes.";
+        showToast(msg, "error");
+      } finally {
+        confirmBtn.disabled = false;
+      }
+    });
+  }
+</script>

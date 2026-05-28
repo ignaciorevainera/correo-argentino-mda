@@ -10,7 +10,7 @@ import { Icon } from "astro-icon/components";
 >
   <section
     id="monthly-detail-modal"
-    class="monthly-detail-modal relative w-full max-w-72 flex flex-col border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+    class="monthly-detail-modal relative w-full max-w-72 flex flex-col border-2 border-base-300 bg-base-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-3xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="monthly-detail-title"
@@ -18,7 +18,7 @@ import { Icon } from "astro-icon/components";
     <!-- Chat Bubble Tail (Pointer) -->
     <div id="modal-pointer" class="absolute left-1/2 -translate-x-1/2 w-5 h-5 bg-base-100 border-base-300 z-[-1] transition-all duration-200"></div>
 
-    <div class="flex items-center justify-between gap-3 bg-base-200/50 px-4 py-3 border-b border-base-200">
+    <div class="flex items-center justify-between gap-3 bg-base-200/50 px-4 py-3 border-b border-base-200 rounded-t-[22px]">
       <div class="flex items-center gap-2">
         <div id="modal-status-indicator" class="w-2 h-2 rounded-full animate-pulse"></div>
         <h3 class="truncate text-xs font-black uppercase tracking-widest text-base-content/70" id="monthly-detail-title"></h3>
@@ -53,7 +53,7 @@ import { Icon } from "astro-icon/components";
             <input 
               type="text" 
               id="monthly-detail-schedule" 
-              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center" 
+              class="input input-xs input-bordered w-full font-mono text-xs font-bold text-base-content hidden focus:border-secondary focus:outline-none text-center bg-base-100" 
               placeholder="Ej: 08:00 - 16:00" 
             />
           </div>
@@ -150,3 +150,408 @@ import { Icon } from "astro-icon/components";
     </div>
   </section>
 </div>
+
+<script>
+  import { saveEdits } from '../lib/api';
+  import { state } from '../lib/state';
+  import { formatDetailDate, formatTimeInput } from '../lib/utils';
+  import { getDetailStatusClass, getDetailIndicatorClass } from '../lib/styles';
+
+  const overlay = document.getElementById('monthly-detail-overlay') as HTMLElement | null;
+  const modal = document.getElementById('monthly-detail-modal') as HTMLElement | null;
+  const closeButton = document.getElementById('monthly-detail-close') as HTMLButtonElement | null;
+  const title = document.getElementById('monthly-detail-title') as HTMLElement | null;
+  const date = document.getElementById('monthly-detail-date') as HTMLElement | null;
+  const status = document.getElementById('monthly-detail-status') as HTMLElement | null;
+  const indicator = document.getElementById('modal-status-indicator') as HTMLElement | null;
+  const scheduleInput = document.getElementById('monthly-detail-schedule') as HTMLInputElement | null;
+  const scheduleText = document.getElementById('monthly-detail-schedule-text');
+  const scheduleContainer = document.getElementById('monthly-detail-schedule-container');
+  const user = document.getElementById('monthly-detail-user') as HTMLElement | null;
+  const pointer = document.getElementById('modal-pointer') as HTMLElement | null;
+
+  const commentTextarea = document.getElementById('monthly-detail-comment') as HTMLTextAreaElement | null;
+  const commentIndicator = document.getElementById('monthly-comment-indicator');
+  const detailEntradaInput = document.getElementById('monthly-detail-entrada') as HTMLInputElement | null;
+  const detailSalidaInput = document.getElementById('monthly-detail-salida') as HTMLInputElement | null;
+  const realTimeIndicator = document.getElementById('monthly-real-time-indicator');
+  const detailBreakInicioInput = document.getElementById('monthly-detail-break-inicio') as HTMLInputElement | null;
+  const detailBreakFinInput = document.getElementById('monthly-detail-break-fin') as HTMLInputElement | null;
+  const breakTimeIndicator = document.getElementById('monthly-break-time-indicator');
+
+  let activeOperatorName: string | null = null;
+  let activeDateVal: string | null = null;
+
+  let commentTimeout: number | null = null;
+  let scheduleTimeout: number | null = null;
+
+  function showStatusIndicator(el: HTMLElement | null, text: string, type: 'success' | 'warning' | 'error') {
+    if (!el) return;
+    el.innerText = text;
+    el.classList.remove('text-success/70', 'text-warning/70', 'text-error', 'opacity-0');
+    if (type === 'success') el.classList.add('text-success/70', 'opacity-100');
+    if (type === 'warning') el.classList.add('text-warning/70', 'opacity-100');
+    if (type === 'error') el.classList.add('text-error', 'opacity-100');
+  }
+
+  function fadeStatusIndicator(el: HTMLElement | null) {
+    if (!el) return;
+    setTimeout(() => {
+      if (el.innerText === "Guardado") {
+        el.classList.remove('opacity-100');
+        el.classList.add('opacity-0');
+      }
+    }, 1500);
+  }
+
+  function openMonthlyDetail(trigger: HTMLElement) {
+    if (!overlay || !modal || !pointer || !title || !date || !status || !indicator || !scheduleInput || !user) return;
+
+    const opName = trigger.dataset.operator || '';
+    const dateVal = trigger.dataset.date || '';
+    const statusValue = trigger.dataset.status || 'Franco';
+    const horario = trigger.dataset.horario || '-';
+    const username = trigger.dataset.username || '';
+    const isAbsent = statusValue === 'Licencia' || statusValue === 'Vacaciones' || statusValue === 'Franco';
+
+    activeOperatorName = opName;
+    activeDateVal = dateVal;
+
+    if (commentTextarea) commentTextarea.value = trigger.dataset.comment || '';
+    if (commentIndicator) commentIndicator.classList.add('opacity-0');
+
+    if (detailEntradaInput) detailEntradaInput.value = trigger.dataset.entradaReal || '';
+    if (detailSalidaInput) detailSalidaInput.value = trigger.dataset.salidaReal || '';
+    if (realTimeIndicator) realTimeIndicator.classList.add('opacity-0');
+
+    if (detailBreakInicioInput) detailBreakInicioInput.value = trigger.dataset.breakInicio || '';
+    if (detailBreakFinInput) detailBreakFinInput.value = trigger.dataset.breakFin || '';
+    if (breakTimeIndicator) breakTimeIndicator.classList.add('opacity-0');
+
+    title.innerText = opName;
+    date.innerText = formatDetailDate(dateVal);
+    status.innerText = statusValue;
+    status.className = `inline-block text-[11px] font-black uppercase tracking-wider ${getDetailStatusClass(statusValue)}`;
+    indicator.className = `w-2.5 h-2.5 rounded-full animate-pulse ${getDetailIndicatorClass(statusValue)}`;
+
+    if (scheduleText) {
+      scheduleText.innerText = isAbsent ? 'Franco' : (horario || '-');
+      scheduleText.classList.remove('hidden');
+      scheduleInput.classList.add('hidden');
+    }
+    scheduleInput.value = isAbsent ? '' : horario;
+    user.innerText = username ? `${username}@correoargentino.com.ar` : '-';
+
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    
+    const rect = trigger.getBoundingClientRect();
+    const modalWidth = 288;
+    const modalHeight = modal.offsetHeight || 320; 
+    const padding = 20;
+    
+    if (window.innerWidth > 768) {
+      overlay.classList.remove('items-start', 'items-center', 'justify-center');
+      modal.style.position = 'absolute';
+      
+      const left = Math.max(20, Math.min(window.innerWidth - modalWidth - 20, rect.left + rect.width/2 - modalWidth/2));
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const showAbove = spaceBelow < (modalHeight + padding);
+      
+      let top = 0;
+      if (showAbove) {
+        top = rect.top - modalHeight - 12;
+        modal.style.transformOrigin = 'bottom center';
+        pointer.className = "absolute w-5 h-5 bg-base-100 border-r-2 border-b-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -bottom-2.5";
+      } else {
+        top = rect.bottom + 12;
+        modal.style.transformOrigin = 'top center';
+        pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5";
+      }
+      
+      const clampedTop = Math.max(12, Math.min(window.innerHeight - modalHeight - 12, top));
+      modal.style.top = `${clampedTop}px`;
+      modal.style.left = `${left}px`;
+      modal.style.margin = '0';
+      
+      const pointerOffset = rect.left + rect.width/2 - left;
+      pointer.style.left = `${pointerOffset}px`;
+    } else {
+      overlay.classList.remove('items-start');
+      overlay.classList.add('items-center', 'justify-center');
+      modal.style.position = '';
+      modal.style.left = '';
+      modal.style.top = '';
+      modal.style.margin = '0';
+      pointer.style.left = '50%';
+      pointer.className = "absolute w-5 h-5 bg-base-100 border-l-2 border-t-2 border-base-300 rotate-45 z-[-1] transition-all duration-200 -top-2.5 hidden";
+    }
+
+    overlay.setAttribute('aria-hidden', 'false');
+    closeButton?.focus();
+  }
+
+  function closeMonthlyDetail() {
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+    overlay.setAttribute('aria-hidden', 'true');
+    activeOperatorName = null;
+    activeDateVal = null;
+  }
+
+  // --- EVENTS ---
+  document.addEventListener('cronograma:open-monthly-detail', (e: any) => {
+    if (e.detail && e.detail.trigger) {
+      openMonthlyDetail(e.detail.trigger);
+    }
+  });
+
+  closeButton?.addEventListener('click', closeMonthlyDetail);
+  
+  overlay?.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeMonthlyDetail();
+    }
+  });
+
+  // Edit-in-place schedule container toggle
+  if (scheduleContainer && scheduleText && scheduleInput) {
+    scheduleContainer.addEventListener('click', () => {
+      if (scheduleInput.classList.contains('hidden')) {
+        scheduleText.classList.add('hidden');
+        scheduleInput.classList.remove('hidden');
+        scheduleInput.focus();
+        scheduleInput.select();
+      }
+    });
+
+    scheduleInput.addEventListener('blur', () => {
+      scheduleText.innerText = scheduleInput.value || '-';
+      scheduleInput.classList.add('hidden');
+      scheduleText.classList.remove('hidden');
+    });
+
+    scheduleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        scheduleInput.blur();
+      }
+    });
+  }
+
+  // --- AUTO-SAVE LOGIC ---
+
+  // 1. Comments Auto-save
+  commentTextarea?.addEventListener('input', () => {
+    if (!activeOperatorName || !activeDateVal) return;
+    
+    showStatusIndicator(commentIndicator, "Guardando...", "warning");
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const currentVal = commentTextarea.value.trim();
+
+    if (commentTimeout) clearTimeout(commentTimeout);
+    
+    commentTimeout = window.setTimeout(async () => {
+      try {
+        await saveEdits([{ agentName: opName, date: dateVal, comment: currentVal }]);
+        
+        // Update local state
+        const op = state.cronoData.find(o => o.nombre === opName);
+        if (op) {
+          if (!op.comentarios) op.comentarios = {};
+          op.comentarios[dateVal] = currentVal;
+        }
+
+        showStatusIndicator(commentIndicator, "Guardado", "success");
+        fadeStatusIndicator(commentIndicator);
+
+        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+      } catch (err) {
+        console.error("Error auto-saving comment:", err);
+        showStatusIndicator(commentIndicator, "Error", "error");
+      }
+    }, 500);
+  });
+
+  commentTextarea?.addEventListener('blur', async () => {
+    if (!activeOperatorName || !activeDateVal) return;
+    if (commentTimeout) clearTimeout(commentTimeout);
+    
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const currentVal = commentTextarea.value.trim();
+    
+    try {
+      await saveEdits([{ agentName: opName, date: dateVal, comment: currentVal }]);
+      
+      const op = state.cronoData.find(o => o.nombre === opName);
+      if (op) {
+        if (!op.comentarios) op.comentarios = {};
+        op.comentarios[dateVal] = currentVal;
+      }
+
+      showStatusIndicator(commentIndicator, "Guardado", "success");
+      fadeStatusIndicator(commentIndicator);
+
+      document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+    } catch (err) {
+      console.error("Error saving comment on blur:", err);
+      showStatusIndicator(commentIndicator, "Error", "error");
+    }
+  });
+
+  // 2. Schedule Auto-save
+  scheduleInput?.addEventListener('input', () => {
+    if (!activeOperatorName || !activeDateVal) return;
+    
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const currentVal = scheduleInput.value.trim();
+
+    if (scheduleTimeout) clearTimeout(scheduleTimeout);
+    
+    scheduleTimeout = window.setTimeout(async () => {
+      try {
+        await saveEdits([{ agentName: opName, date: dateVal, horario: currentVal }]);
+        
+        const op = state.cronoData.find(o => o.nombre === opName);
+        if (op) {
+          if (!op.horarios_dias) op.horarios_dias = {};
+          op.horarios_dias[dateVal] = currentVal;
+        }
+
+        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+      } catch (err) {
+        console.error("Error saving schedule override:", err);
+      }
+    }, 500);
+  });
+
+  scheduleInput?.addEventListener('blur', async () => {
+    if (!activeOperatorName || !activeDateVal) return;
+    if (scheduleTimeout) clearTimeout(scheduleTimeout);
+    
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const currentVal = scheduleInput.value.trim();
+    
+    try {
+      await saveEdits([{ agentName: opName, date: dateVal, horario: currentVal }]);
+      
+      const op = state.cronoData.find(o => o.nombre === opName);
+      if (op) {
+        if (!op.horarios_dias) op.horarios_dias = {};
+        op.horarios_dias[dateVal] = currentVal;
+      }
+
+      document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+    } catch (err) {
+      console.error("Error saving schedule on blur:", err);
+    }
+  });
+
+  // 3. Real Times (Entrada/Salida Real) Auto-save
+  async function saveDetailRealTimes() {
+    if (!activeOperatorName || !activeDateVal || !detailEntradaInput || !detailSalidaInput) return;
+
+    showStatusIndicator(realTimeIndicator, "Guardando...", "warning");
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const entradaVal = detailEntradaInput.value;
+    const salidaVal = detailSalidaInput.value;
+
+    try {
+      await saveEdits([{
+        agentName: opName,
+        date: dateVal,
+        entradaReal: entradaVal,
+        salidaReal: salidaVal
+      }]);
+
+      const op = state.cronoData.find(o => o.nombre === opName);
+      if (op) {
+        if (!op.entradas_reales) op.entradas_reales = {};
+        if (!op.salidas_reales) op.salidas_reales = {};
+        op.entradas_reales[dateVal] = entradaVal;
+        op.salidas_reales[dateVal] = salidaVal;
+      }
+
+      showStatusIndicator(realTimeIndicator, "Guardado", "success");
+      fadeStatusIndicator(realTimeIndicator);
+
+      document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+    } catch (err) {
+      console.error("Error auto-saving real times:", err);
+      showStatusIndicator(realTimeIndicator, "Error", "error");
+    }
+  }
+
+  const handleTimeInputBlur = (input: HTMLInputElement) => {
+    const formatted = formatTimeInput(input.value);
+    input.value = formatted;
+    saveDetailRealTimes();
+  };
+
+  detailEntradaInput?.addEventListener('blur', () => handleTimeInputBlur(detailEntradaInput));
+  detailSalidaInput?.addEventListener('blur', () => handleTimeInputBlur(detailSalidaInput));
+  
+  detailEntradaInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') detailEntradaInput.blur();
+  });
+  detailSalidaInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') detailSalidaInput.blur();
+  });
+
+  // 4. Break Time Auto-save
+  async function saveDetailBreakTimes() {
+    if (!activeOperatorName || !activeDateVal || !detailBreakInicioInput || !detailBreakFinInput) return;
+
+    showStatusIndicator(breakTimeIndicator, "Guardando...", "warning");
+    const opName = activeOperatorName;
+    const dateVal = activeDateVal;
+    const breakInicioVal = detailBreakInicioInput.value;
+    const breakFinVal = detailBreakFinInput.value;
+
+    try {
+      await saveEdits([{
+        agentName: opName,
+        date: dateVal,
+        breakInicio: breakInicioVal,
+        breakFin: breakFinVal
+      }]);
+
+      const op = state.cronoData.find(o => o.nombre === opName);
+      if (op) {
+        if (!op.breaks_inicio) op.breaks_inicio = {};
+        if (!op.breaks_fin) op.breaks_fin = {};
+        op.breaks_inicio[dateVal] = breakInicioVal;
+        op.breaks_fin[dateVal] = breakFinVal;
+      }
+
+      showStatusIndicator(breakTimeIndicator, "Guardado", "success");
+      fadeStatusIndicator(breakTimeIndicator);
+
+      document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+    } catch (err) {
+      console.error("Error auto-saving break times:", err);
+      showStatusIndicator(breakTimeIndicator, "Error", "error");
+    }
+  }
+
+  const handleBreakTimeInputBlur = (input: HTMLInputElement) => {
+    const formatted = formatTimeInput(input.value);
+    input.value = formatted;
+    saveDetailBreakTimes();
+  };
+
+  detailBreakInicioInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakInicioInput));
+  detailBreakFinInput?.addEventListener('blur', () => handleBreakTimeInputBlur(detailBreakFinInput));
+  
+  detailBreakInicioInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') detailBreakInicioInput.blur();
+  });
+  detailBreakFinInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') detailBreakFinInput.blur();
+  });
+</script>
