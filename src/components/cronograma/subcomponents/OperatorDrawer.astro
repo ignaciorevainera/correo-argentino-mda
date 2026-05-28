@@ -251,9 +251,253 @@ import { Icon } from "astro-icon/components";
     </div>
 
     <!-- Footer -->
-    <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3">
+    <div class="p-6 border-t border-base-200 bg-base-200/30 flex justify-end gap-3 rounded-b-[2rem]">
        <button type="button" id="drawer-footer-close-btn" class="btn btn-ghost text-xs font-black uppercase">Cerrar</button>
-       <button type="button" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20">Descargar Reporte</button>
+       <button type="button" id="download-op-report-btn" class="btn btn-secondary px-8 font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-secondary/20" disabled title="Próximamente">Descargar Reporte</button>
     </div>
   </div>
 </div>
+
+<script>
+  import { openDrawer, closeDrawer, saveDrawerLocation, saveDrawerOperatorRules } from '../lib/drawer';
+  import { saveNotes, saveEdits } from '../lib/api';
+  import { state } from '../lib/state';
+  import { formatTimeInput } from '../lib/utils';
+  import {
+    handleTemplateSelectChange,
+    handleCreateTemplateClick,
+    handleSaveTemplateClick,
+    handleDeleteTemplateClick,
+    handleDuplicateTemplateClick,
+    handleWeeklyInput,
+    handleWeeklyFocusOut,
+    handleWeeklyDayOptionClick,
+    saveWeeklySchedule
+  } from '../lib/weekly-schedule';
+
+  // Modal open trigger listener
+  document.addEventListener('cronograma:open-drawer', (e: any) => {
+    if (e.detail && e.detail.operatorName) {
+      openDrawer(e.detail.operatorName);
+    }
+  });
+
+  // Tab switching
+  const tabProfileBtn = document.getElementById('tab-profile-btn');
+  const tabWeeklyBtn = document.getElementById('tab-weekly-btn');
+  const drawerProfileTabContent = document.getElementById('drawer-profile-tab-content');
+  const drawerWeeklyTabContent = document.getElementById('drawer-weekly-tab-content');
+  const closeDrawerBtn = document.getElementById('close-drawer');
+  const drawerFooterCloseBtn = document.getElementById('drawer-footer-close-btn');
+
+  closeDrawerBtn?.addEventListener('click', closeDrawer);
+  drawerFooterCloseBtn?.addEventListener('click', closeDrawer);
+
+  tabProfileBtn?.addEventListener('click', () => {
+    if (tabProfileBtn && tabWeeklyBtn && drawerProfileTabContent && drawerWeeklyTabContent) {
+      tabProfileBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabWeeklyBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all";
+      drawerProfileTabContent.classList.remove('hidden');
+      drawerWeeklyTabContent.classList.add('hidden');
+    }
+  });
+
+  tabWeeklyBtn?.addEventListener('click', () => {
+    if (tabProfileBtn && tabWeeklyBtn && drawerProfileTabContent && drawerWeeklyTabContent) {
+      tabWeeklyBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-secondary text-secondary transition-all";
+      tabProfileBtn.className = "px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-base-content/60 hover:text-base-content transition-all";
+      drawerProfileTabContent.classList.add('hidden');
+      drawerWeeklyTabContent.classList.remove('hidden');
+      
+      // Populate and render
+      populateWeeklyTemplatesDropdown();
+      renderWeeklyDaysList();
+    }
+  });
+
+  // Location selector buttons
+  const mgBtn = document.getElementById('btn-location-mg');
+  const ppBtn = document.getElementById('btn-location-pp');
+  const locSelect = document.getElementById('drawer-op-location') as HTMLSelectElement | null;
+
+  mgBtn?.addEventListener('click', () => {
+    if (locSelect) {
+      locSelect.value = 'Monte Grande';
+      saveDrawerLocation('Monte Grande');
+    }
+  });
+
+  ppBtn?.addEventListener('click', () => {
+    if (locSelect) {
+      locSelect.value = 'Parque Patricios';
+      saveDrawerLocation('Parque Patricios');
+    }
+  });
+
+  // Notes Auto-save
+  const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
+  const notesIndicator = document.getElementById('notes-status-indicator');
+  let saveNotesTimeout: number | null = null;
+
+  notesTextarea?.addEventListener('input', () => {
+    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+    if (!opName) return;
+
+    if (notesIndicator) {
+      notesIndicator.innerText = "Guardando...";
+      notesIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
+      notesIndicator.classList.add('opacity-100', 'text-warning/70');
+    }
+
+    if (saveNotesTimeout) clearTimeout(saveNotesTimeout);
+    
+    saveNotesTimeout = window.setTimeout(async () => {
+      try {
+        await saveNotes(opName, notesTextarea.value);
+        if (notesIndicator) {
+          notesIndicator.innerText = "Guardado";
+          notesIndicator.classList.remove('text-warning/70');
+          notesIndicator.classList.add('text-success/70');
+          setTimeout(() => {
+            if (notesIndicator.innerText === "Guardado") {
+              notesIndicator.classList.add('opacity-0');
+              notesIndicator.classList.remove('opacity-100');
+            }
+          }, 1500);
+        }
+      } catch (err) {
+        console.error("Error saving notes:", err);
+        if (notesIndicator) {
+          notesIndicator.innerText = "Error";
+          notesIndicator.classList.remove('text-warning/70', 'text-success/70');
+          notesIndicator.classList.add('text-error');
+        }
+      }
+    }, 500);
+  });
+
+  notesTextarea?.addEventListener('blur', async () => {
+    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+    if (!opName) return;
+    if (saveNotesTimeout) clearTimeout(saveNotesTimeout);
+
+    try {
+      await saveNotes(opName, notesTextarea.value);
+      if (notesIndicator) {
+        notesIndicator.innerText = "Guardado";
+        notesIndicator.classList.remove('text-warning/70');
+        notesIndicator.classList.add('text-success/70');
+        setTimeout(() => {
+          if (notesIndicator.innerText === "Guardado") {
+            notesIndicator.classList.add('opacity-0');
+            notesIndicator.classList.remove('opacity-100');
+          }
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("Error saving notes on blur:", err);
+      if (notesIndicator) {
+        notesIndicator.innerText = "Error";
+        notesIndicator.classList.remove('text-warning/70', 'text-success/70');
+        notesIndicator.classList.add('text-error');
+      }
+    }
+  });
+
+  // Attendance Rules select change auto-save
+  const opMinPWeekSelect = document.getElementById('drawer-op-min-p-week') as HTMLSelectElement | null;
+  const opMaxHoSelect = document.getElementById('drawer-op-max-ho') as HTMLSelectElement | null;
+
+  opMinPWeekSelect?.addEventListener('change', () => saveDrawerOperatorRules(opMinPWeekSelect, opMaxHoSelect));
+  opMaxHoSelect?.addEventListener('change', () => saveDrawerOperatorRules(opMinPWeekSelect, opMaxHoSelect));
+
+  // History timeline edits auto-save
+  const historyList = document.getElementById('drawer-history-list');
+  let realTimeTimeout: number | null = null;
+
+  historyList?.addEventListener('change', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida')) {
+      const formatted = formatTimeInput(target.value);
+      target.value = formatted;
+
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      const dateVal = target.getAttribute('data-date');
+      if (!opName || !dateVal) return;
+
+      const rowContainer = target.closest('.flex-col');
+      const entradaInput = rowContainer?.querySelector('.drawer-history-entrada') as HTMLInputElement | null;
+      const salidaInput = rowContainer?.querySelector('.drawer-history-salida') as HTMLInputElement | null;
+      const entradaVal = entradaInput?.value || '';
+      const salidaVal = salidaInput?.value || '';
+
+      if (realTimeTimeout) clearTimeout(realTimeTimeout);
+      realTimeTimeout = window.setTimeout(async () => {
+        try {
+          await saveEdits([{
+            agentName: opName,
+            date: dateVal,
+            entradaReal: entradaVal,
+            salidaReal: salidaVal
+          }]);
+
+          const op = state.cronoData.find(o => o.nombre === opName);
+          if (op) {
+            if (!op.entradas_reales) op.entradas_reales = {};
+            if (!op.salidas_reales) op.salidas_reales = {};
+            op.entradas_reales[dateVal] = entradaVal;
+            op.salidas_reales[dateVal] = salidaVal;
+          }
+
+          document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+        } catch (err) {
+          console.error("Error saving drawer real times:", err);
+        }
+      }, 500);
+    }
+  });
+
+  historyList?.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (e.key === 'Enter' && (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida'))) {
+      target.blur();
+    }
+  });
+
+  // Weekly base schedule tab template management handlers
+  const weeklyTemplateSelect = document.getElementById('weekly-template-select');
+  weeklyTemplateSelect?.addEventListener('change', (e) => {
+    const target = e.target as HTMLSelectElement;
+    handleTemplateSelectChange(target.value);
+  });
+
+  document.getElementById('weekly-template-create-btn')?.addEventListener('click', handleCreateTemplateClick);
+  document.getElementById('new-template-save-btn')?.addEventListener('click', handleSaveTemplateClick);
+  document.getElementById('new-template-delete-btn')?.addEventListener('click', handleDeleteTemplateClick);
+  document.getElementById('weekly-template-duplicate-btn')?.addEventListener('click', handleDuplicateTemplateClick);
+
+  const weeklyDaysList = document.getElementById('weekly-days-list');
+  
+  weeklyDaysList?.addEventListener('input', (e) => {
+    handleWeeklyInput(e.target as HTMLInputElement);
+  });
+
+  weeklyDaysList?.addEventListener('focusout', (e) => {
+    handleWeeklyFocusOut(e.target as HTMLInputElement);
+  });
+
+  weeklyDaysList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-weekly-option]');
+    if (btn) {
+      handleWeeklyDayOptionClick(btn);
+    }
+  });
+
+  document.getElementById('save-operator-weekly-btn')?.addEventListener('click', () => {
+    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+    if (opName) {
+      const saveBtn = document.getElementById('save-operator-weekly-btn') as HTMLButtonElement | null;
+      saveWeeklySchedule(opName, saveBtn);
+    }
+  });
+</script>

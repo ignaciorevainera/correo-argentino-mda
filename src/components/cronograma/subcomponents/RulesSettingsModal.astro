@@ -4,14 +4,14 @@
 
 <!-- Rules Settings Modal -->
 <dialog id="rules-settings-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-3xl w-11/12 bg-base-100 border border-base-300 shadow-2xl">
-    <h3 class="font-black text-lg mb-4 text-base-content">Parámetros del Cronograma</h3>
+  <div class="modal-box max-w-3xl w-11/12 bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight">Parámetros del Cronograma</h3>
     
     <div class="space-y-6">
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold">Cobertura Presencial Mínima (%)</span>
-          <span class="label-text-alt font-black text-secondary" id="min-coverage-val">40%</span>
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Cobertura Presencial Mínima (%)</span>
+          <span class="label-text-alt font-black text-secondary text-sm" id="min-coverage-val">40%</span>
         </label>
         <input type="range" id="min-coverage-input" min="0" max="100" value="40" class="range range-secondary range-xs" />
         <label class="label">
@@ -21,9 +21,9 @@
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold">Límite HO Consecutivos</span>
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Límite HO Consecutivos</span>
         </label>
-        <input type="number" id="max-ho-input" value="5" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <input type="number" id="max-ho-input" value="5" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary bg-base-100" />
         <label class="label">
           <span class="label-text-alt text-base-content/50">Máximo de días seguidos de Home Office permitidos antes de generar alerta.</span>
         </label>
@@ -31,9 +31,9 @@
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold">Días Presenciales Mínimos (Por Semana)</span>
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Días Presenciales Mínimos (Por Semana)</span>
         </label>
-        <input type="number" id="min-p-week-input" value="2" min="0" max="7" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <input type="number" id="min-p-week-input" value="2" min="0" max="7" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary bg-base-100" />
         <label class="label">
           <span class="label-text-alt text-base-content/50">Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila.</span>
         </label>
@@ -41,9 +41,9 @@
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold">Límite de Solapamiento de Licencias</span>
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Límite de Solapamiento de Licencias</span>
         </label>
-        <input type="number" id="max-license-overlap-input" value="2" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary" />
+        <input type="number" id="max-license-overlap-input" value="2" min="1" max="10" class="input input-bordered input-sm font-bold w-32 focus:outline-none focus:border-secondary bg-base-100" />
         <label class="label">
           <span class="label-text-alt text-base-content/50">Número máximo de operadores permitidos de Licencia/Vacaciones el mismo día antes de marcar alerta.</span>
         </label>
@@ -51,9 +51,9 @@
     </div>
     
     <div class="modal-action">
-      <form method="dialog">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200">Cancelar</button>
-        <button class="btn btn-sm btn-secondary ml-2" id="save-rules-btn" type="button">Guardar Reglas</button>
+      <form method="dialog" class="flex gap-2">
+        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase">Cancelar</button>
+        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="save-rules-btn" type="button">Guardar Reglas</button>
       </form>
     </div>
   </div>
@@ -61,3 +61,63 @@
     <button>close</button>
   </form>
 </dialog>
+
+<script>
+  import { state } from '../lib/state';
+
+  const modal = document.getElementById('rules-settings-modal') as HTMLDialogElement | null;
+  const openBtn = document.getElementById('open-rules-settings');
+  const saveBtn = document.getElementById('save-rules-btn');
+
+  const minCovInput = document.getElementById('min-coverage-input') as HTMLInputElement | null;
+  const minCovVal = document.getElementById('min-coverage-val');
+  const maxHoInput = document.getElementById('max-ho-input') as HTMLInputElement | null;
+  const minPWeekInput = document.getElementById('min-p-week-input') as HTMLInputElement | null;
+  const maxLicenseOverlapInput = document.getElementById('max-license-overlap-input') as HTMLInputElement | null;
+
+  const updateMinCovDisplay = (val: string) => {
+    if (minCovVal) {
+      const opsCount = state.cronoData ? state.cronoData.length : 0;
+      const presenciales = Math.ceil((parseInt(val, 10) / 100) * opsCount);
+      minCovVal.innerText = `${val}% (${presenciales} operadores)`;
+    }
+  };
+
+  openBtn?.addEventListener('click', () => {
+    if (minCovInput) {
+      minCovInput.value = state.minCoveragePercent.toString();
+      updateMinCovDisplay(minCovInput.value);
+    }
+    if (maxHoInput) {
+      maxHoInput.value = state.maxConsecutiveHOLimit.toString();
+    }
+    if (minPWeekInput) {
+      minPWeekInput.value = state.minPWeekLimit.toString();
+    }
+    if (maxLicenseOverlapInput) {
+      maxLicenseOverlapInput.value = state.maxLicenseOverlapLimit.toString();
+    }
+    modal?.showModal();
+  });
+
+  minCovInput?.addEventListener('input', (e) => {
+    updateMinCovDisplay((e.target as HTMLInputElement).value);
+  });
+
+  saveBtn?.addEventListener('click', () => {
+    if (minCovInput) {
+      state.minCoveragePercent = parseInt(minCovInput.value, 10);
+    }
+    if (maxHoInput) {
+      state.maxConsecutiveHOLimit = parseInt(maxHoInput.value, 10);
+    }
+    if (minPWeekInput) {
+      state.minPWeekLimit = parseInt(minPWeekInput.value, 10);
+    }
+    if (maxLicenseOverlapInput) {
+      state.maxLicenseOverlapLimit = parseInt(maxLicenseOverlapInput.value, 10);
+    }
+    modal?.close();
+    document.dispatchEvent(new CustomEvent('cronograma:rules-changed'));
+  });
+</script>
