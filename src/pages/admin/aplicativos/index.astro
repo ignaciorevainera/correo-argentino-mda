@@ -89,18 +89,21 @@ try {
     )
     .orderBy(asc(applications.title));
 } catch (dbError: any) {
-  console.error(`[aplicativos] Error al consultar la base de datos: ${dbError.message}`);
+  console.error(
+    `[aplicativos] Error al consultar la base de datos: ${dbError.message}`,
+  );
   deleteMsg = deleteMsg || "No se pudieron cargar los aplicativos.";
 }
 
 const headerGridClass = "grid-cols-[1.5fr_1fr_80px_1.5fr_120px] gap-4";
-const rowGridClass = "grid grid-cols-[1.5fr_1fr_80px_1.5fr_120px] items-center gap-4";
+const rowGridClass =
+  "grid grid-cols-[1.5fr_1fr_80px_1.5fr_120px] items-center gap-4";
 
 const categoryColors: Record<string, string> = {
-  "programa": "badge-primary text-primary-content",
-  "extensión": "badge-accent text-accent-content",
-  "paquetes": "badge-secondary text-secondary-content",
-  "extension": "badge-accent text-accent-content",
+  programa: "badge-primary text-primary-content",
+  extensión: "badge-accent text-accent-content",
+  paquetes: "badge-secondary text-secondary-content",
+  extension: "badge-accent text-accent-content",
 };
 
 const getCategoryBadgeClass = (title: string | null) => {
@@ -112,38 +115,54 @@ const getCategoryBadgeClass = (title: string | null) => {
 const truncatePath = (filePath: string | null) => {
   if (!filePath) return "";
   const maxLength = 30;
-  return filePath.length > maxLength ? filePath.slice(0, maxLength) + "..." : filePath;
+  return filePath.length > maxLength
+    ? filePath.slice(0, maxLength) + "..."
+    : filePath;
 };
 ---
 
 <BaseLayout title="Catálogo de aplicativos">
   <PageContainer>
-    <PageHeader description="Gestión de los aplicativos disponibles para descarga y distribución interna." />
+    <PageHeader
+      description="Gestión de los aplicativos disponibles para descarga y distribución interna."
+    />
 
-    {deleteMsg && (
-      <div role="alert" class="alert alert-error alert-soft text-sm">
-        <Icon name="boxicons:alert-circle-filled" size={20} class="shrink-0" />
-        <span>{deleteMsg}</span>
-      </div>
-    )}
+    {
+      deleteMsg && (
+        <div role="alert" class="alert alert-error alert-soft text-sm">
+          <Icon
+            name="boxicons:alert-circle-filled"
+            size={20}
+            class="shrink-0"
+          />
+          <span>{deleteMsg}</span>
+        </div>
+      )
+    }
 
     <div class="flex flex-col gap-4">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+      >
         <div class="flex items-center gap-3">
           <h2 class="text-lg font-semibold text-base-content">
             Aplicativos registrados
           </h2>
-          {allApps.length > 0 && (
-            <span
-              id="app-count-badge"
-              class="badge badge-neutral badge-sm font-mono"
-            >
-              {allApps.length}
-            </span>
-          )}
+          {
+            allApps.length > 0 && (
+              <span
+                id="app-count-badge"
+                class="badge badge-neutral badge-sm font-mono"
+              >
+                {allApps.length}
+              </span>
+            )
+          }
         </div>
 
-        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+        <div
+          class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
+        >
           <SearchInput
             id="admin-app-search"
             label="Buscar aplicativo"
@@ -170,98 +189,139 @@ const truncatePath = (filePath: string | null) => {
           <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
         </div>
         <div slot="header">
-          <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell
+          >
         </div>
         <div slot="header">
           <DataTableHeaderCell sortKey="version">Versión</DataTableHeaderCell>
         </div>
         <div slot="header">
-          <DataTableHeaderCell sortKey="file">Ruta de Archivo</DataTableHeaderCell>
+          <DataTableHeaderCell sortKey="file"
+            >Ruta de Archivo</DataTableHeaderCell
+          >
         </div>
         <div slot="header" class="text-right flex justify-end">
           <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
         </div>
 
-        {allApps.length === 0 ? (
-          <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-            <div class="rounded-full bg-base-200 p-4">
-              <Icon name="boxicons:archive-in" size={32} class="opacity-30" aria-hidden="true" />
+        {
+          allApps.length === 0 ? (
+            <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+              <div class="rounded-full bg-base-200 p-4">
+                <Icon
+                  name="boxicons:archive-in"
+                  size={32}
+                  class="opacity-30"
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="space-y-1 text-center">
+                <p class="text-sm font-semibold">
+                  No hay aplicativos registrados todavía.
+                </p>
+                <p class="text-xs">
+                  Comenzá cargando el primer aplicativo desde el botón superior.
+                </p>
+              </div>
             </div>
-            <div class="space-y-1 text-center">
-              <p class="text-sm font-semibold">No hay aplicativos registrados todavía.</p>
-              <p class="text-xs">Comenzá cargando el primer aplicativo desde el botón superior.</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {allApps.map((app) => (
-              <article
-                data-table-row
-                data-sort-title={app.title}
-                data-sort-category={app.categoryTitle}
-                data-sort-version={app.version}
-                data-sort-file={app.filePath}
-                data-search-text={`${app.title} ${app.categoryTitle || ""} ${app.version || ""} ${app.filePath || ""}`.toLowerCase()}
-                class:list={[
-                  rowGridClass,
-                  "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-                ]}
-              >
-                <div class="min-w-0">
-                  <p data-highlight-target class="truncate font-medium text-base-content text-sm">
-                    {app.title}
-                  </p>
-                </div>
-                <div class="min-w-0">
-                  {app.categoryTitle ? (
-                    <span data-highlight-target class:list={["badge badge-sm truncate block w-fit max-w-full", getCategoryBadgeClass(app.categoryTitle)]}>
-                      {app.categoryTitle}
-                    </span>
-                  ) : (
-                    <span class="text-base-content/40 text-xs">Sin categoría</span>
-                  )}
-                </div>
-                <div class="min-w-0">
-                  <span data-highlight-target class="font-mono text-xs truncate block">{app.version || "—"}</span>
-                </div>
-                <div class="min-w-0">
-                  {app.filePath ? (
-                    <span data-highlight-target class="truncate text-xs font-mono text-base-content/70 block" title={app.filePath}>
-                      {truncatePath(app.filePath)}
-                    </span>
-                  ) : (
-                    <span class="badge badge-sm badge-warning gap-1 whitespace-nowrap">
-                      <Icon name="boxicons:error-circle" size={14} />
-                      Sin archivo
-                    </span>
-                  )}
-                </div>
-                <div class="flex items-center justify-end gap-1">
-                  <a
-                    href={resolveUrl(`/admin/aplicativos/${app.id}`)}
-                    class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    title="Editar"
-                  >
-                    <Icon name="boxicons:pencil-filled" size={14} />
-                    <span class="hidden lg:inline">Editar</span>
-                  </a>
-                  <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar este aplicativo?')">
-                    <input type="hidden" name="_action" value="delete" />
-                    <input type="hidden" name="appId" value={String(app.id)} />
-                    <button
-                      type="submit"
-                      class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
-                      title="Eliminar"
+          ) : (
+            <>
+              {allApps.map((app) => (
+                <article
+                  data-table-row
+                  data-sort-title={app.title}
+                  data-sort-category={app.categoryTitle}
+                  data-sort-version={app.version}
+                  data-sort-file={app.filePath}
+                  data-search-text={`${app.title} ${app.categoryTitle || ""} ${app.version || ""} ${app.filePath || ""}`.toLowerCase()}
+                  class:list={[
+                    rowGridClass,
+                    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+                  ]}
+                >
+                  <div class="min-w-0">
+                    <p
+                      data-highlight-target
+                      class="truncate font-medium text-base-content text-sm"
                     >
-                      <Icon name="boxicons:trash-filled" size={14} />
-                      <span class="hidden lg:inline">Eliminar</span>
-                    </button>
-                  </form>
-                </div>
-              </article>
-            ))}
-          </>
-        )}
+                      {app.title}
+                    </p>
+                  </div>
+                  <div class="min-w-0">
+                    {app.categoryTitle ? (
+                      <span
+                        data-highlight-target
+                        class:list={[
+                          "badge badge-sm truncate block w-fit max-w-full",
+                          getCategoryBadgeClass(app.categoryTitle),
+                        ]}
+                      >
+                        {app.categoryTitle}
+                      </span>
+                    ) : (
+                      <span class="text-base-content/40 text-xs">
+                        Sin categoría
+                      </span>
+                    )}
+                  </div>
+                  <div class="min-w-0">
+                    <span
+                      data-highlight-target
+                      class="font-mono text-xs truncate block"
+                    >
+                      {app.version || "—"}
+                    </span>
+                  </div>
+                  <div class="min-w-0">
+                    {app.filePath ? (
+                      <span
+                        data-highlight-target
+                        class="truncate text-xs font-mono text-base-content/70 block"
+                        title={app.filePath}
+                      >
+                        {truncatePath(app.filePath)}
+                      </span>
+                    ) : (
+                      <span class="badge badge-sm badge-warning gap-1 whitespace-nowrap">
+                        Sin archivo
+                      </span>
+                    )}
+                  </div>
+                  <div class="flex items-center justify-end gap-1">
+                    <a
+                      href={resolveUrl(`/admin/aplicativos/${app.id}`)}
+                      class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      title="Editar"
+                    >
+                      <Icon name="boxicons:pencil-filled" size={14} />
+                      <span class="hidden lg:inline">Editar</span>
+                    </a>
+                    <form
+                      method="POST"
+                      class="inline"
+                      onsubmit="return confirm('¿Eliminar este aplicativo?')"
+                    >
+                      <input type="hidden" name="_action" value="delete" />
+                      <input
+                        type="hidden"
+                        name="appId"
+                        value={String(app.id)}
+                      />
+                      <button
+                        type="submit"
+                        class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+                        title="Eliminar"
+                      >
+                        <Icon name="boxicons:trash-filled" size={14} />
+                        <span class="hidden lg:inline">Eliminar</span>
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </>
+          )
+        }
       </DataTable>
 
       <div class="flex justify-start pt-2">
@@ -273,11 +333,16 @@ const truncatePath = (filePath: string | null) => {
     </div>
 
     <script>
-      import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+      import {
+        matchesSearchQuery,
+        highlightSearchTargets,
+      } from "@lib/clientSearch";
 
-      const searchInput = document.querySelector<HTMLInputElement>("#admin-app-search");
+      const searchInput =
+        document.querySelector<HTMLInputElement>("#admin-app-search");
       const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
-      const countBadge = document.querySelector<HTMLElement>("#app-count-badge");
+      const countBadge =
+        document.querySelector<HTMLElement>("#app-count-badge");
 
       function applyFilters() {
         const query = searchInput?.value.trim() || "";
