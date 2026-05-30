@@ -1,0 +1,88 @@
+---
+interface Props {
+  totalPages: number;
+  currentPage: number;
+}
+
+const { totalPages, currentPage } = Astro.props;
+
+const getPageUrl = (page: number) => {
+  const url = new URL(Astro.url);
+  url.searchParams.set("page", page.toString());
+  return url.search;
+};
+
+const range = (start: number, end: number) => {
+  const length = end - start + 1;
+  return Array.from({ length }, (_, i) => start + i);
+};
+
+const siblingCount = 1;
+const totalPageNumbers = siblingCount * 2 + 5;
+
+let pages: (number | string)[] = [];
+
+if (totalPages <= totalPageNumbers) {
+  pages = range(1, totalPages);
+} else {
+  const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+  const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
+
+  const shouldShowLeftDots = leftSiblingIndex > 2;
+  const shouldShowRightDots = rightSiblingIndex < totalPages - 1;
+
+  const firstPageIndex = 1;
+  const lastPageIndex = totalPages;
+
+  if (!shouldShowLeftDots && shouldShowRightDots) {
+    const leftItemCount = 3 + 2 * siblingCount;
+    const leftRange = range(1, leftItemCount);
+    pages = [...leftRange, "...", lastPageIndex];
+  } else if (shouldShowLeftDots && !shouldShowRightDots) {
+    const rightItemCount = 3 + 2 * siblingCount;
+    const rightRange = range(totalPages - rightItemCount + 1, totalPages);
+    pages = [firstPageIndex, "...", ...rightRange];
+  } else if (shouldShowLeftDots && shouldShowRightDots) {
+    const middleRange = range(leftSiblingIndex, rightSiblingIndex);
+    pages = [firstPageIndex, "...", ...middleRange, "...", lastPageIndex];
+  }
+}
+---
+
+<div class="join">
+  <a
+    href={currentPage > 1 ? getPageUrl(currentPage - 1) : "#"}
+    class:list={["join-item btn btn-sm", currentPage <= 1 && "btn-disabled"]}
+    aria-disabled={currentPage <= 1 ? "true" : "false"}
+  >
+    «
+  </a>
+  {
+    pages.map((p) => {
+      if (p === "...") {
+        return <button class="join-item btn btn-sm btn-disabled">...</button>;
+      }
+      return (
+        <a
+          href={getPageUrl(Number(p))}
+          class:list={[
+            "join-item btn btn-sm",
+            currentPage === p && "btn-primary text-primary-content",
+          ]}
+        >
+          {p}
+        </a>
+      );
+    })
+  }
+  <a
+    href={currentPage < totalPages ? getPageUrl(currentPage + 1) : "#"}
+    class:list={[
+      "join-item btn btn-sm",
+      currentPage >= totalPages && "btn-disabled",
+    ]}
+    aria-disabled={currentPage >= totalPages ? "true" : "false"}
+  >
+    »
+  </a>
+</div>
