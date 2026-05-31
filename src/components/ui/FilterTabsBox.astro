@@ -22,8 +22,16 @@ const {
 } = Astro.props;
 ---
 
-<input type="hidden" name={name} value={activeValue} id={`filter-tabs-hidden-${name}`} />
-<div class:list={["tabs tabs-box gap-1.5", className]} role="tablist">
+<input
+  type="hidden"
+  name={name}
+  value={activeValue}
+  id={`filter-tabs-hidden-${name}`}
+/>
+<div
+  class:list={["tabs tabs-box gap-1.5 filter-tabs-box", className]}
+  role="tablist"
+>
   {
     tabs.map((tab) => {
       const isActive = tab.value === activeValue;
@@ -43,7 +51,7 @@ const {
         >
           <span>{tab.label}</span>
           {tab.count !== undefined && (
-            <span class="badge badge-sm bg-base-100 text-current border-none">
+            <span class="badge badge-sm bg-base-200 text-current border-none">
               {tab.count}
             </span>
           )}
@@ -55,27 +63,46 @@ const {
 
 <style is:global>
   /* Base state for tabs inside tabs-box (neutral gray) */
-  .tabs-box .tab {
-    background-color: color-mix(in srgb, var(--color-base-300, #e5e7eb) 60%, transparent) !important;
-    border-color: color-mix(in srgb, var(--color-base-300, #e5e7eb) 40%, transparent) !important;
-    color: color-mix(in srgb, var(--color-base-content, #000) 50%, transparent) !important;
+  .filter-tabs-box .tab {
+    background-color: color-mix(
+      in srgb,
+      var(--color-base-300, #e5e7eb) 60%,
+      transparent
+    ) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--color-base-300, #e5e7eb) 40%,
+      transparent
+    ) !important;
+    color: color-mix(
+      in srgb,
+      var(--color-base-content, #000) 50%,
+      transparent
+    ) !important;
     border-width: 1px;
     box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.02);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Hover state for tabs (subtle preview of representative color) */
-  .tabs-box .tab:hover {
-    background-color: var(--tab-bg-hover, var(--color-base-300, #d1d5db)) !important;
-    border-color: var(--tab-border-subtle, var(--color-base-300, #d1d5db)) !important;
+  .filter-tabs-box .tab:hover {
+    background-color: var(
+      --tab-bg-hover,
+      var(--color-base-300, #d1d5db)
+    ) !important;
+    border-color: var(
+      --tab-border-subtle,
+      var(--color-base-300, #d1d5db)
+    ) !important;
     color: var(--tab-color-subtle, var(--color-base-content, #000)) !important;
   }
 
   /* Active state for tabs (full representative colors) */
-  .tabs-box .tab.tab-active {
-    background-color: var(--tab-bg) !important;
-    border-color: var(--tab-border) !important;
-    color: var(--tab-color) !important;
+  .filter-tabs-box .tab.tab-active,
+  .filter-tabs-box .tab:checked {
+    background-color: var(--tab-bg, var(--color-base-100, #fff)) !important;
+    border-color: var(--tab-border, var(--color-base-300, #d1d5db)) !important;
+    color: var(--tab-color, var(--color-base-content, #000)) !important;
     box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
   }
 
@@ -131,43 +158,43 @@ const {
   }
 
   /* CDD */
-  .office-tab-active-cdd {
-    --tab-bg: var(--color-emerald-100, #d1fae5);
-    --tab-border: var(--color-emerald-300, #6ee7b7);
-    --tab-color: var(--color-emerald-900, #064e3b);
-    --tab-bg-subtle: rgba(16, 185, 129, 0.08);
-    --tab-border-subtle: rgba(16, 185, 129, 0.25);
-    --tab-color-subtle: var(--color-emerald-900, #059669);
-    --tab-bg-hover: rgba(16, 185, 129, 0.15);
+  .filter-tabs-box .office-tab-active-cdd {
+    --tab-bg: var(--color-blue-100, #dbeafe);
+    --tab-border: var(--color-blue-300, #93c5fd);
+    --tab-color: var(--color-blue-900, #1e3a8a);
+    --tab-bg-subtle: rgba(59, 130, 246, 0.08);
+    --tab-border-subtle: rgba(59, 130, 246, 0.25);
+    --tab-color-subtle: var(--color-blue-900, #1d4ed8);
+    --tab-bg-hover: rgba(59, 130, 246, 0.15);
   }
-  [data-theme="dark"] .office-tab-active-cdd {
-    --tab-bg: #064e3b;
-    --tab-border: #047857;
-    --tab-color: #d1fae5;
-    --tab-bg-subtle: rgba(16, 185, 129, 0.12);
-    --tab-border-subtle: rgba(16, 185, 129, 0.35);
-    --tab-color-subtle: #a7f3d0;
-    --tab-bg-hover: rgba(16, 185, 129, 0.22);
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-cdd {
+    --tab-bg: #1e3a8a;
+    --tab-border: #1d4ed8;
+    --tab-color: #dbeafe;
+    --tab-bg-subtle: rgba(59, 130, 246, 0.12);
+    --tab-border-subtle: rgba(59, 130, 246, 0.35);
+    --tab-color-subtle: #bfdbfe;
+    --tab-bg-hover: rgba(59, 130, 246, 0.22);
   }
 
   /* CDP */
-  .office-tab-active-cdp {
-    --tab-bg: var(--color-teal-100, #ccfbf1);
-    --tab-border: var(--color-teal-300, #5eead4);
-    --tab-color: var(--color-teal-900, #134e4a);
-    --tab-bg-subtle: rgba(20, 184, 166, 0.08);
-    --tab-border-subtle: rgba(20, 184, 166, 0.25);
-    --tab-color-subtle: var(--color-teal-900, #0d9488);
-    --tab-bg-hover: rgba(20, 184, 166, 0.15);
+  .filter-tabs-box .office-tab-active-cdp {
+    --tab-bg: var(--color-red-100, #fee2e2);
+    --tab-border: var(--color-red-300, #fca5a5);
+    --tab-color: var(--color-red-900, #7f1d1d);
+    --tab-bg-subtle: rgba(239, 68, 68, 0.08);
+    --tab-border-subtle: rgba(239, 68, 68, 0.25);
+    --tab-color-subtle: var(--color-red-900, #b91c1c);
+    --tab-bg-hover: rgba(239, 68, 68, 0.15);
   }
-  [data-theme="dark"] .office-tab-active-cdp {
-    --tab-bg: #134e4a;
-    --tab-border: #0f766e;
-    --tab-color: #ccfbf1;
-    --tab-bg-subtle: rgba(20, 184, 166, 0.12);
-    --tab-border-subtle: rgba(20, 184, 166, 0.35);
-    --tab-color-subtle: #99f6e4;
-    --tab-bg-hover: rgba(20, 184, 166, 0.22);
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-cdp {
+    --tab-bg: #7f1d1d;
+    --tab-border: #b91c1c;
+    --tab-color: #fee2e2;
+    --tab-bg-subtle: rgba(239, 68, 68, 0.12);
+    --tab-border-subtle: rgba(239, 68, 68, 0.35);
+    --tab-color-subtle: #fecaca;
+    --tab-bg-hover: rgba(239, 68, 68, 0.22);
   }
 
   /* CTP */
@@ -271,67 +298,67 @@ const {
   }
 
   /* SUCURSAL AUTOMATIZADA */
-  .office-tab-active-sucursal-automatizada {
-    --tab-bg: var(--color-steel-azure-100, #d7e1f4);
-    --tab-border: var(--color-steel-azure-300, #87a5de);
-    --tab-color: var(--color-steel-azure-900, #0b1528);
-    --tab-bg-subtle: rgba(74, 107, 169, 0.08);
-    --tab-border-subtle: rgba(74, 107, 169, 0.25);
-    --tab-color-subtle: #4a6ba9;
-    --tab-bg-hover: rgba(74, 107, 169, 0.15);
+  .filter-tabs-box .office-tab-active-sucursal-automatizada {
+    --tab-bg: var(--color-yellow-100, #fef9c3);
+    --tab-border: var(--color-yellow-300, #fde047);
+    --tab-color: var(--color-yellow-900, #713f12);
+    --tab-bg-subtle: rgba(234, 179, 8, 0.08);
+    --tab-border-subtle: rgba(234, 179, 8, 0.25);
+    --tab-color-subtle: var(--color-yellow-900, #a16207);
+    --tab-bg-hover: rgba(234, 179, 8, 0.15);
   }
-  [data-theme="dark"] .office-tab-active-sucursal-automatizada {
-    --tab-bg: #152438;
-    --tab-border: #233e66;
-    --tab-color: #d7e1f4;
-    --tab-bg-subtle: rgba(74, 107, 169, 0.12);
-    --tab-border-subtle: rgba(74, 107, 169, 0.35);
-    --tab-color-subtle: #adc4ed;
-    --tab-bg-hover: rgba(74, 107, 169, 0.22);
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-sucursal-automatizada {
+    --tab-bg: #713f12;
+    --tab-border: #a16207;
+    --tab-color: #fef9c3;
+    --tab-bg-subtle: rgba(234, 179, 8, 0.12);
+    --tab-border-subtle: rgba(234, 179, 8, 0.35);
+    --tab-color-subtle: #fef08a;
+    --tab-bg-hover: rgba(234, 179, 8, 0.22);
   }
 
   /* SUCURSAL NO AUTOMATIZADA */
-  .office-tab-active-sucursal-no-automatizada {
-    --tab-bg: var(--color-slate-200, #e2e8f0);
-    --tab-border: var(--color-slate-300, #cbd5e1);
-    --tab-color: var(--color-slate-900, #0f172a);
-    --tab-bg-subtle: rgba(71, 85, 105, 0.08);
-    --tab-border-subtle: rgba(71, 85, 105, 0.25);
-    --tab-color-subtle: var(--color-slate-900, #475569);
-    --tab-bg-hover: rgba(71, 85, 105, 0.15);
+  .filter-tabs-box .office-tab-active-sucursal-no-automatizada {
+    --tab-bg: var(--color-orange-100, #ffedd5);
+    --tab-border: var(--color-orange-300, #fdba74);
+    --tab-color: var(--color-orange-900, #7c2d12);
+    --tab-bg-subtle: rgba(249, 115, 22, 0.08);
+    --tab-border-subtle: rgba(249, 115, 22, 0.25);
+    --tab-color-subtle: var(--color-orange-900, #ea580c);
+    --tab-bg-hover: rgba(249, 115, 22, 0.15);
   }
-  [data-theme="dark"] .office-tab-active-sucursal-no-automatizada {
-    --tab-bg: #1e293b;
-    --tab-border: #334155;
-    --tab-color: #cbd5e1;
-    --tab-bg-subtle: rgba(71, 85, 105, 0.12);
-    --tab-border-subtle: rgba(71, 85, 105, 0.35);
-    --tab-color-subtle: #cbd5e1;
-    --tab-bg-hover: rgba(71, 85, 105, 0.22);
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-sucursal-no-automatizada {
+    --tab-bg: #7c2d12;
+    --tab-border: #ea580c;
+    --tab-color: #ffedd5;
+    --tab-bg-subtle: rgba(249, 115, 22, 0.12);
+    --tab-border-subtle: rgba(249, 115, 22, 0.35);
+    --tab-color-subtle: #fed7aa;
+    --tab-bg-hover: rgba(249, 115, 22, 0.22);
   }
 
   /* TELEGRAFIA */
-  .office-tab-active-telegrafia {
-    --tab-bg: var(--color-sky-100, #e0f2fe);
-    --tab-border: var(--color-sky-300, #7dd3fc);
-    --tab-color: var(--color-sky-900, #0c4a6e);
-    --tab-bg-subtle: rgba(14, 165, 233, 0.08);
-    --tab-border-subtle: rgba(14, 165, 233, 0.25);
-    --tab-color-subtle: var(--color-sky-900, #0284c7);
-    --tab-bg-hover: rgba(14, 165, 233, 0.15);
+  .filter-tabs-box .office-tab-active-telegrafia {
+    --tab-bg: var(--color-emerald-100, #d1fae5);
+    --tab-border: var(--color-emerald-300, #6ee7b7);
+    --tab-color: var(--color-emerald-900, #064e3b);
+    --tab-bg-subtle: rgba(16, 185, 129, 0.08);
+    --tab-border-subtle: rgba(16, 185, 129, 0.25);
+    --tab-color-subtle: var(--color-emerald-900, #059669);
+    --tab-bg-hover: rgba(16, 185, 129, 0.15);
   }
-  [data-theme="dark"] .office-tab-active-telegrafia {
-    --tab-bg: #0c4a6e;
-    --tab-border: #0369a1;
-    --tab-color: #e0f2fe;
-    --tab-bg-subtle: rgba(14, 165, 233, 0.12);
-    --tab-border-subtle: rgba(14, 165, 233, 0.35);
-    --tab-color-subtle: #7dd3fc;
-    --tab-bg-hover: rgba(14, 165, 233, 0.22);
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-telegrafia {
+    --tab-bg: #064e3b;
+    --tab-border: #047857;
+    --tab-color: #d1fae5;
+    --tab-bg-subtle: rgba(16, 185, 129, 0.12);
+    --tab-border-subtle: rgba(16, 185, 129, 0.35);
+    --tab-color-subtle: #a7f3d0;
+    --tab-bg-hover: rgba(16, 185, 129, 0.22);
   }
 
   /* UNIDAD POSTAL */
-  .office-tab-active-unidad-postal {
+  .filter-tabs-box .office-tab-active-unidad-postal {
     --tab-bg: var(--color-rose-100, #ffe4e6);
     --tab-border: var(--color-rose-300, #fda4af);
     --tab-color: var(--color-rose-900, #4c0519);
