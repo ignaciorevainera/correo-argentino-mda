@@ -90,6 +90,7 @@ export async function getOffices(params: GetOfficesParams) {
         like(offices.code, likeSearch),
         like(offices.name, likeSearch),
         like(offices.locality, likeSearch),
+        like(offices.parentNis, likeSearch),
       ),
     );
   }
@@ -175,6 +176,7 @@ export async function getOffices(params: GetOfficesParams) {
       email: office.email ?? "",
       notes: office.notes ?? "",
       officeType: office.officeType,
+      parentNis: office.parentNis,
       contacts: office.contacts.map((oc) => ({
         name: oc.contact.name,
         phone: oc.contact.phone ?? "",

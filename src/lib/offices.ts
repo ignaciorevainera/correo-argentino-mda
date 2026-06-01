@@ -33,6 +33,7 @@ export async function getAllOfficesFromDB(): Promise<
     email: office.email ?? "",
     notes: office.notes ?? "",
     officeType: office.officeType,
+    parentNis: office.parentNis,
     contacts: office.contacts.map((oc) => ({
       name: oc.contact.name,
       phone: oc.contact.phone ?? "",

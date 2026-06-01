@@ -32,6 +32,7 @@ export interface OfficeDirectoryItem {
   email: string;
   notes: string;
   officeType?: string | null;
+  parentNis?: string | null;
   contacts: OfficeContact[];
   assets: OfficeAsset[];
 }

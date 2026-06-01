@@ -21,10 +21,10 @@ const normalizedType = office.type === "SUCURSAL"
   ? (office.officeType === "AUTOMATIZADA" ? "SUCURSAL_AUTOMATIZADA" : "SUCURSAL_NO_AUTOMATIZADA") 
   : office.type;
 
-const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type}`;
+const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""}`;
 const hasDetails = office.contacts.length > 0 || office.assets.length > 0;
 
-const officeDirectoryRowGridClass = "grid grid-cols-10 items-center gap-4";
+const officeDirectoryRowGridClass = "grid grid-cols-12 items-center gap-4";
 ---
 
 <article
@@ -37,6 +37,7 @@ const officeDirectoryRowGridClass = "grid grid-cols-10 items-center gap-4";
   data-search-text={searchText}
   data-sort-code={office.code}
   data-sort-name={office.name}
+  data-sort-parent-nis={office.parentNis ?? ""}
   data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
   data-sort-group={office.location}
   class:list={["block", !isVisibleByDefault && "hidden"]}
@@ -108,6 +109,20 @@ const officeDirectoryRowGridClass = "grid grid-cols-10 items-center gap-4";
           <span>{office.assets.length} activos</span>
         </div>
       </div>
+    </div>
+
+    {/* Dependencia (parent NIS) */}
+    <div class="col-span-2 min-w-0">
+      {office.parentNis ? (
+        <span
+          data-highlight-target
+          class="inline-flex px-2 py-1 font-mono text-xs font-semibold bg-base-200 border border-base-300 rounded text-base-content/70"
+        >
+          {office.parentNis}
+        </span>
+      ) : (
+        <span class="text-base-content/30">&mdash;</span>
+      )}
     </div>
 
     <div class="col-span-4 min-w-0">

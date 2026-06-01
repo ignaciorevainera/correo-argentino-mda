@@ -32,6 +32,7 @@ if (Astro.request.method === "POST") {
       address: fd.get("address")?.toString().trim() || null,
       email: fd.get("email")?.toString().trim() || null,
       notes: fd.get("notes")?.toString().trim() || null,
+      parentNis: fd.get("parentNis")?.toString().trim() || null,
     };
 
     if (!officeData.code || !officeData.name) {
@@ -129,6 +130,7 @@ if (Astro.request.method === "POST") {
 type OfficeRecord = {
   id: number; code: string; name: string; type: string;
   provinceCode: string; address: string | null; email: string | null; notes: string | null;
+  parentNis: string | null;
   contacts: { role: string | null; timeSlot: string | null; contact: { id: number; name: string; phone: string | null } }[];
   assets: { id: number; type: string; hostname: string | null; ip: string | null }[];
 };
@@ -282,6 +284,15 @@ const assetTypeOptions = [
                 <input type="text" name="address" value={office?.address ?? ""} placeholder="ej: Santa Fe 101" class="input input-sm w-full" />
               </fieldset>
             </div>
+
+            {/* NIS Padre */}
+            <div class="col-span-1">
+              <fieldset class="fieldset gap-1">
+                <legend class="fieldset-legend text-xs">NIS Padre (Dependencia)</legend>
+                <input type="text" name="parentNis" value={office?.parentNis ?? ""} placeholder="ej: I2659" autocomplete="off" class="input input-sm w-full font-mono" />
+              </fieldset>
+            </div>
+            <div class="col-span-2"></div>
 
             <div class="col-span-3">
               <fieldset class="fieldset gap-1">
