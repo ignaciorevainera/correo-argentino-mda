@@ -1011,8 +1011,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
       searchTimeout = window.setTimeout(async () => {
         try {
-          const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?search=${encodeURIComponent(query)}&token=mda_live_bf9d7a2e8c5643190ab76d2e1f48c590`;
-          const response = await fetch(url);
+          const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
+          const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?search=${encodeURIComponent(query)}`;
+          const response = await fetch(url, {
+            headers: {
+              "X-API-Key": token
+            }
+          });
           
           if (!response.ok) throw new Error("API error");
           const data = await response.json();
@@ -1177,9 +1182,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
       try {
         const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-        const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?action=net_user&username=${encodeURIComponent(username)}&token=${token}`;
+        const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?action=net_user&username=${encodeURIComponent(username)}`;
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          headers: {
+            "X-API-Key": token
+          }
+        });
         if (!response.ok) throw new Error("Error en la ejecución del comando en el servidor.");
         const result = await response.json();
 
