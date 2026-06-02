@@ -12,11 +12,10 @@ interface Props {
   title?: string;
 }
 
-
-
 const { title } = Astro.props;
 const currentPath = Astro.url.pathname;
-const inferredTitle = title || getSectionTitle(currentPath) || "Portal Mesa de Ayuda";
+const inferredTitle =
+  title || getSectionTitle(currentPath) || "Portal Mesa de Ayuda";
 const globalFontFaceCss = `
   @font-face {
     font-family: "Geist Variable";
@@ -42,8 +41,6 @@ const aboutProjectOwners: string[] = [
   "Darío Altamirano",
 ];
 
-
-
 const flattenQuickAccessItems = (items: NavItem[]): NavItem[] =>
   items.flatMap((item) => {
     const nestedChildren = Array.isArray(item.children)
@@ -65,20 +62,20 @@ const quickAccessItems: NavItem[] = navSections.flatMap((section) =>
 );
 
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
+const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const getRelativePath = (path: string) => {
   if (path.startsWith(cleanBase)) {
-    return '/' + path.slice(cleanBase.length);
+    return "/" + path.slice(cleanBase.length);
   }
   if (path === cleanBase.slice(0, -1)) {
-    return '/';
+    return "/";
   }
   return path;
 };
 
 const resolveUrl = (path: string) => {
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
   return `${cleanBase}${cleanPath}`;
 };
 
@@ -87,7 +84,8 @@ const relativeCurrentPath = getRelativePath(currentPath);
 const isActiveRoute = (href: string) =>
   href === "/"
     ? relativeCurrentPath === "/"
-    : relativeCurrentPath === href || relativeCurrentPath.startsWith(`${href}/`);
+    : relativeCurrentPath === href ||
+      relativeCurrentPath.startsWith(`${href}/`);
 
 const user = Astro.locals.user;
 const userInitials = user.username.slice(0, 2).toUpperCase();
@@ -112,16 +110,9 @@ const roleLabel = roleLabelMap[user.role] ?? "Agente";
 const isRouteLocked = (href: string): boolean => {
   const role = (user.role || "").toLowerCase().trim();
 
-    if (href === "/design-system") {
-      return role !== "admin";
-    }
-
-    if (href.startsWith("/admin")) {
-      if (href === "/admin/users") {
-        return role !== "admin";
-      }
-      return !["admin", "supervisor"].includes(role);
-    }
+  if (href === "/design-system" || href.startsWith("/admin")) {
+    return role !== "admin";
+  }
 
   if (href === "/supervision/cronograma") {
     return !["admin", "supervisor"].includes(role);
@@ -170,10 +161,19 @@ const isRouteLocked = (href: string): boolean => {
       crossorigin
     />
 
-    <link rel="icon" type="image/png" href={`${cleanBase}favicon-96x96.png`} sizes="96x96" />
+    <link
+      rel="icon"
+      type="image/png"
+      href={`${cleanBase}favicon-96x96.png`}
+      sizes="96x96"
+    />
     <link rel="icon" type="image/svg+xml" href={`${cleanBase}favicon.svg`} />
     <link rel="shortcut icon" href={`${cleanBase}favicon.ico`} />
-    <link rel="apple-touch-icon" sizes="180x180" href={`${cleanBase}apple-touch-icon.png`} />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href={`${cleanBase}apple-touch-icon.png`}
+    />
     <meta name="apple-mobile-web-app-title" content="MDA" />
     <link rel="manifest" href={`${cleanBase}site.webmanifest`} />
 
@@ -181,7 +181,9 @@ const isRouteLocked = (href: string): boolean => {
     <meta name="generator" content={Astro.generator} />
     <title>{inferredTitle}</title>
   </head>
-  <body class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content">
+  <body
+    class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content"
+  >
     <div class="drawer lg:drawer-open">
       <input
         id="main-drawer"
@@ -191,7 +193,7 @@ const isRouteLocked = (href: string): boolean => {
       />
       <div class="drawer-content flex min-h-screen max-w-full flex-col">
         <header
-          class="navbar sticky top-0 z-30 min-h-16 border-b border-base-300 bg-base-100/95 p-2 md:p-4 text-sm md:text-base text-base-content backdrop-blur"
+          class="navbar sticky top-0 z-30 min-h-20 border-b border-base-300 bg-base-100/95 p-2 md:p-4 text-sm md:text-base text-base-content backdrop-blur"
         >
           <div class="flex items-center gap-2">
             <label
@@ -286,7 +288,7 @@ const isRouteLocked = (href: string): boolean => {
           <a
             href={resolveUrl("/")}
             aria-label="Ir al dashboard"
-            class="flex min-h-16 w-full items-center gap-2.5 border-b border-secondary-content/10 px-3 lg:justify-center lg:px-2"
+            class="flex min-h-20 w-full items-center gap-2.5 border-b border-secondary-content/10 px-3 lg:justify-center lg:px-2"
           >
             <div class="avatar avatar-placeholder">
               <div
@@ -313,7 +315,9 @@ const isRouteLocked = (href: string): boolean => {
             </div>
           </a>
 
-          <div class="w-full grow overflow-y-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            class="w-full grow overflow-y-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {
               navSections.map((section, sectionIndex) => (
                 <>
@@ -332,7 +336,11 @@ const isRouteLocked = (href: string): boolean => {
                             href={isLocked ? undefined : resolveUrl(item.href)}
                             aria-label={item.label}
                             aria-disabled={isLocked ? "true" : undefined}
-                            data-tip={isLocked ? `${item.label} (restringido)` : item.label}
+                            data-tip={
+                              isLocked
+                                ? `${item.label} (restringido)`
+                                : item.label
+                            }
                             tabindex={isLocked ? -1 : undefined}
                             class:list={[
                               "group flex items-center gap-2.5 rounded-lg text-xs p-2.5 font-medium transition",
@@ -350,9 +358,7 @@ const isRouteLocked = (href: string): boolean => {
                               size={24}
                               class="shrink-0 opacity-80 transition group-hover:opacity-100"
                             />
-                            <span class="truncate lg:hidden">
-                              {item.label}
-                            </span>
+                            <span class="truncate lg:hidden">{item.label}</span>
                             {isLocked && (
                               <Icon
                                 name="boxicons:lock"
@@ -396,9 +402,7 @@ const isRouteLocked = (href: string): boolean => {
                     size={24}
                     class="shrink-0 opacity-80 transition group-hover:opacity-100"
                   />
-                  <span class="truncate lg:hidden">
-                    Iniciar sesión
-                  </span>
+                  <span class="truncate lg:hidden">Iniciar sesión</span>
                 </a>
               ) : (
                 <div class="flex flex-col gap-1.5">
@@ -441,9 +445,7 @@ const isRouteLocked = (href: string): boolean => {
                       size={24}
                       class="shrink-0 opacity-80 transition group-hover:opacity-100"
                     />
-                    <span class="truncate lg:hidden">
-                      Cerrar sesión
-                    </span>
+                    <span class="truncate lg:hidden">Cerrar sesión</span>
                   </a>
                 </div>
               )
@@ -488,7 +490,10 @@ const isRouteLocked = (href: string): boolean => {
                 <li
                   data-command-item
                   data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
-                  class:list={[isLocked && "opacity-40 grayscale select-none cursor-not-allowed"]}
+                  class:list={[
+                    isLocked &&
+                      "opacity-40 grayscale select-none cursor-not-allowed",
+                  ]}
                 >
                   <a
                     href={isLocked ? undefined : resolveUrl(item.href)}
@@ -512,8 +517,16 @@ const isRouteLocked = (href: string): boolean => {
                       </span>
                     </span>
                     <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-xs text-base-content/60">{item.href}</span>
-                      {isLocked && <Icon name="boxicons:lock" size={12} class="opacity-60" />}
+                      <span class="text-xs text-base-content/60">
+                        {item.href}
+                      </span>
+                      {isLocked && (
+                        <Icon
+                          name="boxicons:lock"
+                          size={12}
+                          class="opacity-60"
+                        />
+                      )}
                     </div>
                   </a>
                 </li>
