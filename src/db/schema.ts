@@ -126,6 +126,7 @@ export const officesRelations = relations(offices, ({ one, many }) => ({
   }),
   contacts: many(officeContacts),
   assets: many(officeAssets),
+  terminals: many(terminals),
 }));
 
 export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
@@ -491,5 +492,29 @@ export const applicationsRelations = relations(applications, ({ one }) => ({
   category: one(applicationCategories, {
     fields: [applications.categoryId],
     references: [applicationCategories.id],
+  }),
+}));
+
+// 14. INVENTARIO DE TERMINALES
+export const terminals = sqliteTable("terminals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hostname: text("hostname").notNull(),
+  macAddress: text("mac_address"),
+  ipAddress: text("ip_address"),
+  operatingSystem: text("operating_system"),
+  osArchitecture: text("os_architecture"),
+  ram: text("ram"),
+  serialNumber: text("serial_number"),
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  nis: text("nis").references(() => offices.code),
+  nis2: text("nis2"),
+  lastContact: text("last_contact"),
+});
+
+export const terminalsRelations = relations(terminals, ({ one }) => ({
+  office: one(offices, {
+    fields: [terminals.nis],
+    references: [offices.code],
   }),
 }));
