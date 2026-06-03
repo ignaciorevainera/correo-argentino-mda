@@ -1,0 +1,342 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+import { rolesMatrix } from "@lib/rolesMatrix";
+
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect("/login");
+}
+
+const roleLabelMap: Record<string, string> = {
+  admin: "Administrador",
+  supervisor: "Supervisor",
+  referent: "Referente",
+  agent: "Agente",
+};
+
+const roleAvatarClasses: Record<string, string> = {
+  admin: "bg-error/10 text-error ring-error/20",
+  supervisor: "bg-info/10 text-info ring-info/20",
+  referent: "bg-warning/10 text-warning ring-warning/20",
+  agent: "bg-neutral/10 text-neutral-content ring-neutral/20",
+};
+
+const badgeClasses: Record<string, string> = {
+  admin: "badge-error",
+  supervisor: "badge-info",
+  referent: "badge-warning",
+  agent: "badge-neutral",
+};
+
+const roleIconClasses: Record<string, string> = {
+  admin: "bg-error/10 text-error",
+  supervisor: "bg-info/10 text-info",
+  referent: "bg-warning/10 text-warning",
+  agent: "bg-secondary/10 text-secondary",
+};
+
+const roleLabel = roleLabelMap[user.role] ?? "Agente";
+const avatarClass = roleAvatarClasses[user.role] ?? roleAvatarClasses.agent;
+const badgeClass = badgeClasses[user.role] ?? badgeClasses.agent;
+const iconClass = roleIconClasses[user.role] ?? roleIconClasses.agent;
+
+interface PermissionAction {
+  label: string;
+  featureName: string;
+}
+
+interface CategoryCard {
+  title: string;
+  icon: string;
+  description: string;
+  actions: PermissionAction[];
+}
+
+const categories: CategoryCard[] = [
+  {
+    title: "Oficinas",
+    icon: "boxicons:building-house",
+    description:
+      "Acceso al directorio operativo de oficinas y datos de telegrafía.",
+    actions: [
+      {
+        label: "Consultar directorio de oficinas",
+        featureName: "Consulta de oficinas",
+      },
+      {
+        label: "Gestionar oficinas y sucursales",
+        featureName: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+      },
+    ],
+  },
+  {
+    title: "Enlaces",
+    icon: "boxicons:git-branch-filled",
+    description:
+      "Accesos directos a plataformas externas e internas de soporte.",
+    actions: [
+      {
+        label: "Ver enlaces importantes",
+        featureName: "Consulta de enlaces",
+      },
+      {
+        label: "Gestionar enlaces rápidos",
+        featureName: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+      },
+    ],
+  },
+  {
+    title: "Tickets y Títulos",
+    icon: "boxicons:note",
+    description:
+      "Tipificación de tickets de soporte y administración de títulos.",
+    actions: [
+      {
+        label: "Ver tipificaciones y títulos",
+        featureName: "Consulta de títulos",
+      },
+      {
+        label: "Gestionar títulos de tickets",
+        featureName: "Gestión de títulos",
+      },
+      {
+        label: "Gestionar bases operativas de títulos",
+        featureName: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+      },
+    ],
+  },
+  {
+    title: "Guía de Soportes",
+    icon: "boxicons:headphone",
+    description: "Matriz de derivación telefónica y canales de escalado.",
+    actions: [
+      {
+        label: "Consultar guía de soportes",
+        featureName: "Consulta de guía de soportes",
+      },
+      {
+        label: "Gestionar derivaciones e información",
+        featureName: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+      },
+    ],
+  },
+  {
+    title: "Inventario y Cubics",
+    icon: "boxicons:chip-filled",
+    description: "Estado, asignación y monitoreo de terminales remotas.",
+    actions: [
+      {
+        label: "Monitorear terminales y cubics",
+        featureName: "Consulta de inventario de terminales/cubics",
+      },
+      {
+        label: "Gestionar inventario físico",
+        featureName: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+      },
+    ],
+  },
+  {
+    title: "Cronograma",
+    icon: "boxicons:calendar",
+    description: "Planificación de guardias, turnos y tareas del equipo.",
+    actions: [
+      {
+        label: "Visualizar cronogramas de trabajo",
+        featureName: "Visualizar cronogramas",
+      },
+      {
+        label: "Editar y coordinar cronogramas",
+        featureName: "Editar cronogramas",
+      },
+    ],
+  },
+  {
+    title: "Calidad de Operador",
+    icon: "boxicons:user-id-card",
+    description:
+      "Auditorías de llamadas, métricas y asignación de autogestiones.",
+    actions: [
+      {
+        label: "Observar mi propia calidad de operador",
+        featureName: "Observar calidad de operador del usuario logueado",
+      },
+      {
+        label: "Gestionar calidad de operadores",
+        featureName: "Gestionar calidad de operadores",
+      },
+      {
+        label: "Asignar autogestiones de soporte",
+        featureName: "Asignación de autogestiones",
+      },
+    ],
+  },
+  {
+    title: "Firmas",
+    icon: "boxicons:edit-alt",
+    description: "Generador de firmas de correo institucional.",
+    actions: [
+      {
+        label: "Generar firmas corporativas",
+        featureName: "Generar firmas",
+      },
+    ],
+  },
+  {
+    title: "Usuarios",
+    icon: "boxicons:group",
+    description: "Alta de operadores, blanqueos y cambio de roles del portal.",
+    actions: [
+      {
+        label: "Gestionar cuentas de usuario y roles",
+        featureName: "Gestión de usuarios",
+      },
+    ],
+  },
+];
+
+const isAllowed = (featureName: string, role: string) => {
+  const feature = rolesMatrix.find((f) => f.feature === featureName);
+  return feature ? feature[role as keyof typeof feature] === true : false;
+};
+
+const visibleCategories = categories
+  .map((cat) => ({
+    ...cat,
+    actions: cat.actions.filter((act) => isAllowed(act.featureName, user.role)),
+  }))
+  .filter((cat) => cat.actions.length > 0);
+---
+
+<BaseLayout title="Perfil">
+  <PageContainer>
+    <PageHeader
+      title="Perfil"
+      description="Resumen de tu cuenta y los accesos habilitados en el sistema."
+    />
+
+    <div class="flex flex-col gap-8">
+      <section
+        aria-labelledby="profile-heading"
+        class="card bg-base-100 border border-base-300 shadow-sm relative overflow-hidden"
+      >
+        <div
+          class="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none"
+          aria-hidden="true"
+        >
+        </div>
+        <div class="card-body flex-row items-center gap-6 p-6 md:p-8">
+          <div
+            class:list={[
+              "flex h-20 w-20 md:h-24 md:w-24 shrink-0 items-center justify-center rounded-full text-2xl md:text-3xl font-black ring-4 shadow-inner",
+              avatarClass,
+            ]}
+            aria-hidden="true"
+          >
+            {user.username.slice(0, 2).toUpperCase()}
+          </div>
+          <div class="flex flex-col gap-1.5 z-10">
+            <h1
+              id="profile-heading"
+              class="text-2xl md:text-3xl font-bold tracking-tight text-base-content"
+            >
+              {user.username}
+            </h1>
+            <div class="flex items-center gap-2">
+              <span
+                class:list={[
+                  "badge badge-sm uppercase font-bold tracking-wider",
+                  badgeClass,
+                ]}
+              >
+                {roleLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="bento-heading" class="space-y-6">
+        <h2
+          id="bento-heading"
+          class="text-xl font-bold text-base-content tracking-tight"
+        >
+          Acciones y accesos permitidos
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {
+            visibleCategories.map((category) => (
+              <div class="card bg-base-100 border border-base-300 shadow-sm hover:shadow-md hover:border-base-content/20 transition-all duration-300 relative overflow-hidden group">
+                <div class="card-body p-6 flex flex-col justify-between h-full gap-4">
+                  <div class="space-y-3">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class:list={[
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-110",
+                          iconClass,
+                        ]}
+                        aria-hidden="true"
+                      >
+                        <Icon name={category.icon} size={20} />
+                      </div>
+                      <h3 class="font-bold text-base md:text-lg text-base-content leading-tight">
+                        {category.title}
+                      </h3>
+                    </div>
+
+                    <p class="text-xs text-base-content/60 leading-relaxed">
+                      {category.description}
+                    </p>
+                  </div>
+
+                  <div class="border-t border-base-200 pt-3 mt-auto">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-base-content/40 block mb-2">
+                      Permisos:
+                    </span>
+                    <ul class="space-y-2">
+                      {category.actions.map((action) => (
+                        <li class="flex items-center gap-2.5 text-sm">
+                          <div
+                            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success mt-0.5"
+                            aria-hidden="true"
+                          >
+                            <Icon name="boxicons:check" size={14} />
+                          </div>
+                          <span class="text-base-content/85 font-medium leading-tight">
+                            {action.label}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        {
+          visibleCategories.length === 0 && (
+            <div class="rounded-2xl border border-dashed border-base-300 bg-base-200/50 p-12 text-center">
+              <Icon
+                name="boxicons:lock"
+                size={40}
+                class="mx-auto mb-3 opacity-30 text-base-content"
+                aria-hidden="true"
+              />
+              <h3 class="text-base font-semibold text-base-content/80">
+                Sin accesos configurados
+              </h3>
+              <p class="text-sm text-base-content/60 mt-1">
+                Tu rol no tiene funcionalidades asignadas en el sistema.
+              </p>
+            </div>
+          )
+        }
+      </section>
+    </div>
+  </PageContainer>
+</BaseLayout>

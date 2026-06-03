@@ -7,61 +7,56 @@ interface Tab {
 interface Props {
   tabs: Tab[];
   activeValue?: string;
-  name: string; 
+  name: string;
   id?: string;
   class?: string;
   containerClass?: string;
 }
 
-const { 
-  tabs, 
-  activeValue, 
-  name,
-  id,
-  class: className = "", 
-  containerClass = "flex justify-center mb-6" 
-} = Astro.props;
+const { tabs, activeValue, name, id, class: className = "", containerClass = "flex justify-center" } = Astro.props;
 ---
 
-<div id={id} class:list={[containerClass, className]}>
-  <div class="tabs tabs-box bg-base-200/50 p-1" data-view-switcher>
-    {tabs.map((tab) => (
-      <input
-        type="radio"
-        name={name}
-        class="tab transition-all duration-300"
-        aria-label={tab.label}
-        value={tab.value}
-        checked={activeValue === tab.value ? "checked" : undefined}
-      />
-    ))}
+<div id={id} class={containerClass}>
+  <div class:list={["tabs tabs-box", className]} data-view-switcher>
+    {
+      tabs.map((tab) => (
+        <input
+          type="radio"
+          name={name}
+          class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+          aria-label={tab.label}
+          value={tab.value}
+          checked={activeValue === tab.value ? "checked" : undefined}
+        />
+      ))
+    }
   </div>
 </div>
 
 <script>
   const setupViewSwitcher = () => {
-    const switchers = document.querySelectorAll('[data-view-switcher]');
-    
-    switchers.forEach(switcher => {
+    const switchers = document.querySelectorAll("[data-view-switcher]");
+
+    switchers.forEach((switcher) => {
       const radios = switcher.querySelectorAll('input[type="radio"].tab');
-      
-      radios.forEach(radio => {
-        
+
+      radios.forEach((radio) => {
         radio.replaceWith(radio.cloneNode(true));
       });
 
-      
       const newRadios = switcher.querySelectorAll('input[type="radio"].tab');
-      newRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
+      newRadios.forEach((radio) => {
+        radio.addEventListener("change", (e) => {
           const target = e.target as HTMLInputElement;
           if (target.checked) {
             const container = switcher.parentElement;
             if (container) {
-              container.dispatchEvent(new CustomEvent('view-change', {
-                detail: { value: target.value },
-                bubbles: true
-              }));
+              container.dispatchEvent(
+                new CustomEvent("view-change", {
+                  detail: { value: target.value },
+                  bubbles: true,
+                }),
+              );
             }
           }
         });

@@ -432,7 +432,7 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
                       currentSearchQuery &&
                       group.toLowerCase().includes(currentSearchQuery);
                     return `
-                    <button onclick="showSupportDetails('${escapeHTML(group)}')" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
+                    <button data-action="show-details" data-group="${escapeHTML(group)}" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
                       ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
                       ${escapeHTML(group)}
                     </button>
@@ -443,7 +443,8 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
                   hiddenCount > 0
                     ? `
                   <button 
-                    onclick="expandGroups(${itemIndex})"
+                    data-action="expand-groups" 
+                    data-index="${itemIndex}"
                     class="px-2 py-0.5 rounded bg-base-300 hover:bg-primary hover:text-white border border-base-content/5 text-xs font-black text-base-content/40 flex items-center gap-1 transition-colors group/more" 
                     title="Click para ver todos los grupos"
                   >
@@ -458,7 +459,7 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
               </div>
             </div>
             <div class="col-span-2 min-w-0">
-              <button class="flex items-center gap-2 group/btn transition-colors text-left" onclick="copyText('${escapeHTML(item.invgate)}')" title="Click para copiar">
+              <button class="flex items-center gap-2 group/btn transition-colors text-left" data-action="copy" data-value="${escapeHTML(item.invgate)}" title="Click para copiar">
                 <span class="px-2 py-0.5 bg-secondary text-white rounded text-xs font-bold shadow-sm transition-transform group-hover/btn:scale-105">
                   ${escapeHTML(item.invgate) || "-"}
                 </span>
@@ -471,7 +472,7 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
               ${
                 item.ruta
                   ? `
-                <button class="flex items-start gap-2 text-base-content/60 font-mono text-xs hover:text-secondary group/btn transition-colors text-left w-full" onclick="copyText('${escapeHTML(item.ruta)}')">
+                <button class="flex items-start gap-2 text-base-content/60 font-mono text-xs hover:text-secondary group/btn transition-colors text-left w-full" data-action="copy" data-value="${escapeHTML(item.ruta)}">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-secondary group-hover/btn:scale-110 transition-transform flex-shrink-0 mt-0.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                   </svg>
@@ -523,7 +524,7 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
                 currentSearchQuery &&
                 group.toLowerCase().includes(currentSearchQuery);
               return `
-          <button onclick="showSupportDetails('${escapeHTML(group)}')" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
+          <button data-action="show-details" data-group="${escapeHTML(group)}" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
             ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
             ${escapeHTML(group)}
           </button>
@@ -531,7 +532,7 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
             })
             .join("") +
           `
-        <button onclick="renderTable()" class="px-2 py-0.5 rounded bg-secondary text-white text-xs font-black flex items-center gap-1 hover:scale-105 transition-transform">
+        <button data-action="collapse-groups" class="px-2 py-0.5 rounded bg-secondary text-white text-xs font-black flex items-center gap-1 hover:scale-105 transition-transform">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-2.5 h-2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
           </svg>
@@ -540,13 +541,55 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
       `;
       }
 
+      function fallbackCopyToClipboard(value) {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "");
+        textarea.setAttribute("aria-hidden", "true");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        textarea.style.opacity = "0";
+
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (err) {
+          copied = false;
+        }
+
+        textarea.remove();
+        return copied;
+      }
+
       async function copyText(text) {
         if (!text || text === "-" || text === "null") return;
-        try {
-          await navigator.clipboard.writeText(text);
+        
+        let copied = false;
+        const canUseClipboardApi =
+          typeof navigator !== "undefined" &&
+          typeof navigator.clipboard !== "undefined" &&
+          typeof navigator.clipboard.writeText === "function";
+
+        if (canUseClipboardApi) {
+          try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } catch (err) {
+            copied = fallbackCopyToClipboard(text);
+          }
+        } else {
+          copied = fallbackCopyToClipboard(text);
+        }
+
+        if (copied) {
           showToast(`Copiado: ${text}`);
-        } catch (err) {
-          console.error("Error al copiar: ", err);
+        } else {
+          console.error("Error al copiar texto: fallback falló");
         }
       }
 
@@ -568,6 +611,57 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
           toast.classList.add("opacity-0", "translate-x-full");
           setTimeout(() => toast.remove(), 300);
         }, 3000);
+      }
+
+      function bindTableBodyClicks() {
+        const tbody = document.getElementById("table-body");
+        if (!tbody) return;
+
+        tbody.addEventListener("click", (e) => {
+          // 1. Mostrar detalles
+          const detailsBtn = e.target.closest('[data-action="show-details"]');
+          if (detailsBtn) {
+            const group = detailsBtn.getAttribute("data-group");
+            showSupportDetails(group);
+            return;
+          }
+
+          // 2. Copiar valor
+          const copyBtn = e.target.closest('[data-action="copy"]');
+          if (copyBtn) {
+            const value = copyBtn.getAttribute("data-value");
+            copyText(value);
+            return;
+          }
+
+          // 3. Expandir grupos
+          const expandBtn = e.target.closest('[data-action="expand-groups"]');
+          if (expandBtn) {
+            const index = parseInt(expandBtn.getAttribute("data-index"), 10);
+            expandGroups(index);
+            return;
+          }
+
+          // 4. Contraer grupos
+          const collapseBtn = e.target.closest('[data-action="collapse-groups"]');
+          if (collapseBtn) {
+            renderTable();
+            return;
+          }
+        });
+      }
+
+      function initGuia() {
+        applyDataState();
+        bindHeaderClicks();
+        bindTableBodyClicks();
+        bindSearchInput();
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initGuia);
+      } else {
+        initGuia();
       }
 
       window.addEventListener("keydown", (e) => {

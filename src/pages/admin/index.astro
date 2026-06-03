@@ -2,209 +2,161 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
 import { Icon } from "astro-icon/components";
 
 const user = Astro.locals.user;
 
 interface AdminModule {
   title: string;
-  description: string;
   icon: string;
   iconTone: string;
   href?: string;
   active: boolean;
 }
 
-const adminModules: AdminModule[] = [
-  {
-    title: "Usuarios y accesos",
-    description:
-      "Gestión de cuentas, roles y permisos de los operadores del portal.",
-    icon: "boxicons:group-filled",
-    iconTone: "bg-secondary/10 text-secondary",
-    href: "/admin/users",
-    active: true,
-  },
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+const modules: AdminModule[] = [
   {
     title: "Títulos de tickets",
-    description:
-      "Administración del catálogo de tipificaciones para tickets operativos.",
     icon: "boxicons:list-ul-filled",
-    iconTone: "bg-primary/10 text-primary",
+    iconTone: "text-base-content/30",
     active: false,
   },
   {
-    title: "Directorio de oficinas",
-    description:
-      "Gestión centralizada del directorio operativo de oficinas y sus datos técnicos.",
-    icon: "boxicons:building-filled",
-    iconTone: "bg-success/10 text-success",
-    href: "/admin/offices",
-    active: true,
-  },
-  {
     title: "Contactos útiles",
-    description:
-      "Gestión de contactos corporativos de proveedores, teléfonos, correos y enlaces.",
     icon: "boxicons:phone-filled",
-    iconTone: "bg-primary/10 text-primary",
+    iconTone: "text-primary",
     href: "/admin/contacts",
     active: true,
   },
   {
     title: "Enlaces y recursos",
-    description:
-      "Administración de las categorías y enlaces de interés general del portal.",
     icon: "boxicons:link-filled",
-    iconTone: "bg-accent/10 text-accent",
+    iconTone: "text-accent",
     href: "/admin/recursos",
     active: true,
   },
   {
-    title: "Inventario Cubics",
-    description:
-      "Administración del inventario de terminales y equipos del parque operativo.",
-    icon: "boxicons:desktop-filled",
-    iconTone: "bg-info/10 text-info",
-    href: "/admin/cubics",
-    active: true,
-  },
-  {
     title: "Catálogo de aplicativos",
-    description:
-      "Gestión de los aplicativos disponibles para descarga y distribución interna.",
     icon: "boxicons:grid-circle-diagonal-right-filled",
-    iconTone: "bg-accent/10 text-accent",
+    iconTone: "text-accent",
     href: "/admin/aplicativos",
     active: true,
   },
   {
+    title: "Directorio de oficinas",
+    icon: "boxicons:building-filled",
+    iconTone: "text-success",
+    href: "/admin/offices",
+    active: true,
+  },
+  {
+    title: "Inventario Cubics",
+    icon: "boxicons:desktop-filled",
+    iconTone: "text-info",
+    href: "/admin/cubics",
+    active: true,
+  },
+  {
+    title: "Usuarios y accesos",
+    icon: "boxicons:group-filled",
+    iconTone: "text-secondary",
+    href: "/admin/users",
+    active: true,
+  },
+  {
     title: "Plantilla de operadores",
-    description:
-      "Configuración de turnos, modalidades y estructura del equipo de operaciones.",
     icon: "boxicons:user-id-card-filled",
-    iconTone: "bg-warning/10 text-warning",
+    iconTone: "text-warning",
     href: "/admin/operadores",
     active: true,
   },
   {
     title: "Alertas globales",
-    description:
-      "Publicación y gestión de avisos críticos visibles para todos los operadores.",
     icon: "boxicons:bell-ring-filled",
-    iconTone: "bg-error/10 text-error",
+    iconTone: "text-base-content/30",
     active: false,
   },
   {
     title: "Logs de auditoría",
-    description:
-      "Registro inmutable de acciones y eventos del sistema para trazabilidad.",
     icon: "boxicons:note-book-filled",
-    iconTone: "bg-neutral/10 text-neutral",
+    iconTone: "text-base-content/30",
     active: false,
   },
 ];
-
-const activeModules = adminModules.filter((m) => m.active);
-const inactiveModules = adminModules.filter((m) => !m.active);
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
-
-const resolveUrl = (path: string) => {
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `${cleanBase}${cleanPath}`;
-};
 ---
 
 <BaseLayout>
   <PageContainer>
     <PageHeader
-      description={`Estación de mando centralizada del portal. Bienvenido, ${user.username}.`}
+      title="Administración"
+      description={`Configuración y gestión centralizada del sistema. Bienvenido, ${user.username}.`}
     />
 
-    {
-      activeModules.length > 0 && (
-        <section aria-labelledby="modulos-activos-heading" class="flex flex-col gap-4">
-          <h2
-            id="modulos-activos-heading"
-            class="text-xl font-semibold text-base-content"
-          >
-            Módulos activos
-          </h2>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {activeModules.map((mod) => (
-              <QuickAccessCard
-                href={resolveUrl(mod.href!)}
-                title={mod.title}
-                description={mod.description}
-                icon={mod.icon}
-                iconTone={mod.iconTone}
-              />
-            ))}
-          </div>
-        </section>
-      )
-    }
-
-    {
-      inactiveModules.length > 0 && (
-        <section
-          aria-labelledby="modulos-desarrollo-heading"
-          class="flex flex-col gap-4"
-        >
-          <h2
-            id="modulos-desarrollo-heading"
-            class="text-xl font-semibold text-base-content"
-          >
-            Próximamente
-          </h2>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {inactiveModules.map((mod) => (
+    <div class="card bg-base-100 border border-base-300 divide-y divide-base-200 overflow-hidden">
+      {
+        modules.map((mod) => {
+          const isLocked = mod.href === "/admin/users" && user.role !== "admin";
+          
+          if (mod.active && mod.href && !isLocked) {
+            return (
+              <a
+                href={resolveUrl(mod.href)}
+                class="flex items-center gap-3 px-4 py-3 hover:bg-base-200 transition-colors duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                aria-label={`Ir a ${mod.title}`}
+              >
+                <Icon
+                  name={mod.icon}
+                  size={18}
+                  class:list={["shrink-0 transition-colors", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-sm font-medium text-base-content">
+                  {mod.title}
+                </span>
+                <Icon
+                  name="boxicons:arrow-right-stroke-circle-filled"
+                  size={16}
+                  class="text-base-content/30 group-hover:text-base-content/60 transition-colors duration-150"
+                  aria-hidden="true"
+                />
+              </a>
+            );
+          } else {
+            return (
               <div
                 aria-disabled="true"
-                class="card card-compact bg-base-100 border border-base-300 h-full opacity-50 grayscale cursor-not-allowed select-none"
+                title={isLocked ? "Acceso restringido por rol" : "Próximamente"}
+                class="flex items-center gap-3 px-4 py-3 opacity-40 cursor-not-allowed select-none"
               >
-                <div class="card-body gap-3 flex flex-col h-full">
-                  <div class="flex items-start justify-between gap-2">
-                    <div
-                      aria-hidden="true"
-                      class:list={[
-                        "mb-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-                        mod.iconTone,
-                      ]}
-                    >
-                      <Icon name={mod.icon} size={32} />
-                    </div>
-                    <span class="badge badge-neutral badge-sm mt-1 shrink-0 text-xs font-medium uppercase tracking-wide">
-                      En desarrollo
-                    </span>
-                  </div>
-                  <h3 class="card-title text-base font-semibold text-base-content">
-                    {mod.title}
-                  </h3>
-                  <p class="text-sm text-base-content/70 flex-grow leading-relaxed">
-                    {mod.description}
-                  </p>
-                  <div class="card-actions mt-2 justify-end">
-                    <span class="flex items-center gap-1 text-sm font-medium text-base-content/40">
-                      <Icon
-                        name="boxicons:lock"
-                        size={14}
-                        aria-hidden="true"
-                      />
-                      No disponible
-                    </span>
-                  </div>
-                </div>
+                <Icon
+                  name={mod.icon}
+                  size={18}
+                  class:list={["shrink-0", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-sm font-medium text-base-content">
+                  {mod.title}
+                </span>
+                {isLocked ? (
+                  <Icon name="boxicons:lock" size={16} class="text-base-content/60" aria-hidden="true" />
+                ) : (
+                  <span class="badge badge-ghost badge-xs font-medium">
+                    Pronto
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
-        </section>
-      )
-    }
+            );
+          }
+        })
+      }
+    </div>
   </PageContainer>
 </BaseLayout>

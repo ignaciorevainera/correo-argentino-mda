@@ -1,0 +1,200 @@
+import { db } from "@db/index";
+import { provinces, regions, offices } from "@db/schema";
+import { eq, or, and, sql, inArray, like } from "drizzle-orm";
+import type {
+  OfficeDirectoryItem,
+  OfficeAssetType,
+  OfficeType,
+} from "@/data/directorio_oficinas";
+
+export interface GetOfficesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  region?: string;
+  province?: string;
+  zone?: string;
+  paqar?: string;
+}
+
+export async function getOffices(params: GetOfficesParams) {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 50;
+  const offset = (page - 1) * limit;
+
+  const typeFilter = params.type || "all";
+  const regionFilter = params.region || "all";
+  let provinceFilter = params.province || "all";
+  const zoneFilter = params.zone || "all";
+  const paqarFilter = params.paqar || "all";
+  const searchFilter = params.search || "";
+
+  // 1. Get provinces mapping
+  const allProvincesWithRegion = await db
+    .select({
+      code: provinces.code,
+      name: provinces.name,
+      regionId: provinces.regionId,
+      regionName: regions.name,
+    })
+    .from(provinces)
+    .leftJoin(regions, eq(provinces.regionId, regions.id))
+    .orderBy(regions.name, provinces.name);
+
+  const provincesByRegion: Record<string, { code: string; name: string }[]> = {};
+  for (const p of allProvincesWithRegion) {
+    const rName = p.regionName ?? "Sin región";
+    if (!provincesByRegion[rName]) provincesByRegion[rName] = [];
+    provincesByRegion[rName].push({ code: p.code, name: p.name });
+  }
+
+  // Adjust filters logic
+  if (regionFilter !== "all" && provinceFilter !== "all") {
+    const regionProvinces = provincesByRegion[regionFilter] || [];
+    if (!regionProvinces.find((p) => p.code === provinceFilter)) {
+      provinceFilter = "all";
+    }
+  } else if (regionFilter === "all") {
+    provinceFilter = "all";
+  }
+
+  const whereConditions = [];
+
+  // Type filter
+  if (typeFilter !== "all") {
+    if (typeFilter === "SUCURSAL_AUTOMATIZADA") {
+      whereConditions.push(
+        and(eq(offices.type, "SUCURSAL"), eq(offices.officeType, "AUTOMATIZADA")),
+      );
+    } else if (typeFilter === "SUCURSAL_NO_AUTOMATIZADA") {
+      whereConditions.push(
+        and(
+          eq(offices.type, "SUCURSAL"),
+          or(
+            eq(offices.officeType, "NO AUTOMATIZADA"),
+            sql`${offices.officeType} IS NULL`,
+          ),
+        ),
+      );
+    } else {
+      whereConditions.push(eq(offices.type, typeFilter));
+    }
+  }
+
+  // Search filter (like code, name, locality)
+  if (searchFilter) {
+    const likeSearch = `%${searchFilter}%`;
+    whereConditions.push(
+      or(
+        like(offices.code, likeSearch),
+        like(offices.name, likeSearch),
+        like(offices.locality, likeSearch),
+        like(offices.parentNis, likeSearch),
+      ),
+    );
+  }
+
+  // Province/Region filter
+  if (provinceFilter !== "all") {
+    whereConditions.push(eq(offices.provinceCode, provinceFilter));
+  } else if (regionFilter !== "all") {
+    const regionProvinces = provincesByRegion[regionFilter] || [];
+    if (regionProvinces.length > 0) {
+      whereConditions.push(
+        inArray(
+          offices.provinceCode,
+          regionProvinces.map((p) => p.code),
+        ),
+      );
+    } else {
+      whereConditions.push(eq(offices.provinceCode, "NONE_MATCH"));
+    }
+  }
+
+  // Zone filter
+  if (zoneFilter !== "all") {
+    whereConditions.push(eq(offices.zone, zoneFilter));
+  }
+
+  // Paq.AR filter
+  if (paqarFilter !== "all") {
+    if (paqarFilter === "admision") {
+      whereConditions.push(eq(offices.paqarAdmision, true));
+    } else if (paqarFilter === "entrega") {
+      whereConditions.push(eq(offices.paqarEntrega, true));
+    } else if (paqarFilter === "ambos") {
+      whereConditions.push(
+        and(eq(offices.paqarAdmision, true), eq(offices.paqarEntrega, true)),
+      );
+    }
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+  // 2. Count total
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(offices)
+    .where(whereClause);
+
+  // 3. Find many
+  const dbOffices = await db.query.offices.findMany({
+    where: whereClause,
+    limit: limit,
+    offset: offset,
+    orderBy: (offices, { asc }) => [asc(offices.code), asc(offices.name)],
+    with: {
+      assets: true,
+      contacts: { with: { contact: true } },
+      province: { with: { region: true } },
+    },
+  });
+
+  const officeDirectoryItems: OfficeDirectoryItem[] = dbOffices.map((office) => {
+    let mappedType = office.type;
+    if (office.type === "SUCURSAL") {
+      mappedType =
+        office.officeType === "AUTOMATIZADA"
+          ? "SUCURSAL_AUTOMATIZADA"
+          : "SUCURSAL_NO_AUTOMATIZADA";
+    }
+    return {
+      id: `office-${office.code.toLowerCase()}`,
+      dbId: office.id,
+      type: mappedType as OfficeType,
+      code: office.code,
+      name: office.name,
+      provinceCode: office.provinceCode,
+      provinceName: office.province?.name ?? "",
+      location: office.province?.name ?? "",
+      costCenter: "",
+      postalCode: "",
+      region: office.province?.region?.name ?? "",
+      address: office.address ?? "",
+      email: office.email ?? "",
+      notes: office.notes ?? "",
+      officeType: office.officeType,
+      parentNis: office.parentNis,
+      contacts: office.contacts.map((oc) => ({
+        name: oc.contact.name,
+        phone: oc.contact.phone ?? "",
+        timeSlot: oc.timeSlot ?? "",
+      })),
+      assets: office.assets.map((a) => ({
+        type: a.type as OfficeAssetType,
+        hostname: a.hostname ?? "",
+        ip: a.ip ?? "",
+      })),
+    };
+  });
+
+  const hasMore = offset + dbOffices.length < count;
+
+  return {
+    data: officeDirectoryItems,
+    count,
+    hasMore,
+  };
+}

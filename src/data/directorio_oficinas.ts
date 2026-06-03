@@ -1,10 +1,6 @@
-import { getTelegrafiaOfficesFromDB } from "@lib/offices";
+import { getAllOfficesFromDB } from "@lib/offices";
 
-export type OfficeType =
-  | "comercial"
-  | "telegrafia"
-  | "distribucion"
-  | "paqueteria";
+export type OfficeType = string;
 
 export type OfficeAssetType = "server" | "printer" | "desktop" | "client";
 
@@ -22,6 +18,7 @@ export interface OfficeAsset {
 
 export interface OfficeDirectoryItem {
   id: string;
+  dbId?: number;
   type: OfficeType;
   code: string;
   name: string;
@@ -34,6 +31,8 @@ export interface OfficeDirectoryItem {
   address: string;
   email: string;
   notes: string;
+  officeType?: string | null;
+  parentNis?: string | null;
   contacts: OfficeContact[];
   assets: OfficeAsset[];
 }
@@ -41,9 +40,9 @@ export interface OfficeDirectoryItem {
 export async function getOfficeDirectoryItems(): Promise<
   OfficeDirectoryItem[]
 > {
-  const telegrafiaItems = await getTelegrafiaOfficesFromDB();
+  const allItems = await getAllOfficesFromDB();
 
-  return telegrafiaItems.sort((a, b) => {
+  return allItems.sort((a, b) => {
     const codeComp = a.code.localeCompare(b.code, undefined, { numeric: true });
     if (codeComp !== 0) return codeComp;
     return a.name.localeCompare(b.name, "es", { sensitivity: "base" });

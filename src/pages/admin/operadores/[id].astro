@@ -18,8 +18,16 @@ const isNew = id === "nuevo";
 let successMsg = "";
 let errorMsg = "";
 
-const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const modalities = ['home', 'presencial'];
+const daysOfWeek = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+const modalities = ["home", "presencial"];
 
 if (Astro.request.method === "POST") {
   try {
@@ -72,8 +80,10 @@ if (Astro.request.method === "POST") {
               locationId: operatorData.locationId,
             })
             .where(eq(operators.id, id!));
-          
-          await tx.delete(operatorSchedules).where(eq(operatorSchedules.operatorId, id!));
+
+          await tx
+            .delete(operatorSchedules)
+            .where(eq(operatorSchedules.operatorId, id!));
         }
 
         if (newSchedules.length > 0) {
@@ -164,32 +174,40 @@ const statusOptions = [
         : `ID: ${operator!.id}`}
     />
 
-    {errorMsg && (
-      <div role="alert" class="alert alert-error alert-soft text-sm">
-        <Icon
-          name="boxicons:alert-circle-filled"
-          size={18}
-          class="shrink-0"
-        />
-        <span>{errorMsg}</span>
-      </div>
-    )}
-    {successMsg && (
-      <div role="alert" class="alert alert-success alert-soft text-sm">
-        <Icon
-          name="boxicons:check-circle-filled"
-          size={18}
-          class="shrink-0"
-        />
-        <span>{successMsg}</span>
-      </div>
-    )}
+    {
+      errorMsg && (
+        <div role="alert" class="alert alert-error alert-soft text-sm">
+          <Icon
+            name="boxicons:alert-circle-filled"
+            size={18}
+            class="shrink-0"
+          />
+          <span>{errorMsg}</span>
+        </div>
+      )
+    }
+    {
+      successMsg && (
+        <div role="alert" class="alert alert-success alert-soft text-sm">
+          <Icon
+            name="boxicons:check-circle-filled"
+            size={18}
+            class="shrink-0"
+          />
+          <span>{successMsg}</span>
+        </div>
+      )
+    }
 
     <form method="POST" id="operator-form" class="space-y-4">
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-4 p-5">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
-            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
               <Icon name="boxicons:user-id-card-filled" size={15} />
             </span>
             Datos del operador
@@ -211,11 +229,14 @@ const statusOptions = [
                   !isNew && "input-disabled bg-base-200 cursor-not-allowed",
                 ]}
               />
-              {isNew && (
-                <p class="text-xs text-base-content/50 mt-1">
-                  Identificador único del operador. No se puede modificar después de crear.
-                </p>
-              )}
+              {
+                isNew && (
+                  <p class="text-xs text-base-content/50 mt-1">
+                    Identificador único del operador. No se puede modificar
+                    después de crear.
+                  </p>
+                )
+              }
             </fieldset>
 
             <fieldset class="fieldset gap-1">
@@ -232,33 +253,43 @@ const statusOptions = [
             </fieldset>
 
             <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">Ubicación presencial</legend>
+              <legend class="fieldset-legend text-xs"
+                >Ubicación presencial</legend
+              >
               <select name="locationId" class="select select-sm w-full">
                 <option value="" selected={!isNew && !operator?.locationId}>
                   Sin asignar
                 </option>
-                {allLocations.map((loc) => (
-                  <option
-                    value={loc.id}
-                    selected={isNew ? loc.id === "MGR" : operator?.locationId === loc.id}
-                  >
-                    {loc.name}
-                  </option>
-                ))}
+                {
+                  allLocations.map((loc) => (
+                    <option
+                      value={loc.id}
+                      selected={
+                        isNew
+                          ? loc.id === "MGR"
+                          : operator?.locationId === loc.id
+                      }
+                    >
+                      {loc.name}
+                    </option>
+                  ))
+                }
               </select>
             </fieldset>
 
             <fieldset class="fieldset gap-1">
               <legend class="fieldset-legend text-xs">Estado</legend>
               <select name="status" class="select select-sm w-full">
-                {statusOptions.map((s) => (
-                  <option
-                    value={s.value}
-                    selected={operator?.status === s.value}
-                  >
-                    {s.label}
-                  </option>
-                ))}
+                {
+                  statusOptions.map((s) => (
+                    <option
+                      value={s.value}
+                      selected={operator?.status === s.value}
+                    >
+                      {s.label}
+                    </option>
+                  ))
+                }
               </select>
             </fieldset>
           </div>
@@ -267,63 +298,126 @@ const statusOptions = [
 
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-4 p-5">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
-            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
               <Icon name="boxicons:calendar" size={15} />
             </span>
             Matriz de Horarios
           </h2>
           <div class="space-y-2">
-            {daysOfWeek.map((day) => (
-              <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
-                <input type="checkbox" /> 
-                <div class="collapse-title text-sm font-medium">
-                  {day}
-                </div>
-                <div class="collapse-content">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-3">
-                      <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
-                        <span>🏠</span> Home Office
-                      </h3>
-                      <div class="grid grid-cols-3 gap-2">
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Entrada</legend>
-                          <input type="time" name={`home_${day}_start`} value={operatorSchedulesData[day]?.home?.shiftStart || ""} class="input input-sm w-full" />
-                        </fieldset>
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Salida</legend>
-                          <input type="time" name={`home_${day}_end`} value={operatorSchedulesData[day]?.home?.shiftEnd || ""} class="input input-sm w-full" />
-                        </fieldset>
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Break</legend>
-                          <input type="time" name={`home_${day}_break`} value={operatorSchedulesData[day]?.home?.breakTime || ""} class="input input-sm w-full" />
-                        </fieldset>
+            {
+              daysOfWeek.map((day) => (
+                <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+                  <input type="checkbox" />
+                  <div class="collapse-title text-sm font-medium">{day}</div>
+                  <div class="collapse-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                          <span>🏠</span> Home Office
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Entrada
+                            </legend>
+                            <input
+                              type="time"
+                              name={`home_${day}_start`}
+                              value={
+                                operatorSchedulesData[day]?.home?.shiftStart ||
+                                ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Salida
+                            </legend>
+                            <input
+                              type="time"
+                              name={`home_${day}_end`}
+                              value={
+                                operatorSchedulesData[day]?.home?.shiftEnd || ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Break
+                            </legend>
+                            <input
+                              type="time"
+                              name={`home_${day}_break`}
+                              value={
+                                operatorSchedulesData[day]?.home?.breakTime ||
+                                ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                        </div>
                       </div>
-                    </div>
-                    <div class="space-y-3">
-                      <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
-                        <span>🏢</span> Presencial
-                      </h3>
-                      <div class="grid grid-cols-3 gap-2">
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Entrada</legend>
-                          <input type="time" name={`presencial_${day}_start`} value={operatorSchedulesData[day]?.presencial?.shiftStart || ""} class="input input-sm w-full" />
-                        </fieldset>
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Salida</legend>
-                          <input type="time" name={`presencial_${day}_end`} value={operatorSchedulesData[day]?.presencial?.shiftEnd || ""} class="input input-sm w-full" />
-                        </fieldset>
-                        <fieldset class="fieldset gap-1">
-                          <legend class="fieldset-legend text-[10px]">Break</legend>
-                          <input type="time" name={`presencial_${day}_break`} value={operatorSchedulesData[day]?.presencial?.breakTime || ""} class="input input-sm w-full" />
-                        </fieldset>
+                      <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                          <span>🏢</span> Presencial
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Entrada
+                            </legend>
+                            <input
+                              type="time"
+                              name={`presencial_${day}_start`}
+                              value={
+                                operatorSchedulesData[day]?.presencial
+                                  ?.shiftStart || ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Salida
+                            </legend>
+                            <input
+                              type="time"
+                              name={`presencial_${day}_end`}
+                              value={
+                                operatorSchedulesData[day]?.presencial
+                                  ?.shiftEnd || ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                          <fieldset class="fieldset gap-1">
+                            <legend class="fieldset-legend text-[10px]">
+                              Break
+                            </legend>
+                            <input
+                              type="time"
+                              name={`presencial_${day}_break`}
+                              value={
+                                operatorSchedulesData[day]?.presencial
+                                  ?.breakTime || ""
+                              }
+                              class="input input-sm w-full"
+                            />
+                          </fieldset>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            }
           </div>
         </div>
       </section>

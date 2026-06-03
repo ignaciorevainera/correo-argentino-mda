@@ -7,9 +7,8 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 
-
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
+const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
 if (user.role !== "admin") return Astro.redirect(`${cleanBase}login`);
@@ -18,7 +17,6 @@ const { id } = Astro.params;
 const isNew = id === "new";
 let successMsg = "";
 let errorMsg = "";
-
 
 if (Astro.request.method === "POST") {
   try {
@@ -42,13 +40,9 @@ if (Astro.request.method === "POST") {
         cubicId = created.id;
       } else {
         cubicId = Number(id);
-        await db
-          .update(cubics)
-          .set(cubicData)
-          .where(eq(cubics.id, cubicId));
+        await db.update(cubics).set(cubicData).where(eq(cubics.id, cubicId));
       }
 
-      
       await db
         .delete(cubicAssignments)
         .where(eq(cubicAssignments.cubicId, cubicId));
@@ -65,7 +59,6 @@ if (Astro.request.method === "POST") {
 
         if (!shift || !agentName) continue;
 
-        
         let agentId: number;
         const existing = await db
           .select({ id: agents.id })
@@ -75,7 +68,7 @@ if (Astro.request.method === "POST") {
 
         if (existing) {
           agentId = existing.id;
-          
+
           if (agentInitials) {
             await db
               .update(agents)
@@ -96,9 +89,7 @@ if (Astro.request.method === "POST") {
             agentId,
             shift,
           });
-        } catch (e: any) {
-          
-        }
+        } catch (e: any) {}
       }
 
       if (isNew) {
@@ -112,7 +103,6 @@ if (Astro.request.method === "POST") {
       : "Error al guardar el cubic.";
   }
 }
-
 
 type CubicRecord = {
   id: number;
@@ -153,10 +143,12 @@ const shiftOptions = [
 
 <BaseLayout title={`${pageTitle}`}>
   <PageContainer>
-
     {/* ── Breadcrumb / Volver ── */}
     <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <a href={`${cleanBase}admin/cubics`} class="flex items-center gap-1.5 hover:text-base-content transition-colors">
+      <a
+        href={`${cleanBase}admin/cubics`}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
         <Icon name="boxicons:chevron-left" size={16} />
         Gestión de cubics
       </a>
@@ -166,22 +158,36 @@ const shiftOptions = [
 
     <PageHeader
       title={pageTitle}
-      description={isNew ? "Completá los datos para registrar un nuevo ordenador." : `Estado: ${cubic!.status} · IP: ${cubic!.ip ?? "sin asignar"}`}
+      description={isNew
+        ? "Completá los datos para registrar un nuevo ordenador."
+        : `Estado: ${cubic!.status} · IP: ${cubic!.ip ?? "sin asignar"}`}
     />
 
     {/* Feedback */}
-    {errorMsg && (
-      <div role="alert" class="alert alert-error alert-soft text-sm">
-        <Icon name="boxicons:alert-circle-filled" size={18} class="shrink-0" />
-        <span>{errorMsg}</span>
-      </div>
-    )}
-    {successMsg && (
-      <div role="alert" class="alert alert-success alert-soft text-sm">
-        <Icon name="boxicons:check-circle-filled" size={18} class="shrink-0" />
-        <span>{successMsg}</span>
-      </div>
-    )}
+    {
+      errorMsg && (
+        <div role="alert" class="alert alert-error alert-soft text-sm">
+          <Icon
+            name="boxicons:alert-circle-filled"
+            size={18}
+            class="shrink-0"
+          />
+          <span>{errorMsg}</span>
+        </div>
+      )
+    }
+    {
+      successMsg && (
+        <div role="alert" class="alert alert-success alert-soft text-sm">
+          <Icon
+            name="boxicons:check-circle-filled"
+            size={18}
+            class="shrink-0"
+          />
+          <span>{successMsg}</span>
+        </div>
+      )
+    }
 
     <form
       method="POST"
@@ -192,8 +198,12 @@ const shiftOptions = [
       {/* ── Card: Datos técnicos del equipo ── */}
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-4 p-5">
-          <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
-            <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
               <Icon name="boxicons:desktop-filled" size={15} />
             </span>
             Datos técnicos del equipo
@@ -238,8 +248,12 @@ const shiftOptions = [
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-3 p-5">
           <div class="flex items-center justify-between">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
-              <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning">
+            <h2
+              class="flex items-center gap-2 text-sm font-semibold text-base-content"
+            >
+              <span
+                class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning"
+              >
                 <Icon name="boxicons:group-filled" size={15} />
               </span>
               Asignación de turnos
@@ -254,64 +268,88 @@ const shiftOptions = [
             </button>
           </div>
 
-          <div id="assignments-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(cubic?.assignments ?? []).map((a) => (
-              <div class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300">
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2"
-                  aria-label="Quitar asignación"
-                >
-                  <Icon name="boxicons:trash" size={18} />
-                </button>
+          <div
+            id="assignments-container"
+            class="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            {
+              (cubic?.assignments ?? []).map((a) => (
+                <div class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2"
+                    aria-label="Quitar asignación"
+                  >
+                    <Icon name="boxicons:trash" size={18} />
+                  </button>
 
-                <div class="space-y-3 pr-6">
-                  <fieldset class="fieldset gap-1">
-                    <legend class="fieldset-legend text-xs font-bold">Turno</legend>
-                    <select name="assign_shift" class="select select-sm w-full">
-                      {shiftOptions.map((opt) => (
-                        <option value={opt.value} selected={a.shift === opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </fieldset>
+                  <div class="space-y-3 pr-6">
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">
+                        Turno
+                      </legend>
+                      <select
+                        name="assign_shift"
+                        class="select select-sm w-full"
+                      >
+                        {shiftOptions.map((opt) => (
+                          <option
+                            value={opt.value}
+                            selected={a.shift === opt.value}
+                          >
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </fieldset>
 
-                  <fieldset class="fieldset gap-1">
-                    <legend class="fieldset-legend text-xs font-bold">Nombre del operador</legend>
-                    <input
-                      type="text"
-                      name="assign_agent_name"
-                      value={a.agent.name}
-                      class="input input-sm w-full"
-                      placeholder="Ana Rojas"
-                    />
-                  </fieldset>
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">
+                        Nombre del operador
+                      </legend>
+                      <input
+                        type="text"
+                        name="assign_agent_name"
+                        value={a.agent.name}
+                        class="input input-sm w-full"
+                        placeholder="Ana Rojas"
+                      />
+                    </fieldset>
 
-                  <fieldset class="fieldset gap-1">
-                    <legend class="fieldset-legend text-xs font-bold">Iniciales avatar</legend>
-                    <input
-                      type="text"
-                      name="assign_agent_initials"
-                      value={a.agent.avatarInitials ?? ""}
-                      maxlength={3}
-                      class="input input-sm w-20 text-center font-bold uppercase tracking-widest"
-                      placeholder="AR"
-                    />
-                  </fieldset>
+                    <fieldset class="fieldset gap-1">
+                      <legend class="fieldset-legend text-xs font-bold">
+                        Iniciales avatar
+                      </legend>
+                      <input
+                        type="text"
+                        name="assign_agent_initials"
+                        value={a.agent.avatarInitials ?? ""}
+                        maxlength={3}
+                        class="input input-sm w-20 text-center font-bold uppercase tracking-widest"
+                        placeholder="AR"
+                      />
+                    </fieldset>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            }
           </div>
-          {(cubic?.assignments ?? []).length === 0 && (
-            <p class="text-xs text-base-content/40 text-center py-1">Sin operadores asignados.</p>
-          )}
+          {
+            (cubic?.assignments ?? []).length === 0 && (
+              <p class="text-xs text-base-content/40 text-center py-1">
+                Sin operadores asignados.
+              </p>
+            )
+          }
         </div>
       </section>
 
       {/* ── Acciones ── */}
       <div class="flex items-center justify-between gap-3 pt-1">
-        <a href={`${cleanBase}admin/cubics`} class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10">
+        <a
+          href={`${cleanBase}admin/cubics`}
+          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
+        >
           <Icon name="boxicons:arrow-left-filled" size={16} />
           Volver al listado
         </a>
@@ -326,7 +364,9 @@ const shiftOptions = [
 
 {/* ── Template dinámico para nueva asignación ── */}
 <template id="tpl-assignment-row">
-  <div class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300">
+  <div
+    class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300"
+  >
     <button
       type="button"
       class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2"
@@ -345,7 +385,9 @@ const shiftOptions = [
       </fieldset>
 
       <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Nombre del operador</legend>
+        <legend class="fieldset-legend text-xs font-bold"
+          >Nombre del operador</legend
+        >
         <input
           type="text"
           name="assign_agent_name"
@@ -355,7 +397,9 @@ const shiftOptions = [
       </fieldset>
 
       <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Iniciales avatar</legend>
+        <legend class="fieldset-legend text-xs font-bold"
+          >Iniciales avatar</legend
+        >
         <input
           type="text"
           name="assign_agent_initials"

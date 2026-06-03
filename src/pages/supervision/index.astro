@@ -4,6 +4,16 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
 
+const user = Astro.locals.user;
+const role = user.role;
+
+const isLocked = (href: string) => {
+  if (href === "/supervision/cronograma") {
+    return !["admin", "supervisor"].includes(role);
+  }
+  return false;
+};
+
 const supervisionTools = [
   {
     title: "Cronograma",
@@ -46,6 +56,7 @@ const supervisionTools = [
             description={tool.description}
             icon={tool.icon}
             iconTone={tool.iconTone}
+            locked={isLocked(tool.href)}
           />
         ))
       }

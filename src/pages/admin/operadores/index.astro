@@ -85,43 +85,53 @@ const rowGridClass =
       description="Administración de la plantilla de operadores, ubicaciones y estados."
     />
 
-    {errorMsg && (
-      <div role="alert" class="alert alert-error alert-soft text-sm">
-        <Icon
-          name="boxicons:alert-circle-filled"
-          size={20}
-          class="shrink-0"
-        />
-        <span>{errorMsg}</span>
-      </div>
-    )}
-    {successMsg && (
-      <div role="alert" class="alert alert-success alert-soft text-sm">
-        <Icon
-          name="boxicons:check-circle-filled"
-          size={20}
-          class="shrink-0"
-        />
-        <span>{successMsg}</span>
-      </div>
-    )}
+    {
+      errorMsg && (
+        <div role="alert" class="alert alert-error alert-soft text-sm">
+          <Icon
+            name="boxicons:alert-circle-filled"
+            size={20}
+            class="shrink-0"
+          />
+          <span>{errorMsg}</span>
+        </div>
+      )
+    }
+    {
+      successMsg && (
+        <div role="alert" class="alert alert-success alert-soft text-sm">
+          <Icon
+            name="boxicons:check-circle-filled"
+            size={20}
+            class="shrink-0"
+          />
+          <span>{successMsg}</span>
+        </div>
+      )
+    }
 
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+    >
       <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-base-content">
           Operadores registrados
         </h2>
-        {allOperators.length > 0 && (
-          <span
-            id="operator-count-badge"
-            class="badge badge-neutral badge-sm font-mono"
-          >
-            {allOperators.length}
-          </span>
-        )}
+        {
+          allOperators.length > 0 && (
+            <span
+              id="operator-count-badge"
+              class="badge badge-neutral badge-sm font-mono"
+            >
+              {allOperators.length}
+            </span>
+          )
+        }
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+      <div
+        class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
+      >
         <SearchInput
           id="admin-operator-search"
           label="Buscar operador"
@@ -151,7 +161,9 @@ const rowGridClass =
         <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
       </div>
       <div slot="header">
-        <DataTableHeaderCell sortKey="location">Ubicación presencial</DataTableHeaderCell>
+        <DataTableHeaderCell sortKey="location"
+          >Ubicación presencial</DataTableHeaderCell
+        >
       </div>
       <div slot="header">
         <DataTableHeaderCell sortKey="status">Estado</DataTableHeaderCell>
@@ -160,119 +172,132 @@ const rowGridClass =
         <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
       </div>
 
-      {allOperators.length === 0 ? (
-        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200 p-4">
-            <Icon
-              name="boxicons:user-id-card-filled"
-              size={32}
-              class="opacity-30"
-              aria-hidden="true"
-            />
+      {
+        allOperators.length === 0 ? (
+          <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+            <div class="rounded-full bg-base-200 p-4">
+              <Icon
+                name="boxicons:user-id-card-filled"
+                size={32}
+                class="opacity-30"
+                aria-hidden="true"
+              />
+            </div>
+            <div class="space-y-1 text-center">
+              <p class="text-sm font-semibold">No hay operadores registrados</p>
+              <p class="text-xs">
+                Comenzá cargando el primer operador desde el botón superior.
+              </p>
+            </div>
           </div>
-          <div class="space-y-1 text-center">
-            <p class="text-sm font-semibold">No hay operadores registrados</p>
-            <p class="text-xs">
-              Comenzá cargando el primer operador desde el botón superior.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          {allOperators.map((op) => (
-            <article
-              data-table-row
-              data-sort-id={op.id}
-              data-sort-name={op.name}
-              data-sort-location={op.locationName}
-              data-sort-status={op.status}
-              data-search-text={`${op.id} ${op.name} ${op.locationName} ${statusLabels[op.status] ?? op.status}`.toLowerCase()}
-              class:list={[
-                rowGridClass,
-                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-              ]}
-            >
-              <div>
-                <span
-                  data-highlight-target
-                  class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
-                >
-                  {op.id}
-                </span>
-              </div>
-
-              <div class="min-w-0">
-                <p
-                  data-highlight-target
-                  class="truncate text-sm font-semibold text-base-content"
-                >
-                  {op.name}
-                </p>
-              </div>
-
-              <div class="min-w-0">
-                {op.locationName ? (
+        ) : (
+          <>
+            {allOperators.map((op) => (
+              <article
+                data-table-row
+                data-sort-id={op.id}
+                data-sort-name={op.name}
+                data-sort-location={op.locationName}
+                data-sort-status={op.status}
+                data-search-text={`${op.id} ${op.name} ${op.locationName} ${statusLabels[op.status] ?? op.status}`.toLowerCase()}
+                class:list={[
+                  rowGridClass,
+                  "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+                ]}
+              >
+                <div>
                   <span
                     data-highlight-target
-                    class="truncate text-sm text-base-content/70"
+                    class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
                   >
-                    {op.locationName}
+                    {op.id}
                   </span>
-                ) : (
-                  <span class="text-base-content/30">&mdash;</span>
-                )}
-              </div>
+                </div>
 
-              <div>
-                <span
-                  class:list={[
-                    "badge badge-sm font-bold uppercase tracking-wide",
-                    statusBadgeClass[op.status] ?? "badge-neutral",
-                  ]}
-                >
-                  {statusLabels[op.status] ?? op.status}
-                </span>
-              </div>
-
-              <div class="flex items-center justify-end gap-1">
-                <a
-                  href={`${cleanBase}admin/operadores/${op.id}`}
-                  class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  aria-label={`Editar ${op.name}`}
-                >
-                  <Icon name="boxicons:pencil-filled" size={14} />
-                  <span class="hidden sm:inline">Editar</span>
-                </a>
-
-                <form
-                  method="POST"
-                  class="inline"
-                  onsubmit="return confirm('¿Estás seguro de que querés eliminar este operador? Se borrarán también sus turnos vinculados.')"
-                >
-                  <input type="hidden" name="action" value="delete_operator" />
-                  <input type="hidden" name="operatorId" value={op.id} />
-                  <button
-                    type="submit"
-                    class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
-                    aria-label={`Eliminar ${op.name}`}
+                <div class="min-w-0">
+                  <p
+                    data-highlight-target
+                    class="truncate text-sm font-semibold text-base-content"
                   >
-                    <Icon name="boxicons:trash-filled" size={14} />
-                    <span class="hidden sm:inline">Eliminar</span>
-                  </button>
-                </form>
-              </div>
-            </article>
-          ))}
-        </>
-      )}
+                    {op.name}
+                  </p>
+                </div>
+
+                <div class="min-w-0">
+                  {op.locationName ? (
+                    <span
+                      data-highlight-target
+                      class="truncate text-sm text-base-content/70"
+                    >
+                      {op.locationName}
+                    </span>
+                  ) : (
+                    <span class="text-base-content/30">&mdash;</span>
+                  )}
+                </div>
+
+                <div>
+                  <span
+                    class:list={[
+                      "badge badge-sm font-bold uppercase tracking-wide",
+                      statusBadgeClass[op.status] ?? "badge-neutral",
+                    ]}
+                  >
+                    {statusLabels[op.status] ?? op.status}
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-end gap-1">
+                  <a
+                    href={`${cleanBase}admin/operadores/${op.id}`}
+                    class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    aria-label={`Editar ${op.name}`}
+                  >
+                    <Icon name="boxicons:pencil-filled" size={14} />
+                    <span class="hidden sm:inline">Editar</span>
+                  </a>
+
+                  <form
+                    method="POST"
+                    class="inline"
+                    onsubmit="return confirm('¿Estás seguro de que querés eliminar este operador? Se borrarán también sus turnos vinculados.')"
+                  >
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="delete_operator"
+                    />
+                    <input type="hidden" name="operatorId" value={op.id} />
+                    <button
+                      type="submit"
+                      class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+                      aria-label={`Eliminar ${op.name}`}
+                    >
+                      <Icon name="boxicons:trash-filled" size={14} />
+                      <span class="hidden sm:inline">Eliminar</span>
+                    </button>
+                  </form>
+                </div>
+              </article>
+            ))}
+          </>
+        )
+      }
     </DataTable>
 
     <script>
-      import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+      import {
+        matchesSearchQuery,
+        highlightSearchTargets,
+      } from "@lib/clientSearch";
 
-      const searchInput = document.querySelector<HTMLInputElement>("#admin-operator-search");
+      const searchInput = document.querySelector<HTMLInputElement>(
+        "#admin-operator-search",
+      );
       const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
-      const countBadge = document.querySelector<HTMLElement>("#operator-count-badge");
+      const countBadge = document.querySelector<HTMLElement>(
+        "#operator-count-badge",
+      );
 
       function applyFilters() {
         const query = searchInput?.value.trim() || "";

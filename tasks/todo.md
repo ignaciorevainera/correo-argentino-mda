@@ -1,24 +1,27 @@
-# Plan de Trabajo - Eliminación de View Transitions y Unificación de Sombras
+# Plan de Trabajo - Agregar Columna de Dependencia (parent NIS) a las Vistas de Oficinas
 
 ## Objetivo
-- Eliminar de manera definitiva todo rastro de transiciones de vista (enrutamiento de cliente) de Astro.
-- Unificar todas las sombras de contenedores utilizando únicamente `shadow-md` para consistencia visual.
+- Mostrar el parent NIS (oficina de la que dependen) en las vistas de Directorio de Oficinas y Administración de Oficinas.
+- Permitir la edición/creación del parent NIS en el panel de administración.
+- Evitar mostrar nulos en celdas sin datos (usar un indicador como un guión).
 
 ## Tareas
 
-### 1. Eliminar Enrutamiento y Eventos de Cliente (Astro Transitions)
-- [x] Eliminar event listener `astro:after-swap` en `src/components/ui/ViewSwitcher.astro`
-- [x] Eliminar event listener `astro:page-load` en `src/pages/supervision/calidad-operadores/index.astro`
+### 1. Actualización de Consultas y Tipos
+- [x] Modificar `src/data/directorio_oficinas.ts` para agregar `parentNis` a la interfaz `OfficeDirectoryItem`.
+- [x] Modificar `src/lib/officeQueries.ts` para agregar `parentNis` al resultado mapeado de `getOffices` y permitir búsquedas por él.
+- [x] Modificar `src/lib/offices.ts` para mapear `parentNis` en `getAllOfficesFromDB`.
 
-### 2. Unificación de Sombras de Contenedores a `shadow-md`
-- [x] Refactorizar componentes UI globales (`UserCard.astro`, `QuickAccessCard.astro`, `DataTable.astro`, `MasterDetailTable.astro`, `BaseLayout.astro`)
-- [x] Refactorizar vistas de administración (`admin/contacts/[id].astro`, `admin/cubics/[id].astro`, `admin/offices/[id].astro`, `admin/users.astro`)
-- [x] Refactorizar vistas de catálogo y recursos (`catalogo-aplicativos/_components/CatalogAppCard.astro`, `enlaces-recursos/_components/CategoryCard.astro`)
-- [x] Refactorizar buscador, contactos, firmas, soportes, equipos y login (`buscador-usuarios/index.astro`, `contactos/index.astro`, `generador-firmas/_components/SignatureGenerator.astro`, `guia-soportes/index.astro`, `inventario-equipos/index.astro`, `login/index.astro`)
-- [x] Refactorizar supervisión (`supervision/asignacion-autogestiones/index.astro`, `supervision/calidad-operadores/index.astro`, `components/cronograma/CronogramaDashboard.astro`)
-- [x] Refactorizar títulos de tickets (`titulos-tickets/_components/Titulos.tsx`)
-- [x] Refactorizar demostración (`design-system/index.astro`)
+### 2. Modificaciones en el Directorio de Oficinas (Público)
+- [x] Modificar `src/pages/directorio-oficinas/index.astro` para cambiar la grilla a 12 columnas e insertar la cabecera "Dependencia".
+- [x] Modificar `src/components/offices/OfficeRow.astro` para actualizar la fila a 12 columnas, renderizar la insignia de `parentNis` o guión `—` si es nulo, e incluirlo en `searchText`.
 
-### 3. Validación y Compilación
-- [x] Ejecutar validación de tipos `npx astro check`
-- [x] Ejecutar compilación de producción `npm run build`
+### 3. Modificaciones en Administración de Oficinas (Admin)
+- [x] Modificar `src/pages/admin/offices/index.astro` para actualizar la grilla e insertar la cabecera "NIS Padre" (`sortKey="parent-nis"`).
+- [x] Modificar `src/components/admin/AdminOfficeRow.astro` para actualizar la grilla, renderizar la celda para `parentNis` (insignia o `—` si es nulo), agregar el atributo `data-sort-parent-nis` y actualizar `searchText`.
+- [x] Modificar `src/pages/admin/offices/[id].astro` para procesar `parentNis` en `OfficeRecord` y guardado, y añadir el campo en "Datos básicos".
+
+### 4. Validación y Pruebas
+- [x] Ejecutar comprobación de tipos (`npx astro check`).
+- [x] Ejecutar compilación de producción (`npm run build`).
+- [x] Verificar manualmente el listado público, buscador, listado de administración, ordenamiento por NIS Padre y el guardado en el formulario.

@@ -1,0 +1,387 @@
+---
+export interface TabItem {
+  value: string;
+  label: string;
+  count?: number;
+}
+
+interface Props {
+  tabs: TabItem[];
+  activeValue: string;
+  name?: string;
+  activeClasses?: Record<string, string>;
+  class?: string;
+  id?: string;
+  submitOnChange?: boolean;
+}
+
+const {
+  tabs,
+  activeValue,
+  name = "type",
+  activeClasses = {},
+  class: className,
+  id,
+  submitOnChange = true,
+} = Astro.props;
+---
+
+{submitOnChange && (
+  <input
+    type="hidden"
+    name={name}
+    value={activeValue}
+    id={`filter-tabs-hidden-${name}`}
+  />
+)}
+<div
+  id={id}
+  class:list={["tabs tabs-box gap-1.5 filter-tabs-box", className]}
+  role="tablist"
+>
+  {
+    tabs.map((tab) => {
+      const isActive = tab.value === activeValue;
+      const officeClass = activeClasses[tab.value] || "";
+
+      return (
+        <button
+          type="button"
+          role="tab"
+          data-tab-value={tab.value}
+          aria-selected={isActive ? "true" : "false"}
+          class:list={[
+            "tab transition-all duration-200 flex items-center gap-2",
+            officeClass,
+            isActive ? "tab-active" : "",
+          ]}
+          onclick={submitOnChange ? `document.getElementById('filter-tabs-hidden-${name}').value = '${tab.value}'; this.form.submit();` : undefined}
+        >
+          <span>{tab.label}</span>
+          {tab.count !== undefined && (
+            <span class="badge badge-sm bg-base-200 text-current border-none">
+              {tab.count}
+            </span>
+          )}
+        </button>
+      );
+    })
+  }
+</div>
+
+<style is:global>
+  /* Base state for tabs inside tabs-box (neutral gray) */
+  .filter-tabs-box .tab {
+    background-color: color-mix(
+      in srgb,
+      var(--color-base-300, #e5e7eb) 60%,
+      transparent
+    ) !important;
+    border-color: color-mix(
+      in srgb,
+      var(--color-base-300, #e5e7eb) 40%,
+      transparent
+    ) !important;
+    color: color-mix(
+      in srgb,
+      var(--color-base-content, #000) 50%,
+      transparent
+    ) !important;
+    border-width: 1px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.02);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Hover state for tabs (subtle preview of representative color) */
+  .filter-tabs-box .tab:hover {
+    background-color: var(
+      --tab-bg-hover,
+      var(--color-base-300, #d1d5db)
+    ) !important;
+    border-color: var(
+      --tab-border-subtle,
+      var(--color-base-300, #d1d5db)
+    ) !important;
+    color: var(--tab-color-subtle, var(--color-base-content, #000)) !important;
+  }
+
+  /* Active state for tabs (full representative colors) */
+  .filter-tabs-box .tab.tab-active,
+  .filter-tabs-box .tab:checked {
+    background-color: var(--tab-bg, var(--color-base-100, #fff)) !important;
+    border-color: var(--tab-border, var(--color-base-300, #d1d5db)) !important;
+    color: var(--tab-color, var(--color-base-content, #000)) !important;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
+  }
+
+  /* office-tab-active-all */
+  .office-tab-active-all {
+    --tab-bg: var(--color-base-100);
+    --tab-border: var(--color-base-300);
+    --tab-color: var(--color-base-content);
+    --tab-bg-subtle: var(--color-base-200);
+    --tab-border-subtle: var(--color-base-300);
+    --tab-color-subtle: var(--color-base-content);
+    --tab-bg-hover: var(--color-base-300);
+  }
+
+  /* ADMINISTRACION */
+  .office-tab-active-administracion {
+    --tab-bg: var(--color-indigo-100, #e0e7ff);
+    --tab-border: var(--color-indigo-300, #a5b4fc);
+    --tab-color: var(--color-indigo-900, #1e1b4b);
+    --tab-bg-subtle: rgba(99, 102, 241, 0.08);
+    --tab-border-subtle: rgba(99, 102, 241, 0.25);
+    --tab-color-subtle: var(--color-indigo-900, #4338ca);
+    --tab-bg-hover: rgba(99, 102, 241, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-administracion {
+    --tab-bg: #1e1b4b;
+    --tab-border: #4338ca;
+    --tab-color: #e0e7ff;
+    --tab-bg-subtle: rgba(99, 102, 241, 0.12);
+    --tab-border-subtle: rgba(99, 102, 241, 0.35);
+    --tab-color-subtle: #c7d2fe;
+    --tab-bg-hover: rgba(99, 102, 241, 0.22);
+  }
+
+  /* AGENCIA */
+  .office-tab-active-agencia {
+    --tab-bg: var(--color-amber-100, #fef3c7);
+    --tab-border: var(--color-amber-300, #fcd34d);
+    --tab-color: var(--color-amber-900, #78350f);
+    --tab-bg-subtle: rgba(245, 158, 11, 0.08);
+    --tab-border-subtle: rgba(245, 158, 11, 0.25);
+    --tab-color-subtle: var(--color-amber-900, #d97706);
+    --tab-bg-hover: rgba(245, 158, 11, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-agencia {
+    --tab-bg: #78350f;
+    --tab-border: #b45309;
+    --tab-color: #fef3c7;
+    --tab-bg-subtle: rgba(245, 158, 11, 0.12);
+    --tab-border-subtle: rgba(245, 158, 11, 0.35);
+    --tab-color-subtle: #fde68a;
+    --tab-bg-hover: rgba(245, 158, 11, 0.22);
+  }
+
+  /* CDD */
+  .filter-tabs-box .office-tab-active-cdd {
+    --tab-bg: var(--color-blue-100, #dbeafe);
+    --tab-border: var(--color-blue-300, #93c5fd);
+    --tab-color: var(--color-blue-900, #1e3a8a);
+    --tab-bg-subtle: rgba(59, 130, 246, 0.08);
+    --tab-border-subtle: rgba(59, 130, 246, 0.25);
+    --tab-color-subtle: var(--color-blue-900, #1d4ed8);
+    --tab-bg-hover: rgba(59, 130, 246, 0.15);
+  }
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-cdd {
+    --tab-bg: #1e3a8a;
+    --tab-border: #1d4ed8;
+    --tab-color: #dbeafe;
+    --tab-bg-subtle: rgba(59, 130, 246, 0.12);
+    --tab-border-subtle: rgba(59, 130, 246, 0.35);
+    --tab-color-subtle: #bfdbfe;
+    --tab-bg-hover: rgba(59, 130, 246, 0.22);
+  }
+
+  /* CDP */
+  .filter-tabs-box .office-tab-active-cdp {
+    --tab-bg: var(--color-red-100, #fee2e2);
+    --tab-border: var(--color-red-300, #fca5a5);
+    --tab-color: var(--color-red-900, #7f1d1d);
+    --tab-bg-subtle: rgba(239, 68, 68, 0.08);
+    --tab-border-subtle: rgba(239, 68, 68, 0.25);
+    --tab-color-subtle: var(--color-red-900, #b91c1c);
+    --tab-bg-hover: rgba(239, 68, 68, 0.15);
+  }
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-cdp {
+    --tab-bg: #7f1d1d;
+    --tab-border: #b91c1c;
+    --tab-color: #fee2e2;
+    --tab-bg-subtle: rgba(239, 68, 68, 0.12);
+    --tab-border-subtle: rgba(239, 68, 68, 0.35);
+    --tab-color-subtle: #fecaca;
+    --tab-bg-hover: rgba(239, 68, 68, 0.22);
+  }
+
+  /* CTP */
+  .office-tab-active-ctp {
+    --tab-bg: var(--color-green-100, #dcfce7);
+    --tab-border: var(--color-green-300, #86efac);
+    --tab-color: var(--color-green-900, #14532d);
+    --tab-bg-subtle: rgba(34, 197, 94, 0.08);
+    --tab-border-subtle: rgba(34, 197, 94, 0.25);
+    --tab-color-subtle: var(--color-green-900, #16a34a);
+    --tab-bg-hover: rgba(34, 197, 94, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-ctp {
+    --tab-bg: #14532d;
+    --tab-border: #15803d;
+    --tab-color: #dcfce7;
+    --tab-bg-subtle: rgba(34, 197, 94, 0.12);
+    --tab-border-subtle: rgba(34, 197, 94, 0.35);
+    --tab-color-subtle: #bbf7d0;
+    --tab-bg-hover: rgba(34, 197, 94, 0.22);
+  }
+
+  /* CORREO COLABORATIVO */
+  .office-tab-active-correo-colaborativo {
+    --tab-bg: var(--color-cyan-100, #cffafe);
+    --tab-border: var(--color-cyan-300, #67e8f9);
+    --tab-color: var(--color-cyan-900, #164e63);
+    --tab-bg-subtle: rgba(6, 182, 212, 0.08);
+    --tab-border-subtle: rgba(6, 182, 212, 0.25);
+    --tab-color-subtle: var(--color-cyan-900, #0891b2);
+    --tab-bg-hover: rgba(6, 182, 212, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-correo-colaborativo {
+    --tab-bg: #164e63;
+    --tab-border: #0e7490;
+    --tab-color: #cffafe;
+    --tab-bg-subtle: rgba(6, 182, 212, 0.12);
+    --tab-border-subtle: rgba(6, 182, 212, 0.35);
+    --tab-color-subtle: #a5f3fc;
+    --tab-bg-hover: rgba(6, 182, 212, 0.22);
+  }
+
+  /* ESPECIALES */
+  .office-tab-active-especiales {
+    --tab-bg: var(--color-purple-100, #f3e8ff);
+    --tab-border: var(--color-purple-300, #d8b4fe);
+    --tab-color: var(--color-purple-900, #581c87);
+    --tab-bg-subtle: rgba(168, 85, 247, 0.08);
+    --tab-border-subtle: rgba(168, 85, 247, 0.25);
+    --tab-color-subtle: var(--color-purple-900, #9333ea);
+    --tab-bg-hover: rgba(168, 85, 247, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-especiales {
+    --tab-bg: #581c87;
+    --tab-border: #7e22ce;
+    --tab-color: #f3e8ff;
+    --tab-bg-subtle: rgba(168, 85, 247, 0.12);
+    --tab-border-subtle: rgba(168, 85, 247, 0.35);
+    --tab-color-subtle: #e9d5ff;
+    --tab-bg-hover: rgba(168, 85, 247, 0.22);
+  }
+
+  /* ESTAFETA */
+  .office-tab-active-estafeta {
+    --tab-bg: var(--color-lime-100, #f7fee7);
+    --tab-border: var(--color-lime-300, #bef264);
+    --tab-color: var(--color-lime-900, #365314);
+    --tab-bg-subtle: rgba(132, 204, 22, 0.08);
+    --tab-border-subtle: rgba(132, 204, 22, 0.25);
+    --tab-color-subtle: var(--color-lime-900, #65a30d);
+    --tab-bg-hover: rgba(132, 204, 22, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-estafeta {
+    --tab-bg: #365314;
+    --tab-border: #4d7c0f;
+    --tab-color: #bef264;
+    --tab-bg-subtle: rgba(132, 204, 22, 0.12);
+    --tab-border-subtle: rgba(132, 204, 22, 0.35);
+    --tab-color-subtle: #d9f99d;
+    --tab-bg-hover: rgba(132, 204, 22, 0.22);
+  }
+
+  /* GENERAL */
+  .office-tab-active-general {
+    --tab-bg: var(--color-stone-200, #e7e5e4);
+    --tab-border: var(--color-stone-300, #d6d3d1);
+    --tab-color: var(--color-stone-900, #1c1917);
+    --tab-bg-subtle: rgba(120, 113, 108, 0.08);
+    --tab-border-subtle: rgba(120, 113, 108, 0.25);
+    --tab-color-subtle: var(--color-stone-900, #57534e);
+    --tab-bg-hover: rgba(120, 113, 108, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-general {
+    --tab-bg: #292524;
+    --tab-border: #44403c;
+    --tab-color: #e7e5e4;
+    --tab-bg-subtle: rgba(120, 113, 108, 0.12);
+    --tab-border-subtle: rgba(120, 113, 108, 0.35);
+    --tab-color-subtle: #d6d3d1;
+    --tab-bg-hover: rgba(120, 113, 108, 0.22);
+  }
+
+  /* SUCURSAL AUTOMATIZADA */
+  .filter-tabs-box .office-tab-active-sucursal-automatizada {
+    --tab-bg: var(--color-yellow-100, #fef9c3);
+    --tab-border: var(--color-yellow-300, #fde047);
+    --tab-color: var(--color-yellow-900, #713f12);
+    --tab-bg-subtle: rgba(234, 179, 8, 0.08);
+    --tab-border-subtle: rgba(234, 179, 8, 0.25);
+    --tab-color-subtle: var(--color-yellow-900, #a16207);
+    --tab-bg-hover: rgba(234, 179, 8, 0.15);
+  }
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-sucursal-automatizada {
+    --tab-bg: #713f12;
+    --tab-border: #a16207;
+    --tab-color: #fef9c3;
+    --tab-bg-subtle: rgba(234, 179, 8, 0.12);
+    --tab-border-subtle: rgba(234, 179, 8, 0.35);
+    --tab-color-subtle: #fef08a;
+    --tab-bg-hover: rgba(234, 179, 8, 0.22);
+  }
+
+  /* SUCURSAL NO AUTOMATIZADA */
+  .filter-tabs-box .office-tab-active-sucursal-no-automatizada {
+    --tab-bg: var(--color-orange-100, #ffedd5);
+    --tab-border: var(--color-orange-300, #fdba74);
+    --tab-color: var(--color-orange-900, #7c2d12);
+    --tab-bg-subtle: rgba(249, 115, 22, 0.08);
+    --tab-border-subtle: rgba(249, 115, 22, 0.25);
+    --tab-color-subtle: var(--color-orange-900, #ea580c);
+    --tab-bg-hover: rgba(249, 115, 22, 0.15);
+  }
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-sucursal-no-automatizada {
+    --tab-bg: #7c2d12;
+    --tab-border: #ea580c;
+    --tab-color: #ffedd5;
+    --tab-bg-subtle: rgba(249, 115, 22, 0.12);
+    --tab-border-subtle: rgba(249, 115, 22, 0.35);
+    --tab-color-subtle: #fed7aa;
+    --tab-bg-hover: rgba(249, 115, 22, 0.22);
+  }
+
+  /* TELEGRAFIA */
+  .filter-tabs-box .office-tab-active-telegrafia {
+    --tab-bg: var(--color-emerald-100, #d1fae5);
+    --tab-border: var(--color-emerald-300, #6ee7b7);
+    --tab-color: var(--color-emerald-900, #064e3b);
+    --tab-bg-subtle: rgba(16, 185, 129, 0.08);
+    --tab-border-subtle: rgba(16, 185, 129, 0.25);
+    --tab-color-subtle: var(--color-emerald-900, #059669);
+    --tab-bg-hover: rgba(16, 185, 129, 0.15);
+  }
+  [data-theme="dark"] .filter-tabs-box .office-tab-active-telegrafia {
+    --tab-bg: #064e3b;
+    --tab-border: #047857;
+    --tab-color: #d1fae5;
+    --tab-bg-subtle: rgba(16, 185, 129, 0.12);
+    --tab-border-subtle: rgba(16, 185, 129, 0.35);
+    --tab-color-subtle: #a7f3d0;
+    --tab-bg-hover: rgba(16, 185, 129, 0.22);
+  }
+
+  /* UNIDAD POSTAL */
+  .filter-tabs-box .office-tab-active-unidad-postal {
+    --tab-bg: var(--color-rose-100, #ffe4e6);
+    --tab-border: var(--color-rose-300, #fda4af);
+    --tab-color: var(--color-rose-900, #4c0519);
+    --tab-bg-subtle: rgba(244, 63, 94, 0.08);
+    --tab-border-subtle: rgba(244, 63, 94, 0.25);
+    --tab-color-subtle: var(--color-rose-900, #e11d48);
+    --tab-bg-hover: rgba(244, 63, 94, 0.15);
+  }
+  [data-theme="dark"] .office-tab-active-unidad-postal {
+    --tab-bg: #4c0519;
+    --tab-border: #9f1239;
+    --tab-color: #ffe4e6;
+    --tab-bg-subtle: rgba(244, 63, 94, 0.12);
+    --tab-border-subtle: rgba(244, 63, 94, 0.35);
+    --tab-color-subtle: #fecdd3;
+    --tab-bg-hover: rgba(244, 63, 94, 0.22);
+  }
+</style>

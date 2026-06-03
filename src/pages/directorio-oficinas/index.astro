@@ -7,17 +7,26 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
+import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
+import { getOffices } from "@lib/officeQueries";
+import OfficeRow from "@components/offices/OfficeRow.astro";
 import {
-  getOfficeDirectoryItems,
-  type OfficeDirectoryItem,
-  type OfficeAssetType,
-  type OfficeType,
-} from "@/data/directorio_oficinas";
+  officeTypeLabelByType,
+  officeTypeTabActiveClassByType,
+  formatTypeLabel,
+} from "@lib/officeHelpers";
 import { db } from "@db/index";
-import { provinces, regions } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { provinces, regions, offices } from "@db/schema";
+import { eq, sql } from "drizzle-orm";
 
-const officeDirectoryItems = await getOfficeDirectoryItems();
+const searchParams = Astro.url.searchParams;
+
+const typeFilter = searchParams.get("type") || "all";
+const regionFilter = searchParams.get("region") || "all";
+let provinceFilter = searchParams.get("province") || "all";
+const zoneFilter = searchParams.get("zone") || "all";
+const paqarFilter = searchParams.get("paqar") || "all";
+const searchFilter = searchParams.get("search") || "";
 
 const allProvincesWithRegion = await db
   .select({
@@ -37,21 +46,95 @@ for (const p of allProvincesWithRegion) {
   provincesByRegion[rName].push({ code: p.code, name: p.name });
 }
 
-type BoxiconName = `boxicons:${string}`;
-
-interface OfficeTypeTab {
-  type: OfficeType | "all";
-  label: string;
+if (regionFilter !== "all" && provinceFilter !== "all") {
+  const regionProvinces = provincesByRegion[regionFilter] || [];
+  if (!regionProvinces.find((p) => p.code === provinceFilter)) {
+    provinceFilter = "all";
+  }
+} else if (regionFilter === "all") {
+  provinceFilter = "all";
 }
 
-const defaultOfficeType: OfficeType | "all" = "all";
+const { data: officeDirectoryItems, hasMore } = await getOffices({
+  page: 1, // SSR siempre renderiza la primera página de 100 items
+  limit: 100,
+  type: typeFilter,
+  region: regionFilter,
+  province: provinceFilter,
+  zone: zoneFilter,
+  paqar: paqarFilter,
+  search: searchFilter,
+});
 
-const officeTypeTabs: OfficeTypeTab[] = [
+const rawCounts = await db
+  .select({
+    type: offices.type,
+    officeType: offices.officeType,
+    count: sql<number>`count(*)`,
+  })
+  .from(offices)
+  .groupBy(offices.type, offices.officeType);
+
+const processedCounts: { type: string; count: number }[] = [];
+let sucursalAutoCount = 0;
+let sucursalNoAutoCount = 0;
+
+for (const row of rawCounts) {
+  if (!row.type) continue;
+  if (row.type === "SUCURSAL") {
+    if (row.officeType === "AUTOMATIZADA") {
+      sucursalAutoCount += row.count;
+    } else {
+      sucursalNoAutoCount += row.count;
+    }
+  } else {
+    const existing = processedCounts.find((p) => p.type === row.type);
+    if (existing) {
+      existing.count += row.count;
+    } else {
+      processedCounts.push({ type: row.type, count: row.count });
+    }
+  }
+}
+
+if (sucursalAutoCount > 0 || sucursalNoAutoCount > 0) {
+  if (sucursalAutoCount > 0) {
+    processedCounts.push({
+      type: "SUCURSAL_AUTOMATIZADA",
+      count: sucursalAutoCount,
+    });
+  }
+  if (sucursalNoAutoCount > 0) {
+    processedCounts.push({
+      type: "SUCURSAL_NO_AUTOMATIZADA",
+      count: sucursalNoAutoCount,
+    });
+  }
+}
+
+const officeCountByType = processedCounts.reduce(
+  (acc, row) => {
+    acc.all += row.count;
+    acc[row.type] = row.count;
+    return acc;
+  },
+  { all: 0 } as Record<string, number>,
+);
+
+processedCounts.forEach((row) => {
+  if (row.type && !officeTypeLabelByType[row.type]) {
+    officeTypeLabelByType[row.type] = formatTypeLabel(row.type);
+  }
+});
+
+const officeTypeTabs = [
   { type: "all", label: "Todas" },
-  { type: "comercial", label: "Comerciales" },
-  { type: "telegrafia", label: "Telegrafía" },
-  { type: "distribucion", label: "Distribución" },
-  { type: "paqueteria", label: "Paquetería" },
+  ...processedCounts
+    .sort((a, b) => b.count - a.count)
+    .map((row) => ({
+      type: row.type,
+      label: officeTypeLabelByType[row.type] || formatTypeLabel(row.type),
+    })),
 ];
 
 const uniqueRegions = [
@@ -62,98 +145,18 @@ const uniqueRegions = [
   ),
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
-const officeCountByType = officeDirectoryItems.reduce(
-  (counts: Record<OfficeType | "all", number>, office) => {
-    counts.all += 1;
-    counts[office.type] += 1;
-    return counts;
-  },
-  {
-    all: 0,
-    comercial: 0,
-    telegrafia: 0,
-    distribucion: 0,
-    paqueteria: 0,
-  }
-);
+const allZonesRaw = await db
+  .select({ zone: offices.zone })
+  .from(offices)
+  .where(sql`${offices.zone} IS NOT NULL AND ${offices.zone} != ''`)
+  .groupBy(offices.zone);
 
-const officeTypeLabelByType: Record<OfficeType, string> = {
-  comercial: "Comercial",
-  telegrafia: "Telegrafía",
-  distribucion: "Distribución",
-  paqueteria: "Paquetería",
-};
+const uniqueZones = allZonesRaw
+  .map((z) => z.zone)
+  .filter((z): z is string => Boolean(z))
+  .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
-const officeTypeChipClassByType: Record<OfficeType, string> = {
-  comercial: "office-type-chip office-type-chip-commercial",
-  telegrafia: "office-type-chip office-type-chip-telegrafia",
-  distribucion: "office-type-chip office-type-chip-distribucion",
-  paqueteria: "office-type-chip office-type-chip-paqueteria",
-};
-
-const officeTypeTabActiveClassByType: Record<OfficeType | "all", string> = {
-  all: "office-tab-active office-tab-active-all",
-  comercial: "office-tab-active office-tab-active-commercial",
-  telegrafia: "office-tab-active office-tab-active-telegrafia",
-  distribucion: "office-tab-active office-tab-active-distribucion",
-  paqueteria: "office-tab-active office-tab-active-paqueteria",
-};
-
-const assetIconByType: Record<OfficeAssetType, BoxiconName> = {
-  server: "boxicons:server-filled",
-  printer: "boxicons:printer-filled",
-  desktop: "boxicons:desktop-filled",
-  client: "boxicons:desktop-filled",
-};
-
-const assetLabelByType: Record<OfficeAssetType, string> = {
-  server: "Servidor",
-  printer: "Impresora",
-  desktop: "Terminal",
-  client: "Cliente",
-};
-
-const assetColorByType: Record<OfficeAssetType, string> = {
-  server: "bg-green-600 text-white border-green-700/30 shadow-sm shadow-green-500/20",
-  client: "bg-blue-600 text-white border-blue-700/30 shadow-sm shadow-blue-500/20",
-  desktop: "bg-blue-600 text-white border-blue-700/30 shadow-sm shadow-blue-500/20",
-  printer: "bg-purple-600 text-white border-purple-700/30 shadow-sm shadow-purple-500/20",
-};
-
-const assetOrderByType: Record<OfficeAssetType, number> = {
-  server: 1,
-  client: 2,
-  desktop: 2,
-  printer: 3,
-};
-
-const officeDirectoryHeaderGridClass = "grid-cols-10 gap-4";
-const officeDirectoryRowGridClass = "grid grid-cols-10 items-center gap-4";
-
-const groupedOffices = Array.from(
-  officeDirectoryItems.reduce((groups, office) => {
-    const currentItems = groups.get(office.location) ?? [];
-    currentItems.push(office);
-    groups.set(office.location, currentItems);
-    return groups;
-  }, new Map<string, OfficeDirectoryItem[]>()),
-).map(([location, offices]) => ({
-  location,
-  searchText: offices
-    .map((office) =>
-      [
-        office.location,
-        office.region,
-        office.costCenter,
-        office.postalCode,
-        office.code,
-        office.name,
-        office.address,
-      ].join(" "),
-    )
-    .join(" "),
-  offices,
-}));
+const officeDirectoryHeaderGridClass = "grid-cols-[48px_80px_1.2fr_90px_1.8fr] gap-4";
 
 const mainTabs = [
   { label: "Directorio de Oficinas", value: "directory" },
@@ -187,395 +190,212 @@ const sucursales: any[] = [];
 
     <!-- Contenedor de Directorio -->
     <div id="main-view-directory" class="space-y-6">
-      <section
+      <form
+        method="GET"
         class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
         aria-label="Filtros del directorio"
       >
-        <!-- Fila 1: Tabs -->
         <div class="w-full">
-          <div
-            role="tablist"
-            class="tabs tabs-box w-full bg-base-200/80 p-1 flex-nowrap overflow-x-auto"
-          >
-            {
-              officeTypeTabs.map((tab) => {
-                const isActive = tab.type === defaultOfficeType;
+          <FilterTabsBox
+            tabs={officeTypeTabs.map((tab) => ({
+              value: tab.type,
+              label: tab.label,
+              count: officeCountByType[tab.type],
+            }))}
+            activeValue={typeFilter}
+            name="type"
+            activeClasses={officeTypeTabActiveClassByType}
+            class="flex-wrap bg-base-200/50 p-2"
+          />
+        </div>
 
-                return (
-                  <button
-                    type="button"
-                    role="tab"
-                    data-office-tab
-                    data-office-type={tab.type}
-                    aria-selected={isActive ? "true" : "false"}
-                    class:list={[
-                      "tab flex-1 gap-2 rounded-lg border border-transparent transition-colors lg:flex-none",
-                      isActive && officeTypeTabActiveClassByType[tab.type],
-                    ]}
+        <div class="flex flex-wrap items-center gap-3 w-full">
+          <select
+            name="region"
+            id="regionFilter"
+            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Filtrar por región"
+            onchange="document.getElementById('provinceFilter').value='all'; this.form.submit()"
+          >
+            <option value="all" selected={regionFilter === "all"}
+              >Regiones (Todas)</option
+            >
+            {
+              uniqueRegions.map((region) => (
+                <option value={region} selected={regionFilter === region}>
+                  {region}
+                </option>
+              ))
+            }
+          </select>
+
+          <select
+            name="province"
+            id="provinceFilter"
+            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Filtrar por provincia"
+            onchange="this.form.submit()"
+            disabled={regionFilter === "all"}
+          >
+            <option value="all" selected={provinceFilter === "all"}
+              >Provincias (Todas)</option
+            >
+            {
+              regionFilter !== "all" &&
+                (provincesByRegion[regionFilter] || []).map((prov) => (
+                  <option
+                    value={prov.code}
+                    selected={provinceFilter === prov.code}
                   >
-                    <span>{tab.label}</span>
-                    <span class="badge badge-sm bg-base-100 text-base-content/70">
-                      {officeCountByType[tab.type]}
-                    </span>
-                  </button>
-                );
-              })
+                    {prov.name}
+                  </option>
+                ))
+            }
+          </select>
+
+          <select
+            name="zone"
+            id="zoneFilter"
+            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Filtrar por zona"
+            onchange="this.form.submit()"
+          >
+            <option value="all" selected={zoneFilter === "all"}
+              >Zonas (Todas)</option
+            >
+            {
+              uniqueZones.map((zone) => (
+                <option value={zone} selected={zoneFilter === zone}>
+                  {zone}
+                </option>
+              ))
+            }
+          </select>
+
+          <select
+            name="paqar"
+            id="paqarFilter"
+            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Filtrar por servicios Paq.AR"
+            onchange="this.form.submit()"
+          >
+            <option value="all" selected={paqarFilter === "all"}
+              >Paq.AR (Todos)</option
+            >
+            <option value="admision" selected={paqarFilter === "admision"}
+              >Admite Paq.AR</option
+            >
+            <option value="entrega" selected={paqarFilter === "entrega"}
+              >Entrega Paq.AR</option
+            >
+            <option value="ambos" selected={paqarFilter === "ambos"}
+              >Admite y Entrega</option
+            >
+          </select>
+
+          <div class="flex-2 min-w-70 flex gap-2">
+            <SearchInput
+              id="office-search"
+              name="search"
+              value={searchFilter}
+              label="Buscar oficina por nombre, código, región o código postal"
+              placeholder="Buscar por nombre, código, región o CP"
+              class="flex-1"
+            />
+            {
+              (typeFilter !== "all" ||
+                regionFilter !== "all" ||
+                provinceFilter !== "all" ||
+                zoneFilter !== "all" ||
+                paqarFilter !== "all" ||
+                searchFilter !== "") && (
+                <a
+                  href="/directorio-oficinas"
+                  class="btn btn-soft text-base-content/70 hover:text-base-content"
+                  aria-label="Limpiar filtros"
+                  title="Limpiar todos los filtros"
+                >
+                  Limpiar
+                </a>
+              )
             }
           </div>
         </div>
-
-        <div class="flex flex-col sm:flex-row gap-3 w-full">
-          <select
-            id="regionFilter"
-            class="select border-base-300 w-full sm:w-auto sm:min-w-48 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por región"
-          >
-            <option value="all">Todas las regiones</option>
-            {uniqueRegions.map((region) => (
-              <option value={region}>{region}</option>
-            ))}
-          </select>
-          <select
-            id="provinceFilter"
-            class="select border-base-300 w-full sm:w-auto sm:min-w-48 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por provincia"
-            disabled
-          >
-            <option value="all">Todas las provincias</option>
-          </select>
-          <SearchInput
-            id="office-search"
-            label="Buscar oficina por nombre, código, región o código postal"
-            placeholder="Buscar por nombre, código, región o CP"
-            class="flex-1"
-          />
-        </div>
-      </section>
+      </form>
 
       <div id="office-table-wrapper">
         <MasterDetailTable
-        ariaLabel="Directorio de oficinas"
-        minWidthClass="min-w-280"
-        headerGridClass={officeDirectoryHeaderGridClass}
-        class="bg-base-100"
-      >
-        <div slot="header" class="col-span-1">
-          <DataTableHeaderCell>
-            <span class="sr-only">Expandir detalle</span>
-          </DataTableHeaderCell>
+          ariaLabel="Directorio de oficinas"
+          minWidthClass="min-w-280"
+          headerGridClass={officeDirectoryHeaderGridClass}
+          class="bg-base-100"
+        >
+          <div slot="header">
+            <DataTableHeaderCell>
+              <span class="sr-only">Expandir detalle</span>
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="parent-nis">Dependencia</DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="address">Dirección</DataTableHeaderCell>
+          </div>
+            {
+              officeDirectoryItems.map((office) => (
+                <OfficeRow office={office} />
+              ))
+            }
+        </MasterDetailTable>
+
+        <div
+          id="no-results-state"
+          class:list={[
+            "py-24 flex flex-col items-center justify-center text-center px-4 animate-in fade-in duration-500",
+            officeDirectoryItems.length > 0 && "hidden"
+          ]}
+        >
+          <div class="relative size-24 mb-8 group">
+            <div class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors" />
+            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md" />
+            <div class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105">
+              <Icon
+                name="boxicons:map-filled"
+                class="size-10 text-base-content/40"
+              />
+            </div>
+          </div>
+          <h3 class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight">
+            No hay coincidencias
+          </h3>
+          <p class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm">
+            No hemos podido encontrar oficinas que coincidan con los
+            filtros seleccionados. Probá modificando los criterios o
+            restableciendo la búsqueda para explorar el directorio
+            completo.
+          </p>
+          <a
+            href={import.meta.env.BASE_URL + "directorio-oficinas"}
+            class="btn btn-primary rounded-full px-8 shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-transform duration-300"
+          >
+            <Icon
+              name="boxicons:refresh-ccw-filled"
+              class="size-5 mr-1.5"
+            />
+            Restablecer filtros
+          </a>
         </div>
-        <div slot="header" class="col-span-2">
-          <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
+
+        <div id="scroll-sentinel" class="py-8 text-center flex justify-center" data-has-more={hasMore ? "true" : "false"}>
+          <span class="loading loading-spinner loading-md text-primary hidden" id="loading-spinner"></span>
         </div>
-        <div slot="header" class="col-span-3">
-          <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
-        </div>
-        <div slot="header" class="col-span-4">
-          <DataTableHeaderCell sortKey="address">Dirección</DataTableHeaderCell>
-        </div>
-        {
-          groupedOffices.map((group) =>
-            group.offices.map((office, index) => {
-              const isVisibleByDefault = defaultOfficeType === "all" || office.type === defaultOfficeType;
-              const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[office.type]}`;
-
-              return (
-                <>
-                  {index === 0 && (
-                    <div
-                      data-location-group-row
-                      data-master-detail-group-header={group.location}
-                      data-location-group={group.location}
-                      data-search-text={group.searchText}
-                      class="hidden border-b border-base-300 bg-base-200/80 px-5 py-3"
-                    >
-                      <div class="flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                          <p class="flex items-center gap-2 text-sm font-semibold text-base-content">
-                            <Icon
-                              name="boxicons:buildings-filled"
-                              class="size-4 shrink-0 text-secondary"
-                              aria-hidden="true"
-                            />
-                            <span>{group.location}</span>
-                          </p>
-                          <p class="mt-1 text-xs text-base-content/60">
-                            {group.offices.length} oficinas en esta locación
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <article
-                    data-master-detail-sort-item
-                    data-office-id={office.id}
-                    data-office-type={office.type}
-                    data-office-location={office.location}
-                    data-region={office.region}
-                    data-province-code={office.provinceCode}
-                    data-search-text={searchText}
-                    data-sort-code={office.code}
-                    data-sort-name={office.name}
-                    data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
-                    data-sort-group={office.location}
-                    class:list={["block", !isVisibleByDefault && "hidden"]}
-                  >
-                    <div
-                      data-office-master-row
-                      data-office-id={office.id}
-                      role="button"
-                      tabindex="0"
-                      aria-expanded="false"
-                      class:list={[
-                        officeDirectoryRowGridClass,
-                        "cursor-pointer border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50",
-                      ]}
-                    >
-                      <div class="col-span-1">
-                        <span
-                          class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
-                          aria-hidden="true"
-                        >
-                          <Icon
-                            name="boxicons:chevron-down-filled"
-                            data-chevron-closed
-                            class="size-4"
-                          />
-                          <Icon
-                            name="boxicons:chevron-up-filled"
-                            data-chevron-open
-                            class="hidden size-4"
-                          />
-                        </span>
-                      </div>
-
-                      <div class="col-span-2">
-                        <span
-                          class:list={[
-                            "inline-flex px-2 py-1 font-mono text-sm font-semibold",
-                            officeTypeChipClassByType[office.type],
-                          ]}
-                          data-highlight-target
-                        >
-                          {office.code}
-                        </span>
-                      </div>
-
-                      <div class="col-span-3 min-w-0">
-                        <div class="min-w-0">
-                          <p class="truncate text-sm font-semibold text-base-content">
-                            <span data-highlight-target>{office.name}</span>
-                          </p>
-                          <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55">
-                            <span>{officeTypeLabelByType[office.type]}</span>
-                            <span class="text-base-content/35">/</span>
-                            <span>{office.contacts.length} contactos</span>
-                            <span class="text-base-content/35">/</span>
-                            <span>{office.assets.length} activos</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="col-span-4 min-w-0">
-                        <div class="min-w-0 space-y-1">
-                          <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
-                            <Icon
-                              name="boxicons:location-pin-filled"
-                              class="size-4 shrink-0 text-secondary"
-                              aria-hidden="true"
-                            />
-                            <span class="truncate" title={office.address}>
-                              {office.address}
-                            </span>
-                          </p>
-                          <p class="truncate text-xs text-base-content/55">
-                            {office.location}
-                          </p>
-                          <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60">
-                            <span data-highlight-target>{office.region}</span>
-                            {office.postalCode && (
-                              <>
-                                <span class="text-base-content/35">/</span>
-                                <span class="font-mono" data-highlight-target>
-                                  CP {office.postalCode}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      data-office-detail-row
-                      data-office-id={office.id}
-                      class="hidden border-b border-base-300 bg-base-200/20"
-                    >
-                      <div class="office-detail-panel m-3 rounded-lg border border-base-300 bg-base-200/60 p-4 md:p-5">
-                        <div class="grid gap-5 lg:grid-cols-2">
-                          <div class="space-y-5">
-                            {/* --- Sección de correo y notas --- */}
-                            {(office.email || office.notes) && (
-                              <section class="space-y-3">
-                                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                                  <Icon
-                                    name="boxicons:info-circle-filled"
-                                    class="size-4 text-secondary"
-                                    aria-hidden="true"
-                                  />
-                                  Informacion de la oficina
-                                </h2>
-                                <div class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md space-y-2">
-                                  {office.email && (
-                                    <p class="flex items-center gap-2 text-sm text-base-content/80">
-                                      <Icon
-                                        name="boxicons:envelope-filled"
-                                        class="size-4 shrink-0 text-base-content/50"
-                                        aria-hidden="true"
-                                      />
-                                      <span class="font-mono text-xs break-all">{office.email}</span>
-                                    </p>
-                                  )}
-                                  {office.notes && (
-                                    <p class="flex items-start gap-2 text-xs text-base-content/60">
-                                      <Icon
-                                        name="boxicons:note-filled"
-                                        class="mt-0.5 size-4 shrink-0 text-base-content/40"
-                                        aria-hidden="true"
-                                      />
-                                      <span>{office.notes}</span>
-                                    </p>
-                                  )}
-                                </div>
-                              </section>
-                            )}
-
-                            {/* --- Sección de contactos --- */}
-                            <section class="min-w-0 space-y-3">
-                              <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                                <Icon
-                                  name="boxicons:user-filled"
-                                  class="size-4 text-secondary"
-                                  aria-hidden="true"
-                                />
-                                Contactos de la oficina
-                              </h2>
-
-                              {office.contacts.length > 0 ? (
-                                <div class="grid gap-3 sm:grid-cols-2">
-                                  {office.contacts.map((contact) => (
-                                    <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md">
-                                      <h3 class="truncate text-sm font-semibold text-base-content">
-                                        {contact.name}
-                                      </h3>
-                                      <div class="mt-3 space-y-2 text-xs text-base-content/70">
-                                        {contact.timeSlot && (
-                                          <p class="flex items-center gap-2">
-                                            <Icon
-                                              name="boxicons:clock-filled"
-                                              class="size-4 shrink-0 text-base-content/50"
-                                              aria-hidden="true"
-                                            />
-                                            <span>{contact.timeSlot}</span>
-                                          </p>
-                                        )}
-                                        {contact.phone && (
-                                          <p class="flex items-center gap-2">
-                                            <Icon
-                                              name="boxicons:phone-filled"
-                                              class="size-4 shrink-0 text-base-content/50"
-                                              aria-hidden="true"
-                                            />
-                                            <span class="font-mono">
-                                              {contact.phone}
-                                            </span>
-                                          </p>
-                                        )}
-                                      </div>
-                                    </article>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
-                                  Sin contactos cargados para esta oficina.
-                                </p>
-                              )}
-                            </section>
-                          </div>
-
-                          <section class="min-w-0 space-y-3">
-                            <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                              <Icon
-                                name="boxicons:desktop-filled"
-                                class="size-4 text-secondary"
-                                aria-hidden="true"
-                              />
-                              Activos tecnológicos
-                            </h2>
-
-                            {office.assets.length > 0 ? (
-                              <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-md">
-                                <table class="table table-sm">
-                                  <thead>
-                                    <tr class="text-xs uppercase tracking-wide text-base-content/60">
-                                      <th>Tipo / Hostname</th>
-                                      <th>Dirección IP</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {[...office.assets].sort((a, b) => assetOrderByType[a.type] - assetOrderByType[b.type]).map((asset) => (
-                                      <tr>
-                                        <td>
-                                          <div class="flex min-w-0 items-center gap-3">
-                                            <span
-                                              class:list={[
-                                                "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                                                assetColorByType[asset.type]
-                                              ]}
-                                              aria-hidden="true"
-                                            >
-                                              <Icon
-                                                name={
-                                                  assetIconByType[asset.type] || "boxicons:info-circle-filled"
-                                                }
-                                                class="size-4"
-                                              />
-                                            </span>
-                                            <div class="min-w-0">
-                                              <p class="text-xs font-medium text-base-content/60">
-                                                {assetLabelByType[asset.type]}
-                                              </p>
-                                              <p class="truncate font-mono text-sm font-semibold text-base-content">
-                                                {asset.hostname}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td class="font-mono text-sm">
-                                          {asset.ip}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
-                                Sin activos tecnológicos registrados.
-                              </p>
-                            )}
-                          </section>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                </>
-              );
-            }),
-          )
-        }
-      </MasterDetailTable>
+      </div> </div>
       </div>
     </div>
 
@@ -629,464 +449,79 @@ const sucursales: any[] = [];
       </div>
     </div>
   </PageContainer>
+</BaseLayout>
 
-  <!-- Data para client-side (Astro Islands) -->
-  <script is:inline define:vars={{ sucursales, provincesByRegion }}>
+<!-- Data para client-side (Astro Islands) -->
+<script is:inline define:vars={{ sucursales, provincesByRegion, typeFilter }}>
+  window._SUCURSALES_DATA = sucursales;
+  window._PROVINCES_BY_REGION = provincesByRegion;
+  window._TYPE_FILTER = typeFilter;
+</script>
 
-    window._SUCURSALES_DATA = sucursales;
-    window._PROVINCES_BY_REGION = provincesByRegion;
-  </script>
+<script
+  is:inline
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
 
-  <!-- Script de Leaflet (CDN) y lógica combinada -->
-  <script
-    is:inline
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""></script>
+<script>
+  import { highlightSearchTargets } from "@lib/clientSearch";
+  import {
+    bindMasterDetailTableSort,
+    refreshMasterDetailTableSort,
+  } from "@lib/clientMasterDetailTableSort";
 
-  <script>
-    import {
-      highlightSearchTargets,
-      matchesSearchQuery,
-    } from "@lib/clientSearch";
-    import { refreshMasterDetailTableSort } from "@lib/clientMasterDetailTableSort";
+  declare const L: any;
 
-    declare const L: any;
+  const mainViewDir = document.getElementById("main-view-directory");
+  const mainViewMap = document.getElementById("main-view-map");
 
+  const tableRoot = document.querySelector<HTMLElement>("[data-master-detail-table-root]");
+  const container = tableRoot?.querySelector<HTMLElement>("[data-master-detail-table-body]");
+  const sentinel = document.getElementById("scroll-sentinel");
+  const spinner = document.getElementById("loading-spinner");
+  const noResultsState = document.getElementById("no-results-state");
+  const searchInput = document.querySelector<HTMLInputElement>("#office-search");
+  const form = document.querySelector<HTMLFormElement>("form");
 
-    const mainViewDir = document.getElementById("main-view-directory");
-    const mainViewMap = document.getElementById("main-view-map");
+  let currentPage = 1;
+  let currentSearch = searchInput?.value.trim() || "";
+  let isLoading = false;
+  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
 
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+  });
 
-    const tabButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("[data-office-tab]"),
-    );
-    const tableRoot = document.querySelector<HTMLElement>(
-      "[data-master-detail-table-root]",
-    );
-    const officeItems = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"),
-    );
+  const bindRowEvents = (parent: HTMLElement | Document = document) => {
     const masterRows = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-office-master-row]"),
+      parent.querySelectorAll<HTMLElement>("[data-office-master-row]")
     );
-    const detailRows = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-office-detail-row]"),
-    );
-    const locationGroupRows = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-location-group-row]"),
-    );
-    const searchInput =
-      document.querySelector<HTMLInputElement>("#office-search");
-    const regionFilter =
-      document.querySelector<HTMLSelectElement>("#regionFilter");
-    const provinceFilter =
-      document.querySelector<HTMLSelectElement>("#provinceFilter");
-    const categoryEmptyState = document.querySelector<HTMLElement>(
-      "#office-category-empty-state",
-    );
-
-    let selectedOfficeType = "all";
-    let expandedOfficeId: string | null = null;
-    const tabActiveClassesByType: Record<string, string> = {
-      all: "office-tab-active office-tab-active-all",
-      comercial: "office-tab-active office-tab-active-commercial",
-      telegrafia: "office-tab-active office-tab-active-telegrafia",
-      distribucion: "office-tab-active office-tab-active-distribucion",
-      paqueteria: "office-tab-active office-tab-active-paqueteria",
-    };
-
-    const detailRowById = new Map(
-      detailRows.map((row) => [row.dataset.officeId ?? "", row]),
-    );
-    const masterRowById = new Map(
-      masterRows.map((row) => [row.dataset.officeId ?? "", row]),
-    );
-
-    const isItemVisible = (item: HTMLElement): boolean => {
-      const matchesType =
-        selectedOfficeType === "all" ||
-        item.dataset.officeType === selectedOfficeType;
-        
-      const regionValue = regionFilter?.value || "all";
-      const matchesRegion =
-        regionValue === "all" || item.dataset.region === regionValue;
-
-      const provinceValue = provinceFilter?.value || "all";
-      const matchesProvince =
-        provinceValue === "all" || item.dataset.provinceCode === provinceValue;
-        
-      const matchesSearch = matchesSearchQuery(searchInput?.value.trim(), [
-        item.dataset.searchText,
-      ]);
-
-      return matchesType && matchesRegion && matchesProvince && matchesSearch;
-    };
-
-    const updateRows = (): void => {
-      const rawSearchValue = searchInput?.value.trim() ?? "";
-      let visibleRows = 0;
-      let expandedRowIsVisible = false;
-
-      if (tableRoot) {
-        tableRoot.dataset.masterDetailView =
-          selectedOfficeType === "all" ? "grouped" : "flat";
-      }
-
-      officeItems.forEach((item) => {
-        const itemIsVisible = isItemVisible(item);
-
-        if (itemIsVisible) {
-          visibleRows += 1;
-        }
-
-        if (itemIsVisible && item.dataset.officeId === expandedOfficeId) {
-          expandedRowIsVisible = true;
-        }
-      });
-
-      if (!expandedRowIsVisible) {
-        expandedOfficeId = null;
-      }
-
-      officeItems.forEach((item) => {
-        const officeId = item.dataset.officeId ?? "";
-        const itemIsVisible = isItemVisible(item);
-        const rowIsExpanded = itemIsVisible && officeId === expandedOfficeId;
-        const row = masterRowById.get(officeId);
-        const detailRow = detailRowById.get(officeId);
-        const openIcon = row?.querySelector<HTMLElement>("[data-chevron-open]");
-        const closedIcon = row?.querySelector<HTMLElement>(
-          "[data-chevron-closed]",
-        );
-
-        item.classList.toggle("hidden", !itemIsVisible);
-        row?.classList.toggle("bg-base-200/70", rowIsExpanded);
-        row?.setAttribute("aria-expanded", rowIsExpanded ? "true" : "false");
-        highlightSearchTargets(item, itemIsVisible ? rawSearchValue : "");
-
-        openIcon?.classList.toggle("hidden", !rowIsExpanded);
-        closedIcon?.classList.toggle("hidden", rowIsExpanded);
-        detailRow?.classList.toggle("hidden", !rowIsExpanded);
-      });
-
-      locationGroupRows.forEach((groupRow) => {
-        const location = groupRow.dataset.locationGroup ?? "";
-        const hasVisibleRows = officeItems.some((item) => {
-          const isVisible = !item.classList.contains("hidden");
-          return isVisible && item.dataset.officeLocation === location;
-        });
-        const showGroup = selectedOfficeType === "all" && hasVisibleRows;
-
-        groupRow.classList.toggle("hidden", !showGroup);
-      });
-
-      const hasItemsInType = selectedOfficeType === "all" || officeItems.some((item) => item.dataset.officeType === selectedOfficeType);
-      const showCategoryEmpty = !hasItemsInType;
-
-      categoryEmptyState?.classList.toggle("hidden", !showCategoryEmpty);
-    };
-
-
-    let map: any = null;
-    const initializeMap = () => {
-      if (map) return;
-      const dataMap = (window as any)._SUCURSALES_DATA || [];
-      const provincesData = (window as any)._PROVINCES_BY_REGION || {};
-      
-      const provinceToRegion: Record<string, string> = {};
-      const regionsArray: string[] = [];
-      for (const [regionName, provs] of Object.entries(provincesData)) {
-        regionsArray.push(regionName);
-        for (const p of provs as any[]) {
-          provinceToRegion[p.name] = regionName;
-        }
-      }
-      
-      const regionColors = [
-        "#003B71", // Azul Institucional
-        "#FFCC00", // Amarillo Institucional
-        "#2ECC71", // Verde
-        "#E74C3C", // Rojo
-        "#9B59B6", // Púrpura
-        "#F39C12", // Naranja
-        "#1ABC9C", // Turquesa
-        "#34495E", // Gris oscuro
-        "#D35400", // Naranja oscuro
-        "#2980B9"  // Azul claro
-      ];
-
-      const normalizeProvinceName = (geoName: string) => {
-        if (geoName === "Tierra del Fuego, Antártida e Islas del Atlántico Sur") return "Tierra del Fuego";
-        if (geoName === "Ciudad Autónoma de Buenos Aires") return "CABA";
-        return geoName;
-      };
-
-      const getRegionColor = (provinceName: string) => {
-        const dbName = normalizeProvinceName(provinceName);
-        const region = provinceToRegion[dbName];
-        if (!region) return "#7F8C8D"; // Gris default si no tiene región
-        const idx = regionsArray.indexOf(region);
-        return regionColors[idx % regionColors.length];
-      };
-
-      const bounds = [
-        [-56.0, -74.0],
-        [-21.0, -53.0],
-      ];
-
-      map = L.map("mapa-sucursales", {
-        maxBounds: bounds as any,
-        maxBoundsViscosity: 1.0,
-      }).setView([-38.5, -64.0], 4);
-
-      L.tileLayer(
-        "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{-y}.png",
-        {
-          maxZoom: 18,
-          minZoom: 3,
-          attribution:
-            '&copy; <a href="https://www.ign.gob.ar/AreaServicios/Argenmap/IntroduccionV2" target="_blank">Instituto Geográfico Nacional</a> + <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
-        },
-      ).addTo(map);
-
-      const grupoPoligonos = L.layerGroup().addTo(map);
-      const grupoEtiquetas = L.layerGroup().addTo(map);
-      const grupoSucursales = L.layerGroup().addTo(map);
-
-      let polygonsVisible = true;
-      let labelsVisible = true;
-      let markersVisible = true;
-
-
-      const polyBtn = document.getElementById("toggle-polygons");
-      const polyText = document.getElementById("polygons-text");
-      if (polyBtn) {
-        polyBtn.addEventListener("click", () => {
-          if (polygonsVisible) {
-            map.removeLayer(grupoPoligonos);
-            if (polyText) polyText.textContent = "Mostrar Polígonos";
-          } else {
-            map.addLayer(grupoPoligonos);
-            if (polyText) polyText.textContent = "Ocultar Polígonos";
-          }
-          polygonsVisible = !polygonsVisible;
-          polyBtn.classList.toggle("btn-active");
-        });
-      }
-
-      const labelsBtn = document.getElementById("toggle-labels");
-      const labelsText = document.getElementById("labels-text");
-      if (labelsBtn) {
-        labelsBtn.addEventListener("click", () => {
-          if (labelsVisible) {
-            map.removeLayer(grupoEtiquetas);
-            if (labelsText) labelsText.textContent = "Mostrar Letras";
-          } else {
-            map.addLayer(grupoEtiquetas);
-            if (labelsText) labelsText.textContent = "Ocultar Letras";
-            setTimeout(updateLabelsScale, 0);
-          }
-          labelsVisible = !labelsVisible;
-          labelsBtn.classList.toggle("btn-active");
-        });
-      }
-
-      const markerToggleBtn = document.getElementById("toggle-markers");
-      const markerToggleText = document.getElementById("marker-toggle-text");
-      if (markerToggleBtn) {
-        markerToggleBtn.addEventListener("click", () => {
-          if (markersVisible) {
-            map.removeLayer(grupoSucursales);
-            if (markerToggleText)
-              markerToggleText.textContent = "Mostrar Sucursales";
-          } else {
-            map.addLayer(grupoSucursales);
-            if (markerToggleText)
-              markerToggleText.textContent = "Ocultar Sucursales";
-          }
-          markersVisible = !markersVisible;
-          markerToggleBtn.classList.toggle("btn-active");
-        });
-      }
-
-      function updateLabelsScale() {
-        const z = map.getZoom();
-        let scale = 0;
-        let opacity = 0;
-        if (z >= 5) {
-          scale = Math.min(Math.max(0.45, (z - 5) * 0.2 + 0.45), 0.8);
-          opacity = z >= 6 ? 0.9 : 0.7;
-        }
-        document
-          .querySelectorAll<HTMLElement>(".polygon-label")
-          .forEach((el) => {
-            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            el.style.opacity = opacity.toString();
-            el.style.pointerEvents = scale > 0.3 ? "auto" : "none";
-            el.style.visibility = z < 5 ? "hidden" : "visible";
-          });
-      }
-      map.on("zoomend", updateLabelsScale);
-      map.on("zoom", updateLabelsScale);
-
-      const sucursalMarkerIcon = L.divIcon({
-        className: "bg-transparent",
-        html: `
-            <div class="relative group cursor-pointer animate-fade-in" style="margin-top: -10px; margin-left: -10px;">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
-                   class="w-10 h-10 transition-transform hover:scale-110 text-primary drop-shadow-lg"
-                   style="color: #003B71; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
-                <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-              </svg>
-            </div>
-          `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -38],
-      });
-
-      const provinceLetters: Record<string, string> = {
-        "Ciudad Autónoma de Buenos Aires": "C",
-        "Buenos Aires": "B",
-        Catamarca: "K",
-        Chaco: "H",
-        Chubut: "U",
-        Córdoba: "X",
-        Corrientes: "W",
-        "Entre Ríos": "E",
-        Formosa: "P",
-        Jujuy: "Y",
-        "La Pampa": "L",
-        "La Rioja": "F",
-        Mendoza: "M",
-        Misiones: "N",
-        Neuquén: "Q",
-        "Río Negro": "R",
-        Salta: "A",
-        "San Juan": "J",
-        "San Luis": "D",
-        "Santa Cruz": "Z",
-        "Santa Fe": "S",
-        "Santiago del Estero": "G",
-        "Tierra del Fuego, Antártida e Islas del Atlántico Sur": "V",
-        Tucumán: "T",
-      };
-
-      const labelOverrides: Record<string, [number, number]> = {
-        "Santa Fe": [-30.8, -61.6],
-        "Buenos Aires": [-36.8, -60.1],
-        "Tierra del Fuego, Antártida e Islas del Atlántico Sur": [-54.3, -67.0],
-      };
-
-      fetch("/data/argentina_provincias.geojson")
-        .then((res) => res.json())
-        .then((geoData) => {
-          L.geoJSON(geoData, {
-            style: function (feature: any) {
-              const name = feature.properties.nombre;
-              const color = getRegionColor(name);
-              return {
-                color: color,
-                weight: 1.5,
-                fillColor: color,
-                fillOpacity:
-                  name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15,
-              };
-            },
-            onEachFeature: function (feature: any, layer: any) {
-              const name = feature.properties.nombre;
-              const dbName = normalizeProvinceName(name);
-              const regionName = provinceToRegion[dbName] || "Sin región";
-              const color = getRegionColor(name);
-              layer.bindPopup(
-                `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-gray-600'>${regionName}</span></div>`,
-                { className: "custom-popup" },
-              );
-              const letter = provinceLetters[name];
-              if (letter) {
-                const centroid = feature.properties.centroide;
-                const pos = labelOverrides[name] || [
-                  centroid.lat,
-                  centroid.lon,
-                ];
-                const shadow = "rgba(255,255,255,0.8)";
-                let fontSize = "3.5rem";
-                if (letter === "C") fontSize = "2rem";
-                if (["B", "S", "X"].includes(letter)) fontSize = "4.2rem";
-                L.marker(pos as any, {
-                  icon: L.divIcon({
-                    className: "bg-transparent",
-                    html: `<div class="polygon-label font-black text-secondary opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); text-shadow: 0 2px 8px ${shadow}; line-height: 1; color: ${color}; font-size: ${fontSize};">${letter}</div>`,
-                    iconSize: [0, 0],
-                  }),
-                  interactive: false,
-                }).addTo(grupoEtiquetas);
-              }
-            },
-          }).addTo(grupoPoligonos);
-          updateLabelsScale();
-        });
-
-      dataMap.forEach((sucursal: any) => {
-        const { lat, lng } = sucursal.ubicación;
-        const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${sucursal.ubicación.nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${sucursal.nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex justify-between items-center bg-gray-50 px-2 py-1 rounded"><span class="font-semibold text-gray-500">Región</span><span class="font-bold text-gray-800">${sucursal.region}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Equipos PC</span><span class="font-bold text-gray-700">${sucursal.cantidad_pc}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Servidores</span><span class="font-bold text-gray-700">${sucursal.servidores}</span></div><div class="flex justify-between pt-1.5 mt-1.5 border-t border-gray-100 px-2"><span class="text-gray-500">Contacto</span><a href="tel:${sucursal.contacto}" class="text-blue-600 font-bold hover:underline">${sucursal.contacto}</a></div></div></div>`;
-        L.marker([lat, lng], { icon: sucursalMarkerIcon })
-          .addTo(grupoSucursales)
-          .bindPopup(popupContent, { className: "custom-popup" });
-      });
-    };
-
-
-    const switcher = document.getElementById("main-view-switcher");
-
-    switcher?.addEventListener("view-change", (e: any) => {
-      const value = e.detail.value;
-      if (value === "directory") {
-        mainViewDir?.classList.remove("hidden");
-        mainViewMap?.classList.add("hidden");
-      } else if (value === "map") {
-        mainViewDir?.classList.add("hidden");
-        mainViewMap?.classList.remove("hidden");
-        initializeMap();
-        setTimeout(() => {
-          if (map) map.invalidateSize();
-        }, 100);
-      }
-    });
-
-    tabButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        selectedOfficeType = button.dataset.officeType ?? selectedOfficeType;
-        expandedOfficeId = null;
-        tabButtons.forEach((tab) => {
-          const isActive = tab === button;
-          Object.values(tabActiveClassesByType)
-            .flatMap((value) => value.split(" "))
-            .forEach((className) => {
-              tab.classList.toggle(className, false);
-            });
-          if (isActive) {
-            const activeType = tab.dataset.officeType ?? "all";
-            tabActiveClassesByType[activeType]
-              .split(" ")
-              .forEach((className) => {
-                tab.classList.add(className);
-              });
-          }
-          tab.setAttribute("aria-selected", isActive ? "true" : "false");
-        });
-        updateRows();
-        refreshMasterDetailTableSort();
-      });
-    });
 
     masterRows.forEach((row) => {
+      if (row.dataset.eventsBound === "true") return;
+      row.dataset.eventsBound = "true";
+
+      const officeId = row.dataset.officeId ?? "";
+      const detailRow = document.querySelector<HTMLElement>(
+        `[data-office-detail-row][data-office-id="${officeId}"]`
+      );
+
       const toggleRow = (): void => {
-        const officeId = row.dataset.officeId ?? "";
-        expandedOfficeId = expandedOfficeId === officeId ? null : officeId;
-        updateRows();
+        const isExpanded = row.getAttribute("aria-expanded") === "true";
+        const newExpanded = !isExpanded;
+
+        row.classList.toggle("bg-base-200/70", newExpanded);
+        row.setAttribute("aria-expanded", newExpanded ? "true" : "false");
+
+        const openIcon = row.querySelector<HTMLElement>("[data-chevron-open]");
+        const closedIcon = row.querySelector<HTMLElement>("[data-chevron-closed]");
+
+        openIcon?.classList.toggle("hidden", !newExpanded);
+        closedIcon?.classList.toggle("hidden", newExpanded);
+        detailRow?.classList.toggle("hidden", !newExpanded);
       };
+
       row.addEventListener("click", toggleRow);
       row.addEventListener("keydown", (event) => {
         const shouldToggle = event.key === "Enter" || event.key === " ";
@@ -1095,158 +530,560 @@ const sucursales: any[] = [];
         toggleRow();
       });
     });
+  };
 
-    searchInput?.addEventListener("input", updateRows);
-
-    const provincesData = (window as any)._PROVINCES_BY_REGION as Record<string, { code: string; name: string }[]> | undefined;
-
-    regionFilter?.addEventListener("change", () => {
-      const selectedRegion = regionFilter.value;
-
-      if (provinceFilter) {
-        provinceFilter.innerHTML = '<option value="all">Todas las provincias</option>';
-
-        if (selectedRegion !== "all" && provincesData?.[selectedRegion]) {
-          for (const p of provincesData[selectedRegion]) {
-            const opt = document.createElement("option");
-            opt.value = p.code;
-            opt.textContent = p.name;
-            provinceFilter.appendChild(opt);
-          }
-          provinceFilter.disabled = false;
-        } else {
-          provinceFilter.disabled = true;
+  const getQueryParams = (pageNumber: number) => {
+    const params = new URLSearchParams();
+    if (form) {
+      const formData = new FormData(form);
+      for (const [key, value] of formData.entries()) {
+        if (value && value !== "all" && key !== "search") {
+          params.set(key, value.toString());
         }
-        provinceFilter.value = "all";
+      }
+    }
+    params.set("page", pageNumber.toString());
+    params.set("limit", "100");
+    if (currentSearch) {
+      params.set("search", currentSearch);
+    }
+    return params.toString();
+  };
+
+  const fetchOffices = async (isNewSearch: boolean) => {
+    if (isLoading) return;
+    isLoading = true;
+    spinner?.classList.remove("hidden");
+
+    try {
+      const query = getQueryParams(currentPage);
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/api/offices?${query}`);
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      const totalCount = parseInt(response.headers.get("X-Total-Count") || "0", 10);
+
+      hasMore = newHasMore;
+
+      if (container) {
+        if (isNewSearch) {
+          const oldItems = container.querySelectorAll("[data-master-detail-sort-item], [data-office-detail-row]");
+          oldItems.forEach((el) => el.remove());
+          container.insertAdjacentHTML("beforeend", html);
+        } else {
+          container.insertAdjacentHTML("beforeend", html);
+        }
       }
 
-      updateRows();
+      if (noResultsState) {
+        if (totalCount === 0) {
+          noResultsState.classList.remove("hidden");
+        } else {
+          noResultsState.classList.add("hidden");
+        }
+      }
+
+      bindRowEvents(container || document);
+
+      if (tableRoot) {
+        tableRoot.dataset.masterDetailView = "flat";
+        delete tableRoot.dataset.masterDetailTableSortBound;
+        delete tableRoot.dataset.tableEmptyStateBound;
+        bindMasterDetailTableSort(tableRoot);
+        // We explicitly refresh to force a DOM re-arrange if needed and re-apply active sort
+        refreshMasterDetailTableSort(tableRoot);
+      }
+
+      if (currentSearch && container) {
+        const newArticles = Array.from(container.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"));
+        newArticles.forEach((item) => {
+          highlightSearchTargets(item, currentSearch);
+        });
+      }
+
+      if (!hasMore) {
+        sentinel?.classList.add("hidden");
+      } else {
+        sentinel?.classList.remove("hidden");
+      }
+
+    } catch (err) {
+      console.error("Error fetching offices:", err);
+    } finally {
+      isLoading = false;
+      spinner?.classList.add("hidden");
+    }
+  };
+
+  let map: any = null;
+  const initializeMap = () => {
+    if (map) return;
+    const dataMap = (window as any)._SUCURSALES_DATA || [];
+    const provincesData = (window as any)._PROVINCES_BY_REGION || {};
+
+    const provinceToRegion: Record<string, string> = {};
+    const regionsArray: string[] = [];
+    for (const [regionName, provs] of Object.entries(provincesData)) {
+      regionsArray.push(regionName);
+      for (const p of provs as any[]) {
+        provinceToRegion[p.name] = regionName;
+      }
+    }
+
+    const regionColors = [
+      "#003B71", "#FFCC00", "#2ECC71", "#E74C3C", "#9B59B6", 
+      "#F39C12", "#1ABC9C", "#34495E", "#D35400", "#2980B9",
+    ];
+
+    const normalizeProvinceName = (geoName: string) => {
+      if (geoName === "Tierra del Fuego, Antártida e Islas del Atlántico Sur")
+        return "Tierra del Fuego";
+      if (geoName === "Ciudad Autónoma de Buenos Aires") return "CABA";
+      return geoName;
+    };
+
+    const getRegionColor = (provinceName: string) => {
+      const dbName = normalizeProvinceName(provinceName);
+      const region = provinceToRegion[dbName];
+      if (!region) return "#7F8C8D";
+      const idx = regionsArray.indexOf(region);
+      return regionColors[idx % regionColors.length];
+    };
+
+    const bounds = [[-56.0, -74.0], [-21.0, -53.0]];
+
+    map = L.map("mapa-sucursales", {
+      maxBounds: bounds as any,
+      maxBoundsViscosity: 1.0,
+    }).setView([-38.5, -64.0], 4);
+
+    L.tileLayer(
+      "https://wms.ign.gob.ar/geoserver/gwc/service/tms/1.0.0/capabaseargenmap@EPSG%3A3857@png/{z}/{x}/{-y}.png",
+      {
+        maxZoom: 18,
+        minZoom: 3,
+      },
+    ).addTo(map);
+
+    const grupoPoligonos = L.layerGroup().addTo(map);
+    const grupoEtiquetas = L.layerGroup().addTo(map);
+    const grupoSucursales = L.layerGroup().addTo(map);
+
+    let polygonsVisible = true;
+    let labelsVisible = true;
+    let markersVisible = true;
+
+    const polyBtn = document.getElementById("toggle-polygons");
+    const polyText = document.getElementById("polygons-text");
+    if (polyBtn) {
+      polyBtn.addEventListener("click", () => {
+        if (polygonsVisible) {
+          map.removeLayer(grupoPoligonos);
+          if (polyText) polyText.textContent = "Mostrar Polígonos";
+        } else {
+          map.addLayer(grupoPoligonos);
+          if (polyText) polyText.textContent = "Ocultar Polígonos";
+        }
+        polygonsVisible = !polygonsVisible;
+        polyBtn.classList.toggle("btn-active");
+      });
+    }
+
+    const labelsBtn = document.getElementById("toggle-labels");
+    const labelsText = document.getElementById("labels-text");
+    if (labelsBtn) {
+      labelsBtn.addEventListener("click", () => {
+        if (labelsVisible) {
+          map.removeLayer(grupoEtiquetas);
+          if (labelsText) labelsText.textContent = "Mostrar Letras";
+        } else {
+          map.addLayer(grupoEtiquetas);
+          if (labelsText) labelsText.textContent = "Ocultar Letras";
+          setTimeout(updateLabelsScale, 0);
+        }
+        labelsVisible = !labelsVisible;
+        labelsBtn.classList.toggle("btn-active");
+      });
+    }
+
+    const markerToggleBtn = document.getElementById("toggle-markers");
+    const markerToggleText = document.getElementById("marker-toggle-text");
+    if (markerToggleBtn) {
+      markerToggleBtn.addEventListener("click", () => {
+        if (markersVisible) {
+          map.removeLayer(grupoSucursales);
+          if (markerToggleText)
+            markerToggleText.textContent = "Mostrar Sucursales";
+        } else {
+          map.addLayer(grupoSucursales);
+          if (markerToggleText)
+            markerToggleText.textContent = "Ocultar Sucursales";
+        }
+        markersVisible = !markersVisible;
+        markerToggleBtn.classList.toggle("btn-active");
+      });
+    }
+
+    function updateLabelsScale() {
+      const z = map.getZoom();
+      let scale = 0;
+      let opacity = 0;
+      if (z >= 5) {
+        scale = Math.min(Math.max(0.45, (z - 5) * 0.2 + 0.45), 0.8);
+        opacity = z >= 6 ? 0.9 : 0.7;
+      }
+      document.querySelectorAll<HTMLElement>(".polygon-label").forEach((el) => {
+        el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        el.style.opacity = opacity.toString();
+        el.style.pointerEvents = scale > 0.3 ? "auto" : "none";
+        el.style.visibility = z < 5 ? "hidden" : "visible";
+      });
+    }
+    map.on("zoomend", updateLabelsScale);
+    map.on("zoom", updateLabelsScale);
+
+    const sucursalMarkerIcon = L.divIcon({
+      className: "bg-transparent",
+      html: `
+            <div class="relative group cursor-pointer animate-fade-in" style="margin-top: -10px; margin-left: -10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
+                   class="w-10 h-10 transition-transform hover:scale-110 text-primary drop-shadow-lg"
+                   style="color: #003B71; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
+                <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+              </svg>
+            </div>
+          `,
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -38],
     });
 
-    provinceFilter?.addEventListener("change", updateRows);
+    const provinceLetters: Record<string, string> = {
+      "Ciudad Autónoma de Buenos Aires": "C",
+      "Buenos Aires": "B",
+      Catamarca: "K",
+      Chaco: "H",
+      Chubut: "U",
+      Córdoba: "X",
+      Corrientes: "W",
+      "Entre Ríos": "E",
+      Formosa: "P",
+      Jujuy: "Y",
+      "La Pampa": "L",
+      "La Rioja": "F",
+      Mendoza: "M",
+      Misiones: "N",
+      Neuquén: "Q",
+      "Río Negro": "R",
+      Salta: "A",
+      "San Juan": "J",
+      "San Luis": "D",
+      "Santa Cruz": "Z",
+      "Santa Fe": "S",
+      "Santiago del Estero": "G",
+      "Tierra del Fuego, Antártida e Islas del Atlántico Sur": "V",
+      Tucumán: "T",
+    };
 
-    updateRows();
-    refreshMasterDetailTableSort();
-  </script>
+    const labelOverrides: Record<string, [number, number]> = {
+      "Santa Fe": [-30.8, -61.6],
+      "Buenos Aires": [-36.8, -60.1],
+      "Tierra del Fuego, Antártida e Islas del Atlántico Sur": [-54.3, -67.0],
+    };
 
-  <style>
-    /* Estilos del Directorio */
-    .office-type-chip,
-    .office-tab-active {
-      border-width: 1px;
-      box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
-    }
-    .office-type-chip {
-      border-radius: 0.5rem;
-    }
-    .office-type-chip-commercial,
-    .office-tab-active-commercial {
-      background-color: var(--color-school-bus-yellow-100);
-      border-color: var(--color-school-bus-yellow-300);
-      color: var(--color-school-bus-yellow-900);
-    }
-    .office-type-chip-telegrafia,
-    .office-tab-active-telegrafia {
-      background-color: var(--color-steel-azure-100);
-      border-color: var(--color-steel-azure-300);
-      color: var(--color-steel-azure-900);
-    }
-    .office-type-chip-distribucion,
-    .office-tab-active-distribucion {
-      background-color: var(--color-charcoal-100);
-      border-color: var(--color-charcoal-300);
-      color: var(--color-charcoal-900);
-    }
-    .office-type-chip-paqueteria,
-    .office-tab-active-paqueteria {
-      background-color: var(--color-brown-red-100);
-      border-color: var(--color-brown-red-300);
-      color: var(--color-brown-red-900);
-    }
-    .office-tab-active-all {
-      background-color: var(--color-base-100);
-      border-color: var(--color-base-300);
-      color: var(--color-base-content);
-    }
+    fetch("/data/argentina_provincias.geojson")
+      .then((res) => res.json())
+      .then((geoData) => {
+        L.geoJSON(geoData, {
+          style: function (feature: any) {
+            const name = feature.properties.nombre;
+            const color = getRegionColor(name);
+            return {
+              color: color,
+              weight: 1.5,
+              fillColor: color,
+              fillOpacity: name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15,
+            };
+          },
+          onEachFeature: function (feature: any, layer: any) {
+            const name = feature.properties.nombre;
+            const dbName = normalizeProvinceName(name);
+            const regionName = provinceToRegion[dbName] || "Sin región";
+            const color = getRegionColor(name);
+            layer.bindPopup(
+              `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-gray-600'>${regionName}</span></div>`,
+              { className: "custom-popup" },
+            );
+            const letter = provinceLetters[name];
+            if (letter) {
+              const centroid = feature.properties.centroide;
+              const pos = labelOverrides[name] || [centroid.lat, centroid.lon];
+              const color = getRegionColor(name);
+              let fontSize = "3.5rem";
+              if (letter === "C") fontSize = "2rem";
+              if (["B", "S", "X"].includes(letter)) fontSize = "4.2rem";
+              L.marker(pos as any, {
+                icon: L.divIcon({
+                  className: "bg-transparent",
+                  html: `<div class="polygon-label font-black text-secondary opacity-80 pointer-events-none transition-all duration-300" style="transform: translate(-50%, -50%); line-height: 1; color: ${color}; font-size: ${fontSize};">${letter}</div>`,
+                  iconSize: [0, 0],
+                }),
+                interactive: false,
+              }).addTo(grupoEtiquetas);
+            }
+          },
+        }).addTo(grupoPoligonos);
+        updateLabelsScale();
+      });
 
-    [data-theme="dark"] .office-type-chip-commercial,
-    [data-theme="dark"] .office-tab-active-commercial {
-      background-color: color-mix(
-        in srgb,
-        var(--color-school-bus-yellow-200) 82%,
-        black 18%
-      );
-      border-color: var(--color-school-bus-yellow-400);
-      color: var(--color-school-bus-yellow-950);
-    }
-    [data-theme="dark"] .office-type-chip-telegrafia,
-    [data-theme="dark"] .office-tab-active-telegrafia {
-      background-color: color-mix(
-        in srgb,
-        var(--color-steel-azure-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-steel-azure-400);
-      color: var(--color-steel-azure-950);
-    }
-    [data-theme="dark"] .office-type-chip-distribucion,
-    [data-theme="dark"] .office-tab-active-distribucion {
-      background-color: color-mix(
-        in srgb,
-        var(--color-charcoal-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-charcoal-400);
-      color: var(--color-charcoal-950);
-    }
-    [data-theme="dark"] .office-type-chip-paqueteria,
-    [data-theme="dark"] .office-tab-active-paqueteria {
-      background-color: color-mix(
-        in srgb,
-        var(--color-brown-red-200) 78%,
-        black 22%
-      );
-      border-color: var(--color-brown-red-400);
-      color: var(--color-brown-red-950);
-    }
+    dataMap.forEach((sucursal: any) => {
+      const { lat, lng } = sucursal.ubicación;
+      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${sucursal.ubicación.nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${sucursal.nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex justify-between items-center bg-gray-50 px-2 py-1 rounded"><span class="font-semibold text-gray-500">Región</span><span class="font-bold text-gray-800">${sucursal.region}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Equipos PC</span><span class="font-bold text-gray-700">${sucursal.cantidad_pc}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Servidores</span><span class="font-bold text-gray-700">${sucursal.servidores}</span></div><div class="flex justify-between pt-1.5 mt-1.5 border-t border-gray-100 px-2"><span class="text-gray-500">Contacto</span><a href="tel:${sucursal.contacto}" class="text-blue-600 font-bold hover:underline">${sucursal.contacto}</a></div></div></div>`;
+      L.marker([lat, lng], { icon: sucursalMarkerIcon })
+        .addTo(grupoSucursales)
+        .bindPopup(popupContent, { className: "custom-popup" });
+    });
+  };
 
-    .office-detail-panel {
-      animation: officeDetailFade 180ms ease-out;
+  const switcher = document.getElementById("main-view-switcher");
+  switcher?.addEventListener("view-change", (e: any) => {
+    const value = e.detail.value;
+    if (value === "directory") {
+      mainViewDir?.classList.remove("hidden");
+      mainViewMap?.classList.add("hidden");
+    } else if (value === "map") {
+      mainViewDir?.classList.add("hidden");
+      mainViewMap?.classList.remove("hidden");
+      initializeMap();
+      setTimeout(() => { if (map) map.invalidateSize(); }, 100);
     }
-    @keyframes officeDetailFade {
-      from {
-        opacity: 0;
-        transform: translateY(-0.25rem);
+  });
+
+  if (sentinel) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !isLoading && hasMore) {
+        currentPage++;
+        fetchOffices(false);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    }, { rootMargin: "200px" });
+    observer.observe(sentinel);
+  }
 
-    /* Estilos del Mapa */
-    .leaflet-container {
-      z-index: 10;
-      font-family: inherit;
+  let debounceTimeout: number;
+  searchInput?.addEventListener("input", () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = window.setTimeout(() => {
+      currentPage = 1;
+      currentSearch = searchInput.value.trim();
+      fetchOffices(true);
+    }, 300);
+  });
+
+  bindRowEvents();
+  refreshMasterDetailTableSort();
+</script>
+
+<style is:global>
+  .office-type-chip {
+    border-width: 1px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.04);
+    border-radius: 0.5rem;
+  }
+
+  /* ADMINISTRACION */
+  .office-type-chip-administracion {
+    background-color: var(--color-indigo-100, #e0e7ff);
+    border-color: var(--color-indigo-300, #a5b4fc);
+    color: var(--color-indigo-900, #1e1b4b);
+  }
+  [data-theme="dark"] .office-type-chip-administracion {
+    background-color: #1e1b4b;
+    border-color: #4338ca;
+    color: #e0e7ff;
+  }
+
+  /* AGENCIA */
+  .office-type-chip-agencia {
+    background-color: var(--color-amber-100, #fef3c7);
+    border-color: var(--color-amber-300, #fcd34d);
+    color: var(--color-amber-900, #78350f);
+  }
+  [data-theme="dark"] .office-type-chip-agencia {
+    background-color: #78350f;
+    border-color: #b45309;
+    color: #fef3c7;
+  }
+
+  /* CDD */
+  .office-type-chip-cdd {
+    background-color: var(--color-blue-100, #dbeafe);
+    border-color: var(--color-blue-300, #93c5fd);
+    color: var(--color-blue-900, #1e3a8a);
+  }
+  [data-theme="dark"] .office-type-chip-cdd {
+    background-color: #1e3a8a;
+    border-color: #1d4ed8;
+    color: #dbeafe;
+  }
+
+  /* CDP */
+  .office-type-chip-cdp {
+    background-color: var(--color-red-100, #fee2e2);
+    border-color: var(--color-red-300, #fca5a5);
+    color: var(--color-red-900, #7f1d1d);
+  }
+  [data-theme="dark"] .office-type-chip-cdp {
+    background-color: #7f1d1d;
+    border-color: #b91c1c;
+    color: #fee2e2;
+  }
+
+  /* CTP */
+  .office-type-chip-ctp {
+    background-color: var(--color-green-100, #dcfce7);
+    border-color: var(--color-green-300, #86efac);
+    color: var(--color-green-900, #14532d);
+  }
+  [data-theme="dark"] .office-type-chip-ctp {
+    background-color: #14532d;
+    border-color: #15803d;
+    color: #dcfce7;
+  }
+
+  /* CORREO COLABORATIVO */
+  .office-type-chip-correo-colaborativo {
+    background-color: var(--color-cyan-100, #cffafe);
+    border-color: var(--color-cyan-300, #67e8f9);
+    color: var(--color-cyan-900, #164e63);
+  }
+  [data-theme="dark"] .office-type-chip-correo-colaborativo {
+    background-color: #164e63;
+    border-color: #0e7490;
+    color: #cffafe;
+  }
+
+  /* ESPECIALES */
+  .office-type-chip-especiales {
+    background-color: var(--color-purple-100, #f3e8ff);
+    border-color: var(--color-purple-300, #d8b4fe);
+    color: var(--color-purple-900, #581c87);
+  }
+  [data-theme="dark"] .office-type-chip-especiales {
+    background-color: #581c87;
+    border-color: #7e22ce;
+    color: #f3e8ff;
+  }
+
+  /* ESTAFETA */
+  .office-type-chip-estafeta {
+    background-color: var(--color-lime-100, #f7fee7);
+    border-color: var(--color-lime-300, #bef264);
+    color: var(--color-lime-900, #365314);
+  }
+  [data-theme="dark"] .office-type-chip-estafeta {
+    background-color: #365314;
+    border-color: #4d7c0f;
+    color: #bef264;
+  }
+
+  /* GENERAL */
+  .office-type-chip-general {
+    background-color: var(--color-stone-200, #e7e5e4);
+    border-color: var(--color-stone-300, #d6d3d1);
+    color: var(--color-stone-900, #1c1917);
+  }
+  [data-theme="dark"] .office-type-chip-general {
+    background-color: #292524;
+    border-color: #44403c;
+    color: #e7e5e4;
+  }
+
+  /* SUCURSAL AUTOMATIZADA */
+  .office-type-chip-sucursal-automatizada {
+    background-color: var(--color-yellow-100, #fef9c3);
+    border-color: var(--color-yellow-300, #fde047);
+    color: var(--color-yellow-900, #713f12);
+  }
+  [data-theme="dark"] .office-type-chip-sucursal-automatizada {
+    background-color: #713f12;
+    border-color: #a16207;
+    color: #fef9c3;
+  }
+
+  /* SUCURSAL NO AUTOMATIZADA */
+  .office-type-chip-sucursal-no-automatizada {
+    background-color: var(--color-orange-100, #ffedd5);
+    border-color: var(--color-orange-300, #fdba74);
+    color: var(--color-orange-900, #7c2d12);
+  }
+  [data-theme="dark"] .office-type-chip-sucursal-no-automatizada {
+    background-color: #7c2d12;
+    border-color: #ea580c;
+    color: #ffedd5;
+  }
+
+  /* TELEGRAFIA */
+  .office-type-chip-telegrafia {
+    background-color: var(--color-emerald-100, #d1fae5);
+    border-color: var(--color-emerald-300, #6ee7b7);
+    color: var(--color-emerald-900, #064e3b);
+  }
+  [data-theme="dark"] .office-type-chip-telegrafia {
+    background-color: #064e3b;
+    border-color: #047857;
+    color: #d1fae5;
+  }
+
+  /* UNIDAD POSTAL */
+  .office-type-chip-unidad-postal {
+    background-color: var(--color-rose-100, #ffe4e6);
+    border-color: var(--color-rose-300, #fda4af);
+    color: var(--color-rose-900, #4c0519);
+  }
+  [data-theme="dark"] .office-type-chip-unidad-postal {
+    background-color: #4c0519;
+    border-color: #9f1239;
+    color: #ffe4e6;
+  }
+
+  .office-detail-panel {
+    animation: officeDetailFade 180ms ease-out;
+  }
+  @keyframes officeDetailFade {
+    from {
+      opacity: 0;
+      transform: translateY(-0.25rem);
     }
-    .custom-popup .leaflet-popup-content-wrapper {
-      border-radius: 0.75rem;
-      box-shadow:
-        0 10px 15px -3px rgb(0 0 0 / 0.1),
-        0 4px 6px -4px rgb(0 0 0 / 0.1);
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
-    .animate-fade-in {
-      animation: fadeIn 0.4s ease-out;
+  }
+
+  /* Estilos del Mapa */
+  .leaflet-container {
+    z-index: 10;
+    font-family: inherit;
+  }
+  .custom-popup .leaflet-popup-content-wrapper {
+    border-radius: 0.75rem;
+    box-shadow:
+      0 10px 15px -3px rgb(0 0 0 / 0.1),
+      0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
     }
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
-  </style>
-</BaseLayout>
+  }
+</style>

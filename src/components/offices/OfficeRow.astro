@@ -1,0 +1,349 @@
+---
+import { Icon } from "astro-icon/components";
+import type { OfficeDirectoryItem } from "@/data/directorio_oficinas";
+import {
+  officeTypeLabelByType,
+  officeTypeChipClassByType,
+  assetColorByType,
+  assetIconByType,
+  assetLabelByType,
+  assetOrderByType,
+} from "@lib/officeHelpers";
+
+interface Props {
+  office: OfficeDirectoryItem;
+  isVisibleByDefault?: boolean;
+}
+
+const { office, isVisibleByDefault = true } = Astro.props;
+
+const normalizedType =
+  office.type === "SUCURSAL"
+    ? office.officeType === "AUTOMATIZADA"
+      ? "SUCURSAL_AUTOMATIZADA"
+      : "SUCURSAL_NO_AUTOMATIZADA"
+    : office.type;
+
+const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""}`;
+const hasDetails = office.contacts.length > 0 || office.assets.length > 0;
+
+const officeDirectoryRowGridClass =
+  "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr] items-center gap-4";
+---
+
+<article
+  data-master-detail-sort-item
+  data-office-id={office.id}
+  data-office-type={office.type}
+  data-office-location={office.location}
+  data-region={office.region}
+  data-province-code={office.provinceCode}
+  data-search-text={searchText}
+  data-sort-code={office.code}
+  data-sort-name={office.name}
+  data-sort-parent-nis={office.parentNis ?? ""}
+  data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
+  data-sort-group={office.location}
+  class:list={["block", !isVisibleByDefault && "hidden"]}
+>
+  <div
+    data-office-master-row={hasDetails ? "" : undefined}
+    data-office-id={office.id}
+    role={hasDetails ? "button" : undefined}
+    tabindex={hasDetails ? "0" : undefined}
+    aria-expanded={hasDetails ? "false" : undefined}
+    class:list={[
+      officeDirectoryRowGridClass,
+      "border-b border-base-300 px-4 py-3 transition-colors",
+      hasDetails
+        ? "cursor-pointer hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50"
+        : "",
+    ]}
+  >
+    <div>
+      {
+        hasDetails ? (
+          <span
+            class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
+            aria-hidden="true"
+          >
+            <Icon
+              name="boxicons:chevron-down-filled"
+              data-chevron-closed
+              class="size-4"
+            />
+            <Icon
+              name="boxicons:chevron-up-filled"
+              data-chevron-open
+              class="hidden size-4"
+            />
+          </span>
+        ) : (
+          <span class="inline-flex size-8" aria-hidden="true" />
+        )
+      }
+    </div>
+
+    <div>
+      <span
+        class:list={[
+          "inline-flex px-2 py-1 font-mono text-sm font-semibold",
+          officeTypeChipClassByType[normalizedType] ||
+            "office-type-chip bg-base-300 text-base-content",
+        ]}
+        data-highlight-target
+      >
+        {office.code}
+      </span>
+    </div>
+
+    <div class="min-w-0">
+      <div class="min-w-0">
+        <p class="truncate text-sm font-semibold text-base-content">
+          <span data-highlight-target>{office.name}</span>
+        </p>
+        <div
+          class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55"
+        >
+          <span>
+            {officeTypeLabelByType[normalizedType] || office.type}
+          </span>
+          <span class="text-base-content/35">/</span>
+          <span>{office.contacts.length} contactos</span>
+          <span class="text-base-content/35">/</span>
+          <span>{office.assets.length} activos</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Dependencia (parent NIS) */}
+    <div class="min-w-0">
+      {
+        office.parentNis ? (
+          <span
+            data-highlight-target
+            class="inline-flex px-2 py-1 font-mono text-xs font-semibold bg-base-200 border border-base-300 rounded text-base-content/70"
+          >
+            {office.parentNis}
+          </span>
+        ) : (
+          <span class="text-base-content/30">&mdash;</span>
+        )
+      }
+    </div>
+
+    <div class="min-w-0">
+      <div class="min-w-0 space-y-1">
+        <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
+          <Icon
+            name="boxicons:location-pin-filled"
+            class="size-4 shrink-0 text-secondary"
+            aria-hidden="true"
+          />
+          <span class="truncate" title={office.address}>
+            {office.address}
+          </span>
+        </p>
+        <p class="truncate text-xs text-base-content/55">
+          {office.location}
+        </p>
+        <div
+          class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60"
+        >
+          <span data-highlight-target>
+            {office.region}
+          </span>
+          {
+            office.postalCode && (
+              <>
+                <span class="text-base-content/35">/</span>
+                <span class="font-mono" data-highlight-target>
+                  CP {office.postalCode}
+                </span>
+              </>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    data-office-detail-row
+    data-office-id={office.id}
+    class="hidden border-b border-base-300 bg-base-200/20"
+  >
+    <div
+      class="office-detail-panel m-3 rounded-lg border border-base-300 bg-base-200/60 p-4 md:p-5"
+    >
+      <div class="grid gap-5 lg:grid-cols-2">
+        <div class="space-y-5">
+          {/* --- Sección de correo y notas --- */}
+          {
+            (office.email || office.notes) && (
+              <section class="space-y-3">
+                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                  <Icon
+                    name="boxicons:info-circle"
+                    class="size-4 text-secondary"
+                    aria-hidden="true"
+                  />
+                  Información de la oficina
+                </h2>
+                <div class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md space-y-2">
+                  {office.email && (
+                    <p class="flex items-center gap-2 text-sm text-base-content/80">
+                      <Icon
+                        name="boxicons:envelope-filled"
+                        class="size-4 shrink-0 text-base-content/50"
+                        aria-hidden="true"
+                      />
+                      <span class="font-mono text-xs break-all">
+                        {office.email}
+                      </span>
+                    </p>
+                  )}
+                  {office.notes && (
+                    <p class="flex items-start gap-2 text-xs text-base-content/60">
+                      <Icon
+                        name="boxicons:note-filled"
+                        class="mt-0.5 size-4 shrink-0 text-base-content/40"
+                        aria-hidden="true"
+                      />
+                      <span>{office.notes}</span>
+                    </p>
+                  )}
+                </div>
+              </section>
+            )
+          }
+
+          {/* --- Sección de contactos --- */}
+          <section class="min-w-0 space-y-3">
+            <h2
+              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70"
+            >
+              <Icon
+                name="boxicons:user-filled"
+                class="size-4 text-secondary"
+                aria-hidden="true"
+              />
+              Contactos de la oficina
+            </h2>
+
+            {
+              office.contacts.length > 0 ? (
+                <div class="grid gap-3 sm:grid-cols-2">
+                  {office.contacts.map((contact) => (
+                    <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md">
+                      <h3 class="truncate text-sm font-semibold text-base-content">
+                        {contact.name}
+                      </h3>
+                      <div class="mt-3 space-y-2 text-xs text-base-content/70">
+                        {contact.timeSlot && (
+                          <p class="flex items-center gap-2">
+                            <Icon
+                              name="boxicons:clock-filled"
+                              class="size-4 shrink-0 text-base-content/50"
+                              aria-hidden="true"
+                            />
+                            <span>{contact.timeSlot}</span>
+                          </p>
+                        )}
+                        {contact.phone && (
+                          <p class="flex items-center gap-2">
+                            <Icon
+                              name="boxicons:phone-filled"
+                              class="size-4 shrink-0 text-base-content/50"
+                              aria-hidden="true"
+                            />
+                            <span class="font-mono">{contact.phone}</span>
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                  Sin contactos cargados para esta oficina.
+                </p>
+              )
+            }
+          </section>
+        </div>
+
+        <section class="min-w-0 space-y-3">
+          <h2
+            class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70"
+          >
+            <Icon
+              name="boxicons:desktop-filled"
+              class="size-4 text-secondary"
+              aria-hidden="true"
+            />
+            Activos tecnológicos
+          </h2>
+
+          {
+            office.assets.length > 0 ? (
+              <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-md">
+                <table class="table table-sm">
+                  <thead>
+                    <tr class="text-xs uppercase tracking-wide text-base-content/60">
+                      <th>Tipo / Hostname</th>
+                      <th>Dirección IP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...office.assets]
+                      .sort(
+                        (a, b) =>
+                          assetOrderByType[a.type] - assetOrderByType[b.type],
+                      )
+                      .map((asset) => (
+                        <tr>
+                          <td>
+                            <div class="flex min-w-0 items-center gap-3">
+                              <span
+                                class:list={[
+                                  "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
+                                  assetColorByType[asset.type],
+                                ]}
+                                aria-hidden="true"
+                              >
+                                <Icon
+                                  name={
+                                    assetIconByType[asset.type] ||
+                                    "boxicons:info-circle"
+                                  }
+                                  class="size-4"
+                                />
+                              </span>
+                              <div class="min-w-0">
+                                <p class="text-xs font-medium text-base-content/60">
+                                  {assetLabelByType[asset.type]}
+                                </p>
+                                <p class="truncate font-mono text-sm font-semibold text-base-content">
+                                  {asset.hostname}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="font-mono text-sm">{asset.ip}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
+                Sin activos tecnológicos registrados.
+              </p>
+            )
+          }
+        </section>
+      </div>
+    </div>
+  </div>
+</article>

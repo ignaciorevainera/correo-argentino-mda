@@ -1,5 +1,5 @@
 import { state } from './state';
-import { saveLocation, saveOperatorRules } from './api';
+import { saveLocation, saveOperatorRules, fetchNotes } from './api';
 import { getStatusStyles } from './styles';
 import { escapeHtml } from './utils';
 import { setCurrentWeeklyData } from './weekly-schedule';

@@ -1,27 +1,27 @@
 ---
-import { db } from '../../db/index';
-import { users } from '../../db/schema';
-import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
-import BaseLayout from '@layouts/BaseLayout.astro';
-import PageContainer from '@components/ui/PageContainer.astro';
-import PageHeader from '@components/ui/PageHeader.astro';
-import DataTable from '@components/ui/DataTable.astro';
-import DataTableHeaderCell from '@components/ui/DataTableHeaderCell.astro';
-import { Icon } from 'astro-icon/components';
+import { db } from "../../db/index";
+import { users } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { Icon } from "astro-icon/components";
+import { rolesMatrix } from "../../lib/rolesMatrix";
 
-let successMsg = '';
-let errorMsg = '';
+let successMsg = "";
+let errorMsg = "";
 
-if (Astro.request.method === 'POST') {
+if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
-  const action = formData.get('action')?.toString() ?? 'create';
+  const action = formData.get("action")?.toString() ?? "create";
 
-  
-  if (action === 'create') {
-    const username = formData.get('username')?.toString().trim().toLowerCase();
-    const password = formData.get('password')?.toString();
-    const role = formData.get('role')?.toString();
+  if (action === "create") {
+    const username = formData.get("username")?.toString().trim().toLowerCase();
+    const password = formData.get("password")?.toString();
+    const role = formData.get("role")?.toString();
 
     if (username && password && role) {
       try {
@@ -33,54 +33,87 @@ if (Astro.request.method === 'POST') {
         });
         successMsg = `Usuario "${username}" creado con éxito.`;
       } catch (e) {
-        errorMsg = 'Error: El nombre de usuario ya existe.';
+        errorMsg = "Error: El nombre de usuario ya existe.";
       }
     }
   }
 
-  
-  if (action === 'reset-password') {
-    const userId = Number(formData.get('userId'));
-    const newPassword = formData.get('newPassword')?.toString();
+  if (action === "reset-password") {
+    const userId = Number(formData.get("userId"));
+    const newPassword = formData.get("newPassword")?.toString();
     if (userId && newPassword) {
       try {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
-        successMsg = 'Contraseña actualizada con éxito.';
+        await db
+          .update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.id, userId));
+        successMsg = "Contraseña actualizada con éxito.";
       } catch (e) {
-        errorMsg = 'Error al actualizar la contraseña.';
+        errorMsg = "Error al actualizar la contraseña.";
       }
     }
   }
 
-  
-  if (action === 'rename-username') {
-    const userId = Number(formData.get('userId'));
-    const newUsername = formData.get('newUsername')?.toString().trim().toLowerCase();
+  if (action === "rename-username") {
+    const userId = Number(formData.get("userId"));
+    const newUsername = formData
+      .get("newUsername")
+      ?.toString()
+      .trim()
+      .toLowerCase();
     if (userId && newUsername) {
       try {
-        await db.update(users).set({ username: newUsername }).where(eq(users.id, userId));
+        await db
+          .update(users)
+          .set({ username: newUsername })
+          .where(eq(users.id, userId));
         successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
       } catch (e) {
-        errorMsg = 'Error: Ese nombre de usuario ya existe.';
+        errorMsg = "Error: Ese nombre de usuario ya existe.";
+      }
+    }
+  }
+
+  if (action === "change-role") {
+    const userId = Number(formData.get("userId"));
+    const newRole = formData.get("newRole")?.toString();
+    if (userId && newRole) {
+      try {
+        await db
+          .update(users)
+          .set({ role: newRole as any })
+          .where(eq(users.id, userId));
+        successMsg = "Rol de usuario actualizado con éxito.";
+      } catch (e) {
+        errorMsg = "Error al actualizar el rol de usuario.";
       }
     }
   }
 }
 
-
 const allUsers = await db.select().from(users);
 
-const headerGridClass = "grid-cols-[1fr_120px_160px] gap-4";
-const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
+const headerGridClass = "grid-cols-[1fr_140px_320px] gap-4";
+const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 ---
 
-
 <BaseLayout>
-  <PageContainer>
+  <PageContainer width="wide">
     <PageHeader
       description="Alta de operadores, asignación de roles y revisión de accesos activos en el portal."
     />
+
+    <div class="mb-6 flex justify-start">
+      <button
+        type="button"
+        class="btn btn-soft btn-lg btn-accent gap-2"
+        onclick="document.getElementById('modal-permissions-matrix').showModal()"
+      >
+        <Icon name="boxicons:universal-access-filled" size={24} />
+        Ver tabla comparativa de permisos por rol
+      </button>
+    </div>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- ─── Form: Nuevo usuario ─── -->
@@ -98,22 +131,39 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
             </h2>
 
             <!-- Feedback -->
-            {errorMsg && (
-              <div role="alert" class="alert alert-error alert-soft text-sm">
-                <Icon name="boxicons:alert-circle-filled" size={20} class="shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-            {successMsg && (
-              <div role="alert" class="alert alert-success alert-soft text-sm">
-                <Icon name="boxicons:check-circle-filled" size={20} class="shrink-0" />
-                <span>{successMsg}</span>
-              </div>
-            )}
+            {
+              errorMsg && (
+                <div role="alert" class="alert alert-error alert-soft text-sm">
+                  <Icon
+                    name="boxicons:alert-circle-filled"
+                    size={20}
+                    class="shrink-0"
+                  />
+                  <span>{errorMsg}</span>
+                </div>
+              )
+            }
+            {
+              successMsg && (
+                <div
+                  role="alert"
+                  class="alert alert-success alert-soft text-sm"
+                >
+                  <Icon
+                    name="boxicons:check-circle-filled"
+                    size={20}
+                    class="shrink-0"
+                  />
+                  <span>{successMsg}</span>
+                </div>
+              )
+            }
 
             <form method="POST" class="space-y-4">
               <fieldset class="fieldset">
-                <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
+                <legend
+                  class="fieldset-legend text-xs font-bold uppercase tracking-wider"
+                >
                   Nombre de red
                 </legend>
                 <input
@@ -131,7 +181,9 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
               </fieldset>
 
               <fieldset class="fieldset">
-                <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
+                <legend
+                  class="fieldset-legend text-xs font-bold uppercase tracking-wider"
+                >
                   Contraseña inicial
                 </legend>
                 <input
@@ -148,7 +200,9 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
               </fieldset>
 
               <fieldset class="fieldset">
-                <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
+                <legend
+                  class="fieldset-legend text-xs font-bold uppercase tracking-wider"
+                >
                   Rol en sistema
                 </legend>
                 <select
@@ -166,10 +220,7 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
               </fieldset>
 
               <input type="hidden" name="action" value="create" />
-              <button
-                type="submit"
-                class="btn btn-secondary w-full gap-2 mt-2"
-              >
+              <button type="submit" class="btn btn-secondary w-full gap-2 mt-2">
                 <Icon name="boxicons:user-check-filled" size={18} />
                 Dar de alta
               </button>
@@ -179,27 +230,37 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
       </section>
 
       <!-- ─── Table: Usuarios registrados ─── -->
-      <section class="lg:col-span-2 lg:order-1" aria-labelledby="tabla-usuarios">
+      <section
+        class="lg:col-span-2 lg:order-1"
+        aria-labelledby="tabla-usuarios"
+      >
         <div class="flex flex-col gap-3">
           <div class="flex items-center justify-between gap-4">
-            <h2 id="tabla-usuarios" class="text-lg font-semibold text-base-content">
+            <h2
+              id="tabla-usuarios"
+              class="text-lg font-semibold text-base-content"
+            >
               Usuarios registrados
             </h2>
-            {allUsers.length > 0 && (
-              <span class="badge badge-neutral badge-sm font-mono">
-                {allUsers.length}
-              </span>
-            )}
+            {
+              allUsers.length > 0 && (
+                <span class="badge badge-neutral badge-sm font-mono">
+                  {allUsers.length}
+                </span>
+              )
+            }
           </div>
 
           <DataTable
             ariaLabel="Listado de usuarios registrados"
-            minWidthClass="min-w-180"
+            minWidthClass="min-w-200"
             headerGridClass={headerGridClass}
             rowGridClass={rowGridClass}
           >
             <div slot="header">
-              <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell>
+              <DataTableHeaderCell sortKey="username"
+                >Usuario</DataTableHeaderCell
+              >
             </div>
             <div slot="header">
               <DataTableHeaderCell sortKey="role">Rol</DataTableHeaderCell>
@@ -208,189 +269,481 @@ const rowGridClass = "grid grid-cols-[1fr_120px_160px] items-center gap-4";
               <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
             </div>
 
-            {allUsers.length === 0 ? (
-              <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-                <div class="rounded-full bg-base-200 p-4">
-                  <Icon
-                    name="boxicons:group-filled"
-                    size={32}
-                    class="opacity-30"
-                    aria-hidden="true"
-                  />
+            {
+              allUsers.length === 0 ? (
+                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+                  <div class="rounded-full bg-base-200 p-4">
+                    <Icon
+                      name="boxicons:group-filled"
+                      size={32}
+                      class="opacity-30"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div class="space-y-1 text-center">
+                    <p class="text-sm font-semibold">
+                      No hay usuarios registrados
+                    </p>
+                    <p class="text-xs">
+                      Creá el primer usuario desde el formulario.
+                    </p>
+                  </div>
                 </div>
-                <div class="space-y-1 text-center">
-                  <p class="text-sm font-semibold">No hay usuarios registrados</p>
-                  <p class="text-xs">Creá el primer usuario desde el formulario.</p>
-                </div>
-              </div>
-            ) : (
-              allUsers.map((u) => (
-                <article
-                  data-table-row
-                  data-sort-username={u.username}
-                  data-sort-role={u.role}
-                  class:list={[
-                    rowGridClass,
-                    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-                  ]}
-                >
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class:list={[
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm",
-                          u.role === 'admin'
-                            ? 'bg-error text-error-content'
-                            : u.role === 'supervisor'
-                              ? 'bg-info text-info-content'
-                              : u.role === 'referent'
-                                ? 'bg-warning text-warning-content'
-                                : 'bg-neutral text-neutral-content',
-                        ]}
-                        aria-hidden="true"
-                      >
-                        {u.username.slice(0, 2).toUpperCase()}
+              ) : (
+                allUsers.map((u) => (
+                  <article
+                    data-table-row
+                    data-sort-username={u.username}
+                    data-sort-role={u.role}
+                    class:list={[
+                      rowGridClass,
+                      "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+                    ]}
+                  >
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class:list={[
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm",
+                            u.role === "admin"
+                              ? "bg-error text-error-content"
+                              : u.role === "supervisor"
+                                ? "bg-info text-info-content"
+                                : u.role === "referent"
+                                  ? "bg-warning text-warning-content"
+                                  : "bg-neutral text-neutral-content",
+                          ]}
+                          aria-hidden="true"
+                        >
+                          {u.username.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span class="font-medium font-mono text-base-content truncate">
+                          {u.username}
+                        </span>
                       </div>
-                      <span class="font-medium font-mono text-base-content truncate">
-                        {u.username}
+                    </div>
+
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span
+                        class:list={[
+                          "badge badge-sm font-bold uppercase tracking-wide whitespace-nowrap",
+                          u.role === "admin"
+                            ? "badge-error"
+                            : u.role === "supervisor"
+                              ? "badge-info"
+                              : u.role === "referent"
+                                ? "badge-warning"
+                                : "badge-neutral",
+                        ]}
+                      >
+                        {u.role === "admin"
+                          ? "Admin"
+                          : u.role === "supervisor"
+                            ? "Supervisor"
+                            : u.role === "referent"
+                              ? "Referente"
+                              : "Agente"}
                       </span>
                     </div>
-                  </div>
 
-                  <div>
-                    <span
-                      class:list={[
-                        "badge badge-sm font-bold uppercase tracking-wide",
-                        u.role === 'admin'
-                          ? 'badge-error'
-                          : u.role === 'supervisor'
-                            ? 'badge-info'
-                            : u.role === 'referent'
-                              ? 'badge-warning'
-                              : 'badge-neutral',
-                      ]}
-                    >
-                      {u.role === 'admin'
-                        ? 'Admin'
-                        : u.role === 'supervisor'
-                          ? 'Supervisor'
-                          : u.role === 'referent'
-                            ? 'Referente'
-                            : 'Agente'}
-                    </span>
-                  </div>
+                    <div class="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-ghost btn-accent"
+                        data-action="change-role-btn"
+                        data-user-id={u.id}
+                        data-user-role={u.role}
+                        aria-label={`Cambiar rol de ${u.username}`}
+                      >
+                        <Icon name="boxicons:user" size={14} />
+                        <span class="hidden sm:inline">Rol</span>
+                      </button>
 
-                  <div class="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-ghost text-secondary hover:bg-secondary/10 h-7 px-2 text-base-content/60 hover:text-secondary"
-                      onclick={`document.getElementById('modal-rename-${u.id}').showModal()`}
-                      aria-label={`Renombrar usuario ${u.username}`}
-                    >
-                      <Icon name="boxicons:pencil-filled" size={14} />
-                      <span class="hidden sm:inline">Renombrar</span>
-                    </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-ghost btn-success"
+                        onclick={`document.getElementById('modal-rename-${u.id}').showModal()`}
+                        aria-label={`Renombrar usuario ${u.username}`}
+                      >
+                        <Icon name="boxicons:pencil-filled" size={14} />
+                        <span class="hidden sm:inline">Renombrar</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-ghost text-warning hover:bg-warning/10 h-7 px-2 text-base-content/60 hover:text-warning"
-                      onclick={`document.getElementById('modal-reset-${u.id}').showModal()`}
-                      aria-label={`Blanquear contraseña de ${u.username}`}
-                    >
-                      <Icon name="boxicons:lock-open-filled" size={14} />
-                      <span class="hidden sm:inline">Contraseña</span>
-                    </button>
-                  </div>
-
-                  {/* ── Modales (Fuera del flujo visual de la fila) ── */}
-                  <dialog id={`modal-rename-${u.id}`} class="modal">
-                    <div class="modal-box max-w-sm border border-base-300">
-                      <h3 class="mb-1 text-base font-semibold text-base-content">
-                        Renombrar usuario
-                      </h3>
-                      <p class="mb-4 text-xs text-base-content/60">
-                        Usuario actual: <span class="font-mono font-semibold">{u.username}</span>
-                      </p>
-                      <form method="POST" class="space-y-3">
-                        <input type="hidden" name="action" value="rename-username" />
-                        <input type="hidden" name="userId" value={u.id} />
-                        <fieldset class="fieldset">
-                          <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
-                            Nuevo nombre de red
-                          </legend>
-                          <input
-                            type="text"
-                            name="newUsername"
-                            required
-                            placeholder={u.username}
-                            autocomplete="off"
-                            class="input input-bordered input-sm w-full"
-                          />
-                        </fieldset>
-                        <div class="modal-action mt-2 gap-2">
-                          <button type="submit" class="btn btn-secondary btn-sm gap-1">
-                            <Icon name="boxicons:check-filled" size={14} />
-                            Guardar
-                          </button>
-                          <form method="dialog">
-                            <button type="submit" class="btn btn-ghost btn-sm">Cancelar</button>
-                          </form>
-                        </div>
-                      </form>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-ghost btn-neutral"
+                        onclick={`document.getElementById('modal-reset-${u.id}').showModal()`}
+                        aria-label={`Blanquear contraseña de ${u.username}`}
+                      >
+                        <Icon name="boxicons:lock-open-filled" size={14} />
+                        <span class="hidden sm:inline">Contraseña</span>
+                      </button>
                     </div>
-                    <form method="dialog" class="modal-backdrop">
-                      <button>cerrar</button>
-                    </form>
-                  </dialog>
 
-                  <dialog id={`modal-reset-${u.id}`} class="modal">
-                    <div class="modal-box max-w-sm border border-base-300">
-                      <h3 class="mb-1 text-base font-semibold text-base-content">
-                        Blanquear contraseña
-                      </h3>
-                      <p class="mb-4 text-xs text-base-content/60">
-                        Establece una nueva contraseña para{" "}
-                        <span class="font-mono font-semibold">{u.username}</span>.
-                      </p>
-                      <form method="POST" class="space-y-3">
-                        <input type="hidden" name="action" value="reset-password" />
-                        <input type="hidden" name="userId" value={u.id} />
-                        <fieldset class="fieldset">
-                          <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
-                            Nueva contraseña
-                          </legend>
+                    {/* ── Modales (Fuera del flujo visual de la fila) ── */}
+                    <dialog id={`modal-rename-${u.id}`} class="modal">
+                      <div class="modal-box max-w-sm border border-base-300">
+                        <h3 class="mb-1 text-base font-semibold text-base-content">
+                          Renombrar usuario
+                        </h3>
+                        <p class="mb-4 text-xs text-base-content/60">
+                          Usuario actual:{" "}
+                          <span class="font-mono font-semibold">
+                            {u.username}
+                          </span>
+                        </p>
+                        <form method="POST" class="space-y-3">
                           <input
-                            type="password"
-                            name="newPassword"
-                            required
-                            autocomplete="new-password"
-                            class="input input-bordered input-sm w-full"
+                            type="hidden"
+                            name="action"
+                            value="rename-username"
                           />
-                          <p class="fieldset-label text-xs text-base-content/50">
-                            Se almacena con hash bcrypt.
-                          </p>
-                        </fieldset>
-                        <div class="modal-action mt-2 gap-2">
-                          <button type="submit" class="btn btn-warning btn-sm gap-1">
-                            <Icon name="boxicons:lock-open-filled" size={14} />
-                            Blanquear
-                          </button>
-                          <form method="dialog">
-                            <button type="submit" class="btn btn-ghost btn-sm">Cancelar</button>
-                          </form>
-                        </div>
+                          <input type="hidden" name="userId" value={u.id} />
+                          <fieldset class="fieldset">
+                            <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
+                              Nuevo nombre de red
+                            </legend>
+                            <input
+                              type="text"
+                              name="newUsername"
+                              required
+                              placeholder={u.username}
+                              autocomplete="off"
+                              class="input input-bordered input-sm w-full"
+                            />
+                          </fieldset>
+                          <div class="modal-action mt-2 gap-2">
+                            <button
+                              type="submit"
+                              class="btn btn-secondary btn-sm gap-1"
+                            >
+                              <Icon name="boxicons:check-filled" size={14} />
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-sm"
+                              onclick="this.closest('dialog').close()"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                      <form method="dialog" class="modal-backdrop">
+                        <button>cerrar</button>
                       </form>
-                    </div>
-                    <form method="dialog" class="modal-backdrop">
-                      <button>cerrar</button>
-                    </form>
-                  </dialog>
-                </article>
-              ))
-            )}
+                    </dialog>
+
+                    <dialog id={`modal-reset-${u.id}`} class="modal">
+                      <div class="modal-box max-w-sm border border-base-300">
+                        <h3 class="mb-1 text-base font-semibold text-base-content">
+                          Blanquear contraseña
+                        </h3>
+                        <p class="mb-4 text-xs text-base-content/60">
+                          Establece una nueva contraseña para{" "}
+                          <span class="font-mono font-semibold">
+                            {u.username}
+                          </span>
+                          .
+                        </p>
+                        <form method="POST" class="space-y-3">
+                          <input
+                            type="hidden"
+                            name="action"
+                            value="reset-password"
+                          />
+                          <input type="hidden" name="userId" value={u.id} />
+                          <fieldset class="fieldset">
+                            <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
+                              Nueva contraseña
+                            </legend>
+                            <input
+                              type="password"
+                              name="newPassword"
+                              required
+                              autocomplete="new-password"
+                              class="input input-bordered input-sm w-full"
+                            />
+                            <p class="fieldset-label text-xs text-base-content/50">
+                              Se almacena con hash bcrypt.
+                            </p>
+                          </fieldset>
+                          <div class="modal-action mt-2 gap-2">
+                            <button
+                              type="submit"
+                              class="btn btn-warning btn-sm gap-1"
+                            >
+                              <Icon
+                                name="boxicons:lock-open-filled"
+                                size={14}
+                              />
+                              Blanquear
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-sm"
+                              onclick="this.closest('dialog').close()"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                      <form method="dialog" class="modal-backdrop">
+                        <button>cerrar</button>
+                      </form>
+                    </dialog>
+                  </article>
+                ))
+              )
+            }
           </DataTable>
         </div>
       </section>
     </div>
   </PageContainer>
+
+  <dialog id="modal-change-role" class="modal">
+    <div class="modal-box max-w-sm border border-base-300">
+      <h3 class="mb-1 text-base font-semibold text-base-content">
+        Cambiar rol de usuario
+      </h3>
+      <p class="mb-4 text-xs text-base-content/60">
+        Modifica el rol del usuario en el sistema.
+      </p>
+      <form method="POST" class="space-y-4">
+        <input type="hidden" name="action" value="change-role" />
+        <input type="hidden" name="userId" id="change-role-user-id" />
+        <fieldset class="fieldset">
+          <legend
+            class="fieldset-legend text-xs font-bold uppercase tracking-wider"
+          >
+            Nuevo rol
+          </legend>
+          <select
+            id="change-role-select"
+            name="newRole"
+            class="select select-bordered select-sm w-full"
+          >
+            <option value="agent">Agente</option>
+            <option value="referent">Referente</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </fieldset>
+
+        <div
+          id="role-desc-container"
+          class="p-3 bg-base-200 border border-base-300 rounded-lg text-xs space-y-1 transition-all duration-300"
+        >
+          <span class="font-bold text-base-content block"
+            >Permisos del rol:</span
+          >
+          <p id="role-permissions-desc" class="text-base-content/70">
+            Selecciona un rol para ver sus permisos.
+          </p>
+        </div>
+
+        <div class="modal-action mt-2 gap-2">
+          <button type="submit" class="btn btn-primary btn-sm gap-1">
+            <Icon name="boxicons:check-filled" size={14} />
+            Guardar
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            onclick="this.closest('dialog').close()">Cancelar</button
+          >
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>cerrar</button>
+    </form>
+  </dialog>
+
+  <dialog id="modal-permissions-matrix" class="modal">
+    <div class="modal-box max-w-4xl border border-base-300">
+      <h3
+        class="mb-2 text-lg font-bold text-base-content flex items-center gap-2"
+      >
+        <Icon name="boxicons:universal-access-filled" size={24} />
+        Matriz de permisos por rol
+      </h3>
+      <p class="mb-4 text-xs text-base-content/60">
+        Detalle comparativo de las acciones y accesos permitidos para cada rol
+        en la plataforma.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="table table-xs md:table-sm w-full">
+          <thead>
+            <tr class="text-base-content/70">
+              <th class="bg-base-200/30">Funcionalidad / Ruta</th>
+              <th class="bg-neutral text-neutral-content text-center font-bold"
+                >Agente</th
+              >
+              <th class="bg-warning text-warning-content text-center font-bold"
+                >Referente</th
+              >
+              <th class="bg-info text-info-content text-center font-bold"
+                >Supervisor</th
+              >
+              <th class="bg-error text-error-content text-center font-bold"
+                >Admin</th
+              >
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rolesMatrix.map((row) => (
+                <tr class="hover:bg-base-200/20 transition-colors">
+                  <td class="font-medium text-base-content/80 text-xs md:text-sm whitespace-nowrap flex items-center gap-2 py-3">
+                    <Icon
+                      name={row.icon}
+                      size={16}
+                      class="text-base-content/65 shrink-0"
+                    />
+                    <span>{row.feature}</span>
+                  </td>
+                  <td class="text-center bg-base-200/5">
+                    {row.agent ? (
+                      <Icon
+                        name="boxicons:check"
+                        class="inline-block text-success"
+                        size={24}
+                      />
+                    ) : (
+                      <Icon
+                        name="boxicons:x"
+                        class="inline-block text-error"
+                        size={24}
+                      />
+                    )}
+                  </td>
+                  <td class="text-center bg-warning/5">
+                    {row.referent ? (
+                      <Icon
+                        name="boxicons:check"
+                        class="inline-block text-success"
+                        size={24}
+                      />
+                    ) : (
+                      <Icon
+                        name="boxicons:x"
+                        class="inline-block text-error"
+                        size={24}
+                      />
+                    )}
+                  </td>
+                  <td class="text-center bg-info/5">
+                    {row.supervisor ? (
+                      <Icon
+                        name="boxicons:check"
+                        class="inline-block text-success"
+                        size={24}
+                      />
+                    ) : (
+                      <Icon
+                        name="boxicons:x"
+                        class="inline-block text-error"
+                        size={24}
+                      />
+                    )}
+                  </td>
+                  <td class="text-center bg-error/5">
+                    {row.admin ? (
+                      <Icon
+                        name="boxicons:check"
+                        class="inline-block text-success"
+                        size={24}
+                      />
+                    ) : (
+                      <Icon
+                        name="boxicons:x"
+                        class="inline-block text-error"
+                        size={24}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-action mt-4">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          onclick="this.closest('dialog').close()"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>cerrar</button>
+    </form>
+  </dialog>
+
+  <script lang="ts">
+    const roleDescriptions = {
+      admin:
+        "Acceso total al sistema. Puede gestionar usuarios, configuraciones generales, ver el sistema de diseño y acceder a todas las herramientas de supervisión.",
+      supervisor:
+        "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. No tiene acceso a administración ni sistema de diseño.",
+      referent:
+        "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
+      agent:
+        "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
+    };
+
+    const modal = document.getElementById("modal-change-role");
+    const userIdInput = document.getElementById("change-role-user-id");
+    const roleSelect = document.getElementById("change-role-select");
+    const descEl = document.getElementById("role-permissions-desc");
+    const containerEl = document.getElementById("role-desc-container");
+
+    const updateDesc = (role) => {
+      if (descEl) {
+        descEl.textContent =
+          roleDescriptions[role] || "Sin descripción disponible.";
+      }
+      if (containerEl) {
+        containerEl.className =
+          "p-3 border rounded-lg text-xs space-y-1 transition-all duration-300";
+        if (role === "admin") {
+          containerEl.classList.add("bg-error/5", "border-error/30");
+        } else if (role === "supervisor") {
+          containerEl.classList.add("bg-info/5", "border-info/30");
+        } else if (role === "referent") {
+          containerEl.classList.add("bg-warning/5", "border-warning/30");
+        } else {
+          containerEl.classList.add("bg-base-200", "border-base-300");
+        }
+      }
+    };
+
+    roleSelect?.addEventListener("change", (e) => {
+      const val = e.target.value;
+      updateDesc(val);
+    });
+
+    document
+      .querySelectorAll('[data-action="change-role-btn"]')
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const userId = btn.getAttribute("data-user-id");
+          const userRole = btn.getAttribute("data-user-role");
+
+          if (userIdInput && roleSelect && modal) {
+            userIdInput.value = userId || "";
+            roleSelect.value = userRole || "agent";
+            updateDesc(roleSelect.value);
+            modal.showModal();
+          }
+        });
+      });
+  </script>
 </BaseLayout>

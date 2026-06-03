@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
+declare const chrome: any;
+
 export interface TitleData {
   title: string;
   ci: string;
@@ -41,7 +43,7 @@ export function useTitles() {
             i === self.findIndex((x) => x.title === t.title)
           )
           .sort((a, b) =>
-            a.title.localeCompare("es", { sensitivity: "base" })
+            a.title.localeCompare(b.title, "es", { sensitivity: "base" })
           );
 
         setTitles(unique);
@@ -77,9 +79,8 @@ export function useTitles() {
   }, [searchQuery, titles]);
 
   const copyToClipboard = useCallback(async (text: string, index: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
-
+    const copied = await copyText(text);
+    if (copied) {
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
       
@@ -91,8 +92,6 @@ export function useTitles() {
           payload: text,
         });
       }
-    } catch (err) {
-      console.error("Clipboard copy failed:", err);
     }
   }, []);
 
@@ -105,4 +104,52 @@ export function useTitles() {
     copyToClipboard,
     copiedIndex,
   };
+}
+
+function fallbackCopyToClipboard(value: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.setAttribute("aria-hidden", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  textarea.style.opacity = "0";
+
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  let copied = false;
+  try {
+    const legacyCopyApi = document as unknown as {
+      execCommand?: (commandId: string) => boolean;
+    };
+    copied =
+      typeof legacyCopyApi.execCommand === "function"
+        ? legacyCopyApi.execCommand("copy")
+        : false;
+  } catch {
+    copied = false;
+  }
+
+  textarea.remove();
+  return copied;
+}
+
+async function copyText(value: string): Promise<boolean> {
+  const canUseClipboardApi =
+    typeof navigator !== "undefined" &&
+    typeof navigator.clipboard !== "undefined" &&
+    typeof navigator.clipboard.writeText === "function";
+
+  if (canUseClipboardApi) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      return fallbackCopyToClipboard(value);
+    }
+  }
+  return fallbackCopyToClipboard(value);
 }

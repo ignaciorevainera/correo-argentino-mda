@@ -7,6 +7,7 @@ interface Props {
   description: string;
   icon: string;
   iconTone?: string;
+  locked?: boolean;
 }
 
 const {
@@ -15,20 +16,33 @@ const {
   description,
   icon,
   iconTone = "bg-secondary/10 text-secondary",
+  locked = false,
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
+const cleanBase = base.endsWith("/") ? base : base + "/";
 const isWebUrl = (value: string): boolean => /^https?:\/\//i.test(value);
-const resolvedHref = (isWebUrl(href) || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith(cleanBase))
-  ? href
-  : `${cleanBase}${href.startsWith('/') ? href.slice(1) : href}`;
+const resolvedHref =
+  isWebUrl(href) ||
+  href.startsWith("mailto:") ||
+  href.startsWith("tel:") ||
+  href.startsWith(cleanBase)
+    ? href
+    : `${cleanBase}${href.startsWith("/") ? href.slice(1) : href}`;
+
+const Wrapper = locked ? "div" : "a";
 ---
 
-<a
-  href={resolvedHref}
-  aria-label={`Abrir ${title}`}
-  class="card card-compact bg-base-100 border border-base-300 h-full shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+<Wrapper
+  {...!locked
+    ? { href: resolvedHref, "aria-label": `Abrir ${title}` }
+    : { "aria-label": `${title} (Restringido)` }}
+  class:list={[
+    "card card-compact bg-base-100 border border-base-300 h-full shadow-md",
+    locked
+      ? "opacity-40 grayscale cursor-not-allowed select-none"
+      : "transition-all duration-300 hover:-translate-y-1 hover:border-primary group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+  ]}
 >
   <div class="card-body gap-3 flex flex-col h-full">
     <div
@@ -41,7 +55,9 @@ const resolvedHref = (isWebUrl(href) || href.startsWith('mailto:') || href.start
       <Icon
         name={icon}
         size={32}
-        class="transition-transform duration-300 group-hover:scale-110"
+        class={locked
+          ? ""
+          : "transition-transform duration-300 group-hover:scale-110"}
       />
     </div>
     <h3
@@ -49,15 +65,29 @@ const resolvedHref = (isWebUrl(href) || href.startsWith('mailto:') || href.start
     >
       {title}
     </h3>
-    <p class="text-sm text-base-content/70 flex-grow leading-relaxed">
+    <p class="text-sm text-base-content/70 grow leading-relaxed">
       {description}
     </p>
     <div class="card-actions mt-2 justify-end">
-      <span
-        class="flex items-center gap-1 text-sm font-medium text-base-content/40 transition-colors duration-300"
-      >
-        Acceder <Icon name="boxicons:arrow-right-stroke-filled" size={24} />
-      </span>
+      {
+        locked ? (
+          <Icon
+            name="boxicons:lock"
+            size={24}
+            class="opacity-60"
+            aria-hidden="true"
+          />
+        ) : (
+          <span class="flex items-center gap-1 text-sm font-medium text-base-content/40 transition-colors duration-300">
+            Acceder{" "}
+            <Icon
+              name="boxicons:arrow-right-stroke-filled"
+              size={24}
+              aria-hidden="true"
+            />
+          </span>
+        )
+      }
     </div>
   </div>
-</a>
+</Wrapper>

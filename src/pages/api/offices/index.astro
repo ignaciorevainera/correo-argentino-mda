@@ -1,0 +1,37 @@
+---
+export const partial = true;
+
+import { getOffices } from "@lib/officeQueries";
+import OfficeRow from "@components/offices/OfficeRow.astro";
+import AdminOfficeRow from "@components/admin/AdminOfficeRow.astro";
+
+const searchParams = Astro.url.searchParams;
+const view = searchParams.get("view") || "public";
+const page = parseInt(searchParams.get("page") || "1", 10);
+const limit = parseInt(searchParams.get("limit") || "50", 10);
+const search = searchParams.get("search") || "";
+const type = searchParams.get("type") || "all";
+const region = searchParams.get("region") || "all";
+const province = searchParams.get("province") || "all";
+const zone = searchParams.get("zone") || "all";
+const paqar = searchParams.get("paqar") || "all";
+
+const { data: offices, count, hasMore } = await getOffices({
+  page,
+  limit,
+  search,
+  type,
+  region,
+  province,
+  zone,
+  paqar,
+});
+
+Astro.response.headers.set("X-Total-Count", count.toString());
+Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
+---
+{offices.map((office) => (
+  view === "admin"
+    ? <AdminOfficeRow office={office} />
+    : <OfficeRow office={office} />
+))}

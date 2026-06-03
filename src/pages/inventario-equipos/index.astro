@@ -16,7 +16,6 @@ import {
 } from "@lib/cubics";
 import { db } from "@db/index";
 
-
 type OsFamily = "windows" | "linux" | "legacy";
 type BoxiconName = `boxicons:${string}`;
 
@@ -168,7 +167,6 @@ const rowIcons: Record<
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
 
-
 const cubicMachines = await db.query.cubics.findMany({
   with: {
     assignments: {
@@ -178,7 +176,6 @@ const cubicMachines = await db.query.cubics.findMany({
     },
   },
 });
-
 
 const onlineCount = getActiveMachineCount(cubicMachines as any);
 const totalMachines = cubicMachines.length;
@@ -217,22 +214,135 @@ const inventoryTabs = [
       description="Gestión centralizada del parque operativo: terminales y estaciones de trabajo."
     />
 
-    <ViewSwitcher
-      tabs={inventoryTabs}
-      activeValue="terminales"
-      name="inventory_tabs"
-      id="inventory-view-switcher"
-    />
+    <div class="w-full">
+      <ViewSwitcher
+        tabs={inventoryTabs}
+        activeValue="terminales"
+        name="inventory_tabs"
+        id="inventory-view-switcher"
+        class="w-full grid grid-cols-2"
+        containerClass="w-full"
+      />
+    </div>
 
-    <div id="view-terminales" class="space-y-6">
-      <div class="w-full max-w-md">
-        <SearchInput
-          id="terminal-search"
-          label="Buscar terminal por hostname, dirección IP, MAC o sucursal"
-          placeholder="Buscar por hostname, IP, MAC o sucursal"
-        />
+    <div
+      class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between min-h-18"
+    >
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end flex-1">
+        <div
+          id="header-search-terminales"
+          class="w-full max-w-md transition-opacity duration-300"
+        >
+          <SearchInput
+            id="terminal-search"
+            label="Buscar terminal por hostname, dirección IP, MAC o sucursal"
+            placeholder="Buscar por hostname, IP, MAC o sucursal"
+          />
+        </div>
+
+        <div
+          id="header-search-cubics"
+          class="hidden w-full max-w-md transition-opacity duration-300"
+        >
+          <SearchInput
+            id="machine-search"
+            label="Buscar cubic por hostname, dirección IP o usuario asignado"
+            placeholder="Buscar por hostname, IP o usuario"
+          />
+        </div>
       </div>
 
+      <div
+        id="header-right-terminales"
+        class="flex flex-col gap-3 sm:flex-row sm:items-end lg:justify-end transition-opacity duration-300"
+      >
+        <div class="form-control">
+          <select
+            id="filter-os"
+            class="select select-bordered w-full sm:w-auto font-medium text-base-content/80"
+            aria-label="Filtrar por sistema operativo"
+          >
+            <option value="all">Sist. Op. (Todos)</option>
+            <option value="windows">Windows</option>
+            <option value="linux">Linux</option>
+            <option value="legacy">Legacy</option>
+          </select>
+        </div>
+        <div class="form-control">
+          <select
+            id="filter-type"
+            class="select select-bordered w-full sm:w-auto font-medium text-base-content/80"
+            aria-label="Filtrar por tipo de terminal"
+          >
+            <option value="all">Tipo (Todos)</option>
+            <option value="comercial">Comercial</option>
+            <option value="operativa">Operativa</option>
+            <option value="administrativa">Administrativa</option>
+            <option value="electoral">Electoral</option>
+            <option value="servidor">Servidor</option>
+          </select>
+        </div>
+      </div>
+
+      <div
+        id="header-right-cubics"
+        class="hidden flex-col gap-4 sm:flex-row sm:items-center lg:justify-end transition-opacity duration-300"
+      >
+        <div
+          class="tabs tabs-box self-start sm:self-auto"
+          role="radiogroup"
+          aria-label="Filtros por estado"
+        >
+          <input
+            type="radio"
+            name="cubic_filters"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Todos"
+            checked
+            data-filter-tab
+            data-filter="all"
+          />
+          <input
+            type="radio"
+            name="cubic_filters"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Online"
+            data-filter-tab
+            data-filter="online"
+          />
+          <input
+            type="radio"
+            name="cubic_filters"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Offline"
+            data-filter-tab
+            data-filter="offline"
+          />
+        </div>
+
+        <aside
+          class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
+          aria-label="Resumen de conectividad"
+        >
+          <div
+            class="card-body flex-row items-center justify-between sm:justify-start gap-4 p-3"
+          >
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
+            >
+              Conectividad
+            </p>
+            <div class="flex items-center gap-2">
+              <span class="badge badge-success font-mono"
+                >{onlineCount}/{totalMachines}</span
+              >
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div id="view-terminales" class="space-y-6">
       <section class="space-y-3">
         <DataTable
           id="table-terminales"
@@ -243,7 +353,7 @@ const inventoryTabs = [
         >
           <div slot="header" class="col-span-3">
             <DataTableHeaderCell sortKey="hostname"
-              >Hostname/Red</DataTableHeaderCell
+              >Hostname</DataTableHeaderCell
             >
           </div>
           <div slot="header" class="col-span-3">
@@ -408,72 +518,6 @@ const inventoryTabs = [
     </div>
 
     <div id="view-cubics" class="hidden space-y-6">
-      <div
-        class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-      >
-        <aside
-          class="card w-full border border-base-300 bg-base-100 shadow-md lg:max-w-xs"
-          aria-label="Resumen de conectividad"
-        >
-          <div class="card-body gap-2 p-4">
-            <p
-              class="text-xs font-semibold uppercase tracking-wide text-base-content/60"
-            >
-              Conectividad actual
-            </p>
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="badge badge-success badge-lg font-mono"
-                >{onlineCount}/{totalMachines}</span
-              >
-              <span class="text-sm text-base-content/70">online/total</span>
-            </div>
-          </div>
-        </aside>
-
-        <div
-          class="flex flex-col gap-3 md:flex-row md:items-center md:justify-end flex-1"
-        >
-          <div class="w-full max-w-md">
-            <SearchInput
-              id="machine-search"
-              label="Buscar cubic por hostname, dirección IP o usuario asignado"
-              placeholder="Buscar por hostname, IP o usuario"
-            />
-          </div>
-          <div
-            class="tabs tabs-box self-start md:self-auto"
-            role="radiogroup"
-            aria-label="Filtros por estado"
-          >
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Todos"
-              checked
-              data-filter-tab
-              data-filter="all"
-            />
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Online"
-              data-filter-tab
-              data-filter="online"
-            />
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Offline"
-              data-filter-tab
-              data-filter="offline"
-            />
-          </div>
-        </div>
-      </div>
-
       <section class="space-y-3">
         <DataTable
           id="table-cubics"
@@ -610,7 +654,9 @@ const inventoryTabs = [
                                 ]}
                               >
                                 <Icon
-                                  name={shiftIcon[assignment.shift as CubicShift]}
+                                  name={
+                                    shiftIcon[assignment.shift as CubicShift]
+                                  }
                                   class="size-2.5"
                                 />
                               </span>
@@ -653,21 +699,45 @@ const inventoryTabs = [
       matchesSearchQuery,
     } from "@lib/clientSearch";
 
-
     const switcher = document.getElementById("inventory-view-switcher");
     const viewTerminales = document.getElementById("view-terminales");
     const viewCubics = document.getElementById("view-cubics");
+    const searchTerminales = document.getElementById(
+      "header-search-terminales",
+    );
+    const searchCubics = document.getElementById("header-search-cubics");
+    const rightTerminales = document.getElementById("header-right-terminales");
+    const rightCubics = document.getElementById("header-right-cubics");
 
     const updateTabs = (activeValue: string) => {
       const isTerminales = activeValue === "terminales";
       viewTerminales?.classList.toggle("hidden", !isTerminales);
       viewCubics?.classList.toggle("hidden", isTerminales);
+
+      if (isTerminales) {
+        searchTerminales?.classList.remove("hidden");
+        searchCubics?.classList.add("hidden");
+
+        rightTerminales?.classList.remove("hidden");
+        rightTerminales?.classList.add("flex");
+
+        rightCubics?.classList.add("hidden");
+        rightCubics?.classList.remove("flex");
+      } else {
+        searchTerminales?.classList.add("hidden");
+        searchCubics?.classList.remove("hidden");
+
+        rightTerminales?.classList.add("hidden");
+        rightTerminales?.classList.remove("flex");
+
+        rightCubics?.classList.remove("hidden");
+        rightCubics?.classList.add("flex");
+      }
     };
 
     switcher?.addEventListener("view-change", (e: any) => {
       updateTabs(e.detail.value);
     });
-
 
     const terminalSearchInput =
       document.querySelector<HTMLInputElement>("#terminal-search");
@@ -693,7 +763,6 @@ const inventoryTabs = [
     };
 
     terminalSearchInput?.addEventListener("input", updateTerminalRows);
-
 
     const machineSearchInput =
       document.querySelector<HTMLInputElement>("#machine-search");
@@ -736,7 +805,6 @@ const inventoryTabs = [
       });
     });
 
-
     function bindSorting(tableId: string, rows: HTMLElement[]) {
       const table = document.getElementById(tableId);
       if (!table || rows.length === 0) return;
@@ -764,12 +832,13 @@ const inventoryTabs = [
           currentSortDirection = "asc";
         }
 
-
         headerCells.forEach((cell) => {
           const cellKey = (cell as HTMLElement).dataset.tableSortKey;
           const isActive = cellKey === currentSortColumn;
           const direction = isActive
-            ? (currentSortDirection === "asc" ? "ascending" : "descending")
+            ? currentSortDirection === "asc"
+              ? "ascending"
+              : "descending"
             : "none";
 
           (cell as HTMLElement).dataset.tableSortDirection = direction;
@@ -777,12 +846,12 @@ const inventoryTabs = [
 
           const icons = cell.querySelectorAll("[data-table-sort-icon]");
           icons.forEach((icon) => {
-            const shouldShow = (icon as HTMLElement).dataset.tableSortIcon === direction;
+            const shouldShow =
+              (icon as HTMLElement).dataset.tableSortIcon === direction;
             (icon as HTMLElement).classList.toggle("hidden", !shouldShow);
             (icon as HTMLElement).classList.toggle("opacity-0", !shouldShow);
           });
         });
-
 
         if (currentSortColumn) {
           const dataKey = `sort${currentSortColumn.charAt(0).toUpperCase()}${currentSortColumn.slice(1)}`;
@@ -791,13 +860,15 @@ const inventoryTabs = [
             const valB = b.dataset[dataKey] || "";
 
             if (currentSortColumn === "ip") {
-              const aParts = valA.split('.').map(Number);
-              const bParts = valB.split('.').map(Number);
+              const aParts = valA.split(".").map(Number);
+              const bParts = valB.split(".").map(Number);
               for (let i = 0; i < 4; i++) {
                 const numA = aParts[i] || 0;
                 const numB = bParts[i] || 0;
                 if (numA !== numB) {
-                  return currentSortDirection === "asc" ? numA - numB : numB - numA;
+                  return currentSortDirection === "asc"
+                    ? numA - numB
+                    : numB - numA;
                 }
               }
               return 0;
@@ -806,11 +877,12 @@ const inventoryTabs = [
             const valALower = valA.toLowerCase();
             const valBLower = valB.toLowerCase();
 
-            if (valALower < valBLower) return currentSortDirection === "asc" ? -1 : 1;
-            if (valALower > valBLower) return currentSortDirection === "asc" ? 1 : -1;
+            if (valALower < valBLower)
+              return currentSortDirection === "asc" ? -1 : 1;
+            if (valALower > valBLower)
+              return currentSortDirection === "asc" ? 1 : -1;
             return 0;
           });
-
 
           const parent = rows[0].parentElement;
           if (parent) {
@@ -822,7 +894,6 @@ const inventoryTabs = [
 
     bindSorting("table-terminales", terminalRows);
     bindSorting("table-cubics", machineRows);
-
 
     updateTerminalRows();
     updateMachineRows();

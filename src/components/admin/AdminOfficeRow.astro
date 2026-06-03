@@ -1,0 +1,146 @@
+---
+import { Icon } from "astro-icon/components";
+import type { OfficeDirectoryItem } from "@/data/directorio_oficinas";
+import {
+  officeTypeLabelByType,
+  officeTypeChipClassByType,
+  defaultChipClass,
+} from "@lib/officeHelpers";
+
+interface Props {
+  office: OfficeDirectoryItem;
+}
+
+const { office } = Astro.props;
+
+// We need mappedType, the office object comes from getOffices which maps type.
+// In getOffices, type is already mapped to SUCURSAL_AUTOMATIZADA etc.
+const mappedType = office.type;
+
+const rowGridClass =
+  "grid grid-cols-[80px_1fr_90px_150px_1fr_140px] items-center gap-4";
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+// For search data attribute
+const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${office.region} ${office.provinceName} ${officeTypeLabelByType[mappedType] ?? mappedType} ${office.parentNis ?? ""}`.toLowerCase();
+---
+
+<article
+  data-table-row
+  data-sort-code={office.code}
+  data-sort-name={office.name}
+  data-sort-parent-nis={office.parentNis ?? ""}
+  data-sort-type={mappedType}
+  data-sort-region={office.region}
+  data-sort-province-code={office.provinceCode}
+  data-search-text={searchText}
+  class:list={[
+    rowGridClass,
+    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+  ]}
+>
+  {/* Código */}
+  <div>
+    <span
+      data-highlight-target
+      class:list={[
+        "inline-flex px-2 py-1 font-mono text-sm font-semibold",
+        officeTypeChipClassByType[mappedType] || defaultChipClass,
+      ]}
+    >
+      {office.code}
+    </span>
+  </div>
+
+  {/* Nombre + Dirección */}
+  <div class="min-w-0">
+    <p
+      data-highlight-target
+      class="truncate text-sm font-semibold text-base-content"
+    >
+      {office.name}
+    </p>
+    {office.address && (
+      <p
+        data-highlight-target
+        class="mt-0.5 truncate text-xs text-base-content/50"
+      >
+        {office.address}
+      </p>
+    )}
+  </div>
+
+  {/* NIS Padre */}
+  <div class="min-w-0">
+    {office.parentNis ? (
+      <span
+        data-highlight-target
+        class="inline-flex px-2 py-1 font-mono text-sm font-semibold office-type-chip bg-base-300 text-base-content border-base-400"
+      >
+        {office.parentNis}
+      </span>
+    ) : (
+      <span class="text-base-content/30">&mdash;</span>
+    )}
+  </div>
+
+  {/* Tipo */}
+  <div class="min-w-0">
+    <span
+      data-highlight-target
+      class:list={[
+        "inline-flex px-2 py-1 text-xs font-bold uppercase tracking-wide",
+        officeTypeChipClassByType[mappedType] || defaultChipClass,
+      ]}
+    >
+      {officeTypeLabelByType[mappedType] ?? mappedType}
+    </span>
+  </div>
+
+  {/* Provincia / Región */}
+  <div class="min-w-0">
+    <span
+      data-highlight-target
+      class="truncate text-sm text-base-content/70"
+    >
+      {office.provinceName || (
+        <span class="text-base-content/30">&mdash;</span>
+      )}
+    </span>
+    {office.region && (
+      <p class="mt-0.5 truncate text-xs text-base-content/50">
+        {office.region}
+      </p>
+    )}
+  </div>
+
+  {/* Acciones */}
+  <div class="flex items-center justify-end gap-1">
+    <a
+      href={`${cleanBase}admin/offices/${office.dbId}`}
+      class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      aria-label={`Editar ${office.name}`}
+    >
+      <Icon name="boxicons:pencil-filled" size={14} />
+      <span class="hidden sm:inline">Editar</span>
+    </a>
+
+    <form
+      method="POST"
+      class="inline"
+      onsubmit="return confirm('¿Estás seguro de que querés eliminar esta oficina? Se borrarán también sus contactos y activos vinculados.')"
+    >
+      <input type="hidden" name="action" value="delete_office" />
+      <input type="hidden" name="officeId" value={office.dbId} />
+      <button
+        type="submit"
+        class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
+        aria-label={`Eliminar ${office.name}`}
+      >
+        <Icon name="boxicons:trash-filled" size={14} />
+        <span class="hidden sm:inline">Eliminar</span>
+      </button>
+    </form>
+  </div>
+</article>

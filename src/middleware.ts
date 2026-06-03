@@ -67,22 +67,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  const role = currentUser.role;
+  const role = (currentUser.role || "").toLowerCase().trim();
 
-  if (
-    (relativePath.startsWith("/admin") || relativePath.startsWith("/design-system")) &&
-    role !== "admin"
-  ) {
+  if (relativePath.startsWith("/design-system") && role !== "admin") {
     return redirect(resolveUrl("/login"));
   }
 
-  if (relativePath.startsWith("/supervision")) {
-    if (relativePath.startsWith("/supervision/asignacion-autogestiones")) {
-      if (!["referent", "supervisor", "admin"].includes(role)) {
+  if (relativePath.startsWith("/admin")) {
+    if (relativePath.startsWith("/admin/users")) {
+      if (role !== "admin") {
         return redirect(resolveUrl("/login"));
       }
     } else {
+      if (!["admin", "supervisor"].includes(role)) {
+        return redirect(resolveUrl("/login"));
+      }
+    }
+  }
+
+  if (relativePath.startsWith("/supervision")) {
+    if (relativePath.startsWith("/supervision/cronograma")) {
       if (!["supervisor", "admin"].includes(role)) {
+        return redirect(resolveUrl("/login"));
+      }
+    } else {
+      if (!["referent", "referente", "supervisor", "admin"].includes(role)) {
         return redirect(resolveUrl("/login"));
       }
     }

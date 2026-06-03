@@ -158,7 +158,7 @@ export const navSections: NavSection[] = [
             icon: "boxicons:user-id-card-filled",
           },
         ],
-      }
+      },
     ],
   },
 ];
@@ -166,11 +166,11 @@ export const navSections: NavSection[] = [
 export function getSectionTitle(pathname: string): string {
   // Flatten items
   const allItems: NavItem[] = [];
-  navSections.forEach(section => {
-    section.items.forEach(item => {
+  navSections.forEach((section) => {
+    section.items.forEach((item) => {
       allItems.push(item);
       if (item.children) {
-        item.children.forEach(child => {
+        item.children.forEach((child) => {
           allItems.push({ ...child, parentLabel: item.label });
         });
       }
@@ -179,31 +179,32 @@ export function getSectionTitle(pathname: string): string {
 
   // Normalize pathname relative to BASE_URL
   const base = import.meta.env.BASE_URL || "/";
-  const cleanBase = base.endsWith('/') ? base : base + '/';
+  const cleanBase = base.endsWith("/") ? base : base + "/";
   let relativePath = pathname;
   if (pathname.startsWith(cleanBase)) {
-    relativePath = '/' + pathname.slice(cleanBase.length);
+    relativePath = "/" + pathname.slice(cleanBase.length);
   } else if (pathname === cleanBase.slice(0, -1)) {
-    relativePath = '/';
+    relativePath = "/";
   }
 
   // Normalize pathname to remove trailing slash if present (except for root)
-  const normalizedPath = relativePath === "/" ? relativePath : relativePath.replace(/\/$/, "");
+  const normalizedPath =
+    relativePath === "/" ? relativePath : relativePath.replace(/\/$/, "");
 
   // Find exact match first
-  const exactMatch = allItems.find(item => item.href === normalizedPath);
+  const exactMatch = allItems.find((item) => item.href === normalizedPath);
   if (exactMatch) return exactMatch.label;
 
   // Find prefix match (avoiding "/")
   const prefixMatch = allItems
-    .filter(item => item.href !== "/")
-    .find(item => normalizedPath.startsWith(item.href));
-    
+    .filter((item) => item.href !== "/")
+    .find((item) => normalizedPath.startsWith(item.href));
+
   if (prefixMatch) return prefixMatch.label;
 
   // Default cases
   if (normalizedPath === "/") return "Portal MDA";
-  if (normalizedPath === "/login") return "Iniciar Sesión";
-  
+  if (normalizedPath === "/login") return "Iniciar sesión";
+
   return "";
 }
