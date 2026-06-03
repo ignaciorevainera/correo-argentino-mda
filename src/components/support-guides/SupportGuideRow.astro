@@ -1,0 +1,204 @@
+---
+import { Icon } from "astro-icon/components";
+import CopyButton from "@components/ui/CopyButton.astro";
+
+interface Props {
+  guide: any;
+}
+
+const { guide } = Astro.props;
+let topicsList: string[] = [];
+try {
+  topicsList = JSON.parse(guide.topics);
+} catch (e) {
+  topicsList = [];
+}
+
+const searchText = `${guide.helpDeskName} ${guide.invgateName} ${guide.route} ${topicsList.join(" ")}`;
+const rowGridClass =
+  "grid grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] items-start gap-4";
+const modalId = `modal_guide_${guide.id}`;
+---
+
+<article
+  data-table-row
+  data-master-detail-sort-item
+  data-search-text={searchText}
+  data-sort-legacy={guide.legacyName || ""}
+  data-sort-invgate={guide.invgateName || ""}
+  class="block"
+>
+  <div
+    class:list={[
+      rowGridClass,
+      "border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-200/50 group",
+    ]}
+  >
+    <!-- Nombre Anterior -->
+    <div class="min-w-0 -ml-2">
+      {
+        guide.legacyName ? (
+          <CopyButton
+            value={guide.legacyName}
+            variant="value"
+            appearance="ghost"
+            label={guide.legacyName}
+            ariaLabel={`Copiar nombre anterior ${guide.legacyName}`}
+            highlightable
+            class="font-bold text-sm"
+          />
+        ) : (
+          <span class="text-base-content/30 text-xs italic px-2">N/A</span>
+        )
+      }
+    </div>
+
+    <!-- Invgate -->
+    <div class="min-w-0 flex items-center gap-1.5">
+      {
+        guide.invgateName ? (
+          <>
+            <span
+              class="px-2 py-0.5 bg-secondary text-white rounded text-xs font-bold shadow-sm inline-block break-all"
+              data-highlight-target
+            >
+              {guide.invgateName}
+            </span>
+            <CopyButton
+              value={guide.invgateName}
+              variant="icon"
+              appearance="ghost"
+              size="xs"
+              ariaLabel={`Copiar nombre en Invgate ${guide.invgateName}`}
+              class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+            />
+          </>
+        ) : (
+          <span class="text-base-content/30 text-xs italic">N/A</span>
+        )
+      }
+    </div>
+
+    <!-- Ruta -->
+    <div class="min-w-0">
+      {
+        guide.route ? (
+          <p
+            class="text-base-content/70 font-mono text-xs break-words whitespace-normal"
+            data-highlight-target
+          >
+            {guide.route}
+          </p>
+        ) : (
+          <span class="text-base-content/30 italic text-xs">Sin ruta</span>
+        )
+      }
+    </div>
+
+    <!-- Temas -->
+    <div class="min-w-0">
+      <div class="flex flex-wrap gap-1.5">
+        {
+          topicsList.length > 0 ? (
+            topicsList.map((tema: string) => (
+              <span
+                class="px-2 py-0.5 bg-secondary/10 text-secondary text-xs rounded border border-secondary/20 font-medium break-words text-center"
+                data-highlight-target
+              >
+                {tema}
+              </span>
+            ))
+          ) : (
+            <span class="text-base-content/30 italic text-xs">Sin tópicos</span>
+          )
+        }
+      </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="min-w-0 flex items-start justify-end">
+      <button
+        class="btn btn-xs btn-outline btn-secondary gap-1"
+        onclick={`document.getElementById('${modalId}').showModal()`}
+      >
+        <Icon name="boxicons:info-circle" class="size-3.5" />
+        Más info
+      </button>
+    </div>
+  </div>
+</article>
+
+<!-- Modal -->
+<dialog id={modalId} class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box bg-base-100 border-t-4 border-t-primary shadow-xl">
+    <h3
+      class="font-black text-lg text-base-content flex items-center gap-2 mb-4"
+    >
+      <Icon name="boxicons:buoy-filled" class="size-6 text-primary" />
+      {guide.helpDeskName}
+    </h3>
+
+    <div class="space-y-4 text-sm text-base-content/80">
+      <!-- Contactos -->
+      <div class="bg-base-200/50 p-3 rounded-lg border border-base-300">
+        <h4 class="font-bold flex items-center gap-1 mb-1 text-base-content/90">
+          <Icon name="boxicons:phone" class="size-4 text-secondary" />
+          Contactos
+        </h4>
+        <p class="whitespace-pre-wrap">
+          {
+            guide.contacts || (
+              <span class="italic text-base-content/50">
+                Sin información de contactos
+              </span>
+            )
+          }
+        </p>
+      </div>
+
+      <!-- Referentes -->
+      <div class="bg-base-200/50 p-3 rounded-lg border border-base-300">
+        <h4 class="font-bold flex items-center gap-1 mb-1 text-base-content/90">
+          <Icon name="boxicons:user" class="size-4 text-secondary" />
+          Referentes
+        </h4>
+        <p class="whitespace-pre-wrap">
+          {
+            guide.referents || (
+              <span class="italic text-base-content/50">
+                Sin referentes designados
+              </span>
+            )
+          }
+        </p>
+      </div>
+
+      <!-- Notas -->
+      <div class="bg-base-200/50 p-3 rounded-lg border border-base-300">
+        <h4 class="font-bold flex items-center gap-1 mb-1 text-base-content/90">
+          <Icon name="boxicons:note" class="size-4 text-secondary" />
+          Notas
+        </h4>
+        <p class="whitespace-pre-wrap">
+          {
+            guide.notes || (
+              <span class="italic text-base-content/50">
+                Sin notas adicionales
+              </span>
+            )
+          }
+        </p>
+      </div>
+    </div>
+
+    <div class="modal-action">
+      <form method="dialog">
+        <!-- if there is a button in form, it will close the modal -->
+        <button class="btn btn-sm">Cerrar</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

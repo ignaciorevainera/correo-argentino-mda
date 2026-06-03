@@ -5,6 +5,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
 const { id } = Astro.params;
 const isNew = id === "nuevo";
@@ -154,7 +155,9 @@ if (Astro.request.method === "POST") {
         version,
         filePath,
       });
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el aplicativo "${title}"`);
     } else {
+      const oldTitle = app.title;
       await db
         .update(applications)
         .set({
@@ -165,6 +168,11 @@ if (Astro.request.method === "POST") {
           filePath,
         })
         .where(eq(applications.id, app.id));
+      if (oldTitle && oldTitle !== title) {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el aplicativo ID ${app.id} (de "${oldTitle}" a "${title}")`);
+      } else {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el aplicativo "${title}" (ID ${app.id})`);
+      }
     }
 
     return Astro.redirect(resolveUrl("/admin/aplicativos"));

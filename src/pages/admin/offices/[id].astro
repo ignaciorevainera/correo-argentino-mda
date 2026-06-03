@@ -13,6 +13,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -45,6 +46,7 @@ if (Astro.request.method === "POST") {
     } else {
       let officeId: number;
 
+      let oldName = "";
       if (isNew) {
         const [created] = await db
           .insert(offices)
@@ -53,6 +55,11 @@ if (Astro.request.method === "POST") {
         officeId = created.id;
       } else {
         officeId = Number(id);
+        const [existing] = await db
+          .select({ name: offices.name })
+          .from(offices)
+          .where(eq(offices.id, officeId));
+        oldName = existing?.name || "";
         await db
           .update(offices)
           .set(officeData)
@@ -135,9 +142,15 @@ if (Astro.request.method === "POST") {
       }
 
       if (isNew) {
+        await logAdminAction(user?.username || 'Sistema', `Creó la oficina "${officeData.name}" (${officeData.code})`);
         return Astro.redirect(`${cleanBase}admin/offices/${officeId}`);
       }
       successMsg = "Oficina actualizada con éxito.";
+      if (oldName && oldName !== officeData.name) {
+        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina NIS ${officeData.code} (de "${oldName}" a "${officeData.name}")`);
+      } else {
+        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
+      }
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")

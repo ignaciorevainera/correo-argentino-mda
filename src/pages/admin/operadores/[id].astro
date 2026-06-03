@@ -6,6 +6,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -63,6 +64,7 @@ if (Astro.request.method === "POST") {
         }
       }
 
+      let logMessage = "";
       await db.transaction(async (tx) => {
         if (isNew) {
           await tx.insert(operators).values({
@@ -71,7 +73,14 @@ if (Astro.request.method === "POST") {
             status: operatorData.status,
             locationId: operatorData.locationId,
           });
+          logMessage = `Creó el operador "${operatorData.name}" (${operatorData.id})`;
         } else {
+          const [existing] = await tx
+            .select({ name: operators.name })
+            .from(operators)
+            .where(eq(operators.id, id!));
+          const oldName = existing?.name || "desconocido";
+
           await tx
             .update(operators)
             .set({
@@ -80,6 +89,12 @@ if (Astro.request.method === "POST") {
               locationId: operatorData.locationId,
             })
             .where(eq(operators.id, id!));
+
+          if (oldName !== operatorData.name) {
+            logMessage = `Actualizó el operador ID ${id} (de "${oldName}" a "${operatorData.name}")`;
+          } else {
+            logMessage = `Actualizó el operador "${operatorData.name}" (${id})`;
+          }
 
           await tx
             .delete(operatorSchedules)
@@ -92,9 +107,11 @@ if (Astro.request.method === "POST") {
       });
 
       if (isNew) {
+        await logAdminAction(user?.username || 'Sistema', logMessage);
         return Astro.redirect(`${cleanBase}admin/operadores`);
       } else {
         successMsg = "Operador y horarios actualizados con éxito.";
+        await logAdminAction(user?.username || 'Sistema', logMessage);
       }
     }
   } catch (e: unknown) {

@@ -6,11 +6,19 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import guia from "../../data/guia_completa.json";
-import info_soportes from "../../data/info_soportes.json";
+import { getSupportGuides } from "@lib/supportGuidesQueries";
+import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
 
-const guiaHeaderGridClass = "grid-cols-12 gap-4";
-const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
+const searchParams = Astro.url.searchParams;
+const searchFilter = searchParams.get("search") || "";
+
+const { data: guides, hasMore } = await getSupportGuides({
+  page: 1,
+  limit: 100,
+  search: searchFilter,
+});
+
+const headerGridClass = "grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] gap-4";
 ---
 
 <BaseLayout>
@@ -25,680 +33,273 @@ const guiaRowGridClass = "grid grid-cols-12 items-start gap-4";
           class="max-w-2xl"
         />
 
-        <div class="flex gap-2">
+        <form
+          method="GET"
+          class="flex gap-2 w-full md:w-auto"
+          id="search-form"
+          aria-label="Filtros de guías de soporte"
+        >
           <SearchInput
             id="global-search"
-            label="Buscar grupo SM, Invgate, temas..."
-            placeholder="Buscar por grupo SM, Invgate, temas..."
+            name="search"
+            value={searchFilter}
+            label="Buscar grupo SM, Invgate, temas o ruta..."
+            placeholder="Buscar por grupo SM, Invgate..."
             class="w-full md:w-80"
           />
-          <button
-            type="button"
-            class="btn btn-sm btn-secondary gap-2 font-bold uppercase text-xs text-white"
-            title="Funcionalidad a implementar en el futuro"
-          >
-            <Icon name="boxicons:slider-alt-filled" class="size-6" />
-            Filtrar
-          </button>
-        </div>
+          {
+            searchFilter !== "" && (
+              <a
+                href="/guia-soportes"
+                class="btn btn-soft text-base-content/70 hover:text-base-content"
+                aria-label="Limpiar filtros"
+                title="Limpiar búsqueda"
+              >
+                Limpiar
+              </a>
+            )
+          }
+        </form>
       </div>
     </section>
 
     <!-- Unified Table View -->
-    <div class="space-y-8">
+    <div class="space-y-8" id="main-view-directory">
       <section
         class="bg-base-100 rounded-xl shadow-md overflow-hidden border border-base-content/10"
+        id="guides-table-wrapper"
       >
         <DataTable
           ariaLabel="Guía de soportes"
           minWidthClass="min-w-240"
-          headerGridClass={guiaHeaderGridClass}
-          rowGridClass={guiaRowGridClass}
+          headerGridClass={headerGridClass}
+          rowGridClass={headerGridClass}
           id="table-guia-root"
         >
-          <div slot="header" class="col-span-3">
-            <DataTableHeaderCell sortKey="sm_groups">
-              Service Manager
-            </DataTableHeaderCell>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="legacy">Nombre Anterior</DataTableHeaderCell>
           </div>
-          <div slot="header" class="col-span-2">
-            <DataTableHeaderCell sortKey="invgate">
-              Invgate
-            </DataTableHeaderCell>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="invgate">Invgate</DataTableHeaderCell>
           </div>
-          <div slot="header" class="col-span-5">
-            <DataTableHeaderCell sortKey="ruta">
-              Ruta de búsqueda
-            </DataTableHeaderCell>
+          <div slot="header">
+            <DataTableHeaderCell>Ruta de búsqueda</DataTableHeaderCell>
           </div>
-          <div slot="header" class="col-span-2">
-            <DataTableHeaderCell>Tópicos y categorías</DataTableHeaderCell>
+          <div slot="header">
+            <DataTableHeaderCell>Tópicos</DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
           </div>
 
-          <div id="table-body">
-            <!-- Rows will be injected by JavaScript -->
-          </div>
+          {guides.map((guide) => <SupportGuideRow guide={guide} />)}
         </DataTable>
 
-        <!-- Pagination Controls -->
         <div
-          class="p-4 bg-base-200/50 border-t border-base-content/10 flex flex-col md:flex-row justify-between items-center gap-4"
+          id="no-results-state"
+          class:list={[
+            "py-24 flex flex-col items-center justify-center text-center px-4 animate-in fade-in duration-500",
+            guides.length > 0 && "hidden",
+          ]}
         >
-          <div
-            class="text-xs text-base-content/50 font-bold tracking-wide"
-            id="pagination-info"
+          <div class="relative size-24 mb-8 group">
+            <div
+              class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors"
+            >
+            </div>
+            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md">
+            </div>
+            <div
+              class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105"
+            >
+              <Icon
+                name="boxicons:search"
+                class="size-10 text-base-content/40"
+              />
+            </div>
+          </div>
+          <h3
+            class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight"
           >
-            Mostrando 0 de 0 registros
-          </div>
-          <div class="join">
-            <button
-              class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1"
-              onclick="changePage(-1)"
-              id="btn-prev"
-            >
-              <Icon name="boxicons:chevron-left-filled" class="size-3" /> Anterior
-            </button>
-            <span
-              class="join-item px-4 flex items-center bg-base-100 border-y border-base-content/10 text-xs font-bold tracking-wide text-base-content/60"
-              id="page-indicator"
-            >
-              Página 1
-            </span>
-            <button
-              class="join-item btn btn-xs btn-outline border-base-content/20 font-bold gap-1"
-              onclick="changePage(1)"
-              id="btn-next"
-            >
-              Siguiente <Icon name="boxicons:chevron-right-filled" class="size-3" />
-            </button>
-          </div>
+            No hay coincidencias
+          </h3>
+          <p
+            class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm"
+          >
+            No hemos podido encontrar guías que coincidan con la búsqueda. Probá
+            modificando los criterios o restableciendo la búsqueda para explorar
+            el directorio completo.
+          </p>
+          <a
+            href={import.meta.env.BASE_URL + "guia-soportes"}
+            class="btn btn-primary rounded-full px-8 shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-transform duration-300"
+          >
+            <Icon name="boxicons:refresh-ccw-filled" class="size-5 mr-1.5" />
+            Restablecer búsqueda
+          </a>
+        </div>
+
+        <div
+          id="scroll-sentinel"
+          class:list={[
+            "py-8 text-center flex justify-center",
+            !hasMore && "hidden",
+          ]}
+          data-has-more={hasMore ? "true" : "false"}
+        >
+          <span
+            class="loading loading-spinner loading-md text-primary hidden"
+            id="loading-spinner"></span>
         </div>
       </section>
     </div>
-
-    <!-- ===== NUEVA SECCIÓN DE DETALLES DEL SOPORTE ===== -->
-    <section
-      id="support-details-card"
-      class="hidden mt-6 bg-base-100 rounded-2xl shadow-md border-l-4 border-l-primary border-y border-y-base-content/5 border-r border-r-base-content/5 p-6 animate-slide-up relative overflow-hidden"
-    >
-      <!-- Decoración de fondo -->
-      <div class="absolute inset-0 bg-linear-to-r from-primary/5 to-transparent pointer-events-none"></div>
-
-      <div class="flex items-start gap-4 relative z-10">
-        <!-- Ícono decorativo -->
-        <div class="p-3.5 bg-primary/10 rounded-2xl text-primary shrink-0 ring-1 ring-primary/20 shadow-sm">
-          <Icon name="boxicons:light-bulb-filled" class="w-7 h-7" />
-        </div>
-
-        <!-- Textos dinámicos -->
-        <div class="w-full relative">
-          <!-- Botón de cerrar (la [X]) -->
-          <button
-            onclick="hideSupportDetails()"
-            class="absolute -top-2 -right-2 p-1 text-base-content/40 hover:text-error transition-colors"
-          >
-            <Icon name="boxicons:x-filled" class="w-5 h-5" />
-          </button>
-          <h3
-            id="details-title"
-            class="text-xl font-black text-base-content"
-          ></h3>
-          <p
-            id="details-desc"
-            class="text-base-content mt-2 text-sm leading-relaxed"
-          ></p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Toast Notification System -->
-    <div
-      id="toast-container"
-      class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"
-    >
-    </div>
-
-    <!-- Data for client-side script -->
-    <script define:vars={{ guia, info_soportes }}>
-      window._GUIA_DATA = guia;
-      window._INFO_SOPORTES_DATA = info_soportes;
-    </script>
-
-
-    <script is:inline>
-
-      const baseData = window._GUIA_DATA || [];
-      const infoSoportes = window._INFO_SOPORTES_DATA || {};
-
-
-      let currentPage = 1;
-      const rowsPerPage = 12;
-      let filteredData = [...baseData];
-      let currentSearchQuery = "";
-      let currentSortColumn = null;
-      let currentSortDirection = "asc";
-
-      document.addEventListener("DOMContentLoaded", () => {
-        applyDataState();
-        bindHeaderClicks();
-        bindSearchInput();
-      });
-
-      function bindSearchInput() {
-        const input = document.getElementById('global-search');
-        if (input) {
-          input.addEventListener('input', (e) => {
-            handleSearch(e.target.value);
-          });
-        }
-      }
-
-      function bindHeaderClicks() {
-        const root = document.getElementById('table-guia-root');
-        if (!root) return;
-        
-        root.addEventListener('click', (e) => {
-          const btn = e.target.closest('[data-table-sort-key]');
-          if (btn) {
-            const key = btn.dataset.tableSortKey;
-            handleSort(key);
-          }
-        });
-      }
-
-      function handleSearch(query) {
-        currentSearchQuery = query.toLowerCase();
-        applyDataState();
-      }
-
-      function handleSort(column) {
-        if (currentSortColumn === column) {
-          if (currentSortDirection === "asc") {
-            currentSortDirection = "desc";
-          } else {
-            currentSortColumn = null;
-            currentSortDirection = null;
-          }
-        } else {
-          currentSortColumn = column;
-          currentSortDirection = "asc";
-        }
-        applyDataState();
-      }
-
-      function showSupportDetails(nombreGrupo){
-        const card = document.getElementById('support-details-card');
-        const title = document.getElementById('details-title');
-        const desc = document.getElementById('details-desc');
-
-        const nombreLimpio = nombreGrupo.trim().toLowerCase();
-
-        const llavesCargadas = Object.keys(infoSoportes);
-        const llaveCorrecta = llavesCargadas.find(llave => llave.trim().toLowerCase() === nombreLimpio);
-
-        const info = llaveCorrecta ? infoSoportes[llaveCorrecta] : null;
-
-
-        title.textContent = nombreGrupo;
-
-        if (info) {
-          desc.innerHTML = `<strong>Descripción:</strong> ${info.descripcion || 'Sin descripción'}`;
-        } else {
-          desc.innerHTML = `No hay información adicional configurada para el grupo: <strong>${nombreGrupo}</strong>`;
-        }
-
-        card.classList.remove('hidden');
-        
-
-        setTimeout(() => {
-          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 50);
-      }
-      function hideSupportDetails() {
-        const card = document.getElementById('support-details-card');
-        card.classList.add('hidden');
-      }
-
-      function updateSortIcons() {
-        const root = document.getElementById('table-guia-root');
-        if (!root) return;
-
-        const controls = Array.from(root.querySelectorAll('[data-table-sort-key]'));
-        
-        controls.forEach(control => {
-          const key = control.dataset.tableSortKey;
-          const isActive = key === currentSortColumn;
-          const direction = isActive 
-            ? (currentSortDirection === "asc" ? "ascending" : "descending")
-            : "none";
-
-          control.dataset.tableSortDirection = direction;
-          control.setAttribute("aria-sort", direction);
-
-          const icons = Array.from(control.querySelectorAll('[data-table-sort-icon]'));
-          icons.forEach(icon => {
-            const shouldShow = icon.dataset.tableSortIcon === direction;
-            icon.classList.toggle("hidden", !shouldShow);
-            icon.classList.toggle("opacity-0", !shouldShow);
-          });
-        });
-      }
-
-      function applyDataState() {
-        filteredData = baseData.filter((item) => {
-          const temasContent = (item.temas || []).join(" ").toLowerCase();
-          const rContent = (item.ruta || "").toLowerCase();
-          const invContent = (item.invgate || "").toLowerCase();
-          const smGroupsContent = (item.sm_groups || [])
-            .join(" ")
-            .toLowerCase();
-
-          return (
-            !currentSearchQuery ||
-            smGroupsContent.includes(currentSearchQuery) ||
-            invContent.includes(currentSearchQuery) ||
-            rContent.includes(currentSearchQuery) ||
-            temasContent.includes(currentSearchQuery)
-          );
-        });
-
-        if (currentSortColumn) {
-          filteredData.sort((a, b) => {
-            let valA = a[currentSortColumn];
-            let valB = b[currentSortColumn];
-
-            if (currentSortColumn === "sm_groups") {
-              valA = valA && valA.length > 0 ? valA[0] : "";
-              valB = valB && valB.length > 0 ? valB[0] : "";
-            }
-
-            valA = (valA || "").toString().toLowerCase();
-            valB = (valB || "").toString().toLowerCase();
-
-            if (valA < valB) return currentSortDirection === "asc" ? -1 : 1;
-            if (valA > valB) return currentSortDirection === "asc" ? 1 : -1;
-            return 0;
-          });
-        }
-
-        currentPage = 1;
-        renderTable();
-        updateSortIcons();
-      }
-
-      function changePage(delta) {
-        const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
-        const newPage = currentPage + delta;
-        if (newPage >= 1 && newPage <= maxPages) {
-          currentPage = newPage;
-          renderTable();
-        }
-      }
-
-      function escapeHTML(str) {
-        if (!str) return "";
-        return str
-          .toString()
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
-      }
-
-      function renderTable() {
-        const tbody = document.getElementById("table-body");
-        if (!tbody) return;
-
-        const start = (currentPage - 1) * rowsPerPage;
-        const end = start + rowsPerPage;
-        const paginatedItems = filteredData.slice(start, end);
-        const maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
-
-        const emptyState = document.getElementById('table-guia-root')?.querySelector('[data-table-empty-state]');
-
-        if (filteredData.length === 0) {
-          tbody.innerHTML = '';
-          if (emptyState) emptyState.classList.remove('hidden');
-
-          if (document.getElementById("page-indicator"))
-            document.getElementById("page-indicator").textContent = "Página 0";
-          if (document.getElementById("pagination-info"))
-            document.getElementById("pagination-info").textContent =
-              "Mostrando 0 registros";
-          if (document.getElementById("btn-prev"))
-            document.getElementById("btn-prev").disabled = true;
-          if (document.getElementById("btn-next"))
-            document.getElementById("btn-next").disabled = true;
-          return;
-        }
-
-        if (emptyState) emptyState.classList.add('hidden');
-
-
-
-        const indicator = document.getElementById("page-indicator");
-        const info = document.getElementById("pagination-info");
-        const btnPrev = document.getElementById("btn-prev");
-        const btnNext = document.getElementById("btn-next");
-
-        if (indicator)
-          indicator.textContent = `Página ${currentPage} de ${maxPages}`;
-        if (btnPrev) btnPrev.disabled = currentPage === 1;
-        if (btnNext) btnNext.disabled = currentPage === maxPages;
-        if (info)
-          info.textContent = `Mostrando ${paginatedItems.length} de ${filteredData.length} registros`;
-
-
-        tbody.innerHTML = paginatedItems
-          .map((item, idx) => {
-            const groups = item.sm_groups || [];
-            const itemIndex = start + idx;
-
-            const maxVisible = 3;
-            let visibleGroups = groups;
-            let hiddenCount = 0;
-
-            let matchedIndex = -1;
-            if (currentSearchQuery) {
-              matchedIndex = groups.findIndex((g) =>
-                g.toLowerCase().includes(currentSearchQuery),
-              );
-            }
-
-            if (groups.length > maxVisible && !currentSearchQuery) {
-              visibleGroups = groups.slice(0, maxVisible);
-              hiddenCount = groups.length - maxVisible;
-            } else if (groups.length > maxVisible && currentSearchQuery) {
-              if (matchedIndex >= maxVisible) {
-                visibleGroups = [
-                  groups[matchedIndex],
-                  ...groups.slice(0, maxVisible - 1),
-                ];
-                hiddenCount = groups.length - maxVisible;
-              } else {
-                visibleGroups = groups.slice(0, maxVisible);
-                hiddenCount = groups.length - maxVisible;
-              }
-            }
-
-            return `
-          <article class="grid grid-cols-12 items-start gap-4 border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-200/50 last:border-b-0 group">
-            <div class="col-span-3 min-w-0">
-              <div class="flex flex-wrap gap-1.5" id="group-container-${itemIndex}">
-                ${visibleGroups
-                  .map((group) => {
-                    const isMatch =
-                      currentSearchQuery &&
-                      group.toLowerCase().includes(currentSearchQuery);
-                    return `
-                    <button data-action="show-details" data-group="${escapeHTML(group)}" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
-                      ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
-                      ${escapeHTML(group)}
-                    </button>
-                  `;
-                  })
-                  .join("")}
-                ${
-                  hiddenCount > 0
-                    ? `
-                  <button 
-                    data-action="expand-groups" 
-                    data-index="${itemIndex}"
-                    class="px-2 py-0.5 rounded bg-base-300 hover:bg-primary hover:text-white border border-base-content/5 text-xs font-black text-base-content/40 flex items-center gap-1 transition-colors group/more" 
-                    title="Click para ver todos los grupos"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-2.5 h-2.5 group-hover/more:rotate-90 transition-transform">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    ${hiddenCount} Más
-                  </button>
-                `
-                    : ""
-                }
-              </div>
-            </div>
-            <div class="col-span-2 min-w-0">
-              <button class="flex items-center gap-2 group/btn transition-colors text-left" data-action="copy" data-value="${escapeHTML(item.invgate)}" title="Click para copiar">
-                <span class="px-2 py-0.5 bg-secondary text-white rounded text-xs font-bold shadow-sm transition-transform group-hover/btn:scale-105">
-                  ${escapeHTML(item.invgate) || "-"}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 text-secondary opacity-0 group-hover/btn:opacity-100 transition-opacity">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                </svg>
-              </button>
-            </div>
-            <div class="col-span-5 min-w-0">
-              ${
-                item.ruta
-                  ? `
-                <button class="flex items-start gap-2 text-base-content/60 font-mono text-xs hover:text-secondary group/btn transition-colors text-left w-full" data-action="copy" data-value="${escapeHTML(item.ruta)}">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-secondary group-hover/btn:scale-110 transition-transform flex-shrink-0 mt-0.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-                  </svg>
-                  <span class="break-words !whitespace-normal text-left">
-                    ${escapeHTML(item.ruta)}
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 opacity-0 group-hover/btn:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                  </svg>
-                </button>
-              `
-                  : '<span class="text-base-content/20 italic text-xs">Sin ruta asignada</span>'
-              }
-            </div>
-            <div class="col-span-2 min-w-0">
-              <div class="flex flex-wrap gap-1">
-                ${
-                  (item.temas || []).length > 0
-                    ? item.temas
-                        .map(
-                          (tema) => `
-                  <span class="px-1.5 py-0.5 bg-base-200 text-base-content/70 text-xs rounded font-medium border border-base-content/5 text-center break-all whitespace-normal max-w-full">
-                    ${escapeHTML(tema)}
-                  </span>
-                `,
-                        )
-                        .join("")
-                    : '<span class="text-base-content/20 italic text-xs">Sin tópicos</span>'
-                }
-              </div>
-            </div>
-          </article>
-        `;
-          })
-          .join("");
-      }
-
-      function expandGroups(itemIndex) {
-        const item = filteredData[itemIndex];
-        const container = document.getElementById(
-          `group-container-${itemIndex}`,
-        );
-        if (!item || !container) return;
-
-        container.innerHTML =
-          item.sm_groups
-            .map((group) => {
-              const isMatch =
-                currentSearchQuery &&
-                group.toLowerCase().includes(currentSearchQuery);
-              return `
-          <button data-action="show-details" data-group="${escapeHTML(group)}" class="px-2 py-0.5 rounded border text-xs font-bold transition-all text-center break-all whitespace-normal max-w-full hover:scale-105 cursor-pointer
-            ${isMatch ? "bg-primary/20 border-primary text-secondary ring-1 ring-primary animate-pulse" : "bg-base-200 hover:bg-base-300 border-base-content/10 text-base-content/60"}">
-            ${escapeHTML(group)}
-          </button>
-        `;
-            })
-            .join("") +
-          `
-        <button data-action="collapse-groups" class="px-2 py-0.5 rounded bg-secondary text-white text-xs font-black flex items-center gap-1 hover:scale-105 transition-transform">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-2.5 h-2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-          </svg>
-          Contraer
-        </button>
-      `;
-      }
-
-      function fallbackCopyToClipboard(value) {
-        const textarea = document.createElement("textarea");
-        textarea.value = value;
-        textarea.setAttribute("readonly", "");
-        textarea.setAttribute("aria-hidden", "true");
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        textarea.style.top = "0";
-        textarea.style.opacity = "0";
-
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        let copied = false;
-        try {
-          copied = document.execCommand("copy");
-        } catch (err) {
-          copied = false;
-        }
-
-        textarea.remove();
-        return copied;
-      }
-
-      async function copyText(text) {
-        if (!text || text === "-" || text === "null") return;
-        
-        let copied = false;
-        const canUseClipboardApi =
-          typeof navigator !== "undefined" &&
-          typeof navigator.clipboard !== "undefined" &&
-          typeof navigator.clipboard.writeText === "function";
-
-        if (canUseClipboardApi) {
-          try {
-            await navigator.clipboard.writeText(text);
-            copied = true;
-          } catch (err) {
-            copied = fallbackCopyToClipboard(text);
-          }
-        } else {
-          copied = fallbackCopyToClipboard(text);
-        }
-
-        if (copied) {
-          showToast(`Copiado: ${text}`);
-        } else {
-          console.error("Error al copiar texto: fallback falló");
-        }
-      }
-
-      function showToast(message) {
-        const container = document.getElementById("toast-container");
-        const toast = document.createElement("div");
-        toast.className =
-          "alert alert-success shadow-lg py-2 px-4 text-xs font-bold text-success-content border-none animate-slide-up flex gap-2";
-        toast.innerHTML = `
-        <div class="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>${message}</span>
-        </div>
-      `;
-        container.appendChild(toast);
-        setTimeout(() => {
-          toast.classList.add("opacity-0", "translate-x-full");
-          setTimeout(() => toast.remove(), 300);
-        }, 3000);
-      }
-
-      function bindTableBodyClicks() {
-        const tbody = document.getElementById("table-body");
-        if (!tbody) return;
-
-        tbody.addEventListener("click", (e) => {
-          // 1. Mostrar detalles
-          const detailsBtn = e.target.closest('[data-action="show-details"]');
-          if (detailsBtn) {
-            const group = detailsBtn.getAttribute("data-group");
-            showSupportDetails(group);
-            return;
-          }
-
-          // 2. Copiar valor
-          const copyBtn = e.target.closest('[data-action="copy"]');
-          if (copyBtn) {
-            const value = copyBtn.getAttribute("data-value");
-            copyText(value);
-            return;
-          }
-
-          // 3. Expandir grupos
-          const expandBtn = e.target.closest('[data-action="expand-groups"]');
-          if (expandBtn) {
-            const index = parseInt(expandBtn.getAttribute("data-index"), 10);
-            expandGroups(index);
-            return;
-          }
-
-          // 4. Contraer grupos
-          const collapseBtn = e.target.closest('[data-action="collapse-groups"]');
-          if (collapseBtn) {
-            renderTable();
-            return;
-          }
-        });
-      }
-
-      function initGuia() {
-        applyDataState();
-        bindHeaderClicks();
-        bindTableBodyClicks();
-        bindSearchInput();
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initGuia);
-      } else {
-        initGuia();
-      }
-
-      window.addEventListener("keydown", (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-          e.preventDefault();
-          document.getElementById("global-search").focus();
-        }
-      });
-    </script>
-
-    <style>
-      .animate-fade-in {
-        animation: fadeIn 0.4s ease-out;
-      }
-      .animate-slide-up {
-        animation: slideUp 0.3s ease-out;
-      }
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes slideUp {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
-    </style>
   </PageContainer>
 </BaseLayout>
+
+<script>
+  import { highlightSearchTargets } from "@lib/clientSearch";
+
+  const container = document.querySelector<HTMLElement>("[data-table-sort-body]");
+  const sentinel = document.getElementById("scroll-sentinel");
+  const spinner = document.getElementById("loading-spinner");
+  const noResultsState = document.getElementById("no-results-state");
+  const searchInput =
+    document.querySelector<HTMLInputElement>("#global-search");
+  const form = document.getElementById("search-form") as HTMLFormElement;
+
+  let currentPage = 1;
+  let currentSearch = searchInput?.value.trim() || "";
+  let isLoading = false;
+  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
+  let searchTimeout: ReturnType<typeof setTimeout>;
+
+  const getQueryParams = (pageNumber: number) => {
+    const params = new URLSearchParams();
+    params.set("page", pageNumber.toString());
+    params.set("limit", "100");
+    if (currentSearch) {
+      params.set("search", currentSearch);
+    }
+    return params.toString();
+  };
+
+  const fetchGuides = async (isNewSearch: boolean) => {
+    if (isLoading) return;
+    isLoading = true;
+    spinner?.classList.remove("hidden");
+
+    try {
+      const query = getQueryParams(currentPage);
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/api/support-guides?${query}`);
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      const totalCount = parseInt(
+        response.headers.get("X-Total-Count") || "0",
+        10,
+      );
+
+      hasMore = newHasMore;
+
+      if (container) {
+        if (isNewSearch) {
+          container.innerHTML = html;
+        } else {
+          container.insertAdjacentHTML("beforeend", html);
+        }
+      }
+
+      if (noResultsState) {
+        if (totalCount === 0) {
+          noResultsState.classList.remove("hidden");
+        } else {
+          noResultsState.classList.add("hidden");
+        }
+      }
+
+      if (currentSearch && container) {
+        const newArticles = Array.from(
+          container.querySelectorAll<HTMLElement>(
+            "[data-master-detail-sort-item]",
+          ),
+        );
+        newArticles.forEach((item) => {
+          highlightSearchTargets(item, currentSearch);
+        });
+      }
+
+      if (!hasMore) {
+        sentinel?.classList.add("hidden");
+      } else {
+        sentinel?.classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error("Error fetching guides:", err);
+    } finally {
+      isLoading = false;
+      spinner?.classList.add("hidden");
+    }
+  };
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    currentSearch = searchInput?.value.trim() || "";
+    currentPage = 1;
+    hasMore = true;
+    fetchGuides(true);
+  });
+
+  searchInput?.addEventListener("input", (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentSearch = (e.target as HTMLInputElement).value.trim();
+      currentPage = 1;
+      hasMore = true;
+      fetchGuides(true);
+    }, 300);
+  });
+
+  if (sentinel) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMore && !isLoading) {
+          currentPage += 1;
+          fetchGuides(false);
+        }
+      },
+      {
+        rootMargin: "200px",
+      },
+    );
+    observer.observe(sentinel);
+  }
+
+  // Highlight initial results if there's a search on page load
+  if (currentSearch && container) {
+    const initialArticles = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"),
+    );
+    initialArticles.forEach((item) => {
+      highlightSearchTargets(item, currentSearch);
+    });
+  }
+</script>
+
+<style>
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
