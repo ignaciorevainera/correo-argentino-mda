@@ -2,8 +2,9 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
-export const POST: APIRoute = async ({ params, request, redirect }) => {
+export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
   const categoryId = params.id;
   if (!categoryId) return new Response("ID de categoría no proporcionado", { status: 400 });
 
@@ -49,6 +50,7 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
 
     // Eliminar la categoría
     await db.delete(resourceCategories).where(eq(resourceCategories.id, categoryId));
+    await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó la categoría de recursos ID ${categoryId}`);
 
     const base = import.meta.env.BASE_URL || "/";
     const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;

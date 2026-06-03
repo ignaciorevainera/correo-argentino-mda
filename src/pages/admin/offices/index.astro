@@ -12,6 +12,7 @@ import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import AdminOfficeRow from "@components/admin/AdminOfficeRow.astro";
 import { getOffices } from "@lib/officeQueries";
 import { officeTypeTabActiveClassByType } from "@lib/officeHelpers";
+import { logAdminAction } from "@lib/auditLogger";
 
 import { Icon } from "astro-icon/components";
 
@@ -33,6 +34,7 @@ if (Astro.request.method === "POST") {
 
         if (deleted) {
           successMsg = `Oficina "${deleted.name}" (${deleted.code}) eliminada con éxito.`;
+          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó la oficina "${deleted.name}" (${deleted.code})`);
         } else {
           errorMsg = "La oficina indicada no existe.";
         }
@@ -419,7 +421,14 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       </div>
     </DataTable>
     
-    <div id="scroll-sentinel" class="py-8 text-center flex justify-center w-full" data-has-more={hasMore ? "true" : "false"}>
+    <div
+      id="scroll-sentinel"
+      class:list={[
+        "py-8 text-center flex justify-center w-full",
+        !hasMore && "hidden",
+      ]}
+      data-has-more={hasMore ? "true" : "false"}
+    >
       <span class="loading loading-spinner loading-md text-primary hidden" id="loading-spinner"></span>
     </div>
 
@@ -492,6 +501,12 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           const totalCount = parseInt(response.headers.get("X-Total-Count") || "0", 10);
 
           hasMore = newHasMore;
+
+          if (!hasMore) {
+            sentinel?.classList.add("hidden");
+          } else {
+            sentinel?.classList.remove("hidden");
+          }
 
           if (container) {
             if (isNewSearch) {

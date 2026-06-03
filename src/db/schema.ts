@@ -518,3 +518,22 @@ export const terminalsRelations = relations(terminals, ({ one }) => ({
     references: [offices.code],
   }),
 }));
+
+export const supportGuides = sqliteTable("support_guides", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  helpDeskName: text("help_desk_name").notNull(),
+  legacyName: text("legacy_name"),
+  invgateName: text("invgate_name"),
+  route: text("route"),
+  topics: text("topics"),
+  contacts: text("contacts"),
+  referents: text("referents"),
+  notes: text("notes"),
+});
+
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull(),
+  action: text("action").notNull(),
+  timestamp: text("timestamp").notNull(),
+});

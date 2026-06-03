@@ -6,6 +6,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -32,6 +33,7 @@ if (Astro.request.method === "POST") {
     } else {
       let cubicId: number;
 
+      let oldName = "";
       if (isNew) {
         const [created] = await db
           .insert(cubics)
@@ -40,6 +42,11 @@ if (Astro.request.method === "POST") {
         cubicId = created.id;
       } else {
         cubicId = Number(id);
+        const [existing] = await db
+          .select({ name: cubics.name })
+          .from(cubics)
+          .where(eq(cubics.id, cubicId));
+        oldName = existing?.name || "";
         await db.update(cubics).set(cubicData).where(eq(cubics.id, cubicId));
       }
 
@@ -93,9 +100,15 @@ if (Astro.request.method === "POST") {
       }
 
       if (isNew) {
+        await logAdminAction(user?.username || 'Sistema', `Creó el ordenador "${cubicData.name}"`);
         return Astro.redirect(`${cleanBase}admin/cubics/${cubicId}`);
       }
       successMsg = "Cubic actualizado con éxito.";
+      if (oldName && oldName !== cubicData.name) {
+        await logAdminAction(user?.username || 'Sistema', `Actualizó el ordenador ID ${cubicId} (de "${oldName}" a "${cubicData.name}")`);
+      } else {
+        await logAdminAction(user?.username || 'Sistema', `Actualizó el ordenador "${cubicData.name}" (ID ${cubicId})`);
+      }
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")

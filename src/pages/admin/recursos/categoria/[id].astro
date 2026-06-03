@@ -5,6 +5,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
 const { id } = Astro.params;
 const isNew = id === "nueva";
@@ -75,7 +76,9 @@ if (Astro.request.method === "POST") {
         iconName,
         tone,
       });
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de recursos "${title}"`);
     } else if (id) {
+      const oldTitle = category.title;
       await db
         .update(resourceCategories)
         .set({
@@ -84,6 +87,11 @@ if (Astro.request.method === "POST") {
           tone,
         })
         .where(eq(resourceCategories.id, id));
+      if (oldTitle && oldTitle !== title) {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de recursos ID ${id} (de "${oldTitle}" a "${title}")`);
+      } else {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de recursos "${title}" (ID ${id})`);
+      }
     }
 
     return Astro.redirect(resolveUrl("/admin/recursos"));

@@ -1,0 +1,23 @@
+---
+export const partial = true;
+
+import { getSupportGuides } from "@lib/supportGuidesQueries";
+import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
+
+const searchParams = Astro.url.searchParams;
+const page = parseInt(searchParams.get("page") || "1", 10);
+const limit = parseInt(searchParams.get("limit") || "50", 10);
+const search = searchParams.get("search") || "";
+
+const { data: guides, count, hasMore } = await getSupportGuides({
+  page,
+  limit,
+  search,
+});
+
+Astro.response.headers.set("X-Total-Count", count.toString());
+Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
+---
+{guides.map((guide) => (
+  <SupportGuideRow guide={guide} />
+))}
