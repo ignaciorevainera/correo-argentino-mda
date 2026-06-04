@@ -503,7 +503,7 @@ export const applicationsRelations = relations(applications, ({ one }) => ({
 // 14. INVENTARIO DE TERMINALES
 export const terminals = sqliteTable("terminals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  hostname: text("hostname").notNull(),
+  hostname: text("hostname").notNull().unique(),
   macAddress: text("mac_address"),
   ipAddress: text("ip_address"),
   operatingSystem: text("operating_system"),
@@ -515,6 +515,7 @@ export const terminals = sqliteTable("terminals", {
   nis: text("nis").references(() => offices.code),
   nis2: text("nis2"),
   lastContact: text("last_contact"),
+  syncedAt: text("synced_at"),
 });
 
 export const terminalsRelations = relations(terminals, ({ one }) => ({
