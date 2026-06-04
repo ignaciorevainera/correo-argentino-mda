@@ -186,7 +186,7 @@ export function formatScheduleInput(val: string): string {
   const single = formatTimeInput(trimmed);
   if (single) return single;
 
-  return trimmed;
+  return '-';
 }
 
 export function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
