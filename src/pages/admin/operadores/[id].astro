@@ -112,7 +112,6 @@ if (Astro.request.method === "POST") {
         }
       }
 
-<<<<<<< HEAD
       const initials = name
         .split(/\s+/)
         .map((p) => p[0])
@@ -133,6 +132,10 @@ if (Astro.request.method === "POST") {
           esquemaBreakInicio: newEsquemaBreakInicio,
           esquemaBreakFin: newEsquemaBreakFin,
         }).returning({ id: agents.id, name: agents.name });
+
+        if (inserted) {
+          await logAdminAction(user?.username || 'Sistema', `Creó el operador "${inserted.name}" (ID ${inserted.id})`);
+        }
 
         // Populate monthly schedules table with "Franco" or weekly schema defaults for today and upcoming dates
         const uniqueDates = await db
@@ -165,52 +168,6 @@ if (Astro.request.method === "POST") {
           await db.insert(schedules).values(inserts);
         }
 
-=======
-      let logMessage = "";
-      await db.transaction(async (tx) => {
-        if (isNew) {
-          await tx.insert(operators).values({
-            id: operatorData.id,
-            name: operatorData.name,
-            status: operatorData.status,
-            locationId: operatorData.locationId,
-          });
-          logMessage = `Creó el operador "${operatorData.name}" (${operatorData.id})`;
-        } else {
-          const [existing] = await tx
-            .select({ name: operators.name })
-            .from(operators)
-            .where(eq(operators.id, id!));
-          const oldName = existing?.name || "desconocido";
-
-          await tx
-            .update(operators)
-            .set({
-              name: operatorData.name,
-              status: operatorData.status,
-              locationId: operatorData.locationId,
-            })
-            .where(eq(operators.id, id!));
-
-          if (oldName !== operatorData.name) {
-            logMessage = `Actualizó el operador ID ${id} (de "${oldName}" a "${operatorData.name}")`;
-          } else {
-            logMessage = `Actualizó el operador "${operatorData.name}" (${id})`;
-          }
-
-          await tx
-            .delete(operatorSchedules)
-            .where(eq(operatorSchedules.operatorId, id!));
-        }
-
-        if (newSchedules.length > 0) {
-          await tx.insert(operatorSchedules).values(newSchedules);
-        }
-      });
-
-      if (isNew) {
-        await logAdminAction(user?.username || 'Sistema', logMessage);
->>>>>>> 639c858b80493aebb01abebefa1e90985d2fcb47
         return Astro.redirect(`${cleanBase}admin/operadores`);
       } else {
         const agentId = Number(id);
@@ -236,6 +193,11 @@ if (Astro.request.method === "POST") {
             .update(schedules)
             .set({ agentName: name })
             .where(eq(schedules.agentName, original.name));
+        }
+
+        let logMessage = `Actualizó el operador "${name}" (ID ${agentId})`;
+        if (original && original.name !== name) {
+          logMessage = `Actualizó el operador ID ${agentId} (de "${original.name}" a "${name}")`;
         }
 
         successMsg = "Operador y horarios actualizados con éxito.";
