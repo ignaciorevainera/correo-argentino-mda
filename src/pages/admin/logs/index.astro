@@ -4,6 +4,7 @@ import { db } from "@db/index";
 import { auditLogs } from "@db/schema";
 import { desc } from "drizzle-orm";
 import { Icon } from "astro-icon/components";
+import AuditLogsTimeline from "@components/admin/AuditLogsTimeline.astro";
 
 // FASE 3: Recuperar los últimos 100 registros, ordenados de forma descendente por timestamp
 let logs: (typeof auditLogs.$inferSelect)[] = [];
@@ -16,56 +17,6 @@ try {
 } catch (error) {
   console.error("Error al obtener los logs de auditoría:", error);
 }
-
-// Formateador para obtener fecha y hora por separado de forma legible
-const formatDateTime = (isoString: string) => {
-  try {
-    const date = new Date(isoString);
-    const dateStr = new Intl.DateTimeFormat("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(date);
-    const timeStr = new Intl.DateTimeFormat("es-AR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
-    return { date: dateStr, time: timeStr };
-  } catch {
-    return { date: isoString, time: "" };
-  }
-};
-
-// Determina ícono, color y fondo según el tipo de acción
-const getLogStyle = (action: string) => {
-  const lowercase = action.toLowerCase();
-  if (lowercase.startsWith("creó") || lowercase.includes("creo")) {
-    return {
-      color: "text-success",
-      bg: "bg-success/15",
-      icon: "boxicons:plus-circle",
-    };
-  }
-  if (
-    lowercase.startsWith("eliminó") ||
-    lowercase.includes("elimino") ||
-    lowercase.includes("borró") ||
-    lowercase.includes("borro")
-  ) {
-    return {
-      color: "text-error",
-      bg: "bg-error/15",
-      icon: "boxicons:trash-alt",
-    };
-  }
-  // Por defecto es edición/actualización
-  return {
-    color: "text-info",
-    bg: "bg-info/15",
-    icon: "boxicons:edit-alt",
-  };
-};
 ---
 
 <BaseLayout title="Registro de auditoría">
@@ -88,66 +39,6 @@ const getLogStyle = (action: string) => {
       </div>
     </div>
 
-    {
-      logs.length === 0 ? (
-        <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-base-300 bg-base-200/50 py-16 text-center">
-          <Icon
-            name="boxicons:info-circle"
-            size={48}
-            class="text-base-content/20 mb-4"
-          />
-          <h3 class="text-lg font-semibold text-base-content">
-            No hay registros
-          </h3>
-          <p class="text-sm text-base-content/60">
-            Aún no se han registrado acciones en el sistema.
-          </p>
-        </div>
-      ) : (
-        <ul
-          class="timeline timeline-vertical w-full"
-          style="grid-template-columns: 1fr min-content 1fr;"
-        >
-          {logs.map((log, index) => {
-            const style = getLogStyle(log.action);
-            const dateTime = formatDateTime(log.timestamp);
-            return (
-              <li>
-                {index > 0 && <hr class="bg-base-300" />}
-                <div class="timeline-start text-right select-none md:text-sm text-xs text-base-content/60 font-medium leading-tight pr-3 align-middle self-center max-w-32">
-                  <div>{dateTime.date}</div>
-                  <div class="font-mono text-[10px] text-base-content/40 mt-0.5">
-                    {dateTime.time}
-                  </div>
-                </div>
-                <div class="timeline-middle">
-                  <div
-                    class={`flex size-8 items-center justify-center rounded-full ${style.bg} ${style.color} shadow-sm ring-4 ring-base-100`}
-                  >
-                    <Icon name={style.icon} size={15} />
-                  </div>
-                </div>
-                <div class="timeline-end timeline-box bg-base-100 border border-base-200 shadow-sm hover:shadow hover:border-base-content/20 transition-all rounded-xl p-4 w-full">
-                  <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between gap-4">
-                      <span class="badge badge-neutral badge-sm font-semibold uppercase tracking-wider">
-                        {log.username}
-                      </span>
-                      <span class="text-[10px] font-mono text-base-content/30">
-                        #{log.id}
-                      </span>
-                    </div>
-                    <p class="text-sm text-base-content/85 font-medium leading-relaxed">
-                      {log.action}
-                    </p>
-                  </div>
-                </div>
-                {index < logs.length - 1 && <hr class="bg-base-300" />}
-              </li>
-            );
-          })}
-        </ul>
-      )
-    }
+    <AuditLogsTimeline logs={logs} />
   </div>
 </BaseLayout>

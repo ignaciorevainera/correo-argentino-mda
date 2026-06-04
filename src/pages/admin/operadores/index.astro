@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { operators, workLocations } from "@db/schema";
+import { agents, workLocations, schedules } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
@@ -9,6 +9,7 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
+import { getDisponibilidadHoy } from "@/lib/disponibilidad";
 import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
@@ -25,15 +26,17 @@ if (Astro.request.method === "POST") {
   const action = formData.get("action")?.toString();
 
   if (action === "delete_operator") {
-    const operatorId = formData.get("operatorId")?.toString();
-    if (operatorId) {
+    const operatorId = Number(formData.get("operatorId"));
+    if (!isNaN(operatorId)) {
       try {
         const [deleted] = await db
-          .delete(operators)
-          .where(eq(operators.id, operatorId))
-          .returning({ id: operators.id, name: operators.name });
+          .delete(agents)
+          .where(eq(agents.id, operatorId))
+          .returning({ id: agents.id, name: agents.name });
 
         if (deleted) {
+          // Also delete their schedule overrides
+          await db.delete(schedules).where(eq(schedules.agentName, deleted.name));
           successMsg = `Operador "${deleted.name}" (${deleted.id}) eliminado con éxito.`;
           await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el operador "${deleted.name}" (${deleted.id})`);
         } else {
@@ -46,39 +49,39 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const allOperatorsRaw = await db
-  .select({
-    id: operators.id,
-    name: operators.name,
-    status: operators.status,
-    locationId: operators.locationId,
-    currentMode: operators.currentMode,
-    locationName: workLocations.name,
-  })
-  .from(operators)
-  .leftJoin(workLocations, eq(operators.locationId, workLocations.id))
-  .orderBy(asc(operators.name));
+// Fetch operators using the availability service
+const allOperatorsRaw = await getDisponibilidadHoy();
+allOperatorsRaw.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
 const allOperators = allOperatorsRaw.map((op) => ({
-  ...op,
-  locationName: op.locationName ?? "",
+  id: op.agentId,
+  name: op.nombre,
+  username: op.username || "",
+  locationName: op.location || "Monte Grande",
+  status: op.disponible ? "disponible" : (op.motivo || "Franco"),
 }));
 
 const statusLabels: Record<string, string> = {
   disponible: "Disponible",
-  "no disponible": "No disponible",
-  licencia: "Licencia",
+  "En break": "En Break",
+  "Fuera de horario": "Fuera de Horario",
+  Franco: "Franco",
+  Licencia: "Licencia",
+  Vacaciones: "Vacaciones",
 };
 
 const statusBadgeClass: Record<string, string> = {
-  disponible: "badge-success",
-  "no disponible": "badge-error",
-  licencia: "badge-warning",
+  disponible: "badge-success text-white shadow-sm shadow-success/20",
+  "En break": "badge-warning text-warning-content shadow-sm shadow-warning/20",
+  "Fuera de horario": "badge-neutral text-neutral-content/75 opacity-70",
+  Franco: "badge-neutral text-neutral-content/50 opacity-60",
+  Licencia: "badge-error text-error-content shadow-sm shadow-error/20",
+  Vacaciones: "badge-info text-info-content shadow-sm shadow-info/20",
 };
 
-const headerGridClass = "grid-cols-[140px_1fr_1fr_120px_120px] gap-4";
+const headerGridClass = "grid-cols-[90px_1.2fr_1fr_140px_120px] gap-4";
 const rowGridClass =
-  "grid grid-cols-[140px_1fr_1fr_120px_120px] items-center gap-4";
+  "grid grid-cols-[90px_1.2fr_1fr_140px_120px] items-center gap-4";
 ---
 
 <BaseLayout>
@@ -201,7 +204,7 @@ const rowGridClass =
                 data-sort-name={op.name}
                 data-sort-location={op.locationName}
                 data-sort-status={op.status}
-                data-search-text={`${op.id} ${op.name} ${op.locationName} ${statusLabels[op.status] ?? op.status}`.toLowerCase()}
+                data-search-text={`${op.id} ${op.username} ${op.name} ${op.locationName} ${statusLabels[op.status] ?? op.status}`.toLowerCase()}
                 class:list={[
                   rowGridClass,
                   "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
@@ -212,7 +215,7 @@ const rowGridClass =
                     data-highlight-target
                     class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
                   >
-                    {op.id}
+                    ID: {op.id}
                   </span>
                 </div>
 
@@ -221,7 +224,7 @@ const rowGridClass =
                     data-highlight-target
                     class="truncate text-sm font-semibold text-base-content"
                   >
-                    {op.name}
+                    {op.name} {op.username ? `(${op.username})` : ""}
                   </p>
                 </div>
 
@@ -241,7 +244,7 @@ const rowGridClass =
                 <div>
                   <span
                     class:list={[
-                      "badge badge-sm font-bold uppercase tracking-wide",
+                      "badge badge-xs font-bold uppercase tracking-wider text-[9px] py-2 h-auto whitespace-nowrap",
                       statusBadgeClass[op.status] ?? "badge-neutral",
                     ]}
                   >

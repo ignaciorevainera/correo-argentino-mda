@@ -1,5 +1,3 @@
-import { getAllOfficesFromDB } from "@lib/offices";
-
 export type OfficeType = string;
 
 export type OfficeAssetType = "server" | "printer" | "desktop" | "client";
@@ -35,16 +33,4 @@ export interface OfficeDirectoryItem {
   parentNis?: string | null;
   contacts: OfficeContact[];
   assets: OfficeAsset[];
-}
-
-export async function getOfficeDirectoryItems(): Promise<
-  OfficeDirectoryItem[]
-> {
-  const allItems = await getAllOfficesFromDB();
-
-  return allItems.sort((a, b) => {
-    const codeComp = a.code.localeCompare(b.code, undefined, { numeric: true });
-    if (codeComp !== 0) return codeComp;
-    return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
-  });
 }

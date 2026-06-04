@@ -5,7 +5,7 @@ import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
-} from "@/data/directorio_oficinas";
+} from "@/types/offices";
 
 export interface GetOfficesParams {
   page?: number;

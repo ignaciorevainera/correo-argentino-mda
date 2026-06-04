@@ -3,7 +3,7 @@ import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
-} from "@/data/directorio_oficinas";
+} from "@/types/offices";
 
 export async function getAllOfficesFromDB(): Promise<
   OfficeDirectoryItem[]
@@ -45,4 +45,16 @@ export async function getAllOfficesFromDB(): Promise<
       ip: a.ip ?? "",
     })),
   }));
+}
+
+export async function getOfficeDirectoryItems(): Promise<
+  OfficeDirectoryItem[]
+> {
+  const allItems = await getAllOfficesFromDB();
+
+  return allItems.sort((a, b) => {
+    const codeComp = a.code.localeCompare(b.code, undefined, { numeric: true });
+    if (codeComp !== 0) return codeComp;
+    return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+  });
 }
