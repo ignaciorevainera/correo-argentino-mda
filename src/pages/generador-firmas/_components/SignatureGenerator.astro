@@ -19,7 +19,6 @@ const { origin = "" } = Astro.props;
   data-logo2={logoFirma2.src}
   data-logo3={logoFirma3.src}
 >
-  <!-- Columna Izquierda: Formulario -->
   <section
     class="card bg-base-100 border border-base-300 shadow-md overflow-hidden"
   >
@@ -250,7 +249,6 @@ const { origin = "" } = Astro.props;
     </div>
   </section>
 
-  <!-- Columna Derecha: Previsualización y Tabs -->
   <section class="flex flex-col gap-4">
     <div class="tabs tabs-box bg-base-200 p-1 rounded-xl self-start">
       <button id="tab-visual" class="tab tab-active"> Vista Visual </button>
@@ -261,13 +259,11 @@ const { origin = "" } = Astro.props;
       class="card bg-base-100 border border-base-300 shadow-md min-h-[300px]"
     >
       <div class="card-body p-0">
-        <!-- Vista Visual -->
         <div id="section-visual" class="flex flex-col h-full p-6">
           <div
             id="preview-container"
             class="flex-1 border border-dashed border-base-300 rounded-lg p-4 flex items-center justify-center bg-white min-h-40"
           >
-            <!-- Aquí se inyectará la firma -->
           </div>
           <div class="card-actions justify-end mt-6 gap-2">
             <button
@@ -298,7 +294,6 @@ const { origin = "" } = Astro.props;
           </div>
         </div>
 
-        <!-- Vista Código -->
         <div id="section-code" class="flex flex-col h-full p-6 hidden">
           <div
             class="flex-1 bg-neutral text-neutral-content p-4 rounded-lg overflow-auto font-mono text-xs max-h-[400px]"
@@ -452,40 +447,47 @@ const { origin = "" } = Astro.props;
       ? logoPath
       : `${window.location.origin}${logoPath}`;
 
+    const contactInfo = [
+      formData.phone ? `Tel: ${formData.phone}` : "",
+      formData.internal ? `Int: ${formData.internal}` : "",
+      formData.mobile ? `Cel: ${formData.mobile}` : ""
+    ].filter(Boolean).join(" | ");
+
     const imageHtml = formData.includeImage
       ? `
-    <td style="padding-right: 1rem; vertical-align: middle;">
-      <img src="${fullLogoUrl}" alt="Correo Argentino" width="160" style="display: block; border: 0;" />
-    </td>`
+    <td width="160" style="width: 160px; padding-right: 15px; vertical-align: middle;">
+      <img src="${fullLogoUrl}" alt="Correo Argentino" width="160" style="display: block; border: 0; width: 160px; max-width: 160px;" />
+    </td>
+    <td width="2" style="background-color: #ffc72c; width: 2px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+    <td width="15" style="width: 15px; font-size: 1px; line-height: 1px;">&nbsp;</td>`
       : "";
 
-    const textStyle = formData.includeImage
-      ? "border-left: 2px solid #ffc72c; padding-left: 1rem; vertical-align: middle;"
-      : "vertical-align: middle;";
-
     const signatureHtml = `
-<table align="center" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; color: #0c0c0c; line-height: 1.4; margin: 0 auto;">
+<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color: #0c0c0c; margin: 0;">
   <tr>${imageHtml}
-    <td style="${textStyle}">
-      <div style="font-size: 16px; font-weight: bold; color: #254888; margin-bottom: 0px;">
-        ${formData.name || "Nombre y Apellido"}
-      </div>
-      <div style="font-size: 13px; font-weight: bold; color: #0c0c0c; margin-bottom: 2px;">
-        ${formData.role || "Puesto / Cargo"}
-      </div>
-      <div style="font-size: 12px; color: #54585a; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
-        ${formData.department || "Departamento / Gerencia"}
-      </div>
-      <div style="font-size: 11px; color: #54585a;">
-        ${formData.address1 || "Dirección Línea 1"}
-        ${formData.address2 ? `<br />${formData.address2}` : ""}
-        ${formData.phone || formData.internal || formData.mobile ? `<br />` : ""}
-        ${formData.phone ? `<span>Tel: ${formData.phone}</span>` : ""}
-        ${formData.phone && (formData.internal || formData.mobile) ? " | " : ""}
-        ${formData.internal ? `<span>Int: ${formData.internal}</span>` : ""}
-        ${formData.internal && formData.mobile ? " | " : ""}
-        ${formData.mobile ? `<span>Cel: ${formData.mobile}</span>` : ""}
-      </div>
+    <td style="vertical-align: middle;">
+      <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color: #0c0c0c;">
+        <tr>
+          <td style="font-size: 16px; font-weight: bold; color: #254888; padding-bottom: 2px;">
+            ${formData.name || "Nombre y Apellido"}
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size: 13px; font-weight: bold; color: #0c0c0c; padding-bottom: 4px;">
+            ${formData.role || "Puesto / Cargo"}
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size: 12px; color: #54585a; text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 4px;">
+            ${formData.department || "Departamento / Gerencia"}
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size: 11px; color: #54585a;">
+            ${formData.address1 || "Dirección Línea 1"}${formData.address2 ? `<br />${formData.address2}` : ""}${contactInfo ? `<br />${contactInfo}` : ""}
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>`.trim();
@@ -537,24 +539,28 @@ const { origin = "" } = Astro.props;
     sectionVisual?.classList.add("hidden");
   });
 
-  btnCopyVisual?.addEventListener("click", async () => {
+  btnCopyVisual?.addEventListener("click", () => {
     if (!previewContainer) return;
 
     try {
-      const html = previewContainer.innerHTML;
-      const text =
-        previewContainer.innerText || previewContainer.textContent || "";
+      const selection = window.getSelection();
+      if (!selection) throw new Error("No Selection API");
+      
+      selection.removeAllRanges();
+      const range = document.createRange();
+      const table = previewContainer.querySelector("table");
+      
+      if (table) {
+        range.selectNode(table);
+      } else {
+        range.selectNodeContents(previewContainer);
+      }
+      
+      selection.addRange(range);
+      const success = document.execCommand("copy");
+      selection.removeAllRanges();
 
-      const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([text], { type: "text/plain" });
-      const data = [
-        new ClipboardItem({
-          ["text/html"]: blobHtml,
-          ["text/plain"]: blobText,
-        }),
-      ];
-
-      await navigator.clipboard.write(data);
+      if (!success) throw new Error("execCommand copy failed");
 
       const contentEl = document.getElementById("copy-visual-content");
       if (contentEl) {
@@ -571,21 +577,7 @@ const { origin = "" } = Astro.props;
       }
     } catch (err) {
       console.error("Error al copiar firma visual:", err);
-
-      try {
-        const selection = window.getSelection();
-        if (!selection) return;
-        selection.removeAllRanges();
-        const range = document.createRange();
-        if (previewContainer.firstChild) {
-          range.selectNode(previewContainer.firstChild);
-          selection.addRange(range);
-          document.execCommand("copy");
-          selection.removeAllRanges();
-        }
-      } catch (fallbackErr) {
-        console.error("Fallback de copia fallido:", fallbackErr);
-      }
+      alert("No se pudo copiar la firma. Por favor, selecciona el contenido manualmente y presiona Ctrl+C.");
     }
   });
 

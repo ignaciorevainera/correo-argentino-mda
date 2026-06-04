@@ -9,6 +9,7 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
 
 let successMsg = "";
 let errorMsg = "";
@@ -37,6 +38,7 @@ if (Astro.request.method === "POST") {
 
         if (deleted) {
           successMsg = `Contacto "${deleted.provider} - ${deleted.service}" eliminado con éxito.`;
+          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el contacto "${deleted.provider} - ${deleted.service}"`);
         } else {
           errorMsg = "El contacto indicado no existe.";
         }

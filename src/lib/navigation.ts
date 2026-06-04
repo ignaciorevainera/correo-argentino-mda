@@ -157,6 +157,11 @@ export const navSections: NavSection[] = [
             label: "Gestión de operadores",
             icon: "boxicons:user-id-card-filled",
           },
+          {
+            href: "/admin/logs",
+            label: "Registro de auditoría",
+            icon: "boxicons:history",
+          },
         ],
       },
     ],

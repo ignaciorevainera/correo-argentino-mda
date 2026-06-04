@@ -5,6 +5,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
 const { id } = Astro.params;
 const isNew = id === "nuevo";
@@ -67,7 +68,9 @@ if (Astro.request.method === "POST") {
         url,
         subtitle,
       });
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el enlace "${title}"`);
     } else if (id) {
+      const oldTitle = link.title;
       await db
         .update(resourceLinks)
         .set({
@@ -77,6 +80,11 @@ if (Astro.request.method === "POST") {
           subtitle,
         })
         .where(eq(resourceLinks.id, id));
+      if (oldTitle && oldTitle !== title) {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace ID ${id} (de "${oldTitle}" a "${title}")`);
+      } else {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace "${title}" (ID ${id})`);
+      }
     }
 
     return Astro.redirect(resolveUrl("/admin/recursos"));

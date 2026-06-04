@@ -10,6 +10,7 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
 import { getDisponibilidadHoy } from "@/lib/disponibilidad";
+import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -37,6 +38,7 @@ if (Astro.request.method === "POST") {
           // Also delete their schedule overrides
           await db.delete(schedules).where(eq(schedules.agentName, deleted.name));
           successMsg = `Operador "${deleted.name}" (${deleted.id}) eliminado con éxito.`;
+          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el operador "${deleted.name}" (${deleted.id})`);
         } else {
           errorMsg = "El operador indicado no existe.";
         }

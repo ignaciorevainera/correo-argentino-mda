@@ -8,13 +8,14 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import CopyButton from "@components/ui/CopyButton.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
-import inventoryRows from "../../data/inventario_terminales.json";
 import {
   getActiveMachineCount,
   type CubicShift,
   type CubicStatus,
 } from "@lib/cubics";
 import { db } from "@db/index";
+import { terminals as terminalsTable, offices, provinces, regions } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 type OsFamily = "windows" | "linux" | "legacy";
 type BoxiconName = `boxicons:${string}`;
@@ -38,22 +39,6 @@ interface TerminalItem {
   osFamily: OsFamily;
 }
 
-interface CsvTerminalRow {
-  Hostname: string;
-  Mac: string;
-  "Ip-Dir": string;
-  "Sist. Ope.": string;
-  "OS. Tipo": string;
-  Ram: string;
-  Serial: string;
-  manufacturer: string;
-  Modelo: string;
-  Sucursal: string;
-  Provincia: string;
-  Region: string;
-  NIS: string;
-  "Last-Contact": string;
-}
 
 const monthLabels = [
   "Ene",
@@ -109,32 +94,46 @@ const formatLastPing = (lastPing: Date | string | null | undefined): string => {
   return `${day}/${month}/${year} - ${hours}:${minutes} hs`;
 };
 
-const terminals: TerminalItem[] = (inventoryRows as unknown as CsvTerminalRow[])
-  .slice(0, 50)
-  .map((row) => {
-    const lastContact = parseLastContact(row["Last-Contact"]);
-    const architecture = row["OS. Tipo"]?.trim()
-      ? `${row["OS. Tipo"].trim()} bits`
-      : "--";
-    return {
-      hostname: row.Hostname?.trim() || "--",
-      ip: row["Ip-Dir"]?.trim() || "--",
-      mac: row.Mac?.trim() || "--",
-      manufacturer: row.manufacturer?.trim() || "--",
-      model: row.Modelo?.trim() || "--",
-      ram: row.Ram?.trim() || "--",
-      serial: row.Serial?.trim() || "--",
-      osName: row["Sist. Ope."]?.trim() || "--",
-      architecture,
-      branch: row.Sucursal?.trim() || "--",
-      province: row.Provincia?.trim() || "--",
-      region: row.Region?.trim() || "--",
-      nis: row.NIS?.trim() || "--",
-      lastContactDate: lastContact.date,
-      lastContactTime: lastContact.time,
-      osFamily: toOsFamily(row["Sist. Ope."] || ""),
-    };
-  });
+// Consulta relacional: terminals LEFT JOIN offices LEFT JOIN provinces LEFT JOIN regions
+const terminalRows = db
+  .select({
+    terminal: terminalsTable,
+    officeName: offices.name,
+    provinceCode: offices.provinceCode,
+    provinceName: provinces.name,
+    regionName: regions.name,
+  })
+  .from(terminalsTable)
+  .leftJoin(offices, eq(terminalsTable.nis, offices.code))
+  .leftJoin(provinces, eq(offices.provinceCode, provinces.code))
+  .leftJoin(regions, eq(offices.regionId, regions.id))
+  .all();
+
+const terminals: TerminalItem[] = terminalRows.map((row) => {
+  const t = row.terminal;
+  const lastContact = parseLastContact(t.lastContact || "");
+  const architecture = t.osArchitecture ? `${t.osArchitecture} bits` : "--";
+
+  return {
+    hostname: t.hostname || "--",
+    ip: t.ipAddress || "--",
+    mac: t.macAddress || "--",
+    manufacturer: t.manufacturer || "--",
+    model: t.model || "--",
+    ram: t.ram || "--",
+    serial: t.serialNumber || "--",
+    osName: t.operatingSystem || "--",
+    architecture,
+    branch: row.officeName || "--",
+    province: row.provinceName || "--",
+    region: row.regionName || "--",
+    nis: t.nis || "--",
+    lastContactDate: lastContact.date,
+    lastContactTime: lastContact.time,
+    osFamily: toOsFamily(t.operatingSystem || ""),
+  };
+});
+
 
 const osFamilyTone: Record<OsFamily, string> = {
   windows: "border-info/30 bg-info/15 text-info",

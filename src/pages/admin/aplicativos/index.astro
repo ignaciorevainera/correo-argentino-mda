@@ -9,6 +9,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -57,6 +58,7 @@ if (Astro.request.method === "POST") {
       }
 
       await db.delete(applications).where(eq(applications.id, appId));
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el aplicativo "${existing?.title || appId}"`);
     }
   } catch (error: any) {
     deleteMsg = error.message || "Error al eliminar el aplicativo.";
