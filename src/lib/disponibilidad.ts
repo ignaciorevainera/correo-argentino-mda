@@ -1,0 +1,387 @@
+import { db } from "@db/index";
+import { agents, schedules } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+export interface AgentDisponibilidad {
+  agentId: number;
+  nombre: string;
+  username?: string;
+  location: string;
+  disponible: boolean;
+  motivo?: string;            // "En break", "Fuera de horario", "Licencia", "Vacaciones", "Franco", etc.
+  horarioHoy?: string;        // "08:00 - 17:00"
+  breakInicioHoy?: string;    // "12:00"
+  breakFinHoy?: string;       // "13:00"
+  retornoEstimado?: string;   // "13:00"
+  lastAutogestionAssignedAt: number | null;
+  modalidadHoy?: string;      // "Presencial", "Home Office", "Horas Extras", "Franco", etc.
+  estadoExcepcional?: string;          // Tipo de excepción activa: "devolucion_supervisor" | "break_extendido" | "problema_tecnico"
+  estadoExcepcionalMotivo?: string;    // Comentario del supervisor
+  estadoExcepcionalAt?: number;        // Timestamp
+  estadoExcepcionalMinutos?: number | null; // Tiempo extra para break extendido en minutos
+}
+
+export const EXCEPTION_LABELS: Record<string, string> = {
+  devolucion_supervisor: "Devolución Supervisor",
+  break_extendido: "Break Extendido",
+  problema_tecnico: "Problema Técnico",
+};
+
+// Format date as YYYY-MM-DD using local time
+export function getLocalDateString(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
+  const todayStr = getLocalDateString();
+  const now = new Date();
+  
+  // Spanish day names mapping
+  const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+  const dayName = dayNames[now.getDay()];
+
+  // 1. Fetch all agents
+  const dbAgents = await db.select().from(agents);
+
+  // 2. Fetch today's persistent schedule overrides
+  const dbSchedules = await db
+    .select()
+    .from(schedules)
+    .where(eq(schedules.date, todayStr));
+
+  // 3. Process each agent
+  const list: AgentDisponibilidad[] = dbAgents.map((agent) => {
+    // Check if there is an override for this agent today
+    const schedule = dbSchedules.find((s) => s.agentName === agent.name);
+
+    let status = "Franco";
+    let horario = "";
+    let breakInicio = "";
+    let breakFin = "";
+
+    if (schedule) {
+      status = schedule.status;
+      horario = schedule.horario || "";
+      breakInicio = schedule.breakInicio || "";
+      breakFin = schedule.breakFin || "";
+    } else {
+      // Fallback to weekly schedule
+      const esquemaSemanal = (agent.esquemaSemanal as Record<string, string>) || {};
+      const esquemaHorario = (agent.esquemaHorario as Record<string, string>) || {};
+      const esquemaBreakInicio = (agent.esquemaBreakInicio as Record<string, string>) || {};
+      const esquemaBreakFin = (agent.esquemaBreakFin as Record<string, string>) || {};
+
+      status = esquemaSemanal[dayName] ?? "Franco";
+      horario = esquemaHorario[dayName] || "";
+      breakInicio = esquemaBreakInicio[dayName] || "";
+      breakFin = esquemaBreakFin[dayName] || "";
+    }
+
+    // Map database blank or invalid status to Franco
+    if (!status || status.trim() === "") {
+      status = "Franco";
+    }
+
+    // Fallback for horario if working but empty
+    if (status !== "Franco" && (!horario || horario.trim() === "" || horario.trim() === "-")) {
+      horario = agent.horarioDefault || "08:00 - 17:00";
+    }
+
+    // Check if shift ended (auto-cleanup of exceptional state)
+    let shiftEnded = false;
+    const workingStatuses = ["Presencial", "Home Office", "Horas Extras"];
+    if (!workingStatuses.includes(status)) {
+      // Not a working day today
+      shiftEnded = true;
+    } else {
+      const parts = horario.split(" - ");
+      if (parts.length === 2) {
+        const [_, endStr] = parts;
+        const [hE, mE] = endStr.split(":").map(Number);
+        if (!isNaN(hE) && !isNaN(mE)) {
+          const endTime = new Date(now);
+          endTime.setHours(hE, mE, 0, 0);
+          if (now > endTime) {
+            shiftEnded = true;
+          }
+        }
+      }
+    }
+
+    if (agent.estadoExcepcional && shiftEnded) {
+      // Clear in DB asynchronously
+      db.update(agents)
+        .set({
+          estadoExcepcional: null,
+          estadoExcepcionalMotivo: null,
+          estadoExcepcionalAt: null,
+          estadoExcepcionalMinutos: null,
+        })
+        .where(eq(agents.id, agent.id))
+        .catch((err) =>
+          console.error(`Error auto-clearing exceptional state for agent ${agent.id}:`, err)
+        );
+
+      // Mutate local object so we don't apply the override in this render
+      agent.estadoExcepcional = null;
+      agent.estadoExcepcionalMotivo = null;
+      agent.estadoExcepcionalAt = null;
+      agent.estadoExcepcionalMinutos = null;
+    }
+
+    const info: AgentDisponibilidad = {
+      agentId: agent.id,
+      nombre: agent.name,
+      username: agent.username || undefined,
+      location: agent.location || "Monte Grande",
+      disponible: false,
+      horarioHoy: horario || undefined,
+      breakInicioHoy: breakInicio || undefined,
+      breakFinHoy: breakFin || undefined,
+      lastAutogestionAssignedAt: agent.lastAutogestionAssignedAt,
+      modalidadHoy: status,
+      estadoExcepcional: agent.estadoExcepcional || undefined,
+      estadoExcepcionalMotivo: agent.estadoExcepcionalMotivo || undefined,
+      estadoExcepcionalAt: agent.estadoExcepcionalAt || undefined,
+      estadoExcepcionalMinutos: agent.estadoExcepcionalMinutos,
+    };
+
+    const applyOverride = () => {
+      if (agent.estadoExcepcional) {
+        info.disponible = false;
+        info.motivo = EXCEPTION_LABELS[agent.estadoExcepcional] || agent.estadoExcepcional;
+      }
+    };
+
+    // If status is not a working status, they are unavailable
+    if (!workingStatuses.includes(status)) {
+      info.disponible = false;
+      info.motivo = status; // "Franco", "Vacaciones", "Licencia"
+      applyOverride();
+      return info;
+    }
+
+    // Parse the shift hours
+    const parts = horario.split(" - ");
+    if (parts.length !== 2) {
+      info.disponible = false;
+      info.motivo = "Fuera de horario";
+      applyOverride();
+      return info;
+    }
+
+    const [startStr, endStr] = parts;
+    const [hS, mS] = startStr.split(":").map(Number);
+    const [hE, mE] = endStr.split(":").map(Number);
+
+    if (isNaN(hS) || isNaN(mS) || isNaN(hE) || isNaN(mE)) {
+      info.disponible = false;
+      info.motivo = "Fuera de horario";
+      applyOverride();
+      return info;
+    }
+
+    const startTime = new Date(now);
+    startTime.setHours(hS, mS, 0, 0);
+
+    const endTime = new Date(now);
+    endTime.setHours(hE, mE, 0, 0);
+
+    // Check if within shift
+    if (now < startTime) {
+      info.disponible = false;
+      info.motivo = "Fuera de horario";
+      info.retornoEstimado = startStr;
+      applyOverride();
+      return info;
+    }
+
+    if (now > endTime) {
+      info.disponible = false;
+      info.motivo = "Fuera de horario";
+      applyOverride();
+      return info;
+    }
+
+    // Check break times
+    let breakStart: Date;
+    let breakEnd: Date;
+
+    if (breakInicio && breakFin) {
+      const [bhS, bmS] = breakInicio.split(":").map(Number);
+      const [bhE, bmE] = breakFin.split(":").map(Number);
+
+      if (!isNaN(bhS) && !isNaN(bmS) && !isNaN(bhE) && !isNaN(bmE)) {
+        breakStart = new Date(now);
+        breakStart.setHours(bhS, bmS, 0, 0);
+        breakEnd = new Date(now);
+        breakEnd.setHours(bhE, bmE, 0, 0);
+      } else {
+        // Fallback calculation if breaks format is invalid
+        const shiftDuration = endTime.getTime() - startTime.getTime();
+        breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+        breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+      }
+    } else {
+      // Estimate 1 hour break in the middle of the shift
+      const shiftDuration = endTime.getTime() - startTime.getTime();
+      breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+      breakEnd = new Date(breakStart.getTime() + 60 * 60000);
+    }
+
+    // Auto-cleanup of break_extendido if it expired
+    if (agent.estadoExcepcional === "break_extendido") {
+      const extraMinutes = agent.estadoExcepcionalMinutos || 0;
+      const extendedBreakEnd = new Date(breakEnd.getTime() + extraMinutes * 60000);
+      if (now >= extendedBreakEnd) {
+        // Clear in DB asynchronously
+        db.update(agents)
+          .set({
+            estadoExcepcional: null,
+            estadoExcepcionalMotivo: null,
+            estadoExcepcionalAt: null,
+            estadoExcepcionalMinutos: null,
+          })
+          .where(eq(agents.id, agent.id))
+          .catch((err) =>
+            console.error(`Error auto-clearing break_extendido state for agent ${agent.id}:`, err)
+          );
+
+        // Mutate local object and info so we don't apply the override in this render
+        agent.estadoExcepcional = null;
+        agent.estadoExcepcionalMotivo = null;
+        agent.estadoExcepcionalAt = null;
+        agent.estadoExcepcionalMinutos = null;
+        
+        info.estadoExcepcional = undefined;
+        info.estadoExcepcionalMotivo = undefined;
+        info.estadoExcepcionalAt = undefined;
+        info.estadoExcepcionalMinutos = undefined;
+      } else {
+        // Format return time
+        const retHours = String(extendedBreakEnd.getHours()).padStart(2, "0");
+        const retMins = String(extendedBreakEnd.getMinutes()).padStart(2, "0");
+        info.retornoEstimado = `${retHours}:${retMins}`;
+      }
+    }
+
+    // Check if currently in break
+    if (now >= breakStart && now <= breakEnd) {
+      info.disponible = false;
+      info.motivo = "En break";
+      
+      // Format return time if not already set
+      if (!info.retornoEstimado) {
+        const retHours = String(breakEnd.getHours()).padStart(2, "0");
+        const retMins = String(breakEnd.getMinutes()).padStart(2, "0");
+        info.retornoEstimado = `${retHours}:${retMins}`;
+      }
+      applyOverride();
+      return info;
+    }
+
+    // If we passed all checks, agent is available
+    info.disponible = true;
+    applyOverride();
+    return info;
+  });
+
+  return list;
+}
+
+export async function asignarSiguienteAutogestion(): Promise<{
+  success: boolean;
+  agent?: AgentDisponibilidad;
+  error?: string;
+}> {
+  const list = await getDisponibilidadHoy();
+  const available = list.filter((a) => a.disponible);
+
+  if (available.length === 0) {
+    return {
+      success: false,
+      error: "No hay operadores disponibles o dentro de horario operativo para asignar.",
+    };
+  }
+
+  // Sort by lastAutogestionAssignedAt ASC
+  // Agents who have never been assigned (null) go first
+  available.sort((a, b) => {
+    const tA = a.lastAutogestionAssignedAt ?? 0;
+    const tB = b.lastAutogestionAssignedAt ?? 0;
+    
+    if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
+    if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
+    
+    return tA - tB;
+  });
+
+  const winner = available[0];
+  const now = Date.now();
+
+  // Update in DB
+  await db
+    .update(agents)
+    .set({ lastAutogestionAssignedAt: now })
+    .where(eq(agents.id, winner.agentId));
+
+  winner.lastAutogestionAssignedAt = now;
+  
+  return {
+    success: true,
+    agent: winner,
+  };
+}
+
+export async function asignarManual(agentId: number): Promise<{ success: boolean; error?: string }> {
+  // Update lastAutogestionAssignedAt for the manually assigned agent
+  await db
+    .update(agents)
+    .set({ lastAutogestionAssignedAt: Date.now() })
+    .where(eq(agents.id, agentId));
+  return { success: true };
+}
+
+export async function marcarEstadoExcepcional(
+  agentId: number,
+  tipo: string,
+  motivo?: string,
+  tiempoExtra?: number | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(agents)
+      .set({
+        estadoExcepcional: tipo,
+        estadoExcepcionalMotivo: motivo || null,
+        estadoExcepcionalAt: Date.now(),
+        estadoExcepcionalMinutos: tiempoExtra || null,
+      })
+      .where(eq(agents.id, agentId));
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Error al marcar estado excepcional" };
+  }
+}
+
+export async function limpiarEstadoExcepcional(
+  agentId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(agents)
+      .set({
+        estadoExcepcional: null,
+        estadoExcepcionalMotivo: null,
+        estadoExcepcionalAt: null,
+        estadoExcepcionalMinutos: null,
+      })
+      .where(eq(agents.id, agentId));
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Error al limpiar estado excepcional" };
+  }
+}

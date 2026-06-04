@@ -213,6 +213,11 @@ export const agents = sqliteTable("agents", {
   >(),
   maxConsecutiveHO: integer("max_consecutive_ho"),
   minPWeek: integer("min_p_week"),
+  lastAutogestionAssignedAt: integer("last_autogestion_assigned_at"),
+  estadoExcepcional: text("estado_excepcional"),
+  estadoExcepcionalMotivo: text("estado_excepcional_motivo"),
+  estadoExcepcionalAt: integer("estado_excepcional_at"),
+  estadoExcepcionalMinutos: integer("estado_excepcional_minutos"),
 });
 
 export const cubicAssignments = sqliteTable(

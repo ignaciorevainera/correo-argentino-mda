@@ -1,11 +1,12 @@
 ---
 import { db } from "@db/index";
-import { operators, workLocations, operatorSchedules } from "@db/schema";
+import { agents, workLocations, schedules } from "@db/schema";
 import { eq } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
+import { getDisponibilidadHoy } from "@/lib/disponibilidad";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -27,80 +28,175 @@ const daysOfWeek = [
   "Sábado",
   "Domingo",
 ];
-const modalities = ["home", "presencial"];
+
+const dayNameMapping: Record<string, string> = {
+  "Lunes": "Lunes",
+  "Martes": "Martes",
+  "Miércoles": "Miercoles",
+  "Jueves": "Jueves",
+  "Viernes": "Viernes",
+  "Sábado": "Sabado",
+  "Domingo": "Domingo",
+  "Miercoles": "Miércoles",
+  "Sabado": "Sábado"
+};
+
+const allLocations = await db
+  .select({ id: workLocations.id, name: workLocations.name })
+  .from(workLocations)
+  .orderBy(workLocations.name);
 
 if (Astro.request.method === "POST") {
   try {
     const fd = await Astro.request.formData();
 
-    const operatorData = {
-      id: fd.get("id")?.toString().trim() ?? "",
-      name: fd.get("name")?.toString().trim() ?? "",
-      locationId: fd.get("locationId")?.toString().trim() || null,
-      status: fd.get("status")?.toString() ?? "disponible",
-    };
+    const name = fd.get("name")?.toString().trim() ?? "";
+    const username = fd.get("id")?.toString().trim() || null; // 'id' field in form represents username
+    const locationId = fd.get("locationId")?.toString().trim() || "";
 
-    if (!operatorData.id || !operatorData.name) {
-      errorMsg = "ID y nombre son obligatorios.";
+    const loc = allLocations.find((l) => l.id === locationId);
+    const locationName = loc ? loc.name : "Monte Grande";
+
+    if (!name) {
+      errorMsg = "El nombre completo es obligatorio.";
+    } else if (isNew && !username) {
+      errorMsg = "El ID de usuario es obligatorio.";
     } else {
-      const newSchedules: any[] = [];
-      for (const day of daysOfWeek) {
-        for (const mod of modalities) {
-          const start = fd.get(`${mod}_${day}_start`)?.toString().trim();
-          const end = fd.get(`${mod}_${day}_end`)?.toString().trim();
-          const breakTime = fd.get(`${mod}_${day}_break`)?.toString().trim();
+      // Reconstruct the weekly schedule schemas based on form values for each day
+      const newEsquemaSemanal: Record<string, string> = {};
+      const newEsquemaHorario: Record<string, string> = {};
+      const newEsquemaBreakInicio: Record<string, string> = {};
+      const newEsquemaBreakFin: Record<string, string> = {};
 
-          if (start || end || breakTime) {
-            newSchedules.push({
-              operatorId: operatorData.id,
-              dayOfWeek: day,
-              modality: mod,
-              shiftStart: start || null,
-              shiftEnd: end || null,
-              breakTime: breakTime || null,
-            });
+      for (const day of daysOfWeek) {
+        const cronoDay = dayNameMapping[day] || day;
+
+        const homeStart = fd.get(`home_${day}_start`)?.toString().trim() || "";
+        const homeEnd = fd.get(`home_${day}_end`)?.toString().trim() || "";
+        const homeBreak = fd.get(`home_${day}_break`)?.toString().trim() || "";
+
+        const presStart = fd.get(`presencial_${day}_start`)?.toString().trim() || "";
+        const presEnd = fd.get(`presencial_${day}_end`)?.toString().trim() || "";
+        const presBreak = fd.get(`presencial_${day}_break`)?.toString().trim() || "";
+
+        if (presStart || presEnd) {
+          newEsquemaSemanal[cronoDay] = "Presencial";
+          newEsquemaHorario[cronoDay] = `${presStart || "08:00"} - ${presEnd || "17:00"}`;
+          if (presBreak) {
+            newEsquemaBreakInicio[cronoDay] = presBreak;
+            const [h, m] = presBreak.split(":").map(Number);
+            const endHour = (h + 1) % 24;
+            newEsquemaBreakFin[cronoDay] = `${String(endHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          } else {
+            newEsquemaBreakInicio[cronoDay] = "";
+            newEsquemaBreakFin[cronoDay] = "";
           }
+        } else if (homeStart || homeEnd) {
+          newEsquemaSemanal[cronoDay] = "Home Office";
+          newEsquemaHorario[cronoDay] = `${homeStart || "08:00"} - ${homeEnd || "17:00"}`;
+          if (homeBreak) {
+            newEsquemaBreakInicio[cronoDay] = homeBreak;
+            const [h, m] = homeBreak.split(":").map(Number);
+            const endHour = (h + 1) % 24;
+            newEsquemaBreakFin[cronoDay] = `${String(endHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          } else {
+            newEsquemaBreakInicio[cronoDay] = "";
+            newEsquemaBreakFin[cronoDay] = "";
+          }
+        } else {
+          newEsquemaSemanal[cronoDay] = "Franco";
+          newEsquemaHorario[cronoDay] = "";
+          newEsquemaBreakInicio[cronoDay] = "";
+          newEsquemaBreakFin[cronoDay] = "";
         }
       }
 
-      await db.transaction(async (tx) => {
-        if (isNew) {
-          await tx.insert(operators).values({
-            id: operatorData.id,
-            name: operatorData.name,
-            status: operatorData.status,
-            locationId: operatorData.locationId,
-          });
-        } else {
-          await tx
-            .update(operators)
-            .set({
-              name: operatorData.name,
-              status: operatorData.status,
-              locationId: operatorData.locationId,
-            })
-            .where(eq(operators.id, id!));
-
-          await tx
-            .delete(operatorSchedules)
-            .where(eq(operatorSchedules.operatorId, id!));
-        }
-
-        if (newSchedules.length > 0) {
-          await tx.insert(operatorSchedules).values(newSchedules);
-        }
-      });
+      const initials = name
+        .split(/\s+/)
+        .map((p) => p[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
 
       if (isNew) {
+        // Insert new agent
+        const [inserted] = await db.insert(agents).values({
+          name,
+          username,
+          avatarInitials: initials,
+          location: locationName,
+          horarioDefault: "08:00 - 17:00",
+          esquemaSemanal: newEsquemaSemanal,
+          esquemaHorario: newEsquemaHorario,
+          esquemaBreakInicio: newEsquemaBreakInicio,
+          esquemaBreakFin: newEsquemaBreakFin,
+        }).returning({ id: agents.id, name: agents.name });
+
+        // Populate monthly schedules table with "Franco" or weekly schema defaults for today and upcoming dates
+        const uniqueDates = await db
+          .selectDistinct({ date: schedules.date })
+          .from(schedules);
+
+        if (uniqueDates.length > 0) {
+          const inserts = uniqueDates.map((d) => {
+            const dateObj = new Date(d.date + "T12:00:00");
+            const dayNamesList = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+            const dateDayName = dayNamesList[dateObj.getDay()];
+            
+            const status = newEsquemaSemanal[dateDayName] || "Franco";
+            const horario = newEsquemaHorario[dateDayName] || "";
+            const bInicio = newEsquemaBreakInicio[dateDayName] || "";
+            const bFin = newEsquemaBreakFin[dateDayName] || "";
+
+            return {
+              agentName: name,
+              date: d.date,
+              status,
+              comment: "",
+              horario,
+              breakInicio: bInicio,
+              breakFin: bFin,
+              entradaReal: "",
+              salidaReal: "",
+            };
+          });
+          await db.insert(schedules).values(inserts);
+        }
+
         return Astro.redirect(`${cleanBase}admin/operadores`);
       } else {
+        const agentId = Number(id);
+        const [original] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, agentId));
+
+        await db
+          .update(agents)
+          .set({
+            name,
+            username,
+            avatarInitials: initials,
+            location: locationName,
+            esquemaSemanal: newEsquemaSemanal,
+            esquemaHorario: newEsquemaHorario,
+            esquemaBreakInicio: newEsquemaBreakInicio,
+            esquemaBreakFin: newEsquemaBreakFin,
+          })
+          .where(eq(agents.id, agentId));
+
+        // Cascade rename to schedules table if the name was updated
+        if (original && original.name !== name) {
+          await db
+            .update(schedules)
+            .set({ agentName: name })
+            .where(eq(schedules.agentName, original.name));
+        }
+
         successMsg = "Operador y horarios actualizados con éxito.";
       }
     }
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "";
-    errorMsg = message.includes("UNIQUE")
-      ? "Ya existe un operador con ese ID."
+  } catch (e: any) {
+    console.error("POST Admin Operator Error:", e);
+    errorMsg = e.message.includes("UNIQUE")
+      ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
   }
 }
@@ -108,49 +204,65 @@ if (Astro.request.method === "POST") {
 type OperatorRecord = {
   id: string;
   name: string;
+  username: string;
   status: string;
+  location: string;
   locationId: string | null;
-  currentMode: string;
-  lastAutogestionAssignedAt: number | null;
 };
 
 let operator: OperatorRecord | null = null;
 let operatorSchedulesData: Record<string, Record<string, any>> = {};
 
 if (!isNew) {
-  const [result] = await db
-    .select()
-    .from(operators)
-    .where(eq(operators.id, id!));
+  const agentId = Number(id);
+  const [result] = await db.select().from(agents).where(eq(agents.id, agentId));
 
   if (!result) return Astro.redirect(`${cleanBase}admin/operadores`);
-  operator = result;
 
-  const scheds = await db
-    .select()
-    .from(operatorSchedules)
-    .where(eq(operatorSchedules.operatorId, id!));
+  // Calculate live availability to map old status
+  const availList = await getDisponibilidadHoy();
+  const currentAvail = availList.find((a) => a.agentId === agentId);
 
-  for (const s of scheds) {
-    if (!operatorSchedulesData[s.dayOfWeek]) {
-      operatorSchedulesData[s.dayOfWeek] = {};
+  operator = {
+    id: String(result.id),
+    name: result.name,
+    username: result.username || "",
+    status: currentAvail?.disponible ? "disponible" : (currentAvail?.motivo || "Franco"),
+    location: result.location,
+    locationId: allLocations.find((l) => l.name === result.location)?.id || null,
+  };
+
+  const esquemaSemanal = (result.esquemaSemanal as Record<string, string>) || {};
+  const esquemaHorario = (result.esquemaHorario as Record<string, string>) || {};
+  const esquemaBreakInicio = (result.esquemaBreakInicio as Record<string, string>) || {};
+
+  for (const day of daysOfWeek) {
+    const cronoDay = dayNameMapping[day] || day;
+    const status = esquemaSemanal[cronoDay] || "Franco";
+    const horario = esquemaHorario[cronoDay] || "";
+    const breakInicio = esquemaBreakInicio[cronoDay] || "";
+
+    const [start, end] = horario.split(" - ");
+
+    operatorSchedulesData[day] = {};
+
+    if (status === "Home Office") {
+      operatorSchedulesData[day]["home"] = {
+        shiftStart: start || "",
+        shiftEnd: end || "",
+        breakTime: breakInicio || "",
+      };
+    } else if (status === "Presencial" || status === "Horas Extras") {
+      operatorSchedulesData[day]["presencial"] = {
+        shiftStart: start || "",
+        shiftEnd: end || "",
+        breakTime: breakInicio || "",
+      };
     }
-    operatorSchedulesData[s.dayOfWeek][s.modality] = s;
   }
 }
 
-const allLocations = await db
-  .select({ id: workLocations.id, name: workLocations.name })
-  .from(workLocations)
-  .orderBy(workLocations.name);
-
 const pageTitle = isNew ? "Nuevo operador" : `Editar: ${operator!.name}`;
-
-const statusOptions = [
-  { value: "disponible", label: "Disponible" },
-  { value: "no disponible", label: "No disponible" },
-  { value: "licencia", label: "Licencia" },
-];
 ---
 
 <BaseLayout title={pageTitle}>
@@ -171,7 +283,7 @@ const statusOptions = [
       title={pageTitle}
       description={isNew
         ? "Completá los datos y horarios para registrar un nuevo operador."
-        : `ID: ${operator!.id}`}
+        : `ID de base de datos: ${operator!.id}`}
     />
 
     {
@@ -220,7 +332,7 @@ const statusOptions = [
                 type="text"
                 name="id"
                 required
-                value={operator?.id ?? ""}
+                value={operator?.username ?? ""}
                 placeholder="ej: jperez"
                 autocomplete="off"
                 readonly={!isNew}
@@ -232,8 +344,7 @@ const statusOptions = [
               {
                 isNew && (
                   <p class="text-xs text-base-content/50 mt-1">
-                    Identificador único del operador. No se puede modificar
-                    después de crear.
+                    Identificador único de usuario del operador.
                   </p>
                 )
               }
@@ -279,18 +390,15 @@ const statusOptions = [
 
             <fieldset class="fieldset gap-1">
               <legend class="fieldset-legend text-xs">Estado</legend>
-              <select name="status" class="select select-sm w-full">
-                {
-                  statusOptions.map((s) => (
-                    <option
-                      value={s.value}
-                      selected={operator?.status === s.value}
-                    >
-                      {s.label}
-                    </option>
-                  ))
-                }
-              </select>
+              <input
+                type="text"
+                readonly
+                value={isNew ? "Disponible" : (operator?.status === "disponible" ? "Activo (en servicio)" : `No disponible / Excepción`)}
+                class="input input-sm w-full input-disabled bg-base-200 cursor-not-allowed"
+              />
+              <p class="text-[10px] text-base-content/50 mt-1">
+                El estado de disponibilidad se calcula automáticamente basado en la matriz de horarios y Cronograma.
+              </p>
             </fieldset>
           </div>
         </div>
@@ -306,7 +414,7 @@ const statusOptions = [
             >
               <Icon name="boxicons:calendar" size={15} />
             </span>
-            Matriz de Horarios
+            Matriz de Horarios (Esquema Semanal)
           </h2>
           <div class="space-y-2">
             {
