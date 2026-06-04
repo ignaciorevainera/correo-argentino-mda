@@ -782,10 +782,10 @@ function renderMonthly(): void {
         <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
           <div class="flex items-center gap-3">
             <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
-            <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+            <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm ${state.isEditMode ? 'op-row-header cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : ''}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
-                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header font-bold text-xs" data-op-profile="${op.nombre}">
+                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
                   ${op.nombre}
                 </button>
                 <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${state.isEditMode ? '' : 'hidden'}">
@@ -1568,8 +1568,41 @@ function setupEventListeners(): void {
     if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
     
     quickEditMenu.classList.remove('hidden');
-    quickEditMenu.style.left = `${e.clientX}px`;
-    quickEditMenu.style.top = `${e.clientY}px`;
+
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = quickEditMenu.offsetWidth || 160;
+    const menuHeight = quickEditMenu.offsetHeight || 240;
+    const padding = 12;
+    
+    let left = 0;
+    let top = 0;
+    
+    if (window.innerWidth > 768) {
+      // Centered horizontally relative to the cell, clamped within viewport bounds
+      left = rect.left + rect.width / 2 - menuWidth / 2;
+      left = Math.max(padding, Math.min(window.innerWidth - menuWidth - padding, left));
+      
+      // Placed above or below the cell based on available space
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const showAbove = spaceBelow < (menuHeight + padding);
+      
+      if (showAbove) {
+        top = rect.top - menuHeight - 8;
+        quickEditMenu.style.transformOrigin = 'bottom center';
+      } else {
+        top = rect.bottom + 8;
+        quickEditMenu.style.transformOrigin = 'top center';
+      }
+      top = Math.max(padding, Math.min(window.innerHeight - menuHeight - padding, top));
+    } else {
+      // Mobile view: display centered as a modal-like popup
+      left = (window.innerWidth - menuWidth) / 2;
+      top = (window.innerHeight - menuHeight) / 2;
+      quickEditMenu.style.transformOrigin = 'center center';
+    }
+    
+    quickEditMenu.style.left = `${left}px`;
+    quickEditMenu.style.top = `${top}px`;
   });
 
   document.getElementById('quick-edit-options')?.addEventListener('click', (e) => {
