@@ -1,4 +1,4 @@
-# DESIGN SYSTEM - Portal de la Mesa de Ayuda Interna
+# DESIGN
 
 Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
 

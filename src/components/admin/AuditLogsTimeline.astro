@@ -1,0 +1,167 @@
+---
+import { Icon } from "astro-icon/components";
+import type { auditLogs } from "@db/schema";
+
+interface Props {
+  logs: (typeof auditLogs.$inferSelect)[];
+}
+
+const { logs } = Astro.props;
+
+const formatDateTime = (isoString: string) => {
+  try {
+    const date = new Date(isoString);
+    const dateStr = new Intl.DateTimeFormat("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(date);
+    const timeStr = new Intl.DateTimeFormat("es-AR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(date);
+    return { date: dateStr, time: timeStr };
+  } catch {
+    return { date: isoString, time: "" };
+  }
+};
+
+const getLogStyle = (action: string) => {
+  const lowercase = action.toLowerCase();
+  if (lowercase.startsWith("creó") || lowercase.includes("creo")) {
+    return {
+      color: "text-success",
+      bg: "bg-success/15",
+      icon: "boxicons:plus-circle",
+    };
+  }
+  if (
+    lowercase.startsWith("eliminó") ||
+    lowercase.includes("elimino") ||
+    lowercase.includes("borró") ||
+    lowercase.includes("borro")
+  ) {
+    return {
+      color: "text-error",
+      bg: "bg-error/15",
+      icon: "boxicons:trash-alt",
+    };
+  }
+  return {
+    color: "text-info",
+    bg: "bg-info/15",
+    icon: "boxicons:edit-alt",
+  };
+};
+
+const getEventSection = (action: string) => {
+  const lowercase = action.toLowerCase();
+  if (
+    lowercase.includes("usuario") ||
+    lowercase.includes("rol") ||
+    lowercase.includes("contraseña") ||
+    lowercase.includes("password")
+  ) {
+    return { name: "Usuarios", badge: "badge-primary" };
+  }
+  if (lowercase.includes("oficina") || lowercase.includes("nis")) {
+    return { name: "Oficinas", badge: "badge-secondary" };
+  }
+  if (
+    lowercase.includes("enlace") ||
+    lowercase.includes("recurso") ||
+    lowercase.includes("categoría") ||
+    lowercase.includes("categoria")
+  ) {
+    return { name: "Recursos", badge: "badge-accent" };
+  }
+  if (
+    lowercase.includes("operador") ||
+    lowercase.includes("modalidad") ||
+    lowercase.includes("schedule")
+  ) {
+    return { name: "Operadores", badge: "badge-info" };
+  }
+  if (lowercase.includes("cubic") || lowercase.includes("terminal")) {
+    return { name: "Cubics", badge: "badge-warning" };
+  }
+  if (lowercase.includes("contacto")) {
+    return { name: "Contactos", badge: "badge-neutral" };
+  }
+  if (lowercase.includes("aplicativo")) {
+    return { name: "Aplicativos", badge: "badge-success" };
+  }
+  if (
+    lowercase.includes("guía") ||
+    lowercase.includes("guia") ||
+    lowercase.includes("soporte")
+  ) {
+    return { name: "Guías", badge: "badge-info" };
+  }
+  return { name: "Admin", badge: "badge-neutral badge-outline" };
+};
+---
+
+{
+  logs.length === 0 ? (
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-base-300 bg-base-200/50 py-16 text-center">
+      <Icon
+        name="boxicons:info-circle"
+        size={48}
+        class="text-base-content/20 mb-4"
+      />
+      <h3 class="text-lg font-semibold text-base-content">No hay registros</h3>
+      <p class="text-sm text-base-content/60">
+        Aún no se han registrado acciones en el sistema.
+      </p>
+    </div>
+  ) : (
+    <ul class="timeline timeline-vertical timeline-compact w-full">
+      {logs.map((log, index) => {
+        const style = getLogStyle(log.action);
+        const dateTime = formatDateTime(log.timestamp);
+        const section = getEventSection(log.action);
+        return (
+          <li>
+            {index > 0 && <hr class="bg-base-300" />}
+            <div
+              class={`flex timeline-middle size-8 items-center justify-center rounded-full ${style.bg} ${style.color} shadow-sm ring-4 ring-base-100`}
+            >
+              <Icon name={style.icon} size={15} />
+            </div>
+
+            <div class="timeline-end ml-3 timeline-box bg-base-100 border border-base-200 shadow-sm hover:shadow hover:border-base-content/20 transition-all rounded-xl p-4 w-full">
+              <div class="flex flex-col gap-2">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-base-200/50 pb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-base-content/75">
+                      {log.username}
+                    </span>
+                    <span
+                      class={`badge ${section.badge} badge-xs badge-soft font-medium uppercase px-1.5 py-0.5 rounded text-[9px]`}
+                    >
+                      {section.name}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1.5 font-mono text-[10px] text-base-content/40">
+                    <span>{dateTime.date}</span>
+                    <span class="text-base-content/20">•</span>
+                    <span>{dateTime.time}</span>
+                    <span class="text-base-content/20 font-bold">
+                      #{log.id}
+                    </span>
+                  </div>
+                </div>
+                <p class="text-sm text-base-content/85 font-medium leading-relaxed mt-1">
+                  {log.action}
+                </p>
+              </div>
+            </div>
+            {index < logs.length - 1 && <hr class="bg-base-300" />}
+          </li>
+        );
+      })}
+    </ul>
+  )
+}
