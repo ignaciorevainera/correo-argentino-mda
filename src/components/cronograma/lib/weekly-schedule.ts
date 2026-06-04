@@ -1,6 +1,6 @@
 import { state } from './state';
 import { saveWeeklySchedules } from './api';
-import { formatYMD, formatTimeInput } from './utils';
+import { formatYMD, formatTimeInput, formatScheduleInput } from './utils';
 import { OperatorStatus } from './types';
 import { showToast, showConfirm, showPrompt } from './notifications';
 
@@ -254,6 +254,14 @@ export function handleWeeklyFocusOut(target: HTMLInputElement) {
       } else {
         currentWeeklyBreakFinTimes[day] = formatted;
       }
+    }
+  }
+  if (target.classList.contains('weekly-schedule-input')) {
+    const formatted = formatScheduleInput(target.value);
+    target.value = formatted;
+    const day = target.getAttribute('data-day');
+    if (day) {
+      currentWeeklyScheduleTimes[day] = formatted;
     }
   }
 }
