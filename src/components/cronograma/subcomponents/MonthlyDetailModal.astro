@@ -154,7 +154,7 @@ import { Icon } from "astro-icon/components";
 <script>
   import { saveEdits } from '../lib/api';
   import { state } from '../lib/state';
-  import { formatDetailDate, formatTimeInput } from '../lib/utils';
+  import { formatDetailDate, formatTimeInput, formatScheduleInput } from '../lib/utils';
   import { getDetailStatusClass, getDetailIndicatorClass } from '../lib/styles';
 
   const overlay = document.getElementById('monthly-detail-overlay') as HTMLElement | null;
@@ -327,7 +327,9 @@ import { Icon } from "astro-icon/components";
     });
 
     scheduleInput.addEventListener('blur', () => {
-      scheduleText.innerText = scheduleInput.value || '-';
+      const formatted = formatScheduleInput(scheduleInput.value);
+      scheduleInput.value = formatted;
+      scheduleText.innerText = formatted || '-';
       scheduleInput.classList.add('hidden');
       scheduleText.classList.remove('hidden');
     });
@@ -434,15 +436,16 @@ import { Icon } from "astro-icon/components";
     
     const opName = activeOperatorName;
     const dateVal = activeDateVal;
-    const currentVal = scheduleInput.value.trim();
+    const formatted = formatScheduleInput(scheduleInput.value);
+    scheduleInput.value = formatted;
     
     try {
-      await saveEdits([{ agentName: opName, date: dateVal, horario: currentVal }]);
+      await saveEdits([{ agentName: opName, date: dateVal, horario: formatted }]);
       
       const op = state.cronoData.find(o => o.nombre === opName);
       if (op) {
         if (!op.horarios_dias) op.horarios_dias = {};
-        op.horarios_dias[dateVal] = currentVal;
+        op.horarios_dias[dateVal] = formatted;
       }
 
       document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
