@@ -143,6 +143,10 @@ const bindTableSortRoot = (root: HTMLElement): void => {
       return;
     }
 
+    if (!target.closest("[data-table-header]")) {
+      return;
+    }
+
     const control = target.closest<HTMLButtonElement>("[data-table-sort-key]");
 
     if (!(control instanceof HTMLButtonElement)) {

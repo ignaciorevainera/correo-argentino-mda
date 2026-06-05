@@ -1,11 +1,24 @@
 import { db } from "@db/index";
 import { provinces, regions, offices } from "@db/schema";
-import { eq, or, and, sql, inArray, like } from "drizzle-orm";
+import { eq, or, and, sql, inArray, like, asc, desc } from "drizzle-orm";
 import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
 } from "@/types/offices";
+import { normalizeSearchValue } from "@lib/clientSearch";
+
+export type OfficeSortKey = "code" | "name" | "parent-nis" | "address" | "type" | "region";
+export type SortOrder = "asc" | "desc";
+
+const officeSortColumns = {
+  code: offices.code,
+  name: offices.name,
+  "parent-nis": offices.parentNis,
+  address: offices.address,
+  type: offices.type,
+  region: offices.provinceCode,
+} as const;
 
 export interface GetOfficesParams {
   page?: number;
@@ -16,6 +29,8 @@ export interface GetOfficesParams {
   province?: string;
   zone?: string;
   paqar?: string;
+  sortBy?: OfficeSortKey;
+  sortOrder?: SortOrder;
 }
 
 export async function getOffices(params: GetOfficesParams) {
@@ -84,13 +99,14 @@ export async function getOffices(params: GetOfficesParams) {
 
   // Search filter (like code, name, locality)
   if (searchFilter) {
-    const likeSearch = `%${searchFilter}%`;
+    const normalizedSearch = normalizeSearchValue(searchFilter);
+    const likeSearch = `%${normalizedSearch}%`;
     whereConditions.push(
       or(
-        like(offices.code, likeSearch),
-        like(offices.name, likeSearch),
-        like(offices.locality, likeSearch),
-        like(offices.parentNis, likeSearch),
+        like(sql`normalize_text(${offices.code})`, likeSearch),
+        like(sql`normalize_text(${offices.name})`, likeSearch),
+        like(sql`normalize_text(${offices.locality})`, likeSearch),
+        like(sql`normalize_text(${offices.parentNis})`, likeSearch),
       ),
     );
   }
@@ -139,12 +155,20 @@ export async function getOffices(params: GetOfficesParams) {
     .from(offices)
     .where(whereClause);
 
-  // 3. Find many
+  const sortKey = params.sortBy;
+  const sortOrderVal = params.sortOrder ?? "asc";
+
   const dbOffices = await db.query.offices.findMany({
     where: whereClause,
     limit: limit,
     offset: offset,
-    orderBy: (offices, { asc }) => [asc(offices.code), asc(offices.name)],
+    orderBy: (officesTable, { asc: ascFn, desc: descFn }) => {
+      const orderFn = sortOrderVal === "desc" ? descFn : ascFn;
+      if (sortKey && officeSortColumns[sortKey]) {
+        return [orderFn(officeSortColumns[sortKey])];
+      }
+      return [ascFn(officesTable.code), ascFn(officesTable.name)];
+    },
     with: {
       assets: true,
       contacts: { with: { contact: true } },
