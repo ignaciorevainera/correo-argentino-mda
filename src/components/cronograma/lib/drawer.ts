@@ -196,6 +196,8 @@ export async function saveDrawerLocation(val: string) {
     locIndicator.classList.add('opacity-100', 'text-warning/70');
   }
 
+  updateLocationButtonsUI(val);
+
   try {
     await saveLocation(opName, val);
 

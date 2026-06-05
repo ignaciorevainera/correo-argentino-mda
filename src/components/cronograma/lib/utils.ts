@@ -160,6 +160,35 @@ export function formatTimeInput(val: string): string {
   return '';
 }
 
+export function formatScheduleInput(val: string): string {
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '-') return '-';
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'franco') return 'Franco';
+  if (lower === 'vacaciones') return 'Vacaciones';
+  if (lower === 'licencia') return 'Licencia';
+  if (lower === 'home office' || lower === 'ho') return 'Home Office';
+  if (lower === 'presencial' || lower === 'p') return 'Presencial';
+  if (lower === 'horas extras' || lower === 'he') return 'Horas Extras';
+
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-');
+    if (parts.length === 2) {
+      const start = formatTimeInput(parts[0]);
+      const end = formatTimeInput(parts[1]);
+      if (start && end) {
+        return `${start} - ${end}`;
+      }
+    }
+  }
+
+  const single = formatTimeInput(trimmed);
+  if (single) return single;
+
+  return '-';
+}
+
 export function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let timeoutId: any;
   return function (this: any, ...args: any[]) {

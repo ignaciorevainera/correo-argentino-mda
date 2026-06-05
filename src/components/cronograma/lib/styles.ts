@@ -43,6 +43,20 @@ export function getStatusStyles(type: string | undefined): {
         color: '#0284c7',
         bgClass: 'bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-500/25 font-bold hover:bg-sky-500/30 shadow-sm transition-all duration-200',
       };
+    case OperatorStatus.GuardiaPasiva:
+      return {
+        badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
+        icon: STATUS_ICONS.bell,
+        color: '#0d9488',
+        bgClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/25 shadow-sm',
+      };
+    case OperatorStatus.Guardia:
+      return {
+        badge: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase shadow-sm whitespace-nowrap',
+        icon: STATUS_ICONS.shield,
+        color: '#4f46e5',
+        bgClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 shadow-sm',
+      };
     default:
       return {
         badge: 'bg-base-200 text-base-content/60 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border border-base-300/50 whitespace-nowrap',
@@ -59,6 +73,8 @@ export function getDetailStatusClass(status: string): string {
   if (status === OperatorStatus.Licencia) return 'text-error';
   if (status === OperatorStatus.Vacaciones) return 'text-success';
   if (status === OperatorStatus.HorasExtras) return 'text-sky-600 dark:text-sky-400';
+  if (status === OperatorStatus.GuardiaPasiva) return 'text-teal-600 dark:text-teal-400';
+  if (status === OperatorStatus.Guardia) return 'text-indigo-600 dark:text-indigo-400';
   return 'text-base-content/40';
 }
 
@@ -68,5 +84,7 @@ export function getDetailIndicatorClass(status: string): string {
   if (status === OperatorStatus.Licencia) return 'bg-error';
   if (status === OperatorStatus.Vacaciones) return 'bg-success';
   if (status === OperatorStatus.HorasExtras) return 'bg-sky-500';
+  if (status === OperatorStatus.GuardiaPasiva) return 'bg-teal-500';
+  if (status === OperatorStatus.Guardia) return 'bg-indigo-500';
   return 'bg-base-300';
 }

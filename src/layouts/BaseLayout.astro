@@ -110,7 +110,14 @@ const roleLabel = roleLabelMap[user.role] ?? "Agente";
 const isRouteLocked = (href: string): boolean => {
   const role = (user.role || "").toLowerCase().trim();
 
-  if (href === "/design-system" || href.startsWith("/admin")) {
+  if (href.startsWith("/admin")) {
+    if (href === "/admin/users" || href.startsWith("/admin/users/")) {
+      return role !== "admin";
+    }
+    return !["admin", "supervisor"].includes(role);
+  }
+
+  if (href === "/design-system") {
     return role !== "admin";
   }
 
@@ -184,7 +191,7 @@ const isRouteLocked = (href: string): boolean => {
   <body
     class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content"
   >
-    <div class="drawer lg:drawer-open">
+    <div class="drawer lg:drawer-open h-screen overflow-hidden">
       <input
         id="main-drawer"
         type="checkbox"
@@ -276,7 +283,7 @@ const isRouteLocked = (href: string): boolean => {
         </main>
       </div>
 
-      <div class="drawer-side z-40 lg:z-auto lg:overflow-visible">
+      <div class="drawer-side z-40 lg:z-40 lg:overflow-visible">
         <label
           for="main-drawer"
           aria-label="close sidebar"

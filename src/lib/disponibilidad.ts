@@ -234,37 +234,42 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
     // Auto-cleanup of break_extendido if it expired
     if (agent.estadoExcepcional === "break_extendido") {
-      const extraMinutes = agent.estadoExcepcionalMinutos || 0;
-      const extendedBreakEnd = new Date(breakEnd.getTime() + extraMinutes * 60000);
-      if (now >= extendedBreakEnd) {
-        // Clear in DB asynchronously
-        db.update(agents)
-          .set({
-            estadoExcepcional: null,
-            estadoExcepcionalMotivo: null,
-            estadoExcepcionalAt: null,
-            estadoExcepcionalMinutos: null,
-          })
-          .where(eq(agents.id, agent.id))
-          .catch((err) =>
-            console.error(`Error auto-clearing break_extendido state for agent ${agent.id}:`, err)
-          );
+      if (agent.estadoExcepcionalMinutos !== null && agent.estadoExcepcionalMinutos !== undefined) {
+        const extraMinutes = agent.estadoExcepcionalMinutos;
+        const extendedBreakEnd = new Date(breakEnd.getTime() + extraMinutes * 60000);
+        if (now >= extendedBreakEnd) {
+          // Clear in DB asynchronously
+          db.update(agents)
+            .set({
+              estadoExcepcional: null,
+              estadoExcepcionalMotivo: null,
+              estadoExcepcionalAt: null,
+              estadoExcepcionalMinutos: null,
+            })
+            .where(eq(agents.id, agent.id))
+            .catch((err) =>
+              console.error(`Error auto-clearing break_extendido state for agent ${agent.id}:`, err)
+            );
 
-        // Mutate local object and info so we don't apply the override in this render
-        agent.estadoExcepcional = null;
-        agent.estadoExcepcionalMotivo = null;
-        agent.estadoExcepcionalAt = null;
-        agent.estadoExcepcionalMinutos = null;
-        
-        info.estadoExcepcional = undefined;
-        info.estadoExcepcionalMotivo = undefined;
-        info.estadoExcepcionalAt = undefined;
-        info.estadoExcepcionalMinutos = undefined;
+          // Mutate local object and info so we don't apply the override in this render
+          agent.estadoExcepcional = null;
+          agent.estadoExcepcionalMotivo = null;
+          agent.estadoExcepcionalAt = null;
+          agent.estadoExcepcionalMinutos = null;
+          
+          info.estadoExcepcional = undefined;
+          info.estadoExcepcionalMotivo = undefined;
+          info.estadoExcepcionalAt = undefined;
+          info.estadoExcepcionalMinutos = undefined;
+        } else {
+          // Format return time
+          const retHours = String(extendedBreakEnd.getHours()).padStart(2, "0");
+          const retMins = String(extendedBreakEnd.getMinutes()).padStart(2, "0");
+          info.retornoEstimado = `${retHours}:${retMins}`;
+        }
       } else {
-        // Format return time
-        const retHours = String(extendedBreakEnd.getHours()).padStart(2, "0");
-        const retMins = String(extendedBreakEnd.getMinutes()).padStart(2, "0");
-        info.retornoEstimado = `${retHours}:${retMins}`;
+        // Manual / No auto-cleanup
+        info.retornoEstimado = "Manual";
       }
     }
 

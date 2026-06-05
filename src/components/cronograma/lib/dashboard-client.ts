@@ -15,7 +15,7 @@ import {
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
 import { exportCSV, exportAsImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
-import { OperatorStatus } from './types';
+import { OperatorStatus, type OperatorData } from './types';
 
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -38,6 +38,156 @@ function updateDateInputDisplay(): void {
   if (dateInput && dateDisplay && dateInput.value) {
     dateDisplay.innerText = formatDMY(dateInput.value);
   }
+}
+
+function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
+  const sortType = state.activeSort || 'alphabetical';
+  
+  const hasContinuation = (op: OperatorData): boolean => {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return false;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const dateObj = new Date(year, month, day);
+    dateObj.setDate(dateObj.getDate() - 1);
+    
+    const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    
+    const yesterdayStatus = op.asistencia?.[yStr];
+    if (!yesterdayStatus) return false;
+    
+    const isYesterdayAbsent = yesterdayStatus === 'Licencia' || yesterdayStatus === 'Vacaciones' || yesterdayStatus === 'Franco';
+    if (isYesterdayAbsent) return false;
+    
+    const yesterdayHorario = (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
+    if (!yesterdayHorario) return false;
+    
+    const times = yesterdayHorario.split(' - ');
+    if (times.length === 2) {
+      const getMins = (t: string) => {
+        const p = t.split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+      };
+      const startPct = getMins(times[0]);
+      const endPct = getMins(times[1]);
+      return startPct > endPct;
+    }
+    return false;
+  };
+
+  return [...ops].sort((a, b) => {
+    if (sortType === 'alphabetical') {
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'alphabetical-za') {
+      return b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'entry-time') {
+      const getEntryTimeMinutes = (op: OperatorData): number => {
+        if (hasContinuation(op)) {
+          return 0;
+        }
+        const status = op.asistencia?.[dateStr];
+        if (status === 'Franco' || status === 'Licencia' || status === 'Vacaciones' || !status) {
+          return 9999;
+        }
+        const dailyHorario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
+        if (!dailyHorario || dailyHorario === '-' || dailyHorario === 'Franco') {
+          return 9999;
+        }
+        const parts = dailyHorario.split(' - ');
+        if (parts.length === 2) {
+          const start = parts[0];
+          const [h, m] = start.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            return h * 60 + m;
+          }
+        }
+        return 9999;
+      };
+      
+      const timeA = getEntryTimeMinutes(a);
+      const timeB = getEntryTimeMinutes(b);
+      
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'location') {
+      const locA = a.location || 'Monte Grande';
+      const locB = b.location || 'Monte Grande';
+      if (locA !== locB) {
+        return locA.localeCompare(locB, 'es', { sensitivity: 'base' });
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'inconsistencies') {
+      const hasInconsistency = (op: OperatorData): boolean => {
+        const [yearStr, monthStr] = dateStr.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10) - 1;
+        const daysInMonth = getDaysInMonth(year, month);
+        const currentMonthPrefix = `${yearStr}-${monthStr}`;
+        const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonthPrefix}-${(i + 1).toString().padStart(2, '0')}`);
+        
+        const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : state.maxConsecutiveHOLimit;
+        const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : state.minPWeekLimit;
+
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        
+        let pWeekViolation = false;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+
+        for (let i = 0; i < dates.length; i++) {
+          const d = dates[i];
+          const status = op.asistencia[d];
+          
+          if (status === OperatorStatus.HomeOffice) {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (status !== OperatorStatus.Franco && status) {
+            currentHO = 0;
+          }
+
+          if (status === OperatorStatus.Presencial) currentWeekP++;
+          if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
+             currentWeekDays++;
+          }
+          
+          const dateObj = new Date(d + 'T12:00:00');
+          const dayOfWeek = dateObj.getDay();
+          
+          if (dayOfWeek === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+        }
+        
+        return maxConsecutiveHO > opMaxHO || pWeekViolation;
+      };
+      
+      const incA = hasInconsistency(a) ? 1 : 0;
+      const incB = hasInconsistency(b) ? 1 : 0;
+      
+      if (incA !== incB) {
+        return incB - incA;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    return 0;
+  });
 }
 
 function updateNavigationButtons(): void {
@@ -246,8 +396,10 @@ function renderDaily(): void {
     return status === state.activeFilter;
   });
 
+  const sortedOps = sortOperators(filteredOps, selectedDateStr);
+
   let rowsHtml = '';
-  if (filteredOps.length === 0) {
+  if (sortedOps.length === 0) {
     rowsHtml = `
       <tr>
         <td colspan="3" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
@@ -267,7 +419,7 @@ function renderDaily(): void {
       </tr>
     `;
   } else {
-    filteredOps.forEach(op => {
+    sortedOps.forEach(op => {
       const status = op.asistencia[selectedDateStr];
       const styles = getStatusStyles(status);
       const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
@@ -284,6 +436,43 @@ function renderDaily(): void {
       const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
       const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
 
+      // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
+      let breakStartHourStr = '';
+      let breakEndHourStr = '';
+      if (!isAbsent && !isFranco) {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          if (customBreakInicio && customBreakFin) {
+            breakStartHourStr = customBreakInicio;
+            breakEndHourStr = customBreakFin;
+          } else {
+            const startMin = timeToMinutes(times[0]);
+            const endMin = timeToMinutes(times[1]);
+            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+            const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
+            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+            const breakEndMin = (breakStartMin + 60) % 1440;
+            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+          }
+        }
+      }
+
+      let breakBadgeHtml = '';
+      if (breakStartHourStr && breakEndHourStr) {
+        breakBadgeHtml = `
+          <span class="daily-break-badge px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1 shadow-sm shrink-0" title="Break: ${breakStartHourStr} - ${breakEndHourStr}">
+            <svg class="w-3 h-3 text-purple-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+              <line x1="6" y1="2" x2="6" y2="4" />
+              <line x1="10" y1="2" x2="10" y2="4" />
+              <line x1="14" y1="2" x2="14" y2="4" />
+            </svg>
+            ${breakStartHourStr} - ${breakEndHourStr}
+          </span>
+        `;
+      }
+
       let alertBadgesHtml = '';
       if (late) {
         alertBadgesHtml += `
@@ -295,8 +484,8 @@ function renderDaily(): void {
       }
       if (early) {
         alertBadgesHtml += `
-          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
             Salida Temp.
           </span>
         `;
@@ -307,74 +496,136 @@ function renderDaily(): void {
       else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
 
       let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
-      if (status === OperatorStatus.Presencial) ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
-      else if (status === OperatorStatus.HomeOffice) ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+      let glowColorClass = "bg-primary";
+      if (status === OperatorStatus.Presencial) {
+        ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
+        glowColorClass = "bg-secondary";
+      } else if (status === OperatorStatus.HomeOffice) {
+        ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+        glowColorClass = "bg-amber-500";
+      } else if (status === OperatorStatus.Guardia) {
+        ringClass = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/30 border border-indigo-500/20 shadow-sm";
+        glowColorClass = "bg-indigo-500";
+      } else if (status === OperatorStatus.GuardiaPasiva) {
+        ringClass = "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-teal-500/30 border border-teal-500/20 shadow-sm";
+        glowColorClass = "bg-teal-500";
+      }
 
       // Contenido del Gantt
       let ganttContentHtml = '';
 
+      const getPct = (timeStr: string) => {
+        const parts = timeStr.split(':');
+        const mins = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        return (mins / 1440) * 100;
+      };
+
+      const workBars: string[] = [];
+      const breakBars: string[] = [];
+      const actualBars: string[] = [];
+
+      // --- 1. YESTERDAY'S SHIFT CONTINUATION ---
+      let hasYesterdayContinuation = false;
+      let yEndPct = 0;
+      const prevDate = new Date(selectedDateStr + 'T12:00:00');
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDateStr = formatYMD(prevDate);
+
+      const yesterdayStatus = op.asistencia[prevDateStr];
+      const isYesterdayAbsent = yesterdayStatus === OperatorStatus.Licencia || yesterdayStatus === OperatorStatus.Vacaciones || yesterdayStatus === OperatorStatus.Franco;
+
+      if (yesterdayStatus && !isYesterdayAbsent) {
+        const yesterdayHorario = (op.horarios_dias && op.horarios_dias[prevDateStr]) || op.horario;
+        const yTimes = yesterdayHorario.split(' - ');
+        if (yTimes.length === 2) {
+          const yStartPct = getPct(yTimes[0]);
+          const yEndPctVal = getPct(yTimes[1]);
+
+          if (yStartPct > yEndPctVal) {
+            hasYesterdayContinuation = true;
+            yEndPct = yEndPctVal;
+            let yesterdayWorkBarBg = 'bg-primary text-amber-900';
+            if (yesterdayStatus === OperatorStatus.Presencial) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
+            else if (yesterdayStatus === OperatorStatus.Guardia) yesterdayWorkBarBg = 'bg-indigo-500 text-white';
+            else if (yesterdayStatus === OperatorStatus.GuardiaPasiva) yesterdayWorkBarBg = 'bg-teal-500 text-white';
+
+            workBars.push(`
+              <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayWorkBarBg} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
+              </div>
+            `);
+
+            const yBreakInicio = op.breaks_inicio?.[prevDateStr] || '';
+            const yBreakFin = op.breaks_fin?.[prevDateStr] || '';
+            let yBreakStartHourStr = '';
+            let yBreakEndHourStr = '';
+            if (yBreakInicio && yBreakFin) {
+              yBreakStartHourStr = yBreakInicio;
+              yBreakEndHourStr = yBreakFin;
+            } else {
+              const startMin = timeToMinutes(yTimes[0]);
+              const endMin = timeToMinutes(yTimes[1]);
+              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+              const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
+              yBreakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+              const breakEndMin = (breakStartMin + 60) % 1440;
+              yBreakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+            }
+            const yBStartPct = getPct(yBreakStartHourStr);
+            const yBEndPct = getPct(yBreakEndHourStr);
+
+            if (yBStartPct < yStartPct) {
+              if (yBStartPct <= yBEndPct) {
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: ${yBStartPct}%; width: ${yBEndPct - yBStartPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                  </div>
+                `);
+              } else {
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                  </div>
+                `);
+              }
+            } else if (yBStartPct > yBEndPct) {
+              breakBars.push(`
+                <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
+                  <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                </div>
+              `);
+            }
+
+            const yEntradaReal = (op.entradas_reales && op.entradas_reales[prevDateStr]) || '';
+            const ySalidaReal = (op.salidas_reales && op.salidas_reales[prevDateStr]) || '';
+            if (yEntradaReal) {
+              const yActInPct = getPct(yEntradaReal);
+              const { late: yLate, early: yEarly } = checkTimeAlerts(yesterdayHorario, yEntradaReal, ySalidaReal);
+              const yActualBarColor = yLate ? 'bg-error' : (yEarly ? 'bg-amber-500' : 'bg-success');
+              
+              if (ySalidaReal) {
+                const yActOutPct = getPct(ySalidaReal);
+                if (yActInPct > yActOutPct) {
+                  actualBars.push(`
+                    <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yActOutPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - ${ySalidaReal}"></div>
+                  `);
+                }
+              } else {
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - sin salida"></div>
+                `);
+              }
+            }
+          }
+        }
+      }
+
+      // --- 2. TODAY'S SHIFT OR INACTIVE BAR ---
       if (isAbsent || isFranco) {
         const inactiveText = isFranco ? 'Franco / Día Libre' : (status === OperatorStatus.Vacaciones ? 'Vacaciones' : 'Licencia Médica');
         const inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
-        ganttContentHtml = `
-          <div class="gantt-inactive-bar ${inactiveBg}">
-            ${inactiveText}
-          </div>
-        `;
-      } else {
-        const times = dailyHorario.split(' - ');
-        if (times.length === 2) {
-          const startPct = getGanttPosition(times[0]);
-          const endPct = getGanttPosition(times[1]);
-          let widthPct = endPct - startPct;
-          if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
-
-          // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
-          let breakStartHourStr = '';
-          let breakEndHourStr = '';
-          let breakStartPct = 0;
-          let breakWidthPct = 0;
-
-          if (customBreakInicio && customBreakFin) {
-            breakStartHourStr = customBreakInicio;
-            breakEndHourStr = customBreakFin;
-            const bStartPct = getGanttPosition(breakStartHourStr);
-            const bEndPct = getGanttPosition(breakEndHourStr);
-            let bWidth = bEndPct - bStartPct;
-            if (bWidth < 0) bWidth += 100;
-            breakStartPct = bStartPct;
-            breakWidthPct = bWidth;
-          } else {
-            const startMin = timeToMinutes(times[0]);
-            const endMin = timeToMinutes(times[1]);
-            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-            const breakStartMin = startMin + (totalMin / 2) - 30;
-            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
-            breakStartPct = getGanttPosition(breakStartHourStr);
-            breakWidthPct = (60 / 1440) * 100; // 1 hora de break
-            const breakEndMin = (breakStartMin + 60) % 1440;
-            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
-          }
-
-          // Calcular posición del break relativa a la barra de trabajo
-          const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
-          const relativeBreakWidth = widthPct > 0 ? (breakWidthPct / widthPct) * 100 : 0;
-
-          const workBarBg = status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
-
-          let actualBarHtml = '';
-          if (entradaReal || salidaReal) {
-            const actIn = entradaReal || times[0];
-            const actOut = salidaReal || times[1];
-            const actInPct = getGanttPosition(actIn);
-            const actOutPct = getGanttPosition(actOut);
-            let actWidthPct = actOutPct - actInPct;
-            if (actWidthPct < 0) actWidthPct += 100;
-
-            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
-            actualBarHtml = `<div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal || '--'} - ${salidaReal || '--'}"></div>`;
-          }
-
+        
+        if (hasYesterdayContinuation) {
           ganttContentHtml = `
             <!-- Líneas de cuadrícula de fondo -->
             <div class="gantt-grid-line" style="left: 8.33%;"></div>
@@ -389,27 +640,133 @@ function renderDaily(): void {
             <div class="gantt-grid-line" style="left: 83.33%;"></div>
             <div class="gantt-grid-line" style="left: 91.66%;"></div>
 
-            <!-- Barra de Turno Planificado -->
-            <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
-              <!-- Bloque de Break interno -->
-              <div class="gantt-bar-break absolute h-full top-0 z-[1] border-x border-dashed border-current opacity-60 cursor-help transition-all duration-200 hover:opacity-100 hover:bg-current/10" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
-                <div class="w-full h-full opacity-30" style="background-image: repeating-linear-gradient(-45deg, currentColor, currentColor 3px, transparent 3px, transparent 8px);"></div>
-              </div>
-              <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
-            </div>
+            <!-- Barras de Turno Planificado -->
+            ${workBars.join('')}
 
-            <!-- Barra de Asistencia Real -->
-            ${actualBarHtml}
+            <!-- Bloques de Break por encima -->
+            ${breakBars.join('')}
+
+            <!-- Barras de Asistencia Real -->
+            ${actualBars.join('')}
+
+            <!-- Barra Inactiva a la derecha de la continuación -->
+            <div class="gantt-inactive-bar ${inactiveBg} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
+              ${inactiveText}
+            </div>
+          `;
+        } else {
+          ganttContentHtml = `
+            <div class="gantt-inactive-bar ${inactiveBg}">
+              ${inactiveText}
+            </div>
           `;
         }
+      } else {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          const startPct = getPct(times[0]);
+          const endPct = getPct(times[1]);
+          let workBarBg = 'bg-primary text-amber-900';
+          if (status === OperatorStatus.Presencial) workBarBg = 'bg-secondary text-secondary-content';
+          else if (status === OperatorStatus.Guardia) workBarBg = 'bg-indigo-500 text-white';
+          else if (status === OperatorStatus.GuardiaPasiva) workBarBg = 'bg-teal-500 text-white';
+
+          if (startPct <= endPct) {
+            const widthPct = endPct - startPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
+              </div>
+            `);
+          } else {
+            const widthPct = 100 - startPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
+              </div>
+            `);
+          }
+
+          if (breakStartHourStr && breakEndHourStr) {
+            const bStartPct = getPct(breakStartHourStr);
+            const bEndPct = getPct(breakEndHourStr);
+
+            if (startPct <= endPct) {
+              const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct + bEndPct);
+              breakBars.push(`
+                <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
+                  <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+                </div>
+              `);
+            } else {
+              if (bStartPct >= startPct) {
+                const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct);
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+                  </div>
+                `);
+              }
+            }
+          }
+
+          if (entradaReal) {
+            const actInPct = getPct(entradaReal);
+            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
+            
+            if (salidaReal) {
+              const actOutPct = getPct(salidaReal);
+              if (actInPct <= actOutPct) {
+                const actWidthPct = actOutPct - actInPct;
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal} - ${salidaReal}"></div>
+                `);
+              } else {
+                const actWidthPct = 100 - actInPct;
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - ${salidaReal}"></div>
+                `);
+              }
+            } else {
+              const actWidthPct = 100 - actInPct;
+              actualBars.push(`
+                <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - sin salida"></div>
+              `);
+            }
+          }
+        }
+
+        ganttContentHtml = `
+          <!-- Líneas de cuadrícula de fondo -->
+          <div class="gantt-grid-line" style="left: 8.33%;"></div>
+          <div class="gantt-grid-line" style="left: 16.66%;"></div>
+          <div class="gantt-grid-line" style="left: 25.00%;"></div>
+          <div class="gantt-grid-line" style="left: 33.33%;"></div>
+          <div class="gantt-grid-line" style="left: 41.66%;"></div>
+          <div class="gantt-grid-line" style="left: 50.00%;"></div>
+          <div class="gantt-grid-line" style="left: 58.33%;"></div>
+          <div class="gantt-grid-line" style="left: 66.66%;"></div>
+          <div class="gantt-grid-line" style="left: 75.00%;"></div>
+          <div class="gantt-grid-line" style="left: 83.33%;"></div>
+          <div class="gantt-grid-line" style="left: 91.66%;"></div>
+
+          <!-- Barras de Turno Planificado -->
+          ${workBars.join('')}
+
+          <!-- Bloques de Break por encima -->
+          ${breakBars.join('')}
+
+          <!-- Barras de Asistencia Real -->
+          ${actualBars.join('')}
+        `;
       }
 
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
-          <td class="px-6 py-4 border-r border-base-300/40 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-rose-500/[0.02] dark:bg-rose-500/[0.03]' : '')}">
+          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-rose-500 before:content-[\'\']' : '')}">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
-                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.Presencial ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
+                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
                 <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
                   ${initials}
                 </div>
@@ -426,13 +783,14 @@ function renderDaily(): void {
               </div>
             </div>
           </td>
-          <td class="px-4 py-4 border-r border-base-300/40">
+          <td class="sticky left-[16rem] bg-base-100 z-40 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
             <div class="flex items-center gap-3">
                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
                  <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                 ${breakBadgeHtml}
                  ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
                </div>
             </div>
@@ -459,6 +817,19 @@ function isWorkingAtHour(horario: string, hourStr: string): boolean {
 
   const hS = parseInt(start.split(':')[0], 10);
   const hE = parseInt(end.split(':')[0], 10);
+  const hC = parseInt(hourStr.split(':')[0], 10);
+
+  if (hS <= hE) {
+     return hC >= hS && hC < hE;
+  } else {
+     return hC >= hS || hC < hE;
+  }
+}
+
+function isBreakAtHour(breakInicio: string, breakFin: string, hourStr: string): boolean {
+  if (!breakInicio || !breakFin || breakInicio === '-' || breakFin === '-') return false;
+  const hS = parseInt(breakInicio.split(':')[0], 10);
+  const hE = parseInt(breakFin.split(':')[0], 10);
   const hC = parseInt(hourStr.split(':')[0], 10);
 
   if (hS <= hE) {
@@ -515,11 +886,13 @@ function renderHourly(dateStr: string): void {
     return status === state.activeFilter;
   });
 
+  const sortedOps = sortOperators(filteredOps, dateStr);
+
   let tbodyHtml = '';
-  if (filteredOps.length === 0) {
+  if (sortedOps.length === 0) {
      tbodyHtml = `<tr><td colspan="${hours.length + 1}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50">Sin resultados</td></tr>`;
   } else {
-     filteredOps.forEach(op => {
+     sortedOps.forEach(op => {
         const status = op.asistencia[dateStr] || OperatorStatus.Franco;
         const horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
         const styles = getStatusStyles(status);
@@ -541,8 +914,8 @@ function renderHourly(dateStr: string): void {
         }
         if (early) {
           alertBadgesHtml += `
-            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               Salida Temp.
             </span>
           `;
@@ -555,12 +928,34 @@ function renderHourly(dateStr: string): void {
           rowClass += " bg-error/[0.03]";
           tdClass += " border-l-4 border-l-error pl-5";
         } else if (early) {
-          rowClass += " bg-warning/[0.02]";
-          tdClass += " border-l-4 border-l-warning pl-5";
+          rowClass += " bg-rose-500/[0.02]";
+          tdClass += " border-l-4 border-l-rose-500 pl-5";
         }
 
         const hasRealTimes = !!(entradaReal || salidaReal);
         const realTimesSubHtml = hasRealTimes ? ` (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'})` : '';
+
+        const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
+        const customBreakFin = op.breaks_fin?.[dateStr] || '';
+        let breakStart = '';
+        let breakEnd = '';
+        if (!isAbsent && !isFranco) {
+          const times = horario.split(' - ');
+          if (times.length === 2) {
+            if (customBreakInicio && customBreakFin) {
+              breakStart = customBreakInicio;
+              breakEnd = customBreakFin;
+            } else {
+              const startMin = timeToMinutes(times[0]);
+              const endMin = timeToMinutes(times[1]);
+              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+              const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
+              breakStart = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+              const breakEndMin = (breakStartMin + 60) % 1440;
+              breakEnd = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+            }
+          }
+        }
 
         tbodyHtml += `<tr class="${rowClass}">
            <td class="${tdClass}">
@@ -576,7 +971,14 @@ function renderHourly(dateStr: string): void {
 
         hours.forEach(hour => {
            const working = isWorkingAtHour(horario, hour);
-           if (working && !isFranco) {
+           const onBreak = working && isBreakAtHour(breakStart, breakEnd, hour);
+           if (onBreak) {
+              tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
+                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
+                   <span class="text-[10px] leading-none">☕</span>
+                 </div>
+              </td>`;
+           } else if (working && !isFranco) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
                  <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
                  </div>
@@ -713,7 +1115,9 @@ function renderMonthly(): void {
     });
   });
 
-  if (filteredOps.length === 0) {
+  const sortedOps = sortOperators(filteredOps, selectedDateStr);
+
+  if (sortedOps.length === 0) {
     tbodyHtml = `<tr>
       <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
         <div class="flex flex-col items-center justify-center gap-3 py-6">
@@ -731,7 +1135,7 @@ function renderMonthly(): void {
       </td>
     </tr>`;
   } else {
-    filteredOps.forEach(op => {
+    sortedOps.forEach(op => {
       const stats = { P: 0, HO: 0, L: 0 };
       const username = op.username || '';
       dates.forEach(d => {
@@ -782,10 +1186,10 @@ function renderMonthly(): void {
         <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
           <div class="flex items-center gap-3">
             <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
-            <div class="w-1.5 h-1.5 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-colors shadow-sm"></div>
+            <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm ${state.isEditMode ? 'op-row-header cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : ''}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
-                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate op-row-header font-bold text-xs" data-op-profile="${op.nombre}">
+                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
                   ${op.nombre}
                 </button>
                 <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${state.isEditMode ? '' : 'hidden'}">
@@ -839,16 +1243,19 @@ function renderMonthly(): void {
         const isLicenseOverlap = (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) && coveragePerDay[date].licenses > state.maxLicenseOverlapLimit;
         if (isLicenseOverlap) totalInconsistencies++;
 
+        const isFrancoCell = status === OperatorStatus.Franco || !status;
         let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
-        if (isTodayCell) cellClass += ' bg-secondary/10';
+        if (isTodayCell) {
+          cellClass += isFrancoCell ? ' bg-base-200/80 dark:bg-base-300/20' : ' bg-secondary/10';
+        }
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
         const hasComment = !!(op.comentarios && op.comentarios[date]);
-        if (status === OperatorStatus.Franco || !status) {
+        if (isFrancoCell) {
           tbodyHtml += `<td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
+              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -879,6 +1286,8 @@ function renderMonthly(): void {
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
         else if (status === OperatorStatus.HorasExtras) initials = "HE";
+        else if (status === OperatorStatus.GuardiaPasiva) initials = "GP";
+        else if (status === OperatorStatus.Guardia) initials = "G";
 
         tbodyHtml += `
           <td class="${cellClass}">
@@ -997,6 +1406,26 @@ function renderMonthly(): void {
   if (tfoot) tfoot.innerHTML = tfootHtml;
 }
 
+function updateOperatorDailyHorario(op: OperatorData, date: string, status: string): void {
+  const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+  const dateObj = new Date(date + "T12:00:00");
+  const dayName = dayNames[dateObj.getDay()];
+
+  op.horarios_dias = op.horarios_dias || {};
+  if (status === "Franco") {
+    op.horarios_dias[date] = "";
+  } else {
+    const current = op.horarios_dias[date];
+    if (!current || current === "Franco" || current === "-") {
+      if (op.esquema_horario?.[dayName]) {
+        op.horarios_dias[date] = op.esquema_horario[dayName];
+      } else {
+        op.horarios_dias[date] = op.horario || "08:00 - 17:00";
+      }
+    }
+  }
+}
+
 function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
@@ -1012,6 +1441,7 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const opIndex = state.cronoData.findIndex(o => o.nombre === operator);
   if (opIndex !== -1) {
     state.cronoData[opIndex].asistencia[date] = newStatus as OperatorStatus;
+    updateOperatorDailyHorario(state.cronoData[opIndex], date, newStatus);
     renderMonthly();
   }
 
@@ -1174,6 +1604,8 @@ function updateFilterActiveStates(): void {
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
   const filterHeBtn = document.getElementById('filter-he-btn');
+  const filterGpBtn = document.getElementById('filter-gp-btn');
+  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
   const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
@@ -1181,6 +1613,8 @@ function updateFilterActiveStates(): void {
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
   const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
+  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const buttons = [
     { el: filterAllBtn, value: 'all' },
@@ -1188,7 +1622,9 @@ function updateFilterActiveStates(): void {
     { el: filterHoBtn, value: 'Home Office' },
     { el: filterLicenciaBtn, value: 'Licencia' },
     { el: filterVacacionesBtn, value: 'Vacaciones' },
-    { el: filterHeBtn, value: 'Horas Extras' }
+    { el: filterHeBtn, value: 'Horas Extras' },
+    { el: filterGpBtn, value: 'Guardia Pasiva' },
+    { el: filterGBtn, value: 'Guardia' }
   ];
 
   const dailyButtons = [
@@ -1197,7 +1633,9 @@ function updateFilterActiveStates(): void {
     { el: filterHoBtnDaily, value: 'Home Office' },
     { el: filterLicenciaBtnDaily, value: 'Licencia' },
     { el: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { el: filterHeBtnDaily, value: 'Horas Extras' }
+    { el: filterHeBtnDaily, value: 'Horas Extras' },
+    { el: filterGpBtnDaily, value: 'Guardia Pasiva' },
+    { el: filterGBtnDaily, value: 'Guardia' }
   ];
 
   updateButtonGroupState(buttons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
@@ -1268,6 +1706,7 @@ function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false): void {
   const op = state.cronoData.find(o => o.nombre === opName);
   if (op) {
      op.asistencia[dateVal] = state.activeBrush as OperatorStatus;
+     updateOperatorDailyHorario(op, dateVal, state.activeBrush);
   }
   
   updatePendingEditsUI();
@@ -1484,6 +1923,24 @@ function setupEventListeners(): void {
   monthlySearch?.addEventListener('input', handleSearchInput);
   dailySearch?.addEventListener('input', handleSearchInput);
 
+  const monthlySort = document.getElementById('monthly-sort') as HTMLSelectElement | null;
+  const dailySort = document.getElementById('daily-sort') as HTMLSelectElement | null;
+
+  if (monthlySort) monthlySort.value = state.activeSort;
+  if (dailySort) dailySort.value = state.activeSort;
+
+  const handleSortChange = (e: Event) => {
+    const val = (e.target as HTMLSelectElement).value;
+    state.activeSort = val;
+    if (monthlySort && monthlySort !== e.target) monthlySort.value = val;
+    if (dailySort && dailySort !== e.target) dailySort.value = val;
+    renderMonthly();
+    renderDaily();
+  };
+
+  monthlySort?.addEventListener('change', handleSortChange);
+  dailySort?.addEventListener('change', handleSortChange);
+
   // Wire up filter buttons
   const filterAllBtn = document.getElementById('filter-all-btn');
   const filterPresencialBtn = document.getElementById('filter-presencial-btn');
@@ -1491,6 +1948,8 @@ function setupEventListeners(): void {
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
   const filterHeBtn = document.getElementById('filter-he-btn');
+  const filterGpBtn = document.getElementById('filter-gp-btn');
+  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
   const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
@@ -1498,6 +1957,8 @@ function setupEventListeners(): void {
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
   const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
+  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const filterBtns = [
     { btn: filterAllBtn, value: 'all' },
@@ -1506,12 +1967,16 @@ function setupEventListeners(): void {
     { btn: filterLicenciaBtn, value: 'Licencia' },
     { btn: filterVacacionesBtn, value: 'Vacaciones' },
     { btn: filterHeBtn, value: 'Horas Extras' },
+    { btn: filterGpBtn, value: 'Guardia Pasiva' },
+    { btn: filterGBtn, value: 'Guardia' },
     { btn: filterAllBtnDaily, value: 'all' },
     { btn: filterPresencialBtnDaily, value: 'Presencial' },
     { btn: filterHoBtnDaily, value: 'Home Office' },
     { btn: filterLicenciaBtnDaily, value: 'Licencia' },
     { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { btn: filterHeBtnDaily, value: 'Horas Extras' }
+    { btn: filterHeBtnDaily, value: 'Horas Extras' },
+    { btn: filterGpBtnDaily, value: 'Guardia Pasiva' },
+    { btn: filterGBtnDaily, value: 'Guardia' }
   ];
 
   filterBtns.forEach(item => {
@@ -1568,8 +2033,41 @@ function setupEventListeners(): void {
     if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
     
     quickEditMenu.classList.remove('hidden');
-    quickEditMenu.style.left = `${e.clientX}px`;
-    quickEditMenu.style.top = `${e.clientY}px`;
+
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = quickEditMenu.offsetWidth || 160;
+    const menuHeight = quickEditMenu.offsetHeight || 240;
+    const padding = 12;
+    
+    let left = 0;
+    let top = 0;
+    
+    if (window.innerWidth > 768) {
+      // Centered horizontally relative to the cell, clamped within viewport bounds
+      left = rect.left + rect.width / 2 - menuWidth / 2;
+      left = Math.max(padding, Math.min(window.innerWidth - menuWidth - padding, left));
+      
+      // Placed above or below the cell based on available space
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const showAbove = spaceBelow < (menuHeight + padding);
+      
+      if (showAbove) {
+        top = rect.top - menuHeight - 8;
+        quickEditMenu.style.transformOrigin = 'bottom center';
+      } else {
+        top = rect.bottom + 8;
+        quickEditMenu.style.transformOrigin = 'top center';
+      }
+      top = Math.max(padding, Math.min(window.innerHeight - menuHeight - padding, top));
+    } else {
+      // Mobile view: display centered as a modal-like popup
+      left = (window.innerWidth - menuWidth) / 2;
+      top = (window.innerHeight - menuHeight) / 2;
+      quickEditMenu.style.transformOrigin = 'center center';
+    }
+    
+    quickEditMenu.style.left = `${left}px`;
+    quickEditMenu.style.top = `${top}px`;
   });
 
   document.getElementById('quick-edit-options')?.addEventListener('click', (e) => {
@@ -1592,12 +2090,11 @@ function setupEventListeners(): void {
     }
   });
 
-  document.getElementById('save-confirm-btn')?.addEventListener('click', () => {
-    saveChangesToServer();
-  });
-
-  document.getElementById('save-discard-btn')?.addEventListener('click', () => {
-    discardChanges();
+  document.getElementById('reactivate-edit-mode-btn')?.addEventListener('click', () => {
+    const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
+    if (toggleEditBtn) {
+      toggleEditBtn.click();
+    }
   });
 
   // Delete active Month Listener
@@ -1799,7 +2296,8 @@ function setupEventListeners(): void {
       state.activeBrush = null;
       updateBrushUI();
       
-      if (state.modifiedSchedules.length > 0) {
+      const hasUnsavedChanges = state.modifiedSchedules.length > 0 || Object.keys(state.pendingEdits).length > 0;
+      if (hasUnsavedChanges) {
          const saveIndicator = document.getElementById('save-indicator');
          if (saveIndicator) saveIndicator.classList.remove('hidden');
       }
@@ -1911,6 +2409,25 @@ document.addEventListener('cronograma:rules-changed', () => {
   renderMonthly();
   renderDaily();
   showToast("Reglas de control actualizadas", "success");
+});
+
+// Hover effect to highlight break in Gantt timeline
+document.addEventListener('mouseover', (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+  if (badge) {
+    const tr = badge.closest('tr');
+    const breakBar = tr?.querySelector('.gantt-bar-break');
+    breakBar?.classList.add('gantt-break-highlighted');
+  }
+});
+
+document.addEventListener('mouseout', (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+  if (badge) {
+    const tr = badge.closest('tr');
+    const breakBar = tr?.querySelector('.gantt-bar-break');
+    breakBar?.classList.remove('gantt-break-highlighted');
+  }
 });
 
 if (safeGetItem('cronoMaximized', 'false') === 'true') {
