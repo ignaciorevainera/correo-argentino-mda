@@ -5,6 +5,8 @@ export enum OperatorStatus {
   Vacaciones = 'Vacaciones',
   HorasExtras = 'Horas Extras',
   Franco = 'Franco',
+  GuardiaPasiva = 'Guardia Pasiva',
+  Guardia = 'Guardia',
 }
 
 export type StatusFilter = OperatorStatus | 'all';
