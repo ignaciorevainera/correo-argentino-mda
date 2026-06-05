@@ -1,0 +1,36 @@
+---
+import TerminalRow from "@components/inventario/TerminalRow.astro";
+import { getTerminals } from "@lib/terminalQueries";
+import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
+
+const searchParams = Astro.url.searchParams;
+const page = parseInt(searchParams.get("page") || "1", 10);
+const limit = parseInt(searchParams.get("limit") || "50", 10);
+const search = searchParams.get("search") || "";
+const os = searchParams.get("os") || "all";
+const osVariant = searchParams.get("osVariant") || "all";
+const architecture = searchParams.get("architecture") || "all";
+const brand = searchParams.get("brand") || "all";
+const ram = searchParams.get("ram") || "all";
+const status = searchParams.get("status") || "all";
+const sortBy = (searchParams.get("sortBy") || undefined) as TerminalSortKey | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as SortOrder | undefined;
+
+const { data: terminals, hasMore } = await getTerminals({
+  page,
+  limit,
+  search,
+  os,
+  osVariant,
+  architecture,
+  brand,
+  ram,
+  status,
+  sortBy,
+  sortOrder,
+});
+
+Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
+---
+
+{terminals.map((terminal) => <TerminalRow terminal={terminal} />)}

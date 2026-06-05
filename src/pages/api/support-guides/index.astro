@@ -3,16 +3,21 @@ export const partial = true;
 
 import { getSupportGuides } from "@lib/supportGuidesQueries";
 import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
+import type { SupportGuideSortKey, SortOrder } from "@lib/supportGuidesQueries";
 
 const searchParams = Astro.url.searchParams;
 const page = parseInt(searchParams.get("page") || "1", 10);
 const limit = parseInt(searchParams.get("limit") || "50", 10);
 const search = searchParams.get("search") || "";
+const sortBy = (searchParams.get("sortBy") || undefined) as SupportGuideSortKey | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as SortOrder | undefined;
 
 const { data: guides, count, hasMore } = await getSupportGuides({
   page,
   limit,
   search,
+  sortBy,
+  sortOrder,
 });
 
 Astro.response.headers.set("X-Total-Count", count.toString());

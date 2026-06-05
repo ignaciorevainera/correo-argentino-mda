@@ -4,6 +4,7 @@ export const partial = true;
 import { getOffices } from "@lib/officeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
 import AdminOfficeRow from "@components/admin/AdminOfficeRow.astro";
+import type { OfficeSortKey, SortOrder } from "@lib/officeQueries";
 
 const searchParams = Astro.url.searchParams;
 const view = searchParams.get("view") || "public";
@@ -15,6 +16,8 @@ const region = searchParams.get("region") || "all";
 const province = searchParams.get("province") || "all";
 const zone = searchParams.get("zone") || "all";
 const paqar = searchParams.get("paqar") || "all";
+const sortBy = (searchParams.get("sortBy") || undefined) as OfficeSortKey | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as SortOrder | undefined;
 
 const { data: offices, count, hasMore } = await getOffices({
   page,
@@ -25,6 +28,8 @@ const { data: offices, count, hasMore } = await getOffices({
   province,
   zone,
   paqar,
+  sortBy,
+  sortOrder,
 });
 
 Astro.response.headers.set("X-Total-Count", count.toString());
