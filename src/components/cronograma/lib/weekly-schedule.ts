@@ -288,10 +288,6 @@ export function handleWeeklyDayOptionClick(btn: HTMLButtonElement) {
   else if (option === 'Franco') activeClass = 'bg-base-300 text-base-content shadow-md';
   
   btn.className = `weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
-  
-  const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
-  if (select) select.value = "";
-  document.getElementById('template-custom-actions')?.classList.add('hidden');
 }
 
 export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElement | null) {

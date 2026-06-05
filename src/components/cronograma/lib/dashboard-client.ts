@@ -406,7 +406,7 @@ function renderDaily(): void {
 
       rowsHtml += `
         <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
-          <td class="px-6 py-4 border-r border-base-300/40 relative ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.Presencial ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
@@ -426,7 +426,7 @@ function renderDaily(): void {
               </div>
             </div>
           </td>
-          <td class="px-4 py-4 border-r border-base-300/40">
+          <td class="sticky left-[16rem] bg-base-100 z-40 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
             <div class="flex items-center gap-3">
                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
                   ${styles.icon}
