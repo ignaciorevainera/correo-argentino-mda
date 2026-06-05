@@ -420,16 +420,16 @@ function renderDaily(): void {
       let breakBadgeHtml = '';
       if (breakStartHourStr && breakEndHourStr) {
         breakBadgeHtml = `
-          <button type="button" class="daily-break-badge px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-300 flex items-center gap-1 shadow-sm shrink-0 cursor-pointer" title="Ver break en línea de tiempo: ${breakStartHourStr} - ${breakEndHourStr}">
-            <svg class="w-3 h-3 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <span class="daily-break-badge px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1 shadow-sm shrink-0" title="Break: ${breakStartHourStr} - ${breakEndHourStr}">
+            <svg class="w-3 h-3 text-purple-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
               <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
               <line x1="6" y1="2" x2="6" y2="4" />
               <line x1="10" y1="2" x2="10" y2="4" />
               <line x1="14" y1="2" x2="14" y2="4" />
             </svg>
-            Break: ${breakStartHourStr} - ${breakEndHourStr}
-          </button>
+            ${breakStartHourStr} - ${breakEndHourStr}
+          </span>
         `;
       }
 
@@ -444,8 +444,8 @@ function renderDaily(): void {
       }
       if (early) {
         alertBadgesHtml += `
-          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
             Salida Temp.
           </span>
         `;
@@ -519,12 +519,13 @@ function renderDaily(): void {
             <div class="gantt-grid-line" style="left: 91.66%;"></div>
 
             <!-- Barra de Turno Planificado -->
-            <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
-              <!-- Bloque de Break interno -->
-              <div class="gantt-bar-break absolute flex items-center justify-center cursor-help" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
-                <span class="relative z-10 text-[9px] pointer-events-none select-none">☕</span>
-              </div>
+            <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
               <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+            </div>
+
+            <!-- Bloque de Break por encima -->
+            <div class="gantt-bar-break" style="left: ${breakStartPct}%; width: ${breakWidthPct}%;">
+              <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
             </div>
 
             <!-- Barra de Asistencia Real -->
@@ -534,8 +535,8 @@ function renderDaily(): void {
       }
 
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-warning/[0.02] dark:bg-warning/[0.03]' : '')}">
-          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-warning before:content-[\'\']' : '')}">
+        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-rose-500/[0.02] dark:bg-rose-500/[0.03]' : '')}">
+          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-rose-500 before:content-[\'\']' : '')}">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.Presencial ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
@@ -686,8 +687,8 @@ function renderHourly(dateStr: string): void {
         }
         if (early) {
           alertBadgesHtml += `
-            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-warning/15 text-amber-600 dark:text-amber-400 border border-warning/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               Salida Temp.
             </span>
           `;
@@ -700,8 +701,8 @@ function renderHourly(dateStr: string): void {
           rowClass += " bg-error/[0.03]";
           tdClass += " border-l-4 border-l-error pl-5";
         } else if (early) {
-          rowClass += " bg-warning/[0.02]";
-          tdClass += " border-l-4 border-l-warning pl-5";
+          rowClass += " bg-rose-500/[0.02]";
+          tdClass += " border-l-4 border-l-rose-500 pl-5";
         }
 
         const hasRealTimes = !!(entradaReal || salidaReal);
