@@ -15,7 +15,7 @@ import {
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
 import { exportCSV, exportAsImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
-import { OperatorStatus } from './types';
+import { OperatorStatus, type OperatorData } from './types';
 
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -38,6 +38,116 @@ function updateDateInputDisplay(): void {
   if (dateInput && dateDisplay && dateInput.value) {
     dateDisplay.innerText = formatDMY(dateInput.value);
   }
+}
+
+function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
+  const sortType = state.activeSort || 'alphabetical';
+  
+  return [...ops].sort((a, b) => {
+    if (sortType === 'alphabetical') {
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'entry-time') {
+      const getEntryTimeMinutes = (op: OperatorData): number => {
+        const status = op.asistencia?.[dateStr];
+        if (status === 'Franco' || status === 'Licencia' || status === 'Vacaciones' || !status) {
+          return 9999;
+        }
+        const dailyHorario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
+        if (!dailyHorario || dailyHorario === '-' || dailyHorario === 'Franco') {
+          return 9999;
+        }
+        const parts = dailyHorario.split(' - ');
+        if (parts.length === 2) {
+          const start = parts[0];
+          const [h, m] = start.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            return h * 60 + m;
+          }
+        }
+        return 9999;
+      };
+      
+      const timeA = getEntryTimeMinutes(a);
+      const timeB = getEntryTimeMinutes(b);
+      
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'location') {
+      const locA = a.location || 'Monte Grande';
+      const locB = b.location || 'Monte Grande';
+      if (locA !== locB) {
+        return locA.localeCompare(locB, 'es', { sensitivity: 'base' });
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    if (sortType === 'inconsistencies') {
+      const hasInconsistency = (op: OperatorData): boolean => {
+        const [yearStr, monthStr] = dateStr.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10) - 1;
+        const daysInMonth = getDaysInMonth(year, month);
+        const currentMonthPrefix = `${yearStr}-${monthStr}`;
+        const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonthPrefix}-${(i + 1).toString().padStart(2, '0')}`);
+        
+        const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : state.maxConsecutiveHOLimit;
+        const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : state.minPWeekLimit;
+
+        let maxConsecutiveHO = 0;
+        let currentHO = 0;
+        
+        let pWeekViolation = false;
+        let currentWeekP = 0;
+        let currentWeekDays = 0;
+
+        for (let i = 0; i < dates.length; i++) {
+          const d = dates[i];
+          const status = op.asistencia[d];
+          
+          if (status === OperatorStatus.HomeOffice) {
+            currentHO++;
+            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+          } else if (status !== OperatorStatus.Franco && status) {
+            currentHO = 0;
+          }
+
+          if (status === OperatorStatus.Presencial) currentWeekP++;
+          if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
+             currentWeekDays++;
+          }
+          
+          const dateObj = new Date(d + 'T12:00:00');
+          const dayOfWeek = dateObj.getDay();
+          
+          if (dayOfWeek === 0 || d === dates[dates.length - 1]) {
+             if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
+                pWeekViolation = true;
+             }
+             currentWeekP = 0;
+             currentWeekDays = 0;
+          }
+        }
+        
+        return maxConsecutiveHO > opMaxHO || pWeekViolation;
+      };
+      
+      const incA = hasInconsistency(a) ? 1 : 0;
+      const incB = hasInconsistency(b) ? 1 : 0;
+      
+      if (incA !== incB) {
+        return incB - incA;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    }
+    
+    return 0;
+  });
 }
 
 function updateNavigationButtons(): void {
@@ -246,8 +356,10 @@ function renderDaily(): void {
     return status === state.activeFilter;
   });
 
+  const sortedOps = sortOperators(filteredOps, selectedDateStr);
+
   let rowsHtml = '';
-  if (filteredOps.length === 0) {
+  if (sortedOps.length === 0) {
     rowsHtml = `
       <tr>
         <td colspan="3" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
@@ -267,7 +379,7 @@ function renderDaily(): void {
       </tr>
     `;
   } else {
-    filteredOps.forEach(op => {
+    sortedOps.forEach(op => {
       const status = op.asistencia[selectedDateStr];
       const styles = getStatusStyles(status);
       const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
@@ -283,6 +395,43 @@ function renderDaily(): void {
       const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
       const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
       const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
+
+      // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
+      let breakStartHourStr = '';
+      let breakEndHourStr = '';
+      if (!isAbsent && !isFranco) {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          if (customBreakInicio && customBreakFin) {
+            breakStartHourStr = customBreakInicio;
+            breakEndHourStr = customBreakFin;
+          } else {
+            const startMin = timeToMinutes(times[0]);
+            const endMin = timeToMinutes(times[1]);
+            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+            const breakStartMin = startMin + (totalMin / 2) - 30;
+            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+            const breakEndMin = (breakStartMin + 60) % 1440;
+            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+          }
+        }
+      }
+
+      let breakBadgeHtml = '';
+      if (breakStartHourStr && breakEndHourStr) {
+        breakBadgeHtml = `
+          <button type="button" class="daily-break-badge px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-300 flex items-center gap-1 shadow-sm shrink-0 cursor-pointer" title="Ver break en línea de tiempo: ${breakStartHourStr} - ${breakEndHourStr}">
+            <svg class="w-3 h-3 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+              <line x1="6" y1="2" x2="6" y2="4" />
+              <line x1="10" y1="2" x2="10" y2="4" />
+              <line x1="14" y1="2" x2="14" y2="4" />
+            </svg>
+            Break: ${breakStartHourStr} - ${breakEndHourStr}
+          </button>
+        `;
+      }
 
       let alertBadgesHtml = '';
       if (late) {
@@ -329,32 +478,12 @@ function renderDaily(): void {
           let widthPct = endPct - startPct;
           if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
 
-          // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
-          let breakStartHourStr = '';
-          let breakEndHourStr = '';
-          let breakStartPct = 0;
-          let breakWidthPct = 0;
-
-          if (customBreakInicio && customBreakFin) {
-            breakStartHourStr = customBreakInicio;
-            breakEndHourStr = customBreakFin;
-            const bStartPct = getGanttPosition(breakStartHourStr);
-            const bEndPct = getGanttPosition(breakEndHourStr);
-            let bWidth = bEndPct - bStartPct;
-            if (bWidth < 0) bWidth += 100;
-            breakStartPct = bStartPct;
-            breakWidthPct = bWidth;
-          } else {
-            const startMin = timeToMinutes(times[0]);
-            const endMin = timeToMinutes(times[1]);
-            const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-            const breakStartMin = startMin + (totalMin / 2) - 30;
-            breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
-            breakStartPct = getGanttPosition(breakStartHourStr);
-            breakWidthPct = (60 / 1440) * 100; // 1 hora de break
-            const breakEndMin = (breakStartMin + 60) % 1440;
-            breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
-          }
+          const bStartPct = getGanttPosition(breakStartHourStr);
+          const bEndPct = getGanttPosition(breakEndHourStr);
+          let bWidth = bEndPct - bStartPct;
+          if (bWidth < 0) bWidth += 100;
+          const breakStartPct = bStartPct;
+          const breakWidthPct = bWidth;
 
           // Calcular posición del break relativa a la barra de trabajo
           const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
@@ -392,8 +521,8 @@ function renderDaily(): void {
             <!-- Barra de Turno Planificado -->
             <div class="gantt-bar-work ${workBarBg} relative overflow-hidden" style="left: ${startPct}%; width: ${widthPct}%;">
               <!-- Bloque de Break interno -->
-              <div class="gantt-bar-break absolute h-full top-0 z-[1] border-x border-dashed border-current opacity-60 cursor-help transition-all duration-200 hover:opacity-100 hover:bg-current/10" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
-                <div class="w-full h-full opacity-30" style="background-image: repeating-linear-gradient(-45deg, currentColor, currentColor 3px, transparent 3px, transparent 8px);"></div>
+              <div class="gantt-bar-break absolute flex items-center justify-center cursor-help" style="left: ${relativeBreakLeft}%; width: ${relativeBreakWidth}%;" title="Break planificado: ${breakStartHourStr} - ${breakEndHourStr}">
+                <span class="relative z-10 text-[9px] pointer-events-none select-none">☕</span>
               </div>
               <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
             </div>
@@ -433,6 +562,7 @@ function renderDaily(): void {
                </div>
                <div class="flex flex-col gap-1 items-start">
                  <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                 ${breakBadgeHtml}
                  ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
                </div>
             </div>
@@ -459,6 +589,19 @@ function isWorkingAtHour(horario: string, hourStr: string): boolean {
 
   const hS = parseInt(start.split(':')[0], 10);
   const hE = parseInt(end.split(':')[0], 10);
+  const hC = parseInt(hourStr.split(':')[0], 10);
+
+  if (hS <= hE) {
+     return hC >= hS && hC < hE;
+  } else {
+     return hC >= hS || hC < hE;
+  }
+}
+
+function isBreakAtHour(breakInicio: string, breakFin: string, hourStr: string): boolean {
+  if (!breakInicio || !breakFin || breakInicio === '-' || breakFin === '-') return false;
+  const hS = parseInt(breakInicio.split(':')[0], 10);
+  const hE = parseInt(breakFin.split(':')[0], 10);
   const hC = parseInt(hourStr.split(':')[0], 10);
 
   if (hS <= hE) {
@@ -515,11 +658,13 @@ function renderHourly(dateStr: string): void {
     return status === state.activeFilter;
   });
 
+  const sortedOps = sortOperators(filteredOps, dateStr);
+
   let tbodyHtml = '';
-  if (filteredOps.length === 0) {
+  if (sortedOps.length === 0) {
      tbodyHtml = `<tr><td colspan="${hours.length + 1}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50">Sin resultados</td></tr>`;
   } else {
-     filteredOps.forEach(op => {
+     sortedOps.forEach(op => {
         const status = op.asistencia[dateStr] || OperatorStatus.Franco;
         const horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
         const styles = getStatusStyles(status);
@@ -562,6 +707,28 @@ function renderHourly(dateStr: string): void {
         const hasRealTimes = !!(entradaReal || salidaReal);
         const realTimesSubHtml = hasRealTimes ? ` (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'})` : '';
 
+        const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
+        const customBreakFin = op.breaks_fin?.[dateStr] || '';
+        let breakStart = '';
+        let breakEnd = '';
+        if (!isAbsent && !isFranco) {
+          const times = horario.split(' - ');
+          if (times.length === 2) {
+            if (customBreakInicio && customBreakFin) {
+              breakStart = customBreakInicio;
+              breakEnd = customBreakFin;
+            } else {
+              const startMin = timeToMinutes(times[0]);
+              const endMin = timeToMinutes(times[1]);
+              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+              const breakStartMin = startMin + (totalMin / 2) - 30;
+              breakStart = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+              const breakEndMin = (breakStartMin + 60) % 1440;
+              breakEnd = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+            }
+          }
+        }
+
         tbodyHtml += `<tr class="${rowClass}">
            <td class="${tdClass}">
               <div class="flex flex-col min-w-0">
@@ -576,7 +743,14 @@ function renderHourly(dateStr: string): void {
 
         hours.forEach(hour => {
            const working = isWorkingAtHour(horario, hour);
-           if (working && !isFranco) {
+           const onBreak = working && isBreakAtHour(breakStart, breakEnd, hour);
+           if (onBreak) {
+              tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
+                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
+                   <span class="text-[10px] leading-none">☕</span>
+                 </div>
+              </td>`;
+           } else if (working && !isFranco) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
                  <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
                  </div>
@@ -713,7 +887,9 @@ function renderMonthly(): void {
     });
   });
 
-  if (filteredOps.length === 0) {
+  const sortedOps = sortOperators(filteredOps, selectedDateStr);
+
+  if (sortedOps.length === 0) {
     tbodyHtml = `<tr>
       <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
         <div class="flex flex-col items-center justify-center gap-3 py-6">
@@ -731,7 +907,7 @@ function renderMonthly(): void {
       </td>
     </tr>`;
   } else {
-    filteredOps.forEach(op => {
+    sortedOps.forEach(op => {
       const stats = { P: 0, HO: 0, L: 0 };
       const username = op.username || '';
       dates.forEach(d => {
@@ -997,6 +1173,26 @@ function renderMonthly(): void {
   if (tfoot) tfoot.innerHTML = tfootHtml;
 }
 
+function updateOperatorDailyHorario(op: OperatorData, date: string, status: string): void {
+  const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+  const dateObj = new Date(date + "T12:00:00");
+  const dayName = dayNames[dateObj.getDay()];
+
+  op.horarios_dias = op.horarios_dias || {};
+  if (status === "Franco") {
+    op.horarios_dias[date] = "";
+  } else {
+    const current = op.horarios_dias[date];
+    if (!current || current === "Franco" || current === "-") {
+      if (op.esquema_horario?.[dayName]) {
+        op.horarios_dias[date] = op.esquema_horario[dayName];
+      } else {
+        op.horarios_dias[date] = op.horario || "08:00 - 17:00";
+      }
+    }
+  }
+}
+
 function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
@@ -1012,6 +1208,7 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const opIndex = state.cronoData.findIndex(o => o.nombre === operator);
   if (opIndex !== -1) {
     state.cronoData[opIndex].asistencia[date] = newStatus as OperatorStatus;
+    updateOperatorDailyHorario(state.cronoData[opIndex], date, newStatus);
     renderMonthly();
   }
 
@@ -1268,6 +1465,7 @@ function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false): void {
   const op = state.cronoData.find(o => o.nombre === opName);
   if (op) {
      op.asistencia[dateVal] = state.activeBrush as OperatorStatus;
+     updateOperatorDailyHorario(op, dateVal, state.activeBrush);
   }
   
   updatePendingEditsUI();
@@ -1483,6 +1681,24 @@ function setupEventListeners(): void {
 
   monthlySearch?.addEventListener('input', handleSearchInput);
   dailySearch?.addEventListener('input', handleSearchInput);
+
+  const monthlySort = document.getElementById('monthly-sort') as HTMLSelectElement | null;
+  const dailySort = document.getElementById('daily-sort') as HTMLSelectElement | null;
+
+  if (monthlySort) monthlySort.value = state.activeSort;
+  if (dailySort) dailySort.value = state.activeSort;
+
+  const handleSortChange = (e: Event) => {
+    const val = (e.target as HTMLSelectElement).value;
+    state.activeSort = val;
+    if (monthlySort && monthlySort !== e.target) monthlySort.value = val;
+    if (dailySort && dailySort !== e.target) dailySort.value = val;
+    renderMonthly();
+    renderDaily();
+  };
+
+  monthlySort?.addEventListener('change', handleSortChange);
+  dailySort?.addEventListener('change', handleSortChange);
 
   // Wire up filter buttons
   const filterAllBtn = document.getElementById('filter-all-btn');
@@ -1944,6 +2160,25 @@ document.addEventListener('cronograma:rules-changed', () => {
   renderMonthly();
   renderDaily();
   showToast("Reglas de control actualizadas", "success");
+});
+
+// Hover effect to highlight break in Gantt timeline
+document.addEventListener('mouseover', (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+  if (badge) {
+    const tr = badge.closest('tr');
+    const breakBar = tr?.querySelector('.gantt-bar-break');
+    breakBar?.classList.add('gantt-break-highlighted');
+  }
+});
+
+document.addEventListener('mouseout', (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+  if (badge) {
+    const tr = badge.closest('tr');
+    const breakBar = tr?.querySelector('.gantt-bar-break');
+    breakBar?.classList.remove('gantt-break-highlighted');
+  }
 });
 
 if (safeGetItem('cronoMaximized', 'false') === 'true') {
