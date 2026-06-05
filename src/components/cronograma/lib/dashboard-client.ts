@@ -43,52 +43,53 @@ function updateDateInputDisplay(): void {
 function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
   const sortType = state.activeSort || 'alphabetical';
   
+  const hasContinuation = (op: OperatorData): boolean => {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return false;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const dateObj = new Date(year, month, day);
+    dateObj.setDate(dateObj.getDate() - 1);
+    
+    const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    
+    const yesterdayStatus = op.asistencia?.[yStr];
+    if (!yesterdayStatus) return false;
+    
+    const isYesterdayAbsent = yesterdayStatus === 'Licencia' || yesterdayStatus === 'Vacaciones' || yesterdayStatus === 'Franco';
+    if (isYesterdayAbsent) return false;
+    
+    const yesterdayHorario = (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
+    if (!yesterdayHorario) return false;
+    
+    const times = yesterdayHorario.split(' - ');
+    if (times.length === 2) {
+      const getMins = (t: string) => {
+        const p = t.split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+      };
+      const startPct = getMins(times[0]);
+      const endPct = getMins(times[1]);
+      return startPct > endPct;
+    }
+    return false;
+  };
+
   return [...ops].sort((a, b) => {
-    const hasContinuation = (op: OperatorData): boolean => {
-      const parts = dateStr.split('-');
-      if (parts.length !== 3) return false;
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const dateObj = new Date(year, month, day);
-      dateObj.setDate(dateObj.getDate() - 1);
-      
-      const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-      
-      const yesterdayStatus = op.asistencia?.[yStr];
-      if (!yesterdayStatus) return false;
-      
-      const isYesterdayAbsent = yesterdayStatus === 'Licencia' || yesterdayStatus === 'Vacaciones' || yesterdayStatus === 'Franco';
-      if (isYesterdayAbsent) return false;
-      
-      const yesterdayHorario = (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
-      if (!yesterdayHorario) return false;
-      
-      const times = yesterdayHorario.split(' - ');
-      if (times.length === 2) {
-        const getMins = (t: string) => {
-          const p = t.split(':');
-          return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
-        };
-        const startPct = getMins(times[0]);
-        const endPct = getMins(times[1]);
-        return startPct > endPct;
-      }
-      return false;
-    };
-
-    const hasA = hasContinuation(a);
-    const hasB = hasContinuation(b);
-
-    if (hasA && !hasB) return -1;
-    if (!hasA && hasB) return 1;
-
     if (sortType === 'alphabetical') {
       return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
     }
     
+    if (sortType === 'alphabetical-za') {
+      return b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' });
+    }
+    
     if (sortType === 'entry-time') {
       const getEntryTimeMinutes = (op: OperatorData): number => {
+        if (hasContinuation(op)) {
+          return 0;
+        }
         const status = op.asistencia?.[dateStr];
         if (status === 'Franco' || status === 'Licencia' || status === 'Vacaciones' || !status) {
           return 9999;
