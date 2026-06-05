@@ -44,6 +44,45 @@ function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
   const sortType = state.activeSort || 'alphabetical';
   
   return [...ops].sort((a, b) => {
+    const hasContinuation = (op: OperatorData): boolean => {
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return false;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const dateObj = new Date(year, month, day);
+      dateObj.setDate(dateObj.getDate() - 1);
+      
+      const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+      
+      const yesterdayStatus = op.asistencia?.[yStr];
+      if (!yesterdayStatus) return false;
+      
+      const isYesterdayAbsent = yesterdayStatus === 'Licencia' || yesterdayStatus === 'Vacaciones' || yesterdayStatus === 'Franco';
+      if (isYesterdayAbsent) return false;
+      
+      const yesterdayHorario = (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
+      if (!yesterdayHorario) return false;
+      
+      const times = yesterdayHorario.split(' - ');
+      if (times.length === 2) {
+        const getMins = (t: string) => {
+          const p = t.split(':');
+          return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+        };
+        const startPct = getMins(times[0]);
+        const endPct = getMins(times[1]);
+        return startPct > endPct;
+      }
+      return false;
+    };
+
+    const hasA = hasContinuation(a);
+    const hasB = hasContinuation(b);
+
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+
     if (sortType === 'alphabetical') {
       return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
     }
@@ -409,7 +448,7 @@ function renderDaily(): void {
             const startMin = timeToMinutes(times[0]);
             const endMin = timeToMinutes(times[1]);
             const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-            const breakStartMin = startMin + (totalMin / 2) - 30;
+            const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
             breakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
             const breakEndMin = (breakStartMin + 60) % 1440;
             breakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
@@ -462,48 +501,114 @@ function renderDaily(): void {
       // Contenido del Gantt
       let ganttContentHtml = '';
 
+      const getPct = (timeStr: string) => {
+        const parts = timeStr.split(':');
+        const mins = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        return (mins / 1440) * 100;
+      };
+
+      const workBars: string[] = [];
+      const breakBars: string[] = [];
+      const actualBars: string[] = [];
+
+      // --- 1. YESTERDAY'S SHIFT CONTINUATION ---
+      let hasYesterdayContinuation = false;
+      let yEndPct = 0;
+      const prevDate = new Date(selectedDateStr + 'T12:00:00');
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDateStr = formatYMD(prevDate);
+
+      const yesterdayStatus = op.asistencia[prevDateStr];
+      const isYesterdayAbsent = yesterdayStatus === OperatorStatus.Licencia || yesterdayStatus === OperatorStatus.Vacaciones || yesterdayStatus === OperatorStatus.Franco;
+
+      if (yesterdayStatus && !isYesterdayAbsent) {
+        const yesterdayHorario = (op.horarios_dias && op.horarios_dias[prevDateStr]) || op.horario;
+        const yTimes = yesterdayHorario.split(' - ');
+        if (yTimes.length === 2) {
+          const yStartPct = getPct(yTimes[0]);
+          const yEndPctVal = getPct(yTimes[1]);
+
+          if (yStartPct > yEndPctVal) {
+            hasYesterdayContinuation = true;
+            yEndPct = yEndPctVal;
+            const yesterdayWorkBarBg = yesterdayStatus === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+            workBars.push(`
+              <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayStatus === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
+              </div>
+            `);
+
+            const yBreakInicio = op.breaks_inicio?.[prevDateStr] || '';
+            const yBreakFin = op.breaks_fin?.[prevDateStr] || '';
+            let yBreakStartHourStr = '';
+            let yBreakEndHourStr = '';
+            if (yBreakInicio && yBreakFin) {
+              yBreakStartHourStr = yBreakInicio;
+              yBreakEndHourStr = yBreakFin;
+            } else {
+              const startMin = timeToMinutes(yTimes[0]);
+              const endMin = timeToMinutes(yTimes[1]);
+              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+              const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
+              yBreakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+              const breakEndMin = (breakStartMin + 60) % 1440;
+              yBreakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+            }
+            const yBStartPct = getPct(yBreakStartHourStr);
+            const yBEndPct = getPct(yBreakEndHourStr);
+
+            if (yBStartPct < yStartPct) {
+              if (yBStartPct <= yBEndPct) {
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: ${yBStartPct}%; width: ${yBEndPct - yBStartPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                  </div>
+                `);
+              } else {
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                  </div>
+                `);
+              }
+            } else if (yBStartPct > yBEndPct) {
+              breakBars.push(`
+                <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
+                  <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                </div>
+              `);
+            }
+
+            const yEntradaReal = (op.entradas_reales && op.entradas_reales[prevDateStr]) || '';
+            const ySalidaReal = (op.salidas_reales && op.salidas_reales[prevDateStr]) || '';
+            if (yEntradaReal) {
+              const yActInPct = getPct(yEntradaReal);
+              const { late: yLate, early: yEarly } = checkTimeAlerts(yesterdayHorario, yEntradaReal, ySalidaReal);
+              const yActualBarColor = yLate ? 'bg-error' : (yEarly ? 'bg-amber-500' : 'bg-success');
+              
+              if (ySalidaReal) {
+                const yActOutPct = getPct(ySalidaReal);
+                if (yActInPct > yActOutPct) {
+                  actualBars.push(`
+                    <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yActOutPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - ${ySalidaReal}"></div>
+                  `);
+                }
+              } else {
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - sin salida"></div>
+                `);
+              }
+            }
+          }
+        }
+      }
+
+      // --- 2. TODAY'S SHIFT OR INACTIVE BAR ---
       if (isAbsent || isFranco) {
         const inactiveText = isFranco ? 'Franco / Día Libre' : (status === OperatorStatus.Vacaciones ? 'Vacaciones' : 'Licencia Médica');
         const inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
-        ganttContentHtml = `
-          <div class="gantt-inactive-bar ${inactiveBg}">
-            ${inactiveText}
-          </div>
-        `;
-      } else {
-        const times = dailyHorario.split(' - ');
-        if (times.length === 2) {
-          const startPct = getGanttPosition(times[0]);
-          const endPct = getGanttPosition(times[1]);
-          let widthPct = endPct - startPct;
-          if (widthPct < 0) widthPct += 100; // Manejo de cruce de medianoche
-
-          const bStartPct = getGanttPosition(breakStartHourStr);
-          const bEndPct = getGanttPosition(breakEndHourStr);
-          let bWidth = bEndPct - bStartPct;
-          if (bWidth < 0) bWidth += 100;
-          const breakStartPct = bStartPct;
-          const breakWidthPct = bWidth;
-
-          // Calcular posición del break relativa a la barra de trabajo
-          const relativeBreakLeft = widthPct > 0 ? (((breakStartPct - startPct + 100) % 100) / widthPct) * 100 : 0;
-          const relativeBreakWidth = widthPct > 0 ? (breakWidthPct / widthPct) * 100 : 0;
-
-          const workBarBg = status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
-
-          let actualBarHtml = '';
-          if (entradaReal || salidaReal) {
-            const actIn = entradaReal || times[0];
-            const actOut = salidaReal || times[1];
-            const actInPct = getGanttPosition(actIn);
-            const actOutPct = getGanttPosition(actOut);
-            let actWidthPct = actOutPct - actInPct;
-            if (actWidthPct < 0) actWidthPct += 100;
-
-            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
-            actualBarHtml = `<div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal || '--'} - ${salidaReal || '--'}"></div>`;
-          }
-
+        
+        if (hasYesterdayContinuation) {
           ganttContentHtml = `
             <!-- Líneas de cuadrícula de fondo -->
             <div class="gantt-grid-line" style="left: 8.33%;"></div>
@@ -518,20 +623,122 @@ function renderDaily(): void {
             <div class="gantt-grid-line" style="left: 83.33%;"></div>
             <div class="gantt-grid-line" style="left: 91.66%;"></div>
 
-            <!-- Barra de Turno Planificado -->
-            <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
-              <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
-            </div>
+            <!-- Barras de Turno Planificado -->
+            ${workBars.join('')}
 
-            <!-- Bloque de Break por encima -->
-            <div class="gantt-bar-break" style="left: ${breakStartPct}%; width: ${breakWidthPct}%;">
-              <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
-            </div>
+            <!-- Bloques de Break por encima -->
+            ${breakBars.join('')}
 
-            <!-- Barra de Asistencia Real -->
-            ${actualBarHtml}
+            <!-- Barras de Asistencia Real -->
+            ${actualBars.join('')}
+
+            <!-- Barra Inactiva a la derecha de la continuación -->
+            <div class="gantt-inactive-bar ${inactiveBg} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
+              ${inactiveText}
+            </div>
+          `;
+        } else {
+          ganttContentHtml = `
+            <div class="gantt-inactive-bar ${inactiveBg}">
+              ${inactiveText}
+            </div>
           `;
         }
+      } else {
+        const times = dailyHorario.split(' - ');
+        if (times.length === 2) {
+          const startPct = getPct(times[0]);
+          const endPct = getPct(times[1]);
+          const workBarBg = status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+
+          if (startPct <= endPct) {
+            const widthPct = endPct - startPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+              </div>
+            `);
+          } else {
+            const widthPct = 100 - startPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+              </div>
+            `);
+          }
+
+          if (breakStartHourStr && breakEndHourStr) {
+            const bStartPct = getPct(breakStartHourStr);
+            const bEndPct = getPct(breakEndHourStr);
+
+            if (startPct <= endPct) {
+              const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct + bEndPct);
+              breakBars.push(`
+                <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
+                  <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+                </div>
+              `);
+            } else {
+              if (bStartPct >= startPct) {
+                const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct);
+                breakBars.push(`
+                  <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
+                    <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+                  </div>
+                `);
+              }
+            }
+          }
+
+          if (entradaReal) {
+            const actInPct = getPct(entradaReal);
+            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
+            
+            if (salidaReal) {
+              const actOutPct = getPct(salidaReal);
+              if (actInPct <= actOutPct) {
+                const actWidthPct = actOutPct - actInPct;
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal} - ${salidaReal}"></div>
+                `);
+              } else {
+                const actWidthPct = 100 - actInPct;
+                actualBars.push(`
+                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - ${salidaReal}"></div>
+                `);
+              }
+            } else {
+              const actWidthPct = 100 - actInPct;
+              actualBars.push(`
+                <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - sin salida"></div>
+              `);
+            }
+          }
+        }
+
+        ganttContentHtml = `
+          <!-- Líneas de cuadrícula de fondo -->
+          <div class="gantt-grid-line" style="left: 8.33%;"></div>
+          <div class="gantt-grid-line" style="left: 16.66%;"></div>
+          <div class="gantt-grid-line" style="left: 25.00%;"></div>
+          <div class="gantt-grid-line" style="left: 33.33%;"></div>
+          <div class="gantt-grid-line" style="left: 41.66%;"></div>
+          <div class="gantt-grid-line" style="left: 50.00%;"></div>
+          <div class="gantt-grid-line" style="left: 58.33%;"></div>
+          <div class="gantt-grid-line" style="left: 66.66%;"></div>
+          <div class="gantt-grid-line" style="left: 75.00%;"></div>
+          <div class="gantt-grid-line" style="left: 83.33%;"></div>
+          <div class="gantt-grid-line" style="left: 91.66%;"></div>
+
+          <!-- Barras de Turno Planificado -->
+          ${workBars.join('')}
+
+          <!-- Bloques de Break por encima -->
+          ${breakBars.join('')}
+
+          <!-- Barras de Asistencia Real -->
+          ${actualBars.join('')}
+        `;
       }
 
       rowsHtml += `
@@ -722,7 +929,7 @@ function renderHourly(dateStr: string): void {
               const startMin = timeToMinutes(times[0]);
               const endMin = timeToMinutes(times[1]);
               const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-              const breakStartMin = startMin + (totalMin / 2) - 30;
+              const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
               breakStart = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
               const breakEndMin = (breakStartMin + 60) % 1440;
               breakEnd = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
