@@ -496,8 +496,20 @@ function renderDaily(): void {
       else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
 
       let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
-      if (status === OperatorStatus.Presencial) ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
-      else if (status === OperatorStatus.HomeOffice) ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+      let glowColorClass = "bg-primary";
+      if (status === OperatorStatus.Presencial) {
+        ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
+        glowColorClass = "bg-secondary";
+      } else if (status === OperatorStatus.HomeOffice) {
+        ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+        glowColorClass = "bg-amber-500";
+      } else if (status === OperatorStatus.Guardia) {
+        ringClass = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/30 border border-indigo-500/20 shadow-sm";
+        glowColorClass = "bg-indigo-500";
+      } else if (status === OperatorStatus.GuardiaPasiva) {
+        ringClass = "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-teal-500/30 border border-teal-500/20 shadow-sm";
+        glowColorClass = "bg-teal-500";
+      }
 
       // Contenido del Gantt
       let ganttContentHtml = '';
@@ -532,10 +544,14 @@ function renderDaily(): void {
           if (yStartPct > yEndPctVal) {
             hasYesterdayContinuation = true;
             yEndPct = yEndPctVal;
-            const yesterdayWorkBarBg = yesterdayStatus === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+            let yesterdayWorkBarBg = 'bg-primary text-amber-900';
+            if (yesterdayStatus === OperatorStatus.Presencial) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
+            else if (yesterdayStatus === OperatorStatus.Guardia) yesterdayWorkBarBg = 'bg-indigo-500 text-white';
+            else if (yesterdayStatus === OperatorStatus.GuardiaPasiva) yesterdayWorkBarBg = 'bg-teal-500 text-white';
+
             workBars.push(`
               <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayStatus === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayWorkBarBg} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
               </div>
             `);
 
@@ -650,20 +666,23 @@ function renderDaily(): void {
         if (times.length === 2) {
           const startPct = getPct(times[0]);
           const endPct = getPct(times[1]);
-          const workBarBg = status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900';
+          let workBarBg = 'bg-primary text-amber-900';
+          if (status === OperatorStatus.Presencial) workBarBg = 'bg-secondary text-secondary-content';
+          else if (status === OperatorStatus.Guardia) workBarBg = 'bg-indigo-500 text-white';
+          else if (status === OperatorStatus.GuardiaPasiva) workBarBg = 'bg-teal-500 text-white';
 
           if (startPct <= endPct) {
             const widthPct = endPct - startPct;
             workBars.push(`
               <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
               </div>
             `);
           } else {
             const widthPct = 100 - startPct;
             workBars.push(`
               <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${status === OperatorStatus.Presencial ? 'bg-secondary text-secondary-content' : 'bg-primary text-amber-900'} pointer-events-none">${times[0]} - ${times[1]}</span>
+                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
               </div>
             `);
           }
@@ -747,7 +766,7 @@ function renderDaily(): void {
           <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-rose-500 before:content-[\'\']' : '')}">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
-                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.Presencial ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
+                <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
                 <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
                   ${initials}
                 </div>
@@ -1224,16 +1243,19 @@ function renderMonthly(): void {
         const isLicenseOverlap = (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) && coveragePerDay[date].licenses > state.maxLicenseOverlapLimit;
         if (isLicenseOverlap) totalInconsistencies++;
 
+        const isFrancoCell = status === OperatorStatus.Franco || !status;
         let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
-        if (isTodayCell) cellClass += ' bg-secondary/10';
+        if (isTodayCell) {
+          cellClass += isFrancoCell ? ' bg-base-200/80 dark:bg-base-300/20' : ' bg-secondary/10';
+        }
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
         const hasComment = !!(op.comentarios && op.comentarios[date]);
-        if (status === OperatorStatus.Franco || !status) {
+        if (isFrancoCell) {
           tbodyHtml += `<td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-secondary/15 border border-secondary/30' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
+              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1264,6 +1286,8 @@ function renderMonthly(): void {
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
         else if (status === OperatorStatus.HorasExtras) initials = "HE";
+        else if (status === OperatorStatus.GuardiaPasiva) initials = "GP";
+        else if (status === OperatorStatus.Guardia) initials = "G";
 
         tbodyHtml += `
           <td class="${cellClass}">
@@ -1580,6 +1604,8 @@ function updateFilterActiveStates(): void {
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
   const filterHeBtn = document.getElementById('filter-he-btn');
+  const filterGpBtn = document.getElementById('filter-gp-btn');
+  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
   const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
@@ -1587,6 +1613,8 @@ function updateFilterActiveStates(): void {
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
   const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
+  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const buttons = [
     { el: filterAllBtn, value: 'all' },
@@ -1594,7 +1622,9 @@ function updateFilterActiveStates(): void {
     { el: filterHoBtn, value: 'Home Office' },
     { el: filterLicenciaBtn, value: 'Licencia' },
     { el: filterVacacionesBtn, value: 'Vacaciones' },
-    { el: filterHeBtn, value: 'Horas Extras' }
+    { el: filterHeBtn, value: 'Horas Extras' },
+    { el: filterGpBtn, value: 'Guardia Pasiva' },
+    { el: filterGBtn, value: 'Guardia' }
   ];
 
   const dailyButtons = [
@@ -1603,7 +1633,9 @@ function updateFilterActiveStates(): void {
     { el: filterHoBtnDaily, value: 'Home Office' },
     { el: filterLicenciaBtnDaily, value: 'Licencia' },
     { el: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { el: filterHeBtnDaily, value: 'Horas Extras' }
+    { el: filterHeBtnDaily, value: 'Horas Extras' },
+    { el: filterGpBtnDaily, value: 'Guardia Pasiva' },
+    { el: filterGBtnDaily, value: 'Guardia' }
   ];
 
   updateButtonGroupState(buttons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
@@ -1916,6 +1948,8 @@ function setupEventListeners(): void {
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
   const filterHeBtn = document.getElementById('filter-he-btn');
+  const filterGpBtn = document.getElementById('filter-gp-btn');
+  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
   const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
@@ -1923,6 +1957,8 @@ function setupEventListeners(): void {
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
   const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
+  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
+  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const filterBtns = [
     { btn: filterAllBtn, value: 'all' },
@@ -1931,12 +1967,16 @@ function setupEventListeners(): void {
     { btn: filterLicenciaBtn, value: 'Licencia' },
     { btn: filterVacacionesBtn, value: 'Vacaciones' },
     { btn: filterHeBtn, value: 'Horas Extras' },
+    { btn: filterGpBtn, value: 'Guardia Pasiva' },
+    { btn: filterGBtn, value: 'Guardia' },
     { btn: filterAllBtnDaily, value: 'all' },
     { btn: filterPresencialBtnDaily, value: 'Presencial' },
     { btn: filterHoBtnDaily, value: 'Home Office' },
     { btn: filterLicenciaBtnDaily, value: 'Licencia' },
     { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { btn: filterHeBtnDaily, value: 'Horas Extras' }
+    { btn: filterHeBtnDaily, value: 'Horas Extras' },
+    { btn: filterGpBtnDaily, value: 'Guardia Pasiva' },
+    { btn: filterGBtnDaily, value: 'Guardia' }
   ];
 
   filterBtns.forEach(item => {
@@ -2050,12 +2090,11 @@ function setupEventListeners(): void {
     }
   });
 
-  document.getElementById('save-confirm-btn')?.addEventListener('click', () => {
-    saveChangesToServer();
-  });
-
-  document.getElementById('save-discard-btn')?.addEventListener('click', () => {
-    discardChanges();
+  document.getElementById('reactivate-edit-mode-btn')?.addEventListener('click', () => {
+    const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
+    if (toggleEditBtn) {
+      toggleEditBtn.click();
+    }
   });
 
   // Delete active Month Listener
@@ -2257,7 +2296,8 @@ function setupEventListeners(): void {
       state.activeBrush = null;
       updateBrushUI();
       
-      if (state.modifiedSchedules.length > 0) {
+      const hasUnsavedChanges = state.modifiedSchedules.length > 0 || Object.keys(state.pendingEdits).length > 0;
+      if (hasUnsavedChanges) {
          const saveIndicator = document.getElementById('save-indicator');
          if (saveIndicator) saveIndicator.classList.remove('hidden');
       }
