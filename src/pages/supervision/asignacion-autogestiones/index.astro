@@ -152,6 +152,86 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
 <BaseLayout>
   <PageContainer>
+    {/* Modal para marcar estado excepcional */}
+    <dialog id="modal-marcar-excepcion" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box border border-base-300 shadow-xl bg-base-100 max-w-sm">
+        <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-base-content flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Marcar Excepción: <span id="modal-operador-nombre" class="text-secondary font-black"></span>
+        </h3>
+        
+        <input type="hidden" id="modal-agent-id" />
+        
+        <div class="flex flex-col gap-4">
+          <div class="form-control w-full">
+            <label class="label py-1">
+              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Tipo de Excepción</span>
+            </label>
+            <select
+              id="modal-select-tipo"
+              class="select select-bordered select-sm w-full text-xs"
+            >
+              <option value="devolucion_supervisor">Devolución Supervisor</option>
+              <option value="break_extendido">Break Extendido</option>
+              <option value="problema_tecnico">Problema Técnico</option>
+            </select>
+          </div>
+
+          <div id="container-tiempo-extra" class="form-control w-full hidden">
+            <label class="label py-1">
+              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Tiempo Extra</span>
+            </label>
+            <select
+              id="modal-select-tiempo-extra"
+              class="select select-bordered select-sm w-full text-xs"
+            >
+              <option value="5">5 minutos</option>
+              <option value="10">10 minutos</option>
+              <option value="15">15 minutos</option>
+              <option value="20" selected>20 minutos</option>
+              <option value="25">25 minutos</option>
+              <option value="30">30 minutos</option>
+              <option value="35">35 minutos</option>
+              <option value="40">40 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="manual">Manual (Sin auto-limpieza)</option>
+            </select>
+          </div>
+          
+          <div class="form-control w-full">
+            <label class="label py-1">
+              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Comentario (opcional)</span>
+            </label>
+            <input
+              type="text"
+              id="modal-input-motivo"
+              placeholder="Ej. Reunión urgente, corte de internet, etc."
+              class="input input-bordered input-sm w-full text-xs"
+            />
+          </div>
+          
+          <div class="modal-action gap-2 pt-3 border-t border-base-200 mt-4">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm hover:bg-base-200"
+              id="btn-close-modal-excepcion"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm font-bold uppercase tracking-wider"
+              id="btn-confirmar-modal-excepcion"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 border-b border-base-200 pb-5">
       <PageHeader
         description="Distribución equitativa y controlada de autogestiones entre operadores técnicos. Utiliza el botón de asignar próximo para rotar de manera circular."
@@ -419,7 +499,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                     data-op-status-badge={op.agentId}
                     class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} gap-1.5 badge-xs font-semibold uppercase text-[9px] tracking-wider py-2 cursor-help`}
                   >
-                    {getExcepcionalShortLabel(op.estadoExcepcional)}{op.estadoExcepcional === "break_extendido" && op.retornoEstimado ? ` - vuelve ${op.retornoEstimado}` : ""}
+                    {getExcepcionalShortLabel(op.estadoExcepcional)}{op.estadoExcepcional === "break_extendido" && op.retornoEstimado ? (op.retornoEstimado === "Manual" ? " (Manual)" : ` - vuelve ${op.retornoEstimado}`) : ""}
                   </span>
                 </div>
               ) : (
@@ -485,81 +565,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       }
     </DataTable>
 
-    {/* Modal para marcar estado excepcional */}
-    <dialog id="modal-marcar-excepcion" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box border border-base-300 shadow-xl bg-base-100 max-w-sm">
-        <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-base-content flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="size-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Marcar Excepción: <span id="modal-operador-nombre" class="text-primary"></span>
-        </h3>
-        
-        <input type="hidden" id="modal-agent-id" />
-        
-        <div class="flex flex-col gap-4">
-          <div class="form-control w-full">
-            <label class="label py-1">
-              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Tipo de Excepción</span>
-            </label>
-            <select
-              id="modal-select-tipo"
-              class="select select-bordered select-sm w-full text-xs"
-            >
-              <option value="devolucion_supervisor">Devolución Supervisor</option>
-              <option value="break_extendido">Break Extendido</option>
-              <option value="problema_tecnico">Problema Técnico</option>
-            </select>
-          </div>
 
-          <div id="container-tiempo-extra" class="form-control w-full hidden">
-            <label class="label py-1">
-              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Tiempo Extra</span>
-            </label>
-            <select
-              id="modal-select-tiempo-extra"
-              class="select select-bordered select-sm w-full text-xs"
-            >
-              <option value="10">10 minutos</option>
-              <option value="15">15 minutos</option>
-              <option value="20" selected>20 minutos</option>
-              <option value="30">30 minutos</option>
-              <option value="45">45 minutos</option>
-              <option value="60">60 minutos</option>
-            </select>
-          </div>
-          
-          <div class="form-control w-full">
-            <label class="label py-1">
-              <span class="label-text font-bold text-xs uppercase text-base-content/40 tracking-wider">Comentario (opcional)</span>
-            </label>
-            <input
-              type="text"
-              id="modal-input-motivo"
-              placeholder="Ej. Reunión urgente, corte de internet, etc."
-              class="input input-bordered input-sm w-full text-xs"
-            />
-          </div>
-          
-          <div class="modal-action gap-2 pt-3 border-t border-base-200 mt-4">
-            <button
-              type="button"
-              class="btn btn-ghost btn-sm hover:bg-base-200"
-              id="btn-close-modal-excepcion"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm font-bold uppercase tracking-wider"
-              id="btn-confirmar-modal-excepcion"
-            >
-              Confirmar
-            </button>
-          </div>
-        </div>
-      </div>
-    </dialog>
   </PageContainer>
 </BaseLayout>
 
@@ -569,6 +575,14 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     const syncIndicator = document.getElementById("sync-indicator");
     const refreshIcon = document.getElementById("refresh-icon");
     const btnRefresh = document.getElementById("btn-refresh") as HTMLButtonElement | null;
+    const modalEl = document.getElementById("modal-marcar-excepcion") as HTMLDialogElement | null;
+
+    if (modalEl) {
+      modalEl.addEventListener('close', () => {
+        document.body.classList.remove('overflow-hidden');
+        document.documentElement.classList.remove('overflow-hidden');
+      });
+    }
 
     const selectTipo = document.getElementById("modal-select-tipo") as HTMLSelectElement | null;
     const containerTiempoExtra = document.getElementById("container-tiempo-extra");
@@ -768,7 +782,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             let shortLabel = "⚠ Excepción";
             if (op.estadoExcepcional === "devolucion_supervisor") shortLabel = "⚠ Dev. Supervisor";
             else if (op.estadoExcepcional === "break_extendido") {
-              shortLabel = `⚠ Break extendido${op.retornoEstimado ? ` - vuelve ${op.retornoEstimado}` : ''}`;
+              const returnSuffix = op.retornoEstimado === "Manual" ? " (Manual)" : (op.retornoEstimado ? ` - vuelve ${op.retornoEstimado}` : '');
+              shortLabel = `⚠ Break extendido${returnSuffix}`;
             }
             else if (op.estadoExcepcional === "problema_tecnico") shortLabel = "⚠ Prob. técnico";
 
@@ -911,6 +926,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           if (containerTiempoExtra) containerTiempoExtra.classList.add("hidden");
           if (selectTiempoExtra) selectTiempoExtra.value = "20";
           if (inputMotivo) inputMotivo.value = "";
+          
+          document.body.classList.add('overflow-hidden');
+          document.documentElement.classList.add('overflow-hidden');
           modal.showModal();
         }
         return;
@@ -939,7 +957,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           const agentId = Number(agentIdInput.value);
           const tipo = selectTipo.value;
           const motivo = inputMotivo ? inputMotivo.value : "";
-          const tiempoExtra = tipo === "break_extendido" && selectTiempoExtra ? Number(selectTiempoExtra.value) : null;
+          const tiempoExtra = tipo === "break_extendido" && selectTiempoExtra && selectTiempoExtra.value !== "manual" ? Number(selectTiempoExtra.value) : null;
           
           if (!isNaN(agentId)) {
             confirmModalBtn.setAttribute("disabled", "true");
