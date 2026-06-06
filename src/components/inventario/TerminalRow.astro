@@ -1,0 +1,197 @@
+---
+import { Icon } from "astro-icon/components";
+import type { TerminalItem, OsFamily } from "@lib/terminalQueries";
+
+type BoxiconName = `boxicons:${string}`;
+
+interface Props {
+  terminal: TerminalItem;
+  terminalRowGridClass?: string;
+}
+
+const { terminal, terminalRowGridClass = "grid grid-cols-12 items-start" } =
+  Astro.props;
+
+const getTerminalColorClass = (item: TerminalItem): string => {
+  const osLower = item.osName.toLowerCase();
+
+  if (osLower.includes("ubuntu") || osLower.includes("debian")) {
+    if (item.isTelegrafia) {
+      return "border-success/30 bg-success/15 text-success";
+    }
+    return "border-error/30 bg-error/15 text-error";
+  }
+
+  if (osLower.includes("windows 10")) {
+    return "border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400";
+  }
+
+  if (osLower.includes("windows 11")) {
+    return "border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400";
+  }
+
+  if (osLower.includes("windows server")) {
+    return "border-blue-900/30 bg-blue-900/15 text-blue-900 dark:text-blue-300";
+  }
+
+  const tones: Record<OsFamily, string> = {
+    windows: "border-info/30 bg-info/15 text-info",
+    linux: "border-success/30 bg-success/15 text-success",
+    legacy: "border-warning/30 bg-warning/15 text-warning",
+  };
+
+  return tones[item.osFamily];
+};
+
+const osFamilyLabel: Record<OsFamily, string> = {
+  windows: "Windows",
+  linux: "Linux",
+  legacy: "Legacy",
+};
+
+const rowIcons: Record<
+  "hardware" | "os" | "location" | "contact",
+  BoxiconName
+> = {
+  hardware: "boxicons:chip-filled",
+  os: "boxicons:database-filled",
+  location: "boxicons:location-pin-filled",
+  contact: "boxicons:clock-filled",
+};
+---
+
+<article
+  data-table-row
+  data-master-detail-sort-item
+  data-terminal-row
+  data-hostname={terminal.hostname}
+  data-ip={terminal.ip}
+  data-mac={terminal.mac}
+  data-branch={terminal.branch}
+  data-sort-hostname={terminal.hostname}
+  data-sort-hardware={`${terminal.manufacturer} ${terminal.model}`}
+  data-sort-os={terminal.osName}
+  data-sort-location={terminal.branch}
+  class:list={[
+    terminalRowGridClass,
+    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-300/40 last:border-b-0",
+  ]}
+>
+  <div class="col-span-2 flex flex-row gap-4">
+    <span
+      class:list={[
+        "inline-flex size-8 shrink-0 self-center items-center justify-center rounded-lg border text-accent",
+        getTerminalColorClass(terminal),
+      ]}
+    >
+      <Icon name="boxicons:desktop-filled" size={16} />
+    </span>
+    <div class="flex flex-col w-full gap-1">
+      <span
+        class="truncate font-mono text-sm font-medium text-base-content"
+        data-highlight-target
+      >
+        {terminal.hostname}
+      </span>
+      <span
+        class="truncate font-mono text-xs text-base-content/70"
+        data-highlight-target
+      >
+        {terminal.ip}
+      </span>
+      <span
+        class="truncate font-mono text-xs text-base-content/50"
+        data-highlight-target
+      >
+        {terminal.mac}
+      </span>
+    </div>
+  </div>
+
+  <div class="col-span-3 flex flex-row gap-1.5">
+    <Icon
+      name={rowIcons.hardware}
+      size={16}
+      class="shrink-0 mt-0.5 text-base-content/60"
+    />
+
+    <div class="flex flex-col gap-1 w-full">
+      <span class="text-wrap text-sm text-base-content">
+        {terminal.manufacturer}
+      </span>
+      <span class="font-medium text-xs text-base-content">
+        {terminal.model}
+      </span>
+      <span class="truncate font-mono text-xs text-base-content/50">
+        SN: {terminal.serial}
+      </span>
+      <span class="truncate text-xs text-base-content/70">
+        RAM:{" "}
+        <span class="font-medium text-base-content">
+          {terminal.ram}
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <div class="col-span-3 flex flex-row gap-1.5">
+    <Icon
+      name={rowIcons.os}
+      size={16}
+      class="shrink-0 mt-0.5 text-base-content/60"
+    />
+    <div class="flex flex-col gap-1 w-full">
+      <span
+        class="text-wrap text-sm font-medium text-base-content"
+        data-highlight-target
+      >
+        {terminal.osName}
+      </span>
+
+      <span class="badge badge-soft badge-xs">
+        {osFamilyLabel[terminal.osFamily]}
+        {terminal.architecture}
+      </span>
+    </div>
+  </div>
+
+  <div class="col-span-2 flex flex-row gap-1.5">
+    <Icon
+      name={rowIcons.location}
+      size={16}
+      class="shrink-0 mt-0.5 text-base-content/60"
+    />
+    <div class="flex flex-col gap-1">
+      <span class="truncate text-sm text-base-content" data-highlight-target>
+        {terminal.branch}
+      </span>
+      <span class="truncate text-xs text-base-content/60">
+        <div
+          class="badge badge-sm badge-soft badge-neutral max-w-full truncate font-mono text-xs"
+          data-highlight-target
+        >
+          {terminal.nis}
+        </div>
+        {terminal.province}{" "}
+        <span class="text-base-content/35">•</span>{" "}
+        {terminal.region}
+      </span>
+    </div>
+  </div>
+
+  <div class="col-span-2 flex flex-row gap-1.5">
+    <div class="flex flex-col text-right w-full font-mono">
+      <span class="truncate text-sm font-medium text-base-content"
+        >{terminal.lastContactDate}</span
+      >
+      <span class="truncate font-mono text-xs text-base-content/60">
+        {terminal.lastContactTime}
+      </span>
+    </div>
+    <Icon
+      name={rowIcons.contact}
+      size={16}
+      class="shrink-0 mt-0.5 text-base-content/60"
+    />
+  </div>
+</article>

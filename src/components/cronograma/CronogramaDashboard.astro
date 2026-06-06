@@ -68,9 +68,9 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
               </h3>
             </div>
 
-            <!-- Center: Search input -->
-            <div class="flex-1 max-w-sm w-full mx-0 lg:mx-4">
-              <div class="relative w-full">
+            <!-- Center: Search & Sort inputs -->
+            <div class="flex-1 max-w-md w-full mx-0 lg:mx-4 flex gap-2">
+              <div class="relative flex-1">
                 <Icon name="boxicons:search" size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30" />
                 <input 
                   type="text" 
@@ -78,6 +78,19 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
                   placeholder="Buscar operador..." 
                   class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8"
                 />
+              </div>
+              <div class="relative w-40 shrink-0">
+                <select 
+                  id="daily-sort" 
+                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1 px-2.5 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8 font-bold cursor-pointer text-base-content"
+                  title="Ordenar operadores"
+                >
+                  <option value="alphabetical">🔤 Alfabético (A-Z)</option>
+                  <option value="alphabetical-za">🔤 Alfabético (Z-A)</option>
+                  <option value="entry-time">⏰ Entrada (Horario)</option>
+                  <option value="location">📍 Sede / Ubicación</option>
+                  <option value="inconsistencies">⚠️ Inconsistencias</option>
+                </select>
               </div>
             </div>
 
@@ -105,35 +118,37 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
             </div>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm text-left border-separate border-spacing-0">
-            <thead class="bg-base-200/60 text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300">
-              <tr>
-                <th class="py-3 px-6 w-64 border-r border-base-300/40">Operador</th>
-                <th class="py-3 px-4 w-44 border-r border-base-300/40">Modalidad</th>
-                <th class="py-3 px-6">
-                  <div class="flex justify-between w-full text-[10px] font-black text-base-content/40 px-2 select-none">
-                    <span>00:00</span>
-                    <span>02:00</span>
-                    <span>04:00</span>
-                    <span>06:00</span>
-                    <span>08:00</span>
-                    <span>10:00</span>
-                    <span>12:00</span>
-                    <span>14:00</span>
-                    <span>16:00</span>
-                    <span>18:00</span>
-                    <span>20:00</span>
-                    <span>22:00</span>
-                    <span>24:00</span>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody id="operators-table-body" class="divide-y divide-base-200 bg-base-100">
-              <!-- Inyectado dinámicamente -->
-            </tbody>
-          </table>
+        <div class="p-3">
+          <div class="overflow-x-auto max-h-[580px] overflow-y-auto scrollbar-thin rounded-xl border border-base-200 bg-base-100">
+            <table class="w-full text-sm text-left border-separate border-spacing-0">
+              <thead class="sticky top-0 z-50 bg-base-100/98 backdrop-blur-sm shadow-sm text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300">
+                <tr>
+                  <th class="sticky left-0 bg-base-100 z-50 w-64 min-w-[16rem] py-3 px-6 border-r border-b border-base-200/70">Operador</th>
+                  <th class="sticky left-[16rem] bg-base-100 z-50 w-44 min-w-[11rem] py-3 px-4 border-r border-b border-base-200/70 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">Modalidad</th>
+                  <th class="py-3 px-6 border-b border-base-200/70">
+                    <div class="flex justify-between w-full text-[10px] font-black text-base-content/40 px-2 select-none">
+                      <span>00:00</span>
+                      <span>02:00</span>
+                      <span>04:00</span>
+                      <span>06:00</span>
+                      <span>08:00</span>
+                      <span>10:00</span>
+                      <span>12:00</span>
+                      <span>14:00</span>
+                      <span>16:00</span>
+                      <span>18:00</span>
+                      <span>20:00</span>
+                      <span>22:00</span>
+                      <span>24:00</span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="operators-table-body" class="divide-y divide-base-200 bg-base-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
         </div>
         <!-- Daily View Footer / Status Filters -->
         <div class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
@@ -192,6 +207,22 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
                 class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
               >
                 <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
+              </button>
+              <button
+                type="button"
+                id="filter-gp-btn-daily"
+                data-filter="Guardia Pasiva"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-teal-600/10 hover:text-teal-600 hover:border-teal-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-teal-500"></div> Guardia Pasiva
+              </button>
+              <button
+                type="button"
+                id="filter-g-btn-daily"
+                data-filter="Guardia"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-indigo-600/10 hover:text-indigo-600 hover:border-indigo-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> Guardia
               </button>
             </div>
 
@@ -298,9 +329,9 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
 
             </div>
 
-            <!-- Center: Search input -->
-            <div class="flex-1 max-w-sm w-full mx-0 lg:mx-4">
-              <div class="relative w-full">
+            <!-- Center: Search & Sort inputs -->
+            <div class="flex-1 max-w-md w-full mx-0 lg:mx-4 flex gap-2">
+              <div class="relative flex-1">
                 <Icon name="boxicons:search" size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30" />
                 <input 
                   type="text" 
@@ -308,6 +339,19 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
                   placeholder="Buscar operador..." 
                   class="w-full bg-base-100 border border-base-300 rounded-lg py-1.5 pl-9 pr-3 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8"
                 />
+              </div>
+              <div class="relative w-40 shrink-0">
+                <select 
+                  id="monthly-sort" 
+                  class="w-full bg-base-100 border border-base-300 rounded-lg py-1 px-2.5 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-8 font-bold cursor-pointer text-base-content"
+                  title="Ordenar operadores"
+                >
+                  <option value="alphabetical">🔤 Alfabético (A-Z)</option>
+                  <option value="alphabetical-za">🔤 Alfabético (Z-A)</option>
+                  <option value="entry-time">⏰ Entrada (Horario)</option>
+                  <option value="location">📍 Sede / Ubicación</option>
+                  <option value="inconsistencies">⚠️ Inconsistencias</option>
+                </select>
               </div>
             </div>
 
@@ -420,6 +464,22 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
               >
                 <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div> Horas Extras
               </button>
+              <button
+                type="button"
+                id="filter-gp-btn"
+                data-filter="Guardia Pasiva"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-teal-600/10 hover:text-teal-600 hover:border-teal-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-teal-500"></div> Guardia Pasiva
+              </button>
+              <button
+                type="button"
+                id="filter-g-btn"
+                data-filter="Guardia"
+                class="btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-indigo-600/10 hover:text-indigo-600 hover:border-indigo-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> Guardia
+              </button>
             </div>
 
             <!-- Location Filters Container -->
@@ -501,32 +561,26 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
   </div>
 </div>
 
-<!-- Floating Save Alert -->
+<!-- Floating Save Alert (Warning Reminder) -->
 <div id="save-indicator" class="fixed bottom-6 right-6 z-50 hidden animate-in slide-in-from-right-10 fade-in duration-300">
-  <div class="bg-base-100/95 border-2 border-secondary/30 backdrop-blur-xl text-base-content px-6 py-4 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-5 min-w-[380px] max-w-md">
-    <div class="w-10 h-10 rounded-2xl bg-secondary/15 flex items-center justify-center text-secondary shrink-0 animate-pulse border border-secondary/20">
-      <Icon name="boxicons:save" size={22} />
+  <div class="bg-warning/10 border-2 border-warning/30 backdrop-blur-xl text-base-content px-6 py-4 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-5 min-w-[380px] max-w-md">
+    <div class="w-10 h-10 rounded-2xl bg-warning/15 flex items-center justify-center text-warning shrink-0 animate-pulse border border-warning/20">
+      <Icon name="boxicons:alert-triangle" size={22} />
     </div>
     <div class="flex-1 min-w-0">
-       <span class="text-[10px] font-black uppercase tracking-wider text-secondary">Base de Datos Activa</span>
-       <h4 id="save-indicator-text" class="text-xs font-black text-base-content uppercase tracking-tight truncate mt-0.5">
-         Edición en progreso: Cambios pendientes
+       <span class="text-[10px] font-black uppercase tracking-wider text-warning">Cambios Pendientes</span>
+       <h4 id="save-indicator-text" class="text-xs font-black text-base-content uppercase tracking-tight mt-0.5">
+         Tienes cambios sin guardar
        </h4>
+       <p class="text-[10px] text-base-content/70">Activa el modo edición para poder guardarlos o descartarlos.</p>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       <button 
         type="button" 
-        id="save-discard-btn" 
-        class="btn btn-xs btn-ghost hover:bg-error/15 hover:text-error text-[10px] font-black uppercase tracking-wider rounded-lg px-2.5 transition-colors"
+        id="reactivate-edit-mode-btn" 
+        class="btn btn-xs btn-warning text-[10px] font-black uppercase tracking-wider rounded-lg px-4 shadow-lg shadow-warning/15 transition-all"
       >
-        Descartar
-      </button>
-      <button 
-        type="button" 
-        id="save-confirm-btn" 
-        class="btn btn-xs btn-secondary text-[10px] font-black uppercase tracking-wider rounded-lg px-4 shadow-lg shadow-secondary/15 transition-all"
-      >
-        Guardar
+        Activar Edición
       </button>
     </div>
   </div>
@@ -549,6 +603,8 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
        <button class="brush-btn btn btn-xs btn-ghost hover:bg-error/20 hover:text-error opacity-50 transition-all" data-brush="Licencia" data-active-class="bg-error text-error-content shadow-lg ring-2 ring-error/50">L</button>
        <button class="brush-btn btn btn-xs btn-ghost hover:bg-success/20 hover:text-success opacity-50 transition-all" data-brush="Vacaciones" data-active-class="bg-success text-success-content shadow-lg ring-2 ring-success/50">V</button>
        <button class="brush-btn btn btn-xs btn-ghost hover:bg-sky-500/20 hover:text-sky-600 opacity-50 transition-all" data-brush="Horas Extras" data-active-class="bg-sky-500 text-white shadow-lg ring-2 ring-sky-500/50">HE</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-teal-500/20 hover:text-teal-600 opacity-50 transition-all" data-brush="Guardia Pasiva" data-active-class="bg-teal-500 text-white shadow-lg ring-2 ring-teal-500/50">GP</button>
+       <button class="brush-btn btn btn-xs btn-ghost hover:bg-indigo-500/20 hover:text-indigo-600 opacity-50 transition-all" data-brush="Guardia" data-active-class="bg-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/50">G</button>
     </div>
 
     <div class="w-px h-8 bg-base-300/60"></div>
@@ -846,6 +902,9 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
      transform: translateX(-50%) rotate(45deg);
    }
  
+   .scrollbar-thin {
+     overscroll-behavior: contain;
+   }
    .scrollbar-thin::-webkit-scrollbar {
      width: 6px;
      height: 6px;
@@ -866,7 +925,6 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
      background-color: var(--color-base-200, #f3f4f6);
      border-radius: 0.75rem;
      border: 1px solid var(--color-base-300, #e5e7eb);
-     overflow: hidden;
      display: flex;
      align-items: center;
    }
@@ -914,6 +972,80 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
      font-weight: 900;
      text-transform: uppercase;
      letter-spacing: 0.1em;
+   }
+ 
+   /* Premium break schedules and highlights */
+   .gantt-bar-break {
+     position: absolute;
+     top: 5px;
+     height: 4px;
+     z-index: 10;
+     border-radius: 9999px;
+     background-color: var(--color-purple, #a855f7) !important;
+     box-shadow: 0 1px 2px rgba(168, 85, 247, 0.2);
+     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+     cursor: pointer;
+   }
+ 
+   .gantt-bar-break:hover, 
+   .gantt-break-highlighted {
+     top: 4px;
+     height: 6px;
+     background-color: var(--color-purple, #9333ea) !important;
+     box-shadow: 0 0 8px rgba(168, 85, 247, 0.5) !important;
+   }
+ 
+   .gantt-break-tooltip {
+     position: absolute;
+     bottom: 100%;
+     left: 50%;
+     transform: translateX(-50%) translateY(4px);
+     background-color: rgba(15, 23, 42, 0.95);
+     backdrop-filter: blur(4px);
+     color: #ffffff;
+     padding: 3px 8px;
+     border-radius: 6px;
+     font-size: 8px;
+     font-weight: 900;
+     white-space: nowrap;
+     pointer-events: none;
+     opacity: 0;
+     visibility: hidden;
+     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+     border: 1px solid rgba(168, 85, 247, 0.3);
+     z-index: 50;
+   }
+ 
+   .gantt-break-tooltip::after {
+     content: '';
+     position: absolute;
+     top: 100%;
+     left: 50%;
+     transform: translateX(-50%);
+     border-width: 4px;
+     border-style: solid;
+     border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+   }
+ 
+   .gantt-bar-break:hover .gantt-break-tooltip,
+   .gantt-break-highlighted .gantt-break-tooltip {
+     opacity: 1;
+     visibility: visible;
+     transform: translateX(-50%) translateY(-4px);
+   }
+ 
+   .hourly-break-cell {
+     background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(147, 51, 234, 0.05) 100%) !important;
+     border: 1px dashed rgba(168, 85, 247, 0.35) !important;
+     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   }
+ 
+   .hourly-break-cell:hover {
+     background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(147, 51, 234, 0.15) 100%) !important;
+     border-color: rgba(168, 85, 247, 0.8) !important;
+     box-shadow: 0 0 8px rgba(168, 85, 247, 0.3) !important;
+     transform: translateY(-1px);
    }
  </style>
  

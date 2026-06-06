@@ -8,77 +8,59 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import CopyButton from "@components/ui/CopyButton.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
+import TerminalRow from "@components/inventario/TerminalRow.astro";
 import {
   getActiveMachineCount,
   type CubicShift,
   type CubicStatus,
 } from "@lib/cubics";
 import { db } from "@db/index";
-import { terminals as terminalsTable, offices, provinces, regions } from "@db/schema";
-import { eq } from "drizzle-orm";
+import {
+  terminals as terminalsTable,
+  offices,
+  provinces,
+  regions,
+} from "@db/schema";
+import { getTerminals } from "@lib/terminalQueries";
+import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
+import { sql } from "drizzle-orm";
 
-type OsFamily = "windows" | "linux" | "legacy";
 type BoxiconName = `boxicons:${string}`;
 
-interface TerminalItem {
-  hostname: string;
-  ip: string;
-  mac: string;
-  manufacturer: string;
-  model: string;
-  ram: string;
-  serial: string;
-  osName: string;
-  architecture: string;
-  branch: string;
-  province: string;
-  region: string;
-  nis: string;
-  lastContactDate: string;
-  lastContactTime: string;
-  osFamily: OsFamily;
-}
+const terminalHeaderGridClass = "grid-cols-12 gap-4";
+const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
 
+const rawUniqueOs = await db
+  .select({ os: terminalsTable.operatingSystem })
+  .from(terminalsTable)
+  .groupBy(terminalsTable.operatingSystem);
+const osVariations = rawUniqueOs.map((r) => r.os).filter(Boolean);
 
-const monthLabels = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-];
-
-const toOsFamily = (osName: string): OsFamily => {
-  const normalized = osName.toLowerCase();
-  if (
-    normalized.includes("ubuntu") ||
-    normalized.includes("linux") ||
-    normalized.includes("debian")
-  )
-    return "linux";
-  if (normalized.includes("windows")) return "windows";
-  return "legacy";
+const osMap = {
+  win11: osVariations.filter((os) => os?.toLowerCase().includes("windows 11")),
+  win10: osVariations.filter((os) => os?.toLowerCase().includes("windows 10")),
+  win7: osVariations.filter((os) => os?.toLowerCase().includes("windows 7")),
+  winxp: osVariations.filter((os) => os?.toLowerCase().includes("windows xp")),
+  winserver: osVariations.filter((os) =>
+    os?.toLowerCase().includes("windows server"),
+  ),
+  ubuntu: osVariations.filter((os) => os?.toLowerCase().includes("ubuntu")),
+  debian: osVariations.filter((os) => os?.toLowerCase().includes("debian")),
 };
 
-const parseLastContact = (
-  lastContact: string,
-): { date: string; time: string } => {
-  const parsedDate = new Date(lastContact.replace(" ", "T"));
-  if (Number.isNaN(parsedDate.getTime())) return { date: "--", time: "--" };
-  const day = String(parsedDate.getDate()).padStart(2, "0");
-  const month = monthLabels[parsedDate.getMonth()];
-  const year = parsedDate.getFullYear();
-  const hours = String(parsedDate.getHours()).padStart(2, "0");
-  const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
-  return { date: `${day} ${month} ${year}`, time: `${hours}:${minutes}` };
-};
+const sortBy = (Astro.url.searchParams.get("sortBy") || undefined) as
+  | TerminalSortKey
+  | undefined;
+const sortOrder = (Astro.url.searchParams.get("sortOrder") || undefined) as
+  | SortOrder
+  | undefined;
+
+const { data: terminals, hasMore } = await getTerminals({
+  page: 1,
+  limit: 50,
+  sortBy,
+  sortOrder,
+});
 
 const formatLastPing = (lastPing: Date | string | null | undefined): string => {
   if (!lastPing) return "Pendiente";
@@ -93,78 +75,6 @@ const formatLastPing = (lastPing: Date | string | null | undefined): string => {
 
   return `${day}/${month}/${year} - ${hours}:${minutes} hs`;
 };
-
-// Consulta relacional: terminals LEFT JOIN offices LEFT JOIN provinces LEFT JOIN regions
-const terminalRows = db
-  .select({
-    terminal: terminalsTable,
-    officeName: offices.name,
-    provinceCode: offices.provinceCode,
-    provinceName: provinces.name,
-    regionName: regions.name,
-  })
-  .from(terminalsTable)
-  .leftJoin(offices, eq(terminalsTable.nis, offices.code))
-  .leftJoin(provinces, eq(offices.provinceCode, provinces.code))
-  .leftJoin(regions, eq(offices.regionId, regions.id))
-  .all();
-
-const terminals: TerminalItem[] = terminalRows.map((row) => {
-  const t = row.terminal;
-  const lastContact = parseLastContact(t.lastContact || "");
-  const architecture = t.osArchitecture ? `${t.osArchitecture} bits` : "--";
-
-  return {
-    hostname: t.hostname || "--",
-    ip: t.ipAddress || "--",
-    mac: t.macAddress || "--",
-    manufacturer: t.manufacturer || "--",
-    model: t.model || "--",
-    ram: t.ram || "--",
-    serial: t.serialNumber || "--",
-    osName: t.operatingSystem || "--",
-    architecture,
-    branch: row.officeName || "--",
-    province: row.provinceName || "--",
-    region: row.regionName || "--",
-    nis: t.nis || "--",
-    lastContactDate: lastContact.date,
-    lastContactTime: lastContact.time,
-    osFamily: toOsFamily(t.operatingSystem || ""),
-  };
-});
-
-
-const osFamilyTone: Record<OsFamily, string> = {
-  windows: "border-info/30 bg-info/15 text-info",
-  linux: "border-success/30 bg-success/15 text-success",
-  legacy: "border-warning/30 bg-warning/15 text-warning",
-};
-
-const osFamilyBadge: Record<OsFamily, string> = {
-  windows: "badge-info",
-  linux: "badge-success",
-  legacy: "badge-warning",
-};
-
-const osFamilyLabel: Record<OsFamily, string> = {
-  windows: "Windows",
-  linux: "Linux",
-  legacy: "Legacy",
-};
-
-const rowIcons: Record<
-  "hardware" | "os" | "location" | "contact",
-  BoxiconName
-> = {
-  hardware: "boxicons:chip-filled",
-  os: "boxicons:database-filled",
-  location: "boxicons:location-pin-filled",
-  contact: "boxicons:clock-filled",
-};
-
-const terminalHeaderGridClass = "grid-cols-12 gap-4";
-const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
 
 const cubicMachines = await db.query.cubics.findMany({
   with: {
@@ -208,7 +118,7 @@ const inventoryTabs = [
 ---
 
 <BaseLayout>
-  <PageContainer>
+  <PageContainer width="xxl">
     <PageHeader
       description="Gestión centralizada del parque operativo: terminales y estaciones de trabajo."
     />
@@ -224,13 +134,173 @@ const inventoryTabs = [
       />
     </div>
 
-    <div
-      class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between min-h-18"
-    >
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-end flex-1">
+    <div class="flex flex-col gap-4 w-full">
+      <!-- Contenedor de Filtros (Fila Superior) -->
+      <div class="w-full">
+        <!-- Filtros para Terminales -->
+        <div
+          id="header-right-terminales"
+          class="flex flex-wrap items-center gap-3 w-full transition-opacity duration-300"
+        >
+          <div class="form-control grow">
+            <select
+              id="filter-os"
+              class="select select-bordered w-full font-medium text-base-content/80"
+              aria-label="Filtrar por sistema operativo"
+            >
+              <option value="all">Sist. Op. (Todos)</option>
+              <option value="win11">Windows 11</option>
+              <option value="win10">Windows 10</option>
+              <option value="win7">Windows 7</option>
+              <option value="winxp">Windows XP</option>
+              <option value="winserver">Windows Server</option>
+              <option value="ubuntu">Ubuntu</option>
+              <option value="debian">Debian</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-os-variant"
+              class="select select-bordered w-full font-medium text-base-content/80"
+              aria-label="Filtrar por variante de sistema operativo"
+              disabled
+            >
+              <option value="all">Variante (Todas)</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-arch"
+              class="select select-bordered w-full font-medium text-base-content/80"
+              aria-label="Filtrar por arquitectura"
+            >
+              <option value="all">Arquitectura (Todas)</option>
+              <option value="64 bits">64 bits</option>
+              <option value="32 bits">32 bits</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-brand"
+              class="select select-bordered w-full font-medium text-base-content/80"
+              aria-label="Filtrar por marca"
+            >
+              <option value="all">Marca (Todas)</option>
+              <option value="dell">Dell</option>
+              <option value="lenovo">Lenovo</option>
+              <option value="bangho">Banghó</option>
+              <option value="coradir">Coradir</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-ram"
+              class="select select-bordered w-full font-medium text-base-content/80"
+              aria-label="Filtrar por memoria RAM"
+            >
+              <option value="all">RAM (Todas)</option>
+              <option value="<=1gb">&le; 1 GB</option>
+              <option value="2gb">2 GB</option>
+              <option value="4gb">4 GB</option>
+              <option value="8gb">8 GB</option>
+              <option value="16gb">16 GB</option>
+              <option value=">=32gb">&ge; 32 GB</option>
+            </select>
+          </div>
+          <div
+            class="tabs tabs-box"
+            role="radiogroup"
+            aria-label="Estado de conexión"
+          >
+            <input
+              type="radio"
+              name="terminal_status"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Todas"
+              checked
+              data-terminal-status="all"
+            />
+            <input
+              type="radio"
+              name="terminal_status"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Online"
+              data-terminal-status="online"
+            />
+            <input
+              type="radio"
+              name="terminal_status"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Offline"
+              data-terminal-status="offline"
+            />
+          </div>
+        </div>
+
+        <!-- Filtros para Cúbics -->
+        <div
+          id="header-right-cubics"
+          class="hidden flex-wrap items-center justify-between gap-4 w-full transition-opacity duration-300"
+        >
+          <div
+            class="tabs tabs-box"
+            role="radiogroup"
+            aria-label="Filtros por estado"
+          >
+            <input
+              type="radio"
+              name="cubic_filters"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Todas"
+              checked
+              data-filter-tab
+              data-filter="all"
+            />
+            <input
+              type="radio"
+              name="cubic_filters"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Online"
+              data-filter-tab
+              data-filter="online"
+            />
+            <input
+              type="radio"
+              name="cubic_filters"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Offline"
+              data-filter-tab
+              data-filter="offline"
+            />
+          </div>
+
+          <aside
+            class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
+            aria-label="Resumen de conectividad"
+          >
+            <div
+              class="card-body flex-row items-center justify-between sm:justify-start gap-4 p-3"
+            >
+              <p
+                class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
+              >
+                Conectividad
+              </p>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-success font-mono"
+                  >{onlineCount}/{totalMachines}</span
+                >
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- Contenedor de Búsqueda (Fila Inferior) -->
+      <div class="w-full">
         <div
           id="header-search-terminales"
-          class="w-full max-w-md transition-opacity duration-300"
+          class="w-full transition-opacity duration-300"
         >
           <SearchInput
             id="terminal-search"
@@ -241,7 +311,7 @@ const inventoryTabs = [
 
         <div
           id="header-search-cubics"
-          class="hidden w-full max-w-md transition-opacity duration-300"
+          class="hidden w-full transition-opacity duration-300"
         >
           <SearchInput
             id="machine-search"
@@ -249,95 +319,6 @@ const inventoryTabs = [
             placeholder="Buscar por hostname, IP o usuario"
           />
         </div>
-      </div>
-
-      <div
-        id="header-right-terminales"
-        class="flex flex-col gap-3 sm:flex-row sm:items-end lg:justify-end transition-opacity duration-300"
-      >
-        <div class="form-control">
-          <select
-            id="filter-os"
-            class="select select-bordered w-full sm:w-auto font-medium text-base-content/80"
-            aria-label="Filtrar por sistema operativo"
-          >
-            <option value="all">Sist. Op. (Todos)</option>
-            <option value="windows">Windows</option>
-            <option value="linux">Linux</option>
-            <option value="legacy">Legacy</option>
-          </select>
-        </div>
-        <div class="form-control">
-          <select
-            id="filter-type"
-            class="select select-bordered w-full sm:w-auto font-medium text-base-content/80"
-            aria-label="Filtrar por tipo de terminal"
-          >
-            <option value="all">Tipo (Todos)</option>
-            <option value="comercial">Comercial</option>
-            <option value="operativa">Operativa</option>
-            <option value="administrativa">Administrativa</option>
-            <option value="electoral">Electoral</option>
-            <option value="servidor">Servidor</option>
-          </select>
-        </div>
-      </div>
-
-      <div
-        id="header-right-cubics"
-        class="hidden flex-col gap-4 sm:flex-row sm:items-center lg:justify-end transition-opacity duration-300"
-      >
-        <div
-          class="tabs tabs-box self-start sm:self-auto"
-          role="radiogroup"
-          aria-label="Filtros por estado"
-        >
-          <input
-            type="radio"
-            name="cubic_filters"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Todos"
-            checked
-            data-filter-tab
-            data-filter="all"
-          />
-          <input
-            type="radio"
-            name="cubic_filters"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Online"
-            data-filter-tab
-            data-filter="online"
-          />
-          <input
-            type="radio"
-            name="cubic_filters"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Offline"
-            data-filter-tab
-            data-filter="offline"
-          />
-        </div>
-
-        <aside
-          class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
-          aria-label="Resumen de conectividad"
-        >
-          <div
-            class="card-body flex-row items-center justify-between sm:justify-start gap-4 p-3"
-          >
-            <p
-              class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
-            >
-              Conectividad
-            </p>
-            <div class="flex items-center gap-2">
-              <span class="badge badge-success font-mono"
-                >{onlineCount}/{totalMachines}</span
-              >
-            </div>
-          </div>
-        </aside>
       </div>
     </div>
 
@@ -350,7 +331,7 @@ const inventoryTabs = [
           headerGridClass={terminalHeaderGridClass}
           rowGridClass={terminalRowGridClass}
         >
-          <div slot="header" class="col-span-3">
+          <div slot="header" class="col-span-2">
             <DataTableHeaderCell sortKey="hostname"
               >Hostname</DataTableHeaderCell
             >
@@ -360,7 +341,7 @@ const inventoryTabs = [
               >Hardware</DataTableHeaderCell
             >
           </div>
-          <div slot="header" class="col-span-2">
+          <div slot="header" class="col-span-3">
             <DataTableHeaderCell sortKey="os"
               >Sistema operativo</DataTableHeaderCell
             >
@@ -375,144 +356,30 @@ const inventoryTabs = [
               >Último contacto</DataTableHeaderCell
             >
           </div>
-
-          {
-            terminals.map((terminal) => (
-              <article
-                data-table-row
-                data-terminal-row
-                data-hostname={terminal.hostname}
-                data-ip={terminal.ip}
-                data-mac={terminal.mac}
-                data-branch={terminal.branch}
-                data-sort-hostname={terminal.hostname}
-                data-sort-hardware={`${terminal.manufacturer} ${terminal.model}`}
-                data-sort-os={terminal.osName}
-                data-sort-location={terminal.branch}
-                class:list={[
-                  terminalRowGridClass,
-                  "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-                ]}
-              >
-                <div class="col-span-3 min-w-0">
-                  <div class="flex min-w-0 items-center gap-3">
-                    <span
-                      class:list={[
-                        "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                        osFamilyTone[terminal.osFamily],
-                      ]}
-                    >
-                      <Icon name="boxicons:desktop-filled" class="size-4" />
-                    </span>
-                    <div class="min-w-0 space-y-0.5">
-                      <p
-                        class="truncate text-sm font-medium text-base-content"
-                        data-highlight-target
-                      >
-                        {terminal.hostname}
-                      </p>
-                      <p
-                        class="truncate font-mono text-xs text-base-content/70"
-                        data-highlight-target
-                      >
-                        {terminal.ip}
-                      </p>
-                      <p
-                        class="truncate font-mono text-xs text-base-content/50"
-                        data-highlight-target
-                      >
-                        {terminal.mac}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-span-3 min-w-0 space-y-1">
-                  <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                    <Icon
-                      name={rowIcons.hardware}
-                      class="size-4 shrink-0 text-base-content/60"
-                    />
-                    <span class="truncate">
-                      {terminal.manufacturer} {terminal.model}
-                    </span>
-                  </p>
-                  <div class="pl-6">
-                    <p class="truncate text-xs text-base-content/70">
-                      RAM:{" "}
-                      <span class="font-medium text-base-content">
-                        {terminal.ram}
-                      </span>
-                    </p>
-                    <p class="truncate font-mono text-xs text-base-content/50">
-                      SN: {terminal.serial}
-                    </p>
-                  </div>
-                </div>
-
-                <div class="col-span-2 min-w-0 space-y-1">
-                  <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                    <Icon
-                      name={rowIcons.os}
-                      class="size-4 shrink-0 text-base-content/60"
-                    />
-                    <span class="truncate">{terminal.osName}</span>
-                  </p>
-                  <div class="flex min-w-0 items-center gap-2 pl-6">
-                    <span
-                      class:list={[
-                        "badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/70",
-                        osFamilyBadge[terminal.osFamily],
-                      ]}
-                    >
-                      {osFamilyLabel[terminal.osFamily]}
-                    </span>
-                    <span class="badge badge-outline badge-sm h-4 px-2 text-xs text-base-content/60">
-                      {terminal.architecture}
-                    </span>
-                  </div>
-                </div>
-
-                <div class="col-span-2 min-w-0 space-y-1">
-                  <p class="flex min-w-0 items-center gap-2 text-sm text-base-content">
-                    <Icon
-                      name={rowIcons.location}
-                      class="size-4 shrink-0 text-base-content/60"
-                    />
-                    <span class="truncate" data-highlight-target>
-                      {terminal.branch}
-                    </span>
-                  </p>
-                  <p class="truncate pl-6 text-xs text-base-content/60">
-                    {terminal.province}{" "}
-                    <span class="text-base-content/35">•</span>{" "}
-                    {terminal.region}
-                  </p>
-                  <div class="pl-6">
-                    <span class="inline-block max-w-full truncate rounded-md border border-base-300 bg-base-200/70 px-2 py-0.5 font-mono text-xs text-base-content/70">
-                      {terminal.nis}
-                    </span>
-                  </div>
-                </div>
-
-                <div class="col-span-2 min-w-0">
-                  <div class="flex min-w-0 flex-col items-end gap-0.5 text-right">
-                    <p class="flex min-w-0 items-center justify-end gap-1.5 text-sm font-medium text-base-content">
-                      <Icon
-                        name={rowIcons.contact}
-                        class="size-4 shrink-0 text-base-content/60"
-                      />
-                      <span class="truncate">{terminal.lastContactDate}</span>
-                    </p>
-                    <p class="truncate font-mono text-xs text-base-content/60">
-                      {terminal.lastContactTime}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))
-          }
+          <div id="table-terminales-body" class="contents">
+            {
+              terminals.map((terminal) => (
+                <TerminalRow
+                  terminal={terminal}
+                  terminalRowGridClass={terminalRowGridClass}
+                />
+              ))
+            }
+          </div>
         </DataTable>
+
+        <div
+          id="scroll-sentinel-terminales"
+          class:list={[
+            "py-8 text-center flex justify-center",
+            !hasMore && "hidden",
+          ]}
+          data-has-more={hasMore ? "true" : "false"}
+        >
+          <span
+            class="loading loading-spinner loading-md text-primary hidden"
+            id="loading-spinner-terminales"></span>
+        </div>
       </section>
     </div>
 
@@ -563,8 +430,8 @@ const inventoryTabs = [
                 >
                   <div class="col-span-4 min-w-0">
                     <div class="flex items-center gap-3">
-                      <span class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/30 bg-accent/20 text-accent">
-                        <Icon name="boxicons:desktop-filled" class="size-4" />
+                      <span class="inline-flex size-8 shrink-0 self-center items-center justify-center rounded-lg border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400 border">
+                        <Icon name="boxicons:desktop-filled" size={16} />
                       </span>
                       <div class="min-w-0 flex-1">
                         <CopyButton
@@ -740,28 +607,221 @@ const inventoryTabs = [
 
     const terminalSearchInput =
       document.querySelector<HTMLInputElement>("#terminal-search");
-    const terminalRows = Array.from(
+    const osFilterSelect =
+      document.querySelector<HTMLSelectElement>("#filter-os");
+    const osVariantFilterSelect =
+      document.querySelector<HTMLSelectElement>("#filter-os-variant");
+    const archFilterSelect =
+      document.querySelector<HTMLSelectElement>("#filter-arch");
+    const brandFilterSelect =
+      document.querySelector<HTMLSelectElement>("#filter-brand");
+    const ramFilterSelect =
+      document.querySelector<HTMLSelectElement>("#filter-ram");
+    const statusRadioInputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("[data-terminal-status]"),
+    );
+    const terminalsSentinel = document.getElementById(
+      "scroll-sentinel-terminales",
+    );
+    const terminalsSpinner = document.getElementById(
+      "loading-spinner-terminales",
+    );
+    const terminalsContainer = document.getElementById("table-terminales-body");
+
+    let currentPage = 1;
+    let currentSearch = terminalSearchInput?.value.trim() || "";
+    let currentOs = osFilterSelect?.value || "all";
+    let currentOsVariant = osVariantFilterSelect?.value || "all";
+    let currentArch = archFilterSelect?.value || "all";
+    let currentBrand = brandFilterSelect?.value || "all";
+    let currentRam = ramFilterSelect?.value || "all";
+    let currentStatus =
+      statusRadioInputs.find((r) => r.checked)?.dataset.terminalStatus || "all";
+    let isLoading = false;
+    let hasMore = terminalsSentinel?.getAttribute("data-has-more") === "true";
+    let terminalRows = Array.from(
       document.querySelectorAll<HTMLElement>("[data-terminal-row]"),
     );
 
-    const updateTerminalRows = () => {
-      if (!terminalSearchInput) return;
-      const query = terminalSearchInput.value.trim();
-      let visibleCount = 0;
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentSortBy: string | null = urlParams.get("sortBy");
+    let currentSortOrder: "asc" | "desc" | null =
+      (urlParams.get("sortOrder") as "asc" | "desc") || null;
 
-      terminalRows.forEach((row) => {
-        const isVisible = matchesSearchQuery(query, [
-          row.dataset.hostname,
-          row.dataset.ip,
-          row.dataset.mac,
-          row.dataset.branch,
-        ]);
-        row.classList.toggle("hidden", !isVisible);
-        highlightSearchTargets(row, isVisible ? query : "");
+    const updateSortIcons = (tableEl: HTMLElement) => {
+      const headerCells = tableEl.querySelectorAll("[data-table-sort-key]");
+      headerCells.forEach((cell) => {
+        const cellKey = (cell as HTMLElement).dataset.tableSortKey;
+        const isActive = cellKey === currentSortBy && currentSortOrder !== null;
+        const direction = isActive
+          ? currentSortOrder === "asc"
+            ? "ascending"
+            : "descending"
+          : "none";
+        (cell as HTMLElement).dataset.tableSortDirection = direction;
+        cell.setAttribute("aria-sort", direction);
+        const icons = cell.querySelectorAll("[data-table-sort-icon]");
+        icons.forEach((icon) => {
+          const shouldShow =
+            (icon as HTMLElement).dataset.tableSortIcon === direction;
+          (icon as HTMLElement).classList.toggle("hidden", !shouldShow);
+          (icon as HTMLElement).classList.toggle("opacity-0", !shouldShow);
+        });
       });
     };
 
-    terminalSearchInput?.addEventListener("input", updateTerminalRows);
+    const syncSortToURL = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (currentSortBy && currentSortOrder) {
+        params.set("sortBy", currentSortBy);
+        params.set("sortOrder", currentSortOrder);
+      } else {
+        params.delete("sortBy");
+        params.delete("sortOrder");
+      }
+      const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+      window.history.replaceState({}, "", newUrl);
+    };
+
+    const fetchTerminals = async (isNewSearch: boolean) => {
+      if (isLoading) return;
+      isLoading = true;
+      terminalsSpinner?.classList.remove("hidden");
+
+      try {
+        const params = new URLSearchParams();
+        params.set("page", currentPage.toString());
+        params.set("limit", "50");
+        if (currentSearch) params.set("search", currentSearch);
+        if (currentOs && currentOs !== "all") params.set("os", currentOs);
+        if (currentOsVariant && currentOsVariant !== "all")
+          params.set("osVariant", currentOsVariant);
+        if (currentArch && currentArch !== "all")
+          params.set("architecture", currentArch);
+        if (currentBrand && currentBrand !== "all")
+          params.set("brand", currentBrand);
+        if (currentRam && currentRam !== "all") params.set("ram", currentRam);
+        if (currentStatus && currentStatus !== "all")
+          params.set("status", currentStatus);
+        if (currentSortBy) {
+          params.set("sortBy", currentSortBy);
+          if (currentSortOrder) params.set("sortOrder", currentSortOrder);
+        }
+
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const response = await fetch(
+          `${baseUrl}/api/terminals?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("API call failed");
+
+        const html = await response.text();
+        const newHasMore = response.headers.get("X-Has-More") === "true";
+
+        hasMore = newHasMore;
+
+        if (terminalsContainer) {
+          if (isNewSearch) {
+            terminalsContainer.innerHTML = html;
+          } else {
+            terminalsContainer.insertAdjacentHTML("beforeend", html);
+          }
+        }
+
+        if (currentSearch && terminalsContainer) {
+          const newArticles = Array.from(
+            terminalsContainer.querySelectorAll<HTMLElement>(
+              "[data-terminal-row]",
+            ),
+          );
+          newArticles.forEach((item) => {
+            highlightSearchTargets(item, currentSearch);
+          });
+        }
+
+        // Re-bind sorting elements since DOM changed
+        terminalRows = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-terminal-row]"),
+        );
+
+        if (!hasMore) {
+          terminalsSentinel?.classList.add("hidden");
+        } else {
+          terminalsSentinel?.classList.remove("hidden");
+        }
+      } catch (err) {
+        console.error("Error fetching terminals:", err);
+      } finally {
+        isLoading = false;
+        terminalsSpinner?.classList.add("hidden");
+      }
+    };
+
+    if (terminalsSentinel) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && !isLoading && hasMore) {
+            currentPage++;
+            fetchTerminals(false);
+          }
+        },
+        { rootMargin: "200px" },
+      );
+      observer.observe(terminalsSentinel);
+    }
+
+    let debounceTimeout: number;
+    const triggerSearch = () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = window.setTimeout(() => {
+        currentPage = 1;
+        currentSearch = terminalSearchInput?.value.trim() || "";
+        currentOs = osFilterSelect?.value || "all";
+        currentOsVariant = osVariantFilterSelect?.value || "all";
+        currentArch = archFilterSelect?.value || "all";
+        currentBrand = brandFilterSelect?.value || "all";
+        currentRam = ramFilterSelect?.value || "all";
+        currentStatus =
+          statusRadioInputs.find((r) => r.checked)?.dataset.terminalStatus ||
+          "all";
+        fetchTerminals(true);
+      }, 300);
+    };
+
+    terminalSearchInput?.addEventListener("input", triggerSearch);
+
+    // Configurar mapa de OS desde el servidor usando un JSON en el script o variable global inyectada
+    const osMapData = JSON.parse(
+      document.getElementById("os-map-data")?.textContent || "{}",
+    );
+
+    osFilterSelect?.addEventListener("change", () => {
+      if (osVariantFilterSelect) {
+        const val = osFilterSelect.value;
+        osVariantFilterSelect.innerHTML =
+          '<option value="all">Variante (Todas)</option>';
+        if (val === "all" || !osMapData[val] || osMapData[val].length === 0) {
+          osVariantFilterSelect.disabled = true;
+          osVariantFilterSelect.value = "all";
+        } else {
+          osVariantFilterSelect.disabled = false;
+          osMapData[val].forEach((variant: string) => {
+            const opt = document.createElement("option");
+            opt.value = variant;
+            opt.textContent = variant;
+            osVariantFilterSelect.appendChild(opt);
+          });
+        }
+      }
+      triggerSearch();
+    });
+
+    osVariantFilterSelect?.addEventListener("change", triggerSearch);
+    archFilterSelect?.addEventListener("change", triggerSearch);
+    brandFilterSelect?.addEventListener("change", triggerSearch);
+    ramFilterSelect?.addEventListener("change", triggerSearch);
+    statusRadioInputs.forEach((radio) =>
+      radio.addEventListener("change", triggerSearch),
+    );
 
     const machineSearchInput =
       document.querySelector<HTMLInputElement>("#machine-search");
@@ -813,7 +873,9 @@ const inventoryTabs = [
       let currentSortDirection: "asc" | "desc" | null = null;
 
       table.addEventListener("click", (e) => {
-        const btn = (e.target as HTMLElement).closest("[data-table-sort-key]");
+        const btn = (e.target as HTMLElement).closest(
+          "button[data-table-sort-key]",
+        );
         if (!btn) return;
 
         const key = (btn as HTMLElement).dataset.tableSortKey;
@@ -891,10 +953,45 @@ const inventoryTabs = [
       });
     }
 
-    bindSorting("table-terminales", terminalRows);
     bindSorting("table-cubics", machineRows);
-
-    updateTerminalRows();
     updateMachineRows();
+
+    const terminalTable = document.getElementById("table-terminales");
+    terminalTable?.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-table-header]")) return;
+      const btn = target.closest<HTMLButtonElement>(
+        "button[data-table-sort-key]",
+      );
+      if (!btn) return;
+      const key = btn.dataset.tableSortKey;
+      if (!key) return;
+
+      if (currentSortBy === key) {
+        if (currentSortOrder === "asc") {
+          currentSortOrder = "desc";
+        } else {
+          currentSortBy = null;
+          currentSortOrder = null;
+        }
+      } else {
+        currentSortBy = key;
+        currentSortOrder = "asc";
+      }
+
+      if (terminalTable) updateSortIcons(terminalTable);
+      currentPage = 1;
+      fetchTerminals(true);
+      syncSortToURL();
+    });
+
+    if (currentSortBy && terminalTable) {
+      updateSortIcons(terminalTable);
+    }
   </script>
+  <script
+    type="application/json"
+    id="os-map-data"
+    set:html={JSON.stringify(osMap)}
+  />
 </BaseLayout>

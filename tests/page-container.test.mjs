@@ -15,7 +15,7 @@ const pageContainer = await read(componentPath);
 
 assert.match(
   pageContainer,
-  /width\?:\s*"default"\s*\|\s*"wide"/,
+  /width\?:\s*"default"\s*\|\s*"xl"/,
   "PageContainer should expose default and wide width variants",
 );
 assert.match(
@@ -53,15 +53,15 @@ const migratedRoutes = [
   ],
   [
     "src/pages/directorio-oficinas/index.astro",
-    /<PageContainer(?:\s|>)[\s\S]*width="wide"/,
+    /<PageContainer(?:\s|>)[\s\S]*width="xl"/,
   ],
   [
     "src/pages/guia-soportes/index.astro",
-    /<PageContainer(?:\s|>)[\s\S]*width="wide"/,
+    /<PageContainer(?:\s|>)[\s\S]*width="xl"/,
   ],
   [
     "src/pages/design-system/index.astro",
-    /<PageContainer(?:\s|>)[\s\S]*width="wide"/,
+    /<PageContainer(?:\s|>)[\s\S]*width="xl"/,
   ],
 ];
 

@@ -55,8 +55,19 @@ if (regionFilter !== "all" && provinceFilter !== "all") {
   provinceFilter = "all";
 }
 
+const sortBy = (searchParams.get("sortBy") || undefined) as
+  | "code"
+  | "name"
+  | "parent-nis"
+  | "address"
+  | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as
+  | "asc"
+  | "desc"
+  | undefined;
+
 const { data: officeDirectoryItems, hasMore } = await getOffices({
-  page: 1, // SSR siempre renderiza la primera página de 100 items
+  page: 1,
   limit: 100,
   type: typeFilter,
   region: regionFilter,
@@ -64,6 +75,8 @@ const { data: officeDirectoryItems, hasMore } = await getOffices({
   zone: zoneFilter,
   paqar: paqarFilter,
   search: searchFilter,
+  sortBy,
+  sortOrder,
 });
 
 const rawCounts = await db
@@ -156,11 +169,12 @@ const uniqueZones = allZonesRaw
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
-const officeDirectoryHeaderGridClass = "grid-cols-[48px_80px_1.2fr_90px_1.8fr] gap-4";
+const officeDirectoryHeaderGridClass =
+  "grid-cols-[48px_80px_1.2fr_90px_1.8fr] gap-4";
 
 const mainTabs = [
   { label: "Directorio de Oficinas", value: "directory" },
-  { label: "Mapa de Sucursales", value: "map" },
+  { label: "Mapa de Regiones", value: "map" },
 ];
 
 const sucursales: any[] = [];
@@ -175,7 +189,7 @@ const sucursales: any[] = [];
     crossorigin=""
   />
 
-  <PageContainer>
+  <PageContainer width="xxl">
     <PageHeader
       description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
     />
@@ -186,6 +200,8 @@ const sucursales: any[] = [];
       activeValue="directory"
       name="main_view_tabs"
       id="main-view-switcher"
+      class="w-full grid grid-cols-2"
+      containerClass="w-full"
     />
 
     <!-- Contenedor de Directorio -->
@@ -210,90 +226,100 @@ const sucursales: any[] = [];
         </div>
 
         <div class="flex flex-wrap items-center gap-3 w-full">
-          <select
-            name="region"
-            id="regionFilter"
-            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por región"
-            onchange="document.getElementById('provinceFilter').value='all'; this.form.submit()"
-          >
-            <option value="all" selected={regionFilter === "all"}
-              >Regiones (Todas)</option
+          <div class="form-control grow">
+            <select
+              name="region"
+              id="regionFilter"
+              class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filtrar por región"
+              onchange="document.getElementById('provinceFilter').value='all'; this.form.submit()"
             >
-            {
-              uniqueRegions.map((region) => (
-                <option value={region} selected={regionFilter === region}>
-                  {region}
-                </option>
-              ))
-            }
-          </select>
-
-          <select
-            name="province"
-            id="provinceFilter"
-            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por provincia"
-            onchange="this.form.submit()"
-            disabled={regionFilter === "all"}
-          >
-            <option value="all" selected={provinceFilter === "all"}
-              >Provincias (Todas)</option
-            >
-            {
-              regionFilter !== "all" &&
-                (provincesByRegion[regionFilter] || []).map((prov) => (
-                  <option
-                    value={prov.code}
-                    selected={provinceFilter === prov.code}
-                  >
-                    {prov.name}
+              <option value="all" selected={regionFilter === "all"}
+                >Regiones (Todas)</option
+              >
+              {
+                uniqueRegions.map((region) => (
+                  <option value={region} selected={regionFilter === region}>
+                    {region}
                   </option>
                 ))
-            }
-          </select>
+              }
+            </select>
+          </div>
 
-          <select
-            name="zone"
-            id="zoneFilter"
-            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por zona"
-            onchange="this.form.submit()"
-          >
-            <option value="all" selected={zoneFilter === "all"}
-              >Zonas (Todas)</option
+          <div class="form-control grow">
+            <select
+              name="province"
+              id="provinceFilter"
+              class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filtrar por provincia"
+              onchange="this.form.submit()"
+              disabled={regionFilter === "all"}
             >
-            {
-              uniqueZones.map((zone) => (
-                <option value={zone} selected={zoneFilter === zone}>
-                  {zone}
-                </option>
-              ))
-            }
-          </select>
+              <option value="all" selected={provinceFilter === "all"}
+                >Provincias (Todas)</option
+              >
+              {
+                regionFilter !== "all" &&
+                  (provincesByRegion[regionFilter] || []).map((prov) => (
+                    <option
+                      value={prov.code}
+                      selected={provinceFilter === prov.code}
+                    >
+                      {prov.name}
+                    </option>
+                  ))
+              }
+            </select>
+          </div>
 
-          <select
-            name="paqar"
-            id="paqarFilter"
-            class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Filtrar por servicios Paq.AR"
-            onchange="this.form.submit()"
-          >
-            <option value="all" selected={paqarFilter === "all"}
-              >Paq.AR (Todos)</option
+          <div class="form-control grow">
+            <select
+              name="zone"
+              id="zoneFilter"
+              class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filtrar por zona"
+              onchange="this.form.submit()"
             >
-            <option value="admision" selected={paqarFilter === "admision"}
-              >Admite Paq.AR</option
-            >
-            <option value="entrega" selected={paqarFilter === "entrega"}
-              >Entrega Paq.AR</option
-            >
-            <option value="ambos" selected={paqarFilter === "ambos"}
-              >Admite y Entrega</option
-            >
-          </select>
+              <option value="all" selected={zoneFilter === "all"}
+                >Zonas (Todas)</option
+              >
+              {
+                uniqueZones.map((zone) => (
+                  <option value={zone} selected={zoneFilter === zone}>
+                    {zone}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
 
-          <div class="flex-2 min-w-70 flex gap-2">
+          <div class="form-control grow">
+            <select
+              name="paqar"
+              id="paqarFilter"
+              class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label="Filtrar por servicios Paq.AR"
+              onchange="this.form.submit()"
+            >
+              <option value="all" selected={paqarFilter === "all"}
+                >Paq.AR (Todos)</option
+              >
+              <option value="admision" selected={paqarFilter === "admision"}
+                >Admite Paq.AR</option
+              >
+              <option value="entrega" selected={paqarFilter === "entrega"}
+                >Entrega Paq.AR</option
+              >
+              <option value="ambos" selected={paqarFilter === "ambos"}
+                >Admite y Entrega</option
+              >
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 w-full">
+          <div class="w-full flex gap-2">
             <SearchInput
               id="office-search"
               name="search"
@@ -342,52 +368,58 @@ const sucursales: any[] = [];
             <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
           </div>
           <div slot="header">
-            <DataTableHeaderCell sortKey="parent-nis">Dependencia</DataTableHeaderCell>
+            <DataTableHeaderCell sortKey="parent-nis"
+              >Dependencia</DataTableHeaderCell
+            >
           </div>
           <div slot="header">
-            <DataTableHeaderCell sortKey="address">Dirección</DataTableHeaderCell>
+            <DataTableHeaderCell sortKey="address"
+              >Dirección</DataTableHeaderCell
+            >
           </div>
-            {
-              officeDirectoryItems.map((office) => (
-                <OfficeRow office={office} />
-              ))
-            }
+          {officeDirectoryItems.map((office) => <OfficeRow office={office} />)}
         </MasterDetailTable>
 
         <div
           id="no-results-state"
           class:list={[
             "py-24 flex flex-col items-center justify-center text-center px-4 animate-in fade-in duration-500",
-            officeDirectoryItems.length > 0 && "hidden"
+            officeDirectoryItems.length > 0 && "hidden",
           ]}
         >
           <div class="relative size-24 mb-8 group">
-            <div class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors" />
-            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md" />
-            <div class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105">
+            <div
+              class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors"
+            >
+            </div>
+            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md">
+            </div>
+            <div
+              class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105"
+            >
               <Icon
                 name="boxicons:map-filled"
                 class="size-10 text-base-content/40"
               />
             </div>
           </div>
-          <h3 class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight">
+          <h3
+            class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight"
+          >
             No hay coincidencias
           </h3>
-          <p class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm">
-            No hemos podido encontrar oficinas que coincidan con los
-            filtros seleccionados. Probá modificando los criterios o
-            restableciendo la búsqueda para explorar el directorio
-            completo.
+          <p
+            class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm"
+          >
+            No hemos podido encontrar oficinas que coincidan con los filtros
+            seleccionados. Probá modificando los criterios o restableciendo la
+            búsqueda para explorar el directorio completo.
           </p>
           <a
             href={import.meta.env.BASE_URL + "directorio-oficinas"}
             class="btn btn-primary rounded-full px-8 shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-transform duration-300"
           >
-            <Icon
-              name="boxicons:refresh-ccw-filled"
-              class="size-5 mr-1.5"
-            />
+            <Icon name="boxicons:refresh-ccw-filled" class="size-5 mr-1.5" />
             Restablecer filtros
           </a>
         </div>
@@ -400,29 +432,30 @@ const sucursales: any[] = [];
           ]}
           data-has-more={hasMore ? "true" : "false"}
         >
-          <span class="loading loading-spinner loading-md text-primary hidden" id="loading-spinner"></span>
+          <span
+            class="loading loading-spinner loading-md text-primary hidden"
+            id="loading-spinner"></span>
         </div>
-      </div> </div>
       </div>
     </div>
 
     <!-- Contenedor de Mapa -->
     <div id="main-view-map" class="hidden space-y-6">
       <!-- Contenedor de Vistas Internas del Mapa (si se quiere mantener el toggle de lista interna del mapa original) -->
-      <div id="views-wrapper" class="relative min-h-150">
+      <div id="views-wrapper" class="relative min-h-[600px]">
         <!-- Vista Mapa -->
         <section
           id="view-map"
           class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0 transition-all duration-500"
         >
-          <div id="mapa-sucursales" class="h-150 w-full z-0 relative"></div>
+          <div id="mapa-sucursales" class="h-[600px] w-full z-0 relative"></div>
         </section>
 
         <!-- Controles del Mapa -->
         <div id="map-controls" class="flex flex-wrap justify-center gap-3 mt-6">
           <button
             id="toggle-polygons"
-            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-xs transition-all duration-300"
+            class="btn btn-sm btn-outline gap-2"
           >
             <Icon
               name="boxicons:layers-alt-filled"
@@ -433,7 +466,7 @@ const sucursales: any[] = [];
 
           <button
             id="toggle-labels"
-            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-xs transition-all duration-300"
+            class="btn btn-sm btn-outline gap-2"
           >
             <Icon
               name="boxicons:font-family-filled"
@@ -444,7 +477,7 @@ const sucursales: any[] = [];
 
           <button
             id="toggle-markers"
-            class="btn btn-sm btn-outline border-base-content/20 shadow-sm gap-2 font-bold uppercase text-xs transition-all duration-300"
+            class="btn btn-sm btn-outline gap-2"
           >
             <Icon
               name="boxicons:location-pin-filled"
@@ -473,22 +506,23 @@ const sucursales: any[] = [];
 
 <script>
   import { highlightSearchTargets } from "@lib/clientSearch";
-  import {
-    bindMasterDetailTableSort,
-    refreshMasterDetailTableSort,
-  } from "@lib/clientMasterDetailTableSort";
 
   declare const L: any;
 
   const mainViewDir = document.getElementById("main-view-directory");
   const mainViewMap = document.getElementById("main-view-map");
 
-  const tableRoot = document.querySelector<HTMLElement>("[data-master-detail-table-root]");
-  const container = tableRoot?.querySelector<HTMLElement>("[data-master-detail-table-body]");
+  const tableRoot = document.querySelector<HTMLElement>(
+    "[data-master-detail-table-root]",
+  );
+  const container = tableRoot?.querySelector<HTMLElement>(
+    "[data-master-detail-table-body]",
+  );
   const sentinel = document.getElementById("scroll-sentinel");
   const spinner = document.getElementById("loading-spinner");
   const noResultsState = document.getElementById("no-results-state");
-  const searchInput = document.querySelector<HTMLInputElement>("#office-search");
+  const searchInput =
+    document.querySelector<HTMLInputElement>("#office-search");
   const form = document.querySelector<HTMLFormElement>("form");
 
   let currentPage = 1;
@@ -496,13 +530,53 @@ const sucursales: any[] = [];
   let isLoading = false;
   let hasMore = sentinel?.getAttribute("data-has-more") === "true";
 
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentSortBy: string | null = urlParams.get("sortBy");
+  let currentSortOrder: "asc" | "desc" | null =
+    (urlParams.get("sortOrder") as "asc" | "desc") || null;
+
+  const updateSortIcons = (tableEl: HTMLElement) => {
+    const headerCells = tableEl.querySelectorAll("[data-table-sort-key]");
+    headerCells.forEach((cell) => {
+      const cellKey = (cell as HTMLElement).dataset.tableSortKey;
+      const isActive = cellKey === currentSortBy && currentSortOrder !== null;
+      const direction = isActive
+        ? currentSortOrder === "asc"
+          ? "ascending"
+          : "descending"
+        : "none";
+      (cell as HTMLElement).dataset.tableSortDirection = direction;
+      cell.setAttribute("aria-sort", direction);
+      const icons = cell.querySelectorAll("[data-table-sort-icon]");
+      icons.forEach((icon) => {
+        const shouldShow =
+          (icon as HTMLElement).dataset.tableSortIcon === direction;
+        (icon as HTMLElement).classList.toggle("hidden", !shouldShow);
+        (icon as HTMLElement).classList.toggle("opacity-0", !shouldShow);
+      });
+    });
+  };
+
+  const syncSortToURL = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (currentSortBy && currentSortOrder) {
+      params.set("sortBy", currentSortBy);
+      params.set("sortOrder", currentSortOrder);
+    } else {
+      params.delete("sortBy");
+      params.delete("sortOrder");
+    }
+    const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  };
+
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
   });
 
   const bindRowEvents = (parent: HTMLElement | Document = document) => {
     const masterRows = Array.from(
-      parent.querySelectorAll<HTMLElement>("[data-office-master-row]")
+      parent.querySelectorAll<HTMLElement>("[data-office-master-row]"),
     );
 
     masterRows.forEach((row) => {
@@ -511,7 +585,7 @@ const sucursales: any[] = [];
 
       const officeId = row.dataset.officeId ?? "";
       const detailRow = document.querySelector<HTMLElement>(
-        `[data-office-detail-row][data-office-id="${officeId}"]`
+        `[data-office-detail-row][data-office-id="${officeId}"]`,
       );
 
       const toggleRow = (): void => {
@@ -522,7 +596,9 @@ const sucursales: any[] = [];
         row.setAttribute("aria-expanded", newExpanded ? "true" : "false");
 
         const openIcon = row.querySelector<HTMLElement>("[data-chevron-open]");
-        const closedIcon = row.querySelector<HTMLElement>("[data-chevron-closed]");
+        const closedIcon = row.querySelector<HTMLElement>(
+          "[data-chevron-closed]",
+        );
 
         openIcon?.classList.toggle("hidden", !newExpanded);
         closedIcon?.classList.toggle("hidden", newExpanded);
@@ -554,6 +630,10 @@ const sucursales: any[] = [];
     if (currentSearch) {
       params.set("search", currentSearch);
     }
+    if (currentSortBy) {
+      params.set("sortBy", currentSortBy);
+      if (currentSortOrder) params.set("sortOrder", currentSortOrder);
+    }
     return params.toString();
   };
 
@@ -570,13 +650,18 @@ const sucursales: any[] = [];
 
       const html = await response.text();
       const newHasMore = response.headers.get("X-Has-More") === "true";
-      const totalCount = parseInt(response.headers.get("X-Total-Count") || "0", 10);
+      const totalCount = parseInt(
+        response.headers.get("X-Total-Count") || "0",
+        10,
+      );
 
       hasMore = newHasMore;
 
       if (container) {
         if (isNewSearch) {
-          const oldItems = container.querySelectorAll("[data-master-detail-sort-item], [data-office-detail-row]");
+          const oldItems = container.querySelectorAll(
+            "[data-master-detail-sort-item], [data-office-detail-row]",
+          );
           oldItems.forEach((el) => el.remove());
           container.insertAdjacentHTML("beforeend", html);
         } else {
@@ -594,17 +679,12 @@ const sucursales: any[] = [];
 
       bindRowEvents(container || document);
 
-      if (tableRoot) {
-        tableRoot.dataset.masterDetailView = "flat";
-        delete tableRoot.dataset.masterDetailTableSortBound;
-        delete tableRoot.dataset.tableEmptyStateBound;
-        bindMasterDetailTableSort(tableRoot);
-        // We explicitly refresh to force a DOM re-arrange if needed and re-apply active sort
-        refreshMasterDetailTableSort(tableRoot);
-      }
-
       if (currentSearch && container) {
-        const newArticles = Array.from(container.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"));
+        const newArticles = Array.from(
+          container.querySelectorAll<HTMLElement>(
+            "[data-master-detail-sort-item]",
+          ),
+        );
         newArticles.forEach((item) => {
           highlightSearchTargets(item, currentSearch);
         });
@@ -615,7 +695,6 @@ const sucursales: any[] = [];
       } else {
         sentinel?.classList.remove("hidden");
       }
-
     } catch (err) {
       console.error("Error fetching offices:", err);
     } finally {
@@ -640,8 +719,16 @@ const sucursales: any[] = [];
     }
 
     const regionColors = [
-      "#003B71", "#FFCC00", "#2ECC71", "#E74C3C", "#9B59B6", 
-      "#F39C12", "#1ABC9C", "#34495E", "#D35400", "#2980B9",
+      "#003B71",
+      "#FFCC00",
+      "#2ECC71",
+      "#E74C3C",
+      "#9B59B6",
+      "#F39C12",
+      "#1ABC9C",
+      "#34495E",
+      "#D35400",
+      "#2980B9",
     ];
 
     const normalizeProvinceName = (geoName: string) => {
@@ -659,7 +746,10 @@ const sucursales: any[] = [];
       return regionColors[idx % regionColors.length];
     };
 
-    const bounds = [[-56.0, -74.0], [-21.0, -53.0]];
+    const bounds = [
+      [-56.0, -74.0],
+      [-21.0, -53.0],
+    ];
 
     map = L.map("mapa-sucursales", {
       maxBounds: bounds as any,
@@ -811,7 +901,8 @@ const sucursales: any[] = [];
               color: color,
               weight: 1.5,
               fillColor: color,
-              fillOpacity: name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15,
+              fillOpacity:
+                name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15,
             };
           },
           onEachFeature: function (feature: any, layer: any) {
@@ -864,17 +955,22 @@ const sucursales: any[] = [];
       mainViewDir?.classList.add("hidden");
       mainViewMap?.classList.remove("hidden");
       initializeMap();
-      setTimeout(() => { if (map) map.invalidateSize(); }, 100);
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 100);
     }
   });
 
   if (sentinel) {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !isLoading && hasMore) {
-        currentPage++;
-        fetchOffices(false);
-      }
-    }, { rootMargin: "200px" });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore) {
+          currentPage++;
+          fetchOffices(false);
+        }
+      },
+      { rootMargin: "200px" },
+    );
     observer.observe(sentinel);
   }
 
@@ -889,7 +985,37 @@ const sucursales: any[] = [];
   });
 
   bindRowEvents();
-  refreshMasterDetailTableSort();
+
+  tableRoot?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest<HTMLButtonElement>(
+      "button[data-table-sort-key]",
+    );
+    if (!btn) return;
+    const key = btn.dataset.tableSortKey;
+    if (!key) return;
+
+    if (currentSortBy === key) {
+      if (currentSortOrder === "asc") {
+        currentSortOrder = "desc";
+      } else {
+        currentSortBy = null;
+        currentSortOrder = null;
+      }
+    } else {
+      currentSortBy = key;
+      currentSortOrder = "asc";
+    }
+
+    if (tableRoot) updateSortIcons(tableRoot);
+    currentPage = 1;
+    fetchOffices(true);
+    syncSortToURL();
+  });
+
+  if (currentSortBy && tableRoot) {
+    updateSortIcons(tableRoot);
+  }
 </script>
 
 <style is:global>

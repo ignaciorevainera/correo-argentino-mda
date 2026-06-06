@@ -40,6 +40,18 @@ export const STATUS_FILTER_CONFIGS: Record<'monthly' | 'daily', Record<string, F
       inactiveClass: "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200",
       activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
       inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200"
+    },
+    'Guardia Pasiva': {
+      activeClass: "btn btn-xs bg-teal-600 border-0 gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-teal-600/15 text-white transition-all duration-200",
+      inactiveClass: "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-teal-600/10 hover:text-teal-600 hover:border-teal-600/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200",
+      activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
+      inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-teal-600 transition-colors duration-200"
+    },
+    Guardia: {
+      activeClass: "btn btn-xs bg-indigo-600 border-0 gap-1.5 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 h-auto rounded-lg shadow-sm shadow-indigo-600/15 text-white transition-all duration-200",
+      inactiveClass: "btn btn-xs btn-outline gap-1.5 font-black text-[9px] uppercase tracking-wider border-base-300 hover:bg-indigo-600/10 hover:text-indigo-600 hover:border-indigo-600/20 text-base-content/60 px-3 py-1.5 h-auto rounded-lg transition-all duration-200",
+      activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
+      inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-indigo-600 transition-colors duration-200"
     }
   },
   daily: {
@@ -76,6 +88,18 @@ export const STATUS_FILTER_CONFIGS: Record<'monthly' | 'daily', Record<string, F
       inactiveClass: "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-sky-600/10 hover:text-sky-600 hover:border-sky-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200",
       activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
       inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-sky-600 transition-colors duration-200"
+    },
+    'Guardia Pasiva': {
+      activeClass: "btn btn-xs bg-teal-600 border-0 gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-teal-600/15 text-white transition-all duration-200",
+      inactiveClass: "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-teal-600/10 hover:text-teal-600 hover:border-teal-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200",
+      activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
+      inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-teal-600 transition-colors duration-200"
+    },
+    Guardia: {
+      activeClass: "btn btn-xs bg-indigo-600 border-0 gap-1 font-black text-[9px] uppercase tracking-wider px-2.5 h-6 rounded-md shadow-sm shadow-indigo-600/15 text-white transition-all duration-200",
+      inactiveClass: "btn btn-xs btn-outline gap-1 font-black text-[9px] uppercase tracking-wider border-transparent hover:bg-indigo-600/10 hover:text-indigo-600 hover:border-indigo-600/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200",
+      activeDotClass: "w-1.5 h-1.5 rounded-full bg-white transition-colors duration-200",
+      inactiveDotClass: "w-1.5 h-1.5 rounded-full bg-indigo-600 transition-colors duration-200"
     }
   }
 };

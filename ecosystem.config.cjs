@@ -13,7 +13,17 @@ module.exports = {
       script: "node",
       args: "--import tsx scripts/ping-worker.ts",
       autorestart: true,
-      watch: false
-    }
+      watch: false,
+    },
+    {
+      name: "sync-legacy-inventory",
+      script: "node",
+      args: "--import tsx scripts/sync-legacy-inventory.ts",
+      cron_restart: "0 5,17 * * *",
+      autorestart: false,
+      watch: false,
+      error_file: "./logs/sync-error.log",
+      out_file: "./logs/sync-out.log",
+    },
   ],
 };
