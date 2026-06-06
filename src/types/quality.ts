@@ -37,4 +37,5 @@ export interface AuditParameter {
   name: string;
   weight: number;
   category: string;
+  active: boolean;
 }

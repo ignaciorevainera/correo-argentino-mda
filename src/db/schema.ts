@@ -401,6 +401,7 @@ export const auditParameters = sqliteTable("audit_parameters", {
   name: text("name").notNull(),
   weight: real("weight").notNull().default(1.0),
   category: text("category").notNull(), // 'Interacción con Usuario' | 'Gestión del Ticket'
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
 });
 
 export const auditScores = sqliteTable(
