@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { db } from "../src/db/index";
 import { terminals, offices } from "../src/db/schema";
@@ -8,7 +8,7 @@ const LEGACY_URL = "http://b1842zacs0255/mda/terminales_consulta.php";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-const FALLBACK_PATH = resolve("src/data/inventario_terminales.json");
+const STATUS_PATH = resolve("src/data/last-sync-status.json");
 
 const CUBIC_HOSTNAME_PATTERN = /^b\d{4}zacw\d+/i;
 
@@ -155,17 +155,17 @@ async function fetchRemoteRecords(validNisSet: Set<string>): Promise<TerminalRec
   return records;
 }
 
-async function loadFallbackRecords(validNisSet: Set<string>): Promise<TerminalRecord[]> {
-  console.log(`[Sync] Leyendo archivo de contingencia: ${FALLBACK_PATH}`);
-
-  const raw = await readFile(FALLBACK_PATH, "utf-8");
-  const data: unknown = JSON.parse(raw);
-
-  const records = parseJsonPayload(data, validNisSet);
-
-  console.log(`[Sync] Registros válidos del archivo local: ${records.length}`);
-
-  return records;
+async function writeSyncStatus(status: "success" | "error", errorDetail: string | null = null): Promise<void> {
+  const data = {
+    lastExecution: new Date().toISOString(),
+    status,
+    error: errorDetail,
+  };
+  try {
+    await writeFile(STATUS_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[Sync] Error al escribir el archivo de estado de sincronización:", err);
+  }
 }
 
 async function syncLegacyInventory(): Promise<void> {
@@ -183,17 +183,15 @@ async function syncLegacyInventory(): Promise<void> {
   try {
     records = await fetchRemoteRecords(validNisSet);
   } catch (fetchError) {
-    console.warn(
-      "[Sync] Advertencia: Servidor remoto inaccesible. Iniciando modo de contingencia con datos locales.",
-    );
-    console.warn(
-      `[Sync] Detalle: ${fetchError instanceof Error ? fetchError.message : fetchError}`,
-    );
-    records = await loadFallbackRecords(validNisSet);
+    const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+    console.error(`[Sync] Error al obtener registros remotos: ${errorMsg}`);
+    await writeSyncStatus("error", errorMsg);
+    process.exit(1);
   }
 
   if (records.length === 0) {
     console.error("[Sync] No se obtuvieron registros de ninguna fuente.");
+    await writeSyncStatus("error", "No se obtuvieron registros de la API remota.");
     process.exit(1);
   }
 
@@ -209,11 +207,15 @@ async function syncLegacyInventory(): Promise<void> {
   console.log(
     `[Sync] Sincronización finalizada en ${elapsed}s. Procesados: ${processed}`,
   );
+
+  await writeSyncStatus("success");
 }
 
 try {
   await syncLegacyInventory();
 } catch (error) {
-  console.error("[Sync] Error crítico:", error);
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  console.error("[Sync] Error crítico:", errorMsg);
+  await writeSyncStatus("error", errorMsg);
   process.exit(1);
 }

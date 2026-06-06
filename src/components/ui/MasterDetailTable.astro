@@ -1,5 +1,5 @@
 ---
-import { Icon } from "astro-icon/components";
+import SearchEmptyState from "./SearchEmptyState.astro";
 
 interface Props {
   ariaLabel: string;
@@ -7,6 +7,14 @@ interface Props {
   headerGridClass: string;
   class?: string;
   bodyClass?: string;
+  id?: string;
+  // empty state props
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
+  showClearButton?: boolean;
+  clearButtonText?: string;
+  clearButtonId?: string;
+  clearButtonHref?: string;
 }
 
 const {
@@ -15,19 +23,27 @@ const {
   headerGridClass,
   class: className = "",
   bodyClass = "",
+  id,
+  emptyStateTitle,
+  emptyStateDescription,
+  showClearButton = false,
+  clearButtonText,
+  clearButtonId,
+  clearButtonHref,
 } = Astro.props;
 ---
 
 <section
+  id={id}
   class:list={[
-    "overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-md",
+    "relative w-full",
     className,
   ]}
   aria-label={ariaLabel}
   data-master-detail-table-root
   data-master-detail-view="grouped"
 >
-  <div class:list={[minWidthClass]}>
+  <div class:list={["overflow-x-auto rounded-box border border-base-300 bg-base-200/70 shadow-md", minWidthClass]} data-master-detail-table-wrapper>
     <div
       class:list={[
         "grid border-b border-secondary/40 bg-secondary px-4 py-2.5 text-secondary-content shadow-sm uppercase font-mono",
@@ -40,23 +56,18 @@ const {
 
     <div class:list={bodyClass} data-master-detail-table-body>
       <slot />
-
-      <div data-table-empty-state class="hidden flex flex-col items-center gap-3 py-16 text-base-content/50">
-        <div class="rounded-full bg-base-200 p-4">
-          <Icon
-            name="boxicons:search"
-            size={32}
-            class="opacity-30"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="space-y-1 text-center">
-          <p class="text-sm font-semibold">No se encontraron resultados</p>
-          <p class="text-xs">Probá con otros términos de búsqueda.</p>
-        </div>
-      </div>
     </div>
   </div>
+
+  <SearchEmptyState
+    id={id ? `${id}-empty-state` : undefined}
+    title={emptyStateTitle}
+    description={emptyStateDescription}
+    showClearButton={showClearButton}
+    clearButtonText={clearButtonText}
+    clearButtonId={clearButtonId}
+    clearButtonHref={clearButtonHref}
+  />
 </section>
 
 <script>

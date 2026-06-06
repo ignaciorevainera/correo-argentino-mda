@@ -7,6 +7,7 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { db } from "@/db";
 import type { UsefulContactCategory } from "@/types/contactos";
 
@@ -135,28 +136,11 @@ const contactRowGridClass =
       </label>
     </div>
 
-    <section
+    <SearchEmptyState
       id="contacts-empty-state"
-      class="hidden min-h-100 rounded-2xl border-2 border-dashed border-base-300 bg-base-200/30 p-8"
-      role="status"
-      aria-live="polite"
-    >
-      <div
-        class="flex min-h-80 flex-col items-center justify-center text-center"
-      >
-        <div
-          class="mb-4 inline-flex size-14 items-center justify-center rounded-2xl bg-base-300/60 text-base-content/45"
-          aria-hidden="true"
-        >
-          <Icon name="boxicons:search" size={28} />
-        </div>
-        <h2 class="text-lg font-semibold text-base-content">Sin resultados</h2>
-        <p class="mt-2 max-w-md text-sm leading-relaxed text-base-content/65">
-          No hay contactos que coincidan con la búsqueda actual. Probá con otro
-          proveedor, servicio, teléfono, correo o enlace.
-        </p>
-      </div>
-    </section>
+      title="Sin resultados"
+      description="No hay contactos que coincidan con la búsqueda actual. Probá con otro proveedor, servicio, teléfono, correo o enlace."
+    />
 
     <section
       class="flex flex-col gap-5"
@@ -523,6 +507,13 @@ const contactRowGridClass =
       });
 
       emptyState?.classList.toggle("hidden", visibleRows > 0);
+      if (emptyState) {
+        if (visibleRows > 0) {
+          emptyState.classList.remove("flex");
+        } else {
+          emptyState.classList.add("flex");
+        }
+      }
     };
 
     searchInput?.addEventListener("input", updateContactSearch);

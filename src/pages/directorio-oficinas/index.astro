@@ -8,6 +8,7 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { getOffices } from "@lib/officeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
 import {
@@ -316,113 +317,72 @@ const sucursales: any[] = [];
               >
             </select>
           </div>
+          <a
+            href={import.meta.env.BASE_URL + "directorio-oficinas"}
+            class="btn btn-outline btn-error font-semibold gap-2"
+            aria-label="Limpiar todos los filtros"
+            title="Limpiar todos los filtros"
+          >
+            <Icon name="boxicons:trash" class="size-4" />
+            Limpiar Filtros
+          </a>
         </div>
 
         <div class="flex flex-wrap items-center gap-3 w-full">
-          <div class="w-full flex gap-2">
+          <div class="w-full">
             <SearchInput
               id="office-search"
               name="search"
               value={searchFilter}
               label="Buscar oficina por nombre, código, región o código postal"
               placeholder="Buscar por nombre, código, región o CP"
-              class="flex-1"
             />
-            {
-              (typeFilter !== "all" ||
-                regionFilter !== "all" ||
-                provinceFilter !== "all" ||
-                zoneFilter !== "all" ||
-                paqarFilter !== "all" ||
-                searchFilter !== "") && (
-                <a
-                  href="/directorio-oficinas"
-                  class="btn btn-soft text-base-content/70 hover:text-base-content"
-                  aria-label="Limpiar filtros"
-                  title="Limpiar todos los filtros"
-                >
-                  Limpiar
-                </a>
-              )
-            }
           </div>
         </div>
       </form>
 
       <div id="office-table-wrapper">
-        <MasterDetailTable
-          ariaLabel="Directorio de oficinas"
-          minWidthClass="min-w-280"
-          headerGridClass={officeDirectoryHeaderGridClass}
-          class="bg-base-100"
-        >
-          <div slot="header">
-            <DataTableHeaderCell>
-              <span class="sr-only">Expandir detalle</span>
-            </DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="parent-nis"
-              >Dependencia</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="address"
-              >Dirección</DataTableHeaderCell
-            >
-          </div>
-          {officeDirectoryItems.map((office) => <OfficeRow office={office} />)}
-        </MasterDetailTable>
-
-        <div
-          id="no-results-state"
-          class:list={[
-            "py-24 flex flex-col items-center justify-center text-center px-4 animate-in fade-in duration-500",
-            officeDirectoryItems.length > 0 && "hidden",
-          ]}
-        >
-          <div class="relative size-24 mb-8 group">
-            <div
-              class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors"
-            >
-            </div>
-            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md">
-            </div>
-            <div
-              class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105"
-            >
-              <Icon
-                name="boxicons:map-filled"
-                class="size-10 text-base-content/40"
-              />
-            </div>
-          </div>
-          <h3
-            class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight"
+        <div id="office-table-container" class:list={[officeDirectoryItems.length === 0 && "hidden"]}>
+          <MasterDetailTable
+            ariaLabel="Directorio de oficinas"
+            minWidthClass="min-w-280"
+            headerGridClass={officeDirectoryHeaderGridClass}
+            class="bg-base-100"
           >
-            No hay coincidencias
-          </h3>
-          <p
-            class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm"
-          >
-            No hemos podido encontrar oficinas que coincidan con los filtros
-            seleccionados. Probá modificando los criterios o restableciendo la
-            búsqueda para explorar el directorio completo.
-          </p>
-          <a
-            href={import.meta.env.BASE_URL + "directorio-oficinas"}
-            class="btn btn-primary rounded-full px-8 shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-transform duration-300"
-          >
-            <Icon name="boxicons:refresh-ccw-filled" class="size-5 mr-1.5" />
-            Restablecer filtros
-          </a>
+            <div slot="header">
+              <DataTableHeaderCell>
+                <span class="sr-only">Expandir detalle</span>
+              </DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell sortKey="parent-nis"
+                >Dependencia</DataTableHeaderCell
+              >
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell sortKey="address"
+                >Dirección</DataTableHeaderCell
+              >
+            </div>
+            {officeDirectoryItems.map((office) => <OfficeRow office={office} />)}
+          </MasterDetailTable>
         </div>
+
+        <SearchEmptyState
+          id="no-results-state"
+          class={officeDirectoryItems.length > 0 ? "hidden" : "flex"}
+          title="No hay coincidencias"
+          description="No hemos podido encontrar oficinas que coincidan con los filtros seleccionados. Probá modificando los criterios o restableciendo la búsqueda para explorar el directorio completo."
+          showClearButton={true}
+          clearButtonHref={import.meta.env.BASE_URL + "directorio-oficinas"}
+          clearButtonText="Restablecer filtros"
+        />
 
         <div
           id="scroll-sentinel"
@@ -669,11 +629,16 @@ const sucursales: any[] = [];
         }
       }
 
-      if (noResultsState) {
+      const tableContainer = document.getElementById("office-table-container");
+      if (noResultsState && tableContainer) {
         if (totalCount === 0) {
           noResultsState.classList.remove("hidden");
+          noResultsState.classList.add("flex");
+          tableContainer.classList.add("hidden");
         } else {
           noResultsState.classList.add("hidden");
+          noResultsState.classList.remove("flex");
+          tableContainer.classList.remove("hidden");
         }
       }
 

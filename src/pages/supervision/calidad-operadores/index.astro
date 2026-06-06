@@ -5,19 +5,25 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { db } from "@db/index";
-import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
+import {
+  agents,
+  qualityAudits,
+  auditParameters,
+  auditScores,
+  monthlySummaries,
+} from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
 
 const selectedMonth = Astro.url.searchParams.get("month") || "05-2026";
 
 // Generate the last 6 months based on the selected month
 const getDynamicMonths = (baseMonthStr: string) => {
-  const [mm, yyyy] = baseMonthStr.split('-');
+  const [mm, yyyy] = baseMonthStr.split("-");
   let m = parseInt(mm, 10);
   let y = parseInt(yyyy, 10);
   const res = [];
   for (let i = 0; i < 6; i++) {
-    res.push(`${m.toString().padStart(2, '0')}-${y}`);
+    res.push(`${m.toString().padStart(2, "0")}-${y}`);
     m--;
     if (m === 0) {
       m = 12;
@@ -30,9 +36,18 @@ const getDynamicMonths = (baseMonthStr: string) => {
 const dynamicMonthsList = getDynamicMonths(selectedMonth);
 
 const monthLabels: Record<string, string> = {
-  "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-  "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-  "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre",
+  "01": "Enero",
+  "02": "Febrero",
+  "03": "Marzo",
+  "04": "Abril",
+  "05": "Mayo",
+  "06": "Junio",
+  "07": "Julio",
+  "08": "Agosto",
+  "09": "Septiembre",
+  "10": "Octubre",
+  "11": "Noviembre",
+  "12": "Diciembre",
 };
 
 const formatMonthLabel = (monthStr: string) => {
@@ -42,7 +57,7 @@ const formatMonthLabel = (monthStr: string) => {
 
 const currentActualMonth = (() => {
   const now = new Date();
-  const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+  const mm = (now.getMonth() + 1).toString().padStart(2, "0");
   const yyyy = now.getFullYear();
   return `${mm}-${yyyy}`;
 })();
@@ -65,18 +80,25 @@ const allAgents = await db.select().from(agents).orderBy(agents.name);
 const allParameters = await db.select().from(auditParameters);
 
 // Fetch audits filtered by dynamic months
-const allAudits = await db.select().from(qualityAudits)
+const allAudits = await db
+  .select()
+  .from(qualityAudits)
   .where(inArray(qualityAudits.month, dynamicMonthsList));
 
 // Fetch scores only for loaded audits
-const auditIds = allAudits.map(a => a.id);
-const allScores = auditIds.length > 0
-  ? await db.select().from(auditScores)
-      .where(inArray(auditScores.auditId, auditIds))
-  : [];
+const auditIds = allAudits.map((a) => a.id);
+const allScores =
+  auditIds.length > 0
+    ? await db
+        .select()
+        .from(auditScores)
+        .where(inArray(auditScores.auditId, auditIds))
+    : [];
 
 // Fetch monthly summaries only for selected month
-const allMonthlySummaries = await db.select().from(monthlySummaries)
+const allMonthlySummaries = await db
+  .select()
+  .from(monthlySummaries)
   .where(eq(monthlySummaries.month, selectedMonth));
 
 // Pre-indexar auditorías por agentId
@@ -98,28 +120,40 @@ for (const score of allScores) {
 }
 
 // Pre-indexar summaries por agentId
-const summariesByAgent = new Map<number, typeof allMonthlySummaries[0]>();
+const summariesByAgent = new Map<number, (typeof allMonthlySummaries)[0]>();
 for (const s of allMonthlySummaries) {
   summariesByAgent.set(s.agentId, s);
 }
 
 const operatorsQuality = allAgents.map((agent) => {
   const agentAudits = auditsByAgent.get(agent.id) || [];
-  const currentMonthAudits = agentAudits.filter((a) => a.month === selectedMonth);
-  
+  const currentMonthAudits = agentAudits.filter(
+    (a) => a.month === selectedMonth,
+  );
+
   const monthSummaryRec = summariesByAgent.get(agent.id);
   const monthSummary = monthSummaryRec ? monthSummaryRec.summary : "";
-  
-  const averageScore = currentMonthAudits.length > 0 
-    ? Math.round(currentMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) / currentMonthAudits.length)
-    : 0;
 
-  const history = dynamicMonthsList.slice().reverse().map((m) => {
-    const monthAudits = agentAudits.filter((a) => a.month === m);
-    return monthAudits.length > 0
-      ? Math.round(monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) / monthAudits.length)
+  const averageScore =
+    currentMonthAudits.length > 0
+      ? Math.round(
+          currentMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+            currentMonthAudits.length,
+        )
       : 0;
-  });
+
+  const history = dynamicMonthsList
+    .slice()
+    .reverse()
+    .map((m) => {
+      const monthAudits = agentAudits.filter((a) => a.month === m);
+      return monthAudits.length > 0
+        ? Math.round(
+            monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+              monthAudits.length,
+          )
+        : 0;
+    });
 
   const calls = currentMonthAudits.map((audit) => {
     const auditScoresList = scoresByAudit.get(audit.id) || [];
@@ -173,15 +207,19 @@ const operatorsQuality = allAgents.map((agent) => {
 });
 
 const operatorsDataMap = Object.fromEntries(
-  operatorsQuality.map(op => [op.id, op])
+  operatorsQuality.map((op) => [op.id, op]),
 );
 
 const auditedOperators = operatorsQuality.filter((op) => op.calls.length > 0);
 const totalOperators = operatorsQuality.length;
 
-const avgScore = auditedOperators.length > 0
-  ? Math.round(auditedOperators.reduce((acc, op) => acc + op.averageScore, 0) / auditedOperators.length)
-  : 0;
+const avgScore =
+  auditedOperators.length > 0
+    ? Math.round(
+        auditedOperators.reduce((acc, op) => acc + op.averageScore, 0) /
+          auditedOperators.length,
+      )
+    : 0;
 
 const excellentOperators = auditedOperators.filter(
   (op) => op.averageScore >= 90,
@@ -194,23 +232,42 @@ const needsImprovement = auditedOperators.filter(
 const allCalls = operatorsQuality.flatMap((op) => op.calls);
 const totalCalls = allCalls.length;
 
-const avgSection1 = totalCalls > 0
-  ? Math.round(allCalls.reduce((acc, c) => acc + c.section1.score, 0) / totalCalls)
-  : 0;
+const avgSection1 =
+  totalCalls > 0
+    ? Math.round(
+        allCalls.reduce((acc, c) => acc + c.section1.score, 0) / totalCalls,
+      )
+    : 0;
 
-const avgSection2 = totalCalls > 0
-  ? Math.round(allCalls.reduce((acc, c) => acc + c.section2.score, 0) / totalCalls)
-  : 0;
+const avgSection2 =
+  totalCalls > 0
+    ? Math.round(
+        allCalls.reduce((acc, c) => acc + c.section2.score, 0) / totalCalls,
+      )
+    : 0;
 
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
+const cleanBase = base.endsWith("/") ? base : base + "/";
 ---
 
 <BaseLayout>
-  <div id="audit-parameters-data" data-parameters={JSON.stringify(allParameters)} class="hidden"></div>
-  <div id="operators-data" data-operators={JSON.stringify(operatorsDataMap)} class="hidden"></div>
+  <div
+    id="audit-parameters-data"
+    data-parameters={JSON.stringify(allParameters)}
+    class="hidden"
+  >
+  </div>
+  <div
+    id="operators-data"
+    data-operators={JSON.stringify(operatorsDataMap)}
+    class="hidden"
+  >
+  </div>
   <PageContainer class="max-w-7xl mx-auto">
-    <a href={`${cleanBase}supervision`} class="btn btn-ghost btn-sm mb-2 w-fit pl-2">
+    <a
+      href={`${cleanBase}supervision`}
+      class="btn btn-ghost btn-sm mb-2 w-fit pl-2"
+    >
       <Icon name="boxicons:chevron-left" size={24} />
       Volver a Supervisión
     </a>
@@ -228,18 +285,24 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         <span class="font-semibold">Período de evaluación:</span>
       </div>
       <div class="flex items-center gap-2">
-        <button id="btn-prev-month" class="btn btn-sm btn-square btn-ghost" title="Mes anterior">
+        <button
+          id="btn-prev-month"
+          class="btn btn-sm btn-square btn-ghost"
+          title="Mes anterior"
+        >
           <Icon name="boxicons:chevron-left" size={24} />
         </button>
         <select
           id="month-selector"
           class="select select-bordered select-sm w-full sm:w-48 bg-base-100 font-bold text-center"
         >
-          {selectorMonthsList.map((m) => (
-            <option value={m} selected={selectedMonth === m}>
-              {formatMonthLabel(m)}
-            </option>
-          ))}
+          {
+            selectorMonthsList.map((m) => (
+              <option value={m} selected={selectedMonth === m}>
+                {formatMonthLabel(m)}
+              </option>
+            ))
+          }
         </select>
         <button
           id="btn-next-month"
@@ -307,7 +370,15 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
                   class="operator-item group w-full text-left p-4 mb-2 rounded-xl bg-base-100 border border-base-200 border-l-4 border-l-transparent hover:border-l-secondary transition-all flex items-center justify-between"
                   data-name={op.name.toLowerCase()}
                   data-id={op.id.toLowerCase()}
-                  data-operator={JSON.stringify({ id: op.id, name: op.name, averageScore: op.averageScore, callsCount: op.calls.length, hasCriticalFailure: op.calls.some(c => c.isCriticalFailure) })}
+                  data-operator={JSON.stringify({
+                    id: op.id,
+                    name: op.name,
+                    averageScore: op.averageScore,
+                    callsCount: op.calls.length,
+                    hasCriticalFailure: op.calls.some(
+                      (c) => c.isCriticalFailure,
+                    ),
+                  })}
                 >
                   <div class="flex items-center gap-4">
                     <div class="relative">
@@ -680,13 +751,14 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
             <!-- Áreas de Mejora -->
             <div
-              class="bg-base-100 rounded-2xl border border-warning/30 p-6 shadow-md bg-warning/5"
+              class="bg-base-100 rounded-2xl border border-warning/30 p-6 shadow-md"
             >
               <h4
                 class="font-bold uppercase tracking-wider text-xs text-warning-content/70 flex items-center gap-2 mb-4"
               >
                 <Icon
                   name="boxicons:alert-octagon"
+                  z-200
                   size={24}
                   class="text-warning"
                 />
@@ -702,20 +774,34 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           </div>
 
           <!-- Observaciones del Mes -->
-          <div class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md mt-6">
+          <div
+            class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md mt-6"
+          >
             <div class="flex justify-between items-center mb-4">
-              <h4 class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2">
+              <h4
+                class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+              >
                 <Icon name="boxicons:note" size={18} />
                 Observaciones del Mes
               </h4>
-              <button id="btn-edit-month-summary" class="btn btn-sm btn-ghost btn-square" title="Editar observaciones">
+              <button
+                id="btn-edit-month-summary"
+                class="btn btn-sm btn-ghost btn-square"
+                title="Editar observaciones"
+              >
                 <Icon name="boxicons:edit-alt" size={18} />
               </button>
             </div>
-            <p id="detail-month-summary" class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden">
+            <p
+              id="detail-month-summary"
+              class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
+            >
               <!-- dynamic summary -->
             </p>
-            <p id="detail-month-summary-empty" class="text-sm font-medium text-base-content/40 italic">
+            <p
+              id="detail-month-summary-empty"
+              class="text-sm font-medium text-base-content/40 italic"
+            >
               No hay observaciones para este mes.
             </p>
           </div>
@@ -762,7 +848,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       <Icon name="boxicons:task" class="text-primary" size={22} />
       Nueva Auditoría de Calidad
     </h3>
-    
+
     <form id="audit-form" method="POST" class="space-y-4">
       <input type="hidden" name="id" id="form-audit-id" />
       <input type="hidden" name="agentId" id="form-agent-id" />
@@ -771,53 +857,65 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div class="form-control">
           <label class="label">
-            <span class="label-text font-bold text-xs uppercase text-base-content/60">ID Llamada</span>
+            <span
+              class="label-text font-bold text-xs uppercase text-base-content/60"
+              >ID Llamada</span
+            >
           </label>
-          <input 
-            type="text" 
-            name="callId" 
-            id="form-call-id" 
-            required 
+          <input
+            type="text"
+            name="callId"
+            id="form-call-id"
+            required
             placeholder="CALL-XXXXXX"
-            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100" 
+            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100"
           />
         </div>
         <div class="form-control">
           <label class="label">
-            <span class="label-text font-bold text-xs uppercase text-base-content/60">ID Ticket</span>
+            <span
+              class="label-text font-bold text-xs uppercase text-base-content/60"
+              >ID Ticket</span
+            >
           </label>
-          <input 
-            type="text" 
-            name="ticketId" 
-            id="form-ticket-id" 
-            required 
+          <input
+            type="text"
+            name="ticketId"
+            id="form-ticket-id"
+            required
             placeholder="INC-XXXXXXX"
-            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100" 
+            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100"
           />
         </div>
         <div class="form-control">
           <label class="label">
-            <span class="label-text font-bold text-xs uppercase text-base-content/60">Duración</span>
+            <span
+              class="label-text font-bold text-xs uppercase text-base-content/60"
+              >Duración</span
+            >
           </label>
-          <input 
-            type="text" 
-            name="duration" 
-            id="form-duration" 
-            required 
+          <input
+            type="text"
+            name="duration"
+            id="form-duration"
+            required
             placeholder="05:30"
-            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100" 
+            class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100"
           />
         </div>
         <div class="form-control">
           <label class="label">
-            <span class="label-text font-bold text-xs uppercase text-base-content/60">Fecha</span>
+            <span
+              class="label-text font-bold text-xs uppercase text-base-content/60"
+              >Fecha</span
+            >
           </label>
-          <input 
-            type="date" 
-            name="date" 
-            id="form-date" 
-            required 
-            class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-primary bg-base-100" 
+          <input
+            type="date"
+            name="date"
+            id="form-date"
+            required
+            class="input input-bordered input-sm font-bold w-full focus:outline-none focus:border-primary bg-base-100"
           />
         </div>
       </div>
@@ -825,23 +923,41 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       <div class="divider my-2"></div>
 
       <!-- Realtime Score Preview -->
-      <div class="bg-base-200/50 p-4 rounded-2xl border border-base-300 flex justify-between items-center">
+      <div
+        class="bg-base-200/50 p-4 rounded-2xl border border-base-300 flex justify-between items-center"
+      >
         <div>
-          <span class="font-bold text-sm text-base-content/70">Score Estimado:</span>
-          <p class="text-xs text-base-content/50">Se calcula en base a los criterios cumplidos.</p>
+          <span class="font-bold text-sm text-base-content/70"
+            >Score Estimado:</span
+          >
+          <p class="text-xs text-base-content/50">
+            Se calcula en base a los criterios cumplidos.
+          </p>
         </div>
         <div class="flex items-center gap-4 flex-wrap">
           <div class="text-center border-r border-base-300 pr-4">
-            <div class="text-xs font-bold text-base-content/40 uppercase">Sección 1</div>
-            <div id="preview-s1" class="font-black text-lg text-secondary">0%</div>
+            <div class="text-xs font-bold text-base-content/40 uppercase">
+              Sección 1
+            </div>
+            <div id="preview-s1" class="font-black text-lg text-secondary">
+              0%
+            </div>
           </div>
           <div class="text-center border-r border-base-300 pr-4">
-            <div class="text-xs font-bold text-base-content/40 uppercase">Sección 2</div>
-            <div id="preview-s2" class="font-black text-lg text-secondary">0%</div>
+            <div class="text-xs font-bold text-base-content/40 uppercase">
+              Sección 2
+            </div>
+            <div id="preview-s2" class="font-black text-lg text-secondary">
+              0%
+            </div>
           </div>
           <div class="text-center">
-            <div class="text-xs font-bold text-base-content/40 uppercase">Total</div>
-            <div id="preview-total" class="font-black text-2xl text-error">0%</div>
+            <div class="text-xs font-bold text-base-content/40 uppercase">
+              Total
+            </div>
+            <div id="preview-total" class="font-black text-2xl text-error">
+              0%
+            </div>
           </div>
         </div>
       </div>
@@ -849,9 +965,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <!-- Section 1 Checklist -->
         <div class="bg-base-200/20 p-4 rounded-2xl border border-base-300/50">
-          <h4 class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between">
+          <h4
+            class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between"
+          >
             <span>1. Interacción con Usuario</span>
-            <span class="text-xs text-base-content/50 font-normal">Máx: 100</span>
+            <span class="text-xs text-base-content/50 font-normal"
+              >Máx: 100</span
+            >
           </h4>
           <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
             {allParameters
@@ -875,9 +995,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
         <!-- Section 2 Checklist -->
         <div class="bg-base-200/20 p-4 rounded-2xl border border-base-300/50">
-          <h4 class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between">
+          <h4
+            class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between"
+          >
             <span>2. Gestión del Ticket</span>
-            <span class="text-xs text-base-content/50 font-normal">Máx: 100</span>
+            <span class="text-xs text-base-content/50 font-normal"
+              >Máx: 100</span
+            >
           </h4>
           <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
             {allParameters
@@ -902,49 +1026,61 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
       <!-- Additional Fields: Notes, Month Summary, Critical Failure -->
       <div class="divider my-2"></div>
-      
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
         <div class="form-control sm:col-span-2">
-          <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg w-fit">
-            <input type="checkbox" name="isCriticalFailure" id="form-is-critical-failure" class="checkbox checkbox-error checkbox-sm" />
-            <span class="label-text text-sm font-bold text-error uppercase">Falla Crítica de Proceso</span>
+          <label
+            class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg w-fit"
+          >
+            <input
+              type="checkbox"
+              name="isCriticalFailure"
+              id="form-is-critical-failure"
+              class="checkbox checkbox-error checkbox-sm"
+            />
+            <span class="label-text text-sm font-bold text-error uppercase"
+              >Falla Crítica de Proceso</span
+            >
           </label>
         </div>
-        
+
         <div class="form-control sm:col-span-2">
           <label class="label">
-            <span class="label-text font-bold text-xs uppercase text-base-content/60">Notas / Observaciones</span>
+            <span
+              class="label-text font-bold text-xs uppercase text-base-content/60"
+              >Notas / Observaciones</span
+            >
           </label>
-          <textarea 
-            name="notes" 
-            id="form-notes" 
-            rows="3" 
+          <textarea
+            name="notes"
+            id="form-notes"
+            rows="3"
             placeholder="Observaciones de esta llamada..."
             class="textarea textarea-bordered textarea-sm w-full focus:outline-none focus:border-primary bg-base-100 font-bold"
           ></textarea>
         </div>
       </div>
-      
+
       <div class="modal-action mt-6 flex justify-between">
         <div>
-          <button 
-            type="button" 
-            id="btn-delete-audit" 
+          <button
+            type="button"
+            id="btn-delete-audit"
             class="btn btn-sm btn-error btn-outline hidden uppercase text-xs font-black"
           >
             Eliminar
           </button>
         </div>
         <div class="flex gap-2">
-          <button 
-            type="button" 
-            id="btn-close-modal" 
+          <button
+            type="button"
+            id="btn-close-modal"
             class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
           >
             Cancelar
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="btn btn-sm btn-secondary text-xs font-black uppercase"
           >
             Guardar
@@ -959,40 +1095,55 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 </dialog>
 
 <!-- Dialog Modal for Month Summary -->
-<dialog id="month-summary-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-lg bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+<dialog
+  id="month-summary-modal"
+  class="modal modal-bottom sm:modal-middle z-200"
+>
+  <div
+    class="modal-box max-w-lg bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6"
+  >
+    <h3
+      class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2"
+    >
       <Icon name="boxicons:note" class="text-primary" size={22} />
       Observaciones del Mes
     </h3>
-    
+
     <form id="month-summary-form" method="POST" class="space-y-4">
       <input type="hidden" name="agentId" id="summary-agent-id" />
-      <input type="hidden" name="month" id="summary-month" value={selectedMonth} />
+      <input
+        type="hidden"
+        name="month"
+        id="summary-month"
+        value={selectedMonth}
+      />
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Resumen general</span>
+          <span
+            class="label-text font-bold text-xs uppercase text-base-content/60"
+            >Resumen general</span
+          >
         </label>
-        <textarea 
-          name="summary" 
-          id="summary-content" 
-          rows="5" 
+        <textarea
+          name="summary"
+          id="summary-content"
+          rows="5"
           placeholder="Escriba aquí las observaciones del mes..."
           class="textarea textarea-bordered textarea-sm w-full focus:outline-none focus:border-primary bg-base-100 font-bold"
         ></textarea>
       </div>
-      
+
       <div class="modal-action mt-6 flex justify-end gap-2">
-        <button 
-          type="button" 
-          id="btn-close-summary-modal" 
+        <button
+          type="button"
+          id="btn-close-summary-modal"
           class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
         >
           Cancelar
         </button>
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           class="btn btn-sm btn-secondary text-xs font-black uppercase"
         >
           Guardar
@@ -1127,7 +1278,11 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 <script>
   import { actions } from "astro:actions";
   import { calculateAuditScores } from "@/lib/qualityCalculator";
-  import type { QualityCall, OperatorQuality, AuditParameter } from "@/types/quality";
+  import type {
+    QualityCall,
+    OperatorQuality,
+    AuditParameter,
+  } from "@/types/quality";
 
   const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"></path></svg>`;
   const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m16.192 6.344-4.243 4.242-4.242-4.242-1.414 1.414L10.535 12l-4.242 4.242 1.414 1.414 4.242-4.242 4.243 4.242 1.414-1.414L13.364 12l4.242-4.242z"></path></svg>`;
@@ -1143,9 +1298,18 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
   const formatMonthLabel = (monthStr: string): string => {
     const labels: Record<string, string> = {
-      "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-      "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-      "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre",
+      "01": "Enero",
+      "02": "Febrero",
+      "03": "Marzo",
+      "04": "Abril",
+      "05": "Mayo",
+      "06": "Junio",
+      "07": "Julio",
+      "08": "Agosto",
+      "09": "Septiembre",
+      "10": "Octubre",
+      "11": "Noviembre",
+      "12": "Diciembre",
     };
     const [mm, yyyy] = monthStr.split("-");
     return `${labels[mm] || mm} ${yyyy}`;
@@ -1197,9 +1361,10 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     const s1Params = params.filter((p) => p.category === "Interacción con Usuario" && call.section1.details.hasOwnProperty(p.code));
     const s2Params = params.filter((p) => p.category === "Gestión del Ticket" && call.section2.details.hasOwnProperty(p.code));
 
-    const s1ListHTML = s1Params.map((param) => {
-      const isChecked = call.section1.details[param.code] || false;
-      return `
+    const s1ListHTML = s1Params
+      .map((param) => {
+        const isChecked = call.section1.details[param.code] || false;
+        return `
         <li class="flex items-center justify-between group/item">
           <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">
             ${escapeHtml(param.name)}
@@ -1208,11 +1373,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           <span class="leading-none ${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
         </li>
       `;
-    }).join("");
+      })
+      .join("");
 
-    const s2ListHTML = s2Params.map((param) => {
-      const isChecked = call.section2.details[param.code] || false;
-      return `
+    const s2ListHTML = s2Params
+      .map((param) => {
+        const isChecked = call.section2.details[param.code] || false;
+        return `
         <li class="flex items-center justify-between group/item">
           <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">
             ${escapeHtml(param.name)}
@@ -1221,9 +1388,10 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           <span class="leading-none ${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
         </li>
       `;
-    }).join("");
+      })
+      .join("");
 
-    const criticalFailureBadge = call.isCriticalFailure 
+    const criticalFailureBadge = call.isCriticalFailure
       ? `
         <div class="col-span-full bg-error/10 border border-error/20 rounded-2xl p-4 flex items-center gap-3 text-error mt-2">
           <svg class="size-6 text-error shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>
@@ -1259,7 +1427,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-mono text-lg font-black tracking-tight text-base-content">${escapeHtml(call.callId)}</span>
-                ${call.isCriticalFailure ? '<span class="badge badge-error badge-sm font-bold uppercase tracking-wider text-[10px] px-2 py-1.5 shadow-sm">Falla Crítica</span>' : ''}
+                ${call.isCriticalFailure ? '<span class="badge badge-error badge-sm font-bold uppercase tracking-wider text-[10px] px-2 py-1.5 shadow-sm">Falla Crítica</span>' : ""}
               </div>
               <div class="text-xs font-medium text-base-content/50 mt-1 uppercase tracking-widest">Ticket: <span class="font-mono text-base-content/70">${escapeHtml(call.ticketId)}</span></div>
             </div>
@@ -1326,7 +1494,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           <div class="col-span-full p-6 pl-8 border-t border-base-200 bg-base-200/40">
             ${criticalFailureBadge}
             ${notesSection}
-            ${(!call.isCriticalFailure && !call.notes) ? '<p class="text-xs text-base-content/40 italic">Sin observaciones o notas registradas.</p>' : ''}
+            ${!call.isCriticalFailure && !call.notes ? '<p class="text-xs text-base-content/40 italic">Sin observaciones o notas registradas.</p>' : ""}
           </div>
 
         </div>
@@ -1344,43 +1512,84 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     const dMonth = document.getElementById("detail-month");
     const dScore = document.getElementById("detail-score");
     const dMonthSummary = document.getElementById("detail-month-summary");
-    const dMonthSummaryEmpty = document.getElementById("detail-month-summary-empty");
+    const dMonthSummaryEmpty = document.getElementById(
+      "detail-month-summary-empty",
+    );
     const callsContainer = document.getElementById("detail-calls-container");
     const btnBack = document.getElementById("btn-back-to-summary");
 
     // Modal elements
-    const auditModal = document.getElementById("audit-modal") as HTMLDialogElement;
+    const auditModal = document.getElementById(
+      "audit-modal",
+    ) as HTMLDialogElement;
     const auditForm = document.getElementById("audit-form") as HTMLFormElement;
     const modalTitle = document.getElementById("modal-title");
-    const formAuditId = document.getElementById("form-audit-id") as HTMLInputElement;
-    const formAgentId = document.getElementById("form-agent-id") as HTMLInputElement;
-    const formCallId = document.getElementById("form-call-id") as HTMLInputElement;
-    const formTicketId = document.getElementById("form-ticket-id") as HTMLInputElement;
-    const formDuration = document.getElementById("form-duration") as HTMLInputElement;
+    const formAuditId = document.getElementById(
+      "form-audit-id",
+    ) as HTMLInputElement;
+    const formAgentId = document.getElementById(
+      "form-agent-id",
+    ) as HTMLInputElement;
+    const formCallId = document.getElementById(
+      "form-call-id",
+    ) as HTMLInputElement;
+    const formTicketId = document.getElementById(
+      "form-ticket-id",
+    ) as HTMLInputElement;
+    const formDuration = document.getElementById(
+      "form-duration",
+    ) as HTMLInputElement;
     const formDate = document.getElementById("form-date") as HTMLInputElement;
-    const btnDeleteAudit = document.getElementById("btn-delete-audit") as HTMLButtonElement;
-    const btnCloseModal = document.getElementById("btn-close-modal") as HTMLButtonElement;
-    
+    const btnDeleteAudit = document.getElementById(
+      "btn-delete-audit",
+    ) as HTMLButtonElement;
+    const btnCloseModal = document.getElementById(
+      "btn-close-modal",
+    ) as HTMLButtonElement;
+
     // Additional field elements
-    const formNotes = document.getElementById("form-notes") as HTMLTextAreaElement;
-    const formIsCriticalFailure = document.getElementById("form-is-critical-failure") as HTMLInputElement;
-    
+    const formNotes = document.getElementById(
+      "form-notes",
+    ) as HTMLTextAreaElement;
+    const formIsCriticalFailure = document.getElementById(
+      "form-is-critical-failure",
+    ) as HTMLInputElement;
+
     // Month Summary Modal elements
-    const summaryModal = document.getElementById("month-summary-modal") as HTMLDialogElement;
-    const summaryForm = document.getElementById("month-summary-form") as HTMLFormElement;
-    const summaryAgentId = document.getElementById("summary-agent-id") as HTMLInputElement;
-    const summaryContent = document.getElementById("summary-content") as HTMLTextAreaElement;
-    const btnCloseSummaryModal = document.getElementById("btn-close-summary-modal") as HTMLButtonElement;
-    const btnEditMonthSummary = document.getElementById("btn-edit-month-summary") as HTMLButtonElement;
+    const summaryModal = document.getElementById(
+      "month-summary-modal",
+    ) as HTMLDialogElement;
+    const summaryForm = document.getElementById(
+      "month-summary-form",
+    ) as HTMLFormElement;
+    const summaryAgentId = document.getElementById(
+      "summary-agent-id",
+    ) as HTMLInputElement;
+    const summaryContent = document.getElementById(
+      "summary-content",
+    ) as HTMLTextAreaElement;
+    const btnCloseSummaryModal = document.getElementById(
+      "btn-close-summary-modal",
+    ) as HTMLButtonElement;
+    const btnEditMonthSummary = document.getElementById(
+      "btn-edit-month-summary",
+    ) as HTMLButtonElement;
 
     let activeAgentId = "";
     let activeAgentSummary = "";
 
     function clearFormErrors(form: HTMLFormElement) {
-      form.querySelectorAll(".input, .textarea, .checkbox, .select").forEach(el => {
-        el.classList.remove("input-error", "textarea-error", "checkbox-error", "select-error");
-      });
-      form.querySelectorAll(".field-error-msg").forEach(el => el.remove());
+      form
+        .querySelectorAll(".input, .textarea, .checkbox, .select")
+        .forEach((el) => {
+          el.classList.remove(
+            "input-error",
+            "textarea-error",
+            "checkbox-error",
+            "select-error",
+          );
+        });
+      form.querySelectorAll(".field-error-msg").forEach((el) => el.remove());
     }
 
     interface FormValidationError {
@@ -1391,7 +1600,10 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       message?: string;
     }
 
-    function showFormErrors(form: HTMLFormElement, error: FormValidationError | null | undefined) {
+    function showFormErrors(
+      form: HTMLFormElement,
+      error: FormValidationError | null | undefined,
+    ) {
       clearFormErrors(form);
       if (!error) return;
 
@@ -1402,7 +1614,9 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         const fieldName = issue.path[0];
         if (!fieldName) return;
 
-        const input = form.querySelector(`[name="${fieldName}"]`) as HTMLElement;
+        const input = form.querySelector(
+          `[name="${fieldName}"]`,
+        ) as HTMLElement;
         if (input) {
           if (input.classList.contains("textarea")) {
             input.classList.add("textarea-error");
@@ -1417,7 +1631,8 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           const errContainer = input.closest(".form-control");
           if (errContainer) {
             const errMsg = document.createElement("span");
-            errMsg.className = "text-error text-xs font-bold mt-1 field-error-msg";
+            errMsg.className =
+              "text-error text-xs font-bold mt-1 field-error-msg";
             errMsg.textContent = issue.message;
             errContainer.appendChild(errMsg);
           }
@@ -1437,10 +1652,12 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
     // helper to calculate and update scores in modal using weights
     const updateModalScorePreview = () => {
-      const checkboxes = auditForm.querySelectorAll(".audit-checkbox") as NodeListOf<HTMLInputElement>;
+      const checkboxes = auditForm.querySelectorAll(
+        ".audit-checkbox",
+      ) as NodeListOf<HTMLInputElement>;
       const checkedIdsOrCodes = new Set<number | string>();
-      
-      checkboxes.forEach(cb => {
+
+      checkboxes.forEach((cb) => {
         if (cb.checked) {
           const paramIdStr = cb.getAttribute("data-param-id");
           if (paramIdStr) {
@@ -1448,25 +1665,32 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           }
         }
       });
-      
+
       const params = getAuditParameters();
-      const isCriticalFailure = formIsCriticalFailure ? formIsCriticalFailure.checked : false;
-      
+      const isCriticalFailure = formIsCriticalFailure
+        ? formIsCriticalFailure.checked
+        : false;
+
       const { section1Score, section2Score, totalScore } = calculateAuditScores(
         params,
         checkedIdsOrCodes,
-        isCriticalFailure
+        isCriticalFailure,
       );
-      
+
       const p1 = document.getElementById("preview-s1");
       const p2 = document.getElementById("preview-s2");
       const pt = document.getElementById("preview-total");
-      
+
       if (p1) p1.textContent = `${section1Score}%`;
       if (p2) p2.textContent = `${section2Score}%`;
       if (pt) {
         pt.textContent = `${totalScore}%`;
-        pt.classList.remove("text-secondary", "text-success", "text-warning", "text-error");
+        pt.classList.remove(
+          "text-secondary",
+          "text-success",
+          "text-warning",
+          "text-error",
+        );
         if (totalScore >= 90) {
           pt.classList.add("text-success");
         } else if (totalScore >= 70) {
@@ -1478,7 +1702,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     };
 
     // add checkbox event listeners
-    auditForm.querySelectorAll(".audit-checkbox").forEach(cb => {
+    auditForm.querySelectorAll(".audit-checkbox").forEach((cb) => {
       cb.addEventListener("change", updateModalScorePreview);
     });
     if (formIsCriticalFailure) {
@@ -1486,7 +1710,10 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     }
 
     // open modal for editing
-    const openAuditModal = (agentId: string, callData: QualityCall | null = null) => {
+    const openAuditModal = (
+      agentId: string,
+      callData: QualityCall | null = null,
+    ) => {
       activeAgentId = agentId;
       auditForm.reset();
       clearFormErrors(auditForm);
@@ -1523,49 +1750,53 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         formCallId.value = callData.callId;
         formTicketId.value = callData.ticketId;
         formDuration.value = callData.duration;
-        
+
         // Extract YYYY-MM-DD from ISO date
         formDate.value = callData.date.substring(0, 10);
-        
+
         // Fill additional fields
         formNotes.value = callData.notes || "";
         formIsCriticalFailure.checked = !!callData.isCriticalFailure;
-        
+
         // Check checkboxes
         const s1Details = callData.section1.details;
         const s2Details = callData.section2.details;
-        
+
         Object.entries(s1Details).forEach(([key, val]) => {
-          const cb = auditForm.querySelector(`[name="${key}"]`) as HTMLInputElement;
+          const cb = auditForm.querySelector(
+            `[name="${key}"]`,
+          ) as HTMLInputElement;
           if (cb) cb.checked = !!val;
         });
         Object.entries(s2Details).forEach(([key, val]) => {
-          const cb = auditForm.querySelector(`[name="${key}"]`) as HTMLInputElement;
+          const cb = auditForm.querySelector(
+            `[name="${key}"]`,
+          ) as HTMLInputElement;
           if (cb) cb.checked = !!val;
         });
-        
+
         btnDeleteAudit.classList.remove("hidden");
       } else {
         // New mode
         modalTitle!.innerHTML = `<svg class="size-6 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor; margin-right: 0.5rem;"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"></path></svg> Nueva Auditoría de Calidad`;
         formAuditId.value = "";
-        
+
         // Clear fields so placeholders show
         formCallId.value = "";
         formTicketId.value = "";
         formDuration.value = "";
-        
+
         // Clear additional fields
         formNotes.value = "";
         formIsCriticalFailure.checked = false;
-        
+
         // Default to today
         const today = new Date().toISOString().substring(0, 10);
         formDate.value = today;
-        
+
         btnDeleteAudit.classList.add("hidden");
       }
-      
+
       updateModalScorePreview();
       auditModal.showModal();
     };
@@ -1589,12 +1820,15 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     auditForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearFormErrors(auditForm);
-      
-      const btnSubmit = auditForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+      const btnSubmit = auditForm.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
       const originalText = btnSubmit.innerHTML;
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando…';
-      
+      btnSubmit.innerHTML =
+        '<span class="loading loading-spinner loading-xs"></span> Guardando…';
+
       const formData = new FormData(auditForm);
       // Ensure notes is always present (even if textarea is empty)
       if (!formData.has("notes")) {
@@ -1646,12 +1880,15 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     summaryForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearFormErrors(summaryForm);
-      
-      const btnSubmit = summaryForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+      const btnSubmit = summaryForm.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
       const originalText = btnSubmit.innerHTML;
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando…';
-      
+      btnSubmit.innerHTML =
+        '<span class="loading loading-spinner loading-xs"></span> Guardando…';
+
       const formData = new FormData(summaryForm);
       // Ensure summary is always present (even if textarea is empty)
       if (!formData.has("summary")) {
@@ -1684,16 +1921,17 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     btnDeleteAudit.addEventListener("click", async () => {
       const auditId = formAuditId.value;
       if (!auditId) return;
-      
+
       if (confirm("¿Estás seguro de que querés eliminar esta auditoría?")) {
         const originalText = btnDeleteAudit.innerHTML;
         btnDeleteAudit.disabled = true;
-        btnDeleteAudit.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Eliminando…';
-        
+        btnDeleteAudit.innerHTML =
+          '<span class="loading loading-spinner loading-xs"></span> Eliminando…';
+
         try {
           const deleteForm = new FormData();
           deleteForm.append("id", auditId);
-          
+
           const result = await actions.deleteAudit(deleteForm);
           if (result.data?.success) {
             const url = new URL(window.location.href);
@@ -1721,7 +1959,11 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         if (detailsPanel) detailsPanel.classList.add("hidden");
 
         document.querySelectorAll(".operator-item").forEach((el) => {
-          el.classList.remove("border-l-secondary", "bg-secondary/5", "shadow-md");
+          el.classList.remove(
+            "border-l-secondary",
+            "bg-secondary/5",
+            "shadow-md",
+          );
           el.classList.add("border-l-transparent");
         });
       });
@@ -1742,7 +1984,9 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
       let hasVisibleItems = false;
 
       // Re-query items to always work with the current live DOM nodes
-      const itemsArray = Array.from(document.querySelectorAll(".operator-item")) as HTMLElement[];
+      const itemsArray = Array.from(
+        document.querySelectorAll(".operator-item"),
+      ) as HTMLElement[];
 
       itemsArray.sort((a, b) => {
         if (sortValue === "name") {
@@ -1753,7 +1997,11 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
           return (b.getAttribute("data-name") || "").localeCompare(
             a.getAttribute("data-name") || "",
           );
-        } else if (sortValue === "calls-desc" || sortValue === "calls-asc" || sortValue === "critical") {
+        } else if (
+          sortValue === "calls-desc" ||
+          sortValue === "calls-asc" ||
+          sortValue === "critical"
+        ) {
           const opA = JSON.parse(a.getAttribute("data-operator") || "{}");
           const opB = JSON.parse(b.getAttribute("data-operator") || "{}");
           if (sortValue === "calls-desc") {
@@ -1804,9 +2052,13 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     let monthSelector = document.getElementById(
       "month-selector",
     ) as HTMLSelectElement;
-    
-    const btnPrevMonth = document.getElementById("btn-prev-month") as HTMLButtonElement;
-    const btnNextMonth = document.getElementById("btn-next-month") as HTMLButtonElement;
+
+    const btnPrevMonth = document.getElementById(
+      "btn-prev-month",
+    ) as HTMLButtonElement;
+    const btnNextMonth = document.getElementById(
+      "btn-next-month",
+    ) as HTMLButtonElement;
 
     const updateMonthButtonsState = () => {
       if (!monthSelector) return;
@@ -1884,8 +2136,15 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         if (!operatorData) return;
 
         try {
-          const operatorSummary = JSON.parse(operatorData) as { id: string; name: string; averageScore: number; callsCount: number; hasCriticalFailure: boolean };
-          const operator = (getOperatorFullData(operatorSummary.id) || operatorSummary) as OperatorQuality;
+          const operatorSummary = JSON.parse(operatorData) as {
+            id: string;
+            name: string;
+            averageScore: number;
+            callsCount: number;
+            hasCriticalFailure: boolean;
+          };
+          const operator = (getOperatorFullData(operatorSummary.id) ||
+            operatorSummary) as OperatorQuality;
           activeAgentId = operator.id;
 
           document.querySelectorAll(".operator-item").forEach((el) => {
@@ -1951,9 +2210,7 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
             });
 
             const pathD = coords
-              .map((c, i) =>
-                i === 0 ? `M ${c.x},${c.y}` : `L ${c.x},${c.y}`,
-              )
+              .map((c, i) => (i === 0 ? `M ${c.x},${c.y}` : `L ${c.x},${c.y}`))
               .join(" ");
 
             historyContainer.className = "relative w-full h-16 mt-2 mb-4";
@@ -1993,7 +2250,9 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
 
             if (sortedFailures.length > 0) {
               const params: AuditParameter[] = getAuditParameters();
-              const paramNameMap = new Map<string, string>(params.map((p) => [p.code, p.name]));
+              const paramNameMap = new Map<string, string>(
+                params.map((p) => [p.code, p.name]),
+              );
 
               insightsContainer.innerHTML = sortedFailures
                 .map(
@@ -2016,19 +2275,23 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
               .join("");
 
             // Attach event listeners to all edit buttons!
-            callsContainer.querySelectorAll(".edit-audit-btn").forEach((btn) => {
-              btn.addEventListener("click", (e) => {
-                e.stopPropagation(); // prevent collapsing/expanding the card
-                const callIdStr = (e.currentTarget as HTMLElement).getAttribute("data-call-id");
-                if (callIdStr) {
-                  const callId = parseInt(callIdStr, 10);
-                  const call = operator.calls.find((c) => c.id === callId);
-                  if (call) {
-                    openAuditModal(operator.id, call);
+            callsContainer
+              .querySelectorAll(".edit-audit-btn")
+              .forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                  e.stopPropagation(); // prevent collapsing/expanding the card
+                  const callIdStr = (
+                    e.currentTarget as HTMLElement
+                  ).getAttribute("data-call-id");
+                  if (callIdStr) {
+                    const callId = parseInt(callIdStr, 10);
+                    const call = operator.calls.find((c) => c.id === callId);
+                    if (call) {
+                      openAuditModal(operator.id, call);
+                    }
                   }
-                }
+                });
               });
-            });
           }
 
           if (generalPanel) generalPanel.classList.add("hidden");
@@ -2379,8 +2642,11 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
     const urlParams = new URLSearchParams(window.location.search);
     const urlAgentId = urlParams.get("agentId");
     if (urlAgentId) {
-      const opBtn = Array.from(document.querySelectorAll(".operator-item"))
-        .find((el) => el.getAttribute("data-id") === urlAgentId) as HTMLButtonElement | null;
+      const opBtn = Array.from(
+        document.querySelectorAll(".operator-item"),
+      ).find(
+        (el) => el.getAttribute("data-id") === urlAgentId,
+      ) as HTMLButtonElement | null;
       if (opBtn) {
         opBtn.click();
       }

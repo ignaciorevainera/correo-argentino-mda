@@ -112,7 +112,7 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     .from(terminals)
     .leftJoin(offices, eq(terminals.nis, offices.code))
     .leftJoin(provinces, eq(offices.provinceCode, provinces.code))
-    .leftJoin(regions, eq(offices.regionId, regions.id))
+    .leftJoin(regions, eq(provinces.regionId, regions.id))
     .$dynamic();
 
   const filters = [];
@@ -176,7 +176,17 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   }
 
   if (params.brand && params.brand !== "all") {
-    filters.push(like(sql`lower(${terminals.manufacturer})`, `%${params.brand.toLowerCase()}%`));
+    if (params.brand === "hp") {
+      filters.push(
+        or(
+          like(sql`lower(${terminals.manufacturer})`, "%hp%"),
+          like(sql`lower(${terminals.manufacturer})`, "%hewlett-packard%"),
+          like(sql`lower(${terminals.manufacturer})`, "%hewlett packard%")
+        )
+      );
+    } else {
+      filters.push(like(sql`lower(${terminals.manufacturer})`, `%${params.brand.toLowerCase()}%`));
+    }
   }
 
   if (params.ram && params.ram !== "all") {
@@ -199,11 +209,11 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
           like(terminals.ram, "7%")
         )
       );
-    } else if (params.ram === "16gb") {
-      filters.push(like(terminals.ram, "16%"));
-    } else if (params.ram === ">=32gb") {
+    } else if (params.ram === ">=16gb") {
       filters.push(
         or(
+          like(terminals.ram, "16%"),
+          like(terminals.ram, "24%"),
           like(terminals.ram, "32%"),
           like(terminals.ram, "64%"),
           like(terminals.ram, "128%")

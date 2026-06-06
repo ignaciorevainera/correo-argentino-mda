@@ -4,6 +4,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import UserCard from "@components/UserCard.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { Icon } from "astro-icon/components";
 const base = (import.meta.env as any).BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -176,43 +177,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       >
       </div>
 
-      <div
+      <SearchEmptyState
         id="empty-state"
-        class="hidden flex-col items-center justify-center py-16 px-4 text-center space-y-6 rounded-2xl border border-dashed border-base-300 bg-base-200/20 w-full max-w-2xl mx-auto mt-4"
-      >
-        <div
-          class="size-24 rounded-full bg-base-200 flex items-center justify-center text-base-content/20 shadow-inner transition-colors duration-300"
-          id="empty-icon-bg"
-        >
-          <div id="empty-icon-search">
-            <Icon name="boxicons:search" size={48} />
-          </div>
-          <div id="empty-icon-notfound" class="hidden">
-            <Icon name="boxicons:user-minus-filled" size={48} />
-          </div>
-        </div>
-        <div class="space-y-2">
-          <h3
-            class="text-xl md:text-2xl font-bold tracking-tight text-base-content/80"
-            id="empty-title"
-          >
-            Comienza tu búsqueda
-          </h3>
-          <p
-            class="text-base text-base-content/50 max-w-md mx-auto leading-relaxed"
-            id="empty-desc"
-          >
-            Encuentra usuarios rápidamente ingresando su nombre, apellido o DNI.
-          </p>
-        </div>
-        <button
-          id="clear-search"
-          class="btn btn-outline border-base-300 text-base-content/70 hover:text-base-content bg-base-100 shadow-sm hidden gap-2 transition-all"
-        >
-          <Icon name="boxicons:trash" size={18} />
-          Limpiar búsqueda
-        </button>
-      </div>
+        title="Comienza tu búsqueda"
+        description="Encuentra usuarios rápidamente ingresando su nombre, apellido o DNI."
+        icon="boxicons:search"
+        useDualIcons={true}
+        notFoundIcon="boxicons:user-minus-filled"
+        showClearButton={true}
+        clearButtonText="Limpiar búsqueda"
+        clearButtonId="clear-search"
+        class="w-full max-w-2xl mx-auto mt-4"
+      />
     </section>
   </PageContainer>
 
@@ -1315,22 +1291,23 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         resultsGrid.classList.add("hidden");
         emptyState?.classList.remove("hidden");
 
-        const emptyIconSearch = document.getElementById("empty-icon-search");
+        const emptyIconSearch = document.getElementById("empty-state-icon-search");
         const emptyIconNotfound = document.getElementById(
-          "empty-icon-notfound",
+          "empty-state-icon-notfound",
         );
-        const emptyTitle = document.getElementById("empty-title");
-        const emptyDesc = document.getElementById("empty-desc");
-        const emptyIconBg = document.getElementById("empty-icon-bg");
+        const emptyTitle = document.getElementById("empty-state-title");
+        const emptyDesc = document.getElementById("empty-state-desc");
+        const glow1 = document.getElementById("empty-state-icon-glow-1");
+        const glow2 = document.getElementById("empty-state-icon-glow-2");
 
         if (!searchInput?.value.trim()) {
           emptyIconSearch?.classList.remove("hidden");
           emptyIconNotfound?.classList.add("hidden");
-          emptyIconBg?.classList.replace(
-            "text-error/40",
-            "text-base-content/20",
-          );
-          emptyIconBg?.classList.replace("bg-error/10", "bg-base-200");
+          
+          glow1?.classList.replace("bg-error/10", "bg-primary/10");
+          glow1?.classList.replace("group-hover:bg-error/20", "group-hover:bg-primary/20");
+          glow2?.classList.replace("bg-error/10", "bg-secondary/15");
+
           if (emptyTitle) emptyTitle.textContent = "Comienza tu búsqueda";
           if (emptyDesc)
             emptyDesc.textContent =
@@ -1340,11 +1317,11 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         } else {
           emptyIconSearch?.classList.add("hidden");
           emptyIconNotfound?.classList.remove("hidden");
-          emptyIconBg?.classList.replace(
-            "text-base-content/20",
-            "text-error/40",
-          );
-          emptyIconBg?.classList.replace("bg-base-200", "bg-error/10");
+          
+          glow1?.classList.replace("bg-primary/10", "bg-error/10");
+          glow1?.classList.replace("group-hover:bg-primary/20", "group-hover:bg-error/20");
+          glow2?.classList.replace("bg-secondary/15", "bg-error/10");
+
           if (emptyTitle) emptyTitle.textContent = "No se encontraron usuarios";
           if (emptyDesc)
             emptyDesc.textContent = `No hay coincidencias para "${searchInput.value.trim()}". Intenta con otros términos.`;

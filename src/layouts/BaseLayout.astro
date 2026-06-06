@@ -54,12 +54,7 @@ const flattenQuickAccessItems = (items: NavItem[]): NavItem[] =>
     return [{ ...item, children: undefined }, ...nestedChildren];
   });
 
-const drawerNavItems = navSections.flatMap((section) =>
-  section.items.map((item) => ({ ...item, children: undefined })),
-);
-const quickAccessItems: NavItem[] = navSections
-  .flatMap((section) => flattenQuickAccessItems(section.items))
-  .filter((item) => !item.href.startsWith("/admin/"));
+
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -88,6 +83,24 @@ const isActiveRoute = (href: string) =>
       relativeCurrentPath.startsWith(`${href}/`);
 
 const user = Astro.locals.user;
+const visibleNavSections = navSections
+  .map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
+      if (item.href === "/design-system") {
+        return user.role === "admin";
+      }
+      return true;
+    }),
+  }))
+  .filter((section) => section.items.length > 0);
+
+const drawerNavItems = visibleNavSections.flatMap((section) =>
+  section.items.map((item) => ({ ...item, children: undefined })),
+);
+const quickAccessItems: NavItem[] = visibleNavSections
+  .flatMap((section) => flattenQuickAccessItems(section.items))
+  .filter((item) => !item.href.startsWith("/admin/"));
 const userInitials = user.username.slice(0, 2).toUpperCase();
 
 const roleAvatarClasses: Record<string, string> = {
@@ -275,6 +288,67 @@ const isRouteLocked = (href: string): boolean => {
             >
               <Icon name="boxicons:help-circle-filled" size={24} />
             </button>
+
+            <div class="flex items-center gap-2">
+              <div class="divider divider-horizontal m-0"></div>
+              {
+                user.id === 0 ? (
+                  <a
+                    href={resolveUrl("/login")}
+                    aria-label="Iniciar sesión"
+                    class="btn btn-ghost btn-circle"
+                    title="Iniciar sesión"
+                  >
+                    <Icon
+                      name="boxicons:arrow-out-right-stroke-circle-half-filled"
+                      size={20}
+                    />
+                  </a>
+                ) : (
+                  <div class="dropdown dropdown-end">
+                    <div
+                      tabindex="0"
+                      role="button"
+                      class="btn btn-ghost btn-circle avatar avatar-placeholder"
+                    >
+                      <div
+                        class:list={[
+                          "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm",
+                          avatarClass,
+                        ]}
+                      >
+                        {userInitials}
+                      </div>
+                    </div>
+                    <ul
+                      tabindex="0"
+                      class="dropdown-content menu bg-base-100 border border-base-300 rounded-box z-1 mt-3 w-52 p-2 shadow"
+                    >
+                      <li class="menu-title px-4 py-2 border-b border-base-200">
+                        <span class="text-xs font-semibold text-base-content block truncate">
+                          {user.username}
+                        </span>
+                        <span class="text-[10px] font-medium uppercase tracking-wider text-base-content/50 block truncate">
+                          {roleLabel}
+                        </span>
+                      </li>
+                      <li>
+                        <a href={resolveUrl("/profile")} class="text-xs py-2 gap-2">
+                          <Icon name="boxicons:user-filled" size={16} />
+                          Ver perfil
+                        </a>
+                      </li>
+                      <li>
+                        <a href={resolveUrl("/logout")} class="text-xs py-2 gap-2 text-error hover:bg-error/10">
+                          <Icon name="boxicons:door-open-alt-filled" size={16} />
+                          Cerrar sesión
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                )
+              }
+            </div>
           </div>
         </header>
 
@@ -326,7 +400,7 @@ const isRouteLocked = (href: string): boolean => {
             class="w-full grow overflow-y-auto lg:overflow-visible py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {
-              navSections.map((section, sectionIndex) => (
+              visibleNavSections.map((section, sectionIndex) => (
                 <>
                   <ul class="menu w-full gap-1 p-2">
                     <li class="menu-title lg:hidden mb-1">
@@ -380,7 +454,7 @@ const isRouteLocked = (href: string): boolean => {
                     })}
                   </ul>
 
-                  {sectionIndex < navSections.length - 1 && (
+                  {sectionIndex < visibleNavSections.length - 1 && (
                     <div class="px-4 my-1 lg:px-2">
                       <div class="h-px bg-secondary-content/10" />
                     </div>
@@ -390,79 +464,7 @@ const isRouteLocked = (href: string): boolean => {
             }
           </div>
 
-          <div class="w-full border-t border-secondary-content/10 p-2">
-            {
-              user.id === 0 ? (
-                <a
-                  href={resolveUrl("/login")}
-                  aria-label="Iniciar sesión"
-                  data-tip="Iniciar sesión"
-                  class:list={[
-                    "group flex items-center gap-2.5 rounded-lg p-2.5 text-xs font-medium transition",
-                    "text-secondary-content/70 hover:bg-white/10 hover:text-white",
-                    "lg:justify-center lg:px-2.5",
-                    "tooltip tooltip-right tooltip-neutral",
-                  ]}
-                >
-                  <Icon
-                    name="boxicons:arrow-out-right-stroke-circle-half-filled"
-                    size={24}
-                    class="shrink-0 opacity-80 transition group-hover:opacity-100"
-                  />
-                  <span class="truncate lg:hidden">Iniciar sesión</span>
-                </a>
-              ) : (
-                <div class="flex flex-col gap-1.5">
-                  <a
-                    href={resolveUrl("/profile")}
-                    aria-label="Ver perfil de usuario"
-                    data-tip="Ver perfil"
-                    class:list={[
-                      "group flex items-center gap-2.5 rounded-lg p-2 lg:justify-center lg:p-2.5 transition",
-                      "hover:bg-white/10 text-secondary-content hover:text-white",
-                      "tooltip tooltip-right tooltip-neutral",
-                    ]}
-                  >
-                    <div
-                      class:list={[
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm group-hover:ring-2 ring-white/20 transition-all",
-                        avatarClass,
-                      ]}
-                      aria-hidden="true"
-                    >
-                      {userInitials}
-                    </div>
-                    <div class="min-w-0 lg:hidden text-left">
-                      <p class="truncate text-xs font-semibold leading-tight text-secondary-content group-hover:text-white transition-colors">
-                        {user.username}
-                      </p>
-                      <p class="truncate text-xs font-medium uppercase tracking-wider text-secondary-content/50 group-hover:text-white/70 transition-colors">
-                        {roleLabel}
-                      </p>
-                    </div>
-                  </a>
-                  <a
-                    href={resolveUrl("/logout")}
-                    aria-label="Cerrar sesión"
-                    data-tip="Cerrar sesión"
-                    class:list={[
-                      "group flex items-center gap-2.5 rounded-lg p-2.5 text-xs font-medium transition",
-                      "text-secondary-content/70 hover:bg-white/10 hover:text-white",
-                      "lg:justify-center lg:px-2.5",
-                      "tooltip tooltip-right tooltip-neutral",
-                    ]}
-                  >
-                    <Icon
-                      name="boxicons:door-open-alt-filled"
-                      size={24}
-                      class="shrink-0 opacity-80 transition group-hover:opacity-100"
-                    />
-                    <span class="truncate lg:hidden">Cerrar sesión</span>
-                  </a>
-                </div>
-              )
-            }
-          </div>
+
         </div>
       </div>
     </div>

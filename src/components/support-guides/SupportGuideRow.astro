@@ -8,15 +8,20 @@ interface Props {
 
 const { guide } = Astro.props;
 let topicsList: string[] = [];
-try {
-  topicsList = JSON.parse(guide.topics);
-} catch (e) {
-  topicsList = [];
+if (guide.topics) {
+  try {
+    const parsed = JSON.parse(guide.topics);
+    topicsList = Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    if (typeof guide.topics === "string") {
+      topicsList = guide.topics.split(",").map((t: string) => t.trim()).filter(Boolean);
+    }
+  }
 }
 
-const searchText = `${guide.helpDeskName} ${guide.invgateName} ${guide.route} ${topicsList.join(" ")}`;
+const searchText = `${guide.helpDeskName || ""} ${guide.invgateName || ""} ${guide.route || ""} ${topicsList.join(" ")}`;
 const rowGridClass =
-  "grid grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] items-start gap-4";
+  "grid grid-cols-[1fr_1.1fr_2.2fr_1.2fr_150px] items-start gap-4";
 const modalId = `modal_guide_${guide.id}`;
 ---
 
@@ -35,44 +40,28 @@ const modalId = `modal_guide_${guide.id}`;
     ]}
   >
     <!-- Nombre Anterior -->
-    <div class="min-w-0 -ml-2">
+    <div class="min-w-0">
       {
         guide.legacyName ? (
-          <CopyButton
-            value={guide.legacyName}
-            variant="value"
-            appearance="ghost"
-            label={guide.legacyName}
-            ariaLabel={`Copiar nombre anterior ${guide.legacyName}`}
-            highlightable
-            class="font-bold text-sm"
-          />
+          <span class="font-bold text-sm text-base-content/95" data-highlight-target>
+            {guide.legacyName}
+          </span>
         ) : (
-          <span class="text-base-content/30 text-xs italic px-2">N/A</span>
+          <span class="text-base-content/30 text-xs italic">N/A</span>
         )
       }
     </div>
 
     <!-- Invgate -->
-    <div class="min-w-0 flex items-center gap-1.5">
+    <div class="min-w-0 flex items-center">
       {
         guide.invgateName ? (
-          <>
-            <span
-              class="px-2 py-0.5 bg-secondary text-white rounded text-xs font-bold shadow-sm inline-block break-all"
-              data-highlight-target
-            >
-              {guide.invgateName}
-            </span>
-            <CopyButton
-              value={guide.invgateName}
-              variant="icon"
-              appearance="ghost"
-              size="xs"
-              ariaLabel={`Copiar nombre en Invgate ${guide.invgateName}`}
-              class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-            />
-          </>
+          <span
+            class="px-2 py-0.5 bg-secondary text-white rounded text-xs font-bold shadow-sm inline-block break-all"
+            data-highlight-target
+          >
+            {guide.invgateName}
+          </span>
         ) : (
           <span class="text-base-content/30 text-xs italic">N/A</span>
         )
@@ -84,7 +73,7 @@ const modalId = `modal_guide_${guide.id}`;
       {
         guide.route ? (
           <p
-            class="text-base-content/70 font-mono text-xs break-words whitespace-normal"
+            class="text-base-content/70 font-mono text-xs wrap-break-word whitespace-normal"
             data-highlight-target
           >
             {guide.route}
@@ -102,7 +91,7 @@ const modalId = `modal_guide_${guide.id}`;
           topicsList.length > 0 ? (
             topicsList.map((tema: string) => (
               <span
-                class="px-2 py-0.5 bg-secondary/10 text-secondary text-xs rounded border border-secondary/20 font-medium break-words text-center"
+                class="px-2 py-0.5 bg-secondary/10 text-secondary text-xs rounded border border-secondary/20 font-medium wrap-break-word text-center"
                 data-highlight-target
               >
                 {tema}

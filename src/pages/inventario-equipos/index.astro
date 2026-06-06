@@ -2,6 +2,7 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { Icon } from "astro-icon/components";
 import DataTable from "@components/ui/DataTable.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -15,17 +16,9 @@ import {
   type CubicStatus,
 } from "@lib/cubics";
 import { db } from "@db/index";
-import {
-  terminals as terminalsTable,
-  offices,
-  provinces,
-  regions,
-} from "@db/schema";
+import { terminals as terminalsTable } from "@db/schema";
 import { getTerminals } from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
-import { sql } from "drizzle-orm";
-
-type BoxiconName = `boxicons:${string}`;
 
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
@@ -188,6 +181,7 @@ const inventoryTabs = [
               <option value="all">Marca (Todas)</option>
               <option value="dell">Dell</option>
               <option value="lenovo">Lenovo</option>
+              <option value="hp">HP</option>
               <option value="bangho">Banghó</option>
               <option value="coradir">Coradir</option>
             </select>
@@ -203,8 +197,7 @@ const inventoryTabs = [
               <option value="2gb">2 GB</option>
               <option value="4gb">4 GB</option>
               <option value="8gb">8 GB</option>
-              <option value="16gb">16 GB</option>
-              <option value=">=32gb">&ge; 32 GB</option>
+              <option value=">=16gb">&ge; 16 GB</option>
             </select>
           </div>
           <div
@@ -235,6 +228,16 @@ const inventoryTabs = [
               data-terminal-status="offline"
             />
           </div>
+          <button
+            id="btn-clear-filters-terminales"
+            class="btn btn-outline btn-error font-semibold gap-2"
+            type="button"
+            aria-label="Limpiar todos los filtros de terminales"
+            title="Limpiar todos los filtros"
+          >
+            <Icon name="boxicons:trash" class="size-4" />
+            Limpiar Filtros
+          </button>
         </div>
 
         <!-- Filtros para Cúbics -->
@@ -242,36 +245,48 @@ const inventoryTabs = [
           id="header-right-cubics"
           class="hidden flex-wrap items-center justify-between gap-4 w-full transition-opacity duration-300"
         >
-          <div
-            class="tabs tabs-box"
-            role="radiogroup"
-            aria-label="Filtros por estado"
-          >
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Todas"
-              checked
-              data-filter-tab
-              data-filter="all"
-            />
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Online"
-              data-filter-tab
-              data-filter="online"
-            />
-            <input
-              type="radio"
-              name="cubic_filters"
-              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-              aria-label="Offline"
-              data-filter-tab
-              data-filter="offline"
-            />
+          <div class="flex flex-wrap items-center gap-3">
+            <div
+              class="tabs tabs-box"
+              role="radiogroup"
+              aria-label="Filtros por estado"
+            >
+              <input
+                type="radio"
+                name="cubic_filters"
+                class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+                aria-label="Todas"
+                checked
+                data-filter-tab
+                data-filter="all"
+              />
+              <input
+                type="radio"
+                name="cubic_filters"
+                class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+                aria-label="Online"
+                data-filter-tab
+                data-filter="online"
+              />
+              <input
+                type="radio"
+                name="cubic_filters"
+                class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+                aria-label="Offline"
+                data-filter-tab
+                data-filter="offline"
+              />
+            </div>
+            <button
+              id="btn-clear-filters-cubics"
+              class="btn btn-outline btn-error font-semibold gap-2"
+              type="button"
+              aria-label="Limpiar todos los filtros de cúbics"
+              title="Limpiar todos los filtros"
+            >
+              <Icon name="boxicons:trash" class="size-4" />
+              Limpiar Filtros
+            </button>
           </div>
 
           <aside
@@ -279,7 +294,7 @@ const inventoryTabs = [
             aria-label="Resumen de conectividad"
           >
             <div
-              class="card-body flex-row items-center justify-between sm:justify-start gap-4 p-3"
+              class="card-body flex-row items-center justify-between sm:justify-start gap-2 px-3 py-2"
             >
               <p
                 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
@@ -323,64 +338,93 @@ const inventoryTabs = [
     </div>
 
     <div id="view-terminales" class="space-y-6">
-      <section class="space-y-3">
-        <DataTable
-          id="table-terminales"
-          ariaLabel="Inventario de terminales"
-          minWidthClass="min-w-280"
-          headerGridClass={terminalHeaderGridClass}
-          rowGridClass={terminalRowGridClass}
-        >
-          <div slot="header" class="col-span-2">
-            <DataTableHeaderCell sortKey="hostname"
-              >Hostname</DataTableHeaderCell
-            >
+      {
+        terminals.length === 0 ? (
+          <div class="card border border-error/20 bg-error/5 text-error-content max-w-2xl mx-auto my-8 shadow-sm">
+            <div class="card-body items-center text-center p-6 sm:p-8">
+              <span class="inline-flex size-14 items-center justify-center rounded-full bg-error/10 text-error mb-2 border border-error/20">
+                <Icon name="boxicons:error-circle-filled" class="size-8" />
+              </span>
+              <h3 class="text-lg font-bold text-base-content">
+                Sin datos de terminales
+              </h3>
+              <p class="text-sm text-base-content/70 max-w-md mt-1 leading-relaxed">
+                El servicio no pudo obtener datos de las terminales. Por favor,
+              </p>
+            </div>
           </div>
-          <div slot="header" class="col-span-3">
-            <DataTableHeaderCell sortKey="hardware"
-              >Hardware</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header" class="col-span-3">
-            <DataTableHeaderCell sortKey="os"
-              >Sistema operativo</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header" class="col-span-2">
-            <DataTableHeaderCell sortKey="location"
-              >Ubicación</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header" class="col-span-2">
-            <DataTableHeaderCell align="right"
-              >Último contacto</DataTableHeaderCell
-            >
-          </div>
-          <div id="table-terminales-body" class="contents">
-            {
-              terminals.map((terminal) => (
-                <TerminalRow
-                  terminal={terminal}
-                  terminalRowGridClass={terminalRowGridClass}
-                />
-              ))
-            }
-          </div>
-        </DataTable>
+        ) : (
+          <section class="space-y-3">
+            <div id="terminals-table-wrapper">
+              <DataTable
+                id="table-terminales"
+                ariaLabel="Inventario de terminales"
+                minWidthClass="min-w-280"
+                headerGridClass={terminalHeaderGridClass}
+                rowGridClass={terminalRowGridClass}
+              >
+                <div slot="header" class="col-span-2">
+                  <DataTableHeaderCell sortKey="hostname">
+                    Hostname
+                  </DataTableHeaderCell>
+                </div>
+                <div slot="header" class="col-span-3">
+                  <DataTableHeaderCell sortKey="hardware">
+                    Hardware
+                  </DataTableHeaderCell>
+                </div>
+                <div slot="header" class="col-span-3">
+                  <DataTableHeaderCell sortKey="os">
+                    Sistema operativo
+                  </DataTableHeaderCell>
+                </div>
+                <div slot="header" class="col-span-2">
+                  <DataTableHeaderCell sortKey="location">
+                    Ubicación
+                  </DataTableHeaderCell>
+                </div>
+                <div slot="header" class="col-span-2">
+                  <DataTableHeaderCell align="right">
+                    Último contacto
+                  </DataTableHeaderCell>
+                </div>
+                <div id="table-terminales-body" class="contents">
+                  {terminals.map((terminal) => (
+                    <TerminalRow
+                      terminal={terminal}
+                      terminalRowGridClass={terminalRowGridClass}
+                    />
+                  ))}
+                </div>
+              </DataTable>
 
-        <div
-          id="scroll-sentinel-terminales"
-          class:list={[
-            "py-8 text-center flex justify-center",
-            !hasMore && "hidden",
-          ]}
-          data-has-more={hasMore ? "true" : "false"}
-        >
-          <span
-            class="loading loading-spinner loading-md text-primary hidden"
-            id="loading-spinner-terminales"></span>
-        </div>
-      </section>
+              <div
+                id="scroll-sentinel-terminales"
+                class:list={[
+                  "py-8 text-center flex justify-center",
+                  !hasMore && "hidden",
+                ]}
+                data-has-more={hasMore ? "true" : "false"}
+              >
+                <span
+                  class="loading loading-spinner loading-md text-primary hidden"
+                  id="loading-spinner-terminales"
+                />
+              </div>
+            </div>
+
+            <SearchEmptyState
+              id="no-results-state-terminales"
+              class="hidden"
+              title="No hay coincidencias"
+              description="No hemos podido encontrar terminales que coincidan con los filtros seleccionados. Probá modificando los criterios o limpiando los filtros."
+              showClearButton={true}
+              clearButtonId="btn-clear-empty-terminales"
+              clearButtonText="Limpiar filtros"
+            />
+          </section>
+        )
+      }
     </div>
 
     <div id="view-cubics" class="hidden space-y-6">
@@ -727,6 +771,22 @@ const inventoryTabs = [
           }
         }
 
+        const rowCount = terminalsContainer?.querySelectorAll("[data-terminal-row]").length ?? 0;
+        const noResultsState = document.getElementById("no-results-state-terminales");
+        const tableWrapper = document.getElementById("terminals-table-wrapper");
+
+        if (noResultsState && tableWrapper) {
+          if (rowCount === 0) {
+            noResultsState.classList.remove("hidden");
+            noResultsState.classList.add("flex");
+            tableWrapper.classList.add("hidden");
+          } else {
+            noResultsState.classList.add("hidden");
+            noResultsState.classList.remove("flex");
+            tableWrapper.classList.remove("hidden");
+          }
+        }
+
         if (currentSearch && terminalsContainer) {
           const newArticles = Array.from(
             terminalsContainer.querySelectorAll<HTMLElement>(
@@ -788,6 +848,50 @@ const inventoryTabs = [
     };
 
     terminalSearchInput?.addEventListener("input", triggerSearch);
+
+    const btnClearTerminales = document.getElementById(
+      "btn-clear-filters-terminales",
+    );
+    btnClearTerminales?.addEventListener("click", () => {
+      if (terminalSearchInput) terminalSearchInput.value = "";
+      if (osFilterSelect) osFilterSelect.value = "all";
+      if (osVariantFilterSelect) {
+        osVariantFilterSelect.innerHTML =
+          '<option value="all">Variante (Todas)</option>';
+        osVariantFilterSelect.disabled = true;
+        osVariantFilterSelect.value = "all";
+      }
+      if (archFilterSelect) archFilterSelect.value = "all";
+      if (brandFilterSelect) brandFilterSelect.value = "all";
+      if (ramFilterSelect) ramFilterSelect.value = "all";
+      statusRadioInputs.forEach((radio, idx) => {
+        radio.checked = idx === 0;
+      });
+      currentPage = 1;
+      currentSearch = "";
+      currentOs = "all";
+      currentOsVariant = "all";
+      currentArch = "all";
+      currentBrand = "all";
+      currentRam = "all";
+      currentStatus = "all";
+      fetchTerminals(true);
+    });
+
+    const btnClearEmptyTerminales = document.getElementById("btn-clear-empty-terminales");
+    btnClearEmptyTerminales?.addEventListener("click", () => {
+      btnClearTerminales?.click();
+    });
+
+    const btnClearCubics = document.getElementById("btn-clear-filters-cubics");
+    btnClearCubics?.addEventListener("click", () => {
+      if (machineSearchInput) machineSearchInput.value = "";
+      filterTabs.forEach((tab, idx) => {
+        tab.checked = idx === 0;
+      });
+      selectedCubicFilter = "all";
+      updateMachineRows();
+    });
 
     // Configurar mapa de OS desde el servidor usando un JSON en el script o variable global inyectada
     const osMapData = JSON.parse(

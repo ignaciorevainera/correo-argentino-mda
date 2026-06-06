@@ -291,9 +291,10 @@ const bindTableEmptyState = (root: HTMLElement): void => {
   }
 
   const body = getBody(root);
-  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state]");
+  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state-root]");
+  const wrapper = root.querySelector<HTMLElement>("[data-master-detail-table-wrapper]");
 
-  if (!body || !emptyState) {
+  if (!body || !emptyState || !wrapper) {
     return;
   }
 
@@ -302,7 +303,15 @@ const bindTableEmptyState = (root: HTMLElement): void => {
     if (items.length === 0) return;
 
     const visibleItems = items.filter(item => !item.classList.contains("hidden"));
-    emptyState.classList.toggle("hidden", visibleItems.length > 0);
+    const hasResults = visibleItems.length > 0;
+
+    wrapper.classList.toggle("hidden", !hasResults);
+    emptyState.classList.toggle("hidden", hasResults);
+    if (hasResults) {
+      emptyState.classList.remove("flex");
+    } else {
+      emptyState.classList.add("flex");
+    }
   };
 
   const observer = new MutationObserver(updateEmptyState);

@@ -190,21 +190,27 @@ const bindTableEmptyState = (root: HTMLElement): void => {
   }
 
   const body = root.querySelector<HTMLElement>("[data-table-sort-body]");
-  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state]");
+  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state-root]");
+  const wrapper = root.querySelector<HTMLElement>("[data-table-wrapper]");
 
-  if (!body || !emptyState) {
+  if (!body || !emptyState || !wrapper) {
     return;
   }
 
   const updateEmptyState = () => {
     const rows = getRows(body);
-    // Ignore the empty state if there are no rows to begin with (e.g. "No records in db")
-    // Wait, some pages might have 0 rows from DB. If so, they probably have their own empty state. 
-    // We only show search empty state if there are rows, but all are hidden.
     if (rows.length === 0) return;
 
     const visibleRows = rows.filter(row => !row.classList.contains("hidden"));
-    emptyState.classList.toggle("hidden", visibleRows.length > 0);
+    const hasResults = visibleRows.length > 0;
+
+    wrapper.classList.toggle("hidden", !hasResults);
+    emptyState.classList.toggle("hidden", hasResults);
+    if (hasResults) {
+      emptyState.classList.remove("flex");
+    } else {
+      emptyState.classList.add("flex");
+    }
   };
 
   const observer = new MutationObserver(updateEmptyState);

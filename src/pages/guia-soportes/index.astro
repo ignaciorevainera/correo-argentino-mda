@@ -1,11 +1,11 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { getSupportGuides } from "@lib/supportGuidesQueries";
 import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
 
@@ -18,7 +18,7 @@ const { data: guides, hasMore } = await getSupportGuides({
   search: searchFilter,
 });
 
-const headerGridClass = "grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] gap-4";
+const headerGridClass = "grid-cols-[1fr_1.1fr_2.2fr_1.2fr_150px] gap-4";
 ---
 
 <BaseLayout>
@@ -69,77 +69,45 @@ const headerGridClass = "grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] gap-4";
         class="bg-base-100 rounded-xl shadow-md overflow-hidden border border-base-content/10"
         id="guides-table-wrapper"
       >
-        <DataTable
-          ariaLabel="Guía de soportes"
-          minWidthClass="min-w-240"
-          headerGridClass={headerGridClass}
-          rowGridClass={headerGridClass}
-          id="table-guia-root"
-        >
-          <div slot="header">
-            <DataTableHeaderCell sortKey="legacy"
-              >Nombre Anterior</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="invgate">Invgate</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Ruta de búsqueda</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Tópicos</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
-          </div>
+        <div id="guides-table-container" class:list={[guides.length === 0 && "hidden"]}>
+          <DataTable
+            ariaLabel="Guía de soportes"
+            minWidthClass="min-w-240"
+            headerGridClass={headerGridClass}
+            rowGridClass={headerGridClass}
+            id="table-guia-root"
+          >
+            <div slot="header">
+              <DataTableHeaderCell sortKey="legacy"
+                >Nombre Anterior</DataTableHeaderCell
+              >
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell sortKey="invgate">Invgate</DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell>Ruta de búsqueda</DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell>Tópicos</DataTableHeaderCell>
+            </div>
+            <div slot="header">
+              <DataTableHeaderCell>Acciones</DataTableHeaderCell>
+            </div>
 
-          {guides.map((guide) => <SupportGuideRow guide={guide} />)}
-        </DataTable>
-
-        <div
-          id="no-results-state"
-          class:list={[
-            "py-24 flex flex-col items-center justify-center text-center px-4 animate-in fade-in duration-500",
-            guides.length > 0 && "hidden",
-          ]}
-        >
-          <div class="relative size-24 mb-8 group">
-            <div
-              class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse group-hover:bg-primary/30 transition-colors"
-            >
-            </div>
-            <div class="absolute inset-2 bg-secondary/10 rounded-full blur-md">
-            </div>
-            <div
-              class="relative flex items-center justify-center w-full h-full bg-base-100/80 backdrop-blur-sm rounded-full border border-base-300 shadow-2xl transition-transform hover:scale-105"
-            >
-              <Icon
-                name="boxicons:search"
-                class="size-10 text-base-content/40"
-              />
-            </div>
-          </div>
-          <h3
-            class="text-2xl font-bold text-base-content mb-3 font-mono tracking-tight"
-          >
-            No hay coincidencias
-          </h3>
-          <p
-            class="text-base-content/60 max-w-md text-center mb-8 leading-relaxed text-sm"
-          >
-            No hemos podido encontrar guías que coincidan con la búsqueda. Probá
-            modificando los criterios o restableciendo la búsqueda para explorar
-            el directorio completo.
-          </p>
-          <a
-            href={import.meta.env.BASE_URL + "guia-soportes"}
-            class="btn btn-primary rounded-full px-8 shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-transform duration-300"
-          >
-            <Icon name="boxicons:refresh-ccw-filled" class="size-5 mr-1.5" />
-            Restablecer búsqueda
-          </a>
+            {guides.map((guide) => <SupportGuideRow guide={guide} />)}
+          </DataTable>
         </div>
+
+        <SearchEmptyState
+          id="no-results-state"
+          class={guides.length > 0 ? "hidden" : "flex"}
+          title="No hay coincidencias"
+          description="No hemos podido encontrar guías que coincidan con la búsqueda. Probá modificando los criterios o restableciendo la búsqueda para explorar el directorio completo."
+          showClearButton={true}
+          clearButtonHref={import.meta.env.BASE_URL + "guia-soportes"}
+          clearButtonText="Restablecer búsqueda"
+        />
 
         <div
           id="scroll-sentinel"
@@ -215,11 +183,16 @@ const headerGridClass = "grid-cols-[1fr_1.2fr_1.5fr_2fr_150px] gap-4";
         }
       }
 
-      if (noResultsState) {
+      const tableContainer = document.getElementById("guides-table-container");
+      if (noResultsState && tableContainer) {
         if (totalCount === 0) {
           noResultsState.classList.remove("hidden");
+          noResultsState.classList.add("flex");
+          tableContainer.classList.add("hidden");
         } else {
           noResultsState.classList.add("hidden");
+          noResultsState.classList.remove("flex");
+          tableContainer.classList.remove("hidden");
         }
       }
 
