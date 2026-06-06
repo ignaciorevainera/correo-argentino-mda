@@ -413,58 +413,7 @@ import { Icon } from "astro-icon/components";
   opMinPWeekSelect?.addEventListener('change', () => saveDrawerOperatorRules(opMinPWeekSelect, opMaxHoSelect));
   opMaxHoSelect?.addEventListener('change', () => saveDrawerOperatorRules(opMinPWeekSelect, opMaxHoSelect));
 
-  // History timeline edits auto-save
-  const historyList = document.getElementById('drawer-history-list');
-  let realTimeTimeout: number | null = null;
 
-  historyList?.addEventListener('change', (e) => {
-    const target = e.target as HTMLInputElement;
-    if (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida')) {
-      const formatted = formatTimeInput(target.value);
-      target.value = formatted;
-
-      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
-      const dateVal = target.getAttribute('data-date');
-      if (!opName || !dateVal) return;
-
-      const rowContainer = target.closest('.flex-col');
-      const entradaInput = rowContainer?.querySelector('.drawer-history-entrada') as HTMLInputElement | null;
-      const salidaInput = rowContainer?.querySelector('.drawer-history-salida') as HTMLInputElement | null;
-      const entradaVal = entradaInput?.value || '';
-      const salidaVal = salidaInput?.value || '';
-
-      if (realTimeTimeout) clearTimeout(realTimeTimeout);
-      realTimeTimeout = window.setTimeout(async () => {
-        try {
-          await saveEdits([{
-            agentName: opName,
-            date: dateVal,
-            entradaReal: entradaVal,
-            salidaReal: salidaVal
-          }]);
-
-          const op = state.cronoData.find(o => o.nombre === opName);
-          if (op) {
-            if (!op.entradas_reales) op.entradas_reales = {};
-            if (!op.salidas_reales) op.salidas_reales = {};
-            op.entradas_reales[dateVal] = entradaVal;
-            op.salidas_reales[dateVal] = salidaVal;
-          }
-
-          document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
-        } catch (err) {
-          console.error("Error saving drawer real times:", err);
-        }
-      }, 500);
-    }
-  });
-
-  historyList?.addEventListener('keydown', (e) => {
-    const target = e.target as HTMLInputElement;
-    if (e.key === 'Enter' && (target.classList.contains('drawer-history-entrada') || target.classList.contains('drawer-history-salida'))) {
-      target.blur();
-    }
-  });
 
   // Weekly base schedule tab template management handlers
   const weeklyTemplateSelect = document.getElementById('weekly-template-select');

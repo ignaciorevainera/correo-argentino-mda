@@ -44,6 +44,117 @@ const defaultMonth = `${y}-${m}`;
           />
         </div>
       </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full" id="kpi-container">
+        <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
+          <span class="text-[10px] text-base-content/40 uppercase font-black tracking-wider">Tasa Puntualidad</span>
+          <span class="text-2xl font-black text-secondary" id="kpi-punctuality">--%</span>
+        </div>
+        <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
+          <span class="text-[10px] text-base-content/40 uppercase font-black tracking-wider">Asistencias Totales</span>
+          <span class="text-2xl font-black text-emerald-500" id="kpi-total">--</span>
+        </div>
+        <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
+          <span class="text-[10px] text-base-content/40 uppercase font-black tracking-wider">Total Ausencias</span>
+          <span class="text-2xl font-black text-error" id="kpi-absences">--</span>
+        </div>
+        <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
+          <span class="text-[10px] text-base-content/40 uppercase font-black tracking-wider">Mayor Ausencia</span>
+          <span class="text-lg font-black text-base-content truncate" id="kpi-top-reason">--</span>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+        <!-- Doughnut Chart -->
+        <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4">
+          <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Distribución de Eventualidades</h3>
+          <div class="relative w-full h-[220px] flex items-center justify-center">
+            <canvas id="doughnut-chart"></canvas>
+          </div>
+        </div>
+        <!-- Bar Chart -->
+        <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 lg:col-span-2">
+          <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Tendencia Semanal de Puntualidad</h3>
+          <div class="relative w-full h-[220px]">
+            <canvas id="bar-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ranking and Operator Profile Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+        <!-- Podio / Rankings -->
+        <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4">
+          <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Ranking de Puntualidad</h3>
+          <div class="flex flex-col gap-4">
+            <div>
+              <h4 class="text-[10px] font-bold text-success uppercase tracking-wider mb-2">Puntualidad Perfecta 🏆</h4>
+              <ol id="ranking-top" class="list-decimal list-inside text-xs font-semibold flex flex-col gap-1.5 text-base-content/80"></ol>
+            </div>
+            <div class="border-t border-base-200 pt-3">
+              <h4 class="text-[10px] font-bold text-warning uppercase tracking-wider mb-2">Más Tardanzas / Retiros ⚠️</h4>
+              <ol id="ranking-bottom" class="list-decimal list-inside text-xs font-semibold flex flex-col gap-1.5 text-base-content/80"></ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operator Details Sheet -->
+        <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 lg:col-span-2">
+          <div class="flex items-center justify-between border-b border-base-200 pb-3">
+            <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Ficha del Operador</h3>
+            <select id="operator-select" class="select select-sm select-bordered rounded-xl max-w-[200px] w-full text-xs font-bold">
+              <option value="">Seleccione operador...</option>
+            </select>
+          </div>
+
+          <!-- Operator Stats Block -->
+          <div id="operator-stats" class="hidden flex flex-col gap-4 animate-in fade-in duration-300">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
+                <span class="text-[8px] text-base-content/40 uppercase font-black tracking-wider block">Puntualidad</span>
+                <span class="text-base font-black text-secondary" id="op-kpi-punctuality">--%</span>
+              </div>
+              <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
+                <span class="text-[8px] text-base-content/40 uppercase font-black tracking-wider block">Días Trabajados</span>
+                <span class="text-base font-black text-emerald-500" id="op-kpi-worked">--</span>
+              </div>
+              <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
+                <span class="text-[8px] text-base-content/40 uppercase font-black tracking-wider block">Llegadas Tarde</span>
+                <span class="text-base font-black text-warning" id="op-kpi-lates">--</span>
+              </div>
+              <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
+                <span class="text-[8px] text-base-content/40 uppercase font-black tracking-wider block">Ausencias</span>
+                <span class="text-base font-black text-error" id="op-kpi-absences">--</span>
+              </div>
+            </div>
+
+            <!-- GitHub-Style Contribution Calendar -->
+            <div>
+              <h4 class="text-[10px] font-bold text-base-content/40 uppercase tracking-wider mb-2">Cuadrícula Mensual de Asistencia</h4>
+              <div class="flex flex-wrap gap-1.5 p-3 bg-base-200/30 rounded-xl border border-base-300/40 justify-start" id="op-calendar-grid">
+                <!-- Casillas 1..31 -->
+              </div>
+              <!-- Grid Legend -->
+              <div class="flex items-center gap-3 mt-3 text-[9px] font-bold text-base-content/40 select-none">
+                <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/30"></span> Cumplió</div>
+                <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500/20 border border-amber-500/30"></span> Tarde / Retiro</div>
+                <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-error/15 border border-error/30"></span> Incumplió / Ausente</div>
+                <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-base-200/50 border border-base-300/40"></span> Franco</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state when no operator is selected -->
+          <div id="operator-empty-state" class="py-12 text-center text-base-content/40 font-medium">
+            Seleccione un operador en el menú superior para ver su ficha estadística.
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart.js CDN Link -->
+      <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </div>
   </PageContainer>
 </BaseLayout>
