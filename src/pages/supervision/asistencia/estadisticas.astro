@@ -160,16 +160,210 @@ const defaultMonth = `${y}-${m}`;
 </BaseLayout>
 
 <script>
-  let rawLogs = [];
-  let doughnutChartInstance = null;
-  let barChartInstance = null;
+  let rawLogs: any[] = [];
+  let doughnutChartInstance: any = null;
+  let barChartInstance: any = null;
 
   const monthInput = document.getElementById('analytics-month') as HTMLInputElement;
   const operatorSelect = document.getElementById('operator-select') as HTMLSelectElement;
 
-  // Placeholder functions to allow TypeScript compilation before Task 5 and 6 are implemented
-  function processGlobalMetrics() {}
-  function updateCharts() {}
+  function processGlobalMetrics() {
+    // 1. Calculate overall metrics
+    const schedulesWithTime = rawLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco");
+    const totalSchedules = schedulesWithTime.length;
+    
+    const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
+    const totalAsistencias = rawLogs.filter(log => log.asistenciaId).length;
+    const totalAusencias = rawLogs.filter(log => log.ausencia && log.ausencia !== "").length;
+
+    // Find top absence reason
+    const absenceReasons: Record<string, number> = {};
+    rawLogs.forEach(log => {
+      if (log.ausencia && log.ausencia !== "") {
+        absenceReasons[log.ausencia] = (absenceReasons[log.ausencia] || 0) + 1;
+      }
+    });
+    let topReason = "Ninguna";
+    let maxCount = 0;
+    Object.entries(absenceReasons).forEach(([reason, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        topReason = reason;
+      }
+    });
+
+    // Update KPI nodes
+    const kpiPunctuality = document.getElementById('kpi-punctuality');
+    const kpiTotal = document.getElementById('kpi-total');
+    const kpiAbsences = document.getElementById('kpi-absences');
+    const kpiTopReason = document.getElementById('kpi-top-reason');
+
+    if (kpiPunctuality) kpiPunctuality.textContent = totalSchedules > 0 ? `${Math.round((punctuals / totalSchedules) * 100)}%` : '0%';
+    if (kpiTotal) kpiTotal.textContent = String(totalAsistencias);
+    if (kpiAbsences) kpiAbsences.textContent = String(totalAusencias);
+    if (kpiTopReason) kpiTopReason.textContent = topReason;
+
+    // 2. Rankings Calculation
+    const agentStats: Record<number, { name: string; total: number; punctuals: number; lates: number }> = {};
+    rawLogs.forEach(log => {
+      if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
+      if (!agentStats[log.agentId]) {
+        agentStats[log.agentId] = { name: log.nombre, total: 0, punctuals: 0, lates: 0 };
+      }
+      const stats = agentStats[log.agentId];
+      stats.total++;
+      if (log.cumplimiento === "Cumplió") stats.punctuals++;
+      if (log.cumplimiento && log.cumplimiento !== "Cumplió" && log.cumplimiento !== "Sin Registro") {
+        stats.lates++;
+      }
+    });
+
+    const rankingData = Object.values(agentStats).map(s => ({
+      name: s.name,
+      pct: s.total > 0 ? Math.round((s.punctuals / s.total) * 100) : 0,
+      lates: s.lates
+    }));
+
+    // Top 3 (Sorted by high punctuality, then least lates)
+    const top3 = [...rankingData]
+      .sort((a, b) => b.pct - a.pct || a.lates - b.lates)
+      .slice(0, 3);
+
+    // Bottom 3 (Sorted by high lates, then low punctuality)
+    const bottom3 = [...rankingData]
+      .filter(s => s.lates > 0)
+      .sort((a, b) => b.lates - a.lates || a.pct - b.pct)
+      .slice(0, 3);
+
+    const topList = document.getElementById('ranking-top');
+    const bottomList = document.getElementById('ranking-bottom');
+
+    if (topList) {
+      topList.innerHTML = top3.length > 0 
+        ? top3.map(op => `<li>${op.name} <span class="text-success font-black float-right">${op.pct}%</span></li>`).join('') 
+        : '<li class="text-base-content/40 normal-case">Sin registros suficientes</li>';
+    }
+    if (bottomList) {
+      bottomList.innerHTML = bottom3.length > 0 
+        ? bottom3.map(op => `<li>${op.name} <span class="text-warning font-black float-right">${op.lates} incid.</span></li>`).join('') 
+        : '<li class="text-base-content/40 normal-case">Sin incidencias registradas</li>';
+    }
+  }
+
+  function updateCharts() {
+    // 1. Eventualities Doughnut Chart
+    const absenceData: Record<string, number> = {};
+    rawLogs.forEach(log => {
+      if (log.ausencia && log.ausencia !== "") {
+        absenceData[log.ausencia] = (absenceData[log.ausencia] || 0) + 1;
+      }
+    });
+    const doughnutLabels = Object.keys(absenceData);
+    const doughnutValues = Object.values(absenceData);
+
+    const doughnutCtx = (document.getElementById('doughnut-chart') as HTMLCanvasElement).getContext('2d');
+    if (doughnutChartInstance) doughnutChartInstance.destroy();
+    
+    if (doughnutLabels.length > 0) {
+      doughnutChartInstance = new (window as any).Chart(doughnutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: doughnutLabels,
+          datasets: [{
+            data: doughnutValues,
+            backgroundColor: [
+              'rgba(16, 185, 129, 0.65)', // emerald
+              'rgba(245, 158, 11, 0.65)', // amber
+              'rgba(239, 68, 68, 0.65)', // red
+              'rgba(99, 102, 241, 0.65)', // indigo
+              'rgba(236, 72, 153, 0.65)', // pink
+              'rgba(14, 165, 233, 0.65)'  // sky
+            ],
+            borderColor: 'rgba(150, 150, 150, 0.1)',
+            borderWidth: 1.5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                font: { family: 'Geist', size: 9, weight: 'bold' },
+                color: 'gray'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Weekly Punctuality Bar Chart
+    // Group by weeks
+    const weeklySchedules: Record<string, { total: number; punctuals: number }> = {
+      "Semana 1": { total: 0, punctuals: 0 },
+      "Semana 2": { total: 0, punctuals: 0 },
+      "Semana 3": { total: 0, punctuals: 0 },
+      "Semana 4": { total: 0, punctuals: 0 }
+    };
+
+    rawLogs.forEach(log => {
+      if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
+      const day = parseInt(log.date.substring(8, 10));
+      let weekKey = "Semana 4";
+      if (day <= 7) weekKey = "Semana 1";
+      else if (day <= 14) weekKey = "Semana 2";
+      else if (day <= 21) weekKey = "Semana 3";
+
+      weeklySchedules[weekKey].total++;
+      if (log.cumplimiento === "Cumplió") {
+        weeklySchedules[weekKey].punctuals++;
+      }
+    });
+
+    const barLabels = Object.keys(weeklySchedules);
+    const barValues = Object.values(weeklySchedules).map(w => w.total > 0 ? Math.round((w.punctuals / w.total) * 100) : 0);
+
+    const barCtx = (document.getElementById('bar-chart') as HTMLCanvasElement).getContext('2d');
+    if (barChartInstance) barChartInstance.destroy();
+
+    barChartInstance = new (window as any).Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: barLabels,
+        datasets: [{
+          label: '% Puntualidad',
+          data: barValues,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgba(59, 130, 246, 0.9)',
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            grid: { color: 'rgba(150, 150, 150, 0.05)' },
+            ticks: { font: { family: 'Geist', size: 9 } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: 'Geist', size: 9, weight: 'bold' } }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
   function showOperatorDetails(agentId: number) {}
 
   // Helper to get number of days in a year-month
