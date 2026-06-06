@@ -573,13 +573,25 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
               <Icon name="boxicons:arrow-to-left" size={18} />
               Volver al resumen
             </button>
-            <button
-              class="btn btn-sm btn-outline text-secondary border-secondary/30 hover:bg-secondary hover:text-secondary-content"
-              onclick="window.print()"
-            >
-              <Icon name="boxicons:printer" size={18} />
-              Exportar Reporte
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                id="btn-export-csv"
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-[10px]"
+                title="Exportar Reporte de Operador a CSV"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5 shrink-0">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Exportar CSV</span>
+              </button>
+              <button
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-[10px]"
+                onclick="window.print()"
+              >
+                <Icon name="boxicons:printer" size={14} />
+                Exportar Reporte
+              </button>
+            </div>
           </div>
 
           <!-- Header del Detalle -->
@@ -2281,6 +2293,87 @@ const cleanBase = base.endsWith('/') ? base : base + '/';
         btnSaveParams.innerHTML = originalText;
       }
     });
+
+    // --- EXPORT TO CSV ---
+    const btnExportCSV = document.getElementById("btn-export-csv");
+    if (btnExportCSV) {
+      btnExportCSV.addEventListener("click", () => {
+        const el = document.getElementById("operators-data");
+        if (!el) return;
+        let operatorsData = {};
+        try {
+          operatorsData = JSON.parse(el.getAttribute("data-operators") || "{}");
+        } catch (e) {
+          console.error("Error parsing operators data", e);
+          return;
+        }
+
+        const selectedOp = operatorsData[activeAgentId || ""];
+        if (!selectedOp) {
+          alert("Por favor, seleccione un operador.");
+          return;
+        }
+
+        const monthSelector = document.getElementById("month-selector") as HTMLSelectElement;
+        const monthStr = monthSelector ? monthSelector.value : "calidad";
+
+        // Headers for CSV
+        const headers = [
+          "Periodo",
+          "Operador",
+          "Usuario",
+          "Fecha",
+          "ID Llamada",
+          "ID Ticket",
+          "Duracion",
+          "Puntaje Secc. 1 (Interaccion)",
+          "Puntaje Secc. 2 (Gestion)",
+          "Puntaje Total",
+          "Falla Critica",
+          "Observaciones"
+        ];
+
+        const csvRows = [headers.join(",")];
+
+        selectedOp.calls.forEach((call: any) => {
+          const row = [
+            call.month,
+            selectedOp.name,
+            selectedOp.username || "",
+            call.date.substring(0, 10),
+            call.callId,
+            call.ticketId,
+            call.duration,
+            call.section1.score,
+            call.section2.score,
+            call.totalScore,
+            call.isCriticalFailure ? "Si" : "No",
+            // Escape quotes and wrap notes in quotes
+            `"${(call.notes || "").replace(/"/g, '""')}"`
+          ];
+          const escapedRow = row.map(val => {
+            if (typeof val === "string" && !val.startsWith('"')) {
+              return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+          });
+          csvRows.push(escapedRow.join(","));
+        });
+
+        // Add UTF-8 BOM so Excel displays accents correctly
+        const csvContent = "\uFEFF" + csvRows.join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const fileName = `auditorias_${selectedOp.username || activeAgentId}_${monthStr}.csv`;
+        link.setAttribute("download", fileName);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
 
     // Auto-select operator on page load if agentId is in URL
     const urlParams = new URLSearchParams(window.location.search);
