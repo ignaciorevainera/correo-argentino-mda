@@ -158,3 +158,78 @@ const defaultMonth = `${y}-${m}`;
     </div>
   </PageContainer>
 </BaseLayout>
+
+<script>
+  let rawLogs = [];
+  let doughnutChartInstance = null;
+  let barChartInstance = null;
+
+  const monthInput = document.getElementById('analytics-month') as HTMLInputElement;
+  const operatorSelect = document.getElementById('operator-select') as HTMLSelectElement;
+
+  // Placeholder functions to allow TypeScript compilation before Task 5 and 6 are implemented
+  function processGlobalMetrics() {}
+  function updateCharts() {}
+  function showOperatorDetails(agentId: number) {}
+
+  // Helper to get number of days in a year-month
+  function getDaysInMonth(year: number, month: number): number {
+    return new Date(year, month, 0).getDate();
+  }
+
+  async function loadData() {
+    if (!monthInput.value) return;
+    const [yearStr, monthStr] = monthInput.value.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr);
+    const totalDays = getDaysInMonth(year, month);
+
+    const startDate = `${yearStr}-${monthStr}-01`;
+    const endDate = `${yearStr}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
+
+    // Show loader on KPIs
+    const punctualityKPI = document.getElementById('kpi-punctuality');
+    if (punctualityKPI) punctualityKPI.textContent = '...';
+
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL || "/"}api/asistencia?startDate=${startDate}&endDate=${endDate}`);
+      if (!response.ok) throw new Error("Failed to fetch statistics data");
+      rawLogs = await response.json();
+
+      processGlobalMetrics();
+      populateOperatorDropdown();
+      updateCharts();
+      
+      // Refresh currently selected operator details if applicable
+      if (operatorSelect.value) {
+        showOperatorDetails(parseInt(operatorSelect.value));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function populateOperatorDropdown() {
+    const currentSelection = operatorSelect.value;
+    operatorSelect.innerHTML = '<option value="">Seleccione operador...</option>';
+    
+    const operatorsMap = new Map();
+    rawLogs.forEach(log => {
+      if (!operatorsMap.has(log.agentId)) {
+        operatorsMap.set(log.agentId, log.nombre);
+      }
+    });
+
+    const sortedOps = Array.from(operatorsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    sortedOps.forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = name;
+      if (String(id) === currentSelection) opt.selected = true;
+      operatorSelect.appendChild(opt);
+    });
+  }
+
+  monthInput.addEventListener('change', loadData);
+  document.addEventListener('DOMContentLoaded', loadData);
+</script>
