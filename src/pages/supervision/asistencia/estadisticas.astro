@@ -364,7 +364,88 @@ const defaultMonth = `${y}-${m}`;
     });
   }
 
-  function showOperatorDetails(agentId: number) {}
+  function showOperatorDetails(agentId: number) {
+    const opLogs = rawLogs.filter(log => log.agentId === agentId);
+    if (opLogs.length === 0) return;
+
+    const emptyState = document.getElementById('operator-empty-state');
+    const statsBlock = document.getElementById('operator-stats');
+    if (emptyState) emptyState.classList.add('hidden');
+    if (statsBlock) statsBlock.classList.remove('hidden');
+
+    // 1. Calculate Individual KPIs
+    const schedulesWithTime = opLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco");
+    const totalSchedules = schedulesWithTime.length;
+    
+    const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
+    const lates = schedulesWithTime.filter(log => log.cumplimiento && log.cumplimiento !== "Cumplió" && log.cumplimiento !== "Sin Registro").length;
+    const absences = opLogs.filter(log => log.ausencia && log.ausencia !== "").length;
+
+    const opKpiPunctuality = document.getElementById('op-kpi-punctuality');
+    const opKpiWorked = document.getElementById('op-kpi-worked');
+    const opKpiLates = document.getElementById('op-kpi-lates');
+    const opKpiAbsences = document.getElementById('op-kpi-absences');
+
+    if (opKpiPunctuality) opKpiPunctuality.textContent = totalSchedules > 0 ? `${Math.round((punctuals / totalSchedules) * 100)}%` : '100%';
+    if (opKpiWorked) opKpiWorked.textContent = String(totalSchedules);
+    if (opKpiLates) opKpiLates.textContent = String(lates);
+    if (opKpiAbsences) opKpiAbsences.textContent = String(absences);
+
+    // 2. Build GitHub Contribution-Style Grid
+    const grid = document.getElementById('op-calendar-grid');
+    if (grid) {
+      grid.innerHTML = '';
+      
+      // Sort logs by date to render sequential
+      const sortedLogs = [...opLogs].sort((a, b) => a.date.localeCompare(b.date));
+      
+      sortedLogs.forEach(log => {
+        const day = parseInt(log.date.substring(8, 10));
+        const cell = document.createElement('div');
+        
+        let colorClass = 'bg-base-200/50 border border-base-300/40 text-base-content/40';
+        if (log.horarioEstipulado && log.horarioEstipulado !== "Franco") {
+          if (log.cumplimiento === "Cumplió") {
+            colorClass = 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30';
+          } else if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Retiro Anticipado" || log.cumplimiento === "Tarde y Retiro Anticipado") {
+            colorClass = 'bg-amber-500/20 text-amber-600 border border-amber-500/30';
+          } else if (log.cumplimiento === "Incumplió" || log.cumplimiento === "Sin Registro") {
+            colorClass = 'bg-error/15 text-error border border-error/30';
+          }
+        }
+        
+        cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black cursor-help shadow-sm transition-all duration-200 hover:scale-110 hover:z-10 ${colorClass}`;
+        cell.textContent = String(day);
+        
+        // Form tooltip info
+        const tooltipParts = [
+          `Fecha: ${log.date}`,
+          `Planificado: ${log.horarioEstipulado || 'Franco'}`,
+          `Asistencia: ${log.asistencia || 'Sin registro'}`,
+          `Cumplimiento: ${log.cumplimiento || 'Sin registro'}`
+        ];
+        if (log.entradaReal) tooltipParts.push(`Entrada Real: ${log.entradaReal}`);
+        if (log.salidaReal) tooltipParts.push(`Salida Real: ${log.salidaReal}`);
+        if (log.ausencia) tooltipParts.push(`Ausencia: ${log.ausencia}`);
+        if (log.detalle) tooltipParts.push(`Comentario: ${log.detalle}`);
+
+        cell.title = tooltipParts.join('\n');
+        grid.appendChild(cell);
+      });
+    }
+  }
+
+  operatorSelect.addEventListener('change', () => {
+    const val = operatorSelect.value;
+    if (!val) {
+      const emptyState = document.getElementById('operator-empty-state');
+      const statsBlock = document.getElementById('operator-stats');
+      if (emptyState) emptyState.classList.remove('hidden');
+      if (statsBlock) statsBlock.classList.add('hidden');
+    } else {
+      showOperatorDetails(parseInt(val));
+    }
+  });
 
   // Helper to get number of days in a year-month
   function getDaysInMonth(year: number, month: number): number {
