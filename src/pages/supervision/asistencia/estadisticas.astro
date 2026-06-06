@@ -1,0 +1,49 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+const user = Astro.locals.user;
+if (!["admin", "supervisor"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+
+const today = new Date();
+const y = today.getFullYear();
+const m = String(today.getMonth() + 1).padStart(2, "0");
+const defaultMonth = `${y}-${m}`;
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <a
+      href={`${cleanBase}supervision/asistencia`}
+      class="btn btn-ghost btn-sm mb-2 w-fit pl-2 transition-colors duration-200"
+    >
+      <Icon name="boxicons:chevron-left" size={16} />
+      Volver a Control Diario
+    </a>
+
+    <PageHeader
+      title="Estadísticas y Reportes Mensuales"
+      description="Analíticas de puntualidad, distribución de eventualidades del equipo y fichas de cumplimiento individual."
+    />
+
+    <div class="flex flex-col gap-6 w-full pb-24 animate-in fade-in duration-500">
+      <!-- Controls & Filters Bar -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-base-content/70">Seleccionar Mes:</span>
+          <input 
+            type="month" 
+            id="analytics-month"
+            value={defaultMonth}
+            class="bg-base-200 border border-base-300 rounded-xl px-4 py-2 text-sm font-bold text-base-content outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
+          />
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>
