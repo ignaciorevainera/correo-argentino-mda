@@ -244,6 +244,7 @@ export const cubicsRelations = relations(cubics, ({ many }) => ({
 export const agentsRelations = relations(agents, ({ many }) => ({
   assignments: many(cubicAssignments),
   audits: many(qualityAudits),
+  attendance: many(operatorAttendance),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -401,6 +402,7 @@ export const auditParameters = sqliteTable("audit_parameters", {
   name: text("name").notNull(),
   weight: real("weight").notNull().default(1.0),
   category: text("category").notNull(), // 'Interacción con Usuario' | 'Gestión del Ticket'
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
 });
 
 export const auditScores = sqliteTable(
@@ -543,3 +545,30 @@ export const auditLogs = sqliteTable("audit_logs", {
   action: text("action").notNull(),
   timestamp: text("timestamp").notNull(),
 });
+
+// 15. CONTROL DE ASISTENCIA (Horarios reales y eventualidades)
+export const operatorAttendance = sqliteTable("operator_attendance", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  asistencia: text("asistencia"),
+  ausencia: text("ausencia"),
+  entradaReal: text("entrada_real"),
+  salidaReal: text("salida_real"),
+  cumplimiento: text("cumplimiento"),
+  cumplimientoForzado: integer("cumplimiento_forzado", { mode: "boolean" }).default(false),
+  motivoLoguin: text("motivo_loguin"),
+  detalle: text("detalle"),
+});
+
+export const operatorAttendanceRelations = relations(
+  operatorAttendance,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [operatorAttendance.agentId],
+      references: [agents.id],
+    }),
+  })
+);

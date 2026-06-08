@@ -1,5 +1,5 @@
 import type { OperatorData, RulesConfig } from './types';
-import { checkTimeAlerts, timeToMinutes } from './utils';
+// Removed checkTimeAlerts and timeToMinutes import
 
 // Lazy loading of html-to-image with requestIdleCallback preloading
 let _toPng: ((el: HTMLElement, options?: any) => Promise<string>) | null = null;
@@ -45,10 +45,7 @@ export function exportCSV(
     "Vacaciones (V)",
     "Horas Extras (HE)",
     "Franco (F)",
-    "Llegadas Tarde",
-    "Salidas Anticipadas",
     "Inconsistencias Normativas",
-    "Horas Reales Trabajadas",
     ...dates
   ];
 
@@ -69,9 +66,6 @@ export function exportCSV(
 
   cronoData.forEach(op => {
     const stats = { P: 0, HO: 0, L: 0, V: 0, HE: 0, F: 0 };
-    let llegadasTarde = 0;
-    let salidasAnticipadas = 0;
-    let totalMinutesWorked = 0;
 
     // Policy compliance calculations
     const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : rules.maxConsecutiveHOLimit;
@@ -94,33 +88,6 @@ export function exportCSV(
       else if (s === 'Vacaciones') stats.V++;
       else if (s === 'Horas Extras') stats.HE++;
       else stats.F++; // Franco / No set
-
-      // Late & Early check
-      const dailyHorario = (op.horarios_dias && op.horarios_dias[d]) || op.horario;
-      const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
-      const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
-      const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
-      if (late) llegadasTarde++;
-      if (early) salidasAnticipadas++;
-
-      // Real Worked Hours check
-      if (entradaReal && salidaReal) {
-        const startMin = timeToMinutes(entradaReal);
-        const endMin = timeToMinutes(salidaReal);
-        let diff = endMin - startMin;
-        if (diff < 0) diff += 1440; // overnight shift
-
-        const breakInicio = op.breaks_inicio?.[d];
-        const breakFin = op.breaks_fin?.[d];
-        if (breakInicio && breakFin) {
-          const bStartMin = timeToMinutes(breakInicio);
-          const bEndMin = timeToMinutes(breakFin);
-          let bDiff = bEndMin - bStartMin;
-          if (bDiff < 0) bDiff += 1440;
-          diff -= bDiff;
-        }
-        totalMinutesWorked += Math.max(0, diff);
-      }
 
       // Compliance rules: HO consecutive
       if (s === 'Home Office') {
@@ -157,7 +124,6 @@ export function exportCSV(
     const email = op.username ? op.username + "@correoargentino.com.ar" : "";
     const sede = op.location || "Monte Grande";
     const turnoBase = op.horario || '-';
-    const horasReales = (totalMinutesWorked / 60).toFixed(2);
 
     const row = [
       escapeCSVCell(op.nombre),
@@ -170,10 +136,7 @@ export function exportCSV(
       escapeCSVCell(stats.V),
       escapeCSVCell(stats.HE),
       escapeCSVCell(stats.F),
-      escapeCSVCell(llegadasTarde),
-      escapeCSVCell(salidasAnticipadas),
-      escapeCSVCell(totalInconsistencias),
-      escapeCSVCell(horasReales)
+      escapeCSVCell(totalInconsistencias)
     ];
 
     // Format daily cells
@@ -187,12 +150,10 @@ export function exportCSV(
       if (isAbsent) {
         cellValue = status;
       } else {
-        const entradaReal = (op.entradas_reales && op.entradas_reales[d]) || '';
-        const salidaReal = (op.salidas_reales && op.salidas_reales[d]) || '';
         const breakInicio = (op.breaks_inicio && op.breaks_inicio[d]) || '';
         const breakFin = (op.breaks_fin && op.breaks_fin[d]) || '';
 
-        cellValue = `${status} [${dailyHorario || '-'}] (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'} | Break: ${breakInicio || '--:--'} - ${breakFin || '--:--'})`;
+        cellValue = `${status} [${dailyHorario || '-'}]${(breakInicio || breakFin) ? ` (Break: ${breakInicio || '--:--'} - ${breakFin || '--:--'})` : ''}`;
       }
 
       if (comment) {

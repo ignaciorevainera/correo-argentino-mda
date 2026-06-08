@@ -2,10 +2,134 @@ import { defineAction } from "astro:actions";
 import { z } from "astro:schema";
 import { db } from "@db/index";
 import { qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { calculateAuditScores } from "../lib/qualityCalculator";
 
 export const server = {
+  saveParameters: defineAction({
+    input: z.object({
+      parameters: z.array(z.object({
+        id: z.number().optional().nullable(),
+        name: z.string().min(1, "El nombre es requerido"),
+        weight: z.number().min(0, "El peso debe ser mayor o igual a 0"),
+        category: z.string().min(1, "La categoría es requerida"),
+        isDeleted: z.boolean().optional().default(false),
+      }))
+    }),
+    handler: async (input) => {
+      const generateCode = (name: string): string => {
+        const base = name
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+        const randomSuffix = Math.random().toString(36).substring(2, 7);
+        return `${base.substring(0, 15) || "param"}_${randomSuffix}`;
+      };
+
+      try {
+        db.transaction((tx) => {
+          for (const param of input.parameters) {
+            if (param.id) {
+              // Existing parameter
+              if (param.isDeleted) {
+                // Check if used in auditScores
+                const scores = tx.select()
+                  .from(auditScores)
+                  .where(eq(auditScores.parameterId, param.id))
+                  .limit(1)
+                  .all();
+                const hasScores = scores.length > 0;
+
+                if (!hasScores) {
+                  // Hard delete
+                  tx.delete(auditParameters)
+                    .where(eq(auditParameters.id, param.id))
+                    .run();
+                } else {
+                  // Soft delete
+                  tx.update(auditParameters)
+                    .set({ active: false })
+                    .where(eq(auditParameters.id, param.id))
+                    .run();
+                }
+              } else {
+                // Edit parameter
+                const [current] = tx.select()
+                  .from(auditParameters)
+                  .where(eq(auditParameters.id, param.id))
+                  .all();
+
+                if (current) {
+                  const changed = current.name !== param.name || 
+                                  current.weight !== param.weight || 
+                                  current.category !== param.category;
+
+                  if (changed) {
+                    // Check if used in auditScores
+                    const scores = tx.select()
+                      .from(auditScores)
+                      .where(eq(auditScores.parameterId, param.id))
+                      .limit(1)
+                      .all();
+                    const hasScores = scores.length > 0;
+
+                    if (!hasScores) {
+                      // Edit in-place
+                      tx.update(auditParameters)
+                        .set({
+                          name: param.name,
+                          weight: param.weight,
+                          category: param.category
+                        })
+                        .where(eq(auditParameters.id, param.id))
+                        .run();
+                    } else {
+                      // Soft delete current and insert new version
+                      tx.update(auditParameters)
+                        .set({ active: false })
+                        .where(eq(auditParameters.id, param.id))
+                        .run();
+
+                      const newCode = generateCode(param.name);
+                      tx.insert(auditParameters)
+                        .values({
+                          code: newCode,
+                          name: param.name,
+                          weight: param.weight,
+                          category: param.category,
+                          active: true
+                        })
+                        .run();
+                    }
+                  }
+                }
+              }
+            } else if (!param.isDeleted) {
+              // New parameter
+              const newCode = generateCode(param.name);
+              tx.insert(auditParameters)
+                .values({
+                  code: newCode,
+                  name: param.name,
+                  weight: param.weight,
+                  category: param.category,
+                  active: true
+                })
+                .run();
+            }
+          }
+        });
+        return { success: true };
+      } catch (error: any) {
+        console.error("Error saving parameters:", error);
+        throw new Error(error.message || "Error al guardar los parámetros");
+      }
+    }
+  }),
+
   saveAudit: defineAction({
     accept: "form",
     input: z.object({
@@ -20,8 +144,27 @@ export const server = {
       isCriticalFailure: z.any().transform(v => v === "on" || v === true || v === "true" || v === 1 || v === "1"),
     }).passthrough(),
     handler: async (input) => {
-      // 1. Obtener todos los parámetros dinámicos
-      const allParams = await db.select().from(auditParameters);
+      // 1. Obtener los parámetros correspondientes
+      let allParams;
+      if (input.id) {
+        const existingScores = await db.select()
+          .from(auditScores)
+          .where(eq(auditScores.auditId, input.id));
+        const paramIds = existingScores.map(s => s.parameterId);
+        if (paramIds.length > 0) {
+          allParams = await db.select()
+            .from(auditParameters)
+            .where(inArray(auditParameters.id, paramIds));
+        } else {
+          allParams = await db.select()
+            .from(auditParameters)
+            .where(eq(auditParameters.active, true));
+        }
+      } else {
+        allParams = await db.select()
+          .from(auditParameters)
+          .where(eq(auditParameters.active, true));
+      }
 
       // 2. Preparar el listado de scores y recopilar códigos seleccionados
       const scoresToInsert: { parameterId: number; score: boolean }[] = [];

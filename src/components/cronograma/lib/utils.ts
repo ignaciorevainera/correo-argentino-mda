@@ -1,12 +1,3 @@
-export function normalizeTimeStr(timeStr: string | undefined | null): string {
-  if (!timeStr) return '';
-  const parts = timeStr.trim().split(':');
-  if (parts.length < 2) return '';
-  const h = parts[0].padStart(2, '0');
-  const m = parts[1].padStart(2, '0');
-  return `${h}:${m}`;
-}
-
 export function timeToMinutes(timeStr: string): number {
   const parts = timeStr.split(':');
   if (parts.length < 2) return 0;
@@ -17,35 +8,6 @@ export function getGanttPosition(timeStr: string): number {
   const totalMinutes = 24 * 60; // 1440
   const minutes = timeToMinutes(timeStr);
   return (minutes / totalMinutes) * 100;
-}
-
-export function checkTimeAlerts(
-  dailyHorario: string | undefined | null,
-  entradaReal: string | undefined | null,
-  salidaReal: string | undefined | null
-): { late: boolean; early: boolean } {
-  if (
-    !dailyHorario ||
-    dailyHorario === '-' ||
-    dailyHorario === 'Franco' ||
-    dailyHorario === 'Vacaciones' ||
-    dailyHorario === 'Licencia'
-  ) {
-    return { late: false, early: false };
-  }
-  const parts = dailyHorario.split(' - ');
-  if (parts.length !== 2) return { late: false, early: false };
-
-  const plannedIn = normalizeTimeStr(parts[0]);
-  const plannedOut = normalizeTimeStr(parts[1]);
-
-  const realInNormal = normalizeTimeStr(entradaReal);
-  const realOutNormal = normalizeTimeStr(salidaReal);
-
-  const late = !!(realInNormal && plannedIn && realInNormal > plannedIn);
-  const early = !!(realOutNormal && plannedOut && realOutNormal < plannedOut);
-
-  return { late, early };
 }
 
 export function getDaysInMonth(year: number, month: number): number {

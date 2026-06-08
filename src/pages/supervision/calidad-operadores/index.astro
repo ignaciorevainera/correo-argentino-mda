@@ -160,13 +160,14 @@ const operatorsQuality = allAgents.map((agent) => {
     const section1Details: Record<string, boolean> = {};
     const section2Details: Record<string, boolean> = {};
 
-    allParameters.forEach((param) => {
-      const scoreObj = auditScoresList.find((s) => s.parameterId === param.id);
-      const isChecked = scoreObj ? scoreObj.score : false;
-      if (param.category === "Interacción con Usuario") {
-        section1Details[param.code] = isChecked;
-      } else if (param.category === "Gestión del Ticket") {
-        section2Details[param.code] = isChecked;
+    auditScoresList.forEach(scoreObj => {
+      const param = allParameters.find(p => p.id === scoreObj.parameterId);
+      if (param) {
+        if (param.category === "Interacción con Usuario") {
+          section1Details[param.code] = scoreObj.score;
+        } else if (param.category === "Gestión del Ticket") {
+          section2Details[param.code] = scoreObj.score;
+        }
       }
     });
 
@@ -309,6 +310,15 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           title="Mes siguiente"
         >
           <Icon name="boxicons:chevron-right" size={24} />
+        </button>
+        <div class="divider divider-horizontal mx-1 hidden sm:flex"></div>
+        <button
+          id="btn-configure-parameters"
+          class="btn btn-sm btn-outline btn-secondary gap-1.5 font-bold uppercase text-xs"
+          title="Configurar Parámetros de Calidad"
+        >
+          <Icon name="boxicons:cog" size={18} />
+          <span>Parámetros</span>
         </button>
       </div>
     </div>
@@ -634,13 +644,25 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
               <Icon name="boxicons:arrow-to-left" size={18} />
               Volver al resumen
             </button>
-            <button
-              class="btn btn-sm btn-outline text-secondary border-secondary/30 hover:bg-secondary hover:text-secondary-content"
-              onclick="window.print()"
-            >
-              <Icon name="boxicons:printer" size={18} />
-              Exportar Reporte
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                id="btn-export-csv"
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-[10px]"
+                title="Exportar Reporte de Operador a CSV"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5 shrink-0">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Exportar CSV</span>
+              </button>
+              <button
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-[10px]"
+                onclick="window.print()"
+              >
+                <Icon name="boxicons:printer" size={14} />
+                Exportar Reporte
+              </button>
+            </div>
           </div>
 
           <!-- Header del Detalle -->
@@ -820,15 +842,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   </PageContainer>
 </BaseLayout>
 
-<!-- Dialog Modal for Adding/Editing Audits -->
-<dialog id="audit-modal" class="modal modal-bottom sm:modal-middle z-200">
-  <div
-    class="modal-box max-w-2xl bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6"
-  >
-    <h3
-      id="modal-title"
-      class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2"
-    >
+<dialog id="audit-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box w-11/12 max-w-3xl bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6">
+    <h3 id="modal-title" class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
       <Icon name="boxicons:task" class="text-primary" size={22} />
       Nueva Auditoría de Calidad
     </h3>
@@ -957,22 +973,23 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
               >Máx: 100</span
             >
           </h4>
-          <div class="space-y-2 max-h-64 overflow-y-auto">
-            {
-              allParameters
-                .filter((p) => p.category === "Interacción con Usuario")
-                .map((p) => (
-                  <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg">
-                    <input
-                      type="checkbox"
-                      name={p.code}
-                      class="checkbox checkbox-primary checkbox-sm audit-checkbox"
-                      data-param-id={p.id}
-                    />
-                    <span class="label-text text-sm font-medium">{p.name}</span>
-                  </label>
-                ))
-            }
+          <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
+            {allParameters
+              .filter((p) => p.category === "Interacción con Usuario")
+              .map((p) => (
+                <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg audit-parameter-row" data-param-id={p.id} data-active={p.active ? "true" : "false"}>
+                  <input
+                    type="checkbox"
+                    name={p.code}
+                    class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+                    data-param-id={p.id}
+                  />
+                  <span class="label-text text-sm font-medium">
+                    {p.name}
+                    <span class="text-xs opacity-50 font-normal ml-1">({p.weight})</span>
+                  </span>
+                </label>
+              ))}
           </div>
         </div>
 
@@ -986,22 +1003,23 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
               >Máx: 100</span
             >
           </h4>
-          <div class="space-y-2 max-h-64 overflow-y-auto">
-            {
-              allParameters
-                .filter((p) => p.category === "Gestión del Ticket")
-                .map((p) => (
-                  <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg">
-                    <input
-                      type="checkbox"
-                      name={p.code}
-                      class="checkbox checkbox-primary checkbox-sm audit-checkbox"
-                      data-param-id={p.id}
-                    />
-                    <span class="label-text text-sm font-medium">{p.name}</span>
-                  </label>
-                ))
-            }
+          <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
+            {allParameters
+              .filter((p) => p.category === "Gestión del Ticket")
+              .map((p) => (
+                <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg audit-parameter-row" data-param-id={p.id} data-active={p.active ? "true" : "false"}>
+                  <input
+                    type="checkbox"
+                    name={p.code}
+                    class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+                    data-param-id={p.id}
+                  />
+                  <span class="label-text text-sm font-medium">
+                    {p.name}
+                    <span class="text-xs opacity-50 font-normal ml-1">({p.weight})</span>
+                  </span>
+                </label>
+              ))}
           </div>
         </div>
       </div>
@@ -1138,6 +1156,80 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   </form>
 </dialog>
 
+<!-- Dialog Modal for Managing Quality Parameters -->
+<dialog id="parameters-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-2xl bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 flex flex-col h-[80vh] sm:h-[600px]">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2 shrink-0">
+      <Icon name="boxicons:cog" class="text-primary" size={22} />
+      Configuración de Parámetros de Calidad
+    </h3>
+
+    <!-- Tabs Header -->
+    <div class="tabs tabs-boxed mb-4 shrink-0 bg-base-200/50 p-1 rounded-xl">
+      <button type="button" class="tab tab-active flex-1 font-bold text-xs uppercase parameter-tab" data-tab="s1">
+        Interacción con Usuario
+      </button>
+      <button type="button" class="tab flex-1 font-bold text-xs uppercase parameter-tab" data-tab="s2">
+        Gestión del Ticket
+      </button>
+    </div>
+
+    <!-- Lists Container -->
+    <div class="flex-1 overflow-y-auto space-y-4 pr-1 min-h-0">
+      <!-- Section 1 List (Interacción con Usuario) -->
+      <div id="param-list-s1" class="space-y-3 parameter-list-pane">
+        <!-- populated dynamically -->
+      </div>
+
+      <!-- Section 2 List (Gestión del Ticket) -->
+      <div id="param-list-s2" class="space-y-3 parameter-list-pane hidden">
+        <!-- populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="modal-action mt-6 flex justify-between shrink-0 border-t border-base-200 pt-4">
+      <div class="flex gap-2">
+        <button
+          type="button"
+          id="btn-add-param-s1"
+          class="btn btn-sm btn-primary gap-1 text-xs font-black uppercase add-param-btn"
+        >
+          <Icon name="boxicons:plus" size={16} />
+          Agregar a Interacción
+        </button>
+        <button
+          type="button"
+          id="btn-add-param-s2"
+          class="btn btn-sm btn-primary gap-1 text-xs font-black uppercase add-param-btn hidden"
+        >
+          <Icon name="boxicons:plus" size={16} />
+          Agregar a Gestión
+        </button>
+      </div>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          id="btn-close-parameters-modal"
+          class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btn-save-parameters"
+          class="btn btn-sm btn-secondary text-xs font-black uppercase"
+        >
+          Guardar Cambios
+        </button>
+      </div>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
 <style>
   /* Animaciones útiles para las transiciones de estado */
   .animate-fade-in {
@@ -1266,17 +1358,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
     // Filtrar parámetros dinámicos
     const params: AuditParameter[] = getAuditParameters();
-    const s1Params = params.filter(
-      (p) => p.category === "Interacción con Usuario",
-    );
-    const s2Params = params.filter((p) => p.category === "Gestión del Ticket");
+    const s1Params = params.filter((p) => p.category === "Interacción con Usuario" && call.section1.details.hasOwnProperty(p.code));
+    const s2Params = params.filter((p) => p.category === "Gestión del Ticket" && call.section2.details.hasOwnProperty(p.code));
 
     const s1ListHTML = s1Params
       .map((param) => {
         const isChecked = call.section1.details[param.code] || false;
         return `
         <li class="flex items-center justify-between group/item">
-          <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">${param.name}</span>
+          <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">
+            ${escapeHtml(param.name)}
+            <span class="text-xs opacity-50 font-normal ml-1.5">(${param.weight})</span>
+          </span>
           <span class="leading-none ${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
         </li>
       `;
@@ -1288,7 +1381,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         const isChecked = call.section2.details[param.code] || false;
         return `
         <li class="flex items-center justify-between group/item">
-          <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">${param.name}</span>
+          <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors">
+            ${escapeHtml(param.name)}
+            <span class="text-xs opacity-50 font-normal ml-1.5">(${param.weight})</span>
+          </span>
           <span class="leading-none ${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
         </li>
       `;
@@ -1623,6 +1719,30 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       clearFormErrors(auditForm);
       formAgentId.value = agentId;
 
+      // Filter parameter checkboxes based on mode
+      const rows = auditForm.querySelectorAll(".audit-parameter-row") as NodeListOf<HTMLElement>;
+      if (callData) {
+        rows.forEach(row => {
+          const input = row.querySelector("input[type='checkbox']") as HTMLInputElement;
+          const code = input ? input.name : "";
+          const hasAnswer = callData.section1.details.hasOwnProperty(code) || callData.section2.details.hasOwnProperty(code);
+          if (hasAnswer) {
+            row.classList.remove("hidden");
+          } else {
+            row.classList.add("hidden");
+          }
+        });
+      } else {
+        rows.forEach(row => {
+          const isActive = row.getAttribute("data-active") === "true";
+          if (isActive) {
+            row.classList.remove("hidden");
+          } else {
+            row.classList.add("hidden");
+          }
+        });
+      }
+      
       if (callData) {
         // Edit mode
         modalTitle!.innerHTML = `<svg class="size-6 text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor; margin-right: 0.5rem;"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"></path></svg> Editar Auditoría de Calidad`;
@@ -2190,6 +2310,333 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         }
       });
     });
+
+    // --- PARAMETERS CONFIGURATION MODAL ---
+    const parametersModal = document.getElementById("parameters-modal") as HTMLDialogElement;
+    const btnConfigureParameters = document.getElementById("btn-configure-parameters");
+    const btnCloseParametersModal = document.getElementById("btn-close-parameters-modal");
+    const btnAddParamS1 = document.getElementById("btn-add-param-s1");
+    const btnAddParamS2 = document.getElementById("btn-add-param-s2");
+    
+    let localParams: any[] = [];
+    
+    if (btnConfigureParameters) {
+      btnConfigureParameters.addEventListener("click", () => {
+        localParams = getAuditParameters().map((p: any) => ({ ...p, isDeleted: false }));
+        
+        // Reset tabs to S1
+        const tabs = document.querySelectorAll(".parameter-tab");
+        tabs.forEach(t => t.classList.remove("tab-active"));
+        tabs[0]?.classList.add("tab-active");
+        
+        document.getElementById("param-list-s1")?.classList.remove("hidden");
+        document.getElementById("param-list-s2")?.classList.add("hidden");
+        document.getElementById("btn-add-param-s1")?.classList.remove("hidden");
+        document.getElementById("btn-add-param-s2")?.classList.add("hidden");
+        
+        renderParametersList();
+        parametersModal.showModal();
+      });
+    }
+    
+    if (btnCloseParametersModal) {
+      btnCloseParametersModal.addEventListener("click", () => {
+        parametersModal.close();
+      });
+    }
+    
+    if (btnAddParamS1) {
+      btnAddParamS1.addEventListener("click", () => {
+        handleAddParam("Interacción con Usuario");
+      });
+    }
+    
+    if (btnAddParamS2) {
+      btnAddParamS2.addEventListener("click", () => {
+        handleAddParam("Gestión del Ticket");
+      });
+    }
+    
+    const handleAddParam = (category: string) => {
+      localParams.push({
+        id: null,
+        name: "",
+        weight: 1.0,
+        category: category,
+        active: true,
+        isDeleted: false
+      });
+      renderParametersList();
+
+      const paneId = category === "Interacción con Usuario" ? "param-list-s1" : "param-list-s2";
+      const pane = document.getElementById(paneId);
+      if (pane) {
+        setTimeout(() => {
+          pane.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+          (pane.lastElementChild?.querySelector(".param-input-name") as HTMLElement)?.focus();
+        }, 50);
+      }
+    };
+    
+    function renderParameterRow(param: any, actualIndex: number, displayIndex: number) {
+      const isDeleted = param.isDeleted;
+      const isNew = !param.id;
+      
+      return `
+        <div class="flex items-center gap-3 bg-base-200/40 p-2 rounded-xl border border-base-300 transition-all ${isDeleted ? 'opacity-40 bg-error/5 border-error/20 line-through' : ''}" data-index="${actualIndex}">
+          <div class="flex items-center justify-center size-8 rounded-lg bg-base-100 font-mono text-xs text-base-content/50 border border-base-200 shrink-0">
+            ${isNew ? '<span class="text-success font-black">+</span>' : displayIndex}
+          </div>
+          <input 
+            type="text" 
+            value="${escapeHtml(param.name)}" 
+            placeholder="Nombre del criterio..."
+            class="input input-bordered input-sm flex-1 font-semibold bg-base-100 focus:outline-none focus:border-primary param-input-name"
+            ${isDeleted ? 'disabled' : ''}
+            data-index="${actualIndex}"
+          />
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-xs font-bold text-base-content/40 uppercase">Peso:</span>
+            <input 
+              type="number" 
+              step="0.1" 
+              min="0"
+              value="${param.weight}" 
+              class="input input-bordered input-sm w-16 text-center font-bold bg-base-100 focus:outline-none focus:border-primary param-input-weight"
+              ${isDeleted ? 'disabled' : ''}
+              data-index="${actualIndex}"
+            />
+          </div>
+          <div class="shrink-0">
+            ${isDeleted ? `
+              <button type="button" class="btn btn-sm btn-circle btn-ghost text-success param-btn-restore animate-fade-in" data-index="${actualIndex}" title="Restaurar">
+                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+              </button>
+            ` : `
+              <button type="button" class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10 param-btn-delete animate-fade-in" data-index="${actualIndex}" title="Eliminar">
+                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m20.37 5.91-1 .92a2 2 0 0 1-1.39.57H6A2 2 0 0 1 4.6 6.84l-1-.93L2.24 7.27l1 .93a4 4 0 0 0 2.76 1.14h12A4 4 0 0 0 20.76 8.2l1-.93zm-3.5 4v9a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-9h-2v9a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-9zM8.5 3h7V1h-7z"/></svg>
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderParametersList() {
+      const s1Container = document.getElementById("param-list-s1");
+      const s2Container = document.getElementById("param-list-s2");
+      if (!s1Container || !s2Container) return;
+      
+      let s1Count = 0;
+      const s1Html = localParams
+        .map((p, i) => ({ p, i }))
+        .filter(item => item.p.category === "Interacción con Usuario" && (item.p.active || !item.p.id || item.p.isDeleted))
+        .map(item => {
+          s1Count++;
+          return renderParameterRow(item.p, item.i, s1Count);
+        })
+        .join("");
+        
+      let s2Count = 0;
+      const s2Html = localParams
+        .map((p, i) => ({ p, i }))
+        .filter(item => item.p.category === "Gestión del Ticket" && (item.p.active || !item.p.id || item.p.isDeleted))
+        .map(item => {
+          s2Count++;
+          return renderParameterRow(item.p, item.i, s2Count);
+        })
+        .join("");
+        
+      s1Container.innerHTML = s1Html || '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
+      s2Container.innerHTML = s2Html || '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
+      
+      // Attach input change listeners
+      s1Container.querySelectorAll(".param-input-name, .param-input-weight").forEach(attachInputListeners);
+      s2Container.querySelectorAll(".param-input-name, .param-input-weight").forEach(attachInputListeners);
+      
+      // Attach delete/restore button listeners
+      s1Container.querySelectorAll(".param-btn-delete").forEach(btn => btn.addEventListener("click", handleDeleteParam));
+      s1Container.querySelectorAll(".param-btn-restore").forEach(btn => btn.addEventListener("click", handleRestoreParam));
+      s2Container.querySelectorAll(".param-btn-delete").forEach(btn => btn.addEventListener("click", handleDeleteParam));
+      s2Container.querySelectorAll(".param-btn-restore").forEach(btn => btn.addEventListener("click", handleRestoreParam));
+    }
+    
+    function attachInputListeners(input: Element) {
+      input.addEventListener("input", (e) => {
+        const target = e.target as HTMLInputElement;
+        const idx = parseInt(target.getAttribute("data-index") || "0", 10);
+        if (target.classList.contains("param-input-name")) {
+          localParams[idx].name = target.value;
+        } else if (target.classList.contains("param-input-weight")) {
+          localParams[idx].weight = parseFloat(target.value) || 0;
+        }
+      });
+    }
+    
+    function handleDeleteParam(e: Event) {
+      const target = (e.currentTarget as HTMLElement);
+      const idx = parseInt(target.getAttribute("data-index") || "0", 10);
+      localParams[idx].isDeleted = true;
+      renderParametersList();
+    }
+    
+    function handleRestoreParam(e: Event) {
+      const target = (e.currentTarget as HTMLElement);
+      const idx = parseInt(target.getAttribute("data-index") || "0", 10);
+      localParams[idx].isDeleted = false;
+      renderParametersList();
+    }
+    
+    // Tab switching in parameters modal
+    const paramTabs = document.querySelectorAll(".parameter-tab");
+    paramTabs.forEach(tab => {
+      tab.addEventListener("click", (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const tabName = target.getAttribute("data-tab");
+        
+        paramTabs.forEach(t => t.classList.remove("tab-active"));
+        target.classList.add("tab-active");
+        
+        const paneS1 = document.getElementById("param-list-s1");
+        const paneS2 = document.getElementById("param-list-s2");
+        const btnAddS1 = document.getElementById("btn-add-param-s1");
+        const btnAddS2 = document.getElementById("btn-add-param-s2");
+        
+        if (tabName === "s1") {
+          paneS1?.classList.remove("hidden");
+          paneS2?.classList.add("hidden");
+          btnAddS1?.classList.remove("hidden");
+          btnAddS2?.classList.add("hidden");
+        } else {
+          paneS1?.classList.add("hidden");
+          paneS2?.classList.remove("hidden");
+          btnAddS1?.classList.add("hidden");
+          btnAddS2?.classList.remove("hidden");
+        }
+      });
+    });
+    
+    const btnSaveParams = document.getElementById("btn-save-parameters");
+    btnSaveParams?.addEventListener("click", async () => {
+      const emptyParams = localParams.filter(p => !p.isDeleted && !p.name.trim());
+      if (emptyParams.length > 0) {
+        alert("Por favor, complete el nombre de todos los parámetros.");
+        return;
+      }
+      
+      const originalText = btnSaveParams.innerHTML;
+      btnSaveParams.setAttribute("disabled", "true");
+      btnSaveParams.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando…';
+      
+      try {
+        const payload = {
+          parameters: localParams.map(p => ({
+            id: p.id,
+            name: p.name.trim(),
+            weight: p.weight,
+            category: p.category,
+            isDeleted: p.isDeleted
+          }))
+        };
+        
+        const result = await actions.saveParameters(payload);
+        if (result.error) {
+          console.error(result.error);
+          alert("Error al guardar los parámetros: " + result.error.message);
+        } else if (result.data?.success) {
+          window.location.reload();
+        } else {
+          alert("Error al guardar los parámetros.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error inesperado al guardar los parámetros.");
+      } finally {
+        btnSaveParams.removeAttribute("disabled");
+        btnSaveParams.innerHTML = originalText;
+      }
+    });
+
+    // --- EXPORT TO CSV ---
+    const btnExportCSV = document.getElementById("btn-export-csv");
+    if (btnExportCSV) {
+      btnExportCSV.addEventListener("click", () => {
+        const el = document.getElementById("operators-data");
+        if (!el) return;
+        let operatorsData = {};
+        try {
+          operatorsData = JSON.parse(el.getAttribute("data-operators") || "{}");
+        } catch (e) {
+          console.error("Error parsing operators data", e);
+          return;
+        }
+
+        const selectedOp = operatorsData[activeAgentId || ""];
+        if (!selectedOp) {
+          alert("Por favor, seleccione un operador.");
+          return;
+        }
+
+        const monthSelector = document.getElementById("month-selector") as HTMLSelectElement;
+        const monthStr = monthSelector ? monthSelector.value : "calidad";
+
+        // Headers for CSV
+        const headers = [
+          "Periodo",
+          "Operador",
+          "Usuario",
+          "Fecha",
+          "ID Llamada",
+          "ID Ticket",
+          "Duracion",
+          "Puntaje Secc. 1 (Interaccion)",
+          "Puntaje Secc. 2 (Gestion)",
+          "Puntaje Total",
+          "Falla Critica",
+          "Observaciones"
+        ];
+
+        const csvRows = [headers.join(",")];
+
+        selectedOp.calls.forEach((call: any) => {
+          const row = [
+            call.month,
+            selectedOp.name,
+            selectedOp.username || "",
+            call.date.substring(0, 10),
+            call.callId,
+            call.ticketId,
+            call.duration,
+            call.section1.score,
+            call.section2.score,
+            call.totalScore,
+            call.isCriticalFailure ? "Si" : "No",
+            // Escape quotes and wrap notes in quotes
+            `"${(call.notes || "").replace(/"/g, '""')}"`
+          ];
+          const escapedRow = row.map(val => {
+            if (typeof val === "string" && !val.startsWith('"')) {
+              return `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+          });
+          csvRows.push(escapedRow.join(","));
+        });
+
+        // Add UTF-8 BOM so Excel displays accents correctly
+        const csvContent = "\uFEFF" + csvRows.join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const fileName = `auditorias_${selectedOp.username || activeAgentId}_${monthStr}.csv`;
+        link.setAttribute("download", fileName);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
 
     // Auto-select operator on page load if agentId is in URL
     const urlParams = new URLSearchParams(window.location.search);
