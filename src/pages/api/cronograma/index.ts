@@ -52,12 +52,7 @@ export const GET: APIRoute = async () => {
         if (s.horario !== undefined && s.horario !== null) {
           newHorariosDias[s.date] = s.horario;
         }
-        if (s.entradaReal) {
-          newEntradasReales[s.date] = s.entradaReal;
-        }
-        if (s.salidaReal) {
-          newSalidasReales[s.date] = s.salidaReal;
-        }
+        // Real entry/exit times are now handled by operator_attendance and ignored in Cronograma
         if (s.breakInicio) {
           newBreaksInicio[s.date] = s.breakInicio;
         }
@@ -193,8 +188,6 @@ export const POST: APIRoute = async ({ request }) => {
         if (status !== undefined) updateData.status = status;
         if (comment !== undefined) updateData.comment = comment;
         if (horario !== undefined) updateData.horario = horario;
-        if (entradaReal !== undefined) updateData.entradaReal = entradaReal;
-        if (salidaReal !== undefined) updateData.salidaReal = salidaReal;
         if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
         if (breakFin !== undefined) updateData.breakFin = breakFin;
 
@@ -209,8 +202,6 @@ export const POST: APIRoute = async ({ request }) => {
           status: status !== undefined ? status : "Franco",
           comment: comment || "",
           horario: horario || "",
-          entradaReal: entradaReal || "",
-          salidaReal: salidaReal || "",
           breakInicio: breakInicio || "",
           breakFin: breakFin || "",
         });

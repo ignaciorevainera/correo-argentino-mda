@@ -3,7 +3,6 @@ import { fetchCronogramaData, saveEdits, deleteOperator, deleteMonth } from './a
 import { getStatusStyles } from './styles';
 import { 
   getGanttPosition, 
-  checkTimeAlerts, 
   getDaysInMonth, 
   formatYMD, 
   formatDMY, 
@@ -431,11 +430,6 @@ function renderDaily(): void {
       const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
       const liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin);
       
-      // Asistencia real
-      const entradaReal = (op.entradas_reales && op.entradas_reales[selectedDateStr]) || '';
-      const salidaReal = (op.salidas_reales && op.salidas_reales[selectedDateStr]) || '';
-      const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
-
       // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
       let breakStartHourStr = '';
       let breakEndHourStr = '';
@@ -473,24 +467,6 @@ function renderDaily(): void {
         `;
       }
 
-      let alertBadgesHtml = '';
-      if (late) {
-        alertBadgesHtml += `
-          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${dailyHorario.split(' - ')[0] || '--:--'})">
-            <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
-            Tarde
-          </span>
-        `;
-      }
-      if (early) {
-        alertBadgesHtml += `
-          <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${dailyHorario.split(' - ')[1] || '--:--'})">
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-            Salida Temp.
-          </span>
-        `;
-      }
-
       let liveIndicatorClass = "bg-base-content/10";
       if (liveStatus.status === 'online') liveIndicatorClass = "bg-success shadow-[0_0_8px_rgba(6,132,68,0.4)]";
       else if (liveStatus.status === 'break') liveIndicatorClass = "bg-warning shadow-[0_0_8px_rgba(226,173,31,0.4)]";
@@ -522,7 +498,6 @@ function renderDaily(): void {
 
       const workBars: string[] = [];
       const breakBars: string[] = [];
-      const actualBars: string[] = [];
 
       // --- 1. YESTERDAY'S SHIFT CONTINUATION ---
       let hasYesterdayContinuation = false;
@@ -596,26 +571,6 @@ function renderDaily(): void {
               `);
             }
 
-            const yEntradaReal = (op.entradas_reales && op.entradas_reales[prevDateStr]) || '';
-            const ySalidaReal = (op.salidas_reales && op.salidas_reales[prevDateStr]) || '';
-            if (yEntradaReal) {
-              const yActInPct = getPct(yEntradaReal);
-              const { late: yLate, early: yEarly } = checkTimeAlerts(yesterdayHorario, yEntradaReal, ySalidaReal);
-              const yActualBarColor = yLate ? 'bg-error' : (yEarly ? 'bg-amber-500' : 'bg-success');
-              
-              if (ySalidaReal) {
-                const yActOutPct = getPct(ySalidaReal);
-                if (yActInPct > yActOutPct) {
-                  actualBars.push(`
-                    <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yActOutPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - ${ySalidaReal}"></div>
-                  `);
-                }
-              } else {
-                actualBars.push(`
-                  <div class="gantt-bar-actual ${yActualBarColor}" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;" title="Real: ${yEntradaReal} - sin salida"></div>
-                `);
-              }
-            }
           }
         }
       }
@@ -645,9 +600,6 @@ function renderDaily(): void {
 
             <!-- Bloques de Break por encima -->
             ${breakBars.join('')}
-
-            <!-- Barras de Asistencia Real -->
-            ${actualBars.join('')}
 
             <!-- Barra Inactiva a la derecha de la continuación -->
             <div class="gantt-inactive-bar ${inactiveBg} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
@@ -709,31 +661,6 @@ function renderDaily(): void {
               }
             }
           }
-
-          if (entradaReal) {
-            const actInPct = getPct(entradaReal);
-            const actualBarColor = late ? 'bg-error' : (early ? 'bg-amber-500' : 'bg-success');
-            
-            if (salidaReal) {
-              const actOutPct = getPct(salidaReal);
-              if (actInPct <= actOutPct) {
-                const actWidthPct = actOutPct - actInPct;
-                actualBars.push(`
-                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%;" title="Real: ${entradaReal} - ${salidaReal}"></div>
-                `);
-              } else {
-                const actWidthPct = 100 - actInPct;
-                actualBars.push(`
-                  <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - ${salidaReal}"></div>
-                `);
-              }
-            } else {
-              const actWidthPct = 100 - actInPct;
-              actualBars.push(`
-                <div class="gantt-bar-actual ${actualBarColor}" style="left: ${actInPct}%; width: ${actWidthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;" title="Real: ${entradaReal} - sin salida"></div>
-              `);
-            }
-          }
         }
 
         ganttContentHtml = `
@@ -755,15 +682,12 @@ function renderDaily(): void {
 
           <!-- Bloques de Break por encima -->
           ${breakBars.join('')}
-
-          <!-- Barras de Asistencia Real -->
-          ${actualBars.join('')}
         `;
       }
 
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0 ${late ? 'bg-error/[0.03] dark:bg-error/[0.05]' : (early ? 'bg-rose-500/[0.02] dark:bg-rose-500/[0.03]' : '')}">
-          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors ${late ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-error before:content-[\'\']' : (early ? 'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-rose-500 before:content-[\'\']' : '')}">
+        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
+          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
@@ -791,7 +715,6 @@ function renderDaily(): void {
                <div class="flex flex-col gap-1 items-start">
                  <span class="${styles.badge} whitespace-nowrap">${status}</span>
                  ${breakBadgeHtml}
-                 ${alertBadgesHtml ? `<div class="flex gap-1 flex-wrap">${alertBadgesHtml}</div>` : ''}
                </div>
             </div>
           </td>
@@ -899,41 +822,8 @@ function renderHourly(dateStr: string): void {
         const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
         const isFranco = status === OperatorStatus.Franco;
         
-        const entradaReal = (op.entradas_reales && op.entradas_reales[dateStr]) || '';
-        const salidaReal = (op.salidas_reales && op.salidas_reales[dateStr]) || '';
-        const { late, early } = checkTimeAlerts(horario, entradaReal, salidaReal);
-
-        let alertBadgesHtml = '';
-        if (late) {
-          alertBadgesHtml += `
-            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-error/15 text-error border border-error/25 flex items-center gap-1 shadow-sm shrink-0" title="Ingreso real: ${entradaReal} (Horario planificado: ${horario.split(' - ')[0] || '--:--'})">
-              <span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
-              Tarde
-            </span>
-          `;
-        }
-        if (early) {
-          alertBadgesHtml += `
-            <span class="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center gap-1 shadow-sm shrink-0" title="Salida real: ${salidaReal} (Horario planificado: ${horario.split(' - ')[1] || '--:--'})">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              Salida Temp.
-            </span>
-          `;
-        }
-
         let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
         let tdClass = "sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
-
-        if (late) {
-          rowClass += " bg-error/[0.03]";
-          tdClass += " border-l-4 border-l-error pl-5";
-        } else if (early) {
-          rowClass += " bg-rose-500/[0.02]";
-          tdClass += " border-l-4 border-l-rose-500 pl-5";
-        }
-
-        const hasRealTimes = !!(entradaReal || salidaReal);
-        const realTimesSubHtml = hasRealTimes ? ` (Real: ${entradaReal || '--:--'} - ${salidaReal || '--:--'})` : '';
 
         const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
         const customBreakFin = op.breaks_fin?.[dateStr] || '';
@@ -962,9 +852,8 @@ function renderHourly(dateStr: string): void {
               <div class="flex flex-col min-w-0">
                 <div class="flex items-center gap-1.5 overflow-hidden">
                   <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs" data-op-profile="${op.nombre}">${op.nombre}</button>
-                  ${alertBadgesHtml}
                 </div>
-                <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}${realTimesSubHtml}</span>
+                <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
               </div>
            </td>
         `;
@@ -1223,22 +1112,9 @@ function renderMonthly(): void {
         const safeHorario = escapeHtml(dailyHorario);
         const username = op.username || '';
 
-        const entradaReal = (op.entradas_reales && op.entradas_reales[date]) || '';
-        const salidaReal = (op.salidas_reales && op.salidas_reales[date]) || '';
         const breakInicio = (op.breaks_inicio && op.breaks_inicio[date]) || '';
         const breakFin = (op.breaks_fin && op.breaks_fin[date]) || '';
-        const hasRealTimes = !!(entradaReal || salidaReal);
 
-        const { late, early } = checkTimeAlerts(dailyHorario, entradaReal, salidaReal);
-        const hasAlert = late || early;
-
-        let alertClass = "";
-        let timeTextClass = "text-base-content/60";
-        if (hasAlert) {
-          alertClass = "border-error/80 bg-error/5 ring-1 ring-error/20";
-          timeTextClass = "text-error font-black";
-        }
-        
         // --- RULE: License Overlap Check ---
         const isLicenseOverlap = (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) && coveragePerDay[date].licenses > state.maxLicenseOverlapLimit;
         if (isLicenseOverlap) totalInconsistencies++;
@@ -1255,7 +1131,7 @@ function renderMonthly(): void {
           tbodyHtml += `<td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'} ${alertClass}"
+              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1263,18 +1139,11 @@ function renderMonthly(): void {
               data-horario="${safeHorario}"
               data-username="${escapeHtml(username)}"
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
-              data-entrada-real="${escapeHtml(entradaReal)}"
-              data-salida-real="${escapeHtml(salidaReal)}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
               aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
             >
-              ${hasRealTimes ? `
-                <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
-                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
-                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
-                </div>
-              ` : (hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : '')}
+              ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
             </button>
           </td>`;
           return;
@@ -1293,7 +1162,7 @@ function renderMonthly(): void {
           <td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''} ${alertClass}"
+              class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
               title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
               data-monthly-detail
               data-operator="${safeName}"
@@ -1302,19 +1171,11 @@ function renderMonthly(): void {
               data-horario="${safeHorario}"
               data-username="${escapeHtml(username)}"
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
-              data-entrada-real="${escapeHtml(entradaReal)}"
-              data-salida-real="${escapeHtml(salidaReal)}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
               aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
             >
-              ${hasRealTimes ? `
-                <div class="flex flex-col items-center justify-center h-full gap-0.5 leading-tight py-1">
-                  <span class="font-black text-[9px] leading-none tracking-wider opacity-90">${initials}</span>
-                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${entradaReal || '--'}</span>
-                  <span class="text-[10.5px] font-mono font-bold leading-none ${timeTextClass} tabular-nums">${salidaReal || '--'}</span>
-                </div>
-              ` : `<span class="font-black text-xs leading-none tracking-tight">${initials}</span>`}
+              <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
               ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
             </button>
