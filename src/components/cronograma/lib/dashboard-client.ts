@@ -15,6 +15,7 @@ import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG }
 import { exportCSV, exportAsImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData } from './types';
+import { isFeriado, getFeriadoName } from './feriados';
 
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -156,7 +157,7 @@ function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
             currentHO = 0;
           }
 
-          if (status === OperatorStatus.Presencial) currentWeekP++;
+          if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios) currentWeekP++;
           if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
              currentWeekDays++;
           }
@@ -473,18 +474,15 @@ function renderDaily(): void {
 
       let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
       let glowColorClass = "bg-primary";
-      if (status === OperatorStatus.Presencial) {
+      if (status === OperatorStatus.HomeOffice) {
         ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
         glowColorClass = "bg-secondary";
-      } else if (status === OperatorStatus.HomeOffice) {
+      } else if (status === OperatorStatus.PresencialMonteGrande) {
         ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
         glowColorClass = "bg-amber-500";
-      } else if (status === OperatorStatus.Guardia) {
-        ringClass = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/30 border border-indigo-500/20 shadow-sm";
-        glowColorClass = "bg-indigo-500";
-      } else if (status === OperatorStatus.GuardiaPasiva) {
-        ringClass = "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-teal-500/30 border border-teal-500/20 shadow-sm";
-        glowColorClass = "bg-teal-500";
+      } else if (status === OperatorStatus.PresencialParquePatricios) {
+        ringClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/30 border border-purple-500/20 shadow-sm";
+        glowColorClass = "bg-purple-500";
       }
 
       // Contenido del Gantt
@@ -520,9 +518,8 @@ function renderDaily(): void {
             hasYesterdayContinuation = true;
             yEndPct = yEndPctVal;
             let yesterdayWorkBarBg = 'bg-primary text-amber-900';
-            if (yesterdayStatus === OperatorStatus.Presencial) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
-            else if (yesterdayStatus === OperatorStatus.Guardia) yesterdayWorkBarBg = 'bg-indigo-500 text-white';
-            else if (yesterdayStatus === OperatorStatus.GuardiaPasiva) yesterdayWorkBarBg = 'bg-teal-500 text-white';
+            if (yesterdayStatus === OperatorStatus.HomeOffice) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
+            else if (yesterdayStatus === OperatorStatus.PresencialParquePatricios) yesterdayWorkBarBg = 'bg-purple-500 text-white';
 
             workBars.push(`
               <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
@@ -619,9 +616,8 @@ function renderDaily(): void {
           const startPct = getPct(times[0]);
           const endPct = getPct(times[1]);
           let workBarBg = 'bg-primary text-amber-900';
-          if (status === OperatorStatus.Presencial) workBarBg = 'bg-secondary text-secondary-content';
-          else if (status === OperatorStatus.Guardia) workBarBg = 'bg-indigo-500 text-white';
-          else if (status === OperatorStatus.GuardiaPasiva) workBarBg = 'bg-teal-500 text-white';
+          if (status === OperatorStatus.HomeOffice) workBarBg = 'bg-secondary text-secondary-content';
+          else if (status === OperatorStatus.PresencialParquePatricios) workBarBg = 'bg-purple-500 text-white';
 
           if (startPct <= endPct) {
             const widthPct = endPct - startPct;
@@ -687,7 +683,7 @@ function renderDaily(): void {
 
       rowsHtml += `
         <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
-          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
+          <td class="sticky left-0 bg-base-100 z-30 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
@@ -707,7 +703,7 @@ function renderDaily(): void {
               </div>
             </div>
           </td>
-          <td class="sticky left-[16rem] bg-base-100 z-40 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
+          <td class="sticky left-[16rem] bg-base-100 z-30 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
             <div class="flex items-center gap-3">
                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
                   ${styles.icon}
@@ -773,8 +769,8 @@ function renderHourly(dateStr: string): void {
 
   let theadHtml = `
     <tr>
-      <th rowspan="2" class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
-      <th colspan="${hours.length}" class="text-center py-3 bg-secondary/5 text-secondary border-b border-base-200 relative group">
+      <th rowspan="2" class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+      <th colspan="${hours.length}" class="sticky top-0 text-center py-3 bg-base-100 text-secondary border-b border-base-200 relative group z-40">
          <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
             Volver al mes
@@ -786,7 +782,7 @@ function renderHourly(dateStr: string): void {
   `;
   
   hours.forEach(hour => {
-    theadHtml += `<th class="text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-200/20">
+    theadHtml += `<th class="sticky top-[44px] text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-100 z-40">
       <span class="font-extrabold text-[10px] tracking-wide text-base-content/60">${hour}</span>
     </th>`;
   });
@@ -823,7 +819,7 @@ function renderHourly(dateStr: string): void {
         const isFranco = status === OperatorStatus.Franco;
         
         let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
-        let tdClass = "sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
+        let tdClass = "sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
 
         const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
         const customBreakFin = op.breaks_fin?.[dateStr] || '';
@@ -911,7 +907,7 @@ function renderMonthly(): void {
     let lics = 0;
     state.cronoData.forEach(op => {
       const s = op.asistencia[d];
-      if (s === OperatorStatus.Presencial || s === OperatorStatus.HomeOffice) active++;
+      if (s === OperatorStatus.PresencialMonteGrande || s === OperatorStatus.PresencialParquePatricios || s === OperatorStatus.HomeOffice) active++;
       if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) lics++;
     });
     coveragePerDay[d] = { total: active, licenses: lics };
@@ -930,11 +926,14 @@ function renderMonthly(): void {
     const isWeekend = day === 0 || day === 6;
     const coverage = coveragePerDay[date];
     const isCritical = teamSize > 0 ? (coverage.total / teamSize) < (state.minCoveragePercent / 100) : false;
+    const feriadoName = getFeriadoName(date);
+    const isHoliday = !!feriadoName;
     
-    let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
-    if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
-    else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
-    else if (isCritical) thClass += " bg-error/10 text-error";
+    let thClass = "sticky top-0 z-40 text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors bg-base-100";
+    if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2 z-45";
+    else if (isHoliday) thClass = thClass.replace("bg-base-100", "bg-base-300 text-base-content/40 opacity-40 line-through");
+    else if (isWeekend) thClass = thClass.replace("bg-base-100", "bg-base-200 text-base-content/40");
+    else if (isCritical) thClass += " text-error font-bold";
     else thClass += " text-base-content/70";
 
     const dayName = shortDayFormatter.format(d).substring(0, 2).toUpperCase();
@@ -951,25 +950,54 @@ function renderMonthly(): void {
       thClass,
       dayName,
       dateNum,
-      monthName
+      monthName,
+      feriadoName,
+      isHoliday
     };
   });
 
+  const totalsToggleIcon = state.isTotalsCollapsed ? 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>` : 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>`;
+
+  const thShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]' : '';
+
   let theadHtml = `<tr>
-    <th class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
-    <th class="sticky left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
-    <th class="sticky left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
-    <th class="sticky left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+    <th class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50 ${thShadowClass}">
+      <div class="flex items-center justify-between gap-1.5">
+        <span>Operador</span>
+        <button
+          type="button"
+          id="toggle-totals-btn"
+          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-200 text-base-content/50 hover:text-base-content transition-all"
+          title="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
+          aria-label="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
+        >
+          ${totalsToggleIcon}
+        </button>
+      </div>
+    </th>
   `;
   
-  parsedDates.forEach(pd => {
+  if (!state.isTotalsCollapsed) {
     theadHtml += `
-      <th class="${pd.thClass} p-0">
+      <th class="sticky top-0 left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
+      <th class="sticky top-0 left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
+      <th class="sticky top-0 left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+    `;
+  }
+  
+  parsedDates.forEach(pd => {
+    const thTitle = pd.feriadoName ? ` title="Feriado: ${pd.feriadoName}"` : '';
+    const tooltipText = pd.feriadoName ? `Feriado: ${pd.feriadoName}` : `Ver detalle del día ${pd.dateNum} de ${pd.monthName}`;
+    theadHtml += `
+      <th class="${pd.thClass} p-0"${thTitle}>
         <button
           type="button"
           class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
           data-click-day="${pd.str}"
-          aria-label="Ver detalle del día ${pd.dateNum} de ${pd.monthName}"
+          title="${tooltipText}"
+          aria-label="${tooltipText}"
         >
           <span class="font-extrabold text-[10px] tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-60'}">${pd.dayName}</span>
           <div class="flex items-center gap-1">
@@ -1008,7 +1036,7 @@ function renderMonthly(): void {
 
   if (sortedOps.length === 0) {
     tbodyHtml = `<tr>
-      <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+      <td colspan="${state.isTotalsCollapsed ? dates.length + 1 : dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
         <div class="flex flex-col items-center justify-center gap-3 py-6">
           <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -1029,7 +1057,7 @@ function renderMonthly(): void {
       const username = op.username || '';
       dates.forEach(d => {
         const s = op.asistencia[d];
-        if (s === OperatorStatus.Presencial) stats.P++;
+        if (s === OperatorStatus.PresencialMonteGrande || s === OperatorStatus.PresencialParquePatricios) stats.P++;
         else if (s === OperatorStatus.HomeOffice) stats.HO++;
         else if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) stats.L++;
       });
@@ -1055,7 +1083,7 @@ function renderMonthly(): void {
           currentHO = 0;
         }
 
-        if (status === OperatorStatus.Presencial) currentWeekP++;
+        if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios) currentWeekP++;
         if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
            currentWeekDays++;
         }
@@ -1071,8 +1099,10 @@ function renderMonthly(): void {
       const hoViolation = maxConsecutiveHO > opMaxHO;
       if (hoViolation || pWeekViolation) totalInconsistencies++;
 
+      const opShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]' : '';
+
       tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
-        <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
+        <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
             <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
             <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm ${state.isEditMode ? 'op-row-header cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : ''}"></span>
@@ -1095,10 +1125,15 @@ function renderMonthly(): void {
             </div>
           </div>
         </td>
-        <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
-        <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
-        <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
       `;
+
+      if (!state.isTotalsCollapsed) {
+        tbodyHtml += `
+          <td class="sticky left-[200px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
+          <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+        `;
+      }
         
       parsedDates.forEach(pd => {
         const date = pd.str;
@@ -1127,11 +1162,22 @@ function renderMonthly(): void {
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
         const hasComment = !!(op.comentarios && op.comentarios[date]);
+        const isHoliday = isFeriado(date);
+
         if (isFrancoCell) {
+          let francoBtnClass = `monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
+          if (isHoliday) {
+            francoBtnClass += " line-through opacity-40 grayscale-[50%]";
+          }
+          let francoAria = `Ver detalle de ${safeName} el ${safeDate}: Franco`;
+          if (isHoliday && pd.feriadoName) {
+            francoAria += ` (Feriado: ${pd.feriadoName})`;
+          }
+
           tbodyHtml += `<td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}"
+              class="${francoBtnClass}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1141,7 +1187,8 @@ function renderMonthly(): void {
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
+              aria-label="${francoAria}"
+              ${isHoliday && pd.feriadoName ? `title="Franco (Feriado: ${pd.feriadoName})"` : ''}
             >
               ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
             </button>
@@ -1150,20 +1197,30 @@ function renderMonthly(): void {
         }
 
         let initials = "";
-        if (status === OperatorStatus.Presencial) initials = "P";
+        if (status === OperatorStatus.PresencialMonteGrande) initials = "MG";
+        else if (status === OperatorStatus.PresencialParquePatricios) initials = "PP";
         else if (status === OperatorStatus.HomeOffice) initials = "HO";
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
-        else if (status === OperatorStatus.HorasExtras) initials = "HE";
-        else if (status === OperatorStatus.GuardiaPasiva) initials = "GP";
-        else if (status === OperatorStatus.Guardia) initials = "G";
+
+        let statusBtnClass = `monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        if (isHoliday) {
+          statusBtnClass += " line-through opacity-40 grayscale-[50%]";
+        }
+
+        let statusTitle = `${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}`;
+        let statusAria = `Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}`;
+        if (isHoliday && pd.feriadoName) {
+          statusTitle += ` (Feriado: ${pd.feriadoName})`;
+          statusAria += ` (Feriado: ${pd.feriadoName})`;
+        }
 
         tbodyHtml += `
           <td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
-              title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
+              class="${statusBtnClass}"
+              title="${statusTitle}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1173,7 +1230,7 @@ function renderMonthly(): void {
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
+              aria-label="${statusAria}"
             >
               <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
@@ -1188,27 +1245,18 @@ function renderMonthly(): void {
 
   if (tbody) tbody.innerHTML = tbodyHtml;
 
-  // Update Global Alert Badge
-  const alertBadge = document.getElementById('compliance-alert-badge');
-  const alertText = document.getElementById('compliance-alert-text');
-  if (alertBadge && alertText) {
-    if (totalInconsistencies > 0) {
-      alertBadge.classList.remove('hidden');
-      alertText.innerText = `${totalInconsistencies} Inconsistencia${totalInconsistencies > 1 ? 's' : ''} detectada${totalInconsistencies > 1 ? 's' : ''}`;
-    } else {
-      alertBadge.classList.add('hidden');
-    }
-  }
+
 
   // --- FEATURE: Coverage Visualizer (Heatmap Footer) ---
   const dailyCoverage = dates.map(date => {
-    let p = 0, ho = 0;
+    let pmg = 0, ppp = 0, ho = 0;
     state.cronoData.forEach(op => {
       const s = op.asistencia[date];
-      if (s === OperatorStatus.Presencial) p++;
+      if (s === OperatorStatus.PresencialMonteGrande) pmg++;
+      else if (s === OperatorStatus.PresencialParquePatricios) ppp++;
       else if (s === OperatorStatus.HomeOffice) ho++;
     });
-    return { p, ho, total: p + ho };
+    return { pmg, ppp, ho, total: pmg + ppp + ho };
   });
 
   const pyClass = state.isCoverageMinimized ? 'py-1.5' : 'py-3.5';
@@ -1216,8 +1264,10 @@ function renderMonthly(): void {
     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up transition-transform duration-200"><path d="m18 15-6-6-6 6"/></svg>` : 
     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>`;
 
+  const shadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]' : '';
+
   let tfootHtml = `<tr>
-    <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300">
+    <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300 ${shadowClass}">
       <div class="flex items-center justify-between gap-2">
         <span class="text-[10px] font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
         <button
@@ -1231,15 +1281,21 @@ function renderMonthly(): void {
         </button>
       </div>
     </td>
-    <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
-    <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
-    <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
   `;
+
+  if (!state.isTotalsCollapsed) {
+    tfootHtml += `
+      <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
+      <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
+      <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
+    `;
+  }
 
   dailyCoverage.forEach(c => {
     const hoPercent = teamSize > 0 ? (c.ho / teamSize) * 100 : 0;
-    const pPercent = teamSize > 0 ? (c.p / teamSize) * 100 : 0;
-    const totalPercent = teamSize > 0 ? ((c.p + c.ho) / teamSize) * 100 : 0;
+    const pmgPercent = teamSize > 0 ? (c.pmg / teamSize) * 100 : 0;
+    const pppPercent = teamSize > 0 ? (c.ppp / teamSize) * 100 : 0;
+    const totalPercent = teamSize > 0 ? ((c.pmg + c.ppp + c.ho) / teamSize) * 100 : 0;
     const isLowCoverage = totalPercent < 40;
 
     const cellPyClass = state.isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
@@ -1249,12 +1305,13 @@ function renderMonthly(): void {
         <div class="flex flex-col items-center gap-1.5">
            ${state.isCoverageMinimized ? '' : `
            <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
-              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
-              <div class="bg-secondary w-full transition-all duration-500" style="height: ${pPercent}%" title="Presencial: ${c.p}"></div>
+              <div class="bg-purple-500 w-full transition-all duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
+              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
+              <div class="bg-secondary w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
            </div>
            `}
            <div class="flex flex-col items-center leading-none">
-              <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.p + c.ho}</span>
+              <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.pmg + c.ppp + c.ho}</span>
               <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
            </div>
         </div>
@@ -1460,43 +1517,35 @@ function showMonthlyView(): void {
 
 function updateFilterActiveStates(): void {
   const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
+  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
   const filterHoBtn = document.getElementById('filter-ho-btn');
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-  const filterHeBtn = document.getElementById('filter-he-btn');
-  const filterGpBtn = document.getElementById('filter-gp-btn');
-  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
   const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
-  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
-  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const buttons = [
     { el: filterAllBtn, value: 'all' },
-    { el: filterPresencialBtn, value: 'Presencial' },
+    { el: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
+    { el: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
     { el: filterHoBtn, value: 'Home Office' },
     { el: filterLicenciaBtn, value: 'Licencia' },
-    { el: filterVacacionesBtn, value: 'Vacaciones' },
-    { el: filterHeBtn, value: 'Horas Extras' },
-    { el: filterGpBtn, value: 'Guardia Pasiva' },
-    { el: filterGBtn, value: 'Guardia' }
+    { el: filterVacacionesBtn, value: 'Vacaciones' }
   ];
 
   const dailyButtons = [
     { el: filterAllBtnDaily, value: 'all' },
-    { el: filterPresencialBtnDaily, value: 'Presencial' },
+    { el: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
+    { el: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
     { el: filterHoBtnDaily, value: 'Home Office' },
     { el: filterLicenciaBtnDaily, value: 'Licencia' },
-    { el: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { el: filterHeBtnDaily, value: 'Horas Extras' },
-    { el: filterGpBtnDaily, value: 'Guardia Pasiva' },
-    { el: filterGBtnDaily, value: 'Guardia' }
+    { el: filterVacacionesBtnDaily, value: 'Vacaciones' }
   ];
 
   updateButtonGroupState(buttons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
@@ -1679,6 +1728,13 @@ function setupEventListeners(): void {
     renderMonthly();
   });
 
+  document.getElementById('monthly-thead')?.addEventListener('click', (event) => {
+    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-totals-btn');
+    if (!btn) return;
+    state.isTotalsCollapsed = !state.isTotalsCollapsed;
+    renderMonthly();
+  });
+
   let isDragging = false;
   monthlyBody?.addEventListener('mousedown', (event) => {
     if (event.button !== 0 || !state.isEditMode || !state.activeBrush) return;
@@ -1804,40 +1860,32 @@ function setupEventListeners(): void {
 
   // Wire up filter buttons
   const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
+  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
   const filterHoBtn = document.getElementById('filter-ho-btn');
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-  const filterHeBtn = document.getElementById('filter-he-btn');
-  const filterGpBtn = document.getElementById('filter-gp-btn');
-  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
   const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
-  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
-  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const filterBtns = [
     { btn: filterAllBtn, value: 'all' },
-    { btn: filterPresencialBtn, value: 'Presencial' },
+    { btn: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
+    { btn: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
     { btn: filterHoBtn, value: 'Home Office' },
     { btn: filterLicenciaBtn, value: 'Licencia' },
     { btn: filterVacacionesBtn, value: 'Vacaciones' },
-    { btn: filterHeBtn, value: 'Horas Extras' },
-    { btn: filterGpBtn, value: 'Guardia Pasiva' },
-    { btn: filterGBtn, value: 'Guardia' },
     { btn: filterAllBtnDaily, value: 'all' },
-    { btn: filterPresencialBtnDaily, value: 'Presencial' },
+    { btn: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
+    { btn: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
     { btn: filterHoBtnDaily, value: 'Home Office' },
     { btn: filterLicenciaBtnDaily, value: 'Licencia' },
-    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { btn: filterHeBtnDaily, value: 'Horas Extras' },
-    { btn: filterGpBtnDaily, value: 'Guardia Pasiva' },
-    { btn: filterGBtnDaily, value: 'Guardia' }
+    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' }
   ];
 
   filterBtns.forEach(item => {
