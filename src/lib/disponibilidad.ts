@@ -92,7 +92,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
     // Check if shift ended (auto-cleanup of exceptional state)
     let shiftEnded = false;
-    const workingStatuses = ["Presencial", "Home Office", "Horas Extras"];
+    const workingStatuses = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office"];
     if (!workingStatuses.includes(status)) {
       // Not a working day today
       shiftEnded = true;

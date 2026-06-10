@@ -81,7 +81,7 @@ if (Astro.request.method === "POST") {
         const presBreak = fd.get(`presencial_${day}_break`)?.toString().trim() || "";
 
         if (presStart || presEnd) {
-          newEsquemaSemanal[cronoDay] = "Presencial";
+          newEsquemaSemanal[cronoDay] = `Presencial ${locationName}`;
           newEsquemaHorario[cronoDay] = `${presStart || "08:00"} - ${presEnd || "17:00"}`;
           if (presBreak) {
             newEsquemaBreakInicio[cronoDay] = presBreak;
@@ -263,7 +263,7 @@ if (!isNew) {
         shiftEnd: end || "",
         breakTime: breakInicio || "",
       };
-    } else if (status === "Presencial" || status === "Horas Extras") {
+    } else if (status?.startsWith("Presencial")) {
       operatorSchedulesData[day]["presencial"] = {
         shiftStart: start || "",
         shiftEnd: end || "",

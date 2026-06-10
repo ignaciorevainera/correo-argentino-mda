@@ -128,6 +128,16 @@ export function openDrawer(opName: string) {
 
   setCurrentWeeklyData(opWeekly, opWeeklyScheduleTimes, opWeeklyBreakInicioTimes, opWeeklyBreakFinTimes);
 
+  // Reset weekly template select and hide custom actions when opening/switching operator
+  const weeklySelect = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+  if (weeklySelect) {
+    weeklySelect.value = "";
+  }
+  const customActions = document.getElementById('template-custom-actions');
+  if (customActions) {
+    customActions.classList.add('hidden');
+  }
+
   const tabProfileBtn = document.getElementById('tab-profile-btn');
   tabProfileBtn?.dispatchEvent(new Event('click'));
 

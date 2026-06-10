@@ -51,29 +51,25 @@ export function renderWeeklyDaysList() {
     const currentTime = currentWeeklyScheduleTimes[day] || "";
     const currentBreakInicio = currentWeeklyBreakInicioTimes[day] || "";
     const currentBreakFin = currentWeeklyBreakFinTimes[day] || "";
-    const options = ["Presencial", "Home Office", "Vacaciones", "Licencia", "Horas Extras", "Franco", "Guardia Pasiva", "Guardia"];
+    const options = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office", "Vacaciones", "Licencia", "Franco"];
     
     const optHtml = options.map(opt => {
       let label = '';
-      if (opt === 'Presencial') label = 'P';
+      if (opt === 'Presencial Monte Grande') label = 'MG';
+      else if (opt === 'Presencial Parque Patricios') label = 'PP';
       else if (opt === 'Home Office') label = 'HO';
       else if (opt === 'Vacaciones') label = 'V';
       else if (opt === 'Licencia') label = 'L';
-      else if (opt === 'Horas Extras') label = 'HE';
       else if (opt === 'Franco') label = 'F';
-      else if (opt === 'Guardia Pasiva') label = 'GP';
-      else if (opt === 'Guardia') label = 'G';
       
       let btnClass = "weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
       if (currentVal === opt) {
-        if (opt === 'Presencial') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-secondary text-secondary-content shadow-md';
-        else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-amber-500 text-white shadow-md';
+        if (opt === 'Presencial Monte Grande') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-amber-500 text-white shadow-md';
+        else if (opt === 'Presencial Parque Patricios') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-purple-500 text-white shadow-md';
+        else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-secondary text-secondary-content shadow-md';
         else if (opt === 'Vacaciones') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-success text-white shadow-md';
         else if (opt === 'Licencia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-error text-white shadow-md';
-        else if (opt === 'Horas Extras') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-sky-500 text-white shadow-md';
         else if (opt === 'Franco') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-300 text-base-content shadow-md';
-        else if (opt === 'Guardia Pasiva') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-teal-500 text-white shadow-md';
-        else if (opt === 'Guardia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-indigo-500 text-white shadow-md';
       }
       
       return `<button type="button" class="${btnClass}" data-weekly-option="${opt}">${label}</button>`;
@@ -284,14 +280,12 @@ export function handleWeeklyDayOptionClick(btn: HTMLButtonElement) {
   }
   
   let activeClass = '';
-  if (option === 'Presencial') activeClass = 'bg-secondary text-secondary-content shadow-md';
-  else if (option === 'Home Office') activeClass = 'bg-amber-500 text-white shadow-md';
+  if (option === 'Presencial Monte Grande') activeClass = 'bg-amber-500 text-white shadow-md';
+  else if (option === 'Presencial Parque Patricios') activeClass = 'bg-purple-500 text-white shadow-md';
+  else if (option === 'Home Office') activeClass = 'bg-secondary text-secondary-content shadow-md';
   else if (option === 'Vacaciones') activeClass = 'bg-success text-white shadow-md';
   else if (option === 'Licencia') activeClass = 'bg-error text-white shadow-md';
-  else if (option === 'Horas Extras') activeClass = 'bg-sky-500 text-white shadow-md';
   else if (option === 'Franco') activeClass = 'bg-base-300 text-base-content shadow-md';
-  else if (option === 'Guardia Pasiva') activeClass = 'bg-teal-500 text-white shadow-md';
-  else if (option === 'Guardia') activeClass = 'bg-indigo-500 text-white shadow-md';
   
   btn.className = `weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
 }

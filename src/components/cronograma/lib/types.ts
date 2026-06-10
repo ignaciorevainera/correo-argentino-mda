@@ -1,12 +1,10 @@
 export enum OperatorStatus {
-  Presencial = 'Presencial',
+  PresencialMonteGrande = 'Presencial Monte Grande',
+  PresencialParquePatricios = 'Presencial Parque Patricios',
   HomeOffice = 'Home Office',
   Licencia = 'Licencia',
   Vacaciones = 'Vacaciones',
-  HorasExtras = 'Horas Extras',
   Franco = 'Franco',
-  GuardiaPasiva = 'Guardia Pasiva',
-  Guardia = 'Guardia',
 }
 
 export type StatusFilter = OperatorStatus | 'all';

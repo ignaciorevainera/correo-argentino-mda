@@ -1,5 +1,6 @@
 import type { OperatorData } from './types';
 import { OperatorStatus } from './types';
+import feriadosJson from './feriados.json';
 
 export function safeGetItem(key: string, fallback: string): string {
   try {
@@ -24,6 +25,7 @@ class CronogramaState {
   private _cachedDates: string[] | null = null;
   private _cachedMonths: string[] | null = null;
 
+  feriados: Record<string, string> = feriadosJson;
   isEditMode = false;
   activeBrush: string | null = null;
   pendingEdits: Record<string, { agentName: string; date: string; status: string; originalStatus: string }> = {};
@@ -69,6 +71,13 @@ class CronogramaState {
   }
   set isCoverageMinimized(val: boolean) {
     safeSetItem('cronoCoverageMinimized', val ? 'true' : 'false');
+  }
+
+  get isTotalsCollapsed(): boolean {
+    return safeGetItem('cronoTotalsCollapsed', 'false') === 'true';
+  }
+  set isTotalsCollapsed(val: boolean) {
+    safeSetItem('cronoTotalsCollapsed', val ? 'true' : 'false');
   }
 
   get cronoData(): OperatorData[] {

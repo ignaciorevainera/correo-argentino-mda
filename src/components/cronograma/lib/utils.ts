@@ -131,8 +131,8 @@ export function formatScheduleInput(val: string): string {
   if (lower === 'vacaciones') return 'Vacaciones';
   if (lower === 'licencia') return 'Licencia';
   if (lower === 'home office' || lower === 'ho') return 'Home Office';
-  if (lower === 'presencial' || lower === 'p') return 'Presencial';
-  if (lower === 'horas extras' || lower === 'he') return 'Horas Extras';
+  if (lower === 'presencial monte grande' || lower === 'pmg') return 'Presencial Monte Grande';
+  if (lower === 'presencial parque patricios' || lower === 'ppp') return 'Presencial Parque Patricios';
 
   if (trimmed.includes('-')) {
     const parts = trimmed.split('-');
