@@ -338,6 +338,15 @@ async function init(): Promise<void> {
     const data = await fetchCronogramaData();
     state.cronoData = data;
 
+    try {
+      const feriadosRes = await fetch('/api/cronograma/feriados');
+      if (feriadosRes.ok) {
+        state.feriados = await feriadosRes.json();
+      }
+    } catch (err) {
+      console.warn("Failed to load holidays:", err);
+    }
+
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
     const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
@@ -1730,6 +1739,17 @@ function setupEventListeners(): void {
     newOpModal?.showModal();
   });
 
+  // Holidays Modal Trigger
+  const holidaysModal = document.getElementById('holidays-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
+  const openHolidaysBtn = document.getElementById('open-holidays-modal');
+
+  openHolidaysBtn?.addEventListener('click', () => {
+    if (holidaysModal) {
+      holidaysModal.showModal();
+      holidaysModal.dispatchEvent(new Event('show'));
+    }
+  });
+
   document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
     showMonthlyView();
   });
@@ -2359,6 +2379,11 @@ document.addEventListener('cronograma:rules-changed', () => {
   renderMonthly();
   renderDaily();
   showToast("Reglas de control actualizadas", "success");
+});
+
+document.addEventListener('cronograma:feriados-updated', () => {
+  renderMonthly();
+  renderDaily();
 });
 
 // Hover effect to highlight break in Gantt timeline
