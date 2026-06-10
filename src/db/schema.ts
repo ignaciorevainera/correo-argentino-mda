@@ -219,6 +219,8 @@ export const agents = sqliteTable("agents", {
   estadoExcepcionalMotivo: text("estado_excepcional_motivo"),
   estadoExcepcionalAt: integer("estado_excepcional_at"),
   estadoExcepcionalMinutos: integer("estado_excepcional_minutos"),
+  saturdayGroup: text("saturday_group"),
+  saturdayHorario: text("saturday_horario"),
 });
 
 export const cubicAssignments = sqliteTable(
@@ -273,6 +275,7 @@ export const schedules = sqliteTable("schedules", {
   salidaReal: text("salida_real"),
   breakInicio: text("break_inicio"),
   breakFin: text("break_fin"),
+  isOverride: integer("is_override", { mode: "boolean" }).default(false),
 });
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
@@ -572,3 +575,10 @@ export const operatorAttendanceRelations = relations(
     }),
   })
 );
+
+export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
+  startDate: text("start_date").notNull().default("2026-06-06"),
+  startGroup: text("start_group").notNull().default("A"),
+});
