@@ -19,6 +19,14 @@ import { isFeriado, getFeriadoName } from './feriados';
 
 let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;
 
+function formatToDDMMYY(dateStr: string): string {
+  if (!dateStr) return "dd/mm/yy";
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return "dd/mm/yy";
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
 function getActiveGroupForDate(dateStr: string): string | null {
   if (!activeRotationConfig) return null;
   const { startDate, startGroup, rotationOrder } = activeRotationConfig;
@@ -1659,7 +1667,13 @@ async function renderGroupsView(): Promise<void> {
     const startGroupSelect = document.getElementById('rotation-start-group') as HTMLSelectElement | null;
     const orderInput = document.getElementById('rotation-order') as HTMLInputElement | null;
     
-    if (startDateInput && config.startDate) startDateInput.value = config.startDate;
+    if (startDateInput && config.startDate) {
+      startDateInput.value = config.startDate;
+      const displayEl = document.getElementById('rotation-start-date-display');
+      if (displayEl) {
+        displayEl.innerText = formatToDDMMYY(config.startDate);
+      }
+    }
     if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
     if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
     
@@ -1975,6 +1989,14 @@ function setupEventListeners(): void {
       renderMonthly(); 
     });
   }
+
+  const rotationStartDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+  rotationStartDateInput?.addEventListener('change', () => {
+    const displayEl = document.getElementById('rotation-start-date-display');
+    if (displayEl && rotationStartDateInput.value) {
+      displayEl.innerText = formatToDDMMYY(rotationStartDateInput.value);
+    }
+  });
 
   const monthlyBody = document.getElementById('monthly-tbody');
   const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
