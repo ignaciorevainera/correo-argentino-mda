@@ -2559,16 +2559,22 @@ function setupEventListeners(): void {
   const rotForm = document.getElementById('rotation-config-form') as HTMLFormElement | null;
   rotForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
+    const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
+    const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
+
+    const dateObj = new Date(startDate + "T12:00:00");
+    if (dateObj.getDay() !== 6) {
+      showToast("La fecha de inicio debe ser un sábado", "error");
+      return;
+    }
+
     const saveBtn = rotForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     const originalText = saveBtn ? saveBtn.innerHTML : '';
     if (saveBtn) {
       saveBtn.disabled = true;
       saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
     }
-
-    const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
-    const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
-    const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
 
     try {
       const res = await fetch('/api/cronograma/rotation-config', {
@@ -2605,7 +2611,7 @@ function setupEventListeners(): void {
       select.disabled = true;
 
       try {
-        const res = await fetch('/api/cronograma/agents/saturday-group', {
+        const res = await fetch('/api/cronograma/rotation-groups/members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g })
@@ -2619,7 +2625,7 @@ function setupEventListeners(): void {
         renderDaily();
         renderGroupsView();
         showToast("Operador asignado al grupo con éxito", "success");
-      } catch (err: any) {
+} catch (err: any) {
         console.error(err);
         showToast("Error al asignar operador al grupo", "error");
       } finally {
@@ -2644,7 +2650,7 @@ function setupEventListeners(): void {
       if (confirmed) {
         removeBtn.disabled = true;
         try {
-          const res = await fetch('/api/cronograma/agents/saturday-group', {
+          const res = await fetch('/api/cronograma/rotation-groups/members', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null })
@@ -2675,15 +2681,27 @@ function setupEventListeners(): void {
       const agentHorario = editBtn.dataset.agentHorario || '07:00 - 13:00';
       if (!agentIdStr) return;
 
-      const opIdInput = document.getElementById('edit-saturday-op-id') as HTMLInputElement | null;
-      const opNameDisplay = document.getElementById('edit-saturday-op-name-display') as HTMLElement | null;
-      const opGroupSelect = document.getElementById('edit-saturday-op-group') as HTMLSelectElement | null;
-      const opHorarioInput = document.getElementById('edit-saturday-op-horario') as HTMLInputElement | null;
+      const opIdInput = document.getElementById('modal-agent-id') as HTMLInputElement | null;
+      const opNameDisplay = document.getElementById('modal-agent-name') as HTMLElement | null;
+      const opGroupInput = document.getElementById('modal-agent-group') as HTMLInputElement | null;
+      const startInput = document.getElementById('modal-schedule-start') as HTMLInputElement | null;
+      const endInput = document.getElementById('modal-schedule-end') as HTMLInputElement | null;
+
+      let start = "07:00";
+      let end = "13:00";
+      if (agentHorario && agentHorario.includes(" - ")) {
+        const parts = agentHorario.split(" - ");
+        if (parts.length === 2) {
+          start = parts[0];
+          end = parts[1];
+        }
+      }
 
       if (opIdInput) opIdInput.value = agentIdStr;
       if (opNameDisplay) opNameDisplay.innerText = agentName;
-      if (opGroupSelect) opGroupSelect.value = agentGroup;
-      if (opHorarioInput) opHorarioInput.value = agentHorario;
+      if (opGroupInput) opGroupInput.value = agentGroup;
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
 
       editSatModal?.showModal();
       return;
@@ -2692,6 +2710,27 @@ function setupEventListeners(): void {
 
   editSatForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const agentIdStr = (document.getElementById('modal-agent-id') as HTMLInputElement).value;
+    const saturdayGroup = (document.getElementById('modal-agent-group') as HTMLInputElement).value;
+    const start = (document.getElementById('modal-schedule-start') as HTMLInputElement).value;
+    const end = (document.getElementById('modal-schedule-end') as HTMLInputElement).value;
+
+    if (!start || !end) {
+      showToast("Debe ingresar la hora de inicio y de fin", "error");
+      return;
+    }
+
+    if (start < '07:00' || end > '13:00') {
+      showToast("Los horarios deben estar dentro del rango 07:00 a 13:00 hs", "error");
+      return;
+    }
+
+    if (start >= end) {
+      showToast("La hora de inicio debe ser anterior a la hora de fin", "error");
+      return;
+    }
+
     const saveBtn = editSatForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     const originalText = saveBtn ? saveBtn.innerHTML : '';
     if (saveBtn) {
@@ -2699,12 +2738,10 @@ function setupEventListeners(): void {
       saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
     }
 
-    const agentIdStr = (document.getElementById('edit-saturday-op-id') as HTMLInputElement).value;
-    const saturdayGroup = (document.getElementById('edit-saturday-op-group') as HTMLSelectElement).value;
-    const saturdayHorario = (document.getElementById('edit-saturday-op-horario') as HTMLInputElement).value;
+    const saturdayHorario = `${start} - ${end}`;
 
     try {
-      const res = await fetch('/api/cronograma/agents/saturday-group', {
+      const res = await fetch('/api/cronograma/rotation-groups/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario })
