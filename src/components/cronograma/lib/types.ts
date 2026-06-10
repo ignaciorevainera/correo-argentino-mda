@@ -11,6 +11,7 @@ export type StatusFilter = OperatorStatus | 'all';
 export type LocationFilter = 'all' | 'Monte Grande' | 'Parque Patricios';
 
 export interface OperatorData {
+  id?: number;
   nombre: string;
   username?: string;
   horario: string;
@@ -28,6 +29,9 @@ export interface OperatorData {
   esquema_break_fin?: Record<string, string>;
   maxConsecutiveHO?: number | null;
   minPWeek?: number | null;
+  saturdayGroup?: string;
+  saturdayHorario?: string;
+  overrides?: Record<string, boolean>;
 }
 
 export interface RulesConfig {

@@ -53,11 +53,16 @@ export const GET: APIRoute = async () => {
       const newSalidasReales: Record<string, string> = {};
       const newBreaksInicio: Record<string, string> = {};
       const newBreaksFin: Record<string, string> = {};
+      const overrides: Record<string, boolean> = {};
 
       // Load specific DB overrides first
       opOverrides.forEach((s) => {
         let status = s.status;
         let horario = s.horario;
+
+        if (s.isOverride) {
+          overrides[s.date] = true;
+        }
 
         // Check if date falls on Saturday and if operator has saturdayGroup defined
         const dateObj = new Date(s.date + "T12:00:00");
@@ -143,6 +148,7 @@ export const GET: APIRoute = async () => {
         salidas_reales: newSalidasReales,
         breaks_inicio: newBreaksInicio,
         breaks_fin: newBreaksFin,
+        overrides,
       };
     });
 

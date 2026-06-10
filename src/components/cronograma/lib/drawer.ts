@@ -87,7 +87,7 @@ export function openDrawer(opName: string) {
 
   let p = 0, ho = 0;
   Object.values(op.asistencia || {}).forEach(s => {
-    if (s === 'Presencial') p++;
+    if (s === 'Presencial Monte Grande' || s === 'Presencial Parque Patricios') p++;
     else if (s === 'Home Office') ho++;
   });
   const statPEl = document.getElementById('drawer-stat-p');

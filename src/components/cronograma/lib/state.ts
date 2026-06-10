@@ -115,11 +115,11 @@ class CronogramaState {
         // Return default templates if empty
         return {
           "Estándar P/HO Alternado": {
-            dias: { Lunes: OperatorStatus.Presencial, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.Presencial, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.Presencial, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
             horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
           },
           "100% Presencial": {
-            dias: { Lunes: OperatorStatus.Presencial, Martes: OperatorStatus.Presencial, Miercoles: OperatorStatus.Presencial, Jueves: OperatorStatus.Presencial, Viernes: OperatorStatus.Presencial, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.PresencialMonteGrande, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.PresencialMonteGrande, Viernes: OperatorStatus.PresencialMonteGrande, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
             horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
           },
           "100% Home Office": {

@@ -33,6 +33,13 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
         >
           Diario
         </button>
+        <button 
+          type="button" 
+          id="switch-to-groups-btn" 
+          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+        >
+          Grupos
+        </button>
       </div>
 
       <!-- Date Picker (hidden by default) -->
@@ -490,6 +497,121 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
       </div>
     </div>
 
+    <div id="groups-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
+      <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6">
+        <!-- Configuration form -->
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60 shadow-sm">
+          <form id="rotation-config-form" class="w-full flex flex-col md:flex-row md:items-end gap-4">
+            <div class="flex flex-col gap-1.5 shrink-0">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Fecha de Inicio (Sábado)</label>
+              <input type="date" id="rotation-start-date" class="input input-sm input-bordered font-semibold text-base-content" required />
+            </div>
+            <div class="flex flex-col gap-1.5 shrink-0">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Grupo Inicial</label>
+              <select id="rotation-start-group" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
+                <option value="A">Grupo A</option>
+                <option value="B">Grupo B</option>
+                <option value="C">Grupo C</option>
+                <option value="D">Grupo D</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5 flex-1">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Orden de Rotación (Ej: A,B,C,D o D,C,B,A)</label>
+              <input type="text" id="rotation-order" class="input input-sm input-bordered font-bold text-base-content" placeholder="A,B,C,D" required />
+            </div>
+            <button type="submit" id="save-rotation-config-btn" class="btn btn-sm btn-primary shrink-0 gap-1.5 uppercase font-bold text-[10px]">
+              <Icon name="boxicons:save" size={14} />
+              Guardar Configuración
+            </button>
+          </form>
+        </div>
+
+        <!-- Groups Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- Repeat for groups A, B, C, D -->
+          <!-- Group A -->
+          <div class="card bg-base-200/20 border border-base-300 shadow-md">
+            <div class="card-body p-4 space-y-4">
+              <div class="flex items-center justify-between border-b border-base-300 pb-2">
+                <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">A</span>
+                  Grupo A
+                </h3>
+                <span class="badge badge-sm badge-neutral font-bold" id="group-A-count">0 ops</span>
+              </div>
+              <div class="space-y-2 max-h-[350px] overflow-y-auto pr-1" id="group-A-list"></div>
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+                <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Agregar Operador</label>
+                <select class="select select-xs select-bordered w-full font-bold add-member-select" data-group="A" id="add-member-select-A">
+                  <option value="" disabled selected>Seleccionar...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Group B -->
+          <div class="card bg-base-200/20 border border-base-300 shadow-md">
+            <div class="card-body p-4 space-y-4">
+              <div class="flex items-center justify-between border-b border-base-300 pb-2">
+                <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">B</span>
+                  Grupo B
+                </h3>
+                <span class="badge badge-sm badge-neutral font-bold" id="group-B-count">0 ops</span>
+              </div>
+              <div class="space-y-2 max-h-[350px] overflow-y-auto pr-1" id="group-B-list"></div>
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+                <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Agregar Operador</label>
+                <select class="select select-xs select-bordered w-full font-bold add-member-select" data-group="B" id="add-member-select-B">
+                  <option value="" disabled selected>Seleccionar...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group C -->
+          <div class="card bg-base-200/20 border border-base-300 shadow-md">
+            <div class="card-body p-4 space-y-4">
+              <div class="flex items-center justify-between border-b border-base-300 pb-2">
+                <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">C</span>
+                  Grupo C
+                </h3>
+                <span class="badge badge-sm badge-neutral font-bold" id="group-C-count">0 ops</span>
+              </div>
+              <div class="space-y-2 max-h-[350px] overflow-y-auto pr-1" id="group-C-list"></div>
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+                <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Agregar Operador</label>
+                <select class="select select-xs select-bordered w-full font-bold add-member-select" data-group="C" id="add-member-select-C">
+                  <option value="" disabled selected>Seleccionar...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group D -->
+          <div class="card bg-base-200/20 border border-base-300 shadow-md">
+            <div class="card-body p-4 space-y-4">
+              <div class="flex items-center justify-between border-b border-base-300 pb-2">
+                <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">D</span>
+                  Grupo D
+                </h3>
+                <span class="badge badge-sm badge-neutral font-bold" id="group-D-count">0 ops</span>
+              </div>
+              <div class="space-y-2 max-h-[350px] overflow-y-auto pr-1" id="group-D-list"></div>
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+                <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Agregar Operador</label>
+                <select class="select select-xs select-bordered w-full font-bold add-member-select" data-group="D" id="add-member-select-D">
+                  <option value="" disabled selected>Seleccionar...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -605,7 +727,37 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
  <NewMonthModal />
  <OperatorFormModal mode="create" />
  <OperatorFormModal mode="edit" />
- <HolidaysModal />
+  <HolidaysModal />
+
+  <dialog id="edit-saturday-schedule-modal" class="modal">
+    <div class="modal-box max-w-sm rounded-3xl border border-base-300 shadow-2xl p-6 bg-base-100">
+      <h3 class="font-black text-sm uppercase tracking-wider text-base-content mb-4 flex items-center gap-2">
+        <Icon name="boxicons:time" size={18} class="text-secondary" />
+        Horario Sábado
+      </h3>
+      <p class="text-xs text-base-content/75 mb-4 leading-relaxed">
+        Establece el sub-horario del sábado para <strong id="modal-agent-name"></strong>. Debe estar dentro de la franja general de 07:00 a 13:00 hs.
+      </p>
+      <form id="edit-saturday-schedule-form" class="space-y-4">
+        <input type="hidden" id="modal-agent-id" />
+        <input type="hidden" id="modal-agent-group" />
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Inicio</label>
+            <input type="time" id="modal-schedule-start" class="input input-sm input-bordered w-full font-mono font-bold" min="07:00" max="13:00" required />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Fin</label>
+            <input type="time" id="modal-schedule-end" class="input input-sm input-bordered w-full font-mono font-bold" min="07:00" max="13:00" required />
+          </div>
+        </div>
+        <div class="modal-action flex justify-end gap-2 pt-2">
+          <button type="button" class="btn btn-sm btn-outline border-base-300" onclick="document.getElementById('edit-saturday-schedule-modal').close()">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
  
   <style is:global>
     #edit-mode-toolbar {

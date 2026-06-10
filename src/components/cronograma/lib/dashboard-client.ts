@@ -17,6 +17,30 @@ import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
 
+let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;
+
+function getActiveGroupForDate(dateStr: string): string | null {
+  if (!activeRotationConfig) return null;
+  const { startDate, startGroup, rotationOrder } = activeRotationConfig;
+  if (!startDate || !startGroup || !rotationOrder) return null;
+
+  const dateObj = new Date(dateStr + "T12:00:00");
+  const isSaturday = dateObj.getDay() === 6;
+  if (!isSaturday) return null;
+
+  const start = new Date(startDate + "T12:00:00");
+  const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const weeksDiff = Math.floor(diffDays / 7);
+  const groups = rotationOrder.split(",").map((g) => g.trim());
+  const N = groups.length;
+  if (N === 0) return null;
+
+  const startIndex = groups.indexOf(startGroup);
+  const idx = startIndex >= 0 ? startIndex : 0;
+  const activeIndex = ((idx + weeksDiff) % N + N) % N;
+  return groups[activeIndex];
+}
+
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   if (!dateInput || !dateInput.value) return [];
@@ -347,6 +371,15 @@ async function init(): Promise<void> {
       console.warn("Failed to load holidays:", err);
     }
 
+    try {
+      const rotRes = await fetch('/api/cronograma/rotation-config');
+      if (rotRes.ok) {
+        activeRotationConfig = await rotRes.json();
+      }
+    } catch (err) {
+      console.warn("Failed to load rotation config:", err);
+    }
+
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
     const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
@@ -596,7 +629,8 @@ function renderDaily(): void {
       // --- 2. TODAY'S SHIFT OR INACTIVE BAR ---
       if (isAbsent || isFranco) {
         const inactiveText = isFranco ? 'Franco / Día Libre' : (status === OperatorStatus.Vacaciones ? 'Vacaciones' : 'Licencia Médica');
-        const inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        let inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        if (isHoliday) inactiveBg = '!bg-orange-200/60 dark:!bg-orange-600/60 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500';
         
         if (hasYesterdayContinuation) {
           ganttContentHtml = `
@@ -639,6 +673,7 @@ function renderDaily(): void {
           let workBarBg = 'bg-primary text-amber-900';
           if (status === OperatorStatus.HomeOffice) workBarBg = 'bg-secondary text-secondary-content';
           else if (status === OperatorStatus.PresencialParquePatricios) workBarBg = 'bg-purple-500 text-white';
+          if (isHoliday) workBarBg = '!bg-orange-500 dark:!bg-orange-600 !text-orange-900 dark:!text-orange-100';
 
           if (startPct <= endPct) {
             const widthPct = endPct - startPct;
@@ -704,12 +739,12 @@ function renderDaily(): void {
 
       let trClass = "hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0";
       if (isHoliday) {
-        trClass += " opacity-40 grayscale-[50%] pointer-events-none";
+        trClass += " bg-orange-100/30 dark:bg-orange-950/30 pointer-events-none";
       }
 
       let opNameBtnClass = "font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4";
       if (isHoliday) {
-        opNameBtnClass += " line-through";
+        opNameBtnClass += " text-orange-600 dark:text-orange-400";
       }
 
       rowsHtml += `
@@ -736,11 +771,11 @@ function renderDaily(): void {
           </td>
           <td class="sticky left-[16rem] bg-base-100 z-30 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
             <div class="flex items-center gap-3">
-               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
+               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500' : styles.bgClass}">
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                 <span class="${styles.badge} whitespace-nowrap ${isHoliday ? 'line-through' : ''}">${status}</span>
+                  <span class="${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase line-through whitespace-nowrap' : styles.badge} whitespace-nowrap">${status}</span>
                  ${breakBadgeHtml}
                </div>
             </div>
@@ -857,7 +892,7 @@ function renderHourly(dateStr: string): void {
         
         let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
         if (isHoliday) {
-            rowClass += " opacity-40 grayscale-[50%] pointer-events-none";
+            rowClass += " bg-orange-100/30 dark:bg-orange-950/30 pointer-events-none";
         }
         let tdClass = "sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
 
@@ -885,12 +920,12 @@ function renderHourly(dateStr: string): void {
 
         let opNameBtnClass = "hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs";
         if (isHoliday) {
-           opNameBtnClass += " line-through";
+           opNameBtnClass += " text-orange-600 dark:text-orange-400";
         }
 
         let spanClass = `text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5`;
         if (isHoliday) {
-           spanClass += " line-through";
+           spanClass += " text-orange-600 dark:text-orange-400";
         }
 
         tbodyHtml += `<tr class="${rowClass}">
@@ -913,11 +948,12 @@ function renderHourly(dateStr: string): void {
                    <span class="text-[10px] leading-none">☕</span>
                  </div>
               </td>`;
-           } else if (working && !isFranco) {
-              tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
-                 <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
-                 </div>
-              </td>`;
+            } else if (working && !isFranco) {
+               const hourBgClass = isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100' : styles.bgClass;
+               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
+                  <div class="w-full h-full rounded ${hourBgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                  </div>
+               </td>`;
            } else {
               tbodyHtml += `<td class="border-r border-b border-base-200/50 bg-base-100/50"></td>`;
            }
@@ -981,7 +1017,7 @@ function renderMonthly(): void {
     
     let thClass = "sticky top-0 z-40 text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors bg-base-100";
     if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2 z-45";
-    else if (isHoliday) thClass = thClass.replace("bg-base-100", "bg-base-300 text-base-content/40 opacity-40 line-through");
+    else if (isHoliday) thClass = thClass.replace("bg-base-100", "bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-100 font-bold line-through");
     else if (isWeekend) thClass = thClass.replace("bg-base-100", "bg-base-200 text-base-content/40");
     else if (isCritical) thClass += " text-error font-bold";
     else thClass += " text-base-content/70";
@@ -1211,13 +1247,15 @@ function renderMonthly(): void {
         }
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
-        const hasComment = !!(op.comentarios && op.comentarios[date]);
         const isHoliday = isFeriado(date);
+        if (isHoliday) cellClass += ' bg-orange-100 dark:bg-orange-950';
+        
+        const hasComment = !!(op.comentarios && op.comentarios[date]);
 
         if (isFrancoCell) {
           let francoBtnClass = `monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
           if (isHoliday) {
-            francoBtnClass += " line-through opacity-40 grayscale-[50%]";
+            francoBtnClass += " line-through opacity-60 !bg-orange-200/60 dark:!bg-orange-600/60 !border-orange-300 dark:!border-orange-500";
           }
           let francoAria = `Ver detalle de ${safeName} el ${safeDate}: Franco`;
           if (isHoliday && pd.feriadoName) {
@@ -1254,11 +1292,24 @@ function renderMonthly(): void {
         else if (status === OperatorStatus.Vacaciones) initials = "V";
 
         let statusBtnClass = `monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        
+        const dateObj = new Date(date + "T12:00:00");
+        const isSaturday = dateObj.getDay() === 6;
+        const activeGroup = getActiveGroupForDate(date);
+        const isRotationCell = !!(isSaturday && op.saturdayGroup && op.saturdayGroup === activeGroup && !(op.overrides && op.overrides[date]));
+        
+        if (isRotationCell) {
+          statusBtnClass += ' ring-1 ring-inset ring-secondary/35 border-secondary/40 hover:ring-secondary/50';
+        }
+
         if (isHoliday) {
-          statusBtnClass += " line-through opacity-40 grayscale-[50%]";
+          statusBtnClass += " line-through opacity-60 !bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 !shadow-none";
         }
 
         let statusTitle = `${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}`;
+        if (isRotationCell) {
+          statusTitle += ` (Rotación Sábado Grupo ${op.saturdayGroup})`;
+        }
         let statusAria = `Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}`;
         if (isHoliday && pd.feriadoName) {
           statusTitle += ` (Feriado: ${pd.feriadoName})`;
@@ -1281,10 +1332,12 @@ function renderMonthly(): void {
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
               aria-label="${statusAria}"
+              ${isRotationCell ? `data-saturday-rotation="true" data-rotation-horario="${escapeHtml(op.saturdayHorario || '07:00 - 13:00')}"` : ''}
             >
               <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
               ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
+              ${isRotationCell ? '<div class="absolute bottom-1.5 w-1 h-1 rounded-full bg-secondary"></div>' : ''}
             </button>
           </td>
         `;
@@ -1506,31 +1559,38 @@ async function saveChangesToServer(): Promise<void> {
   }
 }
 
-function updateViewSwitcherUI(activeView: 'monthly' | 'daily'): void {
+function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups'): void {
   const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
   const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+  const switchToGroupsBtn = document.getElementById('switch-to-groups-btn');
   
   const activeClasses = ['btn-secondary', 'shadow-sm', 'shadow-secondary/15'];
   const inactiveClasses = ['btn-outline', 'border-transparent', 'text-base-content/60', 'hover:bg-base-200/50'];
   
+  [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn].forEach(btn => {
+    btn?.classList.remove(...activeClasses);
+    btn?.classList.remove(...inactiveClasses);
+  });
+
   if (activeView === 'monthly') {
     switchToMonthlyBtn?.classList.add(...activeClasses);
-    switchToMonthlyBtn?.classList.remove(...inactiveClasses);
-    
     switchToDailyBtn?.classList.add(...inactiveClasses);
-    switchToDailyBtn?.classList.remove(...activeClasses);
-  } else {
+    switchToGroupsBtn?.classList.add(...inactiveClasses);
+  } else if (activeView === 'daily') {
     switchToDailyBtn?.classList.add(...activeClasses);
-    switchToDailyBtn?.classList.remove(...inactiveClasses);
-    
     switchToMonthlyBtn?.classList.add(...inactiveClasses);
-    switchToMonthlyBtn?.classList.remove(...activeClasses);
+    switchToGroupsBtn?.classList.add(...inactiveClasses);
+  } else {
+    switchToGroupsBtn?.classList.add(...activeClasses);
+    switchToMonthlyBtn?.classList.add(...inactiveClasses);
+    switchToDailyBtn?.classList.add(...inactiveClasses);
   }
 }
 
 function showDailyView(): void {
   const dailyView = document.getElementById('daily-view');
   const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
   renderDaily();
@@ -1538,6 +1598,7 @@ function showDailyView(): void {
   
   if (dailyView) dailyView.classList.remove('hidden');
   if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
   
   if (datePickerContainer) {
     datePickerContainer.classList.remove('hidden');
@@ -1550,18 +1611,166 @@ function showDailyView(): void {
 function showMonthlyView(): void {
   const dailyView = document.getElementById('daily-view');
   const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
   updateViewSwitcherUI('monthly');
   
   if (dailyView) dailyView.classList.add('hidden');
   if (monthlyView) monthlyView.classList.remove('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
   
   if (datePickerContainer) {
     datePickerContainer.classList.add('is-faded');
     setTimeout(() => {
       datePickerContainer.classList.add('hidden');
     }, 300);
+  }
+}
+
+function showGroupsView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+  
+  renderGroupsView();
+  updateViewSwitcherUI('groups');
+  
+  if (dailyView) dailyView.classList.add('hidden');
+  if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.remove('hidden');
+  
+  if (datePickerContainer) {
+    datePickerContainer.classList.add('is-faded');
+    setTimeout(() => {
+      datePickerContainer.classList.add('hidden');
+    }, 300);
+  }
+}
+
+async function renderGroupsView(): Promise<void> {
+  try {
+    const res = await fetch('/api/cronograma/rotation-config');
+    if (!res.ok) throw new Error("No se pudo cargar la configuración de rotación");
+    const config = await res.json();
+    
+    const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+    const startGroupSelect = document.getElementById('rotation-start-group') as HTMLSelectElement | null;
+    const orderInput = document.getElementById('rotation-order') as HTMLInputElement | null;
+    
+    if (startDateInput && config.startDate) startDateInput.value = config.startDate;
+    if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
+    if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
+    
+    const groupContainers: Record<string, HTMLElement | null> = {
+      A: document.getElementById('group-A-list'),
+      B: document.getElementById('group-B-list'),
+      C: document.getElementById('group-C-list'),
+      D: document.getElementById('group-D-list'),
+    };
+    
+    const groupCounts: Record<string, HTMLElement | null> = {
+      A: document.getElementById('group-A-count'),
+      B: document.getElementById('group-B-count'),
+      C: document.getElementById('group-C-count'),
+      D: document.getElementById('group-D-count'),
+    };
+
+    const addMemberSelects: Record<string, HTMLSelectElement | null> = {
+      A: document.getElementById('add-member-select-A') as HTMLSelectElement | null,
+      B: document.getElementById('add-member-select-B') as HTMLSelectElement | null,
+      C: document.getElementById('add-member-select-C') as HTMLSelectElement | null,
+      D: document.getElementById('add-member-select-D') as HTMLSelectElement | null,
+    };
+
+    const groups = ['A', 'B', 'C', 'D'];
+    groups.forEach(g => {
+      if (groupContainers[g]) groupContainers[g]!.innerHTML = '';
+      if (groupCounts[g]) groupCounts[g]!.innerText = '0 ops';
+      if (addMemberSelects[g]) {
+        addMemberSelects[g]!.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
+      }
+    });
+
+    const unassignedAgents: OperatorData[] = [];
+    const groupMembers: Record<string, OperatorData[]> = { A: [], B: [], C: [], D: [] };
+
+    state.cronoData.forEach(agent => {
+      const group = agent.saturdayGroup;
+      if (group && ['A', 'B', 'C', 'D'].includes(group)) {
+        groupMembers[group].push(agent);
+      } else {
+        unassignedAgents.push(agent);
+      }
+    });
+
+    groups.forEach(g => {
+      const list = groupMembers[g] || [];
+      if (groupCounts[g]) {
+        groupCounts[g]!.innerText = `${list.length} op${list.length !== 1 ? 's' : ''}`;
+      }
+
+      if (groupContainers[g]) {
+        if (list.length === 0) {
+          groupContainers[g]!.innerHTML = `
+            <div class="py-6 text-center text-xs text-base-content/30 font-medium border border-dashed border-base-300 rounded-xl bg-base-100/50">
+              Sin operadores
+            </div>
+          `;
+        } else {
+          list.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
+            const html = `
+              <div class="flex items-center justify-between p-2.5 bg-base-100 border border-base-300/80 rounded-xl hover:border-secondary/30 transition-all shadow-sm group">
+                <div class="flex flex-col min-w-0">
+                  <span class="font-bold text-xs text-base-content truncate">${escapeHtml(agent.nombre)}</span>
+                  <span class="text-[9px] font-semibold text-base-content/50 truncate">${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}</span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    type="button" 
+                    class="btn btn-square btn-ghost btn-xs text-base-content/60 hover:text-secondary hover:bg-secondary/10 edit-member-schedule-btn"
+                    data-agent-id="${agent.id}"
+                    data-agent-name="${escapeHtml(agent.nombre)}"
+                    data-agent-group="${agent.saturdayGroup}"
+                    data-agent-horario="${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}"
+                    title="Editar horario"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-square btn-ghost btn-xs text-base-content/60 hover:text-error hover:bg-error/10 remove-member-btn"
+                    data-agent-id="${agent.id}"
+                    data-agent-name="${escapeHtml(agent.nombre)}"
+                    title="Quitar del grupo"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
+              </div>
+            `;
+            groupContainers[g]!.insertAdjacentHTML('beforeend', html);
+          });
+        }
+      }
+    });
+
+    groups.forEach(g => {
+      const select = addMemberSelects[g];
+      if (select) {
+        unassignedAgents.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
+          const opt = document.createElement('option');
+          opt.value = String(agent.id);
+          opt.textContent = agent.nombre;
+          select.appendChild(opt);
+        });
+      }
+    });
+
+  } catch (err: any) {
+    console.error("renderGroupsView Error:", err);
+    showToast("Error al renderizar vista de grupos", "error");
   }
 }
 
@@ -1880,6 +2089,12 @@ function setupEventListeners(): void {
     
     const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
     if (!trigger) return;
+
+    if (trigger.dataset.saturdayRotation === "true") {
+      showGroupsView();
+      return;
+    }
+
     if (state.isEditMode && state.activeBrush) return;
     
     document.dispatchEvent(new CustomEvent('cronograma:open-monthly-detail', {
@@ -2335,6 +2550,185 @@ function setupEventListeners(): void {
         showToast("Error al guardar los cambios", "error");
       }
    });
+
+  // --- Groups View Event Listeners ---
+  document.getElementById('switch-to-groups-btn')?.addEventListener('click', () => {
+    showGroupsView();
+  });
+
+  const rotForm = document.getElementById('rotation-config-form') as HTMLFormElement | null;
+  rotForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = rotForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+    }
+
+    const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
+    const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
+    const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
+
+    try {
+      const res = await fetch('/api/cronograma/rotation-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate, startGroup, rotationOrder })
+      });
+      if (!res.ok) throw new Error("Error al guardar la configuración");
+      activeRotationConfig = { startDate, startGroup, rotationOrder };
+      
+      const data = await fetchCronogramaData();
+      state.cronoData = data;
+
+      renderMonthly();
+      renderDaily();
+      renderGroupsView();
+      showToast("Configuración de rotación guardada con éxito", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error al guardar la configuración de rotación", "error");
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    }
+  });
+
+  ['A', 'B', 'C', 'D'].forEach(g => {
+    const select = document.getElementById(`add-member-select-${g}`) as HTMLSelectElement | null;
+    select?.addEventListener('change', async () => {
+      const agentIdStr = select.value;
+      if (!agentIdStr) return;
+      select.disabled = true;
+
+      try {
+        const res = await fetch('/api/cronograma/agents/saturday-group', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g })
+        });
+        if (!res.ok) throw new Error("Error al asignar el operador al grupo");
+        
+        const data = await fetchCronogramaData();
+        state.cronoData = data;
+        
+        renderMonthly();
+        renderDaily();
+        renderGroupsView();
+        showToast("Operador asignado al grupo con éxito", "success");
+      } catch (err: any) {
+        console.error(err);
+        showToast("Error al asignar operador al grupo", "error");
+      } finally {
+        select.disabled = false;
+        select.value = "";
+      }
+    });
+  });
+
+  const groupsViewElement = document.getElementById('groups-view');
+  const editSatModal = document.getElementById('edit-saturday-schedule-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
+  const editSatForm = document.getElementById('edit-saturday-schedule-form') as HTMLFormElement | null;
+  
+  groupsViewElement?.addEventListener('click', async (e) => {
+    const removeBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.remove-member-btn');
+    if (removeBtn) {
+      const agentIdStr = removeBtn.dataset.agentId;
+      const agentName = removeBtn.dataset.agentName || 'el operador';
+      if (!agentIdStr) return;
+
+      const confirmed = await showConfirm(`¿Estás seguro de que deseas quitar a ${agentName} de su grupo de rotación?`);
+      if (confirmed) {
+        removeBtn.disabled = true;
+        try {
+          const res = await fetch('/api/cronograma/agents/saturday-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null })
+          });
+          if (!res.ok) throw new Error("Error al desasignar operador");
+          
+          const data = await fetchCronogramaData();
+          state.cronoData = data;
+          
+          renderMonthly();
+          renderDaily();
+          renderGroupsView();
+          showToast("Operador quitado del grupo con éxito", "success");
+        } catch (err: any) {
+          console.error(err);
+          showToast("Error al quitar al operador del grupo", "error");
+          removeBtn.disabled = false;
+        }
+      }
+      return;
+    }
+
+    const editBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.edit-member-schedule-btn');
+    if (editBtn) {
+      const agentIdStr = editBtn.dataset.agentId;
+      const agentName = editBtn.dataset.agentName || '';
+      const agentGroup = editBtn.dataset.agentGroup || '';
+      const agentHorario = editBtn.dataset.agentHorario || '07:00 - 13:00';
+      if (!agentIdStr) return;
+
+      const opIdInput = document.getElementById('edit-saturday-op-id') as HTMLInputElement | null;
+      const opNameDisplay = document.getElementById('edit-saturday-op-name-display') as HTMLElement | null;
+      const opGroupSelect = document.getElementById('edit-saturday-op-group') as HTMLSelectElement | null;
+      const opHorarioInput = document.getElementById('edit-saturday-op-horario') as HTMLInputElement | null;
+
+      if (opIdInput) opIdInput.value = agentIdStr;
+      if (opNameDisplay) opNameDisplay.innerText = agentName;
+      if (opGroupSelect) opGroupSelect.value = agentGroup;
+      if (opHorarioInput) opHorarioInput.value = agentHorario;
+
+      editSatModal?.showModal();
+      return;
+    }
+  });
+
+  editSatForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = editSatForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+    }
+
+    const agentIdStr = (document.getElementById('edit-saturday-op-id') as HTMLInputElement).value;
+    const saturdayGroup = (document.getElementById('edit-saturday-op-group') as HTMLSelectElement).value;
+    const saturdayHorario = (document.getElementById('edit-saturday-op-horario') as HTMLInputElement).value;
+
+    try {
+      const res = await fetch('/api/cronograma/agents/saturday-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario })
+      });
+      if (!res.ok) throw new Error("Error al actualizar la configuración del operador");
+      
+      const data = await fetchCronogramaData();
+      state.cronoData = data;
+      
+      renderMonthly();
+      renderDaily();
+      renderGroupsView();
+      editSatModal?.close();
+      showToast("Configuración de operador guardada con éxito", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error al guardar la configuración del operador", "error");
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    }
+  });
 }
 
 // --- GLOBAL EVENT LISTENERS ---
