@@ -1,10 +1,23 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { agents, schedules } from "@/db/schema";
+import { agents, schedules, saturdayRotationConfig } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const GET: APIRoute = async () => {
   try {
+    // Retrieve active rotation config, inserting default if none exists
+    const configList = await db.select().from(saturdayRotationConfig).limit(1);
+    let rotationConfig = configList[0];
+    if (!rotationConfig) {
+      await db.insert(saturdayRotationConfig).values({
+        rotationOrder: "A,B,C,D",
+        startDate: "2026-06-06",
+        startGroup: "A",
+      });
+      const insertedList = await db.select().from(saturdayRotationConfig).limit(1);
+      rotationConfig = insertedList[0];
+    }
+
     // 1. Fetch all agents (operators) from DB
     const dbAgents = await db.select().from(agents);
 
@@ -21,6 +34,8 @@ export const GET: APIRoute = async () => {
       esquema_break_fin: agent.esquemaBreakFin || {},
       maxConsecutiveHO: agent.maxConsecutiveHO,
       minPWeek: agent.minPWeek,
+      saturdayGroup: agent.saturdayGroup || undefined,
+      saturdayHorario: agent.saturdayHorario || undefined,
     }));
 
     // 2. Fetch all persistent schedule overrides from DB
@@ -41,16 +56,40 @@ export const GET: APIRoute = async () => {
 
       // Load specific DB overrides first
       opOverrides.forEach((s) => {
-        if (s.status === "Franco" || s.status === "") {
+        let status = s.status;
+        let horario = s.horario;
+
+        // Check if date falls on Saturday and if operator has saturdayGroup defined
+        const dateObj = new Date(s.date + "T12:00:00");
+        const isSaturday = dateObj.getDay() === 6;
+        if (isSaturday && operator.saturdayGroup) {
+          // Calculate active group
+          const start = new Date(rotationConfig.startDate + "T12:00:00");
+          const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+          const weeksDiff = Math.floor(diffDays / 7);
+          const groups = rotationConfig.rotationOrder.split(",").map((g) => g.trim());
+          const N = groups.length;
+          const startIndex = groups.indexOf(rotationConfig.startGroup);
+          const idx = startIndex >= 0 ? startIndex : 0;
+          const activeIndex = ((idx + weeksDiff) % N + N) % N;
+          const activeGroup = groups[activeIndex];
+
+          if (operator.saturdayGroup === activeGroup && !s.isOverride) {
+            status = "Home Office";
+            horario = operator.saturdayHorario || "07:00 - 13:00";
+          }
+        }
+
+        if (status === "Franco" || status === "") {
           newAsistencia[s.date] = "Franco";
         } else {
-          newAsistencia[s.date] = s.status;
+          newAsistencia[s.date] = status;
         }
         if (s.comment) {
           newComentarios[s.date] = s.comment;
         }
-        if (s.horario !== undefined && s.horario !== null) {
-          newHorariosDias[s.date] = s.horario;
+        if (horario !== undefined && horario !== null) {
+          newHorariosDias[s.date] = horario;
         }
         // Real entry/exit times are now handled by operator_attendance and ignored in Cronograma
         if (s.breakInicio) {
@@ -169,7 +208,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Process each edit
     for (const edit of edits) {
-      const { agentName, date, status, comment, horario, entradaReal, salidaReal, breakInicio, breakFin } = edit;
+      const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
       if (!agentName || !date) continue;
 
       const existing = await db
@@ -190,6 +229,7 @@ export const POST: APIRoute = async ({ request }) => {
         if (horario !== undefined) updateData.horario = horario;
         if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
         if (breakFin !== undefined) updateData.breakFin = breakFin;
+        updateData.isOverride = true;
 
         await db
           .update(schedules)
@@ -204,6 +244,7 @@ export const POST: APIRoute = async ({ request }) => {
           horario: horario || "",
           breakInicio: breakInicio || "",
           breakFin: breakFin || "",
+          isOverride: true,
         });
       }
     }
