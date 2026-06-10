@@ -369,10 +369,17 @@ function renderDaily(): void {
   const tableBody = document.getElementById('operators-table-body');
   const dateDisplay = document.getElementById('daily-date-display');
 
+  const isHoliday = isFeriado(selectedDateStr);
+  const feriadoName = getFeriadoName(selectedDateStr);
+
   if (dateDisplay) {
     const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     const dateObj = new Date(selectedDateStr + 'T12:00:00');
-    dateDisplay.innerText = formatter.format(dateObj);
+    let displayText = formatter.format(dateObj);
+    if (isHoliday && feriadoName) {
+      displayText += ` (Feriado: ${feriadoName})`;
+    }
+    dateDisplay.innerText = displayText;
   }
 
   const filteredOps = state.cronoData.filter(op => {
@@ -497,6 +504,11 @@ function renderDaily(): void {
       const workBars: string[] = [];
       const breakBars: string[] = [];
 
+      // Helper for adding line-through to work bar spans
+      const ganttSpanClass = (bg: string) => `relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${bg} pointer-events-none ${isHoliday ? 'line-through' : ''}`;
+      // Helper for adding line-through to inactive bar divs
+      const ganttInactiveBarClass = (bg: string) => `gantt-inactive-bar ${bg} ${isHoliday ? 'line-through' : ''}`;
+
       // --- 1. YESTERDAY'S SHIFT CONTINUATION ---
       let hasYesterdayContinuation = false;
       let yEndPct = 0;
@@ -523,7 +535,7 @@ function renderDaily(): void {
 
             workBars.push(`
               <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayWorkBarBg} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
+                <span class="${ganttSpanClass(yesterdayWorkBarBg)}">${yTimes[0]} - ${yTimes[1]}</span>
               </div>
             `);
 
@@ -599,13 +611,13 @@ function renderDaily(): void {
             ${breakBars.join('')}
 
             <!-- Barra Inactiva a la derecha de la continuación -->
-            <div class="gantt-inactive-bar ${inactiveBg} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
+            <div class="${ganttInactiveBarClass(inactiveBg)} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
               ${inactiveText}
             </div>
           `;
         } else {
           ganttContentHtml = `
-            <div class="gantt-inactive-bar ${inactiveBg}">
+            <div class="${ganttInactiveBarClass(inactiveBg)}">
               ${inactiveText}
             </div>
           `;
@@ -623,14 +635,14 @@ function renderDaily(): void {
             const widthPct = endPct - startPct;
             workBars.push(`
               <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
+                <span class="${ganttSpanClass(workBarBg)}">${times[0]} - ${times[1]}</span>
               </div>
             `);
           } else {
             const widthPct = 100 - startPct;
             workBars.push(`
               <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
+                <span class="${ganttSpanClass(workBarBg)}">${times[0]} - ${times[1]}</span>
               </div>
             `);
           }
@@ -681,8 +693,18 @@ function renderDaily(): void {
         `;
       }
 
+      let trClass = "hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0";
+      if (isHoliday) {
+        trClass += " opacity-40 grayscale-[50%] pointer-events-none";
+      }
+
+      let opNameBtnClass = "font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4";
+      if (isHoliday) {
+        opNameBtnClass += " line-through";
+      }
+
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
+        <tr class="${trClass}">
           <td class="sticky left-0 bg-base-100 z-30 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
@@ -694,7 +716,7 @@ function renderDaily(): void {
               </div>
               <div class="flex flex-col min-w-0">
                 <button 
-                  class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
+                  class="${opNameBtnClass}"
                   data-op-profile="${op.nombre}"
                 >
                   ${op.nombre}
@@ -709,7 +731,7 @@ function renderDaily(): void {
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                 <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                 <span class="${styles.badge} whitespace-nowrap ${isHoliday ? 'line-through' : ''}">${status}</span>
                  ${breakBadgeHtml}
                </div>
             </div>
@@ -765,7 +787,13 @@ function renderHourly(dateStr: string): void {
   
   const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
   const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
-  const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+  let formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+
+  const isHoliday = isFeriado(dateStr);
+  const feriadoName = getFeriadoName(dateStr);
+  if (isHoliday && feriadoName) {
+    formattedDate += ` - FERIADO: ${feriadoName.toUpperCase()}`;
+  }
 
   let theadHtml = `
     <tr>
@@ -819,6 +847,9 @@ function renderHourly(dateStr: string): void {
         const isFranco = status === OperatorStatus.Franco;
         
         let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
+        if (isHoliday) {
+            rowClass += " opacity-40 grayscale-[50%] pointer-events-none";
+        }
         let tdClass = "sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
 
         const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
@@ -843,13 +874,23 @@ function renderHourly(dateStr: string): void {
           }
         }
 
+        let opNameBtnClass = "hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs";
+        if (isHoliday) {
+           opNameBtnClass += " line-through";
+        }
+
+        let spanClass = `text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5`;
+        if (isHoliday) {
+           spanClass += " line-through";
+        }
+
         tbodyHtml += `<tr class="${rowClass}">
            <td class="${tdClass}">
               <div class="flex flex-col min-w-0">
                 <div class="flex items-center gap-1.5 overflow-hidden">
-                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs" data-op-profile="${op.nombre}">${op.nombre}</button>
+                  <button class="${opNameBtnClass}" data-op-profile="${op.nombre}">${op.nombre}</button>
                 </div>
-                <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
+                <span class="${spanClass}">${horario} - ${status}</span>
               </div>
            </td>
         `;
