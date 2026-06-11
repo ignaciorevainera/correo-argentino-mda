@@ -40,6 +40,13 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
         >
           Grupos
         </button>
+        <button 
+          type="button" 
+          id="switch-to-overtime-btn" 
+          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+        >
+          Extras
+        </button>
       </div>
 
       <!-- Date Picker (hidden by default) -->
@@ -630,6 +637,119 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
 
   </div>
 </div>
+
+    <!-- ===== OVERTIME VIEW ===== -->
+    <div id="overtime-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
+      <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-warning/15 flex items-center justify-center">
+              <Icon name="boxicons:time-five" size={18} class="text-warning" />
+            </div>
+            <div>
+              <h2 class="font-black text-sm uppercase tracking-wider text-base-content">Horas Extras – Fin de Semana</h2>
+              <p class="text-[11px] text-base-content/50 leading-tight">Sábado 13:00 hs hasta el fin del Domingo</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekend selector + referente config -->
+        <div class="flex flex-col lg:flex-row lg:items-end gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60">
+          <div class="flex flex-col gap-1.5 shrink-0">
+            <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Sábado del Fin de Semana</label>
+            <div id="overtime-weekend-date-wrapper" class="relative flex h-8 min-w-44 items-center gap-2 bg-base-100 px-3 py-1.5 rounded-lg border border-base-300 shadow-sm hover:border-warning/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-warning/20 cursor-pointer">
+              <Icon name="boxicons:calendar" size={14} class="text-base-content/40 pointer-events-none" />
+              <span id="overtime-weekend-date-display" class="text-xs font-semibold tabular-nums text-base-content pointer-events-none">Seleccionar sábado...</span>
+              <input type="date" id="overtime-weekend-date" class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0" />
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1.5 flex-1 max-w-xs">
+            <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Referente del Weekend</label>
+            <select id="overtime-referente-select" class="select select-sm select-bordered font-bold cursor-pointer text-base-content">
+              <option value="">Sin asignar</option>
+            </select>
+          </div>
+
+          <button type="button" id="save-overtime-referente-btn" class="btn btn-sm btn-warning shrink-0 gap-1.5 uppercase font-bold text-[10px]">
+            <Icon name="boxicons:save" size={14} />
+            Guardar Config.
+          </button>
+        </div>
+
+        <!-- Visual timeline -->
+        <div class="space-y-2">
+          <p class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Línea de Tiempo del Fin de Semana</p>
+          <div class="relative overflow-x-auto rounded-xl border border-base-300 bg-base-200/30">
+            <!-- Time header labels row -->
+            <div id="overtime-timeline-header" class="flex min-w-[900px] border-b border-base-300 bg-base-200/60">
+              <div class="w-36 shrink-0 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-base-content/40 border-r border-base-300">
+                Operador
+              </div>
+              <div id="overtime-timeline-hours" class="flex flex-1 relative">
+                <!-- JS renders hour labels here -->
+              </div>
+            </div>
+            <!-- Timeline body -->
+            <div id="overtime-timeline-body" class="min-w-[900px] divide-y divide-base-300/40">
+              <div id="overtime-timeline-placeholder" class="flex items-center justify-center py-12 text-base-content/30 text-xs font-bold uppercase tracking-wider gap-2">
+                <Icon name="boxicons:calendar-x" size={20} />
+                Seleccioná un sábado para ver la línea de tiempo
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add shift form -->
+        <div class="space-y-3">
+          <p class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Agregar Turno de Hora Extra</p>
+          <form id="overtime-shift-form" class="flex flex-col md:flex-row md:items-end gap-3 p-4 bg-base-200/40 rounded-xl border border-base-300/60">
+            <div class="flex flex-col gap-1.5 flex-1 max-w-xs">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Operador</label>
+              <select id="overtime-shift-agent" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
+                <option value="">Seleccionar operador...</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5 shrink-0">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Día</label>
+              <select id="overtime-shift-day" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
+                <option value="saturday">Sábado (tarde)</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5 shrink-0">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Inicio</label>
+              <input type="time" id="overtime-shift-start" class="input input-sm input-bordered w-28 font-mono font-bold" required />
+            </div>
+            <div class="flex flex-col gap-1.5 shrink-0">
+              <label class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Fin</label>
+              <input type="time" id="overtime-shift-end" class="input input-sm input-bordered w-28 font-mono font-bold" required />
+            </div>
+            <input type="hidden" id="overtime-shift-edit-id" value="" />
+            <button type="submit" id="overtime-shift-submit-btn" class="btn btn-sm btn-warning gap-1.5 uppercase font-bold text-[10px] shrink-0">
+              <Icon name="boxicons:plus-circle" size={14} />
+              Agregar Turno
+            </button>
+            <button type="button" id="overtime-shift-cancel-btn" class="btn btn-sm btn-ghost gap-1.5 uppercase font-bold text-[10px] shrink-0 hidden">
+              Cancelar
+            </button>
+          </form>
+        </div>
+
+        <!-- Saved shifts list -->
+        <div class="space-y-2">
+          <p class="text-[9px] font-black uppercase tracking-wider text-base-content/40">Turnos Guardados</p>
+          <div id="overtime-shifts-list">
+            <div class="text-xs text-base-content/30 text-center py-6 font-bold uppercase tracking-wider">
+              No hay turnos guardados para este fin de semana
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
 <!-- Quick Edit Context Menu -->
 <div 
