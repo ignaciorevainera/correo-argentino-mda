@@ -2680,7 +2680,6 @@ function setupEventListeners(): void {
 
   document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
   document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
-  document.getElementById('print-report-btn')?.addEventListener('click', () => window.print());
 
   // --- Maximize Mode Handler ---
   const maxBtn = document.getElementById('maximize-cronograma-btn');
