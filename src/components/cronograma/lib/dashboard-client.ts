@@ -316,6 +316,20 @@ function updateNavigationButtons(): void {
   }
 }
 
+function updateGroupsActiveMonthBadge(): void {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const badge = document.getElementById('groups-active-month-badge');
+  if (badge && dateInput && dateInput.value) {
+    const currentYM = dateInput.value.slice(0, 7);
+    const [yearStr, monthStr] = currentYM.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const dateObj = new Date(year, month, 15);
+    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
+    badge.innerText = `Mes: ${formatter.format(dateObj)}`;
+  }
+}
+
 function updateMonthDisplay(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   const display = document.getElementById('current-month-display');
@@ -336,6 +350,7 @@ function updateMonthDisplay(): void {
   display.innerText = formatter.format(dateObj);
 
   updateNavigationButtons();
+  updateGroupsActiveMonthBadge();
 }
 
 function renderMonthDropdown(): void {
@@ -371,9 +386,7 @@ function renderMonthDropdown(): void {
         if (dateInput) {
           dateInput.value = val;
           updateDateInputDisplay();
-          updateMonthDisplay();
-          renderDaily();
-          renderMonthly();
+          reloadDataForActiveMonth(val.slice(0, 7));
         }
       }
       // Force close dropdown by blurring active element
@@ -414,16 +427,48 @@ function changeMonth(offset: number): void {
   dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
   updateDateInputDisplay();
-  updateMonthDisplay();
-  renderDaily();
-  renderMonthly();
+  reloadDataForActiveMonth(targetYM);
+}
+
+async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
+  try {
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const monthToLoad = targetMonth || (dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7));
+
+    const payload = await fetchCronogramaFullData(monthToLoad);
+    state.cronoData = payload.operators;
+    overtimeConfigs = payload.weekendOvertimeConfigs;
+    state.availableMonths = payload.availableMonths || [];
+
+    try {
+      const rotRes = await fetch(`/api/cronograma/rotation-config?month=${monthToLoad}`);
+      if (rotRes.ok) {
+        activeRotationConfig = await rotRes.json();
+      }
+    } catch (err) {
+      console.warn("Failed to load rotation config:", err);
+    }
+
+    renderDaily();
+    renderMonthly();
+    renderMonthDropdown();
+    updateMonthDisplay();
+  } catch (err) {
+    console.error("Error reloading data for month:", err);
+    showToast("Error al recargar datos del mes", "error");
+  }
 }
 
 async function init(): Promise<void> {
   try {
-    const payload = await fetchCronogramaFullData();
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const todayStr = formatYMD(new Date());
+    let initialMonth = dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7);
+
+    const payload = await fetchCronogramaFullData(initialMonth);
     state.cronoData = payload.operators;
     overtimeConfigs = payload.weekendOvertimeConfigs;
+    state.availableMonths = payload.availableMonths || [];
 
     try {
       const feriadosRes = await fetch('/api/cronograma/feriados');
@@ -435,7 +480,7 @@ async function init(): Promise<void> {
     }
 
     try {
-      const rotRes = await fetch('/api/cronograma/rotation-config');
+      const rotRes = await fetch(`/api/cronograma/rotation-config?month=${initialMonth}`);
       if (rotRes.ok) {
         activeRotationConfig = await rotRes.json();
       }
@@ -443,8 +488,6 @@ async function init(): Promise<void> {
       console.warn("Failed to load rotation config:", err);
     }
 
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const todayStr = formatYMD(new Date());
     const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
     const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || todayStr);
 
@@ -1611,7 +1654,9 @@ function updatePendingEditsUI(): void {
 
 async function discardChanges(): Promise<void> {
   try {
-    const data = await fetchCronogramaData();
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : undefined;
+    const data = await fetchCronogramaData(currentMonth);
     state.cronoData = data;
     state.modifiedSchedules = [];
     
@@ -1646,7 +1691,9 @@ async function saveChangesToServer(): Promise<void> {
     }
 
     state.modifiedSchedules = [];
-    const data = await fetchCronogramaData();
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : undefined;
+    const data = await fetchCronogramaData(currentMonth);
     state.cronoData = data;
 
     setTimeout(() => {
@@ -2362,7 +2409,9 @@ function setupEventListeners(): void {
         try {
           await deleteOperator(opName);
           
-          const data = await fetchCronogramaData();
+          const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+          const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : undefined;
+          const data = await fetchCronogramaData(currentMonth);
           state.cronoData = data;
 
           renderMonthly();
@@ -2614,8 +2663,9 @@ function setupEventListeners(): void {
     try {
       await deleteMonth(year, month);
 
-      const data = await fetchCronogramaData();
-      state.cronoData = data;
+      const payload = await fetchCronogramaFullData();
+      state.cronoData = payload.operators;
+      state.availableMonths = payload.availableMonths || [];
 
       if (state.uniqueDates.length > 0) {
         const targetDate = state.uniqueDates[state.uniqueDates.length - 1];
@@ -2627,6 +2677,16 @@ function setupEventListeners(): void {
         dateInput.value = todayStr;
         dateInput.removeAttribute('min');
         dateInput.removeAttribute('max');
+      }
+
+      const activeYM = dateInput.value.slice(0, 7);
+      try {
+        const rotRes = await fetch(`/api/cronograma/rotation-config?month=${activeYM}`);
+        if (rotRes.ok) {
+          activeRotationConfig = await rotRes.json();
+        }
+      } catch (err) {
+        console.warn("Failed to load rotation config:", err);
       }
 
       updateDateInputDisplay();
@@ -2897,20 +2957,19 @@ function setupEventListeners(): void {
       saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
     }
 
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
     try {
       const res = await fetch('/api/cronograma/rotation-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startDate, startGroup, rotationOrder })
+        body: JSON.stringify({ month, startDate, startGroup, rotationOrder })
       });
       if (!res.ok) throw new Error("Error al guardar la configuración");
       activeRotationConfig = { startDate, startGroup, rotationOrder };
       
-      const data = await fetchCronogramaData();
-      state.cronoData = data;
-
-      renderMonthly();
-      renderDaily();
+      await reloadDataForActiveMonth(month);
       renderGroupsView();
       showToast("Configuración de rotación guardada con éxito", "success");
     } catch (err: any) {
@@ -2931,22 +2990,21 @@ function setupEventListeners(): void {
       if (!agentIdStr) return;
       select.disabled = true;
 
+      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+      const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
       try {
         const res = await fetch('/api/cronograma/rotation-groups/members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g })
+          body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g, month })
         });
         if (!res.ok) throw new Error("Error al asignar el operador al grupo");
         
-        const data = await fetchCronogramaData();
-        state.cronoData = data;
-        
-        renderMonthly();
-        renderDaily();
+        await reloadDataForActiveMonth(month);
         renderGroupsView();
         showToast("Operador asignado al grupo con éxito", "success");
-} catch (err: any) {
+      } catch (err: any) {
         console.error(err);
         showToast("Error al asignar operador al grupo", "error");
       } finally {
@@ -2970,19 +3028,19 @@ function setupEventListeners(): void {
       const confirmed = await showConfirm(`¿Estás seguro de que deseas quitar a ${agentName} de su grupo de rotación?`);
       if (confirmed) {
         removeBtn.disabled = true;
+
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
         try {
           const res = await fetch('/api/cronograma/rotation-groups/members', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null })
+            body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null, month })
           });
           if (!res.ok) throw new Error("Error al desasignar operador");
           
-          const data = await fetchCronogramaData();
-          state.cronoData = data;
-          
-          renderMonthly();
-          renderDaily();
+          await reloadDataForActiveMonth(month);
           renderGroupsView();
           showToast("Operador quitado del grupo con éxito", "success");
         } catch (err: any) {
@@ -3060,20 +3118,18 @@ function setupEventListeners(): void {
     }
 
     const saturdayHorario = `${start} - ${end}`;
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
 
     try {
       const res = await fetch('/api/cronograma/rotation-groups/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario })
+        body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario, month })
       });
       if (!res.ok) throw new Error("Error al actualizar la configuración del operador");
       
-      const data = await fetchCronogramaData();
-      state.cronoData = data;
-      
-      renderMonthly();
-      renderDaily();
+      await reloadDataForActiveMonth(month);
       renderGroupsView();
       editSatModal?.close();
       showToast("Configuración de operador guardada con éxito", "success");
@@ -3498,10 +3554,7 @@ document.getElementById('overtime-shift-cancel-btn')?.addEventListener('click', 
 
 document.addEventListener('cronograma:data-changed', async () => {
   try {
-    const data = await fetchCronogramaData();
-    state.cronoData = data;
-    renderMonthly();
-    renderDaily();
+    await reloadDataForActiveMonth();
   } catch (err: unknown) {
     console.error("Error refreshing data:", err);
     showToast("Error al actualizar datos", "error");
@@ -3510,22 +3563,16 @@ document.addEventListener('cronograma:data-changed', async () => {
 
 document.addEventListener('cronograma:month-created', async (e: any) => {
   const { year, month } = e.detail;
-  try {
-    const data = await fetchCronogramaData();
-    state.cronoData = data;
+  const targetMonth = `${year}-${(month + 1).toString().padStart(2, '0')}`;
+  
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  if (dateInput) {
+    dateInput.value = `${targetMonth}-01`;
+    updateDateInputDisplay();
+  }
 
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    if (dateInput) {
-      dateInput.value = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
-      if (state.uniqueDates.length > 0) {
-        dateInput.min = state.uniqueDates[0];
-        dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
-      }
-      updateDateInputDisplay();
-      updateMonthDisplay();
-    }
-    renderMonthDropdown();
-    renderMonthly();
+  try {
+    await reloadDataForActiveMonth(targetMonth);
     showToast("Nuevo mes agregado con éxito", "success");
   } catch (err: unknown) {
     console.error("Error refreshing data after month creation:", err);
