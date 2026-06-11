@@ -54,7 +54,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
   // 3. Process each agent
   const list: AgentDisponibilidad[] = dbAgents.map((agent) => {
-    const workingStatuses = ["Presencial", "Home Office", "Horas Extras"];
+    const workingStatuses = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office"];
     // Check if there is an override for this agent today
     const schedule = dbSchedules.find((s) => s.agentName === agent.name);
 
@@ -93,7 +93,6 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
     // Check if shift ended (auto-cleanup of exceptional state)
     let shiftEnded = false;
-    const workingStatuses = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office"];
     if (!workingStatuses.includes(status)) {
       // Not a working day today
       shiftEnded = true;
