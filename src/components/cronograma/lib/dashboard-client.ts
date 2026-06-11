@@ -3039,7 +3039,18 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
     return dateStr === weekendDate ? mins - TIMELINE_START_MIN : 11 * 60 + mins;
   };
 
-  bodyContainer.innerHTML = state.cronoData.map(op => {
+  const activeOps = state.cronoData.filter(op => shifts.some(s => s.agentId === op.id));
+  
+  if (activeOps.length === 0) {
+    bodyContainer.innerHTML = `
+      <div class="flex items-center justify-center py-12 text-base-content/30 text-xs font-bold uppercase tracking-wider gap-2">
+        <svg class="w-5 h-5 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        No hay turnos de horas extras asignados para este fin de semana
+      </div>`;
+    return;
+  }
+
+  bodyContainer.innerHTML = activeOps.map(op => {
     const opShifts = shifts.filter(s => s.agentId === op.id);
     const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
     const shiftBars = opShifts.map(s => {
@@ -3056,8 +3067,8 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
           <div class="w-6 h-6 rounded-full bg-base-300/50 flex items-center justify-center text-[9px] font-black shrink-0">${initials}</div>
           <span class="truncate text-[10px] font-bold text-base-content">${escapeHtml(op.nombre)}</span>
         </div>
-        <div class="flex-1 relative ${opShifts.length === 0 ? 'bg-base-200/10' : 'bg-base-100'}">
-          ${shiftBars || '<div class="absolute inset-0 flex items-center pl-2"><span class="text-[9px] text-base-content/20 font-bold">—</span></div>'}
+        <div class="flex-1 relative bg-base-100">
+          ${shiftBars}
         </div>
       </div>`;
   }).join('');
