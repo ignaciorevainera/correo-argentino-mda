@@ -164,22 +164,6 @@ import { Icon } from "astro-icon/components";
               </div>
             </div>
           </section>
-
-          <!-- Notas de Supervisión -->
-          <section class="flex-1 flex flex-col min-h-0">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-1.5">
-                <Icon name="boxicons:edit-alt" size={14} class="text-base-content/50" />
-                Notas de Supervisión
-              </h3>
-              <span id="notes-status-indicator" class="text-[8px] font-black uppercase tracking-widest text-success/70 opacity-0 transition-opacity duration-300">Guardado</span>
-            </div>
-            <textarea 
-              id="drawer-op-notes"
-              placeholder="Escribe notas de seguimiento para el operador..." 
-              class="textarea textarea-bordered w-full flex-1 bg-base-200/20 border-base-300/80 text-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all resize-none min-h-[120px] rounded-2xl p-4 bg-base-100 placeholder:text-base-content/30"
-            ></textarea>
-          </section>
         </div>
 
         <!-- History Column -->
@@ -260,7 +244,7 @@ import { Icon } from "astro-icon/components";
 
 <script>
   import { openDrawer, closeDrawer, saveDrawerLocation, saveDrawerOperatorRules } from '../lib/drawer';
-  import { saveNotes, saveEdits } from '../lib/api';
+  import { saveEdits } from '../lib/api';
   import { state } from '../lib/state';
   import { formatTimeInput } from '../lib/utils';
   import {
@@ -336,75 +320,7 @@ import { Icon } from "astro-icon/components";
     }
   });
 
-  // Notes Auto-save
-  const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
-  const notesIndicator = document.getElementById('notes-status-indicator');
-  let saveNotesTimeout: number | null = null;
 
-  notesTextarea?.addEventListener('input', () => {
-    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
-    if (!opName) return;
-
-    if (notesIndicator) {
-      notesIndicator.innerText = "Guardando...";
-      notesIndicator.classList.remove('opacity-0', 'text-success/70', 'text-error');
-      notesIndicator.classList.add('opacity-100', 'text-warning/70');
-    }
-
-    if (saveNotesTimeout) clearTimeout(saveNotesTimeout);
-    
-    saveNotesTimeout = window.setTimeout(async () => {
-      try {
-        await saveNotes(opName, notesTextarea.value);
-        if (notesIndicator) {
-          notesIndicator.innerText = "Guardado";
-          notesIndicator.classList.remove('text-warning/70');
-          notesIndicator.classList.add('text-success/70');
-          setTimeout(() => {
-            if (notesIndicator.innerText === "Guardado") {
-              notesIndicator.classList.add('opacity-0');
-              notesIndicator.classList.remove('opacity-100');
-            }
-          }, 1500);
-        }
-      } catch (err) {
-        console.error("Error saving notes:", err);
-        if (notesIndicator) {
-          notesIndicator.innerText = "Error";
-          notesIndicator.classList.remove('text-warning/70', 'text-success/70');
-          notesIndicator.classList.add('text-error');
-        }
-      }
-    }, 500);
-  });
-
-  notesTextarea?.addEventListener('blur', async () => {
-    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
-    if (!opName) return;
-    if (saveNotesTimeout) clearTimeout(saveNotesTimeout);
-
-    try {
-      await saveNotes(opName, notesTextarea.value);
-      if (notesIndicator) {
-        notesIndicator.innerText = "Guardado";
-        notesIndicator.classList.remove('text-warning/70');
-        notesIndicator.classList.add('text-success/70');
-        setTimeout(() => {
-          if (notesIndicator.innerText === "Guardado") {
-            notesIndicator.classList.add('opacity-0');
-            notesIndicator.classList.remove('opacity-100');
-          }
-        }, 1500);
-      }
-    } catch (err) {
-      console.error("Error saving notes on blur:", err);
-      if (notesIndicator) {
-        notesIndicator.innerText = "Error";
-        notesIndicator.classList.remove('text-warning/70', 'text-success/70');
-        notesIndicator.classList.add('text-error');
-      }
-    }
-  });
 
   // Attendance Rules select change auto-save
   const opMinPWeekSelect = document.getElementById('drawer-op-min-p-week') as HTMLSelectElement | null;

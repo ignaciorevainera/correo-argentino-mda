@@ -1,5 +1,5 @@
 import { state } from './state';
-import { saveLocation, saveOperatorRules, fetchNotes } from './api';
+import { saveLocation, saveOperatorRules } from './api';
 import { getStatusStyles } from './styles';
 import { escapeHtml } from './utils';
 import { setCurrentWeeklyData } from './weekly-schedule';
@@ -49,24 +49,7 @@ export function openDrawer(opName: string) {
   const initialsEl = document.getElementById('drawer-op-avatar-initials');
   if (initialsEl) initialsEl.innerText = initials;
 
-  const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
-  const notesIndicator = document.getElementById('notes-status-indicator');
-  if (notesIndicator) notesIndicator.classList.add('opacity-0');
-  if (notesTextarea) {
-    notesTextarea.value = "Cargando notas...";
-    notesTextarea.disabled = true;
-    
-    fetchNotes(op.nombre)
-      .then(data => {
-        notesTextarea.value = data.notes || "";
-        notesTextarea.disabled = false;
-      })
-      .catch(err => {
-        console.error("Error loading notes:", err);
-        notesTextarea.value = "";
-        notesTextarea.disabled = false;
-      });
-  }
+
 
   const emailEl = document.getElementById('drawer-op-email');
   if (emailEl) emailEl.innerText = op.username ? `${op.username}@correoargentino.com.ar` : '';

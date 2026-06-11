@@ -48,7 +48,8 @@ export function escapeHtml(value: string | undefined | null): string {
 export function isCurrentlyWorking(
   horario: string,
   breakInicio?: string,
-  breakFin?: string
+  breakFin?: string,
+  isWeekend?: boolean
 ): { status: 'online' | 'break' | 'offline'; text: string } {
   if (!horario || horario === '-') return { status: 'offline', text: 'Fuera de horario' };
 
@@ -66,6 +67,9 @@ export function isCurrentlyWorking(
   endTime.setHours(hE, mE, 0);
 
   if (now >= startTime && now <= endTime) {
+    if (isWeekend) {
+      return { status: 'online', text: 'En servicio' };
+    }
     let breakStart: Date;
     let breakEnd: Date;
 
