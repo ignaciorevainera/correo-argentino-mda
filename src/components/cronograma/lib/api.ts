@@ -1,4 +1,4 @@
-import type { OperatorData } from './types';
+import type { OperatorData, WeekendOvertimeConfig } from './types';
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
@@ -17,13 +17,27 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function fetchCronogramaData(): Promise<OperatorData[]> {
+export interface CronogramaPayload {
+  operators: OperatorData[];
+  weekendOvertimeConfigs: WeekendOvertimeConfig[];
+}
+
+export async function fetchCronogramaFullData(): Promise<CronogramaPayload> {
   if (typeof window !== 'undefined' && (window as any).__CRONOGRAMA_INITIAL_DATA__) {
     const data = (window as any).__CRONOGRAMA_INITIAL_DATA__;
     delete (window as any).__CRONOGRAMA_INITIAL_DATA__;
-    return data;
+    // Support both old (array) and new (envelope) shapes
+    if (Array.isArray(data)) {
+      return { operators: data, weekendOvertimeConfigs: [] };
+    }
+    return data as CronogramaPayload;
   }
-  return fetchJSON<OperatorData[]>('/api/cronograma');
+  return fetchJSON<CronogramaPayload>('/api/cronograma');
+}
+
+export async function fetchCronogramaData(): Promise<OperatorData[]> {
+  const payload = await fetchCronogramaFullData();
+  return payload.operators;
 }
 
 export interface EditPayload {

@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { agents, schedules, saturdayRotationConfig } from "@/db/schema";
+import { agents, schedules, saturdayRotationConfig, weekendOvertimeConfig, weekendOvertimeShifts } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const GET: APIRoute = async () => {
@@ -20,6 +20,10 @@ export const GET: APIRoute = async () => {
 
     // 1. Fetch all agents (operators) from DB
     const dbAgents = await db.select().from(agents);
+
+    // Fetch all weekend overtime data (configs + shifts)
+    const dbOvertimeConfigs = await db.select().from(weekendOvertimeConfig);
+    const dbOvertimeShifts = await db.select().from(weekendOvertimeShifts);
 
     const baseline = dbAgents.map((agent) => ({
       id: agent.id,
@@ -139,6 +143,20 @@ export const GET: APIRoute = async () => {
         }
       });
 
+      // Attach weekend overtime shifts for this operator
+      const agentOvertimes = operator.id
+        ? dbOvertimeShifts
+            .filter((s) => s.agentId === operator.id)
+            .map((s) => ({
+              id: s.id,
+              weekendStartDate: s.weekendStartDate,
+              agentId: s.agentId,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))
+        : [];
+
       return {
         ...operator,
         asistencia: newAsistencia,
@@ -149,10 +167,17 @@ export const GET: APIRoute = async () => {
         breaks_inicio: newBreaksInicio,
         breaks_fin: newBreaksFin,
         overrides,
+        weekendOvertimes: agentOvertimes,
       };
     });
 
-    return new Response(JSON.stringify(merged), {
+    // Bundle response: operators array + overtime config lookup
+    const responsePayload = {
+      operators: merged,
+      weekendOvertimeConfigs: dbOvertimeConfigs,
+    };
+
+    return new Response(JSON.stringify(responsePayload), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

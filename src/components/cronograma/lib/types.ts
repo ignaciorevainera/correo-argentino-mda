@@ -32,6 +32,22 @@ export interface OperatorData {
   saturdayGroup?: string;
   saturdayHorario?: string;
   overrides?: Record<string, boolean>;
+  weekendOvertimes?: WeekendOvertimeShift[];
+}
+
+export interface WeekendOvertimeShift {
+  id: number;
+  weekendStartDate: string; // "YYYY-MM-DD" (Saturday)
+  agentId: number;
+  date: string;             // "YYYY-MM-DD" (Saturday or Sunday)
+  startTime: string;        // "HH:MM"
+  endTime: string;          // "HH:MM"
+}
+
+export interface WeekendOvertimeConfig {
+  id: number;
+  weekendStartDate: string;
+  referente: string;
 }
 
 export interface RulesConfig {
