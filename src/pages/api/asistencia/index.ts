@@ -43,40 +43,26 @@ function parseTimeRange(range: string) {
 // Automatically calculate compliance
 export function calculateCompliance(
   entradaReal: string | null | undefined,
-  salidaReal: string | null | undefined,
   horarioEstipulado: string | null | undefined
 ): string {
-  if (!entradaReal && !salidaReal) return "Sin Registro";
+  if (!entradaReal) return "Sin Registro";
   if (!horarioEstipulado) return "Cumplió";
   
   const times = parseTimeRange(horarioEstipulado);
   if (!times) return "Cumplió";
   
   let late = false;
-  let early = false;
   
-  if (entradaReal) {
-    const [eh, em] = entradaReal.split(":").map(Number);
-    if (!isNaN(eh) && !isNaN(em)) {
-      if (eh > times.startH || (eh === times.startH && em > times.startM)) {
-        late = true;
-      }
+  const [eh, em] = entradaReal.split(":").map(Number);
+  if (!isNaN(eh) && !isNaN(em)) {
+    const startMinutes = times.startH * 60 + times.startM;
+    const realMinutes = eh * 60 + em;
+    if (realMinutes > startMinutes + 10) {
+      late = true;
     }
   }
   
-  if (salidaReal) {
-    const [sh, sm] = salidaReal.split(":").map(Number);
-    if (!isNaN(sh) && !isNaN(sm)) {
-      // Check early departure
-      if (sh < times.endH || (sh === times.endH && sm < times.endM)) {
-        early = true;
-      }
-    }
-  }
-  
-  if (late && early) return "Tarde y Retiro Anticipado";
   if (late) return "Llegada Tarde";
-  if (early) return "Retiro Anticipado";
   return "Cumplió";
 }
 
@@ -187,7 +173,6 @@ export const GET: APIRoute = async ({ url }) => {
         const asistencia = actual?.asistencia ?? defaultAsistencia;
         const ausencia = actual?.ausencia ?? "";
         const entradaReal = actual?.entradaReal ?? "";
-        const salidaReal = actual?.salidaReal ?? "";
         const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
         const motivoLoguin = actual?.motivoLoguin ?? "";
         const detalle = actual?.detalle ?? "";
@@ -195,7 +180,7 @@ export const GET: APIRoute = async ({ url }) => {
         // Calculate compliance
         let cumplimiento = actual?.cumplimiento ?? "";
         if (!cumplimientoForzado || !cumplimiento) {
-          cumplimiento = calculateCompliance(entradaReal, salidaReal, horarioEstipulado);
+          cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
         }
 
         responseData.push({
@@ -210,7 +195,6 @@ export const GET: APIRoute = async ({ url }) => {
           asistencia,
           ausencia,
           entradaReal,
-          salidaReal,
           cumplimiento,
           cumplimientoForzado,
           motivoLoguin,
@@ -306,7 +290,6 @@ export const POST: APIRoute = async ({ request }) => {
         asistencia,
         ausencia,
         entradaReal,
-        salidaReal,
         cumplimiento,
         cumplimientoForzado,
         motivoLoguin,
@@ -332,7 +315,6 @@ export const POST: APIRoute = async ({ request }) => {
         if (asistencia !== undefined) updateData.asistencia = asistencia;
         if (ausencia !== undefined) updateData.ausencia = ausencia;
         if (entradaReal !== undefined) updateData.entradaReal = entradaReal;
-        if (salidaReal !== undefined) updateData.salidaReal = salidaReal;
         if (cumplimiento !== undefined) updateData.cumplimiento = cumplimiento;
         if (cumplimientoForzado !== undefined) updateData.cumplimientoForzado = !!cumplimientoForzado;
         if (motivoLoguin !== undefined) updateData.motivoLoguin = motivoLoguin;
@@ -351,7 +333,6 @@ export const POST: APIRoute = async ({ request }) => {
           asistencia: asistencia || "",
           ausencia: ausencia || "",
           entradaReal: entradaReal || "",
-          salidaReal: salidaReal || "",
           cumplimiento: cumplimiento || "",
           cumplimientoForzado: !!cumplimientoForzado,
           motivoLoguin: motivoLoguin || "",

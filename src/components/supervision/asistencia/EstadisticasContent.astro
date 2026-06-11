@@ -117,16 +117,15 @@ for (const dateStr of dates) {
     }
 
     const asistencia = actual?.asistencia ?? defaultAsistencia;
-    const ausencia = actual?.ausencia ?? "";
+     const ausencia = actual?.ausencia ?? "";
     const entradaReal = actual?.entradaReal ?? "";
-    const salidaReal = actual?.salidaReal ?? "";
     const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
     const motivoLoguin = actual?.motivoLoguin ?? "";
     const detalle = actual?.detalle ?? "";
 
     let cumplimiento = actual?.cumplimiento ?? "";
     if (!cumplimientoForzado || !cumplimiento) {
-      cumplimiento = calculateCompliance(entradaReal, salidaReal, horarioEstipulado);
+      cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
     }
 
     initialData.push({
@@ -141,7 +140,6 @@ for (const dateStr of dates) {
       asistencia,
       ausencia,
       entradaReal,
-      salidaReal,
       cumplimiento,
       cumplimientoForzado,
       motivoLoguin,
@@ -536,7 +534,6 @@ for (const dateStr of dates) {
           `Cumplimiento: ${log.cumplimiento || 'Sin registro'}`
         ];
         if (log.entradaReal) tooltipParts.push(`Entrada Real: ${log.entradaReal}`);
-        if (log.salidaReal) tooltipParts.push(`Salida Real: ${log.salidaReal}`);
         if (log.ausencia) tooltipParts.push(`Ausencia: ${log.ausencia}`);
         if (log.detalle) tooltipParts.push(`Comentario: ${log.detalle}`);
 
@@ -630,10 +627,14 @@ for (const dateStr of dates) {
 
   monthInput?.addEventListener('change', loadData);
   
-  // Trigger initial load synchronously/asynchronously
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadData);
-  } else {
-    loadData();
+  // Wait for Chart.js to load via CDN before running the data processing
+  function safeInit() {
+    if ((window as any).Chart) {
+      loadData();
+    } else {
+      setTimeout(safeInit, 50);
+    }
   }
+
+  safeInit();
 </script>

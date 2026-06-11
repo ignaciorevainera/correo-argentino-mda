@@ -103,14 +103,13 @@ for (const dateStr of dates) {
     const asistencia = actual?.asistencia ?? defaultAsistencia;
     const ausencia = actual?.ausencia ?? "";
     const entradaReal = actual?.entradaReal ?? "";
-    const salidaReal = actual?.salidaReal ?? "";
     const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
     const motivoLoguin = actual?.motivoLoguin ?? "";
     const detalle = actual?.detalle ?? "";
 
     let cumplimiento = actual?.cumplimiento ?? "";
     if (!cumplimientoForzado || !cumplimiento) {
-      cumplimiento = calculateCompliance(entradaReal, salidaReal, horarioEstipulado);
+      cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
     }
 
     initialData.push({
@@ -125,7 +124,6 @@ for (const dateStr of dates) {
       asistencia,
       ausencia,
       entradaReal,
-      salidaReal,
       cumplimiento,
       cumplimientoForzado,
       motivoLoguin,
@@ -244,17 +242,16 @@ for (const dateStr of dates) {
         <thead class="bg-base-200/80 border-b border-base-300 font-bold uppercase tracking-wider text-base-content/60">
           <tr>
             <th class="py-3.5 px-4 w-[28%] min-w-[180px]">Operador</th>
-            <th class="py-3.5 px-3 w-[18%] min-w-[150px]">Asistencia Real</th>
-            <th class="py-3.5 px-3 w-[18%] min-w-[150px]">Ausencia / Eventualidad</th>
-            <th class="py-3.5 px-3 w-[10%] min-w-[100px] text-center">Horario Estipulado</th>
-            <th class="py-3.5 px-3 w-[8%] min-w-[80px] text-center">Entrada Real</th>
-            <th class="py-3.5 px-3 w-[8%] min-w-[80px] text-center">Salida Real</th>
+            <th class="py-3.5 px-3 w-[20%] min-w-[230px]">Asistencia Real</th>
+            <th class="py-3.5 px-3 w-[20%] min-w-[180px]">Ausencia / Eventualidad</th>
+            <th class="py-3.5 px-3 w-[12%] min-w-[100px] text-center">Horario Estipulado</th>
+            <th class="py-3.5 px-3 w-[10%] min-w-[80px] text-center">Entrada Real</th>
             <th class="py-3.5 px-3 w-[10%] min-w-[110px] text-center">Cumplimiento</th>
           </tr>
         </thead>
         <tbody id="attendance-table-body" class="divide-y divide-base-200">
           <tr>
-            <td colspan="7" class="py-12 text-center text-base-content/40">
+            <td colspan="6" class="py-12 text-center text-base-content/40">
               <span class="loading loading-spinner loading-md"></span>
               <p class="mt-2 font-medium">Cargando registros...</p>
             </td>
@@ -329,18 +326,22 @@ for (const dateStr of dates) {
 
   const ausenciaOptions = [
     { value: "", label: "SIN EVENTUALIDAD" },
-    { value: "Vacaciones", label: "Vacaciones" },
-    { value: "Dia OFF", label: "Día OFF" },
-    { value: "Dia Gremial", label: "Día Gremial" },
-    { value: "Medico", label: "Médico" },
-    { value: "Dia de Estudio", label: "Día de Estudio" },
-    { value: "Licencia Maternidad", label: "Licencia Maternidad" },
-    { value: "Licencia Fallecimiento", label: "Licencia Fallecimiento" },
-    { value: "Licencia ART", label: "Licencia ART" },
+    { value: "Tramite", label: "Tramite" },
+    { value: "Demorado", label: "Demorado" },
+    { value: "Se reporta enfermo", label: "Se reporta enfermo" },
     { value: "Ausente Justificado", label: "Ausente Justificado" },
-    { value: "Tarde", label: "Tarde" },
-    { value: "Licencia Anual", label: "Licencia Anual" },
-    { value: "Ausente con Permiso", label: "Ausente con Permiso" }
+    { value: "Ausente con Permiso", label: "Ausente con Permiso" },
+    { value: "Ausente No Justificado", label: "Ausente No Justificado" },
+    { value: "Ausencia sin aviso", label: "Ausencia sin aviso" },
+    { value: "Lic. Estudio", label: "Lic. Estudio" },
+    { value: "Lic. Medica", label: "Lic. Medica" },
+    { value: "Lic. Anual", label: "Lic. Anual" },
+    { value: "Lic. UI", label: "Lic. UI" },
+    { value: "Lic. Gremial", label: "Lic. Gremial" },
+    { value: "Lic. Paternidad", label: "Lic. Paternidad" },
+    { value: "Lic. Maternidad", label: "Lic. Maternidad" },
+    { value: "Lic. Fallecimiento", label: "Lic. Fallecimiento" },
+    { value: "ART", label: "ART" }
   ];
 
   const complianceLabels: Record<string, string> = {
@@ -396,37 +397,27 @@ for (const dateStr of dates) {
     };
   }
 
-  function calculateCompliance(entrada: string, salida: string, estipulado: string) {
-    if (!entrada && !salida) return "Sin Registro";
+  function calculateCompliance(entrada: string, estipulado: string) {
+    if (!entrada) return "Sin Registro";
     if (!estipulado) return "Cumplió";
     
     const times = parseTimeRange(estipulado);
     if (!times) return "Cumplió";
     
     let late = false;
-    let early = false;
     
     if (entrada) {
       const [eh, em] = entrada.split(":").map(Number);
       if (!isNaN(eh) && !isNaN(em)) {
-        if (eh > times.startH || (eh === times.startH && em > times.startM)) {
+        const startMinutes = times.startH * 60 + times.startM;
+        const realMinutes = eh * 60 + em;
+        if (realMinutes > startMinutes + 10) {
           late = true;
         }
       }
     }
     
-    if (salida) {
-      const [sh, sm] = salida.split(":").map(Number);
-      if (!isNaN(sh) && !isNaN(sm)) {
-        if (sh < times.endH || (sh === times.endH && sm < times.endM)) {
-          early = true;
-        }
-      }
-    }
-    
-    if (late && early) return "Tarde y Retiro Anticipado";
     if (late) return "Llegada Tarde";
-    if (early) return "Retiro Anticipado";
     return "Cumplió";
   }
 
@@ -435,7 +426,7 @@ for (const dateStr of dates) {
       if (tableBody) {
         tableBody.innerHTML = `
           <tr>
-            <td colspan="7" class="py-12 text-center text-base-content/40">
+            <td colspan="6" class="py-12 text-center text-base-content/40">
               <span class="loading loading-spinner loading-md"></span>
               <p class="mt-2 font-medium">Cargando registros...</p>
             </td>
@@ -455,7 +446,7 @@ for (const dateStr of dates) {
       if (tableBody) {
         tableBody.innerHTML = `
           <tr>
-            <td colspan="7" class="py-8 text-center text-error font-medium">
+            <td colspan="6" class="py-8 text-center text-error font-medium">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               Error al cargar los datos de asistencia.
             </td>
@@ -466,35 +457,40 @@ for (const dateStr of dates) {
   }
 
   const attendanceClasses: Record<string, string[]> = {
-    "HOME OFFICE": ["bg-secondary/15", "text-secondary", "border-secondary/30"],
-    "PRESENCIAL MONTE GRANDE": ["bg-primary/15", "text-amber-600", "dark:text-amber-400", "border-primary/30"],
-    "PRESENCIAL PARQUE PATRICIOS": ["bg-purple-500/15", "text-purple-600", "dark:text-purple-400", "border-purple-500/30"]
+    "HOME OFFICE": ["text-secondary", "border-secondary/40"],
+    "PRESENCIAL MONTE GRANDE": ["text-amber-600", "dark:text-amber-400", "border-primary/40"],
+    "PRESENCIAL PARQUE PATRICIOS": ["text-purple-600", "dark:text-purple-400", "border-purple-500/40"]
   };
 
   const ausenciaClasses: Record<string, string[]> = {
-    "": ["bg-base-200/50", "text-base-content/50", "border-base-300/40"],
-    "Vacaciones": ["bg-emerald-500/15", "text-emerald-700", "dark:text-emerald-400", "border-emerald-500/30"],
-    "Dia OFF": ["bg-slate-500/15", "text-slate-700", "dark:text-slate-400", "border-slate-500/30"],
-    "Dia Gremial": ["bg-amber-500/15", "text-amber-700", "dark:text-amber-400", "border-amber-500/30"],
-    "Medico": ["bg-orange-500/15", "text-orange-700", "dark:text-orange-400", "border-orange-500/30"],
-    "Dia de Estudio": ["bg-yellow-500/15", "text-yellow-700", "dark:text-yellow-400", "border-yellow-500/30"],
-    "Licencia Maternidad": ["bg-pink-500/15", "text-pink-700", "dark:text-pink-400", "border-pink-500/30"],
-    "Licencia Fallecimiento": ["bg-violet-500/15", "text-violet-700", "dark:text-violet-400", "border-violet-500/30"],
-    "Licencia ART": ["bg-cyan-500/15", "text-cyan-700", "dark:text-cyan-400", "border-cyan-500/30"],
-    "Ausente Justificado": ["bg-green-600/15", "text-green-700", "dark:text-green-400", "border-green-600/30"],
-    "Tarde": ["bg-rose-500/15", "text-rose-700", "dark:text-rose-400", "border-rose-500/30"],
-    "Licencia Anual": ["bg-indigo-500/15", "text-indigo-700", "dark:text-indigo-400", "border-indigo-500/30"],
-    "Ausente con Permiso": ["bg-sky-500/15", "text-sky-700", "dark:text-sky-400", "border-sky-500/30"]
+    "": ["text-base-content/50", "border-base-300"],
+    "Tramite": ["text-slate-500", "dark:text-slate-400", "border-slate-300"],
+    "Demorado": ["text-amber-500", "dark:text-amber-400", "border-amber-500/40"],
+    "Se reporta enfermo": ["text-orange-400", "dark:text-orange-300", "border-orange-300"],
+    "Ausente Justificado": ["text-emerald-600", "dark:text-emerald-400", "border-emerald-500/40"],
+    "Ausente con Permiso": ["text-slate-500", "dark:text-slate-400", "border-slate-300"],
+    "Ausente No Justificado": ["text-amber-500", "dark:text-amber-400", "border-amber-500/40"],
+    "Ausencia sin aviso": ["text-rose-600", "dark:text-rose-400", "border-rose-500/40"],
+    "Lic. Estudio": ["text-slate-500", "dark:text-slate-400", "border-slate-300"],
+    "Lic. Medica": ["text-orange-600", "dark:text-orange-400", "border-orange-500/40"],
+    "Lic. Anual": ["text-emerald-500", "dark:text-emerald-300", "border-emerald-500/20"],
+    "Lic. UI": ["text-green-600", "dark:text-green-400", "border-green-500/40"],
+    "Lic. Gremial": ["text-amber-600", "dark:text-amber-400", "border-amber-500/40"],
+    "Lic. Paternidad": ["text-blue-500", "dark:text-blue-400", "border-blue-400/40"],
+    "Lic. Maternidad": ["text-pink-500", "dark:text-pink-400", "border-pink-400/40"],
+    "Lic. Fallecimiento": ["text-violet-500", "dark:text-violet-400", "border-violet-400/40"],
+    "ART": ["text-cyan-500", "dark:text-cyan-400", "border-cyan-400/40"]
   };
 
   function updateSelectColor(selectEl: HTMLSelectElement, field = 'asistencia') {
     const val = selectEl.value;
+    const baseClass = "select select-bordered h-9 py-1 rounded-xl w-full font-semibold focus:outline-none focus:border-secondary bg-base-100 pr-9 text-[11px] ";
     if (field === 'asistencia') {
-      selectEl.className = "attendance-input select-pill w-full max-w-[170px]";
+      selectEl.className = baseClass + "max-w-[220px]";
       const classes = attendanceClasses[val];
       if (classes) classes.forEach(c => selectEl.classList.add(c));
     } else {
-      selectEl.className = "attendance-input select-pill w-full max-w-[155px]";
+      selectEl.className = baseClass + "max-w-[170px]";
       const classes = ausenciaClasses[val];
       if (classes) classes.forEach(c => selectEl.classList.add(c));
     }
@@ -531,7 +527,7 @@ for (const dateStr of dates) {
       if (tableBody) {
         tableBody.innerHTML = `
           <tr>
-            <td colspan="7" class="py-12 text-center text-base-content/40">
+            <td colspan="6" class="py-12 text-center text-base-content/40">
               No se encontraron operadores registrados.
             </td>
           </tr>
@@ -548,12 +544,11 @@ for (const dateStr of dates) {
         const asistencia = edit.asistencia !== undefined ? edit.asistencia : op.asistencia;
         const ausencia = edit.ausencia !== undefined ? edit.ausencia : op.ausencia;
         const entradaReal = edit.entradaReal !== undefined ? edit.entradaReal : op.entradaReal;
-        const salidaReal = edit.salidaReal !== undefined ? edit.salidaReal : op.salidaReal;
         const cumplimientoForzado = edit.cumplimientoForzado !== undefined ? edit.cumplimientoForzado : op.cumplimientoForzado;
         
         let cumplimiento = edit.cumplimiento !== undefined ? edit.cumplimiento : op.cumplimiento;
         if (!cumplimientoForzado) {
-          cumplimiento = calculateCompliance(entradaReal, salidaReal, op.horarioEstipulado);
+          cumplimiento = calculateCompliance(entradaReal, op.horarioEstipulado);
         }
 
         const motivoLoguin = edit.motivoLoguin !== undefined ? edit.motivoLoguin : op.motivoLoguin;
@@ -568,7 +563,7 @@ for (const dateStr of dates) {
 
         const getAusenciaClass = (val: string) => {
           const classes = ausenciaClasses[val];
-          return classes ? classes.join(" ") : "bg-base-200/50 text-base-content/50 border border-base-300/40";
+          return classes ? classes.join(" ") : "text-base-content/50 border-base-300";
         };
 
         const isFutureDate = op.date > todayStr;
@@ -630,17 +625,17 @@ for (const dateStr of dates) {
             </td>
 
             <td class="py-3 px-3">
-              <select class="attendance-input select-pill w-full max-w-[170px] ${getAsistenciaClass(asistencia)}" data-field="asistencia" ${disabledAttr}>
+              <select class="select select-bordered h-9 py-1 rounded-xl w-full max-w-[220px] bg-base-100 font-semibold focus:outline-none focus:border-secondary pr-9 text-[11px] ${getAsistenciaClass(asistencia)}" data-field="asistencia" ${disabledAttr}>
                 ${asistenciaOptions.map(opt => `
-                  <option value="${opt}" ${asistencia === opt ? 'selected' : ''}>${opt}</option>
+                  <option value="${opt}" class="text-base-content bg-base-100 text-[11px] font-normal" ${asistencia === opt ? 'selected' : ''}>${opt}</option>
                 `).join('')}
               </select>
             </td>
 
             <td class="py-3 px-3">
-              <select class="attendance-input select-pill w-full max-w-[155px] ${getAusenciaClass(ausencia)}" data-field="ausencia" ${disabledAttr}>
+              <select class="select select-bordered h-9 py-1 rounded-xl w-full max-w-[170px] bg-base-100 font-semibold focus:outline-none focus:border-secondary pr-9 text-[11px] ${getAusenciaClass(ausencia)}" data-field="ausencia" ${disabledAttr}>
                 ${ausenciaOptions.map(opt => `
-                  <option value="${opt.value}" ${ausencia === opt.value ? 'selected' : ''}>${opt.label}</option>
+                  <option value="${opt.value}" class="text-base-content bg-base-100 text-[11px] font-normal" ${ausencia === opt.value ? 'selected' : ''}>${opt.label}</option>
                 `).join('')}
               </select>
             </td>
@@ -654,7 +649,7 @@ for (const dateStr of dates) {
             <td class="py-3 px-3 text-center">
               <input 
                 type="text" 
-                class="attendance-input time-input" 
+                class="input input-bordered input-sm rounded-xl bg-base-100 text-center text-xs w-20 max-w-full focus:outline-none focus:border-secondary font-mono" 
                 value="${entradaReal}" 
                 placeholder="HH:MM" 
                 maxlength="5"
@@ -664,36 +659,22 @@ for (const dateStr of dates) {
             </td>
 
             <td class="py-3 px-3 text-center">
-              <input 
-                type="text" 
-                class="attendance-input time-input" 
-                value="${salidaReal}" 
-                placeholder="HH:MM" 
-                maxlength="5"
-                data-field="salidaReal"
-                ${disabledAttr}
-              />
-            </td>
-
-            <td class="py-3 px-3 text-center">
               <div class="flex flex-col gap-1 items-center justify-center">
                 <span class="badge badge-sm py-2 px-3 rounded-lg text-[9px] whitespace-nowrap ${complianceClasses[cumplimiento] || 'badge-ghost'}" id="badge-cump-${op.agentId}">
                   ${complianceLabels[cumplimiento] || cumplimiento}
                 </span>
-                <select class="select select-ghost select-xs text-[8px] font-black text-base-content/40 hover:text-base-content p-0 h-auto min-h-0 uppercase w-[120px] text-center" data-field="cumplimiento" ${disabledAttr}>
+                <select class="select select-bordered h-8 py-0.5 rounded-lg bg-base-100 text-[9px] font-bold text-base-content uppercase w-[120px] text-center focus:outline-none focus:border-secondary" data-field="cumplimiento" ${disabledAttr}>
                   <option value="" ${!cumplimientoForzado ? 'selected' : ''}>⚙️ AUTOMÁTICO</option>
                   <option value="Cumplió" ${cumplimientoForzado && cumplimiento === 'Cumplió' ? 'selected' : ''}>Cumplió</option>
                   <option value="Incumplió" ${cumplimientoForzado && cumplimiento === 'Incumplió' ? 'selected' : ''}>Incumplió</option>
                   <option value="Llegada Tarde" ${cumplimientoForzado && cumplimiento === 'Llegada Tarde' ? 'selected' : ''}>Llegada Tarde</option>
-                  <option value="Retiro Anticipado" ${cumplimientoForzado && cumplimiento === 'Retiro Anticipado' ? 'selected' : ''}>Retiro Anticipado</option>
-                  <option value="Tarde y Retiro Anticipado" ${cumplimientoForzado && cumplimiento === 'Tarde y Retiro Anticipado' ? 'selected' : ''}>Tarde y R.Antic.</option>
                 </select>
               </div>
             </td>
           </tr>
 
           <tr class="hidden" id="details-row-${op.agentId}">
-            <td colspan="7" class="px-6 py-4 border-t border-base-200 border-b-2 border-base-300 ${detailsCellBgClass}">
+            <td colspan="6" class="px-6 py-4 border-t border-base-200 border-b-2 border-base-300 ${detailsCellBgClass}">
               <div class="max-w-4xl w-full details-row-animate">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div class="flex flex-col gap-1.5 md:col-span-1">
@@ -702,7 +683,7 @@ for (const dateStr of dates) {
                     </label>
                     <input 
                       type="text" 
-                      class="attendance-input text-xs w-full bg-base-100" 
+                      class="input input-bordered input-sm rounded-xl w-full bg-base-100 text-xs focus:outline-none focus:border-secondary" 
                       value="${motivoLoguin}" 
                       placeholder="Ej: Problemas de conexión, VPN caída..." 
                       data-field="motivoLoguin"
@@ -715,7 +696,7 @@ for (const dateStr of dates) {
                       📝 Detalle / Comentario (RRHH o Supervisor)
                     </label>
                     <textarea 
-                      class="attendance-input text-xs w-full h-11 min-h-[44px] max-h-[160px] bg-base-100 py-1.5 px-3 resize-y leading-normal" 
+                      class="textarea textarea-bordered rounded-xl w-full h-11 min-h-[44px] max-h-[160px] bg-base-100 py-1.5 px-3 text-xs leading-normal focus:outline-none focus:border-secondary" 
                       placeholder="Escribe notas adicionales, justificaciones de demoras o comentarios para Recursos Humanos..." 
                       data-field="detalle"
                       ${disabledAttr}
@@ -741,7 +722,6 @@ for (const dateStr of dates) {
       const selectAsistencia = htmlRow.querySelector('[data-field="asistencia"]') as HTMLSelectElement;
       const selectAusencia = htmlRow.querySelector('[data-field="ausencia"]') as HTMLSelectElement;
       const inputEntrada = htmlRow.querySelector('[data-field="entradaReal"]') as HTMLInputElement;
-      const inputSalida = htmlRow.querySelector('[data-field="salidaReal"]') as HTMLInputElement;
       const selectCumplimiento = htmlRow.querySelector('[data-field="cumplimiento"]') as HTMLSelectElement;
       
       const inputMotivo = detailsRow.querySelector('[data-field="motivoLoguin"]') as HTMLInputElement;
@@ -783,15 +763,14 @@ for (const dateStr of dates) {
         
         pendingEdits[agentId][field] = value;
         
-        if (field === 'entradaReal' || field === 'salidaReal' || field === 'cumplimiento') {
+        if (field === 'entradaReal' || field === 'cumplimiento') {
           const edit = pendingEdits[agentId];
           const curEntrada = edit.entradaReal !== undefined ? edit.entradaReal : op.entradaReal;
-          const curSalida = edit.salidaReal !== undefined ? edit.salidaReal : op.salidaReal;
           
           if (field === 'cumplimiento') {
             if (value === "") {
               edit.cumplimientoForzado = false;
-              edit.cumplimiento = calculateCompliance(curEntrada, curSalida, op.horarioEstipulado);
+              edit.cumplimiento = calculateCompliance(curEntrada, op.horarioEstipulado);
             } else {
               edit.cumplimientoForzado = true;
               edit.cumplimiento = value;
@@ -799,7 +778,7 @@ for (const dateStr of dates) {
           } else {
             const curForced = edit.cumplimientoForzado !== undefined ? edit.cumplimientoForzado : op.cumplimientoForzado;
             if (!curForced) {
-              edit.cumplimiento = calculateCompliance(curEntrada, curSalida, op.horarioEstipulado);
+              edit.cumplimiento = calculateCompliance(curEntrada, op.horarioEstipulado);
             }
           }
           
@@ -814,7 +793,7 @@ for (const dateStr of dates) {
         const edit = pendingEdits[agentId];
         let changed = false;
         
-        const fieldsToCheck = ['asistencia', 'ausencia', 'entradaReal', 'salidaReal', 'cumplimiento', 'cumplimientoForzado', 'motivoLoguin', 'detalle'];
+        const fieldsToCheck = ['asistencia', 'ausencia', 'entradaReal', 'cumplimiento', 'cumplimientoForzado', 'motivoLoguin', 'detalle'];
         fieldsToCheck.forEach(f => {
           if (edit[f] !== undefined && edit[f] !== op[f]) {
             changed = true;
@@ -857,7 +836,6 @@ for (const dateStr of dates) {
       };
 
       inputEntrada.addEventListener('input', () => formatTimeInput(inputEntrada, 'entradaReal'));
-      inputSalida.addEventListener('input', () => formatTimeInput(inputSalida, 'salidaReal'));
       
       selectCumplimiento.addEventListener('change', (e) => {
         const target = e.target as HTMLSelectElement;
@@ -940,7 +918,6 @@ for (const dateStr of dates) {
       "Ausencia/Eventualidad",
       "Horario Estipulado",
       "Entrada Real",
-      "Salida Real",
       "Cumplimiento",
       "Motivo Login",
       "Detalle/Comentario"
@@ -958,7 +935,6 @@ for (const dateStr of dates) {
         op.ausencia || "NINGUNA",
         op.horarioEstipulado || "Franco",
         op.entradaReal || "--:--",
-        op.salidaReal || "--:--",
         op.cumplimiento,
         op.motivoLoguin || "",
         op.detalle || ""
