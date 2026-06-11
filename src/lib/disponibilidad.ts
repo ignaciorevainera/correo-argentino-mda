@@ -54,6 +54,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
   // 3. Process each agent
   const list: AgentDisponibilidad[] = dbAgents.map((agent) => {
+    const workingStatuses = ["Presencial", "Home Office", "Horas Extras"];
     // Check if there is an override for this agent today
     const schedule = dbSchedules.find((s) => s.agentName === agent.name);
 
@@ -90,47 +91,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       horario = agent.horarioDefault || "08:00 - 17:00";
     }
 
-    // Check if shift ended (auto-cleanup of exceptional state)
-    let shiftEnded = false;
-    const workingStatuses = ["Presencial", "Home Office", "Horas Extras"];
-    if (!workingStatuses.includes(status)) {
-      // Not a working day today
-      shiftEnded = true;
-    } else {
-      const parts = horario.split(" - ");
-      if (parts.length === 2) {
-        const [_, endStr] = parts;
-        const [hE, mE] = endStr.split(":").map(Number);
-        if (!isNaN(hE) && !isNaN(mE)) {
-          const endTime = new Date(now);
-          endTime.setHours(hE, mE, 0, 0);
-          if (now > endTime) {
-            shiftEnded = true;
-          }
-        }
-      }
-    }
 
-    if (agent.estadoExcepcional && shiftEnded) {
-      // Clear in DB asynchronously
-      db.update(agents)
-        .set({
-          estadoExcepcional: null,
-          estadoExcepcionalMotivo: null,
-          estadoExcepcionalAt: null,
-          estadoExcepcionalMinutos: null,
-        })
-        .where(eq(agents.id, agent.id))
-        .catch((err) =>
-          console.error(`Error auto-clearing exceptional state for agent ${agent.id}:`, err)
-        );
-
-      // Mutate local object so we don't apply the override in this render
-      agent.estadoExcepcional = null;
-      agent.estadoExcepcionalMotivo = null;
-      agent.estadoExcepcionalAt = null;
-      agent.estadoExcepcionalMinutos = null;
-    }
 
     const info: AgentDisponibilidad = {
       agentId: agent.id,
