@@ -3157,9 +3157,14 @@ document.getElementById('switch-to-overtime-btn')?.addEventListener('click', () 
   showOvertimeView();
 });
 
+const _overtimeWeekendWrapper = document.getElementById('overtime-weekend-date-wrapper');
 const _overtimeWeekendInput = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
-if (_overtimeWeekendInput) {
-  _overtimeWeekendInput.addEventListener('change', async () => {
+if (_overtimeWeekendWrapper && _overtimeWeekendInput) {
+  _overtimeWeekendWrapper.addEventListener('click', () => {
+    _overtimeWeekendInput.showPicker();
+  });
+  _overtimeWeekendInput.addEventListener('change', async (e) => {
+    e.stopPropagation();
     const val = _overtimeWeekendInput.value;
     if (!val) return;
     const dateObj = new Date(val + 'T12:00:00');
