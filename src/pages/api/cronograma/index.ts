@@ -1,12 +1,29 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { agents, schedules } from "@/db/schema";
+import { agents, schedules, saturdayRotationConfig, weekendOvertimeConfig, weekendOvertimeShifts } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const GET: APIRoute = async () => {
   try {
+    // Retrieve active rotation config, inserting default if none exists
+    const configList = await db.select().from(saturdayRotationConfig).limit(1);
+    let rotationConfig = configList[0];
+    if (!rotationConfig) {
+      await db.insert(saturdayRotationConfig).values({
+        rotationOrder: "A,B,C,D",
+        startDate: "2026-06-06",
+        startGroup: "A",
+      });
+      const insertedList = await db.select().from(saturdayRotationConfig).limit(1);
+      rotationConfig = insertedList[0];
+    }
+
     // 1. Fetch all agents (operators) from DB
     const dbAgents = await db.select().from(agents);
+
+    // Fetch all weekend overtime data (configs + shifts)
+    const dbOvertimeConfigs = await db.select().from(weekendOvertimeConfig);
+    const dbOvertimeShifts = await db.select().from(weekendOvertimeShifts);
 
     const baseline = dbAgents.map((agent) => ({
       id: agent.id,
@@ -21,6 +38,8 @@ export const GET: APIRoute = async () => {
       esquema_break_fin: agent.esquemaBreakFin || {},
       maxConsecutiveHO: agent.maxConsecutiveHO,
       minPWeek: agent.minPWeek,
+      saturdayGroup: agent.saturdayGroup || undefined,
+      saturdayHorario: agent.saturdayHorario || undefined,
     }));
 
     // 2. Fetch all persistent schedule overrides from DB
@@ -38,19 +57,48 @@ export const GET: APIRoute = async () => {
       const newSalidasReales: Record<string, string> = {};
       const newBreaksInicio: Record<string, string> = {};
       const newBreaksFin: Record<string, string> = {};
+      const overrides: Record<string, boolean> = {};
 
       // Load specific DB overrides first
       opOverrides.forEach((s) => {
-        if (s.status === "Franco" || s.status === "") {
+        let status = s.status;
+        let horario = s.horario;
+
+        if (s.isOverride) {
+          overrides[s.date] = true;
+        }
+
+        // Check if date falls on Saturday and if operator has saturdayGroup defined
+        const dateObj = new Date(s.date + "T12:00:00");
+        const isSaturday = dateObj.getDay() === 6;
+        if (isSaturday && operator.saturdayGroup) {
+          // Calculate active group
+          const start = new Date(rotationConfig.startDate + "T12:00:00");
+          const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+          const weeksDiff = Math.floor(diffDays / 7);
+          const groups = rotationConfig.rotationOrder.split(",").map((g) => g.trim());
+          const N = groups.length;
+          const startIndex = groups.indexOf(rotationConfig.startGroup);
+          const idx = startIndex >= 0 ? startIndex : 0;
+          const activeIndex = ((idx + weeksDiff) % N + N) % N;
+          const activeGroup = groups[activeIndex];
+
+          if (operator.saturdayGroup === activeGroup && !s.isOverride) {
+            status = "Home Office";
+            horario = operator.saturdayHorario || "07:00 - 13:00";
+          }
+        }
+
+        if (status === "Franco" || status === "") {
           newAsistencia[s.date] = "Franco";
         } else {
-          newAsistencia[s.date] = s.status;
+          newAsistencia[s.date] = status;
         }
         if (s.comment) {
           newComentarios[s.date] = s.comment;
         }
-        if (s.horario !== undefined && s.horario !== null) {
-          newHorariosDias[s.date] = s.horario;
+        if (horario !== undefined && horario !== null) {
+          newHorariosDias[s.date] = horario;
         }
         // Real entry/exit times are now handled by operator_attendance and ignored in Cronograma
         if (s.breakInicio) {
@@ -95,6 +143,20 @@ export const GET: APIRoute = async () => {
         }
       });
 
+      // Attach weekend overtime shifts for this operator
+      const agentOvertimes = operator.id
+        ? dbOvertimeShifts
+            .filter((s) => s.agentId === operator.id)
+            .map((s) => ({
+              id: s.id,
+              weekendStartDate: s.weekendStartDate,
+              agentId: s.agentId,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))
+        : [];
+
       return {
         ...operator,
         asistencia: newAsistencia,
@@ -104,10 +166,18 @@ export const GET: APIRoute = async () => {
         salidas_reales: newSalidasReales,
         breaks_inicio: newBreaksInicio,
         breaks_fin: newBreaksFin,
+        overrides,
+        weekendOvertimes: agentOvertimes,
       };
     });
 
-    return new Response(JSON.stringify(merged), {
+    // Bundle response: operators array + overtime config lookup
+    const responsePayload = {
+      operators: merged,
+      weekendOvertimeConfigs: dbOvertimeConfigs,
+    };
+
+    return new Response(JSON.stringify(responsePayload), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -169,7 +239,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Process each edit
     for (const edit of edits) {
-      const { agentName, date, status, comment, horario, entradaReal, salidaReal, breakInicio, breakFin } = edit;
+      const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
       if (!agentName || !date) continue;
 
       const existing = await db
@@ -190,6 +260,7 @@ export const POST: APIRoute = async ({ request }) => {
         if (horario !== undefined) updateData.horario = horario;
         if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
         if (breakFin !== undefined) updateData.breakFin = breakFin;
+        updateData.isOverride = true;
 
         await db
           .update(schedules)
@@ -204,6 +275,7 @@ export const POST: APIRoute = async ({ request }) => {
           horario: horario || "",
           breakInicio: breakInicio || "",
           breakFin: breakFin || "",
+          isOverride: true,
         });
       }
     }

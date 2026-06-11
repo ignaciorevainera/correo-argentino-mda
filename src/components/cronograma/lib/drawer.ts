@@ -1,5 +1,5 @@
 import { state } from './state';
-import { saveLocation, saveOperatorRules, fetchNotes } from './api';
+import { saveLocation, saveOperatorRules } from './api';
 import { getStatusStyles } from './styles';
 import { escapeHtml } from './utils';
 import { setCurrentWeeklyData } from './weekly-schedule';
@@ -49,24 +49,7 @@ export function openDrawer(opName: string) {
   const initialsEl = document.getElementById('drawer-op-avatar-initials');
   if (initialsEl) initialsEl.innerText = initials;
 
-  const notesTextarea = document.getElementById('drawer-op-notes') as HTMLTextAreaElement | null;
-  const notesIndicator = document.getElementById('notes-status-indicator');
-  if (notesIndicator) notesIndicator.classList.add('opacity-0');
-  if (notesTextarea) {
-    notesTextarea.value = "Cargando notas...";
-    notesTextarea.disabled = true;
-    
-    fetchNotes(op.nombre)
-      .then(data => {
-        notesTextarea.value = data.notes || "";
-        notesTextarea.disabled = false;
-      })
-      .catch(err => {
-        console.error("Error loading notes:", err);
-        notesTextarea.value = "";
-        notesTextarea.disabled = false;
-      });
-  }
+
 
   const emailEl = document.getElementById('drawer-op-email');
   if (emailEl) emailEl.innerText = op.username ? `${op.username}@correoargentino.com.ar` : '';
@@ -87,7 +70,7 @@ export function openDrawer(opName: string) {
 
   let p = 0, ho = 0;
   Object.values(op.asistencia || {}).forEach(s => {
-    if (s === 'Presencial') p++;
+    if (s === 'Presencial Monte Grande' || s === 'Presencial Parque Patricios') p++;
     else if (s === 'Home Office') ho++;
   });
   const statPEl = document.getElementById('drawer-stat-p');
@@ -121,12 +104,22 @@ export function openDrawer(opName: string) {
     }).join('');
   }
 
-  const opWeekly = op.esquema_semanal || { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco };
-  const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  const opWeekly = op.esquema_semanal || { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco };
+  const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+  const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+  const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
 
   setCurrentWeeklyData(opWeekly, opWeeklyScheduleTimes, opWeeklyBreakInicioTimes, opWeeklyBreakFinTimes);
+
+  // Reset weekly template select and hide custom actions when opening/switching operator
+  const weeklySelect = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+  if (weeklySelect) {
+    weeklySelect.value = "";
+  }
+  const customActions = document.getElementById('template-custom-actions');
+  if (customActions) {
+    customActions.classList.add('hidden');
+  }
 
   const tabProfileBtn = document.getElementById('tab-profile-btn');
   tabProfileBtn?.dispatchEvent(new Event('click'));

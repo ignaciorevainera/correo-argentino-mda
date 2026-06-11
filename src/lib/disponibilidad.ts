@@ -91,6 +91,26 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       horario = agent.horarioDefault || "08:00 - 17:00";
     }
 
+    // Check if shift ended (auto-cleanup of exceptional state)
+    let shiftEnded = false;
+    const workingStatuses = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office"];
+    if (!workingStatuses.includes(status)) {
+      // Not a working day today
+      shiftEnded = true;
+    } else {
+      const parts = horario.split(" - ");
+      if (parts.length === 2) {
+        const [_, endStr] = parts;
+        const [hE, mE] = endStr.split(":").map(Number);
+        if (!isNaN(hE) && !isNaN(mE)) {
+          const endTime = new Date(now);
+          endTime.setHours(hE, mE, 0, 0);
+          if (now > endTime) {
+            shiftEnded = true;
+          }
+        }
+      }
+    }
 
 
     const info: AgentDisponibilidad = {

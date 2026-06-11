@@ -1,0 +1,224 @@
+---
+// HolidaysModal.astro
+import { Icon } from "astro-icon/components";
+---
+
+<dialog id="holidays-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box max-w-lg bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
+    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+      <Icon name="boxicons:calendar-star" class="text-secondary" size={22} />
+      Gestionar Feriados
+    </h3>
+
+    <div class="space-y-4">
+      <!-- Holidays List Section -->
+      <div>
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Lista de Feriados</span>
+        </label>
+        <div 
+          id="holidays-list-container" 
+          class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin pr-1 border border-base-200 rounded-xl p-3 bg-base-200/20"
+        >
+          <!-- JavaScript will render the list items here -->
+        </div>
+      </div>
+
+      <!-- Add New Holiday Section -->
+      <div class="border-t border-base-200 pt-4">
+        <label class="label">
+          <span class="label-text font-bold text-xs uppercase text-base-content/60">Agregar Nuevo Feriado</span>
+        </label>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input 
+            type="date" 
+            id="new-holiday-date" 
+            class="input input-bordered input-sm bg-base-100 focus:outline-none focus:border-secondary font-mono text-xs w-full sm:w-44 shrink-0" 
+          />
+          <input 
+            type="text" 
+            id="new-holiday-name" 
+            placeholder="Nombre del feriado (ej: Año Nuevo)" 
+            class="input input-bordered input-sm bg-base-100 focus:outline-none focus:border-secondary font-bold text-xs flex-1" 
+          />
+          <button 
+            type="button" 
+            id="add-holiday-btn" 
+            class="btn btn-sm btn-secondary text-xs font-black uppercase w-full sm:w-auto"
+          >
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <button 
+        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" 
+        id="cancel-holidays-btn" 
+        type="button"
+      >
+        Cancelar
+      </button>
+      <button 
+        class="btn btn-sm btn-primary text-xs font-black uppercase" 
+        id="save-holidays-btn" 
+        type="button"
+      >
+        Guardar Cambios
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<script>
+  import { state } from '../lib/state';
+  import { showToast } from '../lib/notifications';
+
+  // We maintain a local copy of holidays in memory during modal editing
+  let localHolidays: Record<string, string> = {};
+
+  const modal = document.getElementById('holidays-modal') as HTMLDialogElement | null;
+  const listContainer = document.getElementById('holidays-list-container');
+  const dateInput = document.getElementById('new-holiday-date') as HTMLInputElement | null;
+  const nameInput = document.getElementById('new-holiday-name') as HTMLInputElement | null;
+  const addBtn = document.getElementById('add-holiday-btn');
+  const cancelBtn = document.getElementById('cancel-holidays-btn');
+  const saveBtn = document.getElementById('save-holidays-btn') as HTMLButtonElement | null;
+
+  // Render the holidays list from localHolidays map
+  function renderLocalHolidaysList(): void {
+    if (!listContainer) return;
+    
+    const sortedDates = Object.keys(localHolidays).sort();
+    
+    if (sortedDates.length === 0) {
+      listContainer.innerHTML = `
+        <div class="py-8 text-center text-xs font-bold text-base-content/40 uppercase tracking-wider">
+          No hay feriados registrados
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    sortedDates.forEach(dateStr => {
+      const name = localHolidays[dateStr];
+      // Format YYYY-MM-DD to DD/MM/YYYY
+      const parts = dateStr.split('-');
+      const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+      html += `
+        <div class="flex items-center justify-between gap-4 p-2 bg-base-100 border border-base-200 rounded-lg shadow-sm hover:border-base-300 transition-colors">
+          <div class="flex flex-col min-w-0">
+            <span class="font-mono font-bold text-xs text-base-content/80">${formattedDate}</span>
+            <span class="text-xs font-black uppercase text-secondary truncate mt-0.5">${name}</span>
+          </div>
+          <button 
+            type="button" 
+            class="btn btn-ghost btn-square btn-xs text-base-content/40 hover:text-error hover:bg-error/10 rounded-md transition-colors delete-holiday-btn" 
+            data-date="${dateStr}"
+            title="Eliminar feriado"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
+      `;
+    });
+
+    listContainer.innerHTML = html;
+
+    // Attach event listeners to delete buttons
+    listContainer.querySelectorAll('.delete-holiday-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLButtonElement;
+        const dateToDelete = target.getAttribute('data-date');
+        if (dateToDelete && dateToDelete in localHolidays) {
+          delete localHolidays[dateToDelete];
+          renderLocalHolidaysList();
+        }
+      });
+    });
+  }
+
+  if (modal) {
+    // Populate local copy when modal opens
+    modal.addEventListener('show', () => {
+      localHolidays = { ...state.feriados };
+      renderLocalHolidaysList();
+      if (dateInput) dateInput.value = '';
+      if (nameInput) nameInput.value = '';
+    });
+
+    // Handle cancel
+    cancelBtn?.addEventListener('click', () => {
+      modal.close();
+    });
+
+    // Handle add
+    addBtn?.addEventListener('click', () => {
+      if (!dateInput || !nameInput) return;
+      const dateVal = dateInput.value.trim();
+      const nameVal = nameInput.value.trim();
+
+      if (!dateVal) {
+        showToast("Por favor selecciona una fecha.", "error");
+        return;
+      }
+      if (!nameVal) {
+        showToast("Por favor escribe el nombre del feriado.", "error");
+        return;
+      }
+
+      if (dateVal in localHolidays) {
+        showToast(`Ya existe un feriado registrado para la fecha seleccionada (${localHolidays[dateVal]}).`, "error");
+        return;
+      }
+
+      // Add to local list and refresh UI
+      localHolidays[dateVal] = nameVal;
+      renderLocalHolidaysList();
+
+      // Clear input fields
+      dateInput.value = '';
+      nameInput.value = '';
+      showToast("Feriado agregado a la lista temporal.", "success");
+    });
+
+    // Handle save
+    saveBtn?.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('/api/cronograma/feriados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feriados: localHolidays })
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        // Update main state and dispatch refresh event
+        state.feriados = { ...localHolidays };
+        document.dispatchEvent(new CustomEvent('cronograma:feriados-updated'));
+        
+        showToast("Los feriados se han guardado con éxito.", "success");
+        modal.close();
+      } catch (err: unknown) {
+        console.error("Error saving holidays:", err);
+        showToast("Error al intentar guardar los feriados.", "error");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  }
+</script>

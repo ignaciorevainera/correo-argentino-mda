@@ -49,6 +49,7 @@ export const POST: APIRoute = async ({ request }) => {
           salidaReal: "",
           breakInicio: "",
           breakFin: "",
+          isOverride: false,
         });
       }
 

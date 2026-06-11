@@ -1,5 +1,6 @@
 import type { OperatorData } from './types';
 import { OperatorStatus } from './types';
+import feriadosJson from './feriados.json';
 
 export function safeGetItem(key: string, fallback: string): string {
   try {
@@ -24,6 +25,7 @@ class CronogramaState {
   private _cachedDates: string[] | null = null;
   private _cachedMonths: string[] | null = null;
 
+  feriados: Record<string, string> = feriadosJson;
   isEditMode = false;
   activeBrush: string | null = null;
   pendingEdits: Record<string, { agentName: string; date: string; status: string; originalStatus: string }> = {};
@@ -71,6 +73,13 @@ class CronogramaState {
     safeSetItem('cronoCoverageMinimized', val ? 'true' : 'false');
   }
 
+  get isTotalsCollapsed(): boolean {
+    return safeGetItem('cronoTotalsCollapsed', 'false') === 'true';
+  }
+  set isTotalsCollapsed(val: boolean) {
+    safeSetItem('cronoTotalsCollapsed', val ? 'true' : 'false');
+  }
+
   get cronoData(): OperatorData[] {
     return this._cronoData;
   }
@@ -106,16 +115,16 @@ class CronogramaState {
         // Return default templates if empty
         return {
           "Estándar P/HO Alternado": {
-            dias: { Lunes: OperatorStatus.Presencial, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.Presencial, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.Presencial, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           },
           "100% Presencial": {
-            dias: { Lunes: OperatorStatus.Presencial, Martes: OperatorStatus.Presencial, Miercoles: OperatorStatus.Presencial, Jueves: OperatorStatus.Presencial, Viernes: OperatorStatus.Presencial, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.PresencialMonteGrande, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.PresencialMonteGrande, Viernes: OperatorStatus.PresencialMonteGrande },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           },
           "100% Home Office": {
-            dias: { Lunes: OperatorStatus.HomeOffice, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.HomeOffice, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.HomeOffice, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.HomeOffice, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.HomeOffice, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.HomeOffice },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           }
         };
       }

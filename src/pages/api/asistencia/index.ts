@@ -180,8 +180,8 @@ export const GET: APIRoute = async ({ url }) => {
         let defaultAsistencia = "";
         if (modalidadPlanificada === "Home Office") {
           defaultAsistencia = "HOME OFFICE";
-        } else if (modalidadPlanificada === "Presencial") {
-          defaultAsistencia = agent.location ? `PRESENCIAL ${agent.location.toUpperCase()}` : "PRESENCIAL MONTE GRANDE";
+        } else if (modalidadPlanificada?.startsWith("Presencial")) {
+          defaultAsistencia = modalidadPlanificada.toUpperCase();
         }
 
         const asistencia = actual?.asistencia ?? defaultAsistencia;

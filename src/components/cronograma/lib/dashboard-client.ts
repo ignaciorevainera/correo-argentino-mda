@@ -1,5 +1,5 @@
 import { state, safeGetItem, safeSetItem } from './state';
-import { fetchCronogramaData, saveEdits, deleteOperator, deleteMonth } from './api';
+import { fetchCronogramaData, fetchCronogramaFullData, saveEdits, deleteOperator, deleteMonth } from './api';
 import { getStatusStyles } from './styles';
 import { 
   getGanttPosition, 
@@ -14,7 +14,84 @@ import {
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
 import { exportCSV, exportAsImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
-import { OperatorStatus, type OperatorData } from './types';
+import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
+import { isFeriado, getFeriadoName } from './feriados';
+
+let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;
+
+// --- Overtime state ---
+let overtimeConfigs: WeekendOvertimeConfig[] = [];
+let overtimeSelectedWeekend: string | null = null; // "YYYY-MM-DD" Saturday
+
+// --- Rotation Timeline state ---
+let rotationTimelineSelectedDate: string | null = null; // "YYYY-MM-DD" Saturday
+
+function formatToDDMMYY(dateStr: string): string {
+  if (!dateStr) return "dd/mm/yy";
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return "dd/mm/yy";
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function isHourCoveredBySchedule(scheduleStr: string, hourStart: number): boolean {
+  if (!scheduleStr || scheduleStr === '-') return false;
+  const parts = scheduleStr.split('-');
+  if (parts.length !== 2) return false;
+  const startMin = timeToMinutes(parts[0].trim());
+  const endMin = timeToMinutes(parts[1].trim());
+  
+  const slotStartMin = hourStart * 60;
+  const slotEndMin = (hourStart + 1) * 60;
+  
+  return startMin <= slotStartMin && endMin >= slotEndMin;
+}
+
+function getActiveGroupForDate(dateStr: string): string | null {
+  if (!activeRotationConfig) return null;
+  const { startDate, startGroup, rotationOrder } = activeRotationConfig;
+  if (!startDate || !startGroup || !rotationOrder) return null;
+
+  const dateObj = new Date(dateStr + "T12:00:00");
+  const isSaturday = dateObj.getDay() === 6;
+  if (!isSaturday) return null;
+
+  const start = new Date(startDate + "T12:00:00");
+  const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const weeksDiff = Math.floor(diffDays / 7);
+  const groups = rotationOrder.split(",").map((g) => g.trim());
+  const N = groups.length;
+  if (N === 0) return null;
+
+  const startIndex = groups.indexOf(startGroup);
+  const idx = startIndex >= 0 ? startIndex : 0;
+  const activeIndex = ((idx + weeksDiff) % N + N) % N;
+  return groups[activeIndex];
+}
+
+function getNextSaturdayForGroup(targetGroup: string): string | null {
+  if (!activeRotationConfig) return null;
+  const { startDate, startGroup, rotationOrder } = activeRotationConfig;
+  if (!startDate || !startGroup || !rotationOrder) return null;
+
+  const groups = rotationOrder.split(",").map((g) => g.trim());
+  const N = groups.length;
+  if (N === 0) return null;
+  if (!groups.includes(targetGroup)) return null;
+
+  const start = new Date(startDate + "T12:00:00");
+  const startIndex = groups.indexOf(startGroup);
+  const targetIndex = groups.indexOf(targetGroup);
+
+  const offsetWeeks = ((targetIndex - startIndex) % N + N) % N;
+  const firstDate = new Date(start);
+  firstDate.setDate(firstDate.getDate() + offsetWeeks * 7);
+
+  const y = firstDate.getFullYear();
+  const m = String(firstDate.getMonth() + 1).padStart(2, '0');
+  const d = String(firstDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -42,8 +119,18 @@ function updateDateInputDisplay(): void {
 function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
   const sortType = state.activeSort || 'alphabetical';
   
+  let referenceDate = dateStr;
+  const isDailyActive = !document.getElementById('daily-view')?.classList.contains('hidden');
+  if (!isDailyActive) {
+    const today = new Date();
+    const todayStr = formatYMD(today);
+    if (todayStr.slice(0, 7) === dateStr.slice(0, 7)) {
+      referenceDate = todayStr;
+    }
+  }
+  
   const hasContinuation = (op: OperatorData): boolean => {
-    const parts = dateStr.split('-');
+    const parts = referenceDate.split('-');
     if (parts.length !== 3) return false;
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
@@ -89,11 +176,11 @@ function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
         if (hasContinuation(op)) {
           return 0;
         }
-        const status = op.asistencia?.[dateStr];
+        const status = op.asistencia?.[referenceDate];
         if (status === 'Franco' || status === 'Licencia' || status === 'Vacaciones' || !status) {
           return 9999;
         }
-        const dailyHorario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario;
+        const dailyHorario = (op.horarios_dias && op.horarios_dias[referenceDate]) || op.horario;
         if (!dailyHorario || dailyHorario === '-' || dailyHorario === 'Franco') {
           return 9999;
         }
@@ -156,7 +243,7 @@ function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
             currentHO = 0;
           }
 
-          if (status === OperatorStatus.Presencial) currentWeekP++;
+          if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios) currentWeekP++;
           if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
              currentWeekDays++;
           }
@@ -334,8 +421,27 @@ function changeMonth(offset: number): void {
 
 async function init(): Promise<void> {
   try {
-    const data = await fetchCronogramaData();
-    state.cronoData = data;
+    const payload = await fetchCronogramaFullData();
+    state.cronoData = payload.operators;
+    overtimeConfigs = payload.weekendOvertimeConfigs;
+
+    try {
+      const feriadosRes = await fetch('/api/cronograma/feriados');
+      if (feriadosRes.ok) {
+        state.feriados = await feriadosRes.json();
+      }
+    } catch (err) {
+      console.warn("Failed to load holidays:", err);
+    }
+
+    try {
+      const rotRes = await fetch('/api/cronograma/rotation-config');
+      if (rotRes.ok) {
+        activeRotationConfig = await rotRes.json();
+      }
+    } catch (err) {
+      console.warn("Failed to load rotation config:", err);
+    }
 
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
@@ -368,10 +474,17 @@ function renderDaily(): void {
   const tableBody = document.getElementById('operators-table-body');
   const dateDisplay = document.getElementById('daily-date-display');
 
+  const isHoliday = isFeriado(selectedDateStr);
+  const feriadoName = getFeriadoName(selectedDateStr);
+
   if (dateDisplay) {
     const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
     const dateObj = new Date(selectedDateStr + 'T12:00:00');
-    dateDisplay.innerText = formatter.format(dateObj);
+    let displayText = formatter.format(dateObj);
+    if (isHoliday && feriadoName) {
+      displayText += ` (Feriado: ${feriadoName})`;
+    }
+    dateDisplay.innerText = displayText;
   }
 
   const filteredOps = state.cronoData.filter(op => {
@@ -428,12 +541,30 @@ function renderDaily(): void {
       const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
       const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
       const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
-      const liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin);
+      
+      const dateObj = new Date(selectedDateStr + 'T12:00:00');
+      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+      
+      const dayOvertime = (op.weekendOvertimes || []).find(s => s.date === selectedDateStr);
+      let liveStatus = isCurrentlyWorking(dailyHorario, customBreakInicio, customBreakFin, isWeekend);
+      if (dayOvertime) {
+        const now = new Date();
+        const currentMin = now.getHours() * 60 + now.getMinutes();
+        const otStartMin = timeToMinutes(dayOvertime.startTime);
+        const otEndMin = timeToMinutes(dayOvertime.endTime);
+        const isWithinOvertime = otEndMin >= otStartMin 
+          ? (currentMin >= otStartMin && currentMin < otEndMin)
+          : (currentMin >= otStartMin || currentMin < otEndMin);
+        if (isWithinOvertime) {
+          liveStatus = { status: 'online', text: 'Trabajando (Hora Extra)' };
+        }
+      }
+      const showAsActiveInGantt = (!isAbsent && !isFranco) || !!dayOvertime;
       
       // Calcular descanso (personalizado o fallback de 1hr en el medio del shift)
       let breakStartHourStr = '';
       let breakEndHourStr = '';
-      if (!isAbsent && !isFranco) {
+      if (!isAbsent && !isFranco && !isWeekend) {
         const times = dailyHorario.split(' - ');
         if (times.length === 2) {
           if (customBreakInicio && customBreakFin) {
@@ -473,18 +604,15 @@ function renderDaily(): void {
 
       let ringClass = "bg-base-200/50 text-base-content/60 ring-base-200 border border-base-300";
       let glowColorClass = "bg-primary";
-      if (status === OperatorStatus.Presencial) {
+      if (status === OperatorStatus.HomeOffice) {
         ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
         glowColorClass = "bg-secondary";
-      } else if (status === OperatorStatus.HomeOffice) {
+      } else if (status === OperatorStatus.PresencialMonteGrande) {
         ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
         glowColorClass = "bg-amber-500";
-      } else if (status === OperatorStatus.Guardia) {
-        ringClass = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/30 border border-indigo-500/20 shadow-sm";
-        glowColorClass = "bg-indigo-500";
-      } else if (status === OperatorStatus.GuardiaPasiva) {
-        ringClass = "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-teal-500/30 border border-teal-500/20 shadow-sm";
-        glowColorClass = "bg-teal-500";
+      } else if (status === OperatorStatus.PresencialParquePatricios) {
+        ringClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/30 border border-purple-500/20 shadow-sm";
+        glowColorClass = "bg-purple-500";
       }
 
       // Contenido del Gantt
@@ -498,6 +626,11 @@ function renderDaily(): void {
 
       const workBars: string[] = [];
       const breakBars: string[] = [];
+
+      // Helper for adding line-through to work bar spans
+      const ganttSpanClass = (bg: string) => `relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${bg} pointer-events-none ${isHoliday ? 'line-through' : ''}`;
+      // Helper for adding line-through to inactive bar divs
+      const ganttInactiveBarClass = (bg: string) => `gantt-inactive-bar ${bg} ${isHoliday ? 'line-through' : ''}`;
 
       // --- 1. YESTERDAY'S SHIFT CONTINUATION ---
       let hasYesterdayContinuation = false;
@@ -520,55 +653,58 @@ function renderDaily(): void {
             hasYesterdayContinuation = true;
             yEndPct = yEndPctVal;
             let yesterdayWorkBarBg = 'bg-primary text-amber-900';
-            if (yesterdayStatus === OperatorStatus.Presencial) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
-            else if (yesterdayStatus === OperatorStatus.Guardia) yesterdayWorkBarBg = 'bg-indigo-500 text-white';
-            else if (yesterdayStatus === OperatorStatus.GuardiaPasiva) yesterdayWorkBarBg = 'bg-teal-500 text-white';
+            if (yesterdayStatus === OperatorStatus.HomeOffice) yesterdayWorkBarBg = 'bg-secondary text-secondary-content';
+            else if (yesterdayStatus === OperatorStatus.PresencialParquePatricios) yesterdayWorkBarBg = 'bg-purple-500 text-white';
 
             workBars.push(`
               <div class="gantt-bar-work ${yesterdayWorkBarBg} relative" style="left: 0%; width: ${yEndPct}%; border-top-left-radius: 0; border-bottom-left-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${yesterdayWorkBarBg} pointer-events-none">${yTimes[0]} - ${yTimes[1]}</span>
+                <span class="${ganttSpanClass(yesterdayWorkBarBg)}">${yTimes[0]} - ${yTimes[1]}</span>
               </div>
             `);
 
-            const yBreakInicio = op.breaks_inicio?.[prevDateStr] || '';
-            const yBreakFin = op.breaks_fin?.[prevDateStr] || '';
-            let yBreakStartHourStr = '';
-            let yBreakEndHourStr = '';
-            if (yBreakInicio && yBreakFin) {
-              yBreakStartHourStr = yBreakInicio;
-              yBreakEndHourStr = yBreakFin;
-            } else {
-              const startMin = timeToMinutes(yTimes[0]);
-              const endMin = timeToMinutes(yTimes[1]);
-              const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
-              const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
-              yBreakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
-              const breakEndMin = (breakStartMin + 60) % 1440;
-              yBreakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
-            }
-            const yBStartPct = getPct(yBreakStartHourStr);
-            const yBEndPct = getPct(yBreakEndHourStr);
-
-            if (yBStartPct < yStartPct) {
-              if (yBStartPct <= yBEndPct) {
-                breakBars.push(`
-                  <div class="gantt-bar-break" style="left: ${yBStartPct}%; width: ${yBEndPct - yBStartPct}%;">
-                    <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
-                  </div>
-                `);
+            const yDateObj = new Date(prevDateStr + 'T12:00:00');
+            const yIsWeekend = yDateObj.getDay() === 0 || yDateObj.getDay() === 6;
+            if (!yIsWeekend) {
+              const yBreakInicio = op.breaks_inicio?.[prevDateStr] || '';
+              const yBreakFin = op.breaks_fin?.[prevDateStr] || '';
+              let yBreakStartHourStr = '';
+              let yBreakEndHourStr = '';
+              if (yBreakInicio && yBreakFin) {
+                yBreakStartHourStr = yBreakInicio;
+                yBreakEndHourStr = yBreakFin;
               } else {
+                const startMin = timeToMinutes(yTimes[0]);
+                const endMin = timeToMinutes(yTimes[1]);
+                const totalMin = endMin >= startMin ? (endMin - startMin) : (1440 - startMin + endMin);
+                const breakStartMin = (startMin + (totalMin / 2) - 30) % 1440;
+                yBreakStartHourStr = `${Math.floor(breakStartMin / 60).toString().padStart(2, '0')}:${Math.floor(breakStartMin % 60).toString().padStart(2, '0')}`;
+                const breakEndMin = (breakStartMin + 60) % 1440;
+                yBreakEndHourStr = `${Math.floor(breakEndMin / 60).toString().padStart(2, '0')}:${Math.floor(breakEndMin % 60).toString().padStart(2, '0')}`;
+              }
+              const yBStartPct = getPct(yBreakStartHourStr);
+              const yBEndPct = getPct(yBreakEndHourStr);
+
+              if (yBStartPct < yStartPct) {
+                if (yBStartPct <= yBEndPct) {
+                  breakBars.push(`
+                    <div class="gantt-bar-break" style="left: ${yBStartPct}%; width: ${yBEndPct - yBStartPct}%;">
+                      <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                    </div>
+                  `);
+                } else {
+                  breakBars.push(`
+                    <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
+                      <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
+                    </div>
+                  `);
+                }
+              } else if (yBStartPct > yBEndPct) {
                 breakBars.push(`
                   <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
                     <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
                   </div>
                 `);
               }
-            } else if (yBStartPct > yBEndPct) {
-              breakBars.push(`
-                <div class="gantt-bar-break" style="left: 0%; width: ${yBEndPct}%;">
-                  <span class="gantt-break-tooltip">Break: ${yBreakStartHourStr} - ${yBreakEndHourStr}</span>
-                </div>
-              `);
             }
 
           }
@@ -576,9 +712,10 @@ function renderDaily(): void {
       }
 
       // --- 2. TODAY'S SHIFT OR INACTIVE BAR ---
-      if (isAbsent || isFranco) {
+      if (!showAsActiveInGantt) {
         const inactiveText = isFranco ? 'Franco / Día Libre' : (status === OperatorStatus.Vacaciones ? 'Vacaciones' : 'Licencia Médica');
-        const inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        let inactiveBg = isFranco ? 'bg-base-200 text-base-content/40 border border-base-300/40' : (status === OperatorStatus.Vacaciones ? 'bg-success/10 text-success border border-success/20' : 'bg-error/10 text-error border border-error/20');
+        if (isHoliday) inactiveBg = '!bg-orange-200/60 dark:!bg-orange-600/60 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500';
         
         if (hasYesterdayContinuation) {
           ganttContentHtml = `
@@ -602,64 +739,88 @@ function renderDaily(): void {
             ${breakBars.join('')}
 
             <!-- Barra Inactiva a la derecha de la continuación -->
-            <div class="gantt-inactive-bar ${inactiveBg} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
+            <div class="${ganttInactiveBarClass(inactiveBg)} absolute" style="left: calc(${yEndPct}% + 8px); width: calc(${100 - yEndPct}% - 16px); z-index: 2;">
               ${inactiveText}
             </div>
           `;
         } else {
           ganttContentHtml = `
-            <div class="gantt-inactive-bar ${inactiveBg}">
+            <div class="${ganttInactiveBarClass(inactiveBg)}">
               ${inactiveText}
             </div>
           `;
         }
       } else {
-        const times = dailyHorario.split(' - ');
-        if (times.length === 2) {
-          const startPct = getPct(times[0]);
-          const endPct = getPct(times[1]);
-          let workBarBg = 'bg-primary text-amber-900';
-          if (status === OperatorStatus.Presencial) workBarBg = 'bg-secondary text-secondary-content';
-          else if (status === OperatorStatus.Guardia) workBarBg = 'bg-indigo-500 text-white';
-          else if (status === OperatorStatus.GuardiaPasiva) workBarBg = 'bg-teal-500 text-white';
-
-          if (startPct <= endPct) {
-            const widthPct = endPct - startPct;
-            workBars.push(`
-              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
-              </div>
-            `);
-          } else {
-            const widthPct = 100 - startPct;
-            workBars.push(`
-              <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                <span class="relative z-10 text-[9px] font-extrabold tracking-tight uppercase px-1.5 py-0.5 rounded ${workBarBg} pointer-events-none">${times[0]} - ${times[1]}</span>
-              </div>
-            `);
-          }
-
-          if (breakStartHourStr && breakEndHourStr) {
-            const bStartPct = getPct(breakStartHourStr);
-            const bEndPct = getPct(breakEndHourStr);
+        if (!isAbsent && !isFranco) {
+          const times = dailyHorario.split(' - ');
+          if (times.length === 2) {
+            const startPct = getPct(times[0]);
+            const endPct = getPct(times[1]);
+            let workBarBg = 'bg-primary text-amber-900';
+            if (status === OperatorStatus.HomeOffice) workBarBg = 'bg-secondary text-secondary-content';
+            else if (status === OperatorStatus.PresencialParquePatricios) workBarBg = 'bg-purple-500 text-white';
+            if (isHoliday) workBarBg = '!bg-orange-500 dark:!bg-orange-600 !text-orange-900 dark:!text-orange-100';
 
             if (startPct <= endPct) {
-              const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct + bEndPct);
-              breakBars.push(`
-                <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
-                  <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+              const widthPct = endPct - startPct;
+              workBars.push(`
+                <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%;">
+                  <span class="${ganttSpanClass(workBarBg)}">${times[0]} - ${times[1]}</span>
                 </div>
               `);
             } else {
-              if (bStartPct >= startPct) {
-                const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct);
+              const widthPct = 100 - startPct;
+              workBars.push(`
+                <div class="gantt-bar-work ${workBarBg} relative" style="left: ${startPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                  <span class="${ganttSpanClass(workBarBg)}">${times[0]} - ${times[1]}</span>
+                </div>
+              `);
+            }
+
+            if (breakStartHourStr && breakEndHourStr) {
+              const bStartPct = getPct(breakStartHourStr);
+              const bEndPct = getPct(breakEndHourStr);
+
+              if (startPct <= endPct) {
+                const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct + bEndPct);
                 breakBars.push(`
                   <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
                     <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
                   </div>
                 `);
+              } else {
+                if (bStartPct >= startPct) {
+                  const bWidthPct = bEndPct >= bStartPct ? (bEndPct - bStartPct) : (100 - bStartPct);
+                  breakBars.push(`
+                    <div class="gantt-bar-break" style="left: ${bStartPct}%; width: ${bWidthPct}%;">
+                      <span class="gantt-break-tooltip">Break: ${breakStartHourStr} - ${breakEndHourStr}</span>
+                    </div>
+                  `);
+                }
               }
             }
+          }
+        }
+
+        if (dayOvertime) {
+          const otStartPct = getPct(dayOvertime.startTime);
+          const otEndPct = getPct(dayOvertime.endTime);
+          const otBarBg = 'bg-warning/90 text-warning-content border border-warning';
+
+          if (otStartPct <= otEndPct) {
+            const widthPct = otEndPct - otStartPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${otBarBg} relative" style="left: ${otStartPct}%; width: ${widthPct}%;">
+                <span class="${ganttSpanClass(otBarBg)} font-black uppercase text-[8.5px]">HE: ${dayOvertime.startTime} - ${dayOvertime.endTime}</span>
+              </div>
+            `);
+          } else {
+            const widthPct = 100 - otStartPct;
+            workBars.push(`
+              <div class="gantt-bar-work ${otBarBg} relative" style="left: ${otStartPct}%; width: ${widthPct}%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                <span class="${ganttSpanClass(otBarBg)} font-black uppercase text-[8.5px]">HE: ${dayOvertime.startTime} - ${dayOvertime.endTime}</span>
+              </div>
+            `);
           }
         }
 
@@ -677,7 +838,7 @@ function renderDaily(): void {
           <div class="gantt-grid-line" style="left: 83.33%;"></div>
           <div class="gantt-grid-line" style="left: 91.66%;"></div>
 
-          <!-- Barras de Turno Planificado -->
+          <!-- Barras de Turno Planificado / Horas Extras -->
           ${workBars.join('')}
 
           <!-- Bloques de Break por encima -->
@@ -685,9 +846,19 @@ function renderDaily(): void {
         `;
       }
 
+      let trClass = "hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0";
+      if (isHoliday) {
+        trClass += " bg-orange-100/30 dark:bg-orange-950/30 pointer-events-none";
+      }
+
+      let opNameBtnClass = "font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4";
+      if (isHoliday) {
+        opNameBtnClass += " text-orange-600 dark:text-orange-400";
+      }
+
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
-          <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
+        <tr class="${trClass}">
+          <td class="sticky left-0 bg-base-100 z-30 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
@@ -698,7 +869,7 @@ function renderDaily(): void {
               </div>
               <div class="flex flex-col min-w-0">
                 <button 
-                  class="font-bold text-sm text-base-content truncate group-hover:text-secondary transition-colors text-left hover:underline underline-offset-4"
+                  class="${opNameBtnClass}"
                   data-op-profile="${op.nombre}"
                 >
                   ${op.nombre}
@@ -707,14 +878,19 @@ function renderDaily(): void {
               </div>
             </div>
           </td>
-          <td class="sticky left-[16rem] bg-base-100 z-40 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
+          <td class="sticky left-[16rem] bg-base-100 z-30 w-44 min-w-[11rem] px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
             <div class="flex items-center gap-3">
-               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${styles.bgClass}">
+               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500' : styles.bgClass}">
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                 <span class="${styles.badge} whitespace-nowrap">${status}</span>
+                  <span class="${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 font-bold px-2.5 py-1 rounded-full text-[10px] tracking-wide uppercase line-through whitespace-nowrap' : styles.badge} whitespace-nowrap">${status}</span>
                  ${breakBadgeHtml}
+                 ${dayOvertime ? `
+                   <span class="px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider bg-warning/15 text-warning border border-warning/20 flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap mt-1" title="Hora Extra: ${dayOvertime.startTime} - ${dayOvertime.endTime}">
+                     ⚡ HE: ${dayOvertime.startTime} - ${dayOvertime.endTime}
+                   </span>
+                 ` : ''}
                </div>
             </div>
           </td>
@@ -769,12 +945,18 @@ function renderHourly(dateStr: string): void {
   
   const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
   const formatter = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: 'long' });
-  const formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+  let formattedDate = formatter.format(new Date(dateStr + 'T12:00:00')).toUpperCase();
+
+  const isHoliday = isFeriado(dateStr);
+  const feriadoName = getFeriadoName(dateStr);
+  if (isHoliday && feriadoName) {
+    formattedDate += ` - FERIADO: ${feriadoName.toUpperCase()}`;
+  }
 
   let theadHtml = `
     <tr>
-      <th rowspan="2" class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
-      <th colspan="${hours.length}" class="text-center py-3 bg-secondary/5 text-secondary border-b border-base-200 relative group">
+      <th rowspan="2" class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
+      <th colspan="${hours.length}" class="sticky top-0 text-center py-3 bg-base-100 text-secondary border-b border-base-200 relative group z-40">
          <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
             Volver al mes
@@ -786,7 +968,7 @@ function renderHourly(dateStr: string): void {
   `;
   
   hours.forEach(hour => {
-    theadHtml += `<th class="text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-200/20">
+    theadHtml += `<th class="sticky top-[44px] text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-100 z-40">
       <span class="font-extrabold text-[10px] tracking-wide text-base-content/60">${hour}</span>
     </th>`;
   });
@@ -823,13 +1005,19 @@ function renderHourly(dateStr: string): void {
         const isFranco = status === OperatorStatus.Franco;
         
         let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
-        let tdClass = "sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
+        if (isHoliday) {
+            rowClass += " bg-orange-100/30 dark:bg-orange-950/30 pointer-events-none";
+        }
+        let tdClass = "sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-base-200/70 group-hover:bg-base-200 transition-colors";
+
+        const dateObj = new Date(dateStr + 'T12:00:00');
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
 
         const customBreakInicio = op.breaks_inicio?.[dateStr] || '';
         const customBreakFin = op.breaks_fin?.[dateStr] || '';
         let breakStart = '';
         let breakEnd = '';
-        if (!isAbsent && !isFranco) {
+        if (!isAbsent && !isFranco && !isWeekend) {
           const times = horario.split(' - ');
           if (times.length === 2) {
             if (customBreakInicio && customBreakFin) {
@@ -847,13 +1035,23 @@ function renderHourly(dateStr: string): void {
           }
         }
 
+        let opNameBtnClass = "hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs";
+        if (isHoliday) {
+           opNameBtnClass += " text-orange-600 dark:text-orange-400";
+        }
+
+        let spanClass = `text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5`;
+        if (isHoliday) {
+           spanClass += " text-orange-600 dark:text-orange-400";
+        }
+
         tbodyHtml += `<tr class="${rowClass}">
            <td class="${tdClass}">
               <div class="flex flex-col min-w-0">
                 <div class="flex items-center gap-1.5 overflow-hidden">
-                  <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs" data-op-profile="${op.nombre}">${op.nombre}</button>
+                  <button class="${opNameBtnClass}" data-op-profile="${op.nombre}">${op.nombre}</button>
                 </div>
-                <span class="text-[9px] ${isAbsent ? 'text-error' : isFranco ? 'text-base-content/40' : 'text-base-content/60'} font-black tracking-widest uppercase truncate mt-0.5">${horario} - ${status}</span>
+                <span class="${spanClass}">${horario} - ${status}</span>
               </div>
            </td>
         `;
@@ -867,11 +1065,12 @@ function renderHourly(dateStr: string): void {
                    <span class="text-[10px] leading-none">☕</span>
                  </div>
               </td>`;
-           } else if (working && !isFranco) {
-              tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
-                 <div class="w-full h-full rounded ${styles.bgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
-                 </div>
-              </td>`;
+            } else if (working && !isFranco) {
+               const hourBgClass = isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100' : styles.bgClass;
+               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
+                  <div class="w-full h-full rounded ${hourBgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                  </div>
+               </td>`;
            } else {
               tbodyHtml += `<td class="border-r border-b border-base-200/50 bg-base-100/50"></td>`;
            }
@@ -911,7 +1110,7 @@ function renderMonthly(): void {
     let lics = 0;
     state.cronoData.forEach(op => {
       const s = op.asistencia[d];
-      if (s === OperatorStatus.Presencial || s === OperatorStatus.HomeOffice) active++;
+      if (s === OperatorStatus.PresencialMonteGrande || s === OperatorStatus.PresencialParquePatricios || s === OperatorStatus.HomeOffice) active++;
       if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) lics++;
     });
     coveragePerDay[d] = { total: active, licenses: lics };
@@ -930,11 +1129,14 @@ function renderMonthly(): void {
     const isWeekend = day === 0 || day === 6;
     const coverage = coveragePerDay[date];
     const isCritical = teamSize > 0 ? (coverage.total / teamSize) < (state.minCoveragePercent / 100) : false;
+    const feriadoName = getFeriadoName(date);
+    const isHoliday = !!feriadoName;
     
-    let thClass = "text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors";
-    if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2";
-    else if (isWeekend) thClass += " bg-base-200/50 text-base-content/30";
-    else if (isCritical) thClass += " bg-error/10 text-error";
+    let thClass = "sticky top-0 z-40 text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors bg-base-100";
+    if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2 z-45";
+    else if (isHoliday) thClass = thClass.replace("bg-base-100", "bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-100 font-bold line-through");
+    else if (isWeekend) thClass = thClass.replace("bg-base-100", "bg-base-200 text-base-content/40");
+    else if (isCritical) thClass += " text-error font-bold";
     else thClass += " text-base-content/70";
 
     const dayName = shortDayFormatter.format(d).substring(0, 2).toUpperCase();
@@ -951,25 +1153,54 @@ function renderMonthly(): void {
       thClass,
       dayName,
       dateNum,
-      monthName
+      monthName,
+      feriadoName,
+      isHoliday
     };
   });
 
+  const totalsToggleIcon = state.isTotalsCollapsed ? 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>` : 
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>`;
+
+  const thShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]' : '';
+
   let theadHtml = `<tr>
-    <th class="sticky left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
-    <th class="sticky left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
-    <th class="sticky left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
-    <th class="sticky left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+    <th class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50 ${thShadowClass}">
+      <div class="flex items-center justify-between gap-1.5">
+        <span>Operador</span>
+        <button
+          type="button"
+          id="toggle-totals-btn"
+          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-200 text-base-content/50 hover:text-base-content transition-all"
+          title="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
+          aria-label="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
+        >
+          ${totalsToggleIcon}
+        </button>
+      </div>
+    </th>
   `;
   
-  parsedDates.forEach(pd => {
+  if (!state.isTotalsCollapsed) {
     theadHtml += `
-      <th class="${pd.thClass} p-0">
+      <th class="sticky top-0 left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
+      <th class="sticky top-0 left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
+      <th class="sticky top-0 left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-[9px] uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+    `;
+  }
+  
+  parsedDates.forEach(pd => {
+    const thTitle = pd.feriadoName ? ` title="Feriado: ${pd.feriadoName}"` : '';
+    const tooltipText = pd.feriadoName ? `Feriado: ${pd.feriadoName}` : `Ver detalle del día ${pd.dateNum} de ${pd.monthName}`;
+    theadHtml += `
+      <th class="${pd.thClass} p-0"${thTitle}>
         <button
           type="button"
           class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
           data-click-day="${pd.str}"
-          aria-label="Ver detalle del día ${pd.dateNum} de ${pd.monthName}"
+          title="${tooltipText}"
+          aria-label="${tooltipText}"
         >
           <span class="font-extrabold text-[10px] tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-60'}">${pd.dayName}</span>
           <div class="flex items-center gap-1">
@@ -1008,7 +1239,7 @@ function renderMonthly(): void {
 
   if (sortedOps.length === 0) {
     tbodyHtml = `<tr>
-      <td colspan="${dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
+      <td colspan="${state.isTotalsCollapsed ? dates.length + 1 : dates.length + 4}" class="py-16 text-center text-base-content/40 font-bold bg-base-100/50 border border-dashed border-base-300/40">
         <div class="flex flex-col items-center justify-center gap-3 py-6">
           <div class="w-12 h-12 rounded-2xl bg-base-200/50 flex items-center justify-center text-base-content/30 border border-base-300/40">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -1029,7 +1260,7 @@ function renderMonthly(): void {
       const username = op.username || '';
       dates.forEach(d => {
         const s = op.asistencia[d];
-        if (s === OperatorStatus.Presencial) stats.P++;
+        if (s === OperatorStatus.PresencialMonteGrande || s === OperatorStatus.PresencialParquePatricios) stats.P++;
         else if (s === OperatorStatus.HomeOffice) stats.HO++;
         else if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones) stats.L++;
       });
@@ -1055,7 +1286,7 @@ function renderMonthly(): void {
           currentHO = 0;
         }
 
-        if (status === OperatorStatus.Presencial) currentWeekP++;
+        if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios) currentWeekP++;
         if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
            currentWeekDays++;
         }
@@ -1071,11 +1302,13 @@ function renderMonthly(): void {
       const hoViolation = maxConsecutiveHO > opMaxHO;
       if (hoViolation || pWeekViolation) totalInconsistencies++;
 
+      const opShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]' : '';
+
       tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
-        <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors">
+        <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
             <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
-            <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm ${state.isEditMode ? 'op-row-header cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : ''}"></span>
+            <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
@@ -1095,10 +1328,15 @@ function renderMonthly(): void {
             </div>
           </div>
         </td>
-        <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
-        <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
-        <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
       `;
+
+      if (!state.isTotalsCollapsed) {
+        tbodyHtml += `
+          <td class="sticky left-[200px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
+          <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-[10px] font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+        `;
+      }
         
       parsedDates.forEach(pd => {
         const date = pd.str;
@@ -1126,12 +1364,27 @@ function renderMonthly(): void {
         }
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
+        const isHoliday = isFeriado(date);
+        if (isHoliday) cellClass += ' bg-orange-100 dark:bg-orange-950';
+        
         const hasComment = !!(op.comentarios && op.comentarios[date]);
+        const dayOvertime = (op.weekendOvertimes || []).find(s => s.date === date);
+        const otAttr = dayOvertime ? `data-overtime="${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}"` : '';
+
         if (isFrancoCell) {
+          let francoBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
+          if (isHoliday) {
+            francoBtnClass += " line-through opacity-60 !bg-orange-200/60 dark:!bg-orange-600/60 !border-orange-300 dark:!border-orange-500";
+          }
+          let francoAria = `Ver detalle de ${safeName} el ${safeDate}: Franco`;
+          if (isHoliday && pd.feriadoName) {
+            francoAria += ` (Feriado: ${pd.feriadoName})`;
+          }
+
           tbodyHtml += `<td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}"
+              class="${francoBtnClass}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1141,29 +1394,55 @@ function renderMonthly(): void {
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: Franco"
+              aria-label="${francoAria}"
+              ${otAttr}
+              ${isHoliday && pd.feriadoName ? `title="Franco (Feriado: ${pd.feriadoName})"` : ''}
             >
-              ${hasComment ? '<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Tiene comentario"></div>' : ''}
+              ${dayOvertime ? `<span class="text-[8px] font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight">HE: ${dayOvertime.startTime}</span>` : ''}
+              ${hasComment ? `<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ${dayOvertime ? 'mt-0.5' : ''}" title="Tiene comentario"></div>` : ''}
             </button>
           </td>`;
           return;
         }
 
         let initials = "";
-        if (status === OperatorStatus.Presencial) initials = "P";
+        if (status === OperatorStatus.PresencialMonteGrande) initials = "MG";
+        else if (status === OperatorStatus.PresencialParquePatricios) initials = "PP";
         else if (status === OperatorStatus.HomeOffice) initials = "HO";
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
-        else if (status === OperatorStatus.HorasExtras) initials = "HE";
-        else if (status === OperatorStatus.GuardiaPasiva) initials = "GP";
-        else if (status === OperatorStatus.Guardia) initials = "G";
+
+        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        
+        const dateObj = new Date(date + "T12:00:00");
+        const isSaturday = dateObj.getDay() === 6;
+        const activeGroup = getActiveGroupForDate(date);
+        const isRotationCell = !!(isSaturday && op.saturdayGroup && op.saturdayGroup === activeGroup && !(op.overrides && op.overrides[date]));
+        
+        if (isRotationCell) {
+          statusBtnClass += ' ring-1 ring-inset ring-secondary/35 border-secondary/40 hover:ring-secondary/50';
+        }
+
+        if (isHoliday) {
+          statusBtnClass += " line-through opacity-60 !bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 !shadow-none";
+        }
+
+        let statusTitle = `${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}`;
+        if (isRotationCell) {
+          statusTitle += ` (Rotación Sábado Grupo ${op.saturdayGroup})`;
+        }
+        let statusAria = `Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}`;
+        if (isHoliday && pd.feriadoName) {
+          statusTitle += ` (Feriado: ${pd.feriadoName})`;
+          statusAria += ` (Feriado: ${pd.feriadoName})`;
+        }
 
         tbodyHtml += `
           <td class="${cellClass}">
             <button
               type="button"
-              class="monthly-cell-button h-12 flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}"
-              title="${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? '(Solapamiento Crítico)' : ''}"
+              class="${statusBtnClass}"
+              title="${statusTitle}"
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1173,11 +1452,15 @@ function renderMonthly(): void {
               data-comment="${escapeHtml(op.comentarios?.[date] || '')}"
               data-break-inicio="${escapeHtml(breakInicio)}"
               data-break-fin="${escapeHtml(breakFin)}"
-              aria-label="Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}"
+              aria-label="${statusAria}"
+              ${otAttr}
+              ${isRotationCell ? `data-saturday-rotation="true" data-rotation-horario="${escapeHtml(op.saturdayHorario || '07:00 - 13:00')}"` : ''}
             >
               <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
+              ${dayOvertime ? `<span class="text-[8px] font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight mt-0.5 scale-90">HE: ${dayOvertime.startTime}</span>` : ''}
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
-              ${hasComment ? '<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>' : ''}
+              ${hasComment ? `<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>` : ''}
+              ${isRotationCell ? '<div class="absolute bottom-1.5 w-1 h-1 rounded-full bg-secondary"></div>' : ''}
             </button>
           </td>
         `;
@@ -1188,27 +1471,18 @@ function renderMonthly(): void {
 
   if (tbody) tbody.innerHTML = tbodyHtml;
 
-  // Update Global Alert Badge
-  const alertBadge = document.getElementById('compliance-alert-badge');
-  const alertText = document.getElementById('compliance-alert-text');
-  if (alertBadge && alertText) {
-    if (totalInconsistencies > 0) {
-      alertBadge.classList.remove('hidden');
-      alertText.innerText = `${totalInconsistencies} Inconsistencia${totalInconsistencies > 1 ? 's' : ''} detectada${totalInconsistencies > 1 ? 's' : ''}`;
-    } else {
-      alertBadge.classList.add('hidden');
-    }
-  }
+
 
   // --- FEATURE: Coverage Visualizer (Heatmap Footer) ---
   const dailyCoverage = dates.map(date => {
-    let p = 0, ho = 0;
+    let pmg = 0, ppp = 0, ho = 0;
     state.cronoData.forEach(op => {
       const s = op.asistencia[date];
-      if (s === OperatorStatus.Presencial) p++;
+      if (s === OperatorStatus.PresencialMonteGrande) pmg++;
+      else if (s === OperatorStatus.PresencialParquePatricios) ppp++;
       else if (s === OperatorStatus.HomeOffice) ho++;
     });
-    return { p, ho, total: p + ho };
+    return { pmg, ppp, ho, total: pmg + ppp + ho };
   });
 
   const pyClass = state.isCoverageMinimized ? 'py-1.5' : 'py-3.5';
@@ -1216,8 +1490,10 @@ function renderMonthly(): void {
     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-up transition-transform duration-200"><path d="m18 15-6-6-6 6"/></svg>` : 
     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>`;
 
+  const shadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]' : '';
+
   let tfootHtml = `<tr>
-    <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300">
+    <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300 ${shadowClass}">
       <div class="flex items-center justify-between gap-2">
         <span class="text-[10px] font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
         <button
@@ -1231,15 +1507,21 @@ function renderMonthly(): void {
         </button>
       </div>
     </td>
-    <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
-    <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
-    <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
   `;
+
+  if (!state.isTotalsCollapsed) {
+    tfootHtml += `
+      <td class="sticky left-[200px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/40" title="Total Operadores">${teamSize}</td>
+      <td class="sticky left-[240px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20">-</td>
+      <td class="sticky left-[280px] bg-base-200 z-50 w-[40px] min-w-[40px] text-center ${pyClass} text-[10px] font-black border-r border-base-300 text-base-content/20 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">-</td>
+    `;
+  }
 
   dailyCoverage.forEach(c => {
     const hoPercent = teamSize > 0 ? (c.ho / teamSize) * 100 : 0;
-    const pPercent = teamSize > 0 ? (c.p / teamSize) * 100 : 0;
-    const totalPercent = teamSize > 0 ? ((c.p + c.ho) / teamSize) * 100 : 0;
+    const pmgPercent = teamSize > 0 ? (c.pmg / teamSize) * 100 : 0;
+    const pppPercent = teamSize > 0 ? (c.ppp / teamSize) * 100 : 0;
+    const totalPercent = teamSize > 0 ? ((c.pmg + c.ppp + c.ho) / teamSize) * 100 : 0;
     const isLowCoverage = totalPercent < 40;
 
     const cellPyClass = state.isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
@@ -1249,12 +1531,13 @@ function renderMonthly(): void {
         <div class="flex flex-col items-center gap-1.5">
            ${state.isCoverageMinimized ? '' : `
            <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
-              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
-              <div class="bg-secondary w-full transition-all duration-500" style="height: ${pPercent}%" title="Presencial: ${c.p}"></div>
+              <div class="bg-purple-500 w-full transition-all duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
+              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
+              <div class="bg-secondary w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
            </div>
            `}
            <div class="flex flex-col items-center leading-none">
-              <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.p + c.ho}</span>
+              <span class="text-[10px] font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.pmg + c.ppp + c.ho}</span>
               <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
            </div>
         </div>
@@ -1399,31 +1682,40 @@ async function saveChangesToServer(): Promise<void> {
   }
 }
 
-function updateViewSwitcherUI(activeView: 'monthly' | 'daily'): void {
+function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'overtime'): void {
   const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
   const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
+  const switchToGroupsBtn = document.getElementById('switch-to-groups-btn');
+  const switchToOvertimeBtn = document.getElementById('switch-to-overtime-btn');
   
   const activeClasses = ['btn-secondary', 'shadow-sm', 'shadow-secondary/15'];
   const inactiveClasses = ['btn-outline', 'border-transparent', 'text-base-content/60', 'hover:bg-base-200/50'];
   
+  [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn, switchToOvertimeBtn].forEach(btn => {
+    btn?.classList.remove(...activeClasses);
+    btn?.classList.remove(...inactiveClasses);
+  });
+
   if (activeView === 'monthly') {
     switchToMonthlyBtn?.classList.add(...activeClasses);
-    switchToMonthlyBtn?.classList.remove(...inactiveClasses);
-    
-    switchToDailyBtn?.classList.add(...inactiveClasses);
-    switchToDailyBtn?.classList.remove(...activeClasses);
-  } else {
+    [switchToDailyBtn, switchToGroupsBtn, switchToOvertimeBtn].forEach(b => b?.classList.add(...inactiveClasses));
+  } else if (activeView === 'daily') {
     switchToDailyBtn?.classList.add(...activeClasses);
-    switchToDailyBtn?.classList.remove(...inactiveClasses);
-    
-    switchToMonthlyBtn?.classList.add(...inactiveClasses);
-    switchToMonthlyBtn?.classList.remove(...activeClasses);
+    [switchToMonthlyBtn, switchToGroupsBtn, switchToOvertimeBtn].forEach(b => b?.classList.add(...inactiveClasses));
+  } else if (activeView === 'groups') {
+    switchToGroupsBtn?.classList.add(...activeClasses);
+    [switchToMonthlyBtn, switchToDailyBtn, switchToOvertimeBtn].forEach(b => b?.classList.add(...inactiveClasses));
+  } else {
+    switchToOvertimeBtn?.classList.add(...activeClasses);
+    [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn].forEach(b => b?.classList.add(...inactiveClasses));
   }
 }
 
 function showDailyView(): void {
   const dailyView = document.getElementById('daily-view');
   const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const overtimeView = document.getElementById('overtime-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
   renderDaily();
@@ -1431,6 +1723,8 @@ function showDailyView(): void {
   
   if (dailyView) dailyView.classList.remove('hidden');
   if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
+  if (overtimeView) overtimeView.classList.add('hidden');
   
   if (datePickerContainer) {
     datePickerContainer.classList.remove('hidden');
@@ -1443,12 +1737,16 @@ function showDailyView(): void {
 function showMonthlyView(): void {
   const dailyView = document.getElementById('daily-view');
   const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const overtimeView = document.getElementById('overtime-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
   updateViewSwitcherUI('monthly');
   
   if (dailyView) dailyView.classList.add('hidden');
   if (monthlyView) monthlyView.classList.remove('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
+  if (overtimeView) overtimeView.classList.add('hidden');
   
   if (datePickerContainer) {
     datePickerContainer.classList.add('is-faded');
@@ -1458,45 +1756,346 @@ function showMonthlyView(): void {
   }
 }
 
+function showGroupsView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const overtimeView = document.getElementById('overtime-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+  
+  renderGroupsView();
+  updateViewSwitcherUI('groups');
+  
+  if (dailyView) dailyView.classList.add('hidden');
+  if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.remove('hidden');
+  if (overtimeView) overtimeView.classList.add('hidden');
+  
+  if (datePickerContainer) {
+    datePickerContainer.classList.add('is-faded');
+    setTimeout(() => {
+      datePickerContainer.classList.add('hidden');
+    }, 300);
+  }
+}
+
+async function renderGroupsView(): Promise<void> {
+  try {
+    const res = await fetch('/api/cronograma/rotation-config');
+    if (!res.ok) throw new Error("No se pudo cargar la configuración de rotación");
+    const config = await res.json();
+    
+    const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+    const startGroupSelect = document.getElementById('rotation-start-group') as HTMLSelectElement | null;
+    const orderInput = document.getElementById('rotation-order') as HTMLInputElement | null;
+    
+    if (startDateInput && config.startDate) {
+      startDateInput.value = config.startDate;
+      const displayEl = document.getElementById('rotation-start-date-display');
+      if (displayEl) {
+        displayEl.innerText = formatToDDMMYY(config.startDate);
+      }
+    }
+    if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
+    if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
+
+    activeRotationConfig = { startDate: config.startDate, startGroup: config.startGroup, rotationOrder: config.rotationOrder };
+    ['A', 'B', 'C', 'D'].forEach(group => {
+      const dateEl = document.getElementById(`group-${group}-next-date`);
+      if (dateEl) {
+        const nextDate = getNextSaturdayForGroup(group);
+        if (nextDate) {
+          dateEl.textContent = formatToDDMMYY(nextDate);
+          dateEl.classList.remove('hidden');
+        } else {
+          dateEl.classList.add('hidden');
+        }
+      }
+    });
+    
+    const groupContainers: Record<string, HTMLElement | null> = {
+      A: document.getElementById('group-A-list'),
+      B: document.getElementById('group-B-list'),
+      C: document.getElementById('group-C-list'),
+      D: document.getElementById('group-D-list'),
+    };
+    
+    const groupCounts: Record<string, HTMLElement | null> = {
+      A: document.getElementById('group-A-count'),
+      B: document.getElementById('group-B-count'),
+      C: document.getElementById('group-C-count'),
+      D: document.getElementById('group-D-count'),
+    };
+
+    const addMemberSelects: Record<string, HTMLSelectElement | null> = {
+      A: document.getElementById('add-member-select-A') as HTMLSelectElement | null,
+      B: document.getElementById('add-member-select-B') as HTMLSelectElement | null,
+      C: document.getElementById('add-member-select-C') as HTMLSelectElement | null,
+      D: document.getElementById('add-member-select-D') as HTMLSelectElement | null,
+    };
+
+    const groups = ['A', 'B', 'C', 'D'];
+    groups.forEach(g => {
+      if (groupContainers[g]) groupContainers[g]!.innerHTML = '';
+      if (groupCounts[g]) groupCounts[g]!.innerText = '0 ops';
+      if (addMemberSelects[g]) {
+        addMemberSelects[g]!.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
+      }
+    });
+
+    const unassignedAgents: OperatorData[] = [];
+    const groupMembers: Record<string, OperatorData[]> = { A: [], B: [], C: [], D: [] };
+
+    state.cronoData.forEach(agent => {
+      const group = agent.saturdayGroup;
+      if (group && ['A', 'B', 'C', 'D'].includes(group)) {
+        groupMembers[group].push(agent);
+      } else {
+        unassignedAgents.push(agent);
+      }
+    });
+
+    groups.forEach(g => {
+      const list = groupMembers[g] || [];
+      if (groupCounts[g]) {
+        groupCounts[g]!.innerText = `${list.length} op${list.length !== 1 ? 's' : ''}`;
+      }
+
+      if (groupContainers[g]) {
+        if (list.length === 0) {
+          groupContainers[g]!.innerHTML = `
+            <div class="py-6 text-center text-xs text-base-content/30 font-medium border border-dashed border-base-300 rounded-xl bg-base-100/50">
+              Sin operadores
+            </div>
+          `;
+        } else {
+          list.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
+            const html = `
+              <div class="flex items-center justify-between p-2.5 bg-base-100 border border-base-300/80 rounded-xl hover:border-secondary/30 transition-all shadow-sm group">
+                <div class="flex flex-col min-w-0">
+                  <span class="font-bold text-xs text-base-content truncate">${escapeHtml(agent.nombre)}</span>
+                  <span class="text-[9px] font-semibold text-base-content/50 truncate">${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}</span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    type="button" 
+                    class="btn btn-square btn-ghost btn-xs text-base-content/60 hover:text-secondary hover:bg-secondary/10 edit-member-schedule-btn"
+                    data-agent-id="${agent.id}"
+                    data-agent-name="${escapeHtml(agent.nombre)}"
+                    data-agent-group="${agent.saturdayGroup}"
+                    data-agent-horario="${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}"
+                    title="Editar horario"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-square btn-ghost btn-xs text-base-content/60 hover:text-error hover:bg-error/10 remove-member-btn"
+                    data-agent-id="${agent.id}"
+                    data-agent-name="${escapeHtml(agent.nombre)}"
+                    title="Quitar del grupo"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
+              </div>
+            `;
+            groupContainers[g]!.insertAdjacentHTML('beforeend', html);
+          });
+        }
+      }
+    });
+
+    groups.forEach(g => {
+      const select = addMemberSelects[g];
+      if (select) {
+        unassignedAgents.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
+          const opt = document.createElement('option');
+          opt.value = String(agent.id);
+          opt.textContent = agent.nombre;
+          select.appendChild(opt);
+        });
+      }
+    });
+
+    // --- Initialize Saturday Rotation Timeline ---
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const activeDateStr = dateInput?.value || formatYMD(new Date());
+    const activeMonthPrefix = activeDateStr.slice(0, 7);
+
+    if (!rotationTimelineSelectedDate || !rotationTimelineSelectedDate.startsWith(activeMonthPrefix)) {
+      const [y, m] = activeDateStr.split('-').map(Number);
+      let firstSat = 1;
+      for (let d = 1; d <= 7; d++) {
+        const dayVal = new Date(y, m - 1, d).getDay();
+        if (dayVal === 6) {
+          firstSat = d;
+          break;
+        }
+      }
+      rotationTimelineSelectedDate = `${y}-${String(m).padStart(2, '0')}-${String(firstSat).padStart(2, '0')}`;
+    }
+
+    const rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;
+    if (rotationTimelineInput) {
+      rotationTimelineInput.value = rotationTimelineSelectedDate;
+      const displayEl = document.getElementById('rotation-timeline-date-display');
+      if (displayEl) {
+        displayEl.textContent = formatToDDMMYY(rotationTimelineSelectedDate);
+      }
+    }
+    renderRotationTimeline(rotationTimelineSelectedDate);
+
+  } catch (err: any) {
+    console.error("renderGroupsView Error:", err);
+    showToast("Error al renderizar vista de grupos", "error");
+  }
+}
+
+function renderRotationTimeline(dateStr: string): void {
+  const tableBody = document.getElementById('rotation-timeline-body');
+  const groupDisplay = document.getElementById('rotation-active-group-display');
+  if (!tableBody) return;
+
+  const activeGroup = getActiveGroupForDate(dateStr);
+  if (groupDisplay) {
+    groupDisplay.textContent = activeGroup ? `Grupo ${activeGroup}` : 'Sin grupo';
+    if (activeGroup) {
+      const displayBorderClasses: Record<string, string> = {
+        A: 'bg-success/10 border-success/20 text-success',
+        B: 'bg-error/10 border-error/20 text-error',
+        C: 'bg-warning/10 border-warning/20 text-warning',
+        D: 'bg-info/10 border-info/20 text-info'
+      };
+      groupDisplay.className = `flex h-8 items-center px-3 py-1.5 rounded-lg border font-bold text-xs shadow-sm select-none ${displayBorderClasses[activeGroup] || 'bg-secondary/10 border-secondary/20 text-secondary'}`;
+    }
+  }
+
+  if (!activeGroup) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-xs text-base-content/30 font-bold uppercase tracking-wider">
+          Configura una rotación válida primero
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const groupOps = state.cronoData.filter(op => op.saturdayGroup === activeGroup);
+
+  if (groupOps.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-xs text-base-content/30 font-bold uppercase tracking-wider">
+          No hay operadores asignados al Grupo ${activeGroup}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  groupOps.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const hours = [7, 8, 9, 10, 11, 12];
+  
+  const groupBgClasses: Record<string, string> = {
+    A: 'bg-success/10',
+    B: 'bg-error/10',
+    C: 'bg-warning/10',
+    D: 'bg-info/10'
+  };
+  const groupBadgeClasses: Record<string, string> = {
+    A: 'bg-success text-white',
+    B: 'bg-error text-white',
+    C: 'bg-warning text-warning-content',
+    D: 'bg-info text-white'
+  };
+
+  const cellBgClass = groupBgClasses[activeGroup] || 'bg-emerald-500/10';
+  const badgeClass = groupBadgeClasses[activeGroup] || 'bg-emerald-500 text-white';
+
+  tableBody.innerHTML = groupOps.map(op => {
+    const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+    const horario = op.saturdayHorario || '07:00 - 13:00';
+    
+    const attendanceStatus = op.asistencia?.[dateStr];
+    const isExcused = op.overrides?.[dateStr] && 
+      (attendanceStatus === OperatorStatus.Franco || 
+       attendanceStatus === OperatorStatus.Licencia || 
+       attendanceStatus === OperatorStatus.Vacaciones);
+
+    const hourCells = hours.map((h, i) => {
+      const isWorking = !isExcused && isHourCoveredBySchedule(horario, h);
+      const isLast = i === hours.length - 1;
+      
+      const borderClass = isLast ? '' : 'border-r border-base-300/40';
+
+      if (isWorking) {
+        return `
+          <td class="p-2 text-center ${borderClass} ${cellBgClass}">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md ${badgeClass} font-black text-xs shadow-sm">
+              ${activeGroup}
+            </span>
+          </td>
+        `;
+      } else {
+        return `
+          <td class="p-2 text-center ${borderClass} bg-base-100/10 text-base-content/10">
+            -
+          </td>
+        `;
+      }
+    }).join('');
+
+    return `
+      <tr class="hover:bg-base-200/30 transition-colors">
+        <td class="px-3 py-3 border-r border-base-300/40 flex items-center gap-2.5">
+          <div class="w-6.5 h-6.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 flex items-center justify-center text-[9px] font-black shrink-0">
+            ${initials}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="truncate text-[11px] font-bold text-base-content">${escapeHtml(op.nombre)}</span>
+            <span class="text-[9px] font-semibold text-base-content/40 leading-tight">${horario}</span>
+          </div>
+        </td>
+        ${hourCells}
+      </tr>
+    `;
+  }).join('');
+}
+
 function updateFilterActiveStates(): void {
   const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
+  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
   const filterHoBtn = document.getElementById('filter-ho-btn');
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-  const filterHeBtn = document.getElementById('filter-he-btn');
-  const filterGpBtn = document.getElementById('filter-gp-btn');
-  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
   const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
-  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
-  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const buttons = [
     { el: filterAllBtn, value: 'all' },
-    { el: filterPresencialBtn, value: 'Presencial' },
+    { el: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
+    { el: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
     { el: filterHoBtn, value: 'Home Office' },
     { el: filterLicenciaBtn, value: 'Licencia' },
-    { el: filterVacacionesBtn, value: 'Vacaciones' },
-    { el: filterHeBtn, value: 'Horas Extras' },
-    { el: filterGpBtn, value: 'Guardia Pasiva' },
-    { el: filterGBtn, value: 'Guardia' }
+    { el: filterVacacionesBtn, value: 'Vacaciones' }
   ];
 
   const dailyButtons = [
     { el: filterAllBtnDaily, value: 'all' },
-    { el: filterPresencialBtnDaily, value: 'Presencial' },
+    { el: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
+    { el: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
     { el: filterHoBtnDaily, value: 'Home Office' },
     { el: filterLicenciaBtnDaily, value: 'Licencia' },
-    { el: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { el: filterHeBtnDaily, value: 'Horas Extras' },
-    { el: filterGpBtnDaily, value: 'Guardia Pasiva' },
-    { el: filterGBtnDaily, value: 'Guardia' }
+    { el: filterVacacionesBtnDaily, value: 'Vacaciones' }
   ];
 
   updateButtonGroupState(buttons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
@@ -1640,6 +2239,17 @@ function setupEventListeners(): void {
     newOpModal?.showModal();
   });
 
+  // Holidays Modal Trigger
+  const holidaysModal = document.getElementById('holidays-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
+  const openHolidaysBtn = document.getElementById('open-holidays-modal');
+
+  openHolidaysBtn?.addEventListener('click', () => {
+    if (holidaysModal) {
+      holidaysModal.showModal();
+      holidaysModal.dispatchEvent(new Event('show'));
+    }
+  });
+
   document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
     showMonthlyView();
   });
@@ -1656,6 +2266,14 @@ function setupEventListeners(): void {
       renderMonthly(); 
     });
   }
+
+  const rotationStartDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+  rotationStartDateInput?.addEventListener('change', () => {
+    const displayEl = document.getElementById('rotation-start-date-display');
+    if (displayEl && rotationStartDateInput.value) {
+      displayEl.innerText = formatToDDMMYY(rotationStartDateInput.value);
+    }
+  });
 
   const monthlyBody = document.getElementById('monthly-tbody');
   const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
@@ -1676,6 +2294,13 @@ function setupEventListeners(): void {
     const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
     if (!btn) return;
     state.isCoverageMinimized = !state.isCoverageMinimized;
+    renderMonthly();
+  });
+
+  document.getElementById('monthly-thead')?.addEventListener('click', (event) => {
+    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-totals-btn');
+    if (!btn) return;
+    state.isTotalsCollapsed = !state.isTotalsCollapsed;
     renderMonthly();
   });
 
@@ -1760,9 +2385,23 @@ function setupEventListeners(): void {
        tr?.querySelectorAll('[data-monthly-detail]').forEach(cell => applyBrushToCell(cell as HTMLElement));
        return;
     }
+
+    // Row highlight toggle (when not active brush editing)
+    const rowDot = (event.target as HTMLElement).closest<HTMLElement>('.op-row-dot');
+    if (rowDot && !(state.isEditMode && state.activeBrush)) {
+      const tr = rowDot.closest('tr');
+      tr?.classList.toggle('highlighted-row');
+      return;
+    }
     
     const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
     if (!trigger) return;
+
+    if (trigger.dataset.saturdayRotation === "true") {
+      showGroupsView();
+      return;
+    }
+
     if (state.isEditMode && state.activeBrush) return;
     
     document.dispatchEvent(new CustomEvent('cronograma:open-monthly-detail', {
@@ -1804,40 +2443,32 @@ function setupEventListeners(): void {
 
   // Wire up filter buttons
   const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialBtn = document.getElementById('filter-presencial-btn');
+  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
+  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
   const filterHoBtn = document.getElementById('filter-ho-btn');
   const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
   const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-  const filterHeBtn = document.getElementById('filter-he-btn');
-  const filterGpBtn = document.getElementById('filter-gp-btn');
-  const filterGBtn = document.getElementById('filter-g-btn');
 
   const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialBtnDaily = document.getElementById('filter-presencial-btn-daily');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
   const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
   const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
   const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-  const filterHeBtnDaily = document.getElementById('filter-he-btn-daily');
-  const filterGpBtnDaily = document.getElementById('filter-gp-btn-daily');
-  const filterGBtnDaily = document.getElementById('filter-g-btn-daily');
 
   const filterBtns = [
     { btn: filterAllBtn, value: 'all' },
-    { btn: filterPresencialBtn, value: 'Presencial' },
+    { btn: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
+    { btn: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
     { btn: filterHoBtn, value: 'Home Office' },
     { btn: filterLicenciaBtn, value: 'Licencia' },
     { btn: filterVacacionesBtn, value: 'Vacaciones' },
-    { btn: filterHeBtn, value: 'Horas Extras' },
-    { btn: filterGpBtn, value: 'Guardia Pasiva' },
-    { btn: filterGBtn, value: 'Guardia' },
     { btn: filterAllBtnDaily, value: 'all' },
-    { btn: filterPresencialBtnDaily, value: 'Presencial' },
+    { btn: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
+    { btn: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
     { btn: filterHoBtnDaily, value: 'Home Office' },
     { btn: filterLicenciaBtnDaily, value: 'Licencia' },
-    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' },
-    { btn: filterHeBtnDaily, value: 'Horas Extras' },
-    { btn: filterGpBtnDaily, value: 'Guardia Pasiva' },
-    { btn: filterGBtnDaily, value: 'Guardia' }
+    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' }
   ];
 
   filterBtns.forEach(item => {
@@ -2077,7 +2708,6 @@ function setupEventListeners(): void {
 
   document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
   document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
-  document.getElementById('print-report-btn')?.addEventListener('click', () => window.print());
 
   // --- Maximize Mode Handler ---
   const maxBtn = document.getElementById('maximize-cronograma-btn');
@@ -2226,7 +2856,643 @@ function setupEventListeners(): void {
         showToast("Error al guardar los cambios", "error");
       }
    });
+
+  // Make the entire date input wrapper clickable
+  const startDateWrapper = document.getElementById('rotation-start-date-wrapper');
+  const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+  if (startDateWrapper && startDateInput) {
+    startDateWrapper.addEventListener('click', () => {
+      startDateInput.showPicker();
+    });
+    startDateInput.addEventListener('input', () => {
+      const displayEl = document.getElementById('rotation-start-date-display');
+      if (displayEl && startDateInput.value) {
+        displayEl.innerText = formatToDDMMYY(startDateInput.value);
+      }
+    });
+  }
+
+  // --- Groups View Event Listeners ---
+  document.getElementById('switch-to-groups-btn')?.addEventListener('click', () => {
+    showGroupsView();
+  });
+
+  const rotForm = document.getElementById('rotation-config-form') as HTMLFormElement | null;
+  rotForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
+    const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
+    const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
+
+    const dateObj = new Date(startDate + "T12:00:00");
+    if (dateObj.getDay() !== 6) {
+      showToast("La fecha de inicio debe ser un sábado", "error");
+      return;
+    }
+
+    const saveBtn = rotForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+    }
+
+    try {
+      const res = await fetch('/api/cronograma/rotation-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate, startGroup, rotationOrder })
+      });
+      if (!res.ok) throw new Error("Error al guardar la configuración");
+      activeRotationConfig = { startDate, startGroup, rotationOrder };
+      
+      const data = await fetchCronogramaData();
+      state.cronoData = data;
+
+      renderMonthly();
+      renderDaily();
+      renderGroupsView();
+      showToast("Configuración de rotación guardada con éxito", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error al guardar la configuración de rotación", "error");
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    }
+  });
+
+  ['A', 'B', 'C', 'D'].forEach(g => {
+    const select = document.getElementById(`add-member-select-${g}`) as HTMLSelectElement | null;
+    select?.addEventListener('change', async () => {
+      const agentIdStr = select.value;
+      if (!agentIdStr) return;
+      select.disabled = true;
+
+      try {
+        const res = await fetch('/api/cronograma/rotation-groups/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g })
+        });
+        if (!res.ok) throw new Error("Error al asignar el operador al grupo");
+        
+        const data = await fetchCronogramaData();
+        state.cronoData = data;
+        
+        renderMonthly();
+        renderDaily();
+        renderGroupsView();
+        showToast("Operador asignado al grupo con éxito", "success");
+} catch (err: any) {
+        console.error(err);
+        showToast("Error al asignar operador al grupo", "error");
+      } finally {
+        select.disabled = false;
+        select.value = "";
+      }
+    });
+  });
+
+  const groupsViewElement = document.getElementById('groups-view');
+  const editSatModal = document.getElementById('edit-saturday-schedule-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
+  const editSatForm = document.getElementById('edit-saturday-schedule-form') as HTMLFormElement | null;
+  
+  groupsViewElement?.addEventListener('click', async (e) => {
+    const removeBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.remove-member-btn');
+    if (removeBtn) {
+      const agentIdStr = removeBtn.dataset.agentId;
+      const agentName = removeBtn.dataset.agentName || 'el operador';
+      if (!agentIdStr) return;
+
+      const confirmed = await showConfirm(`¿Estás seguro de que deseas quitar a ${agentName} de su grupo de rotación?`);
+      if (confirmed) {
+        removeBtn.disabled = true;
+        try {
+          const res = await fetch('/api/cronograma/rotation-groups/members', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null })
+          });
+          if (!res.ok) throw new Error("Error al desasignar operador");
+          
+          const data = await fetchCronogramaData();
+          state.cronoData = data;
+          
+          renderMonthly();
+          renderDaily();
+          renderGroupsView();
+          showToast("Operador quitado del grupo con éxito", "success");
+        } catch (err: any) {
+          console.error(err);
+          showToast("Error al quitar al operador del grupo", "error");
+          removeBtn.disabled = false;
+        }
+      }
+      return;
+    }
+
+    const editBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.edit-member-schedule-btn');
+    if (editBtn) {
+      const agentIdStr = editBtn.dataset.agentId;
+      const agentName = editBtn.dataset.agentName || '';
+      const agentGroup = editBtn.dataset.agentGroup || '';
+      const agentHorario = editBtn.dataset.agentHorario || '07:00 - 13:00';
+      if (!agentIdStr) return;
+
+      const opIdInput = document.getElementById('modal-agent-id') as HTMLInputElement | null;
+      const opNameDisplay = document.getElementById('modal-agent-name') as HTMLElement | null;
+      const opGroupInput = document.getElementById('modal-agent-group') as HTMLInputElement | null;
+      const startInput = document.getElementById('modal-schedule-start') as HTMLInputElement | null;
+      const endInput = document.getElementById('modal-schedule-end') as HTMLInputElement | null;
+
+      let start = "07:00";
+      let end = "13:00";
+      if (agentHorario && agentHorario.includes(" - ")) {
+        const parts = agentHorario.split(" - ");
+        if (parts.length === 2) {
+          start = parts[0];
+          end = parts[1];
+        }
+      }
+
+      if (opIdInput) opIdInput.value = agentIdStr;
+      if (opNameDisplay) opNameDisplay.innerText = agentName;
+      if (opGroupInput) opGroupInput.value = agentGroup;
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+
+      editSatModal?.showModal();
+      return;
+    }
+  });
+
+  editSatForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const agentIdStr = (document.getElementById('modal-agent-id') as HTMLInputElement).value;
+    const saturdayGroup = (document.getElementById('modal-agent-group') as HTMLInputElement).value;
+    const start = (document.getElementById('modal-schedule-start') as HTMLInputElement).value;
+    const end = (document.getElementById('modal-schedule-end') as HTMLInputElement).value;
+
+    if (!start || !end) {
+      showToast("Debe ingresar la hora de inicio y de fin", "error");
+      return;
+    }
+
+    if (start < '07:00' || end > '13:00') {
+      showToast("Los horarios deben estar dentro del rango 07:00 a 13:00 hs", "error");
+      return;
+    }
+
+    if (start >= end) {
+      showToast("La hora de inicio debe ser anterior a la hora de fin", "error");
+      return;
+    }
+
+    const saveBtn = editSatForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+    }
+
+    const saturdayHorario = `${start} - ${end}`;
+
+    try {
+      const res = await fetch('/api/cronograma/rotation-groups/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario })
+      });
+      if (!res.ok) throw new Error("Error al actualizar la configuración del operador");
+      
+      const data = await fetchCronogramaData();
+      state.cronoData = data;
+      
+      renderMonthly();
+      renderDaily();
+      renderGroupsView();
+      editSatModal?.close();
+      showToast("Configuración de operador guardada con éxito", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error al guardar la configuración del operador", "error");
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    }
+  });
 }
+
+// ===================================================
+// OVERTIME VIEW FUNCTIONS
+// ===================================================
+
+function showOvertimeView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const overtimeView = document.getElementById('overtime-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+
+  updateViewSwitcherUI('overtime');
+
+  if (dailyView) dailyView.classList.add('hidden');
+  if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
+  if (overtimeView) overtimeView.classList.remove('hidden');
+
+  if (datePickerContainer) {
+    datePickerContainer.classList.add('is-faded');
+    setTimeout(() => {
+      datePickerContainer.classList.add('hidden');
+    }, 300);
+  }
+
+  renderOvertimeView();
+}
+
+function renderOvertimeView(): void {
+  const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
+  const shiftAgentSelect = document.getElementById('overtime-shift-agent') as HTMLSelectElement | null;
+
+  if (referenteSelect) {
+    const currentVal = referenteSelect.value;
+    referenteSelect.innerHTML = '<option value="">Sin asignar</option>';
+    state.cronoData.forEach(op => {
+      const opt = document.createElement('option');
+      opt.value = op.nombre;
+      opt.textContent = op.nombre;
+      referenteSelect.appendChild(opt);
+    });
+    if (currentVal) referenteSelect.value = currentVal;
+  }
+
+  if (shiftAgentSelect) {
+    const currentVal = shiftAgentSelect.value;
+    shiftAgentSelect.innerHTML = '<option value="">Seleccionar operador...</option>';
+    state.cronoData.forEach(op => {
+      const opt = document.createElement('option');
+      opt.value = String(op.id ?? '');
+      opt.textContent = op.nombre;
+      shiftAgentSelect.appendChild(opt);
+    });
+    if (currentVal) shiftAgentSelect.value = currentVal;
+  }
+
+  if (overtimeSelectedWeekend) {
+    refreshOvertimeForWeekend(overtimeSelectedWeekend);
+  }
+}
+
+async function refreshOvertimeForWeekend(weekendDate: string): Promise<void> {
+  overtimeSelectedWeekend = weekendDate;
+
+  const existingConfig = overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
+  const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
+  if (referenteSelect) {
+    referenteSelect.value = existingConfig ? existingConfig.referente : '';
+  }
+
+  try {
+    const res = await fetch(`/api/cronograma/overtime/shifts?weekendStartDate=${weekendDate}`);
+    if (!res.ok) throw new Error('Error al cargar turnos');
+    const shifts: WeekendOvertimeShift[] = await res.json();
+    
+    // Update local state.cronoData so shifts reflect on other views instantly
+    state.cronoData.forEach(op => {
+      const otherWeekends = (op.weekendOvertimes || []).filter(s => s.weekendStartDate !== weekendDate);
+      const currentWeekShifts = shifts.filter(s => s.agentId === op.id);
+      op.weekendOvertimes = [...otherWeekends, ...currentWeekShifts];
+    });
+
+    renderOvertimeTimeline(weekendDate, shifts);
+    renderOvertimeShiftsList(weekendDate, shifts);
+  } catch (err) {
+    console.error('Error loading overtime shifts:', err);
+  }
+}
+
+function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShift[]): void {
+  const hoursContainer = document.getElementById('overtime-timeline-hours');
+  const bodyContainer = document.getElementById('overtime-timeline-body');
+  const placeholder = document.getElementById('overtime-timeline-placeholder');
+
+  if (!hoursContainer || !bodyContainer) return;
+  if (placeholder) placeholder.classList.add('hidden');
+
+  // Timeline: Sat 13:00 → Sun 23:59 = 35h = 2100 min
+  const TIMELINE_START_MIN = 13 * 60;
+  const TOTAL_MINUTES = 11 * 60 + 24 * 60;
+
+  const hours: string[] = [];
+  for (let h = 13; h < 24; h++) hours.push(`${String(h).padStart(2, '0')}:00`);
+  for (let h = 0; h < 24; h++) hours.push(`${String(h).padStart(2, '0')}:00`);
+
+  const sundayDateObj = new Date(weekendDate + 'T12:00:00');
+  sundayDateObj.setDate(sundayDateObj.getDate() + 1);
+  const sundayDate = `${sundayDateObj.getFullYear()}-${String(sundayDateObj.getMonth()+1).padStart(2,'0')}-${String(sundayDateObj.getDate()).padStart(2,'0')}`;
+
+  const satWidthPct = (11 * 60 / TOTAL_MINUTES) * 100;
+  const sunWidthPct = 100 - satWidthPct;
+
+  hoursContainer.innerHTML = `
+    <div class="flex flex-col flex-1">
+      <div class="flex border-b border-base-300/60">
+        <div style="width: ${satWidthPct.toFixed(2)}%" class="text-[8px] font-black uppercase tracking-wider text-warning/80 border-r border-base-300/50 py-1 px-2 bg-warning/5">Sábado (tarde)</div>
+        <div style="width: ${sunWidthPct.toFixed(2)}%" class="text-[8px] font-black uppercase tracking-wider text-info/80 py-1 px-2 bg-info/5">Domingo</div>
+      </div>
+      <div class="flex">
+        ${hours.map((h, i) => {
+          const wp = (60 / TOTAL_MINUTES) * 100;
+          const isMidnight = h === '00:00' && i > 0;
+          return `<div style="width:${wp.toFixed(2)}%" class="text-[7px] font-bold text-base-content/40 border-r border-base-300/30 py-1 px-1 shrink-0 ${isMidnight ? 'bg-info/5 text-info/60 font-black border-info/30' : ''}">${h}</div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  const toMinSinceStart = (dateStr: string, timeStr: string): number => {
+    const [h, m] = timeStr.split(':').map(Number);
+    const mins = h * 60 + m;
+    return dateStr === weekendDate ? mins - TIMELINE_START_MIN : 11 * 60 + mins;
+  };
+
+  const activeOps = state.cronoData.filter(op => shifts.some(s => s.agentId === op.id));
+  
+  if (activeOps.length === 0) {
+    bodyContainer.innerHTML = `
+      <div class="flex items-center justify-center py-12 text-base-content/30 text-xs font-bold uppercase tracking-wider gap-2">
+        <svg class="w-5 h-5 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        No hay turnos de horas extras asignados para este fin de semana
+      </div>`;
+    return;
+  }
+
+  bodyContainer.innerHTML = activeOps.map(op => {
+    const opShifts = shifts.filter(s => s.agentId === op.id);
+    const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+    const shiftBars = opShifts.map(s => {
+      const startMin = toMinSinceStart(s.date, s.startTime);
+      const endMin = toMinSinceStart(s.date, s.endTime);
+      if (startMin < 0 || endMin <= startMin) return '';
+      const lp = (startMin / TOTAL_MINUTES) * 100;
+      const wp = ((endMin - startMin) / TOTAL_MINUTES) * 100;
+      return `<div class="absolute top-1 bottom-1 rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden cursor-pointer hover:bg-warning/95 overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" title="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><span class="text-[8px] font-black text-warning-content truncate px-1">${s.startTime}-${s.endTime}</span></div>`;
+    }).join('');
+    return `
+      <div class="flex items-stretch min-h-[40px] border-b border-base-300/30 last:border-0">
+        <div class="w-36 shrink-0 px-3 py-2 border-r border-base-300/40 flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full bg-base-300/50 flex items-center justify-center text-[9px] font-black shrink-0">${initials}</div>
+          <span class="truncate text-[10px] font-bold text-base-content">${escapeHtml(op.nombre)}</span>
+        </div>
+        <div class="flex-1 relative bg-base-100">
+          ${shiftBars}
+        </div>
+      </div>`;
+  }).join('');
+
+  bodyContainer.querySelectorAll('.overtime-timeline-bar').forEach(bar => {
+    bar.addEventListener('click', (e) => {
+      const dataset = (e.currentTarget as HTMLElement).dataset;
+      loadShiftIntoForm({
+        id: Number(dataset.shiftId),
+        agentId: Number(dataset.agentId),
+        date: String(dataset.date),
+        startTime: String(dataset.start),
+        endTime: String(dataset.end)
+      }, weekendDate);
+    });
+  });
+}
+
+function loadShiftIntoForm(shift: { id: number; agentId: number; date: string; startTime: string; endTime: string }, weekendDate: string): void {
+  const agentSelect = document.getElementById('overtime-shift-agent') as HTMLSelectElement | null;
+  const daySelect = document.getElementById('overtime-shift-day') as HTMLSelectElement | null;
+  const startInput = document.getElementById('overtime-shift-start') as HTMLInputElement | null;
+  const endInput = document.getElementById('overtime-shift-end') as HTMLInputElement | null;
+  const editIdInput = document.getElementById('overtime-shift-edit-id') as HTMLInputElement | null;
+  const submitBtn = document.getElementById('overtime-shift-submit-btn');
+  const cancelBtn = document.getElementById('overtime-shift-cancel-btn');
+
+  if (agentSelect) agentSelect.value = String(shift.agentId);
+  if (daySelect) daySelect.value = shift.date === weekendDate ? 'saturday' : 'sunday';
+  if (startInput) startInput.value = shift.startTime;
+  if (endInput) endInput.value = shift.endTime;
+  if (editIdInput) editIdInput.value = String(shift.id);
+
+  if (submitBtn) submitBtn.textContent = 'Actualizar Turno';
+  if (cancelBtn) cancelBtn.classList.remove('hidden');
+}
+
+function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOvertimeShift[]): void {
+  const container = document.getElementById('overtime-shifts-list');
+  if (!container) return;
+
+  if (shifts.length === 0) {
+    container.innerHTML = `<div class="text-xs text-base-content/30 text-center py-6 font-bold uppercase tracking-wider">No hay turnos guardados para este fin de semana</div>`;
+    return;
+  }
+
+  container.innerHTML = shifts.map(s => {
+    const op = state.cronoData.find(o => o.id === s.agentId);
+    const dayLabel = s.date === weekendDate ? 'Sábado' : 'Domingo';
+    const dayBadgeClass = s.date === weekendDate ? 'badge-warning' : 'badge-info';
+    return `
+      <div class="flex items-center gap-3 p-3 bg-base-200/40 rounded-xl border border-base-300/60 group hover:bg-base-200/70 transition-all cursor-pointer overtime-shift-card" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}">
+        <span class="badge badge-sm ${dayBadgeClass} font-black shrink-0">${dayLabel}</span>
+        <span class="font-bold text-xs text-base-content flex-1 truncate">${escapeHtml(op?.nombre || 'Operador #' + s.agentId)}</span>
+        <span class="font-mono text-xs text-base-content/70 shrink-0">${s.startTime} – ${s.endTime}</span>
+        <button type="button" class="btn btn-xs btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity overtime-delete-shift-btn" data-shift-id="${s.id}" aria-label="Eliminar turno">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.overtime-shift-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.overtime-delete-shift-btn')) return;
+      const dataset = (e.currentTarget as HTMLElement).dataset;
+      loadShiftIntoForm({
+        id: Number(dataset.shiftId),
+        agentId: Number(dataset.agentId),
+        date: String(dataset.date),
+        startTime: String(dataset.start),
+        endTime: String(dataset.end)
+      }, weekendDate);
+    });
+  });
+
+  container.querySelectorAll('.overtime-delete-shift-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const shiftId = (e.currentTarget as HTMLElement).dataset.shiftId;
+      if (!shiftId || !overtimeSelectedWeekend) return;
+      const confirmed = await showConfirm('¿Eliminar este turno de hora extra?');
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`/api/cronograma/overtime/shifts?id=${shiftId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Error al eliminar');
+        showToast('Turno eliminado', 'success');
+        await refreshOvertimeForWeekend(overtimeSelectedWeekend);
+      } catch {
+        showToast('Error al eliminar turno', 'error');
+      }
+    });
+  });
+}
+
+// --- Overtime event handlers ---
+
+document.getElementById('switch-to-overtime-btn')?.addEventListener('click', () => {
+  showOvertimeView();
+});
+
+const _overtimeWeekendWrapper = document.getElementById('overtime-weekend-date-wrapper');
+const _overtimeWeekendInput = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
+if (_overtimeWeekendWrapper && _overtimeWeekendInput) {
+  _overtimeWeekendWrapper.addEventListener('click', () => {
+    _overtimeWeekendInput.showPicker();
+  });
+  _overtimeWeekendInput.addEventListener('change', async (e) => {
+    e.stopPropagation();
+    const val = _overtimeWeekendInput.value;
+    if (!val) return;
+    const dateObj = new Date(val + 'T12:00:00');
+    if (dateObj.getDay() !== 6) {
+      showToast('Por favor seleccioná un sábado', 'error');
+      _overtimeWeekendInput.value = '';
+      return;
+    }
+    const displayEl = document.getElementById('overtime-weekend-date-display');
+    if (displayEl) displayEl.textContent = formatToDDMMYY(val);
+    await refreshOvertimeForWeekend(val);
+  });
+}
+
+// --- Rotation Timeline event handlers ---
+const _rotationTimelineWrapper = document.getElementById('rotation-timeline-date-wrapper');
+const _rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;
+if (_rotationTimelineWrapper && _rotationTimelineInput) {
+  _rotationTimelineWrapper.addEventListener('click', () => {
+    _rotationTimelineInput.showPicker();
+  });
+  _rotationTimelineInput.addEventListener('change', (e) => {
+    e.stopPropagation();
+    const val = _rotationTimelineInput.value;
+    if (!val) return;
+    const dateObj = new Date(val + 'T12:00:00');
+    if (dateObj.getDay() !== 6) {
+      showToast('Por favor seleccioná un sábado', 'error');
+      _rotationTimelineInput.value = '';
+      return;
+    }
+    const displayEl = document.getElementById('rotation-timeline-date-display');
+    if (displayEl) displayEl.textContent = formatToDDMMYY(val);
+    rotationTimelineSelectedDate = val;
+    renderRotationTimeline(val);
+  });
+}
+
+document.getElementById('save-overtime-referente-btn')?.addEventListener('click', async () => {
+  if (!overtimeSelectedWeekend) {
+    showToast('Seleccioná un fin de semana primero', 'error');
+    return;
+  }
+  const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
+  const referente = referenteSelect?.value || '';
+  try {
+    const res = await fetch('/api/cronograma/overtime/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weekendStartDate: overtimeSelectedWeekend, referente }),
+    });
+    if (!res.ok) throw new Error('Error al guardar');
+    const saved: WeekendOvertimeConfig = await res.json();
+    const idx = overtimeConfigs.findIndex(c => c.weekendStartDate === saved.weekendStartDate);
+    if (idx >= 0) overtimeConfigs[idx] = saved;
+    else overtimeConfigs.push(saved);
+    showToast('Configuración guardada', 'success');
+  } catch {
+    showToast('Error al guardar la configuración', 'error');
+  }
+});
+
+const _overtimeShiftForm = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
+if (_overtimeShiftForm) {
+  _overtimeShiftForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!overtimeSelectedWeekend) {
+      showToast('Seleccioná un fin de semana primero', 'error');
+      return;
+    }
+    const agentIdVal = (document.getElementById('overtime-shift-agent') as HTMLSelectElement).value;
+    const dayVal = (document.getElementById('overtime-shift-day') as HTMLSelectElement).value;
+    const startTime = (document.getElementById('overtime-shift-start') as HTMLInputElement).value;
+    const endTime = (document.getElementById('overtime-shift-end') as HTMLInputElement).value;
+    const editId = (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value;
+
+    if (!agentIdVal || !startTime || !endTime) {
+      showToast('Completá todos los campos', 'error');
+      return;
+    }
+
+    const sundayDateObj = new Date(overtimeSelectedWeekend + 'T12:00:00');
+    sundayDateObj.setDate(sundayDateObj.getDate() + 1);
+    const sundayDate = `${sundayDateObj.getFullYear()}-${String(sundayDateObj.getMonth()+1).padStart(2,'0')}-${String(sundayDateObj.getDate()).padStart(2,'0')}`;
+    const shiftDate = dayVal === 'saturday' ? overtimeSelectedWeekend : sundayDate;
+
+    if (dayVal === 'saturday' && startTime < '13:00') {
+      showToast('Los turnos del sábado deben iniciar desde las 13:00 hs', 'error');
+      return;
+    }
+
+    const submitBtn = document.getElementById('overtime-shift-submit-btn') as HTMLButtonElement | null;
+    const origHtml = submitBtn?.innerHTML || '';
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...'; }
+
+    try {
+      const body: Record<string, unknown> = {
+        weekendStartDate: overtimeSelectedWeekend,
+        agentId: parseInt(agentIdVal, 10),
+        date: shiftDate,
+        startTime,
+        endTime,
+      };
+      if (editId) body.id = parseInt(editId, 10);
+
+      const res = await fetch('/api/cronograma/overtime/shifts', {
+        method: editId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Error al guardar turno');
+
+      showToast(editId ? 'Turno actualizado' : 'Turno agregado', 'success');
+      _overtimeShiftForm.reset();
+      (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
+      document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+      await refreshOvertimeForWeekend(overtimeSelectedWeekend);
+    } catch {
+      showToast('Error al guardar el turno', 'error');
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+    }
+  });
+}
+
+document.getElementById('overtime-shift-cancel-btn')?.addEventListener('click', () => {
+  const form = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
+  if (form) form.reset();
+  (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
+  document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+  const submitBtn = document.getElementById('overtime-shift-submit-btn');
+  if (submitBtn) submitBtn.textContent = 'Agregar Turno';
+});
 
 // --- GLOBAL EVENT LISTENERS ---
 
@@ -2270,6 +3536,11 @@ document.addEventListener('cronograma:rules-changed', () => {
   renderMonthly();
   renderDaily();
   showToast("Reglas de control actualizadas", "success");
+});
+
+document.addEventListener('cronograma:feriados-updated', () => {
+  renderMonthly();
+  renderDaily();
 });
 
 // Hover effect to highlight break in Gantt timeline

@@ -43,7 +43,6 @@ export function exportCSV(
     "Home Office (HO)",
     "Licencia (L)",
     "Vacaciones (V)",
-    "Horas Extras (HE)",
     "Franco (F)",
     "Inconsistencias Normativas",
     ...dates
@@ -56,7 +55,7 @@ export function exportCSV(
     let lics = 0;
     cronoData.forEach(op => {
       const s = op.asistencia?.[d];
-      if (s === 'Presencial' || s === 'Home Office') active++;
+      if (s === 'Presencial Monte Grande' || s === 'Presencial Parque Patricios' || s === 'Home Office') active++;
       if (s === 'Licencia' || s === 'Vacaciones') lics++;
     });
     coveragePerDay[d] = { total: active, licenses: lics };
@@ -65,7 +64,7 @@ export function exportCSV(
   const csvRows = [headers.map(escapeCSVCell).join(",")];
 
   cronoData.forEach(op => {
-    const stats = { P: 0, HO: 0, L: 0, V: 0, HE: 0, F: 0 };
+    const stats = { P: 0, HO: 0, L: 0, V: 0, F: 0 };
 
     // Policy compliance calculations
     const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : rules.maxConsecutiveHOLimit;
@@ -82,11 +81,10 @@ export function exportCSV(
       const s = op.asistencia?.[d];
 
       // Count statuses
-      if (s === 'Presencial') stats.P++;
+      if (s === 'Presencial Monte Grande' || s === 'Presencial Parque Patricios') stats.P++;
       else if (s === 'Home Office') stats.HO++;
       else if (s === 'Licencia') stats.L++;
       else if (s === 'Vacaciones') stats.V++;
-      else if (s === 'Horas Extras') stats.HE++;
       else stats.F++; // Franco / No set
 
       // Compliance rules: HO consecutive
@@ -99,7 +97,7 @@ export function exportCSV(
 
       // Compliance rules: Weekly P limit
       const dateObj = new Date(d + 'T12:00:00');
-      if (s === 'Presencial') currentWeekP++;
+      if (s === 'Presencial Monte Grande' || s === 'Presencial Parque Patricios') currentWeekP++;
       if (s !== 'Franco' && s !== 'Licencia' && s !== 'Vacaciones' && s) {
         currentWeekDays++;
       }
@@ -134,7 +132,6 @@ export function exportCSV(
       escapeCSVCell(stats.HO),
       escapeCSVCell(stats.L),
       escapeCSVCell(stats.V),
-      escapeCSVCell(stats.HE),
       escapeCSVCell(stats.F),
       escapeCSVCell(totalInconsistencias)
     ];

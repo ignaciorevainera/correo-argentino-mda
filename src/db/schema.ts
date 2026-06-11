@@ -219,6 +219,8 @@ export const agents = sqliteTable("agents", {
   estadoExcepcionalMotivo: text("estado_excepcional_motivo"),
   estadoExcepcionalAt: integer("estado_excepcional_at"),
   estadoExcepcionalMinutos: integer("estado_excepcional_minutos"),
+  saturdayGroup: text("saturday_group"),
+  saturdayHorario: text("saturday_horario"),
 });
 
 export const cubicAssignments = sqliteTable(
@@ -245,6 +247,7 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   assignments: many(cubicAssignments),
   audits: many(qualityAudits),
   attendance: many(operatorAttendance),
+  weekendOvertimeShifts: many(weekendOvertimeShifts),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -273,6 +276,7 @@ export const schedules = sqliteTable("schedules", {
   salidaReal: text("salida_real"),
   breakInicio: text("break_inicio"),
   breakFin: text("break_fin"),
+  isOverride: integer("is_override", { mode: "boolean" }).default(false),
 });
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
@@ -572,3 +576,37 @@ export const operatorAttendanceRelations = relations(
     }),
   })
 );
+
+export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
+  startDate: text("start_date").notNull().default("2026-06-06"),
+  startGroup: text("start_group").notNull().default("A"),
+});
+
+export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekendStartDate: text("weekend_start_date").notNull().unique(), // Sábado "YYYY-MM-DD"
+  referente: text("referente").notNull(),
+});
+
+export const weekendOvertimeShifts = sqliteTable("weekend_overtime_shifts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekendStartDate: text("weekend_start_date").notNull(), // Sábado "YYYY-MM-DD"
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // "YYYY-MM-DD" (Sábado o Domingo)
+  startTime: text("start_time").notNull(), // "HH:MM"
+  endTime: text("end_time").notNull(), // "HH:MM"
+}, (table) => ({
+  weekendStartIdx: index("overtime_shifts_weekend_start_idx").on(table.weekendStartDate),
+  agentIdx: index("overtime_shifts_agent_idx").on(table.agentId),
+}));
+
+export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, ({ one }) => ({
+  agent: one(agents, {
+    fields: [weekendOvertimeShifts.agentId],
+    references: [agents.id],
+  }),
+}));
