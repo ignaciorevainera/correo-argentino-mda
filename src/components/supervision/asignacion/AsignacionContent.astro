@@ -565,8 +565,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 </PageContainer>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
+  const init = () => {
     const toggle = document.getElementById("toggle-disponibles") as HTMLInputElement | null;
+    if (!toggle) return false;
+
     const syncIndicator = document.getElementById("sync-indicator");
     const refreshIcon = document.getElementById("refresh-icon");
     const btnRefresh = document.getElementById("btn-refresh") as HTMLButtonElement | null;
@@ -590,8 +592,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
       });
     }
-    
-    if (!toggle) return;
 
     let secondsSinceSync = 0;
 
@@ -1045,5 +1045,19 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         });
       }
     });
-  });
+
+    // Run first UI update visibility check
+    updateVisibility();
+
+    return true;
+  };
+
+  // Wait for dynamic server island component initialization
+  if (!init()) {
+    const checkReady = setInterval(() => {
+      if (init()) {
+        clearInterval(checkReady);
+      }
+    }, 50);
+  }
 </script>
