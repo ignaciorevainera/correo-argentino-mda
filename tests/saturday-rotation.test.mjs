@@ -136,6 +136,16 @@ async function runBrowserTest() {
     }
     console.log("✅ All 4 group grid cards exist.");
 
+    console.log("Checking that the Saturday Rotation Timeline elements exist...");
+    const timelineDateInput = page.locator("#rotation-timeline-date");
+    const activeGroupDisplay = page.locator("#rotation-active-group-display");
+    const timelineTable = page.locator("#rotation-timeline-table");
+
+    assert.ok(await timelineDateInput.count() > 0, "Input #rotation-timeline-date does not exist");
+    assert.ok(await activeGroupDisplay.count() > 0, "Display #rotation-active-group-display does not exist");
+    assert.ok(await timelineTable.count() > 0, "Table #rotation-timeline-table does not exist");
+    console.log("✅ Saturday Rotation Timeline elements are rendered in the browser.");
+
     console.log("--------------------------------------------------");
     console.log("🎉 All browser-based verification tests passed successfully!");
   } finally {

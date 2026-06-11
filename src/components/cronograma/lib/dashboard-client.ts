@@ -23,12 +23,28 @@ let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder
 let overtimeConfigs: WeekendOvertimeConfig[] = [];
 let overtimeSelectedWeekend: string | null = null; // "YYYY-MM-DD" Saturday
 
+// --- Rotation Timeline state ---
+let rotationTimelineSelectedDate: string | null = null; // "YYYY-MM-DD" Saturday
+
 function formatToDDMMYY(dateStr: string): string {
   if (!dateStr) return "dd/mm/yy";
   const parts = dateStr.split('-');
   if (parts.length !== 3) return "dd/mm/yy";
   const [year, month, day] = parts;
   return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function isHourCoveredBySchedule(scheduleStr: string, hourStart: number): boolean {
+  if (!scheduleStr || scheduleStr === '-') return false;
+  const parts = scheduleStr.split('-');
+  if (parts.length !== 2) return false;
+  const startMin = timeToMinutes(parts[0].trim());
+  const endMin = timeToMinutes(parts[1].trim());
+  
+  const slotStartMin = hourStart * 60;
+  const slotEndMin = (hourStart + 1) * 60;
+  
+  return startMin <= slotStartMin && endMin >= slotEndMin;
 }
 
 function getActiveGroupForDate(dateStr: string): string | null {
@@ -1882,10 +1898,126 @@ async function renderGroupsView(): Promise<void> {
       }
     });
 
+    // --- Initialize Saturday Rotation Timeline ---
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const activeDateStr = dateInput?.value || formatYMD(new Date());
+    const activeMonthPrefix = activeDateStr.slice(0, 7);
+
+    if (!rotationTimelineSelectedDate || !rotationTimelineSelectedDate.startsWith(activeMonthPrefix)) {
+      const [y, m] = activeDateStr.split('-').map(Number);
+      let firstSat = 1;
+      for (let d = 1; d <= 7; d++) {
+        const dayVal = new Date(y, m - 1, d).getDay();
+        if (dayVal === 6) {
+          firstSat = d;
+          break;
+        }
+      }
+      rotationTimelineSelectedDate = `${y}-${String(m).padStart(2, '0')}-${String(firstSat).padStart(2, '0')}`;
+    }
+
+    const rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;
+    if (rotationTimelineInput) {
+      rotationTimelineInput.value = rotationTimelineSelectedDate;
+      const displayEl = document.getElementById('rotation-timeline-date-display');
+      if (displayEl) {
+        displayEl.textContent = formatToDDMMYY(rotationTimelineSelectedDate);
+      }
+    }
+    renderRotationTimeline(rotationTimelineSelectedDate);
+
   } catch (err: any) {
     console.error("renderGroupsView Error:", err);
     showToast("Error al renderizar vista de grupos", "error");
   }
+}
+
+function renderRotationTimeline(dateStr: string): void {
+  const tableBody = document.getElementById('rotation-timeline-body');
+  const groupDisplay = document.getElementById('rotation-active-group-display');
+  if (!tableBody) return;
+
+  const activeGroup = getActiveGroupForDate(dateStr);
+  if (groupDisplay) {
+    groupDisplay.textContent = activeGroup ? `Grupo ${activeGroup}` : 'Sin grupo';
+  }
+
+  if (!activeGroup) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-xs text-base-content/30 font-bold uppercase tracking-wider">
+          Configura una rotación válida primero
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const groupOps = state.cronoData.filter(op => op.saturdayGroup === activeGroup);
+
+  if (groupOps.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-xs text-base-content/30 font-bold uppercase tracking-wider">
+          No hay operadores asignados al Grupo ${activeGroup}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  groupOps.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const hours = [7, 8, 9, 10, 11, 12];
+
+  tableBody.innerHTML = groupOps.map(op => {
+    const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+    const horario = op.saturdayHorario || '07:00 - 13:00';
+    
+    const attendanceStatus = op.asistencia?.[dateStr];
+    const isExcused = op.overrides?.[dateStr] && 
+      (attendanceStatus === OperatorStatus.Franco || 
+       attendanceStatus === OperatorStatus.Licencia || 
+       attendanceStatus === OperatorStatus.Vacaciones);
+
+    const hourCells = hours.map((h, i) => {
+      const isWorking = !isExcused && isHourCoveredBySchedule(horario, h);
+      const isLast = i === hours.length - 1;
+      
+      const borderClass = isLast ? '' : 'border-r border-base-300/40';
+
+      if (isWorking) {
+        return `
+          <td class="p-2 text-center ${borderClass} bg-emerald-500/10">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-500 text-white font-black text-xs shadow-sm">
+              ${activeGroup}
+            </span>
+          </td>
+        `;
+      } else {
+        return `
+          <td class="p-2 text-center ${borderClass} bg-base-100/10 text-base-content/10">
+            -
+          </td>
+        `;
+      }
+    }).join('');
+
+    return `
+      <tr class="hover:bg-base-200/30 transition-colors">
+        <td class="px-3 py-3 border-r border-base-300/40 flex items-center gap-2.5">
+          <div class="w-6.5 h-6.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 flex items-center justify-center text-[9px] font-black shrink-0">
+            ${initials}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="truncate text-[11px] font-bold text-base-content">${escapeHtml(op.nombre)}</span>
+            <span class="text-[9px] font-semibold text-base-content/40 leading-tight">${horario}</span>
+          </div>
+        </td>
+        ${hourCells}
+      </tr>
+    `;
+  }).join('');
 }
 
 function updateFilterActiveStates(): void {
@@ -3187,6 +3319,30 @@ if (_overtimeWeekendWrapper && _overtimeWeekendInput) {
     const displayEl = document.getElementById('overtime-weekend-date-display');
     if (displayEl) displayEl.textContent = formatToDDMMYY(val);
     await refreshOvertimeForWeekend(val);
+  });
+}
+
+// --- Rotation Timeline event handlers ---
+const _rotationTimelineWrapper = document.getElementById('rotation-timeline-date-wrapper');
+const _rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;
+if (_rotationTimelineWrapper && _rotationTimelineInput) {
+  _rotationTimelineWrapper.addEventListener('click', () => {
+    _rotationTimelineInput.showPicker();
+  });
+  _rotationTimelineInput.addEventListener('change', (e) => {
+    e.stopPropagation();
+    const val = _rotationTimelineInput.value;
+    if (!val) return;
+    const dateObj = new Date(val + 'T12:00:00');
+    if (dateObj.getDay() !== 6) {
+      showToast('Por favor seleccioná un sábado', 'error');
+      _rotationTimelineInput.value = '';
+      return;
+    }
+    const displayEl = document.getElementById('rotation-timeline-date-display');
+    if (displayEl) displayEl.textContent = formatToDDMMYY(val);
+    rotationTimelineSelectedDate = val;
+    renderRotationTimeline(val);
   });
 }
 
