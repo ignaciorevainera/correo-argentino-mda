@@ -247,6 +247,7 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   assignments: many(cubicAssignments),
   audits: many(qualityAudits),
   attendance: many(operatorAttendance),
+  weekendOvertimeShifts: many(weekendOvertimeShifts),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -598,4 +599,14 @@ export const weekendOvertimeShifts = sqliteTable("weekend_overtime_shifts", {
   date: text("date").notNull(), // "YYYY-MM-DD" (Sábado o Domingo)
   startTime: text("start_time").notNull(), // "HH:MM"
   endTime: text("end_time").notNull(), // "HH:MM"
-});
+}, (table) => ({
+  weekendStartIdx: index("overtime_shifts_weekend_start_idx").on(table.weekendStartDate),
+  agentIdx: index("overtime_shifts_agent_idx").on(table.agentId),
+}));
+
+export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, ({ one }) => ({
+  agent: one(agents, {
+    fields: [weekendOvertimeShifts.agentId],
+    references: [agents.id],
+  }),
+}));
