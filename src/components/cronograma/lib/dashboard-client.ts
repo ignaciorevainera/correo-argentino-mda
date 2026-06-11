@@ -430,6 +430,20 @@ function changeMonth(offset: number): void {
   reloadDataForActiveMonth(targetYM);
 }
 
+async function loadRotationConfig(month: string): Promise<void> {
+  try {
+    const rotRes = await fetch(`/api/cronograma/rotation-config?month=${month}`);
+    if (rotRes.ok) {
+      activeRotationConfig = await rotRes.json();
+    } else {
+      activeRotationConfig = null;
+    }
+  } catch (err) {
+    console.warn("Failed to load rotation config:", err);
+    activeRotationConfig = null;
+  }
+}
+
 async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
   try {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -440,14 +454,7 @@ async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
     overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
-    try {
-      const rotRes = await fetch(`/api/cronograma/rotation-config?month=${monthToLoad}`);
-      if (rotRes.ok) {
-        activeRotationConfig = await rotRes.json();
-      }
-    } catch (err) {
-      console.warn("Failed to load rotation config:", err);
-    }
+    await loadRotationConfig(monthToLoad);
 
     renderDaily();
     renderMonthly();
@@ -479,14 +486,7 @@ async function init(): Promise<void> {
       console.warn("Failed to load holidays:", err);
     }
 
-    try {
-      const rotRes = await fetch(`/api/cronograma/rotation-config?month=${initialMonth}`);
-      if (rotRes.ok) {
-        activeRotationConfig = await rotRes.json();
-      }
-    } catch (err) {
-      console.warn("Failed to load rotation config:", err);
-    }
+    await loadRotationConfig(initialMonth);
 
     const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
     const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || todayStr);

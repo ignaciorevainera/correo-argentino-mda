@@ -20,7 +20,9 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export interface CronogramaPayload {
   operators: OperatorData[];
   weekendOvertimeConfigs: WeekendOvertimeConfig[];
+  availableMonths?: string[];
 }
+
 
 export async function fetchCronogramaFullData(month?: string): Promise<CronogramaPayload> {
   if (typeof window !== 'undefined' && (window as any).__CRONOGRAMA_INITIAL_DATA__) {
