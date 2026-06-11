@@ -24,6 +24,7 @@ class CronogramaState {
   // Cache for computed properties
   private _cachedDates: string[] | null = null;
   private _cachedMonths: string[] | null = null;
+  availableMonths: string[] = [];
 
   feriados: Record<string, string> = feriadosJson;
   isEditMode = false;
@@ -101,6 +102,9 @@ class CronogramaState {
   }
 
   get uniqueMonths(): string[] {
+    if (this.availableMonths && this.availableMonths.length > 0) {
+      return this.availableMonths;
+    }
     if (this._cachedMonths) return this._cachedMonths;
     const monthsSet = new Set(this.uniqueDates.map(d => d.slice(0, 7)));
     this._cachedMonths = Array.from(monthsSet).sort();
