@@ -460,6 +460,13 @@ async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
     renderMonthly();
     renderMonthDropdown();
     updateMonthDisplay();
+
+    // Actualizar vista de grupos si está visible
+    const groupsView = document.getElementById('groups-view');
+    const isGroupsVisible = groupsView && !groupsView.classList.contains('hidden');
+    if (isGroupsVisible) {
+      await renderGroupsView();
+    }
   } catch (err) {
     console.error("Error reloading data for month:", err);
     showToast("Error al recargar datos del mes", "error");
@@ -1828,7 +1835,9 @@ function showGroupsView(): void {
 
 async function renderGroupsView(): Promise<void> {
   try {
-    const res = await fetch('/api/cronograma/rotation-config');
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    const res = await fetch(`/api/cronograma/rotation-config?month=${month}`);
     if (!res.ok) throw new Error("No se pudo cargar la configuración de rotación");
     const config = await res.json();
     
@@ -1966,7 +1975,6 @@ async function renderGroupsView(): Promise<void> {
     });
 
     // --- Initialize Saturday Rotation Timeline ---
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const activeDateStr = dateInput?.value || formatYMD(new Date());
     const activeMonthPrefix = activeDateStr.slice(0, 7);
 

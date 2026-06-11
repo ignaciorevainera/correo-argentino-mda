@@ -45,22 +45,14 @@ export const GET: APIRoute = async ({ url }) => {
         startGroup: "A",
       };
 
-      await db
-        .insert(saturdayRotationConfig)
-        .values({
-          month: activeMonth,
-          rotationOrder: baseConfig.rotationOrder,
-          startDate: baseConfig.startDate,
-          startGroup: baseConfig.startGroup,
-        })
-        .onConflictDoNothing();
-
-      configList = await db
-        .select()
-        .from(saturdayRotationConfig)
-        .where(eq(saturdayRotationConfig.month, activeMonth))
-        .limit(1);
-      rotationConfig = configList[0];
+      // Devolver configuración en memoria sin persistirla en GET (Side-effect free GET)
+      rotationConfig = {
+        id: 0,
+        month: activeMonth,
+        rotationOrder: baseConfig.rotationOrder,
+        startDate: baseConfig.startDate,
+        startGroup: baseConfig.startGroup,
+      };
     }
 
     // 3. Cargar asignaciones de grupos de sábados específicas de este mes
@@ -286,7 +278,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   } catch (error: any) {
     console.error("GET API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -391,7 +383,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error: any) {
     console.error("POST API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

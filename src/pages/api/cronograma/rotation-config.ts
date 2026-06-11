@@ -61,7 +61,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   } catch (error: any) {
     console.error("GET rotation-config API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -152,7 +152,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error: any) {
     console.error("POST rotation-config API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
