@@ -49,6 +49,30 @@ function getActiveGroupForDate(dateStr: string): string | null {
   return groups[activeIndex];
 }
 
+function getNextSaturdayForGroup(targetGroup: string): string | null {
+  if (!activeRotationConfig) return null;
+  const { startDate, startGroup, rotationOrder } = activeRotationConfig;
+  if (!startDate || !startGroup || !rotationOrder) return null;
+
+  const groups = rotationOrder.split(",").map((g) => g.trim());
+  const N = groups.length;
+  if (N === 0) return null;
+  if (!groups.includes(targetGroup)) return null;
+
+  const start = new Date(startDate + "T12:00:00");
+  const startIndex = groups.indexOf(startGroup);
+  const targetIndex = groups.indexOf(targetGroup);
+
+  const offsetWeeks = ((targetIndex - startIndex) % N + N) % N;
+  const firstDate = new Date(start);
+  firstDate.setDate(firstDate.getDate() + offsetWeeks * 7);
+
+  const y = firstDate.getFullYear();
+  const m = String(firstDate.getMonth() + 1).padStart(2, '0');
+  const d = String(firstDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getDatesArrayForCurrentMonth(): string[] {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   if (!dateInput || !dateInput.value) return [];
@@ -1676,6 +1700,20 @@ async function renderGroupsView(): Promise<void> {
     }
     if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
     if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
+
+    activeRotationConfig = { startDate: config.startDate, startGroup: config.startGroup, rotationOrder: config.rotationOrder };
+    ['A', 'B', 'C', 'D'].forEach(group => {
+      const dateEl = document.getElementById(`group-${group}-next-date`);
+      if (dateEl) {
+        const nextDate = getNextSaturdayForGroup(group);
+        if (nextDate) {
+          dateEl.textContent = formatToDDMMYY(nextDate);
+          dateEl.classList.remove('hidden');
+        } else {
+          dateEl.classList.add('hidden');
+        }
+      }
+    });
     
     const groupContainers: Record<string, HTMLElement | null> = {
       A: document.getElementById('group-A-list'),
@@ -2572,6 +2610,21 @@ function setupEventListeners(): void {
         showToast("Error al guardar los cambios", "error");
       }
    });
+
+  // Make the entire date input wrapper clickable
+  const startDateWrapper = document.getElementById('rotation-start-date-wrapper');
+  const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+  if (startDateWrapper && startDateInput) {
+    startDateWrapper.addEventListener('click', () => {
+      startDateInput.showPicker();
+    });
+    startDateInput.addEventListener('input', () => {
+      const displayEl = document.getElementById('rotation-start-date-display');
+      if (displayEl && startDateInput.value) {
+        displayEl.innerText = formatToDDMMYY(startDateInput.value);
+      }
+    });
+  }
 
   // --- Groups View Event Listeners ---
   document.getElementById('switch-to-groups-btn')?.addEventListener('click', () => {

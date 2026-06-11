@@ -38,11 +38,19 @@ Al hacer clic en "Extras", se mostrará un panel completo con:
    * Lista de turnos asignados con botones de edición y eliminación rápida.
 
 ### C. Integración en el Calendario Mensual y Diario
+
+> [!IMPORTANT]
+> **Reglas de negocio críticas para Horas Extras:**
+> 1. Las horas extras se realizan siempre bajo la modalidad de **Home Office**.
+> 2. Se soporta la asignación de **múltiples estados/turnos a un mismo día** para un mismo operador. Por ejemplo, un sábado un operador puede tener su turno rotativo regular de **07:00 a 13:00 hs** (Home Office por grupo activo) y también un turno de horas extras de **13:00 a 17:00 hs**.
+
 1. **Celda del Calendario Mensual**:
-   * Si un operador tiene asignado un turno de hora extra en un día determinado, la celda mantendrá su color y estado base (ej. "Franco" o "Home Office").
-   * Se añadirá un pequeño distintivo o etiqueta visual compacta dentro de la celda indicando **"HE: 13:00 - 17:00"** (o el horario correspondiente).
+   * La celda del calendario mensual mantendrá el color del estado de su turno base (ej. "Franco" en gris, o "Home Office" en azul si estaba de guardia por su grupo de rotación del sábado).
+   * Se añadirá un pequeño distintivo o etiqueta visual compacta e indicador dentro de la celda indicando **"HE: 13:00 - 17:00"** (o el horario correspondiente).
+   * En caso de tener ambos estados (rotación + horas extras), ambos se computan y muestran correspondientemente.
 2. **Detalle del Día (Modal de Detalle / Vista Diaria)**:
    * Al hacer clic en un día o abrir el modal de detalles de un operador, se mostrará el desglose detallado de su jornada, indicando tanto su estado/horario regular como sus turnos de Horas Extras asignados.
+   * En la vista diaria, se graficarán ambos bloques de horas en su franja horaria correspondiente (por ejemplo: de 07:00 a 13:00 hs y de 13:00 a 17:00 hs).
 
 ---
 
