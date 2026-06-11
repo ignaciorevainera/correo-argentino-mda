@@ -121,10 +121,10 @@ export function openDrawer(opName: string) {
     }).join('');
   }
 
-  const opWeekly = op.esquema_semanal || { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco };
-  const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-  const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+  const opWeekly = op.esquema_semanal || { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco };
+  const opWeeklyScheduleTimes = op.esquema_horario || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+  const opWeeklyBreakInicioTimes = op.esquema_break_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+  const opWeeklyBreakFinTimes = op.esquema_break_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
 
   setCurrentWeeklyData(opWeekly, opWeeklyScheduleTimes, opWeeklyBreakInicioTimes, opWeeklyBreakFinTimes);
 

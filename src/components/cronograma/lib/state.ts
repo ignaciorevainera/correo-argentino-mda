@@ -115,16 +115,16 @@ class CronogramaState {
         // Return default templates if empty
         return {
           "Estándar P/HO Alternado": {
-            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           },
           "100% Presencial": {
-            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.PresencialMonteGrande, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.PresencialMonteGrande, Viernes: OperatorStatus.PresencialMonteGrande, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.PresencialMonteGrande, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.PresencialMonteGrande, Viernes: OperatorStatus.PresencialMonteGrande },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           },
           "100% Home Office": {
-            dias: { Lunes: OperatorStatus.HomeOffice, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.HomeOffice, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.HomeOffice, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00", Sabado: "", Domingo: "" }
+            dias: { Lunes: OperatorStatus.HomeOffice, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.HomeOffice, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.HomeOffice },
+            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           }
         };
       }

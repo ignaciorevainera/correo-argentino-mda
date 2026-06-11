@@ -4,12 +4,12 @@ import { formatYMD, formatTimeInput, formatScheduleInput } from './utils';
 import { OperatorStatus } from './types';
 import { showToast, showConfirm, showPrompt } from './notifications';
 
-export let currentWeeklyScheme: Record<string, OperatorStatus> = { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco, Sabado: OperatorStatus.Franco, Domingo: OperatorStatus.Franco };
-export let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-export let currentWeeklyBreakInicioTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
-export let currentWeeklyBreakFinTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" };
+export let currentWeeklyScheme: Record<string, OperatorStatus> = { Lunes: OperatorStatus.Franco, Martes: OperatorStatus.Franco, Miercoles: OperatorStatus.Franco, Jueves: OperatorStatus.Franco, Viernes: OperatorStatus.Franco };
+export let currentWeeklyScheduleTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+export let currentWeeklyBreakInicioTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
+export let currentWeeklyBreakFinTimes: Record<string, string> = { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" };
 
-export const daysName = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
+export const daysName = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
 
 export function setCurrentWeeklyData(
   scheme: Record<string, OperatorStatus>,
@@ -130,8 +130,8 @@ export function handleTemplateSelectChange(name: string) {
   if (name && templates[name]) {
     currentWeeklyScheme = { ...templates[name].dias };
     currentWeeklyScheduleTimes = { ...templates[name].horarios };
-    currentWeeklyBreakInicioTimes = { ...(templates[name].breaks_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
-    currentWeeklyBreakFinTimes = { ...(templates[name].breaks_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "", Sabado: "", Domingo: "" }) };
+    currentWeeklyBreakInicioTimes = { ...(templates[name].breaks_inicio || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" }) };
+    currentWeeklyBreakFinTimes = { ...(templates[name].breaks_fin || { Lunes: "", Martes: "", Miercoles: "", Jueves: "", Viernes: "" }) };
     renderWeeklyDaysList();
     
     if (customActions) {
@@ -312,6 +312,11 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
       const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
       const dateObj = new Date(year, month, d);
       const dayName = dayNames[dateObj.getDay()];
+
+      // Skip weekends as they are managed via rotation and overtime view
+      if (dayName === "Sabado" || dayName === "Domingo") {
+        continue;
+      }
 
       const status = currentWeeklyScheme[dayName] || "Franco";
       let horario = "";
