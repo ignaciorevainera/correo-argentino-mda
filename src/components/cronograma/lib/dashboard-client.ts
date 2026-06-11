@@ -1940,6 +1940,15 @@ function renderRotationTimeline(dateStr: string): void {
   const activeGroup = getActiveGroupForDate(dateStr);
   if (groupDisplay) {
     groupDisplay.textContent = activeGroup ? `Grupo ${activeGroup}` : 'Sin grupo';
+    if (activeGroup) {
+      const displayBorderClasses: Record<string, string> = {
+        A: 'bg-success/10 border-success/20 text-success',
+        B: 'bg-error/10 border-error/20 text-error',
+        C: 'bg-warning/10 border-warning/20 text-warning',
+        D: 'bg-info/10 border-info/20 text-info'
+      };
+      groupDisplay.className = `flex h-8 items-center px-3 py-1.5 rounded-lg border font-bold text-xs shadow-sm select-none ${displayBorderClasses[activeGroup] || 'bg-secondary/10 border-secondary/20 text-secondary'}`;
+    }
   }
 
   if (!activeGroup) {
@@ -1969,6 +1978,22 @@ function renderRotationTimeline(dateStr: string): void {
   groupOps.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const hours = [7, 8, 9, 10, 11, 12];
+  
+  const groupBgClasses: Record<string, string> = {
+    A: 'bg-success/10',
+    B: 'bg-error/10',
+    C: 'bg-warning/10',
+    D: 'bg-info/10'
+  };
+  const groupBadgeClasses: Record<string, string> = {
+    A: 'bg-success text-white',
+    B: 'bg-error text-white',
+    C: 'bg-warning text-warning-content',
+    D: 'bg-info text-white'
+  };
+
+  const cellBgClass = groupBgClasses[activeGroup] || 'bg-emerald-500/10';
+  const badgeClass = groupBadgeClasses[activeGroup] || 'bg-emerald-500 text-white';
 
   tableBody.innerHTML = groupOps.map(op => {
     const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
@@ -1988,8 +2013,8 @@ function renderRotationTimeline(dateStr: string): void {
 
       if (isWorking) {
         return `
-          <td class="p-2 text-center ${borderClass} bg-emerald-500/10">
-            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-500 text-white font-black text-xs shadow-sm">
+          <td class="p-2 text-center ${borderClass} ${cellBgClass}">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md ${badgeClass} font-black text-xs shadow-sm">
               ${activeGroup}
             </span>
           </td>
