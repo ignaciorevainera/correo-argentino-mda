@@ -5,6 +5,7 @@ import {
   real,
   primaryKey,
   index,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 import { relations } from "drizzle-orm";
@@ -248,6 +249,7 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   audits: many(qualityAudits),
   attendance: many(operatorAttendance),
   weekendOvertimeShifts: many(weekendOvertimeShifts),
+  agentSaturdayGroups: many(agentSaturdayGroups),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -581,10 +583,30 @@ export const operatorAttendanceRelations = relations(
 
 export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  month: text("month").notNull().unique(), // "YYYY-MM"
   rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
   startDate: text("start_date").notNull().default("2026-06-06"),
   startGroup: text("start_group").notNull().default("A"),
 });
+
+export const agentSaturdayGroups = sqliteTable("agent_saturday_groups", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  month: text("month").notNull(), // "YYYY-MM"
+  saturdayGroup: text("saturday_group"),
+  saturdayHorario: text("saturday_horario"),
+}, (table) => ({
+  agentMonthUniqueIdx: uniqueIndex("agent_month_unique_idx").on(table.agentId, table.month),
+}));
+
+export const agentSaturdayGroupsRelations = relations(agentSaturdayGroups, ({ one }) => ({
+  agent: one(agents, {
+    fields: [agentSaturdayGroups.agentId],
+    references: [agents.id],
+  }),
+}));
 
 export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
