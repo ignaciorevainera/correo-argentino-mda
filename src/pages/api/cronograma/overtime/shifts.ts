@@ -61,9 +61,21 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ request }) => {
+export const DELETE: APIRoute = async ({ url, request }) => {
   try {
-    const { id } = await request.json();
+    // Support id from URL query param (e.g. DELETE /shifts?id=5) or from body
+    let id: number | undefined;
+    const qId = url.searchParams.get("id");
+    if (qId) {
+      id = parseInt(qId, 10);
+    } else {
+      try {
+        const body = await request.json();
+        id = body.id;
+      } catch {
+        // no body
+      }
+    }
     if (!id) {
       return new Response(
         JSON.stringify({ error: "id is required" }),
@@ -77,6 +89,33 @@ export const DELETE: APIRoute = async ({ request }) => {
     );
   } catch (error: any) {
     console.error("DELETE overtime shifts API Error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+};
+
+// PUT: explicit update alias (same as POST with id)
+export const PUT: APIRoute = async ({ request }) => {
+  try {
+    const { id, agentId, date, startTime, endTime } = await request.json();
+    if (!id || !agentId || !date || !startTime || !endTime) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    await db
+      .update(weekendOvertimeShifts)
+      .set({ agentId, date, startTime, endTime })
+      .where(eq(weekendOvertimeShifts.id, id));
+    return new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (error: any) {
+    console.error("PUT overtime shifts API Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json" } }
