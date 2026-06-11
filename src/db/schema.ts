@@ -582,3 +582,20 @@ export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
   startDate: text("start_date").notNull().default("2026-06-06"),
   startGroup: text("start_group").notNull().default("A"),
 });
+
+export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekendStartDate: text("weekend_start_date").notNull().unique(), // Sábado "YYYY-MM-DD"
+  referente: text("referente").notNull(),
+});
+
+export const weekendOvertimeShifts = sqliteTable("weekend_overtime_shifts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekendStartDate: text("weekend_start_date").notNull(), // Sábado "YYYY-MM-DD"
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // "YYYY-MM-DD" (Sábado o Domingo)
+  startTime: text("start_time").notNull(), // "HH:MM"
+  endTime: text("end_time").notNull(), // "HH:MM"
+});
