@@ -1,5 +1,5 @@
 import { db } from "@db/index";
-import { provinces, regions, offices } from "@db/schema";
+import { provinces, regions, offices, officeAssets } from "@db/schema";
 import { eq, or, and, sql, inArray, like, asc, desc } from "drizzle-orm";
 import type {
   OfficeDirectoryItem,
@@ -101,14 +101,7 @@ export async function getOffices(params: GetOfficesParams) {
   if (searchFilter) {
     const normalizedSearch = normalizeSearchValue(searchFilter);
     const likeSearch = `%${normalizedSearch}%`;
-    whereConditions.push(
-      or(
-        like(sql`normalize_text(${offices.code})`, likeSearch),
-        like(sql`normalize_text(${offices.name})`, likeSearch),
-        like(sql`normalize_text(${offices.locality})`, likeSearch),
-        like(sql`normalize_text(${offices.parentNis})`, likeSearch),
-      ),
-    );
+    whereConditions.push(like(offices.searchableText, likeSearch));
   }
 
   // Province/Region filter
@@ -171,10 +164,21 @@ export async function getOffices(params: GetOfficesParams) {
     },
     with: {
       assets: true,
+      terminals: true,
       contacts: { with: { contact: true } },
       province: { with: { region: true } },
     },
   });
+
+  // Fetch all manual hostnames globally to deduplicate terminals
+  const allManualHostnamesRows = await db
+    .select({ hostname: officeAssets.hostname })
+    .from(officeAssets)
+    .where(sql`${officeAssets.hostname} IS NOT NULL AND ${officeAssets.hostname} != ''`);
+  
+  const manualHostnames = new Set(
+    allManualHostnamesRows.map((r) => r.hostname?.toLowerCase())
+  );
 
   const officeDirectoryItems: OfficeDirectoryItem[] = dbOffices.map((office) => {
     let mappedType = office.type;
@@ -211,6 +215,16 @@ export async function getOffices(params: GetOfficesParams) {
         hostname: a.hostname ?? "",
         ip: a.ip ?? "",
       })),
+      terminals: (office.terminals ?? [])
+        .filter((t) => {
+          if (!t.hostname) return true;
+          return !manualHostnames.has(t.hostname.toLowerCase());
+        })
+        .map((t) => ({
+          hostname: t.hostname ?? "",
+          ipAddress: t.ipAddress ?? "",
+          operatingSystem: t.operatingSystem ?? "",
+        })),
     };
   });
 

@@ -37,7 +37,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .where(
         and(
           isNotNull(offices.address),
-          like(sql`normalize_text(${offices.address})`, searchPattern)
+          like(offices.searchableText, searchPattern)
         )
       )
       .groupBy(offices.address)

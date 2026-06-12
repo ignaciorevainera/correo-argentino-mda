@@ -29,14 +29,7 @@ export async function getSupportGuides(params: GetSupportGuidesParams) {
   if (searchFilter) {
     const normalizedSearch = searchFilter.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const likeSearch = `%${normalizedSearch}%`;
-    whereConditions.push(
-      or(
-        like(sql`normalize_text(${supportGuides.helpDeskName})`, likeSearch),
-        like(sql`normalize_text(${supportGuides.invgateName})`, likeSearch),
-        like(sql`normalize_text(${supportGuides.route})`, likeSearch),
-        like(sql`normalize_text(${supportGuides.topics})`, likeSearch)
-      )
-    );
+    whereConditions.push(like(supportGuides.searchableText, likeSearch));
   }
 
   const whereClause =

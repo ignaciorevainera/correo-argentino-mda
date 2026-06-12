@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { db } from "../src/db/index";
 import { terminals, offices } from "../src/db/schema";
+import { normalizeSearchValue } from "../src/lib/clientSearch";
 
 const LEGACY_URL = "http://b1842zacs0255/mda/terminales_consulta.php";
 
@@ -100,6 +101,8 @@ async function upsertRecord(
   record: TerminalRecord,
   syncedAt: string,
 ): Promise<void> {
+  const searchableText = normalizeSearchValue([record.hostname, record.ipAddress, record.macAddress].filter(Boolean).join(" "));
+
   await db
     .insert(terminals)
     .values({
@@ -116,6 +119,7 @@ async function upsertRecord(
       nis2: record.nis2,
       lastContact: record.lastContact,
       syncedAt,
+      searchableText,
     })
     .onConflictDoUpdate({
       target: terminals.hostname,
@@ -132,6 +136,7 @@ async function upsertRecord(
         nis2: record.nis2,
         lastContact: record.lastContact,
         syncedAt,
+        searchableText,
       },
     });
 }

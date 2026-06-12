@@ -1,6 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
-import type { TerminalItem, OsFamily } from "@lib/terminalQueries";
+import type { TerminalItem } from "@lib/terminalQueries";
+import { getTerminalColorClass, type OsFamily } from "@lib/terminalHelpers";
 
 type BoxiconName = `boxicons:${string}`;
 
@@ -12,35 +13,8 @@ interface Props {
 const { terminal, terminalRowGridClass = "grid grid-cols-12 items-start" } =
   Astro.props;
 
-const getTerminalColorClass = (item: TerminalItem): string => {
-  const osLower = item.osName.toLowerCase();
-
-  if (osLower.includes("ubuntu") || osLower.includes("debian")) {
-    if (item.isTelegrafia) {
-      return "border-success/30 bg-success/15 text-success";
-    }
-    return "border-error/30 bg-error/15 text-error";
-  }
-
-  if (osLower.includes("windows 10")) {
-    return "border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400";
-  }
-
-  if (osLower.includes("windows 11")) {
-    return "border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400";
-  }
-
-  if (osLower.includes("windows server")) {
-    return "border-blue-900/30 bg-blue-900/15 text-blue-900 dark:text-blue-300";
-  }
-
-  const tones: Record<OsFamily, string> = {
-    windows: "border-info/30 bg-info/15 text-info",
-    linux: "border-success/30 bg-success/15 text-success",
-    legacy: "border-warning/30 bg-warning/15 text-warning",
-  };
-
-  return tones[item.osFamily];
+const getRowColorClass = (item: TerminalItem): string => {
+  return getTerminalColorClass(item.osName, item.isTelegrafia);
 };
 
 const osFamilyLabel: Record<OsFamily, string> = {
@@ -81,7 +55,7 @@ const rowIcons: Record<
     <span
       class:list={[
         "inline-flex size-8 shrink-0 self-center items-center justify-center rounded-lg border text-accent",
-        getTerminalColorClass(terminal),
+        getRowColorClass(terminal),
       ]}
     >
       <Icon name="boxicons:desktop-filled" size={16} />

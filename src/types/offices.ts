@@ -14,6 +14,12 @@ export interface OfficeAsset {
   ip: string;
 }
 
+export interface OfficeTerminal {
+  hostname: string;
+  ipAddress: string;
+  operatingSystem: string;
+}
+
 export interface OfficeDirectoryItem {
   id: string;
   dbId?: number;
@@ -33,4 +39,5 @@ export interface OfficeDirectoryItem {
   parentNis?: string | null;
   contacts: OfficeContact[];
   assets: OfficeAsset[];
+  terminals: OfficeTerminal[];
 }

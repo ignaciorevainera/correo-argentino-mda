@@ -9,12 +9,13 @@ import SearchInput from "@components/ui/SearchInput.astro";
 import CopyButton from "@components/ui/CopyButton.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import TerminalRow from "@components/inventario/TerminalRow.astro";
-import {
-  getActiveMachineCount,
-  type CubicStatus,
-} from "@lib/cubics";
+import { getActiveMachineCount, type CubicStatus } from "@lib/cubics";
 import { db } from "@db/index";
-import { terminals as terminalsTable, agents, operatorAttendance } from "@db/schema";
+import {
+  terminals as terminalsTable,
+  agents,
+  operatorAttendance,
+} from "@db/schema";
 import { getTerminals } from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 import { and, eq } from "drizzle-orm";
@@ -88,7 +89,9 @@ const statusCopy: Record<CubicStatus, string> = {
   offline: "Offline",
 };
 
-const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+const todayStr = new Date().toLocaleDateString("en-CA", {
+  timeZone: "America/Argentina/Buenos_Aires",
+});
 
 const allAgents = await db
   .select({
@@ -101,8 +104,8 @@ const allAgents = await db
     operatorAttendance,
     and(
       eq(operatorAttendance.agentId, agents.id),
-      eq(operatorAttendance.date, todayStr)
-    )
+      eq(operatorAttendance.date, todayStr),
+    ),
   );
 
 const agentShiftMap = new Map<number, "Diurno" | "Nocturno">();
@@ -140,7 +143,7 @@ const inventoryTabs = [
     />
   </div>
 
-  <div class="flex flex-col gap-4 w-full mt-4">
+  <div class="flex flex-col gap-4 w-full mt-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
     <!-- Contenedor de Filtros (Fila Superior) -->
     <div class="w-full">
       <!-- Filtros para Terminales -->
@@ -330,11 +333,25 @@ const inventoryTabs = [
         id="header-search-terminales"
         class="w-full transition-opacity duration-300"
       >
-        <SearchInput
-          id="terminal-search"
-          label="Buscar terminal por hostname, dirección IP, MAC o sucursal"
-          placeholder="Buscar por hostname, IP, MAC o sucursal"
-        />
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+          <div class="w-full">
+            <SearchInput
+              id="terminal-search"
+              label="Buscar terminal por hostname, dirección IP, MAC o sucursal"
+              placeholder="Buscar por hostname, IP, MAC o sucursal"
+            />
+          </div>
+          <a
+            href={import.meta.env.BASE_URL + "api/export/terminals"}
+            class="btn btn-primary font-semibold shadow-sm shrink-0 gap-2"
+            aria-label="Exportar terminales a CSV"
+            download
+          >
+            <Icon name="boxicons:file-detail-filled" class="size-5" />
+            <span class="hidden sm:inline">Exportar CSV</span>
+            <span class="sm:hidden">CSV</span>
+          </a>
+        </div>
       </div>
 
       <div
@@ -450,9 +467,7 @@ const inventoryTabs = [
         rowGridClass={cubicRowGridClass}
       >
         <div slot="header" class="col-span-4">
-          <DataTableHeaderCell sortKey="hostname"
-            >Hostname</DataTableHeaderCell
-          >
+          <DataTableHeaderCell sortKey="hostname">Hostname</DataTableHeaderCell>
         </div>
         <div slot="header" class="col-span-3">
           <DataTableHeaderCell sortKey="ip">Dirección IP</DataTableHeaderCell>
@@ -553,7 +568,8 @@ const inventoryTabs = [
                   <div class="flex items-center gap-2">
                     {machine.assignments.length > 0 ? (
                       machine.assignments.map((assignment) => {
-                        const shift = agentShiftMap.get(assignment.agent.id) || "Diurno";
+                        const shift =
+                          agentShiftMap.get(assignment.agent.id) || "Diurno";
                         return (
                           <OperatorAvatar
                             name={assignment.agent.name}
@@ -602,9 +618,7 @@ const inventoryTabs = [
   const switcher = document.getElementById("inventory-view-switcher");
   const viewTerminales = document.getElementById("view-terminales");
   const viewCubics = document.getElementById("view-cubics");
-  const searchTerminales = document.getElementById(
-    "header-search-terminales",
-  );
+  const searchTerminales = document.getElementById("header-search-terminales");
   const searchCubics = document.getElementById("header-search-cubics");
   const rightTerminales = document.getElementById("header-right-terminales");
   const rightCubics = document.getElementById("header-right-cubics");
@@ -761,8 +775,11 @@ const inventoryTabs = [
         }
       }
 
-      const rowCount = terminalsContainer?.querySelectorAll("[data-terminal-row]").length ?? 0;
-      const noResultsState = document.getElementById("no-results-state-terminales");
+      const rowCount =
+        terminalsContainer?.querySelectorAll("[data-terminal-row]").length ?? 0;
+      const noResultsState = document.getElementById(
+        "no-results-state-terminales",
+      );
       const tableWrapper = document.getElementById("terminals-table-wrapper");
 
       if (noResultsState && tableWrapper) {
@@ -868,7 +885,9 @@ const inventoryTabs = [
     fetchTerminals(true);
   });
 
-  const btnClearEmptyTerminales = document.getElementById("btn-clear-empty-terminales");
+  const btnClearEmptyTerminales = document.getElementById(
+    "btn-clear-empty-terminales",
+  );
   btnClearEmptyTerminales?.addEventListener("click", () => {
     btnClearTerminales?.click();
   });

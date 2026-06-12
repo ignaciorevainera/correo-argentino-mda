@@ -30,98 +30,105 @@ export const server = {
       };
 
       try {
-        db.transaction((tx) => {
-          for (const param of input.parameters) {
-            if (param.id) {
-              // Existing parameter
-              if (param.isDeleted) {
-                // Check if used in auditScores
-                const scores = tx.select()
-                  .from(auditScores)
-                  .where(eq(auditScores.parameterId, param.id))
-                  .limit(1)
-                  .all();
-                const hasScores = scores.length > 0;
+        const inputIds = input.parameters.map(p => p.id).filter((id): id is number => id !== null && id !== undefined);
 
-                if (!hasScores) {
-                  // Hard delete
-                  tx.delete(auditParameters)
-                    .where(eq(auditParameters.id, param.id))
-                    .run();
-                } else {
-                  // Soft delete
-                  tx.update(auditParameters)
-                    .set({ active: false })
-                    .where(eq(auditParameters.id, param.id))
-                    .run();
-                }
+        // 1. Pre-cargar datos si hay IDs existentes
+        let existingParamsMap = new Map();
+        let paramsWithScoresSet = new Set<number>();
+
+        if (inputIds.length > 0) {
+          const existingParams = await db.select()
+            .from(auditParameters)
+            .where(inArray(auditParameters.id, inputIds));
+            
+          existingParams.forEach(p => existingParamsMap.set(p.id, p));
+
+          const scores = await db.select({ parameterId: auditScores.parameterId })
+            .from(auditScores)
+            .where(inArray(auditScores.parameterId, inputIds));
+            
+          scores.forEach(s => paramsWithScoresSet.add(s.parameterId));
+        }
+
+        // 2. Clasificar operaciones
+        const hardDeletes: number[] = [];
+        const softDeletes: number[] = [];
+        const inserts: any[] = [];
+        const updates: any[] = [];
+
+        for (const param of input.parameters) {
+          if (param.id) {
+            if (param.isDeleted) {
+              if (!paramsWithScoresSet.has(param.id)) {
+                hardDeletes.push(param.id);
               } else {
-                // Edit parameter
-                const [current] = tx.select()
-                  .from(auditParameters)
-                  .where(eq(auditParameters.id, param.id))
-                  .all();
-
-                if (current) {
-                  const changed = current.name !== param.name || 
-                                  current.weight !== param.weight || 
-                                  current.category !== param.category;
-
-                  if (changed) {
-                    // Check if used in auditScores
-                    const scores = tx.select()
-                      .from(auditScores)
-                      .where(eq(auditScores.parameterId, param.id))
-                      .limit(1)
-                      .all();
-                    const hasScores = scores.length > 0;
-
-                    if (!hasScores) {
-                      // Edit in-place
-                      tx.update(auditParameters)
-                        .set({
-                          name: param.name,
-                          weight: param.weight,
-                          category: param.category
-                        })
-                        .where(eq(auditParameters.id, param.id))
-                        .run();
-                    } else {
-                      // Soft delete current and insert new version
-                      tx.update(auditParameters)
-                        .set({ active: false })
-                        .where(eq(auditParameters.id, param.id))
-                        .run();
-
-                      const newCode = generateCode(param.name);
-                      tx.insert(auditParameters)
-                        .values({
-                          code: newCode,
-                          name: param.name,
-                          weight: param.weight,
-                          category: param.category,
-                          active: true
-                        })
-                        .run();
-                    }
+                softDeletes.push(param.id);
+              }
+            } else {
+              const current = existingParamsMap.get(param.id);
+              if (current) {
+                const changed = current.name !== param.name || 
+                                current.weight !== param.weight || 
+                                current.category !== param.category;
+                
+                if (changed) {
+                  if (!paramsWithScoresSet.has(param.id)) {
+                    // Update in-place
+                    updates.push({
+                      id: param.id,
+                      name: param.name,
+                      weight: param.weight,
+                      category: param.category
+                    });
+                  } else {
+                    // Soft delete current and insert new version
+                    softDeletes.push(param.id);
+                    inserts.push({
+                      code: generateCode(param.name),
+                      name: param.name,
+                      weight: param.weight,
+                      category: param.category,
+                      active: true
+                    });
                   }
                 }
               }
-            } else if (!param.isDeleted) {
-              // New parameter
-              const newCode = generateCode(param.name);
-              tx.insert(auditParameters)
-                .values({
-                  code: newCode,
-                  name: param.name,
-                  weight: param.weight,
-                  category: param.category,
-                  active: true
-                })
-                .run();
             }
+          } else if (!param.isDeleted) {
+            // New parameter
+            inserts.push({
+              code: generateCode(param.name),
+              name: param.name,
+              weight: param.weight,
+              category: param.category,
+              active: true
+            });
+          }
+        }
+
+        // 3. Ejecutar bloque transaccional rápido (Write-only)
+        db.transaction((tx) => {
+          if (hardDeletes.length > 0) {
+            tx.delete(auditParameters).where(inArray(auditParameters.id, hardDeletes)).run();
+          }
+          
+          if (softDeletes.length > 0) {
+            tx.update(auditParameters).set({ active: false }).where(inArray(auditParameters.id, softDeletes)).run();
+          }
+          
+          if (inserts.length > 0) {
+            tx.insert(auditParameters).values(inserts).run();
+          }
+          
+          for (const up of updates) {
+            tx.update(auditParameters).set({
+              name: up.name,
+              weight: up.weight,
+              category: up.category
+            }).where(eq(auditParameters.id, up.id)).run();
           }
         });
+        
         return { success: true };
       } catch (error: any) {
         console.error("Error saving parameters:", error);

@@ -53,6 +53,7 @@ export const offices = sqliteTable("offices", {
   enRed: integer("enRed", { mode: "boolean" }).default(false),
   paqarAdmision: integer("paqarAdmision", { mode: "boolean" }).default(false),
   paqarEntrega: integer("paqarEntrega", { mode: "boolean" }).default(false),
+  searchableText: text("searchable_text"),
 }, (table) => ({
   nameIdx: index("name_idx").on(table.name),
   localityIdx: index("locality_idx").on(table.locality),
@@ -528,6 +529,7 @@ export const terminals = sqliteTable("terminals", {
   nis2: text("nis2"),
   lastContact: text("last_contact"),
   syncedAt: text("synced_at"),
+  searchableText: text("searchable_text"),
 });
 
 export const terminalsRelations = relations(terminals, ({ one }) => ({
@@ -547,6 +549,7 @@ export const supportGuides = sqliteTable("support_guides", {
   contacts: text("contacts"),
   referents: text("referents"),
   notes: text("notes"),
+  searchableText: text("searchable_text"),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {

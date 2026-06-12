@@ -2,6 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 import { db } from "./db/index";
 import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
+import { verifySessionId, deleteSessionCookie } from "./lib/session";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { cookies, url, redirect, locals } = context;
@@ -33,7 +34,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     role: "agent",
   };
 
-  const sessionId = cookies.get("session_id")?.value;
+  const signedSessionId = cookies.get("session_id")?.value;
+  let sessionId: string | null = null;
+
+  if (signedSessionId) {
+    sessionId = verifySessionId(signedSessionId);
+  }
 
   if (sessionId) {
     const [session] = await db
@@ -51,13 +57,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
         currentUser = dbUser;
       }
     } else {
-      cookies.delete("session_id", { path: "/" });
+      deleteSessionCookie(cookies);
       if (session) {
         await db.delete(sessions).where(eq(sessions.id, sessionId));
       }
       if (relativePath !== "/login") {
         return redirect(resolveUrl("/login"));
       }
+    }
+  } else if (signedSessionId) {
+    deleteSessionCookie(cookies);
+    if (relativePath !== "/login") {
+      return redirect(resolveUrl("/login"));
     }
   }
 

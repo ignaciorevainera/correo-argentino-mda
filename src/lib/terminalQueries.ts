@@ -3,7 +3,8 @@ import { terminals, offices, provinces, regions } from "@db/schema";
 import { eq, like, or, and, sql, gte, lt, isNull, asc, desc } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
-export type OsFamily = "windows" | "linux" | "legacy";
+import { type OsFamily, toOsFamily } from "@lib/terminalHelpers";
+export type { OsFamily };
 
 export type TerminalSortKey = "hostname" | "hardware" | "os" | "location";
 export type SortOrder = "asc" | "desc";
@@ -50,17 +51,7 @@ const monthLabels = [
   "Dic",
 ];
 
-const toOsFamily = (osName: string): OsFamily => {
-  const normalized = osName.toLowerCase();
-  if (
-    normalized.includes("ubuntu") ||
-    normalized.includes("linux") ||
-    normalized.includes("debian")
-  )
-    return "linux";
-  if (normalized.includes("windows")) return "windows";
-  return "legacy";
-};
+
 
 const parseLastContact = (
   lastContact: string,
@@ -122,10 +113,8 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     const searchPattern = `%${normalizedSearch}%`;
     filters.push(
       or(
-        like(sql`normalize_text(${terminals.hostname})`, searchPattern),
-        like(sql`normalize_text(${terminals.ipAddress})`, searchPattern),
-        like(sql`normalize_text(${terminals.macAddress})`, searchPattern),
-        like(sql`normalize_text(${offices.name})`, searchPattern)
+        like(terminals.searchableText, searchPattern),
+        like(offices.searchableText, searchPattern)
       )
     );
   }

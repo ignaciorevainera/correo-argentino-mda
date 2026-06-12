@@ -4,6 +4,7 @@ import { users, sessions } from "@db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { generateSessionId, signSessionId, setSessionCookie } from "../../lib/session";
 import { Icon } from "astro-icon/components";
 
 if (Astro.locals.user.id !== 0) {
@@ -30,21 +31,18 @@ if (Astro.request.method === "POST") {
       );
 
       if (isPasswordValid) {
-        const sessionId = crypto.randomUUID();
-
-        const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
+        const sessionId = generateSessionId();
+        const expiresAtMs = Date.now() + 1000 * 60 * 60 * 24 * 7;
+        const expiresAtDate = new Date(expiresAtMs);
 
         await db.insert(sessions).values({
           id: sessionId,
           userId: userFound.id,
-          expiresAt: expiresAt,
+          expiresAt: expiresAtMs,
         });
 
-        Astro.cookies.set("session_id", sessionId, {
-          path: "/",
-          httpOnly: true,
-          maxAge: 60 * 60 * 24 * 7,
-        });
+        const signedId = signSessionId(sessionId);
+        setSessionCookie(Astro.cookies, signedId, expiresAtDate);
 
         return Astro.redirect(import.meta.env.BASE_URL || "/");
       } else {

@@ -1,0 +1,168 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="sync-dashboard">
+  <!-- Card 1: Sincronización de Terminales -->
+  <div class="stat bg-base-100 shadow rounded-box flex items-center justify-between p-6 border border-base-200">
+    <div class="flex-1 min-w-0">
+      <div class="stat-title text-sm font-medium text-base-content/70 truncate">Sincronización de Terminales</div>
+      <div class="stat-value text-lg font-bold mt-1 text-base-content" id="sync-status">Cargando...</div>
+      <div class="stat-desc text-xs text-base-content/60 mt-1 truncate" id="sync-desc">Esperando datos...</div>
+    </div>
+    <div class="text-base-content/30 p-2 shrink-0 ml-4" id="sync-icon-container">
+      <Icon name="boxicons:history" size={32} class="transition-transform duration-1000" />
+    </div>
+  </div>
+
+  <!-- Card 2: Monitoreo de Cubics (Ping) -->
+  <div class="stat bg-base-100 shadow rounded-box flex items-center justify-between p-6 border border-base-200">
+    <div class="flex-1 min-w-0">
+      <div class="stat-title text-sm font-medium text-base-content/70 truncate">Monitoreo de Cubics (Ping)</div>
+      <div class="stat-value text-lg font-bold mt-1 text-base-content" id="ping-status">Cargando...</div>
+      <div class="stat-desc text-xs text-base-content/60 mt-1 truncate" id="ping-desc">Esperando datos...</div>
+    </div>
+    <div class="text-base-content/30 p-2 shrink-0 ml-4" id="ping-icon-container">
+      <Icon name="boxicons:desktop-filled" size={32} />
+    </div>
+  </div>
+</div>
+
+<script>
+  async function updateDashboard() {
+    try {
+      const res = await fetch("/api/admin/sync-status");
+      if (!res.ok) throw new Error("Error en la respuesta de la API");
+      
+      const data = await res.json();
+      
+      const syncStatusEl = document.getElementById("sync-status");
+      const syncDescEl = document.getElementById("sync-desc");
+      const syncIconContainer = document.getElementById("sync-icon-container");
+      
+      const pingStatusEl = document.getElementById("ping-status");
+      const pingDescEl = document.getElementById("ping-desc");
+      const pingIconContainer = document.getElementById("ping-icon-container");
+
+      const formatDate = (isoString: string | null) => {
+        if (!isoString) return "Nunca";
+        try {
+          const date = new Date(isoString);
+          return date.toLocaleString("es-AR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+        } catch {
+          return "Fecha inválida";
+        }
+      };
+
+      // 1. Actualizar Sincronización de Terminales
+      if (data.sync) {
+        let statusText = "Detenido";
+        let statusClass = "stat-value text-lg text-error";
+        let iconClass = "text-error";
+        let isSpinning = false;
+
+        if (data.sync.status === "online") {
+          statusText = "En Ejecución";
+          statusClass = "stat-value text-lg text-success";
+          iconClass = "text-success";
+          isSpinning = true;
+        } else if (data.sync.lastStatus === "error") {
+          statusText = "Fallo de Sincronización";
+          statusClass = "stat-value text-lg text-error font-bold";
+          iconClass = "text-error";
+        } else if (data.sync.lastStatus === "success") {
+          statusText = "Sincronizado";
+          statusClass = "stat-value text-lg text-success";
+          iconClass = "text-success";
+        }
+
+        if (syncStatusEl) {
+          syncStatusEl.textContent = statusText;
+          syncStatusEl.className = statusClass;
+        }
+
+        if (syncDescEl) {
+          let descText = `Última sincronización: ${formatDate(data.sync.lastExecution)}`;
+          if (data.sync.error) {
+            descText += ` - Error: ${data.sync.error}`;
+          }
+          syncDescEl.textContent = descText;
+          syncDescEl.title = descText; // Tooltip para ver completo si se trunca
+        }
+
+        if (syncIconContainer) {
+          syncIconContainer.className = `p-2 shrink-0 ml-4 ${iconClass}`;
+          const iconEl = syncIconContainer.querySelector("svg");
+          if (iconEl) {
+            if (isSpinning) {
+              iconEl.classList.add("animate-spin");
+            } else {
+              iconEl.classList.remove("animate-spin");
+            }
+          }
+        }
+      }
+
+      // 2. Actualizar Monitoreo de Cubics
+      if (data.ping) {
+        let statusText = "Inactivo";
+        let statusClass = "stat-value text-lg text-error";
+        let iconClass = "text-error";
+        let isPulse = false;
+
+        if (data.ping.status === "online") {
+          statusText = "Activo";
+          statusClass = "stat-value text-lg text-success";
+          iconClass = "text-success";
+          isPulse = true;
+        }
+
+        if (pingStatusEl) {
+          pingStatusEl.textContent = statusText;
+          pingStatusEl.className = statusClass;
+        }
+
+        if (pingDescEl) {
+          const descText = `Último ping registrado: ${formatDate(data.ping.lastPing)}`;
+          pingDescEl.textContent = descText;
+          pingDescEl.title = descText;
+        }
+
+        if (pingIconContainer) {
+          pingIconContainer.className = `p-2 shrink-0 ml-4 ${iconClass}`;
+          const iconEl = pingIconContainer.querySelector("svg");
+          if (iconEl) {
+            if (isPulse) {
+              iconEl.classList.add("animate-pulse");
+            } else {
+              iconEl.classList.remove("animate-pulse");
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[SyncDashboard] Error al actualizar estado:", err);
+      const syncStatusEl = document.getElementById("sync-status");
+      const pingStatusEl = document.getElementById("ping-status");
+      if (syncStatusEl) {
+        syncStatusEl.textContent = "Error de Conexión";
+        syncStatusEl.className = "stat-value text-lg text-warning";
+      }
+      if (pingStatusEl) {
+        pingStatusEl.textContent = "Error de Conexión";
+        pingStatusEl.className = "stat-value text-lg text-warning";
+      }
+    }
+  }
+
+  // Ejecución inicial y programación de polling cada 30 segundos
+  updateDashboard();
+  document.addEventListener("astro:page-load", updateDashboard); // Compatibilidad con transiciones de Astro si se usan
+  setInterval(updateDashboard, 30000);
+</script>
