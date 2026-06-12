@@ -177,8 +177,6 @@ const mainTabs = [
   { label: "Directorio de Oficinas", value: "directory" },
   { label: "Mapa de Regiones", value: "map" },
 ];
-
-const sucursales: any[] = [];
 ---
 
 <!-- Hoja de estilos de Leaflet (requerida por la librería) -->
@@ -420,6 +418,10 @@ const sucursales: any[] = [];
         id="view-map"
         class="bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0 transition-all duration-500"
       >
+        <div id="map-loading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-base-100/80 backdrop-blur-sm" style="display: none;">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+          <p class="mt-4 font-semibold text-base-content/70">Cargando datos geográficos...</p>
+        </div>
         <div id="mapa-sucursales" class="h-[600px] w-full z-0 relative"></div>
       </section>
 
@@ -450,12 +452,7 @@ const sucursales: any[] = [];
   </div>
 </PageContainer>
 
-<!-- Data para client-side (Astro Islands) -->
-<script is:inline define:vars={{ sucursales, provincesByRegion, typeFilter }}>
-  window._SUCURSALES_DATA = sucursales;
-  window._PROVINCES_BY_REGION = provincesByRegion;
-  window._TYPE_FILTER = typeFilter;
-</script>
+<!-- Removed SSR injected variables for map -->
 
 <script
   is:inline
@@ -668,10 +665,28 @@ const sucursales: any[] = [];
   };
 
   let map: any = null;
-  const initializeMap = () => {
+  const initializeMap = async () => {
     if (map) return;
-    const dataMap = (window as any)._SUCURSALES_DATA || [];
-    const provincesData = (window as any)._PROVINCES_BY_REGION || {};
+    
+    const mapLoading = document.getElementById("map-loading");
+    if (mapLoading) mapLoading.style.display = "flex";
+
+    let dataMap = [];
+    let provincesData = {};
+
+    try {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${baseUrl}/api/offices-map-data`);
+      if (res.ok) {
+        const json = await res.json();
+        dataMap = json.sucursales || [];
+        provincesData = json.provincesByRegion || {};
+      }
+    } catch (err) {
+      console.error("Error fetching map data:", err);
+    } finally {
+      if (mapLoading) mapLoading.style.display = "none";
+    }
 
     const provinceToRegion: Record<string, string> = {};
     const regionsArray: string[] = [];
@@ -901,8 +916,8 @@ const sucursales: any[] = [];
       });
 
     dataMap.forEach((sucursal: any) => {
-      const { lat, lng } = sucursal.ubicación;
-      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${sucursal.ubicación.nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${sucursal.nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex justify-between items-center bg-gray-50 px-2 py-1 rounded"><span class="font-semibold text-gray-500">Región</span><span class="font-bold text-gray-800">${sucursal.region}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Equipos PC</span><span class="font-bold text-gray-700">${sucursal.cantidad_pc}</span></div><div class="flex justify-between items-center px-2 py-0.5"><span class="text-gray-500">Servidores</span><span class="font-bold text-gray-700">${sucursal.servidores}</span></div><div class="flex justify-between pt-1.5 mt-1.5 border-t border-gray-100 px-2"><span class="text-gray-500">Contacto</span><a href="tel:${sucursal.contacto}" class="text-blue-600 font-bold hover:underline">${sucursal.contacto}</a></div></div></div>`;
+      const { lat, lng, nombre, nis, direccion } = sucursal;
+      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex flex-col gap-0.5"><span class="font-semibold text-gray-500">Dirección</span><span class="text-gray-800 font-medium">${direccion}</span></div></div></div>`;
       L.marker([lat, lng], { icon: sucursalMarkerIcon })
         .addTo(grupoSucursales)
         .bindPopup(popupContent, { className: "custom-popup" });
@@ -918,10 +933,9 @@ const sucursales: any[] = [];
     } else if (value === "map") {
       mainViewDir?.classList.add("hidden");
       mainViewMap?.classList.remove("hidden");
-      initializeMap();
-      setTimeout(() => {
+      initializeMap().then(() => {
         if (map) map.invalidateSize();
-      }, 100);
+      });
     }
   });
 
