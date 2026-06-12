@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../src/db/index";
 import { offices } from "../src/db/schema";
+import { normalizeSearchValue } from "../src/lib/clientSearch";
 
 const SUB_MAP: Record<string, string> = {
   // Order of insertion is critical to avoid partial matches on substrings:
@@ -178,12 +179,15 @@ async function run() {
 
   const allOffices = await db.select({
     id: offices.id,
+    code: offices.code,
     name: offices.name,
+    parentNis: offices.parentNis,
     address: offices.address,
     street: offices.street,
     locality: offices.locality,
     county: offices.county,
-    zone: offices.zone
+    zone: offices.zone,
+    searchableText: offices.searchableText
   }).from(offices);
 
   let updatedCount = 0;
@@ -197,13 +201,18 @@ async function run() {
     const nextCounty = normalizeField(office.id, office.county);
     const nextZone = normalizeField(office.id, office.zone);
 
+    const nextSearchableText = normalizeSearchValue(
+      [office.code, nextName, nextLocality, office.parentNis, nextAddress].filter(Boolean).join(" ")
+    );
+
     const hasChanges = 
       office.name !== nextName ||
       office.address !== nextAddress ||
       office.street !== nextStreet ||
       office.locality !== nextLocality ||
       office.county !== nextCounty ||
-      office.zone !== nextZone;
+      office.zone !== nextZone ||
+      office.searchableText !== nextSearchableText;
 
     if (hasChanges) {
       updatedCount++;
@@ -214,6 +223,7 @@ async function run() {
       if (office.locality !== nextLocality) changeLog.push(`locality: "${office.locality}" -> "${nextLocality}"`);
       if (office.county !== nextCounty) changeLog.push(`county: "${office.county}" -> "${nextCounty}"`);
       if (office.zone !== nextZone) changeLog.push(`zone: "${office.zone}" -> "${nextZone}"`);
+      if (office.searchableText !== nextSearchableText) changeLog.push(`searchableText: "${office.searchableText}" -> "${nextSearchableText}"`);
 
       console.log(`[ID: ${office.id}] Changes:\n  ${changeLog.join("\n  ")}`);
 
@@ -225,7 +235,8 @@ async function run() {
             street: nextStreet,
             locality: nextLocality,
             county: nextCounty,
-            zone: nextZone
+            zone: nextZone,
+            searchableText: nextSearchableText
           })
           .where(eq(offices.id, office.id));
       }
