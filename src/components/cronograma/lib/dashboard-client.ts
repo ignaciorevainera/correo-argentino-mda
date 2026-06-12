@@ -1371,7 +1371,6 @@ function renderMonthly(): void {
       tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
         <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
-            <input type="checkbox" class="op-checkbox checkbox checkbox-xs checkbox-primary ${state.isEditMode ? '' : 'hidden'}" data-op-checkbox="${escapeHtml(op.nombre)}" />
             <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
@@ -1781,6 +1780,16 @@ function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'over
   } else {
     switchToPasivaBtn?.classList.add(...activeClasses);
     [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn, switchToOvertimeBtn].forEach(b => b?.classList.add(...inactiveClasses));
+  }
+
+  // Hide toolbars if we switch away from their respective views
+  const editToolbar = document.getElementById('edit-mode-toolbar');
+  const pasivaToolbar = document.getElementById('pasiva-edit-toolbar');
+  if (editToolbar && activeView !== 'monthly' && activeView !== 'daily') {
+    editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+  }
+  if (pasivaToolbar && activeView !== 'pasiva') {
+    pasivaToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
   }
 }
 
@@ -2207,31 +2216,12 @@ function updateLocationFilterActiveStates(): void {
   updateButtonGroupState(dailyButtons, state.activeLocationFilter, LOCATION_FILTER_CONFIG);
 }
 
-function applyBrushToCell(cell: HTMLElement, bypassCheckboxes = false): void {
+function applyBrushToCell(cell: HTMLElement): void {
   const opName = cell.dataset.operator;
   const dateVal = cell.dataset.date;
   const currentStatus = cell.dataset.status;
   
   if (dateVal && isWeekend(dateVal)) return;
-  
-  if (!bypassCheckboxes) {
-     const checkedBoxes = Array.from(document.querySelectorAll('.op-checkbox:checked')) as HTMLInputElement[];
-     if (checkedBoxes.length > 0) {
-        let painted = false;
-        checkedBoxes.forEach(cb => {
-           const checkedOp = cb.dataset.opCheckbox;
-           if (checkedOp) {
-              const safeName = checkedOp.replace(/"/g, '\\"');
-              const targetCell = document.getElementById('monthly-tbody')?.querySelector(`[data-operator="${safeName}"][data-date="${dateVal}"]`);
-              if (targetCell) {
-                 applyBrushToCell(targetCell as HTMLElement, true);
-                 painted = true;
-              }
-           }
-        });
-        if (painted) return;
-     }
-  }
 
   if (!opName || !dateVal || !state.activeBrush || currentStatus === state.activeBrush) return;
 
@@ -2753,6 +2743,91 @@ function setupEventListeners(): void {
     newMonthModal?.showModal();
   });
 
+  // --- Import Handler ---
+  function handleImportCSV(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    target.value = ''; // Reset selection
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const btn = document.getElementById('import-csv-btn');
+    const originalContent = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Procesando...`;
+      (btn as HTMLButtonElement).disabled = true;
+    }
+
+    fetch('/api/cronograma/import', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => {
+      if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Error en importación'); });
+      return res.json();
+    })
+    .then(data => {
+      if (data.edits && Array.isArray(data.edits)) {
+        let appliedCount = 0;
+        data.edits.forEach((edit: any) => {
+          const op = state.cronoData.find(o => o.nombre === edit.agentName);
+          if (op) {
+            const key = `${edit.agentName}_${edit.date}`;
+            const originalStatus = op.asistencia?.[edit.date] || 'Franco';
+            
+            if (edit.status !== originalStatus) {
+              state.pendingEdits[key] = {
+                agentName: edit.agentName,
+                date: edit.date,
+                status: edit.status,
+                originalStatus,
+                horario: edit.horario,
+                breakInicio: edit.breakInicio,
+                breakFin: edit.breakFin
+              };
+              
+              op.asistencia[edit.date] = edit.status;
+              if (edit.horario) {
+                if (!op.horarios_dias) op.horarios_dias = {};
+                op.horarios_dias[edit.date] = edit.horario;
+              }
+              if (edit.breakInicio !== undefined) {
+                if (!op.breaks_inicio) op.breaks_inicio = {};
+                op.breaks_inicio[edit.date] = edit.breakInicio;
+              }
+              if (edit.breakFin !== undefined) {
+                if (!op.breaks_fin) op.breaks_fin = {};
+                op.breaks_fin[edit.date] = edit.breakFin;
+              }
+              appliedCount++;
+            }
+          }
+        });
+
+        if (appliedCount > 0) {
+          updatePendingEditsUI();
+          renderMonthly();
+          showToast(`¡Se cargaron ${appliedCount} cambios desde el CSV! Revise y guarde.`, "success");
+        } else {
+          showToast("El archivo CSV no contiene cambios con respecto al cronograma actual.", "info");
+        }
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      showToast(err.message || "Error al importar CSV", "error");
+    })
+    .finally(() => {
+      if (btn) {
+        btn.innerHTML = originalContent;
+        (btn as HTMLButtonElement).disabled = false;
+      }
+    });
+  }
+
   // --- Premium Exporters ---
   function handleExportCSV() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
@@ -2810,6 +2885,13 @@ function setupEventListeners(): void {
 
   document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
   document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
+
+  const importBtn = document.getElementById('import-csv-btn');
+  const importInput = document.getElementById('import-csv-input') as HTMLInputElement | null;
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', handleImportCSV);
+  }
 
   // --- Maximize Mode Handler ---
   const maxBtn = document.getElementById('maximize-cronograma-btn');
@@ -2908,12 +2990,6 @@ function setupEventListeners(): void {
   });
 
   document.getElementById('discard-edits-btn')?.addEventListener('click', async () => {
-      const pasivaView = document.getElementById('pasiva-view');
-      const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
-      if (isPasivaViewVisible) {
-        discardPasivaChanges();
-        return;
-      }
       state.pendingEdits = {};
       updatePendingEditsUI();
       await discardChanges();
@@ -2921,13 +2997,6 @@ function setupEventListeners(): void {
 
    document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget as HTMLButtonElement;
-      
-      const pasivaView = document.getElementById('pasiva-view');
-      const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
-      if (isPasivaViewVisible) {
-        await savePasivaChanges(btn);
-        return;
-      }
       
       const mergedEditsMap = new Map<string, { agentName: string; date: string; status: string }>();
       
@@ -3690,9 +3759,9 @@ function hasPasivaChanges(): boolean {
 }
 
 function updatePasivaToolbarUI(): void {
-  const editToolbar = document.getElementById('edit-mode-toolbar');
-  const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
-  const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+  const editToolbar = document.getElementById('pasiva-edit-toolbar');
+  const saveBtn = document.getElementById('pasiva-save-btn') as HTMLButtonElement | null;
+  const discardBtn = document.getElementById('pasiva-discard-btn') as HTMLButtonElement | null;
   const hasChanges = hasPasivaChanges();
 
   if (hasChanges) {
@@ -3702,9 +3771,7 @@ function updatePasivaToolbarUI(): void {
     if (saveBtn) saveBtn.disabled = false;
     if (discardBtn) discardBtn.disabled = false;
   } else {
-    const pasivaView = document.getElementById('pasiva-view');
-    const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
-    if (isPasivaViewVisible && editToolbar) {
+    if (editToolbar) {
       editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
     }
   }
@@ -3752,7 +3819,7 @@ async function savePasivaChanges(btn: HTMLButtonElement): Promise<void> {
     updatePasivaToolbarUI();
 
     btn.innerText = "Guardado!";
-    setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+    setTimeout(() => { btn.innerText = "Guardar"; btn.disabled = false; }, 2000);
     showToast("Guardia pasiva guardada con éxito", "success");
 
     await renderPasivaView();
@@ -3765,7 +3832,7 @@ async function savePasivaChanges(btn: HTMLButtonElement): Promise<void> {
       btn.classList.remove('btn-error');
       btn.disabled = false;
     }, 2000);
-    const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+    const discardBtn = document.getElementById('pasiva-discard-btn') as HTMLButtonElement | null;
     if (discardBtn) discardBtn.disabled = false;
     showToast("Error al guardar cambios de guardia pasiva", "error");
   }
@@ -3932,6 +3999,15 @@ document.getElementById('pasiva-monthly-operator-select')?.addEventListener('cha
   const target = e.currentTarget as HTMLSelectElement;
   state.pasivaState.operatorId = target.value ? parseInt(target.value, 10) : null;
   updatePasivaToolbarUI();
+});
+
+document.getElementById('pasiva-discard-btn')?.addEventListener('click', () => {
+  discardPasivaChanges();
+});
+
+document.getElementById('pasiva-save-btn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget as HTMLButtonElement;
+  await savePasivaChanges(btn);
 });
 
 init();

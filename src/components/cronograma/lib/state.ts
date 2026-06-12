@@ -30,7 +30,15 @@ class CronogramaState {
   feriados: Record<string, string> = feriadosJson;
   isEditMode = false;
   activeBrush: string | null = null;
-  pendingEdits: Record<string, { agentName: string; date: string; status: string; originalStatus: string }> = {};
+  pendingEdits: Record<string, {
+    agentName: string;
+    date: string;
+    status: string;
+    originalStatus: string;
+    horario?: string;
+    breakInicio?: string;
+    breakFin?: string;
+  }> = {};
   modifiedSchedules: { agentName: string; date: string; status: string }[] = [];
   searchQuery = '';
   activeFilter = 'all';
@@ -133,25 +141,6 @@ class CronogramaState {
     try {
       const stored = safeGetItem('cronoWeeklyTemplatesV2', '{}');
       const templates = JSON.parse(stored);
-      if (Object.keys(templates).length === 0) {
-        // Return default templates if empty
-        const defaultTemplates = {
-          "Estándar P/HO Alternado": {
-            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
-          },
-          "100% Presencial": {
-            dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.PresencialMonteGrande, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.PresencialMonteGrande, Viernes: OperatorStatus.PresencialMonteGrande },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
-          },
-          "100% Home Office": {
-            dias: { Lunes: OperatorStatus.HomeOffice, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.HomeOffice, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.HomeOffice },
-            horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
-          }
-        };
-        this._cachedWeeklyTemplates = defaultTemplates;
-        return defaultTemplates;
-      }
       this._cachedWeeklyTemplates = templates;
       return templates;
     } catch {
