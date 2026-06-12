@@ -297,6 +297,9 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
   }
   
   try {
+    const applyModeSelect = document.getElementById('apply-weekly-mode') as HTMLSelectElement | null;
+    const mode = applyModeSelect?.value || 'all';
+
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const activeDateStr = dateInput?.value || formatYMD(new Date());
     const [yearStr, monthStr] = activeDateStr.split('-');
@@ -307,7 +310,9 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
     const monthPrefix = `${yearStr}-${monthStr}`;
     const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 
+    const op = state.cronoData.find(o => o.nombre === opName);
     const edits = [];
+    
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
       const dateObj = new Date(year, month, d);
@@ -318,17 +323,29 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
         continue;
       }
 
-      const status = currentWeeklyScheme[dayName] || "Franco";
-      let horario = "";
-      if (currentWeeklyScheduleTimes[dayName]) {
-        horario = currentWeeklyScheduleTimes[dayName];
-      } else if (status !== "Franco") {
-        const op = state.cronoData.find(o => o.nombre === opName);
-        horario = op?.horario || "08:00 - 17:00";
+      // Determine status based on mode
+      let status = op?.asistencia?.[dateStr] || "Franco";
+      if (mode === 'all' || mode === 'days') {
+        status = currentWeeklyScheme[dayName] || "Franco";
       }
 
-      const breakInicio = currentWeeklyBreakInicioTimes[dayName] || "";
-      const breakFin = currentWeeklyBreakFinTimes[dayName] || "";
+      // Determine horario based on mode
+      let horario = op?.horarios_dias?.[dateStr] || op?.horario || "08:00 - 17:00";
+      if (mode === 'all' || mode === 'hours') {
+        if (currentWeeklyScheduleTimes[dayName]) {
+          horario = currentWeeklyScheduleTimes[dayName];
+        } else if (status !== "Franco") {
+          horario = op?.horario || "08:00 - 17:00";
+        }
+      }
+
+      // Determine breaks based on mode
+      let breakInicio = op?.breaks_inicio?.[dateStr] || "";
+      let breakFin = op?.breaks_fin?.[dateStr] || "";
+      if (mode === 'all' || mode === 'hours') {
+        breakInicio = currentWeeklyBreakInicioTimes[dayName] || "";
+        breakFin = currentWeeklyBreakFinTimes[dayName] || "";
+      }
 
       edits.push({
         agentName: opName,
@@ -341,20 +358,28 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
       });
     }
 
-    await saveWeeklySchedules([{
-      agentName: opName,
-      esquema_semanal: currentWeeklyScheme,
-      esquema_horario: currentWeeklyScheduleTimes,
-      esquema_break_inicio: currentWeeklyBreakInicioTimes,
-      esquema_break_fin: currentWeeklyBreakFinTimes
-    }], edits);
+    const wsPayload: any = { agentName: opName };
+    if (mode === 'all' || mode === 'days') {
+      wsPayload.esquema_semanal = currentWeeklyScheme;
+    }
+    if (mode === 'all' || mode === 'hours') {
+      wsPayload.esquema_horario = currentWeeklyScheduleTimes;
+      wsPayload.esquema_break_inicio = currentWeeklyBreakInicioTimes;
+      wsPayload.esquema_break_fin = currentWeeklyBreakFinTimes;
+    }
+
+    await saveWeeklySchedules([wsPayload], edits);
     
     const opIndex = state.cronoData.findIndex(o => o.nombre === opName);
     if (opIndex !== -1) {
-      state.cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
-      state.cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
-      state.cronoData[opIndex].esquema_break_inicio = { ...currentWeeklyBreakInicioTimes };
-      state.cronoData[opIndex].esquema_break_fin = { ...currentWeeklyBreakFinTimes };
+      if (mode === 'all' || mode === 'days') {
+        state.cronoData[opIndex].esquema_semanal = { ...currentWeeklyScheme };
+      }
+      if (mode === 'all' || mode === 'hours') {
+        state.cronoData[opIndex].esquema_horario = { ...currentWeeklyScheduleTimes };
+        state.cronoData[opIndex].esquema_break_inicio = { ...currentWeeklyBreakInicioTimes };
+        state.cronoData[opIndex].esquema_break_fin = { ...currentWeeklyBreakFinTimes };
+      }
     }
     
     showToast("¡Esquema semanal guardado y aplicado con éxito al mes activo!", "success");
