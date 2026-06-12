@@ -1,5 +1,68 @@
 import type { APIRoute } from "astro";
 import { parse } from "csv-parse/sync";
+import { db } from "@/db";
+import { agents } from "@/db/schema";
+
+// Helper to parse Spanish dates like "lunes, 1 de junio de 2026"
+function parseSpanishDate(dateStr: string): string | null {
+  const match = dateStr.match(/(\d+)\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const monthName = match[2].toLowerCase();
+  const year = match[3];
+  
+  const months: Record<string, string> = {
+    enero: "01", febrero: "02", marzo: "03", abril: "04",
+    mayo: "05", junio: "06", julio: "07", agosto: "08",
+    septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12"
+  };
+  
+  const month = months[monthName];
+  if (!month) return null;
+  
+  return `${year}-${month}-${day.toString().padStart(2, '0')}`;
+}
+
+// Robust name matching with DB
+function findMatchingAgent(csvName: string, allAgentNames: string[]): string | null {
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, ' ').trim();
+  const normCsv = normalize(csvName);
+  
+  // Try direct match first (including cases where both have the comma or both do not)
+  for (const name of allAgentNames) {
+    if (normalize(name) === normCsv) return name;
+  }
+  
+  // Generate possible normalized forms for the CSV name
+  const csvForms = [normCsv];
+  if (csvName.includes(',')) {
+    const parts = csvName.split(',');
+    if (parts.length === 2) {
+      csvForms.push(normalize(`${parts[1]} ${parts[0]}`));
+    }
+  }
+  
+  // Compare each CSV form against all DB names and their alternative forms
+  for (const name of allAgentNames) {
+    const normDb = normalize(name);
+    const dbForms = [normDb];
+    if (name.includes(',')) {
+      const parts = name.split(',');
+      if (parts.length === 2) {
+        dbForms.push(normalize(`${parts[1]} ${parts[0]}`));
+      }
+    }
+    
+    // Check if any CSV form matches any DB form
+    for (const cForm of csvForms) {
+      for (const dForm of dbForms) {
+        if (cForm === dForm) return name;
+      }
+    }
+  }
+  
+  return null;
+}
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -10,25 +73,26 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const csvText = await file.text();
+    
+    // Auto-detect delimiter
+    const semicolons = (csvText.match(/;/g) || []).length;
+    const commas = (csvText.match(/,/g) || []).length;
+    const delimiter = semicolons > commas ? ';' : ',';
+
     const records = parse(csvText, {
       skip_empty_lines: true,
       trim: true,
+      delimiter: delimiter,
+      relax_column_count: true
     });
 
     if (records.length === 0) {
       return new Response(JSON.stringify({ error: "El archivo CSV está vacío" }), { status: 400 });
     }
 
-    const headers: string[] = records[0];
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const scheduleRegex = /\[([^\]]+)\]/;
-    const breakRegex = /\(Break:\s*([^\s-]+)\s*-\s*([^\s)]+)\)/;
-
-    const dateColumns = headers.map((h, index) => ({ header: h, index })).filter(col => dateRegex.test(col.header));
-
-    if (dateColumns.length === 0) {
-      return new Response(JSON.stringify({ error: "No se detectaron columnas con formato de fecha YYYY-MM-DD" }), { status: 400 });
-    }
+    // Load database agents to validate and match CSV names
+    const allAgents = await db.select({ name: agents.name }).from(agents);
+    const allAgentNames = allAgents.map(a => a.name);
 
     const parsedEdits: Array<{
       agentName: string;
@@ -49,49 +113,121 @@ export const POST: APIRoute = async ({ request }) => {
       "Vacaciones"
     ];
 
-    for (let i = 1; i < records.length; i++) {
-      const row = records[i];
-      const agentName = row[0]; // First column is Operador
-      if (!agentName) continue;
+    const firstRow: string[] = records[0];
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    
+    // Detect if Format A (has YYYY-MM-DD columns in the first row)
+    const isFormatA = firstRow.some(h => dateRegex.test(h));
 
-      for (const col of dateColumns) {
-        const dateVal = col.header;
-        const cellValue = row[col.index] || "";
-        if (!cellValue) continue;
+    if (isFormatA) {
+      // --- FORMAT A: Exported CSV parser ---
+      const dateColumns = firstRow
+        .map((h, index) => ({ header: h, index }))
+        .filter(col => dateRegex.test(col.header));
 
-        // Find matching status
-        let matchedStatus = "Franco";
-        for (const vs of validStatuses) {
-          if (cellValue.startsWith(vs)) {
-            matchedStatus = vs;
-            break;
+      const scheduleRegex = /\[([^\]]+)\]/;
+      const breakRegex = /\(Break:\s*([^\s-]+)\s*-\s*([^\s)]+)\)/;
+
+      for (let i = 1; i < records.length; i++) {
+        const row = records[i];
+        const rawName = row[0];
+        if (!rawName) continue;
+
+        const matchedAgentName = findMatchingAgent(rawName, allAgentNames);
+        if (!matchedAgentName) continue;
+
+        for (const col of dateColumns) {
+          const dateVal = col.header;
+          const cellValue = row[col.index] || "";
+          if (!cellValue) continue;
+
+          let matchedStatus = "Franco";
+          for (const vs of validStatuses) {
+            if (cellValue.startsWith(vs)) {
+              matchedStatus = vs;
+              break;
+            }
+          }
+
+          let horario = "";
+          const scheduleMatch = cellValue.match(scheduleRegex);
+          if (scheduleMatch) {
+            horario = scheduleMatch[1];
+          }
+
+          let breakInicio = "";
+          let breakFin = "";
+          const breakMatch = cellValue.match(breakRegex);
+          if (breakMatch) {
+            breakInicio = breakMatch[1] === "--:--" ? "" : breakMatch[1];
+            breakFin = breakMatch[2] === "--:--" ? "" : breakMatch[2];
+          }
+
+          parsedEdits.push({
+            agentName: matchedAgentName,
+            date: dateVal,
+            status: matchedStatus,
+            horario,
+            breakInicio,
+            breakFin
+          });
+        }
+      }
+    } else {
+      // --- FORMAT B: Excel original parser ---
+      // 1. Identify date columns in row 0
+      const dateColumns: Array<{ date: string; startIndex: number }> = [];
+      for (let j = 0; j < firstRow.length; j++) {
+        const cell = firstRow[j];
+        if (cell) {
+          const parsedDate = parseSpanishDate(cell);
+          if (parsedDate) {
+            dateColumns.push({ date: parsedDate, startIndex: j });
           }
         }
+      }
 
-        // Parse optional schedule [HH:MM - HH:MM]
-        let horario = "";
-        const scheduleMatch = cellValue.match(scheduleRegex);
-        if (scheduleMatch) {
-          horario = scheduleMatch[1];
+      if (dateColumns.length === 0) {
+        return new Response(JSON.stringify({ error: "No se detectaron cabeceras de fecha con formato de Excel original ('lunes, 1 de junio de 2026') o YYYY-MM-DD" }), { status: 400 });
+      }
+
+      // 2. Parse operator rows (starting from index 2, since index 0 is dates and index 1 is hours)
+      for (let i = 2; i < records.length; i++) {
+        const row = records[i];
+        const rawName = row[0];
+        if (!rawName) continue;
+
+        const matchedAgentName = findMatchingAgent(rawName, allAgentNames);
+        if (!matchedAgentName) continue; // Skip section headers, blank names, etc.
+
+        for (const col of dateColumns) {
+          // Scan the 24 hour columns for this date
+          let dayStatusText = "";
+          for (let offset = 0; offset < 24; offset++) {
+            const cellIndex = col.startIndex + offset;
+            const cellValue = row[cellIndex];
+            if (cellValue && cellValue.trim()) {
+              dayStatusText = cellValue.trim();
+              break; // Take the first status found in this day block
+            }
+          }
+
+          let matchedStatus = "Franco";
+          if (dayStatusText) {
+            for (const vs of validStatuses) {
+              if (dayStatusText.toUpperCase().startsWith(vs.toUpperCase())) {
+                matchedStatus = vs;
+                break;
+              }
+            }
+          }
+
+          parsedEdits.push({
+            agentName: matchedAgentName,
+            date: col.date,
+            status: matchedStatus
+          });
         }
-
-        // Parse optional break times (Break: HH:MM - HH:MM)
-        let breakInicio = "";
-        let breakFin = "";
-        const breakMatch = cellValue.match(breakRegex);
-        if (breakMatch) {
-          breakInicio = breakMatch[1] === "--:--" ? "" : breakMatch[1];
-          breakFin = breakMatch[2] === "--:--" ? "" : breakMatch[2];
-        }
-
-        parsedEdits.push({
-          agentName,
-          date: dateVal,
-          status: matchedStatus,
-          horario,
-          breakInicio,
-          breakFin
-        });
       }
     }
 
