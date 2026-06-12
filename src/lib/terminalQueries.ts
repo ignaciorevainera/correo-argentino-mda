@@ -113,10 +113,8 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     const searchPattern = `%${normalizedSearch}%`;
     filters.push(
       or(
-        like(sql`normalize_text(${terminals.hostname})`, searchPattern),
-        like(sql`normalize_text(${terminals.ipAddress})`, searchPattern),
-        like(sql`normalize_text(${terminals.macAddress})`, searchPattern),
-        like(sql`normalize_text(${offices.name})`, searchPattern)
+        like(terminals.searchableText, searchPattern),
+        like(offices.searchableText, searchPattern)
       )
     );
   }

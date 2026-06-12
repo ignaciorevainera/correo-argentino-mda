@@ -101,14 +101,7 @@ export async function getOffices(params: GetOfficesParams) {
   if (searchFilter) {
     const normalizedSearch = normalizeSearchValue(searchFilter);
     const likeSearch = `%${normalizedSearch}%`;
-    whereConditions.push(
-      or(
-        like(sql`normalize_text(${offices.code})`, likeSearch),
-        like(sql`normalize_text(${offices.name})`, likeSearch),
-        like(sql`normalize_text(${offices.locality})`, likeSearch),
-        like(sql`normalize_text(${offices.parentNis})`, likeSearch),
-      ),
-    );
+    whereConditions.push(like(offices.searchableText, likeSearch));
   }
 
   // Province/Region filter
