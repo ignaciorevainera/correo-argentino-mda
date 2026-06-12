@@ -1378,7 +1378,7 @@ function renderMonthly(): void {
                   ${op.nombre}
                 </button>
                 <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${state.isEditMode ? '' : 'hidden'}">
-                  <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-secondary edit-op-btn" data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-username="${escapeHtml(username)}" data-edit-op-location="${escapeHtml(op.location || 'Monte Grande')}" data-edit-op-schedule="${escapeHtml(op.horario || '08:00 - 17:00')}" title="Editar operador">
+                  <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-secondary edit-op-btn" data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-username="${escapeHtml(username)}" data-edit-op-location="${escapeHtml(op.location || 'Monte Grande')}" data-edit-op-schedule="${escapeHtml(op.horario || '')}" title="Editar operador">
                     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </button>
                   <button type="button" class="btn btn-ghost btn-square btn-xs w-5 h-5 text-base-content/50 hover:text-error delete-op-btn" data-delete-op-name="${escapeHtml(op.nombre)}" title="Eliminar operador">
@@ -1627,7 +1627,7 @@ function updateOperatorDailyHorario(op: OperatorData, date: string, status: stri
       if (op.esquema_horario?.[dayName]) {
         op.horarios_dias[date] = op.esquema_horario[dayName];
       } else {
-        op.horarios_dias[date] = op.horario || "08:00 - 17:00";
+        op.horarios_dias[date] = op.horario || "";
       }
     }
   }
@@ -1671,6 +1671,19 @@ function updatePendingEditsUI(): void {
    if (countEl) countEl.innerText = `${count} cambios`;
    if (saveBtn) saveBtn.disabled = count === 0;
    if (discardBtn) discardBtn.disabled = count === 0;
+
+   const saveIndicator = document.getElementById('save-indicator');
+   if (saveIndicator) {
+     if (state.isEditMode) {
+       saveIndicator.classList.add('hidden');
+     } else {
+       if (count > 0) {
+         saveIndicator.classList.remove('hidden');
+       } else {
+         saveIndicator.classList.add('hidden');
+       }
+     }
+   }
 }
 
 async function discardChanges(): Promise<void> {
@@ -2408,13 +2421,11 @@ function setupEventListeners(): void {
       const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
       const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
       const locSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
-      const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement | null;
 
       if (originalNameInput) originalNameInput.value = originalName || '';
       if (nameInput) nameInput.value = originalName || '';
       if (usernameInput) usernameInput.value = username || '';
       if (locSelect) locSelect.value = location || 'Monte Grande';
-      if (scheduleInput) scheduleInput.value = schedule || '08:00 - 17:00';
 
       const editOpModal = document.getElementById('edit-operator-modal') as HTMLDialogElement & { showModal: () => void } | null;
       editOpModal?.showModal();

@@ -215,7 +215,7 @@ export const GET: APIRoute = async ({ url }) => {
           if (operator.esquema_horario?.[dayName]) {
             newHorariosDias[dateStr] = operator.esquema_horario[dayName];
           } else if (status !== "Franco") {
-            newHorariosDias[dateStr] = operator.horario || "08:00 - 17:00";
+            newHorariosDias[dateStr] = operator.horario || "";
           } else {
             newHorariosDias[dateStr] = "";
           }
@@ -333,12 +333,12 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Process each edit atomically inside a transaction (Transactions for Batch Edits)
-    await db.transaction(async (tx) => {
+    db.transaction((tx) => {
       for (const edit of edits) {
         const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
         if (!agentName || !date) continue;
 
-        const existing = await tx
+        const existing = tx
           .select()
           .from(schedules)
           .where(
@@ -347,7 +347,8 @@ export const POST: APIRoute = async ({ request }) => {
               eq(schedules.date, date)
             )
           )
-          .limit(1);
+          .limit(1)
+          .all();
 
         if (existing.length > 0) {
           const updateData: any = {};
@@ -358,12 +359,13 @@ export const POST: APIRoute = async ({ request }) => {
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
 
-          await tx
+          tx
             .update(schedules)
             .set(updateData)
-            .where(eq(schedules.id, existing[0].id));
+            .where(eq(schedules.id, existing[0].id))
+            .run();
         } else {
-          await tx.insert(schedules).values({
+          tx.insert(schedules).values({
             agentName,
             date,
             status: status !== undefined ? status : "Franco",
@@ -372,7 +374,7 @@ export const POST: APIRoute = async ({ request }) => {
             breakInicio: breakInicio || "",
             breakFin: breakFin || "",
             isOverride: true,
-          });
+          }).run();
         }
       }
     });

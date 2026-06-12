@@ -1,13 +1,15 @@
 import type { APIRoute } from "astro";
-import fs from "node:fs/promises";
-import path from "node:path";
-
-const getFilePath = () => path.resolve("src/components/cronograma/lib/feriados.json");
+import { db } from "@/db";
+import { holidays } from "@/db/schema";
 
 export const GET: APIRoute = async () => {
   try {
-    const data = await fs.readFile(getFilePath(), "utf-8");
-    return new Response(data, {
+    const dbHolidays = await db.select().from(holidays);
+    const feriados: Record<string, string> = {};
+    for (const h of dbHolidays) {
+      feriados[h.date] = h.name;
+    }
+    return new Response(JSON.stringify(feriados), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
@@ -29,7 +31,20 @@ export const POST: APIRoute = async ({ request }) => {
         headers: { "Content-Type": "application/json" }
       });
     }
-    await fs.writeFile(getFilePath(), JSON.stringify(feriados, null, 2), "utf-8");
+
+    db.transaction((tx) => {
+      tx.delete(holidays).run();
+      
+      const insertData = Object.entries(feriados).map(([date, name]) => ({
+        date,
+        name: String(name),
+      }));
+
+      if (insertData.length > 0) {
+        tx.insert(holidays).values(insertData).run();
+      }
+    });
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" }

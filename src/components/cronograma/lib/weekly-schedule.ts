@@ -290,7 +290,25 @@ export function handleWeeklyDayOptionClick(btn: HTMLButtonElement) {
   btn.className = `weekly-day-opt-btn btn btn-xs font-black text-[9px] uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
 }
 
-export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElement | null) {
+export function clearWeeklySchedule() {
+  daysName.forEach(day => {
+    currentWeeklyScheme[day] = OperatorStatus.Franco;
+    currentWeeklyScheduleTimes[day] = "";
+    currentWeeklyBreakInicioTimes[day] = "";
+    currentWeeklyBreakFinTimes[day] = "";
+  });
+  
+  const select = document.getElementById('weekly-template-select') as HTMLSelectElement | null;
+  if (select) select.value = "";
+  
+  const customActions = document.getElementById('template-custom-actions');
+  if (customActions) customActions.classList.add('hidden');
+  
+  renderWeeklyDaysList();
+}
+
+export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElement | null, modeParam?: 'all' | 'days' | 'hours') {
+  const originalText = saveBtn ? saveBtn.innerText : "";
   if (saveBtn) {
     saveBtn.disabled = true;
     saveBtn.innerText = "Guardando...";
@@ -298,7 +316,7 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
   
   try {
     const applyModeSelect = document.getElementById('apply-weekly-mode') as HTMLSelectElement | null;
-    const mode = applyModeSelect?.value || 'all';
+    const mode = modeParam || applyModeSelect?.value || 'all';
 
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const activeDateStr = dateInput?.value || formatYMD(new Date());
@@ -330,12 +348,12 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
       }
 
       // Determine horario based on mode
-      let horario = op?.horarios_dias?.[dateStr] || op?.horario || "08:00 - 17:00";
+      let horario = op?.horarios_dias?.[dateStr] || op?.horario || "";
       if (mode === 'all' || mode === 'hours') {
         if (currentWeeklyScheduleTimes[dayName]) {
           horario = currentWeeklyScheduleTimes[dayName];
         } else if (status !== "Franco") {
-          horario = op?.horario || "08:00 - 17:00";
+          horario = op?.horario || "";
         }
       }
 
@@ -390,7 +408,7 @@ export async function saveWeeklySchedule(opName: string, saveBtn: HTMLButtonElem
   } finally {
     if (saveBtn) {
       saveBtn.disabled = false;
-      saveBtn.innerText = "Aplicar Esquema a Operador";
+      saveBtn.innerText = originalText || "Aplicar";
     }
   }
 }

@@ -239,3 +239,56 @@ export async function exportAsImage(
     if (onEnd) onEnd();
   }
 }
+
+let excelJsPromise: any = null;
+
+export async function exportScheduleToExcel(
+  cronoData: OperatorData[],
+  dates: string[],
+  _rules: RulesConfig,
+  monthName: string
+): Promise<void> {
+  if (!excelJsPromise) {
+    // @ts-ignore
+    const libName = 'exceljs';
+    excelJsPromise = import(/* @vite-ignore */ libName);
+  }
+  const ExcelJS = await excelJsPromise;
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Cronograma');
+
+  const headers = [
+    "Operador",
+    "Email",
+    "Sede",
+    "Turno Base",
+    ...dates
+  ];
+  worksheet.addRow(headers);
+
+  cronoData.forEach(op => {
+    const email = op.username ? op.username + "@correoargentino.com.ar" : "";
+    const row = [
+      op.nombre,
+      email,
+      op.location || "Monte Grande",
+      op.horario || '-'
+    ];
+    dates.forEach(d => {
+      row.push(op.asistencia?.[d] || 'Franco');
+    });
+    worksheet.addRow(row);
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `cronograma_${monthName.toLowerCase().replace(/\s+/g, '_')}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
