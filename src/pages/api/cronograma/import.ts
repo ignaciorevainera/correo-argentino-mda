@@ -4,9 +4,9 @@ import { parse } from "csv-parse/sync";
 export const POST: APIRoute = async ({ request }) => {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file) {
-      return new Response(JSON.stringify({ error: "No se proporcionó ningún archivo" }), { status: 400 });
+    const file = formData.get("file");
+    if (!file || !(file instanceof File)) {
+      return new Response(JSON.stringify({ error: "No se proporcionó ningún archivo válido" }), { status: 400 });
     }
 
     const csvText = await file.text();
@@ -21,6 +21,9 @@ export const POST: APIRoute = async ({ request }) => {
 
     const headers: string[] = records[0];
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const scheduleRegex = /\[([^\]]+)\]/;
+    const breakRegex = /\(Break:\s*([^\s-]+)\s*-\s*([^\s)]+)\)/;
+
     const dateColumns = headers.map((h, index) => ({ header: h, index })).filter(col => dateRegex.test(col.header));
 
     if (dateColumns.length === 0) {
@@ -67,7 +70,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         // Parse optional schedule [HH:MM - HH:MM]
         let horario = "";
-        const scheduleMatch = cellValue.match(/\[([^\]]+)\]/);
+        const scheduleMatch = cellValue.match(scheduleRegex);
         if (scheduleMatch) {
           horario = scheduleMatch[1];
         }
@@ -75,7 +78,7 @@ export const POST: APIRoute = async ({ request }) => {
         // Parse optional break times (Break: HH:MM - HH:MM)
         let breakInicio = "";
         let breakFin = "";
-        const breakMatch = cellValue.match(/\(Break:\s*([^\s-]+)\s*-\s*([^\s)]+)\)/);
+        const breakMatch = cellValue.match(breakRegex);
         if (breakMatch) {
           breakInicio = breakMatch[1] === "--:--" ? "" : breakMatch[1];
           breakFin = breakMatch[2] === "--:--" ? "" : breakMatch[2];
