@@ -18,21 +18,6 @@ export function safeSetItem(key: string, value: string): void {
   }
 }
 
-export interface PasivaState {
-  operatorId: number | null;
-  originalOperatorId: number | null;
-  weeklyAssignments: Record<
-    string,
-    {
-      supervisorName: string;
-      referenteId: number | null;
-      endDate?: string;
-      originalSupervisorName: string;
-      originalReferenteId: number | null;
-    }
-  >;
-}
-
 class CronogramaState {
   private _cronoData: OperatorData[] = [];
   
@@ -54,27 +39,21 @@ class CronogramaState {
   activeDetailTrigger: HTMLElement | null = null;
   focusedDateStr: string | null = null;
 
-  pasivaState: PasivaState | null = null;
-
-  get hasPendingPasivaEdits(): boolean {
-    if (!this.pasivaState) return false;
-    if (this.pasivaState.operatorId !== this.pasivaState.originalOperatorId) return true;
-    for (const week of Object.values(this.pasivaState.weeklyAssignments)) {
-      if (week.supervisorName !== week.originalSupervisorName) return true;
-      if (week.referenteId !== week.originalReferenteId) return true;
-    }
-    return false;
-  }
-
-  resetPasivaEdits(): void {
-    if (!this.pasivaState) return;
-    this.pasivaState.operatorId = this.pasivaState.originalOperatorId;
-    for (const key of Object.keys(this.pasivaState.weeklyAssignments)) {
-      const assignment = this.pasivaState.weeklyAssignments[key];
-      assignment.supervisorName = assignment.originalSupervisorName;
-      assignment.referenteId = assignment.originalReferenteId;
-    }
-  }
+  pasivaState = {
+    operatorId: null as number | null,
+    originalOperatorId: null as number | null,
+    weeklyAssignments: {} as Record<
+      string,
+      {
+        startDate: string;
+        endDate: string;
+        supervisorName: string;
+        referenteId: number | null;
+        originalSupervisorName: string;
+        originalReferenteId: number | null;
+      }
+    >,
+  };
 
   // Rule settings
   get minCoveragePercent(): number {

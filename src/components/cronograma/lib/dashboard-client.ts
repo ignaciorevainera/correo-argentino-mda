@@ -26,8 +26,6 @@ let overtimeSelectedWeekend: string | null = null; // "YYYY-MM-DD" Saturday
 // --- Rotation Timeline state ---
 let rotationTimelineSelectedDate: string | null = null; // "YYYY-MM-DD" Saturday
 
-let currentActiveView: 'monthly' | 'daily' | 'groups' | 'overtime' | 'pasiva' = 'monthly';
-
 function formatToDDMMYY(dateStr: string): string {
   if (!dateStr) return "dd/mm/yy";
   const parts = dateStr.split('-');
@@ -477,10 +475,11 @@ async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
       await renderGroupsView();
     }
 
-    // Actualizar vista de pasiva si está activa
-    if (currentActiveView === 'pasiva') {
-      await loadPasivaData(monthToLoad);
-      renderPasivaView();
+    // Actualizar vista de pasivas si está visible
+    const pasivaView = document.getElementById('pasiva-view');
+    const isPasivaVisible = pasivaView && !pasivaView.classList.contains('hidden');
+    if (isPasivaVisible) {
+      await renderPasivaView();
     }
   } catch (err) {
     console.error("Error reloading data for month:", err);
@@ -1661,36 +1660,6 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
 }
 
 function updatePendingEditsUI(): void {
-   if (currentActiveView === 'pasiva') {
-     let realCount = 0;
-     if (state.pasivaState) {
-       if (state.pasivaState.operatorId !== state.pasivaState.originalOperatorId) realCount++;
-       for (const week of Object.values(state.pasivaState.weeklyAssignments)) {
-         if (week.supervisorName !== week.originalSupervisorName) realCount++;
-         if (week.referenteId !== week.originalReferenteId) realCount++;
-       }
-     }
-     
-     const countEl = document.getElementById('pending-edits-count');
-     const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
-     const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
-     const editToolbar = document.getElementById('edit-mode-toolbar');
-     
-     if (countEl) countEl.innerText = `${realCount} cambios`;
-     if (saveBtn) saveBtn.disabled = realCount === 0;
-     if (discardBtn) discardBtn.disabled = realCount === 0;
-     
-     if (editToolbar) {
-       if (realCount > 0) {
-         editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
-       } else {
-         editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
-       }
-     }
-     toggleToolbarControls(true);
-     return;
-   }
-
    const uniqueKeys = new Set<string>();
    Object.keys(state.pendingEdits).forEach(k => uniqueKeys.add(k));
    state.modifiedSchedules.forEach(m => uniqueKeys.add(`${m.agentName}_${m.date}`));
@@ -1699,18 +1668,10 @@ function updatePendingEditsUI(): void {
    const countEl = document.getElementById('pending-edits-count');
    const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
    const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
-   const editToolbar = document.getElementById('edit-mode-toolbar');
    
    if (countEl) countEl.innerText = `${count} cambios`;
    if (saveBtn) saveBtn.disabled = count === 0;
    if (discardBtn) discardBtn.disabled = count === 0;
-
-   if (!state.isEditMode && editToolbar) {
-     editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
-   } else if (state.isEditMode && editToolbar) {
-     editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
-   }
-   toggleToolbarControls(false);
 }
 
 async function discardChanges(): Promise<void> {
@@ -1790,34 +1751,7 @@ async function saveChangesToServer(): Promise<void> {
   }
 }
 
-function toggleToolbarControls(isPasivaView: boolean): void {
-  const editToolbar = document.getElementById('edit-mode-toolbar');
-  if (!editToolbar) return;
-
-  const brushContainer = editToolbar.querySelector('.brush-btn')?.parentElement;
-  const settingsBtn = document.getElementById('open-rules-settings');
-  const addOpBtn = document.getElementById('open-new-op-modal');
-  const holidaysBtn = document.getElementById('open-holidays-modal');
-  const separators = editToolbar.querySelectorAll('.w-px');
-
-  if (isPasivaView) {
-    brushContainer?.classList.add('hidden');
-    settingsBtn?.classList.add('hidden');
-    addOpBtn?.classList.add('hidden');
-    holidaysBtn?.classList.add('hidden');
-    separators.forEach(s => s.classList.add('hidden'));
-  } else {
-    brushContainer?.classList.remove('hidden');
-    settingsBtn?.classList.remove('hidden');
-    addOpBtn?.classList.remove('hidden');
-    holidaysBtn?.classList.remove('hidden');
-    separators.forEach(s => s.classList.remove('hidden'));
-  }
-}
-
 function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'overtime' | 'pasiva'): void {
-  currentActiveView = activeView;
-  
   const switchToMonthlyBtn = document.getElementById('switch-to-monthly-btn');
   const switchToDailyBtn = document.getElementById('switch-to-daily-btn');
   const switchToGroupsBtn = document.getElementById('switch-to-groups-btn');
@@ -1831,8 +1765,6 @@ function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'over
     btn?.classList.remove(...activeClasses);
     btn?.classList.remove(...inactiveClasses);
   });
-  
-  toggleToolbarControls(activeView === 'pasiva');
 
   if (activeView === 'monthly') {
     switchToMonthlyBtn?.classList.add(...activeClasses);
@@ -1846,7 +1778,7 @@ function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'over
   } else if (activeView === 'overtime') {
     switchToOvertimeBtn?.classList.add(...activeClasses);
     [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn, switchToPasivaBtn].forEach(b => b?.classList.add(...inactiveClasses));
-  } else if (activeView === 'pasiva') {
+  } else {
     switchToPasivaBtn?.classList.add(...activeClasses);
     [switchToMonthlyBtn, switchToDailyBtn, switchToGroupsBtn, switchToOvertimeBtn].forEach(b => b?.classList.add(...inactiveClasses));
   }
@@ -2976,11 +2908,10 @@ function setupEventListeners(): void {
   });
 
   document.getElementById('discard-edits-btn')?.addEventListener('click', async () => {
-      if (currentActiveView === 'pasiva') {
-        state.resetPasivaEdits();
-        renderPasivaView();
-        updatePendingEditsUI();
-        showToast("Cambios descartados", "info");
+      const pasivaView = document.getElementById('pasiva-view');
+      const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
+      if (isPasivaViewVisible) {
+        discardPasivaChanges();
         return;
       }
       state.pendingEdits = {};
@@ -2991,8 +2922,10 @@ function setupEventListeners(): void {
    document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
       const btn = e.currentTarget as HTMLButtonElement;
       
-      if (currentActiveView === 'pasiva') {
-        await savePasivaChangesToServer(btn);
+      const pasivaView = document.getElementById('pasiva-view');
+      const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
+      if (isPasivaViewVisible) {
+        await savePasivaChanges(btn);
         return;
       }
       
@@ -3532,19 +3465,6 @@ document.getElementById('switch-to-overtime-btn')?.addEventListener('click', () 
   showOvertimeView();
 });
 
-document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', () => {
-  showPasivaView();
-});
-
-document.getElementById('pasiva-monthly-operator-select')?.addEventListener('change', (e) => {
-  const val = (e.currentTarget as HTMLSelectElement).value;
-  const opId = val ? parseInt(val, 10) : null;
-  if (state.pasivaState) {
-    state.pasivaState.operatorId = opId;
-    updatePendingEditsUI();
-  }
-});
-
 const _overtimeWeekendWrapper = document.getElementById('overtime-weekend-date-wrapper');
 const _overtimeWeekendInput = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
 if (_overtimeWeekendWrapper && _overtimeWeekendInput) {
@@ -3687,237 +3607,6 @@ document.getElementById('overtime-shift-cancel-btn')?.addEventListener('click', 
   if (submitBtn) submitBtn.textContent = 'Agregar Turno';
 });
 
-// ===================================================
-// GUARDIA PASIVA FUNCTIONS
-// ===================================================
-
-async function loadPasivaData(monthStr: string): Promise<void> {
-  try {
-    const res = await fetch(`/api/cronograma/guardia-pasiva?month=${monthStr}`);
-    if (!res.ok) throw new Error("No se pudo cargar la información de Guardia Pasiva");
-    const data = await res.json();
-    
-    const weeklyAssignments: Record<string, any> = {};
-    data.weeks.forEach((w: any) => {
-      weeklyAssignments[w.startDate] = {
-        supervisorName: w.supervisorName,
-        referenteId: w.referenteId,
-        endDate: w.endDate,
-        originalSupervisorName: w.supervisorName,
-        originalReferenteId: w.referenteId
-      };
-    });
-    
-    state.pasivaState = {
-      operatorId: data.operatorId,
-      originalOperatorId: data.operatorId,
-      weeklyAssignments
-    };
-  } catch (err) {
-    console.error("Error loading passive guard data:", err);
-    showToast("Error al cargar datos de guardia pasiva", "error");
-  }
-}
-
-function renderPasivaView(): void {
-  const opSelect = document.getElementById('pasiva-monthly-operator-select') as HTMLSelectElement | null;
-  if (!opSelect || !state.pasivaState) return;
-
-  const currentOpId = state.pasivaState.operatorId;
-  
-  opSelect.innerHTML = '<option value="">SIN OPERADOR</option>';
-  state.cronoData.forEach(op => {
-    if (op.id) {
-      const opt = document.createElement('option');
-      opt.value = op.id.toString();
-      opt.textContent = op.nombre;
-      opSelect.appendChild(opt);
-    }
-  });
-  opSelect.value = currentOpId ? currentOpId.toString() : '';
-
-  const tbody = document.getElementById('pasiva-weeks-tbody');
-  if (tbody) {
-    tbody.innerHTML = '';
-    
-    const sortedWeeks = Object.keys(state.pasivaState.weeklyAssignments).sort().map(startDate => {
-      return {
-        startDate,
-        ...state.pasivaState!.weeklyAssignments[startDate]
-      };
-    });
-
-    if (sortedWeeks.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="3" class="text-center text-xs text-base-content/30 py-6 uppercase font-bold tracking-wider">
-            No hay semanas calculadas para este mes
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    sortedWeeks.forEach(week => {
-      const tr = document.createElement('tr');
-      tr.className = "hover:bg-base-200/30 transition-colors rounded-xl border border-transparent";
-      
-      const [y1, m1, d1] = week.startDate.split('-');
-      const [y2, m2, d2] = week.endDate ? week.endDate.split('-') : ['', '', ''];
-      const labelStr = d2 ? `${d1}/${m1} a ${d2}/${m2}` : `${d1}/${m1}`;
-
-      const tdWeek = document.createElement('td');
-      tdWeek.className = "py-3 pl-2 shrink-0 align-middle";
-      tdWeek.innerHTML = `
-        <span class="inline-flex items-center justify-center px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 rounded-lg shadow-sm">
-          ${labelStr}
-        </span>
-      `;
-      tr.appendChild(tdWeek);
-
-      const tdSupervisor = document.createElement('td');
-      tdSupervisor.className = "py-2 align-middle w-2/5 pr-4";
-      const superInput = document.createElement('input');
-      superInput.type = "text";
-      superInput.className = "input input-bordered input-sm rounded-xl font-bold text-xs h-9 w-full bg-base-100 focus:outline-none focus:border-secondary transition-all";
-      superInput.value = week.supervisorName || '';
-      superInput.placeholder = "Nombre del Supervisor";
-      
-      superInput.addEventListener('input', (e) => {
-        const val = (e.target as HTMLInputElement).value;
-        if (state.pasivaState) {
-          state.pasivaState.weeklyAssignments[week.startDate].supervisorName = val;
-          updatePendingEditsUI();
-        }
-      });
-      tdSupervisor.appendChild(superInput);
-      tr.appendChild(tdSupervisor);
-
-      const tdReferente = document.createElement('td');
-      tdReferente.className = "py-2 align-middle w-2/5 pr-2";
-      const refSelect = document.createElement('select');
-      refSelect.className = "select select-bordered select-sm rounded-xl font-bold text-xs h-9 w-full bg-base-100 focus:outline-none focus:border-secondary transition-all";
-      refSelect.innerHTML = '<option value="">SIN REFERENTE</option>';
-      state.cronoData.forEach(op => {
-        if (op.id) {
-          const opt = document.createElement('option');
-          opt.value = op.id.toString();
-          opt.textContent = op.nombre;
-          refSelect.appendChild(opt);
-        }
-      });
-      refSelect.value = week.referenteId ? week.referenteId.toString() : '';
-
-      refSelect.addEventListener('change', (e) => {
-        const val = (e.target as HTMLSelectElement).value;
-        const refId = val ? parseInt(val, 10) : null;
-        if (state.pasivaState) {
-          state.pasivaState.weeklyAssignments[week.startDate].referenteId = refId;
-          updatePendingEditsUI();
-        }
-      });
-      tdReferente.appendChild(refSelect);
-      tr.appendChild(tdReferente);
-
-      tbody.appendChild(tr);
-    });
-  }
-}
-
-async function showPasivaView(): Promise<void> {
-  const dailyView = document.getElementById('daily-view');
-  const monthlyView = document.getElementById('monthly-view');
-  const groupsView = document.getElementById('groups-view');
-  const overtimeView = document.getElementById('overtime-view');
-  const pasivaView = document.getElementById('pasiva-view');
-  const datePickerContainer = document.getElementById('date-picker-container');
-
-  updateViewSwitcherUI('pasiva');
-
-  if (dailyView) dailyView.classList.add('hidden');
-  if (monthlyView) monthlyView.classList.add('hidden');
-  if (groupsView) groupsView.classList.add('hidden');
-  if (overtimeView) overtimeView.classList.add('hidden');
-  if (pasivaView) pasivaView.classList.remove('hidden');
-
-  if (datePickerContainer) {
-    datePickerContainer.classList.add('is-faded');
-    setTimeout(() => {
-      datePickerContainer.classList.add('hidden');
-    }, 300);
-  }
-
-  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-  const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
-  
-  await loadPasivaData(month);
-  renderPasivaView();
-  updatePendingEditsUI();
-}
-
-async function savePasivaChangesToServer(btn: HTMLButtonElement): Promise<void> {
-  if (!state.pasivaState) return;
-
-  const originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
-
-  try {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
-
-    const weeklyAssignments = Object.keys(state.pasivaState.weeklyAssignments).map(startDate => {
-      const assignment = state.pasivaState!.weeklyAssignments[startDate];
-      return {
-        startDate,
-        endDate: assignment.endDate,
-        supervisorName: assignment.supervisorName,
-        referenteId: assignment.referenteId
-      };
-    });
-
-    const res = await fetch('/api/cronograma/guardia-pasiva', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        month,
-        operatorId: state.pasivaState.operatorId,
-        weeklyAssignments
-      })
-    });
-
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || "Error al guardar los cambios de guardia pasiva");
-    }
-
-    state.pasivaState.originalOperatorId = state.pasivaState.operatorId;
-    for (const key of Object.keys(state.pasivaState.weeklyAssignments)) {
-      const assignment = state.pasivaState.weeklyAssignments[key];
-      assignment.originalSupervisorName = assignment.supervisorName;
-      assignment.originalReferenteId = assignment.referenteId;
-    }
-
-    updatePendingEditsUI();
-
-    btn.innerText = "¡Guardado!";
-    setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
-    showToast("Cambios guardados con éxito", "success");
-  } catch (err: any) {
-    console.error("Error saving passive guard changes:", err);
-    btn.innerText = "Error";
-    btn.classList.add('btn-error');
-    setTimeout(() => { 
-       btn.innerHTML = originalText; 
-       btn.classList.remove('btn-error');
-       btn.disabled = false;
-    }, 2000);
-    showToast(err.message || "Error al guardar los cambios", "error");
-  }
-}
-
 // --- GLOBAL EVENT LISTENERS ---
 
 document.addEventListener('cronograma:data-changed', async () => {
@@ -3980,5 +3669,269 @@ document.addEventListener('mouseout', (e) => {
 if (safeGetItem('cronoMaximized', 'false') === 'true') {
   updateMaximizeUI(true);
 }
+
+// ===================================================
+// PASIVA VIEW FUNCTIONS
+// ===================================================
+
+function hasPasivaChanges(): boolean {
+  if (state.pasivaState.operatorId !== state.pasivaState.originalOperatorId) {
+    return true;
+  }
+  for (const week of Object.values(state.pasivaState.weeklyAssignments)) {
+    if (
+      week.referenteId !== week.originalReferenteId ||
+      week.supervisorName !== week.originalSupervisorName
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function updatePasivaToolbarUI(): void {
+  const editToolbar = document.getElementById('edit-mode-toolbar');
+  const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
+  const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+  const hasChanges = hasPasivaChanges();
+
+  if (hasChanges) {
+    if (editToolbar) {
+      editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
+    }
+    if (saveBtn) saveBtn.disabled = false;
+    if (discardBtn) discardBtn.disabled = false;
+  } else {
+    const pasivaView = document.getElementById('pasiva-view');
+    const isPasivaViewVisible = pasivaView && !pasivaView.classList.contains('hidden');
+    if (isPasivaViewVisible && editToolbar) {
+      editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+    }
+  }
+}
+
+async function savePasivaChanges(btn: HTMLButtonElement): Promise<void> {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+
+  const weeks = Object.values(state.pasivaState.weeklyAssignments).map(w => ({
+    startDate: w.startDate,
+    endDate: w.endDate,
+    supervisorName: w.supervisorName,
+    referenteId: w.referenteId,
+  }));
+
+  const payload = {
+    month,
+    operatorId: state.pasivaState.operatorId,
+    weeklyAssignments: weeks,
+  };
+
+  try {
+    const res = await fetch('/api/cronograma/guardia-pasiva', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error('Error al guardar cambios de guardia pasiva');
+    }
+
+    state.pasivaState.originalOperatorId = state.pasivaState.operatorId;
+    for (const week of Object.values(state.pasivaState.weeklyAssignments)) {
+      week.originalReferenteId = week.referenteId;
+      week.originalSupervisorName = week.supervisorName;
+    }
+
+    updatePasivaToolbarUI();
+
+    btn.innerText = "Guardado!";
+    setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+    showToast("Guardia pasiva guardada con éxito", "success");
+
+    await renderPasivaView();
+  } catch (err) {
+    console.error(err);
+    btn.innerText = "Error";
+    btn.classList.add('btn-error');
+    setTimeout(() => {
+      btn.innerText = "Guardar";
+      btn.classList.remove('btn-error');
+      btn.disabled = false;
+    }, 2000);
+    const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
+    if (discardBtn) discardBtn.disabled = false;
+    showToast("Error al guardar cambios de guardia pasiva", "error");
+  }
+}
+
+function discardPasivaChanges(): void {
+  state.pasivaState.operatorId = state.pasivaState.originalOperatorId;
+  for (const week of Object.values(state.pasivaState.weeklyAssignments)) {
+    week.referenteId = week.originalReferenteId;
+    week.supervisorName = week.originalSupervisorName;
+  }
+  
+  const monthlyOperatorSelect = document.getElementById('pasiva-monthly-operator-select') as HTMLSelectElement | null;
+  if (monthlyOperatorSelect) {
+    monthlyOperatorSelect.value = state.pasivaState.operatorId ? String(state.pasivaState.operatorId) : '';
+  }
+
+  populatePasivaWeekInputs();
+  updatePasivaToolbarUI();
+  showToast("Cambios descartados", "info");
+}
+
+function showPasivaView(): void {
+  const dailyView = document.getElementById('daily-view');
+  const monthlyView = document.getElementById('monthly-view');
+  const groupsView = document.getElementById('groups-view');
+  const overtimeView = document.getElementById('overtime-view');
+  const pasivaView = document.getElementById('pasiva-view');
+  const datePickerContainer = document.getElementById('date-picker-container');
+  
+  updateViewSwitcherUI('pasiva');
+  
+  if (dailyView) dailyView.classList.add('hidden');
+  if (monthlyView) monthlyView.classList.add('hidden');
+  if (groupsView) groupsView.classList.add('hidden');
+  if (overtimeView) overtimeView.classList.add('hidden');
+  if (pasivaView) pasivaView.classList.remove('hidden');
+  
+  if (datePickerContainer) {
+    datePickerContainer.classList.add('is-faded');
+    setTimeout(() => {
+      datePickerContainer.classList.add('hidden');
+    }, 300);
+  }
+  
+  renderPasivaView();
+}
+
+async function renderPasivaView(): Promise<void> {
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+
+  const monthlyOperatorSelect = document.getElementById('pasiva-monthly-operator-select') as HTMLSelectElement | null;
+  if (monthlyOperatorSelect) {
+    monthlyOperatorSelect.innerHTML = '<option value="">SIN OPERADOR</option>';
+    state.cronoData.forEach(op => {
+      const opt = document.createElement('option');
+      opt.value = String(op.id ?? '');
+      opt.textContent = op.nombre;
+      monthlyOperatorSelect.appendChild(opt);
+    });
+  }
+
+  try {
+    const res = await fetch(`/api/cronograma/guardia-pasiva?month=${month}`);
+    if (!res.ok) throw new Error("No se pudo cargar la información de guardia pasiva");
+    const data = await res.json();
+
+    state.pasivaState.operatorId = data.operatorId;
+    state.pasivaState.originalOperatorId = data.operatorId;
+
+    if (monthlyOperatorSelect) {
+      monthlyOperatorSelect.value = data.operatorId ? String(data.operatorId) : '';
+    }
+
+    state.pasivaState.weeklyAssignments = {};
+    if (data.weeks) {
+      data.weeks.forEach((w: any) => {
+        state.pasivaState.weeklyAssignments[w.startDate] = {
+          startDate: w.startDate,
+          endDate: w.endDate,
+          supervisorName: w.supervisorName,
+          referenteId: w.referenteId,
+          originalSupervisorName: w.supervisorName,
+          originalReferenteId: w.referenteId,
+        };
+      });
+    }
+
+    populatePasivaWeekInputs();
+    updatePasivaToolbarUI();
+  } catch (err) {
+    console.error("Error loading pasiva data:", err);
+    showToast("Error al cargar datos de guardia pasiva", "error");
+  }
+}
+
+function populatePasivaWeekInputs(): void {
+  const tbody = document.getElementById('pasiva-weeks-tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  
+  const sortedWeeks = Object.values(state.pasivaState.weeklyAssignments).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  
+  sortedWeeks.forEach(w => {
+    const tr = document.createElement('tr');
+    tr.className = 'group hover:bg-base-200/40 transition-colors duration-150 rounded-xl';
+    
+    const d1 = w.startDate.split('-')[2];
+    const m1 = w.startDate.split('-')[1];
+    const d2 = w.endDate.split('-')[2];
+    const m2 = w.endDate.split('-')[1];
+    const label = `${d1}/${m1} a ${d2}/${m2}`;
+    
+    const tdLabel = document.createElement('td');
+    tdLabel.className = 'py-3 pl-4 font-bold text-xs tabular-nums text-base-content/80';
+    tdLabel.textContent = label;
+    tr.appendChild(tdLabel);
+    
+    const tdSupervisor = document.createElement('td');
+    tdSupervisor.className = 'py-2';
+    const supervisorInput = document.createElement('input');
+    supervisorInput.type = 'text';
+    supervisorInput.className = 'input input-bordered input-sm font-bold text-xs h-9 w-full max-w-xs rounded-xl bg-base-100 focus:outline-none focus:border-secondary';
+    supervisorInput.value = w.supervisorName;
+    supervisorInput.addEventListener('input', () => {
+      w.supervisorName = supervisorInput.value;
+      updatePasivaToolbarUI();
+    });
+    tdSupervisor.appendChild(supervisorInput);
+    tr.appendChild(tdSupervisor);
+    
+    const tdReferente = document.createElement('td');
+    tdReferente.className = 'py-2 pr-4';
+    const referenteSelect = document.createElement('select');
+    referenteSelect.className = 'select select-bordered select-sm font-bold text-xs h-9 w-full max-w-xs rounded-xl bg-base-100 focus:outline-none focus:border-secondary';
+    
+    referenteSelect.innerHTML = '<option value="">SIN REFERENTE</option>';
+    state.cronoData.forEach(op => {
+      const opt = document.createElement('option');
+      opt.value = String(op.id ?? '');
+      opt.textContent = op.nombre;
+      referenteSelect.appendChild(opt);
+    });
+    referenteSelect.value = w.referenteId ? String(w.referenteId) : '';
+    referenteSelect.addEventListener('change', () => {
+      w.referenteId = referenteSelect.value ? parseInt(referenteSelect.value, 10) : null;
+      updatePasivaToolbarUI();
+    });
+    tdReferente.appendChild(referenteSelect);
+    tr.appendChild(tdReferente);
+    
+    tbody.appendChild(tr);
+  });
+}
+
+// Add event listeners for Pasiva view
+document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', () => {
+  showPasivaView();
+});
+
+document.getElementById('pasiva-monthly-operator-select')?.addEventListener('change', (e) => {
+  const target = e.currentTarget as HTMLSelectElement;
+  state.pasivaState.operatorId = target.value ? parseInt(target.value, 10) : null;
+  updatePasivaToolbarUI();
+});
 
 init();
