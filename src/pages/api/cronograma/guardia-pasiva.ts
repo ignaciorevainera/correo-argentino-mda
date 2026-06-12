@@ -124,57 +124,104 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Transacción síncrona con SQLite
+    // 1. Calcular y validar las semanas del mes
+    const validWeeks = getWeeksForMonth(month);
+    const validWeekMap = new Map(validWeeks.map(w => [w.startDate, w.endDate]));
+
+    // 2. Validar operatorId si se proporciona
+    let opId: number | null = null;
+    if (operatorId !== undefined && operatorId !== null && operatorId !== "") {
+      opId = typeof operatorId === "string" ? parseInt(operatorId, 10) : operatorId;
+      if (isNaN(opId) || opId <= 0) {
+        return new Response(JSON.stringify({ error: "Invalid operatorId" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // 3. Validar asignaciones semanales antes de iniciar la transacción
+    const assignmentsToProcess: Array<{ startDate: string; endDate: string; supervisorName: string; referenteId: number | null }> = [];
+    if (Array.isArray(weeklyAssignments)) {
+      for (const item of weeklyAssignments) {
+        const { startDate, supervisorName, referenteId } = item;
+        if (!startDate) continue;
+
+        // Asegurarse de que startDate corresponda a las semanas calculadas de este mes
+        const expectedEndDate = validWeekMap.get(startDate);
+        if (!expectedEndDate) {
+          return new Response(JSON.stringify({ error: `La fecha de inicio ${startDate} no pertenece al mes ${month}` }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        let refId: number | null = null;
+        if (referenteId !== null && referenteId !== undefined && referenteId !== "") {
+          refId = typeof referenteId === "string" ? parseInt(referenteId, 10) : referenteId;
+          if (isNaN(refId) || refId <= 0) {
+            return new Response(JSON.stringify({ error: `Invalid referenteId for startDate ${startDate}` }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        assignmentsToProcess.push({
+          startDate,
+          endDate: expectedEndDate, // Rellenar desde el helper para evitar cadenas vacías en BD
+          supervisorName: supervisorName || DEFAULT_SUPERVISOR,
+          referenteId: refId
+        });
+      }
+    }
+
+    // 4. Realizar la transacción sincrónica en SQLite
     db.transaction((tx) => {
-      // 1. Actualizar o guardar Operador Mensual
-      if (operatorId === null || operatorId === undefined || operatorId === "") {
-        tx.delete(monthlyGuardiaPasivaOperator)
-          .where(eq(monthlyGuardiaPasivaOperator.month, month))
-          .run();
-      } else {
-        const opId = typeof operatorId === "string" ? parseInt(operatorId, 10) : operatorId;
-        tx.insert(monthlyGuardiaPasivaOperator)
-          .values({ month, operatorId: opId })
-          .onConflictDoUpdate({
-            target: monthlyGuardiaPasivaOperator.month,
-            set: { operatorId: opId },
-          })
-          .run();
+      // Solo actualiza el operador mensual si fue proporcionado explícitamente en el cuerpo del request
+      if (operatorId !== undefined) {
+        if (opId === null) {
+          tx.delete(monthlyGuardiaPasivaOperator)
+            .where(eq(monthlyGuardiaPasivaOperator.month, month))
+            .run();
+        } else {
+          tx.insert(monthlyGuardiaPasivaOperator)
+            .values({ month, operatorId: opId })
+            .onConflictDoUpdate({
+              target: monthlyGuardiaPasivaOperator.month,
+              set: { operatorId: opId },
+            })
+            .run();
+        }
       }
 
-      // 2. Actualizar, guardar o eliminar Asignaciones Semanales
-      if (Array.isArray(weeklyAssignments)) {
-        for (const item of weeklyAssignments) {
-          const { startDate, endDate, supervisorName, referenteId } = item;
-          if (!startDate) continue;
+      // Actualizar asignaciones semanales
+      if (weeklyAssignments !== undefined) {
+        for (const assignment of assignmentsToProcess) {
+          const { startDate, endDate, supervisorName, referenteId } = assignment;
 
-          // Si el referenteId no está asignado o es vacío, se borra el registro existente
-          if (referenteId === null || referenteId === undefined || referenteId === "") {
+          if (referenteId === null) {
             tx.delete(weeklyGuardiaPasivaAssignments)
               .where(eq(weeklyGuardiaPasivaAssignments.startDate, startDate))
               .run();
-            continue;
+          } else {
+            tx.insert(weeklyGuardiaPasivaAssignments)
+              .values({
+                startDate,
+                endDate,
+                supervisorName,
+                referenteId,
+              })
+              .onConflictDoUpdate({
+                target: weeklyGuardiaPasivaAssignments.startDate,
+                set: {
+                  endDate,
+                  supervisorName,
+                  referenteId,
+                },
+              })
+              .run();
           }
-
-          const refId = typeof referenteId === "string" ? parseInt(referenteId, 10) : referenteId;
-
-          // Si el referenteId está presente, se realiza un Upsert
-          tx.insert(weeklyGuardiaPasivaAssignments)
-            .values({
-              startDate,
-              endDate: endDate || "",
-              supervisorName: supervisorName || DEFAULT_SUPERVISOR,
-              referenteId: refId,
-            })
-            .onConflictDoUpdate({
-              target: weeklyGuardiaPasivaAssignments.startDate,
-              set: {
-                endDate: endDate || "",
-                supervisorName: supervisorName || DEFAULT_SUPERVISOR,
-                referenteId: refId,
-              },
-            })
-            .run();
         }
       }
     });
@@ -183,7 +230,7 @@ export const POST: APIRoute = async ({ request }) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST Guardia Pasiva Error:", error);
     return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
       status: 500,
