@@ -3,6 +3,17 @@ import { parse } from "csv-parse/sync";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
 
+// Helper to check if a date falls on a Saturday
+function isSaturday(dateStr: string): boolean {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return false;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  const dateObj = new Date(y, m, d);
+  return dateObj.getDay() === 6;
+}
+
 // Helper to parse Spanish dates like "lunes, 1 de junio de 2026"
 function parseSpanishDate(dateStr: string): string | null {
   const match = dateStr.match(/(\d+)\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i);
@@ -138,6 +149,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         for (const col of dateColumns) {
           const dateVal = col.header;
+          if (isSaturday(dateVal)) continue;
           const cellValue = row[col.index] || "";
           if (!cellValue) continue;
 
@@ -201,6 +213,7 @@ export const POST: APIRoute = async ({ request }) => {
         if (!matchedAgentName) continue; // Skip section headers, blank names, etc.
 
         for (const col of dateColumns) {
+          if (isSaturday(col.date)) continue;
           // Scan the 24 hour columns for this date
           let dayStatusText = "";
           for (let offset = 0; offset < 24; offset++) {
