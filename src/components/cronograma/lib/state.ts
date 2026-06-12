@@ -18,12 +18,28 @@ export function safeSetItem(key: string, value: string): void {
   }
 }
 
+export interface PasivaState {
+  operatorId: number | null;
+  originalOperatorId: number | null;
+  weeklyAssignments: Record<
+    string,
+    {
+      supervisorName: string;
+      referenteId: number | null;
+      endDate?: string;
+      originalSupervisorName: string;
+      originalReferenteId: number | null;
+    }
+  >;
+}
+
 class CronogramaState {
   private _cronoData: OperatorData[] = [];
   
   // Cache for computed properties
   private _cachedDates: string[] | null = null;
   private _cachedMonths: string[] | null = null;
+  private _cachedWeeklyTemplates: Record<string, { dias: Record<string, OperatorStatus>; horarios: Record<string, string>; breaks_inicio?: Record<string, string>; breaks_fin?: Record<string, string> }> | null = null;
   availableMonths: string[] = [];
 
   feriados: Record<string, string> = feriadosJson;
@@ -37,6 +53,28 @@ class CronogramaState {
   activeSort = 'alphabetical';
   activeDetailTrigger: HTMLElement | null = null;
   focusedDateStr: string | null = null;
+
+  pasivaState: PasivaState | null = null;
+
+  get hasPendingPasivaEdits(): boolean {
+    if (!this.pasivaState) return false;
+    if (this.pasivaState.operatorId !== this.pasivaState.originalOperatorId) return true;
+    for (const week of Object.values(this.pasivaState.weeklyAssignments)) {
+      if (week.supervisorName !== week.originalSupervisorName) return true;
+      if (week.referenteId !== week.originalReferenteId) return true;
+    }
+    return false;
+  }
+
+  resetPasivaEdits(): void {
+    if (!this.pasivaState) return;
+    this.pasivaState.operatorId = this.pasivaState.originalOperatorId;
+    for (const key of Object.keys(this.pasivaState.weeklyAssignments)) {
+      const assignment = this.pasivaState.weeklyAssignments[key];
+      assignment.supervisorName = assignment.originalSupervisorName;
+      assignment.referenteId = assignment.originalReferenteId;
+    }
+  }
 
   // Rule settings
   get minCoveragePercent(): number {
@@ -112,12 +150,13 @@ class CronogramaState {
   }
 
   get weeklyTemplates(): Record<string, { dias: Record<string, OperatorStatus>; horarios: Record<string, string>; breaks_inicio?: Record<string, string>; breaks_fin?: Record<string, string> }> {
+    if (this._cachedWeeklyTemplates) return this._cachedWeeklyTemplates;
     try {
       const stored = safeGetItem('cronoWeeklyTemplatesV2', '{}');
       const templates = JSON.parse(stored);
       if (Object.keys(templates).length === 0) {
         // Return default templates if empty
-        return {
+        const defaultTemplates = {
           "Estándar P/HO Alternado": {
             dias: { Lunes: OperatorStatus.PresencialMonteGrande, Martes: OperatorStatus.HomeOffice, Miercoles: OperatorStatus.PresencialMonteGrande, Jueves: OperatorStatus.HomeOffice, Viernes: OperatorStatus.PresencialMonteGrande },
             horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
@@ -131,7 +170,10 @@ class CronogramaState {
             horarios: { Lunes: "08:00 - 17:00", Martes: "08:00 - 17:00", Miercoles: "08:00 - 17:00", Jueves: "08:00 - 17:00", Viernes: "08:00 - 17:00" }
           }
         };
+        this._cachedWeeklyTemplates = defaultTemplates;
+        return defaultTemplates;
       }
+      this._cachedWeeklyTemplates = templates;
       return templates;
     } catch {
       return {};
@@ -139,6 +181,7 @@ class CronogramaState {
   }
 
   set weeklyTemplates(val: Record<string, { dias: Record<string, OperatorStatus>; horarios: Record<string, string>; breaks_inicio?: Record<string, string>; breaks_fin?: Record<string, string> }>) {
+    this._cachedWeeklyTemplates = val;
     safeSetItem('cronoWeeklyTemplatesV2', JSON.stringify(val));
   }
 }
