@@ -250,6 +250,8 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   attendance: many(operatorAttendance),
   weekendOvertimeShifts: many(weekendOvertimeShifts),
   agentSaturdayGroups: many(agentSaturdayGroups),
+  monthlyGuardiaPasivaOperators: many(monthlyGuardiaPasivaOperator),
+  weeklyGuardiaPasivaAssignments: many(weeklyGuardiaPasivaAssignments),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -634,3 +636,47 @@ export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, (
     references: [agents.id],
   }),
 }));
+
+export const holidays = sqliteTable("holidays", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+// 17. GUARDIA PASIVA
+export const monthlyGuardiaPasivaOperator = sqliteTable("monthly_guardia_pasiva_operator", {
+  month: text("month").primaryKey(), // Formato "YYYY-MM"
+  operatorId: integer("operator_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+});
+
+export const weeklyGuardiaPasivaAssignments = sqliteTable("weekly_guardia_pasiva_assignments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  startDate: text("start_date").notNull().unique(), // Lunes de la semana "YYYY-MM-DD"
+  endDate: text("end_date").notNull(),             // Domingo de la semana "YYYY-MM-DD"
+  supervisorName: text("supervisor_name").notNull(),// Nombre de texto libre
+  referenteId: integer("referente_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+});
+
+export const monthlyGuardiaPasivaOperatorRelations = relations(
+  monthlyGuardiaPasivaOperator,
+  ({ one }) => ({
+    operator: one(agents, {
+      fields: [monthlyGuardiaPasivaOperator.operatorId],
+      references: [agents.id],
+    }),
+  })
+);
+
+export const weeklyGuardiaPasivaAssignmentsRelations = relations(
+  weeklyGuardiaPasivaAssignments,
+  ({ one }) => ({
+    referente: one(agents, {
+      fields: [weeklyGuardiaPasivaAssignments.referenteId],
+      references: [agents.id],
+    }),
+  })
+);
