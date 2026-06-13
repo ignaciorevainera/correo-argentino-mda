@@ -218,19 +218,63 @@ import { Icon } from "astro-icon/components";
 
       <!-- Weekly Grid Days Editor -->
       <div class="space-y-4">
-        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Días de la Semana</h3>
+          <button type="button" id="weekly-clear-btn" class="btn btn-xs btn-ghost text-error hover:bg-error/10 font-black text-[9px] uppercase tracking-wider gap-1 rounded-lg transition-all">
+            <Icon name="boxicons:trash" size={13} />
+            Limpiar Todo
+          </button>
+        </div>
         
         <div id="weekly-days-list" class="space-y-2">
           <!-- Populated dynamically via JS: Lunes to Domingo rows -->
         </div>
       </div>
 
-      <!-- Save Button -->
-      <div class="pt-4 border-t border-base-200 flex justify-between items-center">
-        <span class="text-[10px] font-bold text-base-content/40">Edita los días arriba y haz click en aplicar</span>
-        <button type="button" id="save-operator-weekly-btn" class="btn btn-sm btn-secondary px-6 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-secondary/20 transition-all duration-200">
-          Aplicar Esquema a Operador
-        </button>
+      <!-- Save Buttons -->
+      <div class="pt-4 border-t border-base-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="text-[10px] font-black uppercase tracking-wider text-base-content/50">Aplicar Esquema al Mes Activo</label>
+          <span class="badge badge-secondary badge-outline text-[8px] font-black uppercase tracking-wider">Edición Rápida</span>
+        </div>
+
+        <div class="bg-base-200/40 border border-base-300/60 p-3 rounded-2xl space-y-2.5">
+          <!-- Primary CTA: Apply everything -->
+          <button 
+            type="button" 
+            id="apply-weekly-all-btn" 
+            class="btn btn-sm btn-secondary w-full gap-2 font-black uppercase tracking-wider text-[10px] rounded-xl shadow-lg shadow-secondary/15 transition-all duration-200 hover:brightness-105 active:scale-[0.98] h-10"
+          >
+            <Icon name="boxicons:calendar-check" size={15} />
+            Aplicar Esquema Completo
+          </button>
+
+          <div class="relative flex py-1 items-center">
+            <div class="flex-grow border-t border-base-300/50"></div>
+            <span class="flex-shrink mx-3 text-[8px] font-black uppercase tracking-widest text-base-content/30">O aplicar parcial</span>
+            <div class="flex-grow border-t border-base-300/50"></div>
+          </div>
+
+          <!-- Secondary Actions Side-by-Side -->
+          <div class="grid grid-cols-2 gap-2">
+            <button 
+              type="button" 
+              id="apply-weekly-days-btn" 
+              class="btn btn-xs btn-outline border-base-300 hover:border-secondary hover:bg-secondary/5 hover:text-secondary font-bold text-[9px] uppercase tracking-wider rounded-lg h-9 gap-1.5"
+            >
+              <Icon name="boxicons:calendar" size={13} />
+              Solo Días
+            </button>
+            <button 
+              type="button" 
+              id="apply-weekly-hours-btn" 
+              class="btn btn-xs btn-outline border-base-300 hover:border-secondary hover:bg-secondary/5 hover:text-secondary font-bold text-[9px] uppercase tracking-wider rounded-lg h-9 gap-1.5"
+            >
+              <Icon name="boxicons:timer" size={13} />
+              Solo Horas
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -258,7 +302,8 @@ import { Icon } from "astro-icon/components";
     handleWeeklyDayOptionClick,
     saveWeeklySchedule,
     populateWeeklyTemplatesDropdown,
-    renderWeeklyDaysList
+    renderWeeklyDaysList,
+    clearWeeklySchedule
   } from '../lib/weekly-schedule';
 
   // Modal open trigger listener
@@ -342,6 +387,7 @@ import { Icon } from "astro-icon/components";
   document.getElementById('new-template-save-btn')?.addEventListener('click', handleSaveTemplateClick);
   document.getElementById('new-template-delete-btn')?.addEventListener('click', handleDeleteTemplateClick);
   document.getElementById('weekly-template-duplicate-btn')?.addEventListener('click', handleDuplicateTemplateClick);
+  document.getElementById('weekly-clear-btn')?.addEventListener('click', clearWeeklySchedule);
 
   const weeklyDaysList = document.getElementById('weekly-days-list');
   
@@ -360,11 +406,17 @@ import { Icon } from "astro-icon/components";
     }
   });
 
-  document.getElementById('save-operator-weekly-btn')?.addEventListener('click', () => {
-    const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
-    if (opName) {
-      const saveBtn = document.getElementById('save-operator-weekly-btn') as HTMLButtonElement | null;
-      saveWeeklySchedule(opName, saveBtn);
-    }
-  });
+  const bindWeeklyApplyButton = (id: string, mode: 'all' | 'days' | 'hours') => {
+    document.getElementById(id)?.addEventListener('click', () => {
+      const opName = document.getElementById('drawer-op-name')?.textContent?.trim();
+      if (opName) {
+        const btn = document.getElementById(id) as HTMLButtonElement | null;
+        saveWeeklySchedule(opName, btn, mode);
+      }
+    });
+  };
+
+  bindWeeklyApplyButton('apply-weekly-all-btn', 'all');
+  bindWeeklyApplyButton('apply-weekly-days-btn', 'days');
+  bindWeeklyApplyButton('apply-weekly-hours-btn', 'hours');
 </script>

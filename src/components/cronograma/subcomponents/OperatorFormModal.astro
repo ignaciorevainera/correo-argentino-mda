@@ -17,7 +17,6 @@ const cancelBtnId = isEdit ? "cancel-edit-op" : "cancel-new-op";
 const nameInputId = isEdit ? "edit-op-name" : "new-op-name";
 const usernameInputId = isEdit ? "edit-op-username" : "new-op-username";
 const locationSelectId = isEdit ? "edit-op-location" : "new-op-location";
-const scheduleInputId = isEdit ? "edit-op-schedule" : "new-op-schedule";
 const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
 ---
 
@@ -64,19 +63,6 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
           <option value="Parque Patricios">Parque Patricios</option>
         </select>
       </div>
-
-      <div class="form-control w-full">
-        <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Turno Base Planificado</span>
-        </label>
-        <input 
-          type="text" 
-          id={scheduleInputId} 
-          placeholder="Ej: 08:00 - 17:00"
-          value={isEdit ? undefined : "08:00 - 17:00"}
-          class="input input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-secondary bg-base-100" 
-        />
-      </div>
     </div>
     
     <div class="modal-action mt-6 flex justify-end gap-2">
@@ -101,7 +87,6 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
     const nameInput = document.getElementById('new-op-name') as HTMLInputElement | null;
     const usernameInput = document.getElementById('new-op-username') as HTMLInputElement | null;
     const locationSelect = document.getElementById('new-op-location') as HTMLSelectElement | null;
-    const scheduleInput = document.getElementById('new-op-schedule') as HTMLInputElement | null;
     const confirmBtn = document.getElementById('confirm-new-op') as HTMLButtonElement | null;
     const cancelBtn = document.getElementById('cancel-new-op') as HTMLButtonElement | null;
 
@@ -109,7 +94,6 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
       if (nameInput) nameInput.value = '';
       if (usernameInput) usernameInput.value = '';
       if (locationSelect) locationSelect.value = 'Monte Grande';
-      if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
       newModal.close();
     });
 
@@ -117,7 +101,7 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
       const name = nameInput?.value?.trim();
       const username = usernameInput?.value?.trim() || '';
       const location = locationSelect?.value || 'Monte Grande';
-      const horarioDefault = scheduleInput?.value?.trim() || '08:00 - 17:00';
+      const horarioDefault = '';
 
       if (!name) {
         showToast("El nombre completo es requerido.", "warning");
@@ -130,7 +114,6 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
         if (nameInput) nameInput.value = '';
         if (usernameInput) usernameInput.value = '';
         if (locationSelect) locationSelect.value = 'Monte Grande';
-        if (scheduleInput) scheduleInput.value = '08:00 - 17:00';
         newModal.close();
         document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
       } catch (err: unknown) {
@@ -150,7 +133,6 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
     const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
     const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
     const locationSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
-    const scheduleInput = document.getElementById('edit-op-schedule') as HTMLInputElement | null;
     const confirmBtn = document.getElementById('confirm-edit-op') as HTMLButtonElement | null;
     const cancelBtn = document.getElementById('cancel-edit-op') as HTMLButtonElement | null;
 
@@ -163,7 +145,7 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
       const name = nameInput?.value?.trim();
       const username = usernameInput?.value?.trim() || '';
       const location = locationSelect?.value || 'Monte Grande';
-      const horarioDefault = scheduleInput?.value?.trim() || '';
+      const horarioDefault = '';
 
       if (!name || !originalName) {
         showToast("El nombre completo es requerido.", "warning");

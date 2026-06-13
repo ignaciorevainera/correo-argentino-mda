@@ -1,9 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
-import { db } from "@/db";
-import { agents, schedules, operatorAttendance } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
-import { calculateCompliance } from "@/pages/api/asistencia/index";
+import { getAttendanceData } from "@/lib/attendance";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -17,136 +14,7 @@ const totalDays = new Date(y, parseInt(m), 0).getDate();
 const startDate = `${y}-${m}-01`;
 const endDate = `${y}-${m}-${String(totalDays).padStart(2, "0")}`;
 
-// Helper to generate dates in range (inclusive)
-const dates: string[] = [];
-const start = new Date(startDate + "T12:00:00");
-const end = new Date(endDate + "T12:00:00");
-const current = new Date(start);
-
-while (current <= end) {
-  const cy = current.getFullYear();
-  const cm = String(current.getMonth() + 1).padStart(2, "0");
-  const cd = String(current.getDate()).padStart(2, "0");
-  dates.push(`${cy}-${cm}-${cd}`);
-  current.setDate(current.getDate() + 1);
-}
-
-// 1. Fetch all agents
-const dbAgents = await db.select().from(agents);
-
-// 2. Fetch schedules for this date range
-const dbSchedules = await db
-  .select()
-  .from(schedules)
-  .where(and(
-    gte(schedules.date, startDate),
-    lte(schedules.date, endDate)
-  ));
-
-// 3. Fetch attendance records for this date range
-const dbAttendance = await db
-  .select()
-  .from(operatorAttendance)
-  .where(and(
-    gte(operatorAttendance.date, startDate),
-    lte(operatorAttendance.date, endDate)
-  ));
-
-// Find scheduled months to know where to apply weekly defaults vs Franco
-const months = Array.from(new Set(dates.map(d => d.substring(0, 7))));
-const scheduledMonths: Record<string, boolean> = {};
-for (const monthItem of months) {
-  const existingSchedule = await db
-    .select({ id: schedules.id })
-    .from(schedules)
-    .where(and(
-      gte(schedules.date, `${monthItem}-01`),
-      lte(schedules.date, `${monthItem}-31`)
-    ))
-    .limit(1);
-  scheduledMonths[monthItem] = existingSchedule.length > 0;
-}
-
-const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-const initialData: any[] = [];
-
-for (const dateStr of dates) {
-  const dateObj = new Date(dateStr + "T12:00:00");
-  const dayName = dayNames[dateObj.getDay()];
-  const monthStr = dateStr.substring(0, 7);
-  const isScheduledMonth = !!scheduledMonths[monthStr];
-
-  dbAgents.forEach((agent) => {
-    const plan = dbSchedules.find((s) => s.agentName === agent.name && s.date === dateStr);
-    
-    let modalidadPlanificada = "Franco";
-    let horarioEstipulado = "";
-
-    if (isScheduledMonth) {
-      if (plan) {
-        modalidadPlanificada = plan.status;
-        horarioEstipulado = plan.horario || "";
-      } else {
-        modalidadPlanificada = "Franco";
-        horarioEstipulado = "";
-      }
-    } else {
-      const esquemaSemanal = (agent.esquemaSemanal as Record<string, string>) || {};
-      const esquemaHorario = (agent.esquemaHorario as Record<string, string>) || {};
-      modalidadPlanificada = esquemaSemanal[dayName] ?? "Franco";
-      horarioEstipulado = esquemaHorario[dayName] || "";
-    }
-
-    if (!modalidadPlanificada || modalidadPlanificada.trim() === "") {
-      modalidadPlanificada = "Franco";
-    }
-
-    if (modalidadPlanificada === "Franco") {
-      horarioEstipulado = "";
-    } else if (!horarioEstipulado || horarioEstipulado.trim() === "" || horarioEstipulado.trim() === "-") {
-      horarioEstipulado = agent.horarioDefault || "08:00 - 17:00";
-    }
-
-    const actual = dbAttendance.find((a) => a.agentId === agent.id && a.date === dateStr);
-
-    let defaultAsistencia = "";
-    if (modalidadPlanificada === "Home Office") {
-      defaultAsistencia = "HOME OFFICE";
-    } else if (modalidadPlanificada?.startsWith("Presencial")) {
-      defaultAsistencia = modalidadPlanificada.toUpperCase();
-    }
-
-    const asistencia = actual?.asistencia ?? defaultAsistencia;
-     const ausencia = actual?.ausencia ?? "";
-    const entradaReal = actual?.entradaReal ?? "";
-    const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
-    const motivoLoguin = actual?.motivoLoguin ?? "";
-    const detalle = actual?.detalle ?? "";
-
-    let cumplimiento = actual?.cumplimiento ?? "";
-    if (!cumplimientoForzado || !cumplimiento) {
-      cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
-    }
-
-    initialData.push({
-      agentId: agent.id,
-      date: dateStr,
-      nombre: agent.name,
-      username: agent.username || "",
-      location: agent.location || "Monte Grande",
-      horarioEstipulado,
-      modalidadPlanificada,
-      asistenciaId: actual?.id || null,
-      asistencia,
-      ausencia,
-      entradaReal,
-      cumplimiento,
-      cumplimientoForzado,
-      motivoLoguin,
-      detalle,
-    });
-  });
-}
+const initialData = await getAttendanceData(startDate, endDate);
 ---
 
 <script define:vars={{ initialData, defaultMonth }}>
@@ -289,7 +157,7 @@ for (const dateStr of dates) {
   const operatorSelect = document.getElementById('operator-select') as HTMLSelectElement;
 
   function processGlobalMetrics() {
-    const schedulesWithTime = rawLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco");
+    const schedulesWithTime = rawLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro");
     const totalSchedules = schedulesWithTime.length;
     
     const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
@@ -324,6 +192,7 @@ for (const dateStr of dates) {
     const agentStats: Record<number, { name: string; total: number; punctuals: number; lates: number }> = {};
     rawLogs.forEach(log => {
       if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
+      if (!log.cumplimiento || log.cumplimiento === "Sin Registro") return;
       if (!agentStats[log.agentId]) {
         agentStats[log.agentId] = { name: log.nombre, total: 0, punctuals: 0, lates: 0 };
       }
@@ -423,6 +292,7 @@ for (const dateStr of dates) {
 
     rawLogs.forEach(log => {
       if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
+      if (!log.cumplimiento || log.cumplimiento === "Sin Registro") return;
       const day = parseInt(log.date.substring(8, 10));
       let weekKey = "Semana 4";
       if (day <= 7) weekKey = "Semana 1";
@@ -487,7 +357,7 @@ for (const dateStr of dates) {
     if (emptyState) emptyState.classList.add('hidden');
     if (statsBlock) statsBlock.classList.remove('hidden');
 
-    const schedulesWithTime = opLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco");
+    const schedulesWithTime = opLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro");
     const totalSchedules = schedulesWithTime.length;
     
     const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
@@ -519,13 +389,33 @@ for (const dateStr of dates) {
             colorClass = 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30';
           } else if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Retiro Anticipado" || log.cumplimiento === "Tarde y Retiro Anticipado") {
             colorClass = 'bg-amber-500/20 text-amber-600 border border-amber-500/30';
-          } else if (log.cumplimiento === "Incumplió" || log.cumplimiento === "Sin Registro") {
+          } else if (log.cumplimiento === "Incumplió") {
             colorClass = 'bg-error/15 text-error border border-error/30';
           }
         }
         
-        cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black cursor-help shadow-sm transition-all duration-200 hover:scale-110 hover:z-10 ${colorClass}`;
+        cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black cursor-pointer shadow-sm transition-all duration-200 hover:scale-110 hover:z-10 relative ${colorClass}`;
         cell.textContent = String(day);
+
+        // Highlight absences with a red dot indicator (filtering out obsolete/invalid types)
+        const validAusencias = [
+          "Tramite", "Demorado", "Se reporta enfermo", "Ausente Justificado", 
+          "Ausente con Permiso", "Ausente No Justificado", "Ausencia sin aviso", 
+          "Lic. Estudio", "Lic. Medica", "Lic. Anual", "Lic. UI", "Lic. Gremial", 
+          "Lic. Paternidad", "Lic. Maternidad", "Lic. Fallecimiento", "ART"
+        ];
+        if (log.ausencia && validAusencias.includes(log.ausencia)) {
+          const dot = document.createElement('span');
+          dot.className = 'absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-error border-2 border-base-100';
+          cell.appendChild(dot);
+        }
+        
+        // Click redirects to attendance control with date
+        cell.addEventListener('click', () => {
+          const cleanBase = import.meta.env.BASE_URL || "/";
+          const finalBase = cleanBase.endsWith("/") ? cleanBase : cleanBase + "/";
+          window.location.href = `${finalBase}supervision/asistencia?date=${log.date}`;
+        });
         
         const tooltipParts = [
           `Fecha: ${log.date}`,

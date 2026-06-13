@@ -88,7 +88,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
     // Fallback for horario if working but empty
     if (status !== "Franco" && (!horario || horario.trim() === "" || horario.trim() === "-")) {
-      horario = agent.horarioDefault || "08:00 - 17:00";
+      horario = agent.horarioDefault || "";
     }
 
     // Check if shift ended (auto-cleanup of exceptional state)

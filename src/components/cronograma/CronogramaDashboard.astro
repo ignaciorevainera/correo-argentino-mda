@@ -18,35 +18,49 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
 
   <div class="w-full flex flex-col gap-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div id="view-switcher" class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0">
-        <button 
-          type="button" 
-          id="switch-to-monthly-btn" 
-          class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200"
-        >
-          Mensual
-        </button>
-        <button 
-          type="button" 
-          id="switch-to-daily-btn" 
-          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
-        >
-          Diario
-        </button>
-        <button 
-          type="button" 
-          id="switch-to-groups-btn" 
-          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
-        >
-          Grupos
-        </button>
-        <button 
-          type="button" 
-          id="switch-to-overtime-btn" 
-          class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
-        >
-          Extras
-        </button>
+      <div id="view-switcher" class="flex flex-wrap items-center gap-3 shrink-0">
+        <!-- Vistas de Calendario -->
+        <div class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0">
+          <button 
+            type="button" 
+            id="switch-to-monthly-btn" 
+            class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200"
+          >
+            Mensual
+          </button>
+          <button 
+            type="button" 
+            id="switch-to-daily-btn" 
+            class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+          >
+            Diario
+          </button>
+        </div>
+
+        <!-- Vistas de Configuración y Turnos -->
+        <div class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0">
+          <button 
+            type="button" 
+            id="switch-to-groups-btn" 
+            class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+          >
+            Grupos
+          </button>
+          <button 
+            type="button" 
+            id="switch-to-overtime-btn" 
+            class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+          >
+            Extras
+          </button>
+          <button 
+            type="button" 
+            id="switch-to-pasiva-btn" 
+            class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-[9px] px-3.5 h-7 rounded-lg transition-all duration-200"
+          >
+            Pasivas
+          </button>
+        </div>
       </div>
 
       <!-- Date Picker (hidden by default) -->
@@ -487,6 +501,22 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
             </div>
           </div>
           <div class="flex flex-wrap gap-2 justify-start xl:justify-end shrink-0">
+            <div class="relative">
+              <input
+                type="file"
+                id="import-csv-input"
+                accept=".csv"
+                class="hidden"
+              />
+              <button
+                type="button"
+                id="import-csv-btn"
+                class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg"
+              >
+                <Icon name="boxicons:folder-up-arrow" size={14} />
+                Importar CSV
+              </button>
+            </div>
             <button id="export-csv-btn" class="btn btn-xs btn-outline gap-1.5 border-base-300 hover:bg-base-300 hover:border-base-300 font-bold text-[10px] uppercase rounded-lg">
               <Icon name="boxicons:file" size={14} />
               Exportar CSV
@@ -502,6 +532,15 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
 
     <div id="groups-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
       <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6">
+        <div class="flex items-center justify-between border-b border-base-300 pb-3">
+          <div>
+            <h2 class="text-base font-black text-base-content uppercase tracking-wide">Configuración de Grupos</h2>
+            <p class="text-xs text-base-content/50">Establece la rotación y horarios de sábados aplicados únicamente al mes seleccionado.</p>
+          </div>
+          <div class="badge badge-secondary badge-lg font-bold text-xs uppercase tracking-wider py-3" id="groups-active-month-badge">
+            Mes: -
+          </div>
+        </div>
         <!-- Configuration form -->
         <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60 shadow-sm">
           <form id="rotation-config-form" class="w-full flex flex-col md:flex-row md:items-end gap-4">
@@ -541,7 +580,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
             <div class="card-body p-4 space-y-4">
               <div class="flex items-center justify-between border-b border-base-300 pb-2">
                 <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
-                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">A</span>
+                  <span class="w-6 h-6 rounded-lg bg-success text-success-content flex items-center justify-center font-black text-xs">A</span>
                   Grupo A
                 </h3>
                 <div class="flex items-center gap-1.5">
@@ -564,7 +603,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
             <div class="card-body p-4 space-y-4">
               <div class="flex items-center justify-between border-b border-base-300 pb-2">
                 <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
-                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">B</span>
+                  <span class="w-6 h-6 rounded-lg bg-error text-error-content flex items-center justify-center font-black text-xs">B</span>
                   Grupo B
                 </h3>
                 <div class="flex items-center gap-1.5">
@@ -587,7 +626,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
             <div class="card-body p-4 space-y-4">
               <div class="flex items-center justify-between border-b border-base-300 pb-2">
                 <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
-                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">C</span>
+                  <span class="w-6 h-6 rounded-lg bg-warning text-warning-content flex items-center justify-center font-black text-xs">C</span>
                   Grupo C
                 </h3>
                 <div class="flex items-center gap-1.5">
@@ -610,7 +649,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
             <div class="card-body p-4 space-y-4">
               <div class="flex items-center justify-between border-b border-base-300 pb-2">
                 <h3 class="font-black text-sm uppercase tracking-wider text-base-content flex items-center gap-2">
-                  <span class="w-6 h-6 rounded-lg bg-secondary text-secondary-content flex items-center justify-center font-black text-xs">D</span>
+                  <span class="w-6 h-6 rounded-lg bg-info text-info-content flex items-center justify-center font-black text-xs">D</span>
                   Grupo D
                 </h3>
                 <div class="flex items-center gap-1.5">
@@ -809,6 +848,67 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
       </div>
     </div>
 
+    <!-- ===== PASIVA VIEW ===== -->
+    <div id="pasiva-view" class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Columna Izquierda: Operador del Mes -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+          <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4">
+            <div class="flex items-center gap-2.5 pb-2 border-b border-base-200">
+              <div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <Icon name="boxicons:user" size={18} />
+              </div>
+              <div>
+                <h3 class="text-xs font-black uppercase tracking-wider text-base-content">Operador del Mes</h3>
+                <p class="text-[10px] text-base-content/50">Asignación pasiva mensual</p>
+              </div>
+            </div>
+            
+            <div class="form-control w-full">
+              <label class="label py-1">
+                <span class="label-text text-[10px] font-black uppercase tracking-wider text-base-content/50">Seleccionar Operador</span>
+              </label>
+              <select id="pasiva-monthly-operator-select" class="select select-bordered select-sm rounded-xl font-bold text-xs h-9 w-full bg-base-100 focus:outline-none focus:border-secondary">
+                <option value="">SIN OPERADOR</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Tabla Semanal -->
+        <div class="lg:col-span-8">
+          <div class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden">
+            <div class="bg-base-200/70 border-b border-base-300 px-6 py-4 flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center">
+                <Icon name="boxicons:calendar" size={18} />
+              </div>
+              <div>
+                <h3 class="text-xs font-black uppercase tracking-wider text-base-content">Supervisión & Referentes</h3>
+                <p class="text-[10px] text-base-content/50">Planificación por semanas</p>
+              </div>
+            </div>
+
+            <div class="p-6">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-separate border-spacing-y-2.5">
+                  <thead>
+                    <tr class="text-[9px] font-black uppercase tracking-widest text-base-content/40">
+                      <th class="pb-1 pl-2">Semana</th>
+                      <th class="pb-1">Supervisor</th>
+                      <th class="pb-1">Referente</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pasiva-weeks-tbody">
+                    <!-- Injected dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 <!-- Quick Edit Context Menu -->
 <div 
   id="quick-edit-menu" 
@@ -915,6 +1015,21 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
         <button id="discard-edits-btn" class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200" disabled>Descartar</button>
         <button id="save-edits-btn" class="btn btn-xs btn-primary gap-1" disabled>Guardar</button>
      </div>
+ </div>
+
+ <!-- Pasiva Edit Mode Toolbar -->
+ <div id="pasiva-edit-toolbar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-3 z-100 transition-all duration-500 translate-y-32 opacity-0 pointer-events-none max-w-[calc(100vw-2rem)]">
+    <div class="flex items-center gap-2 px-1">
+       <Icon name="boxicons:info-circle" class="text-secondary shrink-0" size={16} />
+       <span class="text-[10px] font-black uppercase tracking-wider text-base-content/70 select-none">Cambios en Pasivas</span>
+    </div>
+    
+    <div class="w-px h-6 bg-base-300/60"></div>
+    
+    <div class="flex items-center gap-2">
+       <button id="pasiva-discard-btn" class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200" type="button">Descartar</button>
+       <button id="pasiva-save-btn" class="btn btn-xs btn-primary gap-1" type="button">Guardar</button>
+    </div>
  </div>
  
  <RulesSettingsModal />
@@ -1038,6 +1153,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
      button,
      #monthly-detail-overlay,
      #edit-mode-toolbar,
+     #pasiva-edit-toolbar,
      #save-indicator,
      .op-checkbox {
        display: none !important;
@@ -1314,8 +1430,8 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
      height: 4px;
      z-index: 10;
      border-radius: 9999px;
-     background-color: var(--color-purple, #a855f7) !important;
-     box-shadow: 0 1px 2px rgba(168, 85, 247, 0.2);
+     background-color: var(--color-indigo, #6366f1) !important;
+     box-shadow: 0 1px 2px rgba(99, 102, 241, 0.2);
      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
      cursor: pointer;
    }
@@ -1324,8 +1440,8 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
    .gantt-break-highlighted {
      top: 4px;
      height: 6px;
-     background-color: var(--color-purple, #9333ea) !important;
-     box-shadow: 0 0 8px rgba(168, 85, 247, 0.5) !important;
+     background-color: var(--color-indigo, #4f46e5) !important;
+     box-shadow: 0 0 8px rgba(99, 102, 241, 0.5) !important;
    }
  
    .gantt-break-tooltip {

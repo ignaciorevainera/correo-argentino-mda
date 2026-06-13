@@ -20,23 +20,25 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export interface CronogramaPayload {
   operators: OperatorData[];
   weekendOvertimeConfigs: WeekendOvertimeConfig[];
+  availableMonths?: string[];
 }
 
-export async function fetchCronogramaFullData(): Promise<CronogramaPayload> {
+
+export async function fetchCronogramaFullData(month?: string): Promise<CronogramaPayload> {
   if (typeof window !== 'undefined' && (window as any).__CRONOGRAMA_INITIAL_DATA__) {
     const data = (window as any).__CRONOGRAMA_INITIAL_DATA__;
     delete (window as any).__CRONOGRAMA_INITIAL_DATA__;
-    // Support both old (array) and new (envelope) shapes
     if (Array.isArray(data)) {
       return { operators: data, weekendOvertimeConfigs: [] };
     }
     return data as CronogramaPayload;
   }
-  return fetchJSON<CronogramaPayload>('/api/cronograma');
+  const url = month ? `/api/cronograma?month=${month}` : '/api/cronograma';
+  return fetchJSON<CronogramaPayload>(url);
 }
 
-export async function fetchCronogramaData(): Promise<OperatorData[]> {
-  const payload = await fetchCronogramaFullData();
+export async function fetchCronogramaData(month?: string): Promise<OperatorData[]> {
+  const payload = await fetchCronogramaFullData(month);
   return payload.operators;
 }
 

@@ -5,6 +5,7 @@ import {
   real,
   primaryKey,
   index,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 import { relations } from "drizzle-orm";
@@ -200,7 +201,7 @@ export const agents = sqliteTable("agents", {
   avatarInitials: text("avatar_initials"),
   notes: text("notes"),
   location: text("location").notNull().default("Monte Grande"),
-  horarioDefault: text("horario_default").notNull().default("08:00 - 17:00"),
+  horarioDefault: text("horario_default").notNull().default(""),
   esquemaSemanal: text("esquema_semanal", { mode: "json" }).$type<
     Record<string, string>
   >(),
@@ -249,6 +250,9 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   audits: many(qualityAudits),
   attendance: many(operatorAttendance),
   weekendOvertimeShifts: many(weekendOvertimeShifts),
+  agentSaturdayGroups: many(agentSaturdayGroups),
+  monthlyGuardiaPasivaOperators: many(monthlyGuardiaPasivaOperator),
+  weeklyGuardiaPasivaAssignments: many(weeklyGuardiaPasivaAssignments),
 }));
 
 export const cubicAssignmentsRelations = relations(
@@ -584,10 +588,30 @@ export const operatorAttendanceRelations = relations(
 
 export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  month: text("month").notNull().unique(), // "YYYY-MM"
   rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
   startDate: text("start_date").notNull().default("2026-06-06"),
   startGroup: text("start_group").notNull().default("A"),
 });
+
+export const agentSaturdayGroups = sqliteTable("agent_saturday_groups", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentId: integer("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  month: text("month").notNull(), // "YYYY-MM"
+  saturdayGroup: text("saturday_group"),
+  saturdayHorario: text("saturday_horario"),
+}, (table) => ({
+  agentMonthUniqueIdx: uniqueIndex("agent_month_unique_idx").on(table.agentId, table.month),
+}));
+
+export const agentSaturdayGroupsRelations = relations(agentSaturdayGroups, ({ one }) => ({
+  agent: one(agents, {
+    fields: [agentSaturdayGroups.agentId],
+    references: [agents.id],
+  }),
+}));
 
 export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -615,3 +639,47 @@ export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, (
     references: [agents.id],
   }),
 }));
+
+export const holidays = sqliteTable("holidays", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull().unique(),
+  name: text("name").notNull(),
+});
+
+// 17. GUARDIA PASIVA
+export const monthlyGuardiaPasivaOperator = sqliteTable("monthly_guardia_pasiva_operator", {
+  month: text("month").primaryKey(), // Formato "YYYY-MM"
+  operatorId: integer("operator_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+});
+
+export const weeklyGuardiaPasivaAssignments = sqliteTable("weekly_guardia_pasiva_assignments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  startDate: text("start_date").notNull().unique(), // Lunes de la semana "YYYY-MM-DD"
+  endDate: text("end_date").notNull(),             // Domingo de la semana "YYYY-MM-DD"
+  supervisorName: text("supervisor_name").notNull(),// Nombre de texto libre
+  referenteId: integer("referente_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+});
+
+export const monthlyGuardiaPasivaOperatorRelations = relations(
+  monthlyGuardiaPasivaOperator,
+  ({ one }) => ({
+    operator: one(agents, {
+      fields: [monthlyGuardiaPasivaOperator.operatorId],
+      references: [agents.id],
+    }),
+  })
+);
+
+export const weeklyGuardiaPasivaAssignmentsRelations = relations(
+  weeklyGuardiaPasivaAssignments,
+  ({ one }) => ({
+    referente: one(agents, {
+      fields: [weeklyGuardiaPasivaAssignments.referenteId],
+      references: [agents.id],
+    }),
+  })
+);

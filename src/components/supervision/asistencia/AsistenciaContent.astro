@@ -1,9 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
-import { db } from "@/db";
-import { agents, schedules, operatorAttendance } from "@/db/schema";
-import { and, gte, lte } from "drizzle-orm";
-import { calculateCompliance } from "@/pages/api/asistencia/index";
+import { getAttendanceData } from "@/lib/attendance";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -13,124 +10,12 @@ const today = new Date();
 const y = today.getFullYear();
 const m = String(today.getMonth() + 1).padStart(2, "0");
 const d = String(today.getDate()).padStart(2, "0");
-const defaultDate = `${y}-${m}-${d}`;
 
-const startDate = defaultDate;
-const endDate = defaultDate;
-const dates = [defaultDate];
+const urlDate = Astro.url.searchParams.get("date");
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const defaultDate = (urlDate && dateRegex.test(urlDate)) ? urlDate : `${y}-${m}-${d}`;
 
-const dbAgents = await db.select().from(agents);
-
-const dbSchedules = await db
-  .select()
-  .from(schedules)
-  .where(and(
-    gte(schedules.date, startDate),
-    lte(schedules.date, endDate)
-  ));
-
-const dbAttendance = await db
-  .select()
-  .from(operatorAttendance)
-  .where(and(
-    gte(operatorAttendance.date, startDate),
-    lte(operatorAttendance.date, endDate)
-  ));
-
-const months = Array.from(new Set(dates.map(d => d.substring(0, 7))));
-const scheduledMonths: Record<string, boolean> = {};
-for (const monthItem of months) {
-  const existingSchedule = await db
-    .select({ id: schedules.id })
-    .from(schedules)
-    .where(and(
-      gte(schedules.date, `${monthItem}-01`),
-      lte(schedules.date, `${monthItem}-31`)
-    ))
-    .limit(1);
-  scheduledMonths[monthItem] = existingSchedule.length > 0;
-}
-
-const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-const initialData: any[] = [];
-
-for (const dateStr of dates) {
-  const dateObj = new Date(dateStr + "T12:00:00");
-  const dayName = dayNames[dateObj.getDay()];
-  const monthStr = dateStr.substring(0, 7);
-  const isScheduledMonth = !!scheduledMonths[monthStr];
-
-  dbAgents.forEach((agent) => {
-    const plan = dbSchedules.find((s) => s.agentName === agent.name && s.date === dateStr);
-    
-    let modalidadPlanificada = "Franco";
-    let horarioEstipulado = "";
-
-    if (isScheduledMonth) {
-      if (plan) {
-        modalidadPlanificada = plan.status;
-        horarioEstipulado = plan.horario || "";
-      } else {
-        modalidadPlanificada = "Franco";
-        horarioEstipulado = "";
-      }
-    } else {
-      const esquemaSemanal = (agent.esquemaSemanal as Record<string, string>) || {};
-      const esquemaHorario = (agent.esquemaHorario as Record<string, string>) || {};
-      modalidadPlanificada = esquemaSemanal[dayName] ?? "Franco";
-      horarioEstipulado = esquemaHorario[dayName] || "";
-    }
-
-    if (!modalidadPlanificada || modalidadPlanificada.trim() === "") {
-      modalidadPlanificada = "Franco";
-    }
-
-    if (modalidadPlanificada === "Franco") {
-      horarioEstipulado = "";
-    } else if (!horarioEstipulado || horarioEstipulado.trim() === "" || horarioEstipulado.trim() === "-") {
-      horarioEstipulado = agent.horarioDefault || "08:00 - 17:00";
-    }
-
-    const actual = dbAttendance.find((a) => a.agentId === agent.id && a.date === dateStr);
-
-    let defaultAsistencia = "";
-    if (modalidadPlanificada === "Home Office") {
-      defaultAsistencia = "HOME OFFICE";
-    } else if (modalidadPlanificada?.startsWith("Presencial")) {
-      defaultAsistencia = modalidadPlanificada.toUpperCase();
-    }
-
-    const asistencia = actual?.asistencia ?? defaultAsistencia;
-    const ausencia = actual?.ausencia ?? "";
-    const entradaReal = actual?.entradaReal ?? "";
-    const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
-    const motivoLoguin = actual?.motivoLoguin ?? "";
-    const detalle = actual?.detalle ?? "";
-
-    let cumplimiento = actual?.cumplimiento ?? "";
-    if (!cumplimientoForzado || !cumplimiento) {
-      cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
-    }
-
-    initialData.push({
-      agentId: agent.id,
-      date: dateStr,
-      nombre: agent.name,
-      username: agent.username || "",
-      location: agent.location || "Monte Grande",
-      horarioEstipulado,
-      modalidadPlanificada,
-      asistenciaId: actual?.id || null,
-      asistencia,
-      ausencia,
-      entradaReal,
-      cumplimiento,
-      cumplimientoForzado,
-      motivoLoguin,
-      detalle,
-    });
-  });
-}
+const initialData = await getAttendanceData(defaultDate, defaultDate);
 ---
 
 <script define:vars={{ initialData, defaultDate }}>
@@ -1007,7 +892,17 @@ for (const dateStr of dates) {
   });
 
   // Consumir datos iniciales pre-cargados
-  selectedDate = dateInput?.value || "";
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryDate = urlParams.get('date');
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (queryDate && dateRegex.test(queryDate)) {
+    selectedDate = queryDate;
+    if (dateInput) dateInput.value = queryDate;
+  } else {
+    selectedDate = dateInput?.value || "";
+  }
+
   if (dateDisplay) dateDisplay.textContent = selectedDate;
   if (dayOfWeekLabel) dayOfWeekLabel.textContent = getSpanishDayName(selectedDate);
 

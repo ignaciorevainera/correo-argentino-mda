@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ request }) => {
           username: username ? username.trim() : null,
           avatarInitials: initials,
           location: location || "Monte Grande",
-          horarioDefault: horarioDefault || "08:00 - 17:00",
+          horarioDefault: horarioDefault || "",
         })
         .where(eq(agents.name, originalName));
 
@@ -98,7 +98,7 @@ export const POST: APIRoute = async ({ request }) => {
         username: username ? username.trim() : null,
         avatarInitials: initials,
         location: location || "Monte Grande",
-        horarioDefault: horarioDefault || "08:00 - 17:00",
+        horarioDefault: horarioDefault || "",
         esquemaSemanal: {
           Lunes: "Franco",
           Martes: "Franco",

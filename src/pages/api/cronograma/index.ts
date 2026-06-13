@@ -1,51 +1,149 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { agents, schedules, saturdayRotationConfig, weekendOvertimeConfig, weekendOvertimeShifts } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import {
+  agents,
+  schedules,
+  saturdayRotationConfig,
+  weekendOvertimeConfig,
+  weekendOvertimeShifts,
+  agentSaturdayGroups,
+} from "@/db/schema";
+import { eq, and, desc, lt, like, sql } from "drizzle-orm";
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ url }) => {
   try {
-    // Retrieve active rotation config, inserting default if none exists
-    const configList = await db.select().from(saturdayRotationConfig).limit(1);
+    // 1. Determinar el mes activo y meses disponibles (Database-Side Unique Months Aggregation)
+    const dbSchedulesList = await db
+      .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
+      .from(schedules);
+    const availableMonths = dbSchedulesList.map(s => s.month).filter(Boolean).sort();
+    
+    const d = new Date();
+    const currentMonthDefault = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const activeMonth = url.searchParams.get("month") || (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault);
+
+    // 2. Cargar configuración de rotación para este mes
+    let configList = await db
+      .select()
+      .from(saturdayRotationConfig)
+      .where(eq(saturdayRotationConfig.month, activeMonth))
+      .limit(1);
     let rotationConfig = configList[0];
+    
     if (!rotationConfig) {
-      await db.insert(saturdayRotationConfig).values({
+      // Fallback: intentar copiar el anterior más cercano
+      const previousConfigs = await db
+        .select()
+        .from(saturdayRotationConfig)
+        .where(lt(saturdayRotationConfig.month, activeMonth))
+        .orderBy(desc(saturdayRotationConfig.month))
+        .limit(1);
+      
+      const baseConfig = previousConfigs[0] || {
         rotationOrder: "A,B,C,D",
         startDate: "2026-06-06",
         startGroup: "A",
-      });
-      const insertedList = await db.select().from(saturdayRotationConfig).limit(1);
-      rotationConfig = insertedList[0];
+      };
+
+      // Devolver configuración en memoria sin persistirla en GET (Side-effect free GET)
+      rotationConfig = {
+        id: 0,
+        month: activeMonth,
+        rotationOrder: baseConfig.rotationOrder,
+        startDate: baseConfig.startDate,
+        startGroup: baseConfig.startGroup,
+      };
     }
 
-    // 1. Fetch all agents (operators) from DB
+    // 3. Cargar asignaciones de grupos de sábados específicas de este mes
+    const dbMonthlyGroups = await db
+      .select()
+      .from(agentSaturdayGroups)
+      .where(eq(agentSaturdayGroups.month, activeMonth));
+    const monthlyGroupsMap = new Map(dbMonthlyGroups.map(g => [g.agentId, g]));
+
+    // 4. Buscar asignaciones del mes anterior en caso de fallback (Optimized Fallback Group Lookup)
+    const prevMonthResult = await db
+      .select({ month: agentSaturdayGroups.month })
+      .from(agentSaturdayGroups)
+      .where(lt(agentSaturdayGroups.month, activeMonth))
+      .orderBy(desc(agentSaturdayGroups.month))
+      .limit(1);
+    
+    const prevMonth = prevMonthResult[0]?.month;
+    let dbPreviousMonthlyGroups: typeof agentSaturdayGroups.$inferSelect[] = [];
+    if (prevMonth) {
+      dbPreviousMonthlyGroups = await db
+        .select()
+        .from(agentSaturdayGroups)
+        .where(eq(agentSaturdayGroups.month, prevMonth));
+    }
+    
+    const previousGroupsMap = new Map<number, typeof agentSaturdayGroups.$inferSelect>();
+    for (const pg of dbPreviousMonthlyGroups) {
+      if (!previousGroupsMap.has(pg.agentId)) {
+        previousGroupsMap.set(pg.agentId, pg);
+      }
+    }
+
+    // 5. Cargar todos los agentes
     const dbAgents = await db.select().from(agents);
 
-    // Fetch all weekend overtime data (configs + shifts)
-    const dbOvertimeConfigs = await db.select().from(weekendOvertimeConfig);
-    const dbOvertimeShifts = await db.select().from(weekendOvertimeShifts);
+    // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
+    const dbOvertimeConfigs = await db
+      .select()
+      .from(weekendOvertimeConfig)
+      .where(like(weekendOvertimeConfig.weekendStartDate, `${activeMonth}-%`));
+    
+    const dbOvertimeShifts = await db
+      .select()
+      .from(weekendOvertimeShifts)
+      .where(like(weekendOvertimeShifts.weekendStartDate, `${activeMonth}-%`));
 
-    const baseline = dbAgents.map((agent) => ({
-      id: agent.id,
-      nombre: agent.name,
-      username: agent.username || undefined,
-      horario: agent.horarioDefault,
-      location: agent.location || "Monte Grande",
-      asistencia: {},
-      esquema_semanal: agent.esquemaSemanal || {},
-      esquema_horario: agent.esquemaHorario || {},
-      esquema_break_inicio: agent.esquemaBreakInicio || {},
-      esquema_break_fin: agent.esquemaBreakFin || {},
-      maxConsecutiveHO: agent.maxConsecutiveHO,
-      minPWeek: agent.minPWeek,
-      saturdayGroup: agent.saturdayGroup || undefined,
-      saturdayHorario: agent.saturdayHorario || undefined,
-    }));
+    const baseline = dbAgents.map((agent) => {
+      // Resolver el grupo y horario de sábado para este mes
+      let group = agent.saturdayGroup || undefined;
+      let horarioSat = agent.saturdayHorario || undefined;
 
-    // 2. Fetch all persistent schedule overrides from DB
-    const dbSchedules = await db.select().from(schedules);
+      // Comprobar si hay asignación específica para este mes
+      const monthlyConfig = monthlyGroupsMap.get(agent.id);
+      if (monthlyConfig) {
+        group = monthlyConfig.saturdayGroup || undefined;
+        horarioSat = monthlyConfig.saturdayHorario || undefined;
+      } else {
+        // Si no, comprobar si hay asignación histórica previa para copiarla a este mes
+        const prevConfig = previousGroupsMap.get(agent.id);
+        if (prevConfig) {
+          group = prevConfig.saturdayGroup || undefined;
+          horarioSat = prevConfig.saturdayHorario || undefined;
+        }
+      }
 
-    // 3. Merge database overrides into baseline structure
+      return {
+        id: agent.id,
+        nombre: agent.name,
+        username: agent.username || undefined,
+        horario: agent.horarioDefault,
+        location: agent.location || "Monte Grande",
+        asistencia: {},
+        esquema_semanal: agent.esquemaSemanal || {},
+        esquema_horario: agent.esquemaHorario || {},
+        esquema_break_inicio: agent.esquemaBreakInicio || {},
+        esquema_break_fin: agent.esquemaBreakFin || {},
+        maxConsecutiveHO: agent.maxConsecutiveHO,
+        minPWeek: agent.minPWeek,
+        saturdayGroup: group,
+        saturdayHorario: horarioSat,
+      };
+    });
+
+    // 7. Buscar horarios específicos del mes de schedules de la base de datos
+    const dbSchedules = await db
+      .select()
+      .from(schedules)
+      .where(like(schedules.date, `${activeMonth}-%`));
+
+    // 8. Combinar schedules sobre la base
     const merged = baseline.map((operator: any) => {
       const name = operator.nombre;
       const opOverrides = dbSchedules.filter((s) => s.agentName === name);
@@ -59,7 +157,6 @@ export const GET: APIRoute = async () => {
       const newBreaksFin: Record<string, string> = {};
       const overrides: Record<string, boolean> = {};
 
-      // Load specific DB overrides first
       opOverrides.forEach((s) => {
         let status = s.status;
         let horario = s.horario;
@@ -68,11 +165,10 @@ export const GET: APIRoute = async () => {
           overrides[s.date] = true;
         }
 
-        // Check if date falls on Saturday and if operator has saturdayGroup defined
+        // Cálculo dinámico de sábados de rotación
         const dateObj = new Date(s.date + "T12:00:00");
         const isSaturday = dateObj.getDay() === 6;
         if (isSaturday && operator.saturdayGroup) {
-          // Calculate active group
           const start = new Date(rotationConfig.startDate + "T12:00:00");
           const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
           const weeksDiff = Math.floor(diffDays / 7);
@@ -100,7 +196,6 @@ export const GET: APIRoute = async () => {
         if (horario !== undefined && horario !== null) {
           newHorariosDias[s.date] = horario;
         }
-        // Real entry/exit times are now handled by operator_attendance and ignored in Cronograma
         if (s.breakInicio) {
           newBreaksInicio[s.date] = s.breakInicio;
         }
@@ -109,7 +204,7 @@ export const GET: APIRoute = async () => {
         }
       });
 
-      // Fill in default hours and breaks for any dates that exist in newAsistencia
+      // Completar días vacíos con defaults semanales
       const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
       Object.keys(newAsistencia).forEach(dateStr => {
         const dateObj = new Date(dateStr + "T12:00:00");
@@ -120,7 +215,7 @@ export const GET: APIRoute = async () => {
           if (operator.esquema_horario?.[dayName]) {
             newHorariosDias[dateStr] = operator.esquema_horario[dayName];
           } else if (status !== "Franco") {
-            newHorariosDias[dateStr] = operator.horario || "08:00 - 17:00";
+            newHorariosDias[dateStr] = operator.horario || "";
           } else {
             newHorariosDias[dateStr] = "";
           }
@@ -143,7 +238,6 @@ export const GET: APIRoute = async () => {
         }
       });
 
-      // Attach weekend overtime shifts for this operator
       const agentOvertimes = operator.id
         ? dbOvertimeShifts
             .filter((s) => s.agentId === operator.id)
@@ -171,10 +265,11 @@ export const GET: APIRoute = async () => {
       };
     });
 
-    // Bundle response: operators array + overtime config lookup
     const responsePayload = {
       operators: merged,
       weekendOvertimeConfigs: dbOvertimeConfigs,
+      availableMonths,
+      activeMonth,
     };
 
     return new Response(JSON.stringify(responsePayload), {
@@ -183,7 +278,7 @@ export const GET: APIRoute = async () => {
     });
   } catch (error: any) {
     console.error("GET API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -237,48 +332,52 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Process each edit
-    for (const edit of edits) {
-      const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
-      if (!agentName || !date) continue;
+    // Process each edit atomically inside a transaction (Transactions for Batch Edits)
+    db.transaction((tx) => {
+      for (const edit of edits) {
+        const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
+        if (!agentName || !date) continue;
 
-      const existing = await db
-        .select()
-        .from(schedules)
-        .where(
-          and(
-            eq(schedules.agentName, agentName),
-            eq(schedules.date, date)
+        const existing = tx
+          .select()
+          .from(schedules)
+          .where(
+            and(
+              eq(schedules.agentName, agentName),
+              eq(schedules.date, date)
+            )
           )
-        )
-        .limit(1);
+          .limit(1)
+          .all();
 
-      if (existing.length > 0) {
-        const updateData: any = {};
-        if (status !== undefined) updateData.status = status;
-        if (comment !== undefined) updateData.comment = comment;
-        if (horario !== undefined) updateData.horario = horario;
-        if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
-        if (breakFin !== undefined) updateData.breakFin = breakFin;
-        updateData.isOverride = true;
+        if (existing.length > 0) {
+          const updateData: any = {};
+          if (status !== undefined) updateData.status = status;
+          if (comment !== undefined) updateData.comment = comment;
+          if (horario !== undefined) updateData.horario = horario;
+          if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
+          if (breakFin !== undefined) updateData.breakFin = breakFin;
+          updateData.isOverride = true;
 
-        await db
-          .update(schedules)
-          .set(updateData)
-          .where(eq(schedules.id, existing[0].id));
-      } else {
-        await db.insert(schedules).values({
-          agentName,
-          date,
-          status: status !== undefined ? status : "Franco",
-          comment: comment || "",
-          horario: horario || "",
-          breakInicio: breakInicio || "",
-          breakFin: breakFin || "",
-          isOverride: true,
-        });
+          tx
+            .update(schedules)
+            .set(updateData)
+            .where(eq(schedules.id, existing[0].id))
+            .run();
+        } else {
+          tx.insert(schedules).values({
+            agentName,
+            date,
+            status: status !== undefined ? status : "Franco",
+            comment: comment || "",
+            horario: horario || "",
+            breakInicio: breakInicio || "",
+            breakFin: breakFin || "",
+            isOverride: true,
+          }).run();
+        }
       }
-    }
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -286,7 +385,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error: any) {
     console.error("POST API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
