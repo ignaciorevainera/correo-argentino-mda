@@ -2617,9 +2617,11 @@ function setupEventListeners(): void {
     
     const dateVal = trigger.dataset.date;
     if (dateVal && isWeekend(dateVal)) {
-      e.preventDefault();
-      showToast("Los fines de semana se deben administrar desde las secciones de Grupos o Extras", "warning");
-      return;
+      if (!state.isEditMode) {
+        e.preventDefault();
+        showToast("Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)", "warning");
+        return;
+      }
     }
     
     e.preventDefault();
@@ -2629,6 +2631,25 @@ function setupEventListeners(): void {
     if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
     
     quickEditMenu.classList.remove('hidden');
+
+    const isWk = dateVal && isWeekend(dateVal);
+    const optionsContainer = document.getElementById('quick-edit-options');
+    if (optionsContainer) {
+      const options = optionsContainer.querySelectorAll('[data-status]');
+      options.forEach(opt => {
+        const btn = opt as HTMLButtonElement;
+        const status = btn.dataset.status;
+        if (isWk) {
+          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco') {
+            btn.classList.remove('hidden');
+          } else {
+            btn.classList.add('hidden');
+          }
+        } else {
+          btn.classList.remove('hidden');
+        }
+      });
+    }
 
     const rect = trigger.getBoundingClientRect();
     const menuWidth = quickEditMenu.offsetWidth || 160;
