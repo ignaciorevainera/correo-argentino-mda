@@ -1637,7 +1637,13 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
   if (!operator || !date) return;
-  if (isWeekend(date)) return;
+  if (isWeekend(date)) {
+    if (newStatus !== OperatorStatus.Licencia &&
+        newStatus !== OperatorStatus.Vacaciones &&
+        newStatus !== OperatorStatus.Franco) {
+      return;
+    }
+  }
 
   const existingIndex = state.modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
   if (existingIndex !== -1) {
@@ -2234,7 +2240,13 @@ function applyBrushToCell(cell: HTMLElement): void {
   const dateVal = cell.dataset.date;
   const currentStatus = cell.dataset.status;
   
-  if (dateVal && isWeekend(dateVal)) return;
+  if (dateVal && isWeekend(dateVal)) {
+    if (state.activeBrush !== OperatorStatus.Licencia &&
+        state.activeBrush !== OperatorStatus.Vacaciones &&
+        state.activeBrush !== OperatorStatus.Franco) {
+      return;
+    }
+  }
 
   if (!opName || !dateVal || !state.activeBrush || currentStatus === state.activeBrush) return;
 
