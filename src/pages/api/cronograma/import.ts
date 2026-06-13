@@ -3,6 +3,27 @@ import { parse } from "csv-parse/sync";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
 
+// Helper to normalize multiple date formats to YYYY-MM-DD
+function normalizeDate(dateStr: string): string | null {
+  const trimmed = dateStr.trim();
+  
+  // Format YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Format DD/MM/YYYY or D/M/YYYY
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const day = slashMatch[1].padStart(2, '0');
+    const month = slashMatch[2].padStart(2, '0');
+    const year = slashMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  return null;
+}
+
 // Helper to check if a date falls on a Saturday
 function isSaturday(dateStr: string): boolean {
   const parts = dateStr.split('-');
@@ -75,6 +96,33 @@ function findMatchingAgent(csvName: string, allAgentNames: string[]): string | n
   return null;
 }
 
+// Map raw cell status string to database valid OperatorStatus
+function mapStatusText(cellValue: string): string {
+  const val = cellValue.trim().toLowerCase();
+  if (!val) return "Franco";
+  
+  if (val.startsWith("presencial monte grande") || val.startsWith("mg") || val === "monte grande") {
+    return "Presencial Monte Grande";
+  }
+  if (val.startsWith("presencial parque patricios") || val.startsWith("pp") || val === "parque patricios") {
+    return "Presencial Parque Patricios";
+  }
+  if (val.startsWith("home office") || val.startsWith("ho")) {
+    return "Home Office";
+  }
+  if (val.startsWith("licencia") || val === "l") {
+    return "Licencia";
+  }
+  if (val.startsWith("vacaciones") || val === "v") {
+    return "Vacaciones";
+  }
+  if (val.startsWith("franco") || val === "f") {
+    return "Franco";
+  }
+  
+  return "Franco"; // Default fallback
+}
+
 export const POST: APIRoute = async ({ request }) => {
   try {
     const formData = await request.formData();
@@ -125,16 +173,17 @@ export const POST: APIRoute = async ({ request }) => {
     ];
 
     const firstRow: string[] = records[0];
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const dateRegex = /^(\d{4}-\d{2}-\d{2})|(\d{1,2}\/\d{1,2}\/\d{4})$/;
     
-    // Detect if Format A (has YYYY-MM-DD columns in the first row)
-    const isFormatA = firstRow.some(h => dateRegex.test(h));
+    // Detect if Format A (has date columns in the first row)
+    const isFormatA = firstRow.some(h => dateRegex.test(h.trim()));
 
     if (isFormatA) {
       // --- FORMAT A: Exported CSV parser ---
       const dateColumns = firstRow
-        .map((h, index) => ({ header: h, index }))
-        .filter(col => dateRegex.test(col.header));
+        .map((h, index) => ({ rawHeader: h, index }))
+        .map(col => ({ header: normalizeDate(col.rawHeader), index: col.index }))
+        .filter((col): col is { header: string; index: number } => col.header !== null);
 
       const scheduleRegex = /\[([^\]]+)\]/;
       const breakRegex = /\(Break:\s*([^\s-]+)\s*-\s*([^\s)]+)\)/;
@@ -153,13 +202,7 @@ export const POST: APIRoute = async ({ request }) => {
           const cellValue = row[col.index] || "";
           if (!cellValue) continue;
 
-          let matchedStatus = "Franco";
-          for (const vs of validStatuses) {
-            if (cellValue.startsWith(vs)) {
-              matchedStatus = vs;
-              break;
-            }
-          }
+          const matchedStatus = mapStatusText(cellValue);
 
           let horario = "";
           const scheduleMatch = cellValue.match(scheduleRegex);
@@ -225,15 +268,7 @@ export const POST: APIRoute = async ({ request }) => {
             }
           }
 
-          let matchedStatus = "Franco";
-          if (dayStatusText) {
-            for (const vs of validStatuses) {
-              if (dayStatusText.toUpperCase().startsWith(vs.toUpperCase())) {
-                matchedStatus = vs;
-                break;
-              }
-            }
-          }
+          const matchedStatus = mapStatusText(dayStatusText);
 
           parsedEdits.push({
             agentName: matchedAgentName,

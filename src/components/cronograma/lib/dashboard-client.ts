@@ -2782,8 +2782,19 @@ function setupEventListeners(): void {
     })
     .then(data => {
       if (data.edits && Array.isArray(data.edits)) {
+        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : ''; // "YYYY-MM"
+
+        // Filter edits that belong to the active month
+        const currentMonthEdits = data.edits.filter((edit: any) => edit.date && edit.date.startsWith(currentMonth));
+
+        if (data.edits.length > 0 && currentMonthEdits.length === 0) {
+          showToast("El archivo CSV no corresponde al mes seleccionado. Cambie de mes en el selector antes de importar.", "warning");
+          return;
+        }
+
         let appliedCount = 0;
-        data.edits.forEach((edit: any) => {
+        currentMonthEdits.forEach((edit: any) => {
           const op = state.cronoData.find(o => o.nombre === edit.agentName);
           if (op) {
             const key = `${edit.agentName}_${edit.date}`;
