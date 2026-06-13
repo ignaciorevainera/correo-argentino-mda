@@ -54,6 +54,29 @@ function isWeekend(dateStr: string): boolean {
   return day === 6 || day === 0;
 }
 
+function resolveOperatorStatusAndHorario(op: OperatorData, dateStr: string): { status: OperatorStatus; horario: string } {
+  let status = op.asistencia[dateStr] || OperatorStatus.Franco;
+  let horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario || "";
+
+  const dateObj = new Date(dateStr + "T12:00:00");
+  const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
+  if (isWeekendDay) {
+    const isSaturday = dateObj.getDay() === 6;
+    if (isSaturday && op.saturdayGroup) {
+      const activeGroup = getActiveGroupForDate(dateStr);
+      const isOverride = status === OperatorStatus.Vacaciones || status === OperatorStatus.Licencia;
+      
+      if (op.saturdayGroup === activeGroup && !isOverride) {
+        status = OperatorStatus.HomeOffice;
+        horario = op.saturdayHorario || "07:00 - 13:00";
+      }
+    }
+  }
+
+  return { status, horario };
+}
+
 function getActiveGroupForDate(dateStr: string): string | null {
   if (!activeRotationConfig) return null;
   const { startDate, startGroup, rotationOrder } = activeRotationConfig;
@@ -552,7 +575,7 @@ function renderDaily(): void {
   }
 
   const filteredOps = state.cronoData.filter(op => {
-    const status = op.asistencia[selectedDateStr];
+    const { status } = resolveOperatorStatusAndHorario(op, selectedDateStr);
     if (!status) return false;
 
     // 1. Search Query filter (case-insensitive name check)
@@ -596,13 +619,12 @@ function renderDaily(): void {
     `;
   } else {
     sortedOps.forEach(op => {
-      const status = op.asistencia[selectedDateStr];
+      const { status, horario: dailyHorario } = resolveOperatorStatusAndHorario(op, selectedDateStr);
       const styles = getStatusStyles(status);
       const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
       const isFranco = status === OperatorStatus.Franco;
       const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
       const username = op.username || '';
-      const dailyHorario = (op.horarios_dias && op.horarios_dias[selectedDateStr]) || op.horario;
       const customBreakInicio = op.breaks_inicio?.[selectedDateStr] || '';
       const customBreakFin = op.breaks_fin?.[selectedDateStr] || '';
       
@@ -1403,13 +1425,12 @@ function renderMonthly(): void {
         
       parsedDates.forEach(pd => {
         const date = pd.str;
-        const status = op.asistencia[date];
+        const { status, horario: dailyHorario } = resolveOperatorStatusAndHorario(op, date);
         const styles = getStatusStyles(status);
         const isTodayCell = pd.isToday;
         const safeName = escapeHtml(op.nombre);
         const safeDate = escapeHtml(date);
         const safeStatus = escapeHtml(status || 'Franco');
-        const dailyHorario = (op.horarios_dias && op.horarios_dias[date]) || op.horario;
         const safeHorario = escapeHtml(dailyHorario);
         const username = op.username || '';
 
@@ -1619,6 +1640,21 @@ function updateOperatorDailyHorario(op: OperatorData, date: string, status: stri
   const dayName = dayNames[dateObj.getDay()];
 
   op.horarios_dias = op.horarios_dias || {};
+  op.overrides = op.overrides || {};
+
+  const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
+  if (isWeekendDay) {
+    if (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) {
+      op.weekendOvertimes = (op.weekendOvertimes || []).filter(s => s.date !== date);
+      op.overrides[date] = true;
+    } else if (status === OperatorStatus.Franco) {
+      delete op.overrides[date];
+    }
+  } else {
+    op.overrides[date] = true;
+  }
+
   if (status === "Franco") {
     op.horarios_dias[date] = "";
   } else {
@@ -1637,7 +1673,13 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
   if (!operator || !date) return;
-  if (isWeekend(date)) return;
+  if (isWeekend(date)) {
+    if (newStatus !== OperatorStatus.Licencia &&
+        newStatus !== OperatorStatus.Vacaciones &&
+        newStatus !== OperatorStatus.Franco) {
+      return;
+    }
+  }
 
   const existingIndex = state.modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
   if (existingIndex !== -1) {
@@ -2234,7 +2276,13 @@ function applyBrushToCell(cell: HTMLElement): void {
   const dateVal = cell.dataset.date;
   const currentStatus = cell.dataset.status;
   
-  if (dateVal && isWeekend(dateVal)) return;
+  if (dateVal && isWeekend(dateVal)) {
+    if (state.activeBrush !== OperatorStatus.Licencia &&
+        state.activeBrush !== OperatorStatus.Vacaciones &&
+        state.activeBrush !== OperatorStatus.Franco) {
+      return;
+    }
+  }
 
   if (!opName || !dateVal || !state.activeBrush || currentStatus === state.activeBrush) return;
 
@@ -2605,9 +2653,11 @@ function setupEventListeners(): void {
     
     const dateVal = trigger.dataset.date;
     if (dateVal && isWeekend(dateVal)) {
-      e.preventDefault();
-      showToast("Los fines de semana se deben administrar desde las secciones de Grupos o Extras", "warning");
-      return;
+      if (!state.isEditMode) {
+        e.preventDefault();
+        showToast("Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)", "warning");
+        return;
+      }
     }
     
     e.preventDefault();
@@ -2617,6 +2667,25 @@ function setupEventListeners(): void {
     if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
     
     quickEditMenu.classList.remove('hidden');
+
+    const isWk = dateVal && isWeekend(dateVal);
+    const optionsContainer = document.getElementById('quick-edit-options');
+    if (optionsContainer) {
+      const options = optionsContainer.querySelectorAll('[data-status]');
+      options.forEach(opt => {
+        const btn = opt as HTMLButtonElement;
+        const status = btn.dataset.status;
+        if (isWk) {
+          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco') {
+            btn.classList.remove('hidden');
+          } else {
+            btn.classList.add('hidden');
+          }
+        } else {
+          btn.classList.remove('hidden');
+        }
+      });
+    }
 
     const rect = trigger.getBoundingClientRect();
     const menuWidth = quickEditMenu.offsetWidth || 160;

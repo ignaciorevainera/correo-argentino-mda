@@ -161,12 +161,20 @@ export const GET: APIRoute = async ({ url }) => {
         let status = s.status;
         let horario = s.horario;
 
+        const dateObj = new Date(s.date + "T12:00:00");
+        const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
         if (s.isOverride) {
-          overrides[s.date] = true;
+          if (isWeekendDay) {
+            if (status === "Vacaciones" || status === "Licencia") {
+              overrides[s.date] = true;
+            }
+          } else {
+            overrides[s.date] = true;
+          }
         }
 
         // Cálculo dinámico de sábados de rotación
-        const dateObj = new Date(s.date + "T12:00:00");
         const isSaturday = dateObj.getDay() === 6;
         if (isSaturday && operator.saturdayGroup) {
           const start = new Date(rotationConfig.startDate + "T12:00:00");
@@ -179,7 +187,7 @@ export const GET: APIRoute = async ({ url }) => {
           const activeIndex = ((idx + weeksDiff) % N + N) % N;
           const activeGroup = groups[activeIndex];
 
-          if (operator.saturdayGroup === activeGroup && !s.isOverride) {
+          if (operator.saturdayGroup === activeGroup && !overrides[s.date]) {
             status = "Home Office";
             horario = operator.saturdayHorario || "07:00 - 13:00";
           }
@@ -337,6 +345,23 @@ export const POST: APIRoute = async ({ request }) => {
       for (const edit of edits) {
         const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
         if (!agentName || !date) continue;
+
+        // Limpieza automática de horas extras si es fin de semana y el estado es Vacaciones o Licencia
+        const dateObj = new Date(date + "T12:00:00");
+        const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
+          const agentList = tx.select().from(agents).where(eq(agents.name, agentName)).limit(1).all();
+          if (agentList.length > 0) {
+            tx.delete(weekendOvertimeShifts)
+              .where(
+                and(
+                  eq(weekendOvertimeShifts.agentId, agentList[0].id),
+                  eq(weekendOvertimeShifts.date, date)
+                )
+              )
+              .run();
+          }
+        }
 
         const existing = tx
           .select()
