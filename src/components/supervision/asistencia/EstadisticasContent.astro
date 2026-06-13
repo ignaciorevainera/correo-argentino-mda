@@ -357,7 +357,10 @@ const initialData = await getAttendanceData(startDate, endDate);
     if (emptyState) emptyState.classList.add('hidden');
     if (statsBlock) statsBlock.classList.remove('hidden');
 
-    const schedulesWithTime = opLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro");
+    const schedulesWithTime = opLogs.filter(log => 
+      (log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro") ||
+      (log.cumplimientoForzado && log.cumplimiento && log.cumplimiento !== "Sin Registro")
+    );
     const totalSchedules = schedulesWithTime.length;
     
     const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
@@ -384,7 +387,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         const cell = document.createElement('div');
         
         let colorClass = 'bg-base-200/50 border border-base-300/40 text-base-content/40';
-        if (log.horarioEstipulado && log.horarioEstipulado !== "Franco") {
+        if (log.cumplimiento && log.cumplimiento !== "Sin Registro") {
           if (log.cumplimiento === "Cumplió") {
             colorClass = 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30';
           } else if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Retiro Anticipado" || log.cumplimiento === "Tarde y Retiro Anticipado") {
