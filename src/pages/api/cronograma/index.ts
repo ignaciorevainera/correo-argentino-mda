@@ -346,6 +346,23 @@ export const POST: APIRoute = async ({ request }) => {
         const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
         if (!agentName || !date) continue;
 
+        // Limpieza automática de horas extras si es fin de semana y el estado es Vacaciones o Licencia
+        const dateObj = new Date(date + "T12:00:00");
+        const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
+          const agentList = tx.select().from(agents).where(eq(agents.name, agentName)).limit(1).all();
+          if (agentList.length > 0) {
+            tx.delete(weekendOvertimeShifts)
+              .where(
+                and(
+                  eq(weekendOvertimeShifts.agentId, agentList[0].id),
+                  eq(weekendOvertimeShifts.date, date)
+                )
+              )
+              .run();
+          }
+        }
+
         const existing = tx
           .select()
           .from(schedules)
