@@ -161,12 +161,20 @@ export const GET: APIRoute = async ({ url }) => {
         let status = s.status;
         let horario = s.horario;
 
+        const dateObj = new Date(s.date + "T12:00:00");
+        const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
         if (s.isOverride) {
-          overrides[s.date] = true;
+          if (isWeekendDay) {
+            if (status === "Vacaciones" || status === "Licencia") {
+              overrides[s.date] = true;
+            }
+          } else {
+            overrides[s.date] = true;
+          }
         }
 
         // Cálculo dinámico de sábados de rotación
-        const dateObj = new Date(s.date + "T12:00:00");
         const isSaturday = dateObj.getDay() === 6;
         if (isSaturday && operator.saturdayGroup) {
           const start = new Date(rotationConfig.startDate + "T12:00:00");
@@ -179,7 +187,7 @@ export const GET: APIRoute = async ({ url }) => {
           const activeIndex = ((idx + weeksDiff) % N + N) % N;
           const activeGroup = groups[activeIndex];
 
-          if (operator.saturdayGroup === activeGroup && !s.isOverride) {
+          if (operator.saturdayGroup === activeGroup && !overrides[s.date]) {
             status = "Home Office";
             horario = operator.saturdayHorario || "07:00 - 13:00";
           }
