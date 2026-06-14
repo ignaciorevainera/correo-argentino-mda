@@ -1831,7 +1831,6 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       if (!formData.has("notes")) {
         formData.set("notes", "");
       }
-
       try {
         const result = await actions.saveAudit(formData);
         if (result.error) {
@@ -1842,13 +1841,15 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           if (activeAgentId) {
             url.searchParams.set("agentId", activeAgentId);
           }
+          url.searchParams.set("toast_msg", "Auditoría guardada con éxito.");
+          url.searchParams.set("toast_type", "success");
           window.location.href = url.toString();
         } else {
-          alert("Error al guardar la auditoría.");
+          (window as any).showToast?.("Error al guardar la auditoría.", "alert-error");
         }
       } catch (error) {
         console.error(error);
-        alert("Ocurrió un error inesperado al guardar la auditoría.");
+        (window as any).showToast?.("Ocurrió un error inesperado al guardar la auditoría.", "alert-error");
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = originalText;
@@ -1890,8 +1891,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       // Ensure summary is always present (even if textarea is empty)
       if (!formData.has("summary")) {
         formData.set("summary", "");
-      }
-      try {
+      }      try {
         const result = await actions.saveMonthSummary(formData);
         if (result.error) {
           console.error("Validation error:", result.error);
@@ -1901,13 +1901,15 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           if (activeAgentId) {
             url.searchParams.set("agentId", activeAgentId);
           }
+          url.searchParams.set("toast_msg", "Observaciones del mes guardadas con éxito.");
+          url.searchParams.set("toast_type", "success");
           window.location.href = url.toString();
         } else {
-          alert("Error al guardar el resumen.");
+          (window as any).showToast?.("Error al guardar el resumen.", "alert-error");
         }
       } catch (error) {
         console.error(error);
-        alert("Ocurrió un error inesperado.");
+        (window as any).showToast?.("Ocurrió un error inesperado al guardar el resumen.", "alert-error");
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = originalText;
@@ -1935,15 +1937,17 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
             if (activeAgentId) {
               url.searchParams.set("agentId", activeAgentId);
             }
+            url.searchParams.set("toast_msg", "Auditoría eliminada con éxito.");
+            url.searchParams.set("toast_type", "success");
             window.location.href = url.toString();
           } else {
-            alert("Error al eliminar la auditoría.");
+            (window as any).showToast?.("Error al eliminar la auditoría.", "alert-error");
             btnDeleteAudit.disabled = false;
             btnDeleteAudit.innerHTML = originalText;
           }
         } catch (error) {
           console.error(error);
-          alert("Ocurrió un error inesperado al eliminar la auditoría.");
+          (window as any).showToast?.("Ocurrió un error inesperado al eliminar la auditoría.", "alert-error");
           btnDeleteAudit.disabled = false;
           btnDeleteAudit.innerHTML = originalText;
         }
