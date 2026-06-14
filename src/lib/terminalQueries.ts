@@ -109,12 +109,12 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   const filters = [];
 
   if (params.search && params.search !== "") {
-    const normalizedSearch = normalizeSearchValue(params.search);
-    const searchPattern = `%${normalizedSearch}%`;
+    const normalizedSearch = normalizeSearchValue(params.search).trim();
+    const ftsSearch = `"${normalizedSearch}"*`;
     filters.push(
       or(
-        like(terminals.searchableText, searchPattern),
-        like(offices.searchableText, searchPattern)
+        sql`${terminals.id} IN (SELECT rowid FROM terminals_fts WHERE searchable_text MATCH ${ftsSearch})`,
+        sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${ftsSearch})`
       )
     );
   }

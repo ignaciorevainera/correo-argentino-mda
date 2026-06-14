@@ -615,3 +615,21 @@ export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, (
     references: [agents.id],
   }),
 }));
+
+// 16. TABLAS VIRTUALES FTS5 (Full-Text Search)
+// Estas tablas son administradas por scripts/setup-fts.ts y son excluidas de drizzle-kit
+export const officesFts = sqliteTable("offices_fts", {
+  rowid: integer("rowid").primaryKey(),
+  searchableText: text("searchable_text"),
+});
+
+export const terminalsFts = sqliteTable("terminals_fts", {
+  rowid: integer("rowid").primaryKey(),
+  searchableText: text("searchable_text"),
+});
+
+export const supportGuidesFts = sqliteTable("support_guides_fts", {
+  rowid: integer("rowid").primaryKey(),
+  searchableText: text("searchable_text"),
+});
+

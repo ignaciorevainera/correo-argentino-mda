@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { offices } from "@/db/schema";
-import { like, isNotNull, and, sql } from "drizzle-orm";
+import { isNotNull, and, sql } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 export const GET: APIRoute = async ({ url, locals }) => {
@@ -24,7 +24,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
   try {
     const normalizedQuery = normalizeSearchValue(q);
-    const searchPattern = `%${normalizedQuery}%`;
 
     // Agrupamos por dirección para evitar duplicados y limitar a 6 resultados.
     // Usamos min(offices.code) como NIS representativo para cada dirección.
@@ -37,7 +36,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .where(
         and(
           isNotNull(offices.address),
-          like(offices.searchableText, searchPattern)
+          sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${'"' + normalizedQuery + '"*'})`
         )
       )
       .groupBy(offices.address)

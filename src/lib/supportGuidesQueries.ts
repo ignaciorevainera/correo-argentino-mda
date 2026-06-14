@@ -1,6 +1,6 @@
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
-import { or, like, sql, asc, desc } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export type SupportGuideSortKey = "legacy" | "invgate";
 export type SortOrder = "asc" | "desc";
@@ -27,9 +27,11 @@ export async function getSupportGuides(params: GetSupportGuidesParams) {
   const whereConditions = [];
 
   if (searchFilter) {
-    const normalizedSearch = searchFilter.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const likeSearch = `%${normalizedSearch}%`;
-    whereConditions.push(like(supportGuides.searchableText, likeSearch));
+    const normalizedSearch = searchFilter.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const ftsSearch = `"${normalizedSearch}"*`;
+    whereConditions.push(
+      sql`${supportGuides.id} IN (SELECT rowid FROM support_guides_fts WHERE searchable_text MATCH ${ftsSearch})`
+    );
   }
 
   const whereClause =
