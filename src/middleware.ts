@@ -3,6 +3,7 @@ import { db } from "./db/index";
 import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
+import { hasPermission } from "./lib/rbac";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { cookies, url, redirect, locals } = context;
@@ -62,13 +63,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
         await db.delete(sessions).where(eq(sessions.id, sessionId));
       }
       if (relativePath !== "/login") {
-        return redirect(resolveUrl("/login"));
+        return redirect(resolveUrl(`/login?toast_msg=${encodeURIComponent("Tu sesión ha expirado")}&toast_type=warning`));
       }
     }
   } else if (signedSessionId) {
     deleteSessionCookie(cookies);
     if (relativePath !== "/login") {
-      return redirect(resolveUrl("/login"));
+      return redirect(resolveUrl(`/login?toast_msg=${encodeURIComponent("Sesión inválida")}&toast_type=error`));
     }
   }
 
@@ -80,30 +81,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const role = (currentUser.role || "").toLowerCase().trim();
 
-
-
-  if (relativePath.startsWith("/admin")) {
-    if (relativePath.startsWith("/admin/users")) {
-      if (role !== "admin") {
-        return redirect(resolveUrl("/login"));
-      }
-    } else {
-      if (!["admin", "supervisor"].includes(role)) {
-        return redirect(resolveUrl("/login"));
-      }
+  if (!hasPermission(relativePath, role)) {
+    if (currentUser.id !== 0) {
+      return redirect(resolveUrl(`/?toast_msg=${encodeURIComponent("Acceso no autorizado")}&toast_type=error`));
     }
-  }
-
-  if (relativePath.startsWith("/supervision")) {
-    if (relativePath.startsWith("/supervision/cronograma")) {
-      if (!["supervisor", "admin"].includes(role)) {
-        return redirect(resolveUrl("/login"));
-      }
-    } else {
-      if (!["referent", "referente", "supervisor", "admin"].includes(role)) {
-        return redirect(resolveUrl("/login"));
-      }
-    }
+    return redirect(resolveUrl("/login"));
   }
 
   return next();
