@@ -43,7 +43,12 @@ class CronogramaState {
   searchQuery = '';
   activeFilter = 'all';
   activeLocationFilter = 'all';
-  activeSort = 'alphabetical';
+  get activeSort(): string {
+    return safeGetItem('cronoActiveSort', 'alphabetical');
+  }
+  set activeSort(val: string) {
+    safeSetItem('cronoActiveSort', val);
+  }
   activeDetailTrigger: HTMLElement | null = null;
   focusedDateStr: string | null = null;
 

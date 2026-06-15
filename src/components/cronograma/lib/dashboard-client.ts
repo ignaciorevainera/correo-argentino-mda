@@ -1676,7 +1676,8 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   if (isWeekend(date)) {
     if (newStatus !== OperatorStatus.Licencia &&
         newStatus !== OperatorStatus.Vacaciones &&
-        newStatus !== OperatorStatus.Franco) {
+        newStatus !== OperatorStatus.Franco &&
+        newStatus !== OperatorStatus.HomeOffice) {
       return;
     }
   }
@@ -1856,14 +1857,14 @@ function showDailyView(): void {
   const pasivaView = document.getElementById('pasiva-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
-  renderDaily();
-  updateViewSwitcherUI('daily');
-  
   if (dailyView) dailyView.classList.remove('hidden');
   if (monthlyView) monthlyView.classList.add('hidden');
   if (groupsView) groupsView.classList.add('hidden');
   if (overtimeView) overtimeView.classList.add('hidden');
   if (pasivaView) pasivaView.classList.add('hidden');
+
+  renderDaily();
+  updateViewSwitcherUI('daily');
   
   if (datePickerContainer) {
     datePickerContainer.classList.remove('hidden');
@@ -1881,13 +1882,14 @@ function showMonthlyView(): void {
   const pasivaView = document.getElementById('pasiva-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
-  updateViewSwitcherUI('monthly');
-  
   if (dailyView) dailyView.classList.add('hidden');
   if (monthlyView) monthlyView.classList.remove('hidden');
   if (groupsView) groupsView.classList.add('hidden');
   if (overtimeView) overtimeView.classList.add('hidden');
   if (pasivaView) pasivaView.classList.add('hidden');
+
+  renderMonthly();
+  updateViewSwitcherUI('monthly');
   
   if (datePickerContainer) {
     datePickerContainer.classList.add('is-faded');
@@ -2279,7 +2281,8 @@ function applyBrushToCell(cell: HTMLElement): void {
   if (dateVal && isWeekend(dateVal)) {
     if (state.activeBrush !== OperatorStatus.Licencia &&
         state.activeBrush !== OperatorStatus.Vacaciones &&
-        state.activeBrush !== OperatorStatus.Franco) {
+        state.activeBrush !== OperatorStatus.Franco &&
+        state.activeBrush !== OperatorStatus.HomeOffice) {
       return;
     }
   }
@@ -2676,7 +2679,7 @@ function setupEventListeners(): void {
         const btn = opt as HTMLButtonElement;
         const status = btn.dataset.status;
         if (isWk) {
-          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco') {
+          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco' || status === OperatorStatus.HomeOffice) {
             btn.classList.remove('hidden');
           } else {
             btn.classList.add('hidden');
@@ -3496,7 +3499,38 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
     return dateStr === weekendDate ? mins - TIMELINE_START_MIN : 11 * 60 + mins;
   };
 
-  const activeOps = state.cronoData.filter(op => shifts.some(s => s.agentId === op.id));
+  const getShiftStartAndEnd = (s: WeekendOvertimeShift) => {
+    const startMin = toMinSinceStart(s.date, s.startTime);
+    let endMin = toMinSinceStart(s.date, s.endTime);
+    if (s.endTime < s.startTime) {
+      // Crosses midnight: ends on the next day
+      if (s.date === weekendDate) {
+        endMin = toMinSinceStart(sundayDate, s.endTime);
+      } else {
+        // Ends on Monday (next day after Sunday)
+        const [eh, em] = s.endTime.split(':').map(Number);
+        endMin = 11 * 60 + 24 * 60 + (eh * 60 + em);
+      }
+    }
+    return { startMin, endMin };
+  };
+
+  const getOpEarliestStart = (opId: number): number => {
+    const opShifts = shifts.filter(s => s.agentId === opId);
+    if (opShifts.length === 0) return Infinity;
+    return Math.min(...opShifts.map(s => getShiftStartAndEnd(s).startMin));
+  };
+
+  const activeOps = state.cronoData
+    .filter(op => shifts.some(s => s.agentId === op.id))
+    .sort((a, b) => {
+      const startA = getOpEarliestStart(a.id);
+      const startB = getOpEarliestStart(b.id);
+      if (startA !== startB) {
+        return startA - startB;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    });
   
   if (activeOps.length === 0) {
     bodyContainer.innerHTML = `
@@ -3511,11 +3545,11 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
     const opShifts = shifts.filter(s => s.agentId === op.id);
     const initials = op.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
     const shiftBars = opShifts.map(s => {
-      const startMin = toMinSinceStart(s.date, s.startTime);
-      const endMin = toMinSinceStart(s.date, s.endTime);
+      const { startMin, endMin } = getShiftStartAndEnd(s);
       if (startMin < 0 || endMin <= startMin) return '';
+      const cappedEndMin = Math.min(endMin, TOTAL_MINUTES);
       const lp = (startMin / TOTAL_MINUTES) * 100;
-      const wp = ((endMin - startMin) / TOTAL_MINUTES) * 100;
+      const wp = ((cappedEndMin - startMin) / TOTAL_MINUTES) * 100;
       return `<div class="absolute top-1 bottom-1 rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden cursor-pointer hover:bg-warning/95 overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" title="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><span class="text-micro font-black text-warning-content truncate px-1">${s.startTime}-${s.endTime}</span></div>`;
     }).join('');
     return `
@@ -3572,7 +3606,16 @@ function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOvertimeSh
     return;
   }
 
-  container.innerHTML = shifts.map(s => {
+  const sortedShifts = [...shifts].sort((a, b) => {
+    if (a.date !== b.date) {
+      return a.date.localeCompare(b.date);
+    }
+    const startCompare = a.startTime.localeCompare(b.startTime);
+    if (startCompare !== 0) return startCompare;
+    return a.endTime.localeCompare(b.endTime);
+  });
+
+  container.innerHTML = sortedShifts.map(s => {
     const op = state.cronoData.find(o => o.id === s.agentId);
     const dayLabel = s.date === weekendDate ? 'Sábado' : 'Domingo';
     const dayBadgeClass = s.date === weekendDate ? 'badge-warning' : 'badge-info';
