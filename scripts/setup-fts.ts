@@ -16,10 +16,13 @@ db.transaction(() => {
   for (const { fts, source, column } of ftsTables) {
     console.log(`Setting up ${fts} for ${source}...`);
     
-    // Create virtual table with unicode61 tokenizer removing diacritics
+    // Drop table if it exists to clean up any incorrect standard tables
+    db.prepare(`DROP TABLE IF EXISTS ${fts};`).run();
+
+    // Create virtual table with trigram tokenizer
     db.prepare(`
       CREATE VIRTUAL TABLE IF NOT EXISTS ${fts} 
-      USING fts5(${column}, content='${source}', content_rowid='id', tokenize="unicode61 remove_diacritics 1");
+      USING fts5(${column}, content='${source}', content_rowid='id', tokenize="trigram");
     `).run();
 
     // Create Triggers to sync inserting, deleting, and updating

@@ -7,5 +7,4 @@ export default defineConfig({
   dbCredentials: {
     url: "./database/mda.db",
   },
-  tablesFilter: ["!*_fts"],
 });

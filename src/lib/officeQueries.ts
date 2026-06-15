@@ -100,7 +100,7 @@ export async function getOffices(params: GetOfficesParams) {
   // Search filter (FTS5)
   if (searchFilter) {
     const normalizedSearch = normalizeSearchValue(searchFilter);
-    const ftsSearch = `"${normalizedSearch}"*`;
+    const ftsSearch = `"${normalizedSearch}"`;
     whereConditions.push(
       sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${ftsSearch})`
     );

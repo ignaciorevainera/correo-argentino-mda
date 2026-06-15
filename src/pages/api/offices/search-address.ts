@@ -36,7 +36,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .where(
         and(
           isNotNull(offices.address),
-          sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${'"' + normalizedQuery + '"*'})`
+          sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${'"' + normalizedQuery + '"'})`
         )
       )
       .groupBy(offices.address)
