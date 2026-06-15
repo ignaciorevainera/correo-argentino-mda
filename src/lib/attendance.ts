@@ -295,7 +295,7 @@ export async function getAttendanceData(startDate: string, endDate: string) {
         defaultAsistencia = modalidadPlanificada.toUpperCase();
       }
 
-      const asistencia = actual?.asistencia ?? defaultAsistencia;
+      const asistencia = actual?.asistencia || defaultAsistencia;
       const ausencia = actual?.ausencia ?? "";
       const entradaReal = actual?.entradaReal ?? "";
       const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
