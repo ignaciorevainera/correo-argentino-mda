@@ -530,7 +530,29 @@ El gap actual es de madurez funcional de contenido y no de estructura de navegac
 
 Uso recomendado:
 
-- Siempre utilice el atributo `size={24}` (u otro valor numérico) en los componentes `<Icon />` de `astro-icon` para definir el tamaño del ícono.
+- Siempre utilice el atributo `size={24}` (ures/valores numéricos) en los componentes `<Icon />` de `astro-icon` para definir el tamaño del ícono.
 - Evite usar clases de Tailwind como `w-5`, `h-5`, `size-5` o sus variantes responsivas para controlar el tamaño del ícono.
 - Si necesita tamaños diferentes, ajuste el valor del atributo `size` (por ejemplo, `size={32}`).
 - Las clases pueden seguir utilizándose para otros estilos (color, margen, etc.), pero no deben incluir utilidades de ancho/alto o `size-`.
+
+## Estandarización del Sistema de Diseño (Actualizado 2026-06-14)
+
+### 1. Border Radius
+Se han mapeado las clases por defecto de Tailwind CSS en `@theme` directamente a las variables dinámicas de DaisyUI v4. Esto garantiza que todos los bordes se adapten automáticamente a la semántica del tema activo (claro u oscuro):
+- **Pequeño (`rounded-xs`, `rounded-sm`)** -> Mapeados a `var(--radius-selector)` (badges, toggles, checkboxes, etc.)
+- **Mediano (`rounded-md`, `rounded-lg`)** -> Mapeados a `var(--radius-field)` (botones, entradas, campos, selectores, pestañas, etc.)
+- **Grande (`rounded-xl`, `rounded-2xl`, `rounded-3xl`)** -> Mapeados a `var(--radius-box)` (tarjetas, modales, alertas, etc.)
+
+### 2. Tipografías Semánticas (Evitar Brackets)
+Para evitar la dispersión de valores de texto fijos con brackets (`text-[9px]`, etc.), se han registrado los siguientes tokens tipográficos en `@theme`:
+- `text-small`: `11px` (utilizado en identificadores compactos, ej. avatares).
+- `text-xxs`: `10px` (utilizado en etiquetas secundarias, metadatos y subtítulos densos).
+- `text-tiny`: `9px` (utilizado en celdas y barras de Gantt).
+- `text-micro`: `8px` (utilizado en subtítulos de KPIs y leyendas muy pequeñas).
+
+### 3. Sombras Semánticas
+Se han estandarizado las siguientes utilidades de sombras en el tema global:
+- `shadow-glow-success`: Brillo ambiental verde para estado de conexión en vivo de operadores.
+- `shadow-glow-warning`: Brillo ambiental amarillo para estado de break en vivo de operadores.
+- `shadow-table-edge`: Sombra de corte y delimitación para tablas operativas con scroll y columnas fijas.
+
