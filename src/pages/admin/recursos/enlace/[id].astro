@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
@@ -141,59 +143,47 @@ if (Astro.request.method === "POST") {
 
           <form method="POST" enctype="multipart/form-data" class="space-y-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <fieldset class="fieldset">
-                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">Título del Enlace</legend>
-                <input
-                  type="text"
-                  name="title"
-                  required
-                  value={link.title}
-                  placeholder="Ej: Portal de Autogestión"
-                  class="input input-bordered w-full"
-                  autofocus={isNew}
-                />
-              </fieldset>
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título del Enlace"
+                required
+                value={link.title}
+                placeholder="Ej: Portal de Autogestión"
+                autofocus={isNew}
+              />
 
-              <fieldset class="fieldset">
-                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">Categoría</legend>
-                <select
-                  name="categoryId"
-                  required
-                  class="select select-bordered w-full font-medium"
-                >
-                  <option value="" disabled selected={!link.categoryId}>Seleccionar...</option>
-                  {
-                    categories.map((cat) => (
-                      <option value={cat.id} selected={cat.id === link.categoryId}>{cat.title}</option>
-                    ))
-                  }
-                </select>
-              </fieldset>
+              <SelectField
+                id="select-categoryId"
+                name="categoryId"
+                label="Categoría"
+                required
+                selectClass="font-medium"
+                options={categories.map(c => ({ value: c.id, label: c.title }))}
+                value={link.categoryId}
+              />
 
-              <fieldset class="fieldset sm:col-span-2">
-                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">URL de Destino</legend>
-                <input
-                  type="url"
-                  name="url"
-                  required
-                  value={link.url}
-                  placeholder="https://..."
-                  class="input input-bordered w-full font-mono text-sm"
-                />
-              </fieldset>
+              <FormField
+                id="input-url"
+                type="url"
+                name="url"
+                label="URL de Destino"
+                required
+                value={link.url}
+                placeholder="https://..."
+                inputClass="font-mono text-sm"
+                class="sm:col-span-2"
+              />
 
-              <fieldset class="fieldset sm:col-span-2">
-                <legend class="fieldset-legend font-semibold uppercase tracking-wide text-xs">
-                  Subtítulo Descriptivo <span class="text-base-content/40 font-normal normal-case ml-1">(Opcional)</span>
-                </legend>
-                <input
-                  type="text"
-                  name="subtitle"
-                  value={link.subtitle}
-                  placeholder="Breve explicación del propósito del enlace"
-                  class="input input-bordered w-full"
-                />
-              </fieldset>
+              <FormField
+                id="input-subtitle"
+                name="subtitle"
+                label="Subtítulo Descriptivo"
+                value={link.subtitle}
+                placeholder="Breve explicación del propósito del enlace"
+                helpText="(Opcional)"
+                class="sm:col-span-2"
+              />
             </div>
 
             <fieldset class="fieldset">

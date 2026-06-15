@@ -5,6 +5,8 @@ import { eq, asc, and } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
 
@@ -269,36 +271,28 @@ for (const agent of allAgents) {
           </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">Nombre de red *</legend>
-              <input
-                type="text"
-                name="name"
-                required
-                value={cubic?.name ?? ""}
-                placeholder="b1842zacw2999.correo.local"
-                autocomplete="off"
-                class="input input-sm w-full font-mono"
-              />
-              <p class="fieldset-label text-xs text-base-content/50">
-                Hostname FQDN del equipo en la red corporativa.
-              </p>
-            </fieldset>
+            <FormField
+              id="input-name"
+              name="name"
+              label="Nombre de red"
+              required
+              value={cubic?.name ?? ""}
+              placeholder="b1842zacw2999.correo.local"
+              autocomplete="off"
+              inputClass="input-sm font-mono"
+              helpText="Hostname FQDN del equipo en la red corporativa."
+            />
 
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">Dirección IP</legend>
-              <input
-                type="text"
-                name="ip"
-                value={cubic?.ip ?? ""}
-                placeholder="10.254.59.62"
-                autocomplete="off"
-                class="input input-sm w-full font-mono"
-              />
-              <p class="fieldset-label text-xs text-base-content/50">
-                IPv4 asignada al equipo. Opcional.
-              </p>
-            </fieldset>
+            <FormField
+              id="input-ip"
+              name="ip"
+              label="Dirección IP"
+              value={cubic?.ip ?? ""}
+              placeholder="10.254.59.62"
+              autocomplete="off"
+              inputClass="input-sm font-mono"
+              helpText="IPv4 asignada al equipo. Opcional."
+            />
           </div>
         </div>
       </section>
@@ -388,16 +382,15 @@ for (const agent of allAgents) {
                     </div>
                     
                     <div class="grid grid-cols-1 gap-3">
-                      <fieldset class="fieldset gap-1">
-                        <legend class="fieldset-legend text-xs font-bold">Operador</legend>
-                        <select name="assign_agent_id" class="select select-sm w-full" required>
-                          {allAgents.map((agent) => (
-                            <option value={agent.id} selected={a.agent.id === agent.id}>
-                              {agent.name}
-                            </option>
-                          ))}
-                        </select>
-                      </fieldset>
+                      <SelectField
+                        id={`assign_agent_id-${a.agent.id}`}
+                        name="assign_agent_id"
+                        label="Operador"
+                        required
+                        selectClass="select-sm"
+                        options={allAgents.map(ag => ({ value: ag.id.toString(), label: ag.name }))}
+                        value={a.agent.id.toString()}
+                      />
                     </div>
                   </div>
                 </div>
@@ -449,15 +442,18 @@ for (const agent of allAgents) {
     </div>
 
     <div class="space-y-3">
-      <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Operador</legend>
-        <select name="assign_agent_id" class="select select-sm w-full" required>
-          <option value="" disabled selected>Seleccione un operador...</option>
-          {allAgents.map((agent) => (
-            <option value={agent.id}>{agent.name}</option>
-          ))}
-        </select>
-      </fieldset>
+      <SelectField
+        id="tpl-assign_agent_id"
+        name="assign_agent_id"
+        label="Operador"
+        required
+        selectClass="select-sm"
+      >
+        <option value="" disabled selected>Seleccione un operador...</option>
+        {allAgents.map((agent) => (
+          <option value={agent.id}>{agent.name}</option>
+        ))}
+      </SelectField>
     </div>
   </div>
 </template>

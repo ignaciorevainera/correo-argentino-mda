@@ -5,6 +5,8 @@ import { eq, asc } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
 
@@ -196,50 +198,48 @@ const urlsText =
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-3">
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs">Proveedor *</legend>
-                <input
-                  type="text"
-                  name="provider"
-                  required
-                  value={contact?.provider ?? ""}
-                  placeholder="ej: CORASA"
-                  autocomplete="off"
-                  class="input input-sm w-full font-semibold"
-                />
-              </fieldset>
+              <FormField
+                id="input-provider"
+                name="provider"
+                label="Proveedor"
+                required
+                value={contact?.provider ?? ""}
+                placeholder="ej: CORASA"
+                autocomplete="off"
+                inputClass="input-sm font-semibold"
+              />
 
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs">Servicio *</legend>
-                <input
-                  type="text"
-                  name="service"
-                  required
-                  value={contact?.service ?? ""}
-                  placeholder="ej: Mesa de Ayuda"
-                  autocomplete="off"
-                  class="input input-sm w-full"
-                />
-              </fieldset>
+              <FormField
+                id="input-service"
+                name="service"
+                label="Servicio"
+                required
+                value={contact?.service ?? ""}
+                placeholder="ej: Mesa de Ayuda"
+                autocomplete="off"
+                inputClass="input-sm"
+              />
 
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs">Categoría</legend>
-                <select name="categoryId" class="select select-sm w-full">
-                  <option value="" selected={!contact?.categoryId}
-                    >Ninguna</option
-                  >
-                  {
-                    allCategories.map((cat) => (
-                      <option
-                        value={cat.id}
-                        selected={contact?.categoryId === cat.id}
-                      >
-                        {cat.title}
-                      </option>
-                    ))
-                  }
-                </select>
-              </fieldset>
+              <SelectField
+                id="select-categoryId"
+                name="categoryId"
+                label="Categoría"
+                selectClass="select-sm"
+              >
+                <option value="" selected={!contact?.categoryId}>
+                  Ninguna
+                </option>
+                {
+                  allCategories.map((cat) => (
+                    <option
+                      value={cat.id}
+                      selected={contact?.categoryId === cat.id}
+                    >
+                      {cat.title}
+                    </option>
+                  ))
+                }
+              </SelectField>
             </div>
 
             <div class="space-y-3">

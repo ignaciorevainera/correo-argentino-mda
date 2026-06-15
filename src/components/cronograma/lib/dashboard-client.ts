@@ -944,7 +944,7 @@ function renderDaily(): void {
 
       rowsHtml += `
         <tr class="${trClass}">
-          <td class="sticky left-0 bg-base-100 z-30 w-64 min-w-sidebar-expanded px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
+          <td class="sticky left-0 bg-base-100 z-30 w-64 min-w-sidebar-expanded px-6 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${glowColorClass}"></div>
@@ -966,11 +966,11 @@ function renderDaily(): void {
           </td>
           <td class="sticky left-sidebar-expanded bg-base-100 z-30 w-44 min-w-sidebar-collapsed px-4 py-4 border-r border-base-300/40 group-hover:bg-base-200 transition-colors shadow-table-edge">
             <div class="flex items-center gap-3">
-               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500' : styles.bgClass}">
+               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-base border border-base-300/30 ${isHoliday ? 'bg-orange-200! dark:bg-orange-600! text-orange-800! dark:text-orange-100! border-orange-300! dark:border-orange-500!' : styles.bgClass}">
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                  <span class="${isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 font-bold px-2.5 py-1 rounded-full text-xxs tracking-wide uppercase line-through whitespace-nowrap' : styles.badge} whitespace-nowrap">${status}</span>
+                  <span class="${isHoliday ? 'bg-orange-200! dark:bg-orange-600! text-orange-800! dark:text-orange-100! border-orange-300! dark:border-orange-500! font-bold px-2.5 py-1 rounded-full text-xxs tracking-wide uppercase line-through whitespace-nowrap' : styles.badge} whitespace-nowrap">${status}</span>
                  ${breakBadgeHtml}
                  ${dayOvertime ? `
                    <span class="px-1.5 py-0.5 rounded-full text-tiny font-black uppercase tracking-wider bg-warning/15 text-warning border border-warning/20 flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap mt-1" title="Hora Extra: ${dayOvertime.startTime} - ${dayOvertime.endTime}">
@@ -1042,7 +1042,7 @@ function renderHourly(dateStr: string): void {
   let theadHtml = `
     <tr>
       <th rowspan="2" class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
-      <th colspan="${hours.length}" class="sticky top-0 text-center py-3 bg-base-100 text-secondary border-b border-base-200 relative group z-40">
+      <th colspan="${hours.length}" class="sticky top-0 text-center py-3 bg-base-100 text-secondary border-b border-base-200 group z-40">
          <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
             Volver al mes
@@ -1054,7 +1054,7 @@ function renderHourly(dateStr: string): void {
   `;
   
   hours.forEach(hour => {
-    theadHtml += `<th class="sticky top-[44px] text-center min-w-[3rem] px-0 border-r border-b border-base-200 py-2 bg-base-100 z-40">
+    theadHtml += `<th class="sticky top-[44px] text-center min-w-12 px-0 border-r border-b border-base-200 py-2 bg-base-100 z-40">
       <span class="font-extrabold text-xxs tracking-wide text-base-content/60">${hour}</span>
     </th>`;
   });
@@ -1147,14 +1147,14 @@ function renderHourly(dateStr: string): void {
            const onBreak = working && isBreakAtHour(breakStart, breakEnd, hour);
            if (onBreak) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
-                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
+                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
                    <span class="text-xxs leading-none">☕</span>
                  </div>
               </td>`;
             } else if (working && !isFranco) {
                const hourBgClass = isHoliday ? '!bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100' : styles.bgClass;
                tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-base-200/10">
-                  <div class="w-full h-full rounded ${hourBgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-[1.75rem] shadow-sm">
+                  <div class="w-full h-full rounded ${hourBgClass} flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm">
                   </div>
                </td>`;
            } else {
@@ -1293,7 +1293,7 @@ function renderMonthly(): void {
              <span class="font-black text-xs ${pd.isToday ? 'scale-110' : ''}">${pd.dateNum}</span>
              ${pd.isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
           </div>
-          ${pd.isToday ? `<span class="text-[7px] font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+          ${pd.isToday ? `<span class="text-micro font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
         </button>
       </th>
     `;
@@ -1390,7 +1390,7 @@ function renderMonthly(): void {
 
       const opShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]' : '';
 
-      tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/[0.02]' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+      tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/2' : ''}" data-op-name="${op.nombre.toLowerCase()}">
         <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
             <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
@@ -1419,7 +1419,7 @@ function renderMonthly(): void {
         tbodyHtml += `
           <td class="sticky left-[200px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
           <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
-          <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">${stats.L}</td>
+          <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-table-edge">${stats.L}</td>
         `;
       }
         
@@ -1579,7 +1579,7 @@ function renderMonthly(): void {
   let tfootHtml = `<tr>
     <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300 ${shadowClass}">
       <div class="flex items-center justify-between gap-2">
-        <span class="text-xxs font-black uppercase tracking-[0.1em] text-base-content/60">Resumen Cobertura</span>
+        <span class="text-xxs font-black uppercase tracking-widest text-base-content/60">Resumen Cobertura</span>
         <button
           type="button"
           id="toggle-coverage-btn"
@@ -1611,7 +1611,7 @@ function renderMonthly(): void {
     const cellPyClass = state.isCoverageMinimized ? 'py-1 px-1' : 'py-2 px-1';
 
     tfootHtml += `
-      <td class="${cellPyClass} border-r border-base-200/50 min-w-[4rem] ${isLowCoverage ? 'bg-error/5' : ''}">
+      <td class="${cellPyClass} border-r border-base-200/50 min-w-16 ${isLowCoverage ? 'bg-error/5' : ''}">
         <div class="flex flex-col items-center gap-1.5">
            ${state.isCoverageMinimized ? '' : `
            <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
@@ -1622,7 +1622,7 @@ function renderMonthly(): void {
            `}
            <div class="flex flex-col items-center leading-none">
               <span class="text-xxs font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.pmg + c.ppp + c.ho}</span>
-              <span class="text-[7px] font-black uppercase opacity-30">Activos</span>
+              <span class="text-micro font-black uppercase opacity-30">Activos</span>
            </div>
         </div>
       </td>
@@ -3484,7 +3484,7 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
         ${hours.map((h, i) => {
           const wp = (60 / TOTAL_MINUTES) * 100;
           const isMidnight = h === '00:00' && i > 0;
-          return `<div style="width:${wp.toFixed(2)}%" class="text-[7px] font-bold text-base-content/40 border-r border-base-300/30 py-1 px-1 shrink-0 ${isMidnight ? 'bg-info/5 text-info/60 font-black border-info/30' : ''}">${h}</div>`;
+          return `<div style="width:${wp.toFixed(2)}%" class="text-micro font-bold text-base-content/40 border-r border-base-300/30 py-1 px-1 shrink-0 ${isMidnight ? 'bg-info/5 text-info/60 font-black border-info/30' : ''}">${h}</div>`;
         }).join('')}
       </div>
     </div>

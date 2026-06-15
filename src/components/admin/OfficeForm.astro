@@ -1,5 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
 
 export interface OfficeFormData {
@@ -88,106 +90,95 @@ if (office?.type === "SUCURSAL") {
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="space-y-3">
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Código *</legend>
-            <input
-              type="text"
-              name="code"
-              required
-              value={office?.code ?? ""}
-              placeholder="I2659"
-              autocomplete="off"
-              class="input input-sm w-full font-mono"
-            />
-          </fieldset>
+          <FormField
+            id="input-code"
+            name="code"
+            label="Código"
+            required
+            value={office?.code ?? ""}
+            placeholder="I2659"
+            autocomplete="off"
+            inputClass="input-sm font-mono"
+          />
 
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Tipo *</legend>
-            <select name="type" required class="select select-sm w-full">
-              {officeTypes.map((t) => (
-                <option value={t.value} selected={currentType === t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </fieldset>
+          <SelectField
+            id="select-type"
+            name="type"
+            label="Tipo"
+            required
+            options={officeTypes}
+            value={currentType}
+            selectClass="select-sm"
+          />
 
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Zona</legend>
-            <input
-              type="text"
-              name="zone"
-              value={office?.zone ?? ""}
-              placeholder="ej: ZONA SUR"
-              autocomplete="off"
-              class="input input-sm w-full"
-            />
-          </fieldset>
+          <FormField
+            id="input-zone"
+            name="zone"
+            label="Zona"
+            value={office?.zone ?? ""}
+            placeholder="ej: ZONA SUR"
+            autocomplete="off"
+            inputClass="input-sm"
+          />
         </div>
 
         <div class="space-y-3">
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Nombre *</legend>
-            <input
-              type="text"
-              name="name"
-              required
-              value={office?.name ?? ""}
-              placeholder="ej: Neuquén"
-              autocomplete="off"
-              class="input input-sm w-full"
-            />
-          </fieldset>
+          <FormField
+            id="input-name"
+            name="name"
+            label="Nombre"
+            required
+            value={office?.name ?? ""}
+            placeholder="ej: Neuquén"
+            autocomplete="off"
+            inputClass="input-sm"
+          />
 
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Email</legend>
-            <input
-              type="email"
-              name="email"
-              value={office?.email ?? ""}
-              placeholder="oficina@correo.com.ar"
-              class="input input-sm w-full"
-            />
-          </fieldset>
+          <FormField
+            id="input-email"
+            type="email"
+            name="email"
+            label="Email"
+            value={office?.email ?? ""}
+            placeholder="oficina@correo.com.ar"
+            inputClass="input-sm"
+          />
 
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Partido / Departamento</legend>
-            <input
-              type="text"
-              name="county"
-              value={office?.county ?? ""}
-              placeholder="ej: Confluencia"
-              autocomplete="off"
-              class="input input-sm w-full"
-            />
-          </fieldset>
+          <FormField
+            id="input-county"
+            name="county"
+            label="Partido / Departamento"
+            value={office?.county ?? ""}
+            placeholder="ej: Confluencia"
+            autocomplete="off"
+            inputClass="input-sm"
+          />
         </div>
 
         <div class="space-y-3">
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Provincia *</legend>
-            <select
-              name="provinceCode"
-              required
-              class="select select-sm w-full"
-            >
-              <option value="" disabled selected={!office?.provinceCode}>
-                Seleccionar provincia
-              </option>
-              {groupedProvinces.map((group) => (
-                <optgroup label={group.regionName}>
-                  {group.provinces.map((p) => (
-                    <option
-                      value={p.code}
-                      selected={office?.provinceCode === p.code}
-                    >
-                      {p.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </fieldset>
+          <SelectField
+            id="select-provinceCode"
+            name="provinceCode"
+            label="Provincia"
+            required
+            selectClass="select-sm"
+          >
+            <option value="" disabled selected={!office?.provinceCode}>
+              Seleccionar provincia
+            </option>
+            {groupedProvinces.map((group) => (
+              <optgroup label={group.regionName}>
+                {group.provinces.map((p) => (
+                  <option
+                    value={p.code}
+                    selected={office?.provinceCode === p.code}
+                  >
+                    {p.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </SelectField>
 
           <fieldset class="fieldset gap-1">
             <legend class="fieldset-legend text-xs">Dirección *</legend>
@@ -205,32 +196,28 @@ if (office?.type === "SUCURSAL") {
             </div>
           </fieldset>
 
-          <fieldset class="fieldset gap-1">
-            <legend class="fieldset-legend text-xs">Localidad</legend>
-            <input
-              type="text"
-              name="locality"
-              value={office?.locality ?? ""}
-              placeholder="ej: Neuquén"
-              autocomplete="off"
-              class="input input-sm w-full"
-            />
-          </fieldset>
+          <FormField
+            id="input-locality"
+            name="locality"
+            label="Localidad"
+            value={office?.locality ?? ""}
+            placeholder="ej: Neuquén"
+            autocomplete="off"
+            inputClass="input-sm"
+          />
         </div>
 
         <div class="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="col-span-1">
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">NIS Padre (Dependencia)</legend>
-              <input
-                type="text"
-                name="parentNis"
-                value={office?.parentNis ?? ""}
-                placeholder="ej: I2659"
-                autocomplete="off"
-                class="input input-sm w-full font-mono"
-              />
-            </fieldset>
+            <FormField
+              id="input-parentNis"
+              name="parentNis"
+              label="NIS Padre (Dependencia)"
+              value={office?.parentNis ?? ""}
+              placeholder="ej: I2659"
+              autocomplete="off"
+              inputClass="input-sm font-mono"
+            />
           </div>
           
           <div class="col-span-2 flex items-center gap-6 mt-6 md:mt-0 md:justify-end">
@@ -295,36 +282,30 @@ if (office?.type === "SUCURSAL") {
         <div id="assets-container" class="space-y-3">
           {(office?.assets ?? []).map((a) => (
             <div class="asset-row relative grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg bg-base-200/50 p-4 border border-base-300 pr-10">
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs font-bold">Tipo</legend>
-                <select name="asset_type" class="select select-sm w-full">
-                  {assetTypeOptions.map((opt) => (
-                    <option value={opt.value} selected={a.type === opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </fieldset>
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs font-bold">Hostname</legend>
-                <input
-                  type="text"
-                  name="asset_hostname"
-                  value={a.hostname ?? ""}
-                  class="input input-sm w-full font-mono"
-                  placeholder="SRV-NEU-01"
-                />
-              </fieldset>
-              <fieldset class="fieldset gap-1">
-                <legend class="fieldset-legend text-xs font-bold">IP</legend>
-                <input
-                  type="text"
-                  name="asset_ip"
-                  value={a.ip ?? ""}
-                  class="input input-sm w-full font-mono"
-                  placeholder="10.0.1.1"
-                />
-              </fieldset>
+              <SelectField
+                id={`asset-type-${a.id}`}
+                name="asset_type"
+                label="Tipo"
+                options={assetTypeOptions}
+                value={a.type}
+                selectClass="select-sm"
+              />
+              <FormField
+                id={`asset-hostname-${a.id}`}
+                name="asset_hostname"
+                label="Hostname"
+                value={a.hostname ?? ""}
+                placeholder="SRV-NEU-01"
+                inputClass="input-sm font-mono"
+              />
+              <FormField
+                id={`asset-ip-${a.id}`}
+                name="asset_ip"
+                label="IP"
+                value={a.ip ?? ""}
+                placeholder="10.0.1.1"
+                inputClass="input-sm font-mono"
+              />
               <button
                 type="button"
                 class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2"
@@ -375,46 +356,38 @@ if (office?.type === "SUCURSAL") {
                 <Icon name="boxicons:trash" size={18} />
               </button>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pr-6">
-                <fieldset class="fieldset gap-1">
-                  <legend class="fieldset-legend text-xs font-bold">Nombre</legend>
-                  <input
-                    type="text"
-                    name="contact_name"
-                    value={oc.contact.name}
-                    class="input input-sm w-full"
-                    placeholder="García Juan"
-                  />
-                </fieldset>
-                <fieldset class="fieldset gap-1">
-                  <legend class="fieldset-legend text-xs font-bold">Teléfono</legend>
-                  <input
-                    type="text"
-                    name="contact_phone"
-                    value={oc.contact.phone ?? ""}
-                    class="input input-sm w-full font-mono"
-                    placeholder="0299-123456"
-                  />
-                </fieldset>
-                <fieldset class="fieldset gap-1">
-                  <legend class="fieldset-legend text-xs font-bold">Rol</legend>
-                  <input
-                    type="text"
-                    name="contact_role"
-                    value={oc.role ?? ""}
-                    class="input input-sm w-full"
-                    placeholder="Jefe"
-                  />
-                </fieldset>
-                <fieldset class="fieldset gap-1">
-                  <legend class="fieldset-legend text-xs font-bold">Horario</legend>
-                  <input
-                    type="text"
-                    name="contact_timeslot"
-                    value={oc.timeSlot ?? ""}
-                    class="input input-sm w-full"
-                    placeholder="Mañana"
-                  />
-                </fieldset>
+                <FormField
+                  id={`contact-name-${oc.contact.id}`}
+                  name="contact_name"
+                  label="Nombre"
+                  value={oc.contact.name}
+                  placeholder="García Juan"
+                  inputClass="input-sm"
+                />
+                <FormField
+                  id={`contact-phone-${oc.contact.id}`}
+                  name="contact_phone"
+                  label="Teléfono"
+                  value={oc.contact.phone ?? ""}
+                  placeholder="0299-123456"
+                  inputClass="input-sm font-mono"
+                />
+                <FormField
+                  id={`contact-role-${oc.contact.id}`}
+                  name="contact_role"
+                  label="Rol"
+                  value={oc.role ?? ""}
+                  placeholder="Jefe"
+                  inputClass="input-sm"
+                />
+                <FormField
+                  id={`contact-timeslot-${oc.contact.id}`}
+                  name="contact_timeslot"
+                  label="Horario"
+                  value={oc.timeSlot ?? ""}
+                  placeholder="Mañana"
+                  inputClass="input-sm"
+                />
               </div>
             </div>
           ))}
@@ -447,32 +420,31 @@ if (office?.type === "SUCURSAL") {
 {/* ── Templates dinámicos ── */}
 <template id="tpl-asset-row">
   <div class="asset-row relative grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg bg-base-200/50 p-4 border border-base-300 pr-10">
-    <fieldset class="fieldset gap-1">
-      <legend class="fieldset-legend text-xs font-bold">Tipo</legend>
-      <select name="asset_type" class="select select-sm w-full">
-        <option value="server">Servidor</option>
-        <option value="client">Cliente</option>
-        <option value="printer">Impresora</option>
-      </select>
-    </fieldset>
-    <fieldset class="fieldset gap-1">
-      <legend class="fieldset-legend text-xs font-bold">Hostname</legend>
-      <input
-        type="text"
-        name="asset_hostname"
-        class="input input-sm w-full font-mono"
-        placeholder="SRV-NEU-01"
-      />
-    </fieldset>
-    <fieldset class="fieldset gap-1">
-      <legend class="fieldset-legend text-xs font-bold">IP</legend>
-      <input
-        type="text"
-        name="asset_ip"
-        class="input input-sm w-full font-mono"
-        placeholder="10.0.1.1"
-      />
-    </fieldset>
+    <SelectField
+      id="tpl-asset-type"
+      name="asset_type"
+      label="Tipo"
+      options={[
+        { value: "server", label: "Servidor" },
+        { value: "client", label: "Cliente" },
+        { value: "printer", label: "Impresora" }
+      ]}
+      selectClass="select-sm"
+    />
+    <FormField
+      id="tpl-asset-hostname"
+      name="asset_hostname"
+      label="Hostname"
+      placeholder="SRV-NEU-01"
+      inputClass="input-sm font-mono"
+    />
+    <FormField
+      id="tpl-asset-ip"
+      name="asset_ip"
+      label="IP"
+      placeholder="10.0.1.1"
+      inputClass="input-sm font-mono"
+    />
     <button
       type="button"
       class="btn btn-ghost btn-sm btn-square text-error/60 hover:text-error remove-row-btn absolute top-2 right-2"
@@ -494,42 +466,34 @@ if (office?.type === "SUCURSAL") {
       <Icon name="boxicons:trash" size={18} />
     </button>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pr-6">
-      <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Nombre</legend>
-        <input
-          type="text"
-          name="contact_name"
-          class="input input-sm w-full"
-          placeholder="García Juan"
-        />
-      </fieldset>
-      <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Teléfono</legend>
-        <input
-          type="text"
-          name="contact_phone"
-          class="input input-sm w-full font-mono"
-          placeholder="0299-123456"
-        />
-      </fieldset>
-      <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Rol</legend>
-        <input
-          type="text"
-          name="contact_role"
-          class="input input-sm w-full"
-          placeholder="Jefe"
-        />
-      </fieldset>
-      <fieldset class="fieldset gap-1">
-        <legend class="fieldset-legend text-xs font-bold">Horario</legend>
-        <input
-          type="text"
-          name="contact_timeslot"
-          class="input input-sm w-full"
-          placeholder="Mañana"
-        />
-      </fieldset>
+      <FormField
+        id="tpl-contact-name"
+        name="contact_name"
+        label="Nombre"
+        placeholder="García Juan"
+        inputClass="input-sm"
+      />
+      <FormField
+        id="tpl-contact-phone"
+        name="contact_phone"
+        label="Teléfono"
+        placeholder="0299-123456"
+        inputClass="input-sm font-mono"
+      />
+      <FormField
+        id="tpl-contact-role"
+        name="contact_role"
+        label="Rol"
+        placeholder="Jefe"
+        inputClass="input-sm"
+      />
+      <FormField
+        id="tpl-contact-timeslot"
+        name="contact_timeslot"
+        label="Horario"
+        placeholder="Mañana"
+        inputClass="input-sm"
+      />
     </div>
   </div>
 </template>

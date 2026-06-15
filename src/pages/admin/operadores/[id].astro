@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { getDisponibilidadHoy } from "@/lib/disponibilidad";
 import { logAdminAction } from "@lib/auditLogger";
@@ -328,80 +330,64 @@ const pageTitle = isNew ? "Nuevo operador" : `Editar: ${operator!.name}`;
           </h2>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">ID de usuario *</legend>
-              <input
-                type="text"
-                name="id"
-                required
-                value={operator?.username ?? ""}
-                placeholder="ej: jperez"
-                autocomplete="off"
-                readonly={!isNew}
-                class:list={[
-                  "input input-sm w-full font-mono",
-                  !isNew && "input-disabled bg-base-200 cursor-not-allowed",
-                ]}
-              />
+            <FormField
+              id="input-id"
+              name="id"
+              label="ID de usuario"
+              required
+              value={operator?.username ?? ""}
+              placeholder="ej: jperez"
+              autocomplete="off"
+              readonly={!isNew}
+              inputClass={!isNew ? "input-sm font-mono input-disabled bg-base-200 cursor-not-allowed" : "input-sm font-mono"}
+              helpText={isNew ? "Identificador único de usuario del operador." : undefined}
+            />
+
+            <FormField
+              id="input-name"
+              name="name"
+              label="Nombre completo"
+              required
+              value={operator?.name ?? ""}
+              placeholder="ej: Juan Pérez"
+              autocomplete="off"
+              inputClass="input-sm"
+            />
+
+            <SelectField
+              id="select-locationId"
+              name="locationId"
+              label="Ubicación presencial"
+              selectClass="select-sm"
+            >
+              <option value="" selected={!isNew && !operator?.locationId}>
+                Sin asignar
+              </option>
               {
-                isNew && (
-                  <p class="text-xs text-base-content/50 mt-1">
-                    Identificador único de usuario del operador.
-                  </p>
-                )
+                allLocations.map((loc) => (
+                  <option
+                    value={loc.id}
+                    selected={
+                      isNew
+                        ? loc.id === "MGR"
+                        : operator?.locationId === loc.id
+                    }
+                  >
+                    {loc.name}
+                  </option>
+                ))
               }
-            </fieldset>
+            </SelectField>
 
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">Nombre completo *</legend>
-              <input
-                type="text"
-                name="name"
-                required
-                value={operator?.name ?? ""}
-                placeholder="ej: Juan Pérez"
-                autocomplete="off"
-                class="input input-sm w-full"
-              />
-            </fieldset>
-
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs"
-                >Ubicación presencial</legend
-              >
-              <select name="locationId" class="select select-sm w-full">
-                <option value="" selected={!isNew && !operator?.locationId}>
-                  Sin asignar
-                </option>
-                {
-                  allLocations.map((loc) => (
-                    <option
-                      value={loc.id}
-                      selected={
-                        isNew
-                          ? loc.id === "MGR"
-                          : operator?.locationId === loc.id
-                      }
-                    >
-                      {loc.name}
-                    </option>
-                  ))
-                }
-              </select>
-            </fieldset>
-
-            <fieldset class="fieldset gap-1">
-              <legend class="fieldset-legend text-xs">Estado</legend>
-              <input
-                type="text"
-                readonly
-                value={isNew ? "Disponible" : (operator?.status === "disponible" ? "Activo (en servicio)" : `No disponible / Excepción`)}
-                class="input input-sm w-full input-disabled bg-base-200 cursor-not-allowed"
-              />
-              <p class="text-xxs text-base-content/50 mt-1">
-                El estado de disponibilidad se calcula automáticamente basado en la matriz de horarios y Cronograma.
-              </p>
-            </fieldset>
+            <FormField
+              id="input-status"
+              name="status"
+              label="Estado"
+              readonly
+              value={isNew ? "Disponible" : (operator?.status === "disponible" ? "Activo (en servicio)" : `No disponible / Excepción`)}
+              inputClass="input-sm input-disabled bg-base-200 cursor-not-allowed"
+              helpText="El estado de disponibilidad se calcula automáticamente basado en la matriz de horarios y Cronograma."
+            />
           </div>
         </div>
       </section>
@@ -431,47 +417,30 @@ const pageTitle = isNew ? "Nuevo operador" : `Editar: ${operator!.name}`;
                           <span>🏠</span> Home Office
                         </h3>
                         <div class="grid grid-cols-3 gap-2">
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Entrada
-                            </legend>
-                            <input
-                              type="time"
-                              name={`home_${day}_start`}
-                              value={
-                                operatorSchedulesData[day]?.home?.shiftStart ||
-                                ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Salida
-                            </legend>
-                            <input
-                              type="time"
-                              name={`home_${day}_end`}
-                              value={
-                                operatorSchedulesData[day]?.home?.shiftEnd || ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Break
-                            </legend>
-                            <input
-                              type="time"
-                              name={`home_${day}_break`}
-                              value={
-                                operatorSchedulesData[day]?.home?.breakTime ||
-                                ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
+                          <FormField
+                            id={`home_${day}_start`}
+                            type="time"
+                            name={`home_${day}_start`}
+                            label="Entrada"
+                            value={operatorSchedulesData[day]?.home?.shiftStart || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`home_${day}_end`}
+                            type="time"
+                            name={`home_${day}_end`}
+                            label="Salida"
+                            value={operatorSchedulesData[day]?.home?.shiftEnd || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`home_${day}_break`}
+                            type="time"
+                            name={`home_${day}_break`}
+                            label="Break"
+                            value={operatorSchedulesData[day]?.home?.breakTime || ""}
+                            inputClass="input-sm"
+                          />
                         </div>
                       </div>
                       <div class="space-y-3">
@@ -479,48 +448,30 @@ const pageTitle = isNew ? "Nuevo operador" : `Editar: ${operator!.name}`;
                           <span>🏢</span> Presencial
                         </h3>
                         <div class="grid grid-cols-3 gap-2">
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Entrada
-                            </legend>
-                            <input
-                              type="time"
-                              name={`presencial_${day}_start`}
-                              value={
-                                operatorSchedulesData[day]?.presencial
-                                  ?.shiftStart || ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Salida
-                            </legend>
-                            <input
-                              type="time"
-                              name={`presencial_${day}_end`}
-                              value={
-                                operatorSchedulesData[day]?.presencial
-                                  ?.shiftEnd || ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
-                          <fieldset class="fieldset gap-1">
-                            <legend class="fieldset-legend text-xxs">
-                              Break
-                            </legend>
-                            <input
-                              type="time"
-                              name={`presencial_${day}_break`}
-                              value={
-                                operatorSchedulesData[day]?.presencial
-                                  ?.breakTime || ""
-                              }
-                              class="input input-sm w-full"
-                            />
-                          </fieldset>
+                          <FormField
+                            id={`presencial_${day}_start`}
+                            type="time"
+                            name={`presencial_${day}_start`}
+                            label="Entrada"
+                            value={operatorSchedulesData[day]?.presencial?.shiftStart || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`presencial_${day}_end`}
+                            type="time"
+                            name={`presencial_${day}_end`}
+                            label="Salida"
+                            value={operatorSchedulesData[day]?.presencial?.shiftEnd || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`presencial_${day}_break`}
+                            type="time"
+                            name={`presencial_${day}_break`}
+                            label="Break"
+                            value={operatorSchedulesData[day]?.presencial?.breakTime || ""}
+                            inputClass="input-sm"
+                          />
                         </div>
                       </div>
                     </div>

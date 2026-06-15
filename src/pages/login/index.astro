@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { generateSessionId, signSessionId, setSessionCookie } from "../../lib/session";
 import { Icon } from "astro-icon/components";
+import FormField from "@components/ui/forms/FormField.astro";
+import PasswordField from "@components/ui/forms/PasswordField.astro";
 
 if (Astro.locals.user.id !== 0) {
   return Astro.redirect(import.meta.env.BASE_URL || "/");
@@ -88,45 +90,34 @@ if (Astro.request.method === "POST") {
           }
 
           <form method="POST">
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend">Usuario</legend>
-              <label class="input validator w-full">
-                <Icon name="boxicons:user" size={16} class="opacity-50" />
-                <input
-                  type="text"
-                  id="login-username"
-                  name="username"
-                  required
-                  placeholder="irevainera"
-                  autocomplete="username"
-                  pattern="[A-Za-z][A-Za-z0-9\-]*"
-                  minlength="3"
-                  maxlength="30"
-                  title="Solo letras, números o guion"
-                />
-              </label>
-            </fieldset>
+            <FormField
+              id="login-username"
+              name="username"
+              label="Usuario"
+              required
+              placeholder="irevainera"
+              autocomplete="username"
+              pattern="[A-Za-z][A-Za-z0-9\\-]*"
+              minlength="3"
+              maxlength="30"
+              title="Solo letras, números o guion"
+              icon="boxicons:user"
+              inputClass="validator"
+            />
 
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend">Contraseña</legend>
-              <label class="input validator w-full">
-                <Icon
-                  name="boxicons:lock-filled"
-                  size={16}
-                  class="opacity-50"
-                />
-                <input
-                  type="password"
-                  id="login-password"
-                  name="password"
-                  required
-                  minlength="4"
-                  placeholder="••••••••"
-                  autocomplete="current-password"
-                  title="Contraseña requerida (mínimo 4 caracteres)"
-                />
-              </label>
-            </fieldset>
+            <PasswordField
+              id="login-password"
+              name="password"
+              label="Contraseña"
+              required
+              minlength="4"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              title="Contraseña requerida (mínimo 4 caracteres)"
+              icon="boxicons:lock-filled"
+              inputClass="validator"
+              confirmPassword={false}
+            />
 
             <button type="submit" class="btn btn-primary w-full mt-4">
               Ingresar

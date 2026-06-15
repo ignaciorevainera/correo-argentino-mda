@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
@@ -250,67 +252,46 @@ const isExternal = formUploadType
 
           <form method="POST" enctype="multipart/form-data" class="space-y-5">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <fieldset class="fieldset">
-                <legend
-                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
-                >
-                  Título
-                </legend>
-                <input
-                  type="text"
-                  name="title"
-                  required
-                  value={app.title}
-                  placeholder="Ej: ShareX"
-                  class="input input-bordered w-full"
-                  autofocus={isNew}
-                />
-              </fieldset>
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título"
+                required
+                value={app.title}
+                placeholder="Ej: ShareX"
+                autofocus={isNew}
+              />
 
-              <fieldset class="fieldset">
-                <legend
-                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
-                >
-                  Categoría
-                </legend>
-                <select
-                  name="categoryId"
-                  class="select select-bordered w-full font-medium"
-                >
-                  <option value="" selected={!app.categoryId}
-                    >Sin categoría</option
-                  >
-                  {
-                    categories.map((cat) => (
-                      <option
-                        value={cat.id}
-                        selected={cat.id === app.categoryId}
-                      >
-                        {cat.title}
-                      </option>
-                    ))
-                  }
-                </select>
-              </fieldset>
+              <SelectField
+                id="select-categoryId"
+                name="categoryId"
+                label="Categoría"
+                selectClass="font-medium"
+              >
+                <option value="" selected={!app.categoryId}>
+                  Sin categoría
+                </option>
+                {
+                  categories.map((cat) => (
+                    <option
+                      value={cat.id}
+                      selected={cat.id === app.categoryId}
+                    >
+                      {cat.title}
+                    </option>
+                  ))
+                }
+              </SelectField>
 
-              <fieldset class="fieldset">
-                <legend
-                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
-                >
-                  Versión
-                  <span
-                    class="text-base-content/40 font-normal normal-case ml-1"
-                    >(Opcional)</span
-                  >
-                </legend>
-                <input
-                  type="text"
-                  name="version"
-                  value={app.version}
-                  placeholder="Ej: 1.2.0"
-                  class="input input-bordered w-full font-mono text-sm"
-                />
-              </fieldset>
+              <FormField
+                id="input-version"
+                name="version"
+                label="Versión"
+                value={app.version}
+                placeholder="Ej: 1.2.0"
+                inputClass="font-mono text-sm"
+                helpText="(Opcional)"
+              />
             </div>
 
             <fieldset class="fieldset">

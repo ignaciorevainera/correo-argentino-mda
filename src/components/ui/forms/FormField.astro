@@ -1,0 +1,59 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import { Icon } from "astro-icon/components";
+
+interface Props extends HTMLAttributes<"input"> {
+  id: string;
+  name: string;
+  label: string;
+  helpText?: string;
+  inputClass?: string;
+  icon?: string;
+}
+
+const {
+  id,
+  name,
+  label,
+  helpText,
+  type = "text",
+  inputClass = "",
+  icon,
+  class: className = "",
+  ...rest
+} = Astro.props;
+---
+
+<fieldset class:list={["fieldset", className]}>
+  <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+    {label}
+    {rest.required && <span class="text-error">*</span>}
+  </legend>
+  {
+    icon ? (
+      <label class:list={["input input-bordered w-full flex items-center gap-2", inputClass]}>
+        <Icon name={icon} size={16} class="opacity-50 shrink-0" />
+        <input
+          type={type}
+          id={id}
+          name={name}
+          class="grow"
+          {...rest}
+        />
+      </label>
+    ) : (
+      <input
+        type={type}
+        id={id}
+        name={name}
+        class:list={["input input-bordered w-full", inputClass]}
+        {...rest}
+      />
+    )
+  }
+  {
+    helpText && (
+      <p class="fieldset-label text-xs text-base-content/50">{helpText}</p>
+    )
+  }
+</fieldset>

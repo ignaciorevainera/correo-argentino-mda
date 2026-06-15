@@ -7,6 +7,9 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
 import { rolesMatrix } from "../../../lib/rolesMatrix";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import PasswordField from "@components/ui/forms/PasswordField.astro";
 
 interface Props {
   successMsg?: string;
@@ -82,86 +85,37 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           }
 
           <form method="POST" class="space-y-4">
-            <fieldset class="fieldset">
-              <legend
-                class="fieldset-legend text-xs font-bold uppercase tracking-wider"
-              >
-                Nombre de red
-              </legend>
-              <input
-                type="text"
-                id="admin-username"
-                name="username"
-                required
-                placeholder="ej: jgonzalez"
-                autocomplete="off"
-                class="input input-bordered w-full"
-              />
-              <p class="fieldset-label text-xs text-base-content/50">
-                Credencial de dominio del operador.
-              </p>
-            </fieldset>
+            <FormField
+              id="admin-username"
+              name="username"
+              required
+              label="Nombre de red"
+              placeholder="ej: jgonzalez"
+              autocomplete="off"
+              helpText="Credencial de dominio del operador."
+            />
 
-            <fieldset class="fieldset">
-              <legend
-                class="fieldset-legend text-xs font-bold uppercase tracking-wider"
-              >
-                Contraseña inicial
-              </legend>
-              <input
-                type="password"
-                id="admin-password"
-                name="password"
-                required
-                autocomplete="new-password"
-                class="input input-bordered w-full pwd-input-validate"
-              />
-              <div class="pwd-error hidden mt-2 alert alert-error alert-soft text-xs">
-                <Icon name="boxicons:alert-circle-filled" size={16} class="shrink-0" />
-                <span class="pwd-error-msg"></span>
-              </div>
-              <ul class="text-xs mt-2 space-y-1 pwd-req-list">
-                <li data-req="len" class="text-base-content/50 transition-colors">Mínimo 8 caracteres</li>
-                <li data-req="up" class="text-base-content/50 transition-colors">Al menos una mayúscula</li>
-                <li data-req="low" class="text-base-content/50 transition-colors">Al menos una minúscula</li>
-                <li data-req="num" class="text-base-content/50 transition-colors">Al menos un número</li>
-              </ul>
-            </fieldset>
+            <PasswordField
+              id="admin-password"
+              name="password"
+              required
+              label="Contraseña inicial"
+              confirmPassword={true}
+              confirmLabel="Repetir contraseña"
+              autocomplete="new-password"
+            />
 
-            <fieldset class="fieldset">
-              <legend
-                class="fieldset-legend text-xs font-bold uppercase tracking-wider"
-              >
-                Repetir contraseña
-              </legend>
-              <input
-                type="password"
-                id="admin-password-repeat"
-                required
-                autocomplete="new-password"
-                class="input input-bordered w-full pwd-input-repeat"
-              />
-            </fieldset>
-
-            <fieldset class="fieldset">
-              <legend
-                class="fieldset-legend text-xs font-bold uppercase tracking-wider"
-              >
-                Rol en sistema
-              </legend>
-              <select
-                id="admin-role"
-                name="role"
-                class="select select-bordered w-full"
-              >
-                <option value="referent">Referente</option>
-                <option value="supervisor">Supervisor</option>
-                <option value="admin">Administrador</option>
-              </select>
-              <p class="fieldset-label text-xs text-base-content/50">
-                Define el nivel de acceso a módulos del portal.
-              </p>
-            </fieldset>
+            <SelectField
+              id="admin-role"
+              name="role"
+              label="Rol en sistema"
+              options={[
+                { value: "referent", label: "Referente" },
+                { value: "supervisor", label: "Supervisor" },
+                { value: "admin", label: "Administrador" }
+              ]}
+              helpText="Define el nivel de acceso a módulos del portal."
+            />
 
             <input type="hidden" name="action" value="create" />
             <button type="submit" class="btn btn-secondary w-full gap-2 mt-2">
@@ -343,19 +297,15 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           value="rename-username"
                         />
                         <input type="hidden" name="userId" value={u.id} />
-                        <fieldset class="fieldset">
-                          <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
-                            Nuevo nombre de red
-                          </legend>
-                          <input
-                            type="text"
-                            name="newUsername"
-                            required
-                            placeholder={u.username}
-                            autocomplete="off"
-                            class="input input-bordered input-sm w-full"
-                          />
-                        </fieldset>
+                        <FormField
+                          id={`new-username-${u.id}`}
+                          name="newUsername"
+                          required
+                          label="Nuevo nombre de red"
+                          placeholder={u.username}
+                          autocomplete="off"
+                          inputClass="input-sm"
+                        />
                         <div class="modal-action mt-2 gap-2">
                           <button
                             type="submit"
@@ -398,40 +348,16 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           value="reset-password"
                         />
                         <input type="hidden" name="userId" value={u.id} />
-                        <fieldset class="fieldset">
-                          <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
-                            Nueva contraseña
-                          </legend>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            required
-                            autocomplete="new-password"
-                            class="input input-bordered input-sm w-full pwd-input-validate"
-                          />
-                          <div class="pwd-error hidden mt-2 alert alert-error alert-soft text-xs">
-                            <Icon name="boxicons:alert-circle-filled" size={16} class="shrink-0" />
-                            <span class="pwd-error-msg"></span>
-                          </div>
-                          <ul class="text-xs mt-2 space-y-1 pwd-req-list">
-                            <li data-req="len" class="text-base-content/50 transition-colors">Mínimo 8 caracteres</li>
-                            <li data-req="up" class="text-base-content/50 transition-colors">Al menos una mayúscula</li>
-                            <li data-req="low" class="text-base-content/50 transition-colors">Al menos una minúscula</li>
-                            <li data-req="num" class="text-base-content/50 transition-colors">Al menos un número</li>
-                          </ul>
-                        </fieldset>
-
-                        <fieldset class="fieldset mt-1">
-                          <legend class="fieldset-legend text-xs font-bold uppercase tracking-wider">
-                            Repetir nueva contraseña
-                          </legend>
-                          <input
-                            type="password"
-                            required
-                            autocomplete="new-password"
-                            class="input input-bordered input-sm w-full pwd-input-repeat"
-                          />
-                        </fieldset>
+                        <PasswordField
+                          id={`reset-password-${u.id}`}
+                          name="newPassword"
+                          required
+                          label="Nueva contraseña"
+                          confirmPassword={true}
+                          confirmLabel="Repetir nueva contraseña"
+                          autocomplete="new-password"
+                          inputClass="input-sm"
+                        />
                         <div class="modal-action mt-2 gap-2">
                           <button
                             type="submit"
@@ -478,23 +404,18 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     <form method="POST" class="space-y-4">
       <input type="hidden" name="action" value="change-role" />
       <input type="hidden" name="userId" id="change-role-user-id" />
-      <fieldset class="fieldset">
-        <legend
-          class="fieldset-legend text-xs font-bold uppercase tracking-wider"
-        >
-          Nuevo rol
-        </legend>
-        <select
-          id="change-role-select"
-          name="newRole"
-          class="select select-bordered select-sm w-full"
-        >
-          <option value="agent">Agente</option>
-          <option value="referent">Referente</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="admin">Administrador</option>
-        </select>
-      </fieldset>
+      <SelectField
+        id="change-role-select"
+        name="newRole"
+        label="Nuevo rol"
+        selectClass="select-sm"
+        options={[
+          { value: "agent", label: "Agente" },
+          { value: "referent", label: "Referente" },
+          { value: "supervisor", label: "Supervisor" },
+          { value: "admin", label: "Administrador" }
+        ]}
+      />
 
       <div
         id="role-desc-container"
@@ -651,80 +572,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 </dialog>
 
 <script>
-  // Validación de política de contraseñas
-  const pwdRegex = {
-    up: /[A-Z]/,
-    low: /[a-z]/,
-    num: /[0-9]/
-  };
-
-  const validatePassword = (pwd: string) => {
-    return {
-      len: pwd.length >= 8,
-      up: pwdRegex.up.test(pwd),
-      low: pwdRegex.low.test(pwd),
-      num: pwdRegex.num.test(pwd)
-    };
-  };
-
-  document.querySelectorAll('.pwd-input-validate').forEach(input => {
-    const inputEl = input as HTMLInputElement;
-    const form = inputEl.closest('form');
-    const reqList = form?.querySelector('.pwd-req-list');
-    const reqItems = {
-      len: reqList?.querySelector('[data-req="len"]'),
-      up: reqList?.querySelector('[data-req="up"]'),
-      low: reqList?.querySelector('[data-req="low"]'),
-      num: reqList?.querySelector('[data-req="num"]')
-    };
-    const errorContainer = form?.querySelector('.pwd-error');
-    const errorMsgEl = form?.querySelector('.pwd-error-msg');
-
-    inputEl.addEventListener('input', (e) => {
-      const val = (e.target as HTMLInputElement).value;
-      const status = validatePassword(val);
-
-      // Limpiar error previo
-      if (errorContainer) {
-        errorContainer.classList.add('hidden');
-      }
-
-      // Actualizar colores
-      Object.keys(status).forEach(key => {
-        const li = reqItems[key as keyof typeof reqItems];
-        if (li) {
-          if (val.length === 0) {
-            li.className = "text-base-content/50 transition-colors";
-          } else if (status[key as keyof typeof status]) {
-            li.className = "text-success font-medium transition-colors";
-          } else {
-            li.className = "text-error transition-colors";
-          }
-        }
-      });
-    });
-
-    form?.addEventListener('submit', (e) => {
-      const val = inputEl.value;
-      const status = validatePassword(val);
-      const repeatInputEl = form?.querySelector('.pwd-input-repeat') as HTMLInputElement | null;
-      
-      let errorMsg = "";
-      if (!status.len) errorMsg = "La contraseña debe tener al menos 8 caracteres.";
-      else if (!status.up) errorMsg = "La contraseña debe contener al menos una mayúscula.";
-      else if (!status.low) errorMsg = "La contraseña debe contener al menos una minúscula.";
-      else if (!status.num) errorMsg = "La contraseña debe contener al menos un número.";
-      else if (repeatInputEl && val !== repeatInputEl.value) errorMsg = "Las contraseñas no coinciden.";
-
-      if (errorMsg) {
-        e.preventDefault(); // Detener envío
-        if (errorContainer && errorMsgEl) {
-          errorMsgEl.textContent = errorMsg;
-          errorContainer.classList.remove('hidden');
-        }
-      }
-    });
-  });
+  // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   const roleDescriptions = {
     admin:
