@@ -683,7 +683,3 @@ export const weeklyGuardiaPasivaAssignmentsRelations = relations(
     }),
   })
 );
-
-// 16. TABLAS VIRTUALES FTS5 (Full-Text Search)
-// Estas tablas son administradas por scripts/setup-fts.ts y son excluidas de drizzle-kit
-
