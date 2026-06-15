@@ -104,36 +104,47 @@ const tooltipClasses = [
 
 {
   isIconVariant ? (
-    <button
-      type="button"
-      class:list={["btn", iconButtonClasses]}
-      data-copy-control
-      data-copy-value={value}
-      data-copy-label-default={buttonLabel}
-      data-copy-label-success={copiedLabel}
-      data-copy-replace-label="false"
-      aria-label={ariaLabel}
-    >
-      <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
-        <Icon
-          name="boxicons:clipboard-filled"
-          size={16}
-          class="absolute inset-0 m-auto transition-all duration-200"
-          data-copy-icon-default
-          aria-hidden="true"
-        />
-        <Icon
-          name="boxicons:check-filled"
-          size={16}
-          class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
-          data-copy-icon-success
-          aria-hidden="true"
-        />
-      </span>
-      <span class="sr-only" data-copy-label>
-        {buttonLabel}
-      </span>
-    </button>
+    <div class:list={tooltipClasses}>
+      <div class="tooltip-content max-w-56 overflow-hidden">
+        <span
+          class="block w-56 max-w-full truncate font-mono text-xs"
+          title={tooltipLabel}
+        >
+          {tooltipLabel}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        class:list={["btn", iconButtonClasses]}
+        data-copy-control
+        data-copy-value={value}
+        data-copy-label-default={buttonLabel}
+        data-copy-label-success={copiedLabel}
+        data-copy-replace-label="false"
+        aria-label={ariaLabel}
+      >
+        <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
+          <Icon
+            name="boxicons:clipboard-filled"
+            size={16}
+            class="absolute inset-0 m-auto transition-all duration-200"
+            data-copy-icon-default
+            aria-hidden="true"
+          />
+          <Icon
+            name="boxicons:check-filled"
+            size={16}
+            class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+            data-copy-icon-success
+            aria-hidden="true"
+          />
+        </span>
+        <span class="sr-only" data-copy-label>
+          {buttonLabel}
+        </span>
+      </button>
+    </div>
   ) : isLinkVariant ? (
     <div class:list={tooltipClasses}>
       <div class="tooltip-content max-w-56 overflow-hidden">
@@ -302,6 +313,8 @@ const tooltipClasses = [
       if (!copied) {
         return;
       }
+
+      control.blur();
 
       const shouldReplaceLabel = control.dataset.copyReplaceLabel === "true";
 
