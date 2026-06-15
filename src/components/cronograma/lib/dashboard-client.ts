@@ -1676,7 +1676,8 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   if (isWeekend(date)) {
     if (newStatus !== OperatorStatus.Licencia &&
         newStatus !== OperatorStatus.Vacaciones &&
-        newStatus !== OperatorStatus.Franco) {
+        newStatus !== OperatorStatus.Franco &&
+        newStatus !== OperatorStatus.HomeOffice) {
       return;
     }
   }
@@ -1856,14 +1857,14 @@ function showDailyView(): void {
   const pasivaView = document.getElementById('pasiva-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
-  renderDaily();
-  updateViewSwitcherUI('daily');
-  
   if (dailyView) dailyView.classList.remove('hidden');
   if (monthlyView) monthlyView.classList.add('hidden');
   if (groupsView) groupsView.classList.add('hidden');
   if (overtimeView) overtimeView.classList.add('hidden');
   if (pasivaView) pasivaView.classList.add('hidden');
+
+  renderDaily();
+  updateViewSwitcherUI('daily');
   
   if (datePickerContainer) {
     datePickerContainer.classList.remove('hidden');
@@ -1881,13 +1882,14 @@ function showMonthlyView(): void {
   const pasivaView = document.getElementById('pasiva-view');
   const datePickerContainer = document.getElementById('date-picker-container');
   
-  updateViewSwitcherUI('monthly');
-  
   if (dailyView) dailyView.classList.add('hidden');
   if (monthlyView) monthlyView.classList.remove('hidden');
   if (groupsView) groupsView.classList.add('hidden');
   if (overtimeView) overtimeView.classList.add('hidden');
   if (pasivaView) pasivaView.classList.add('hidden');
+
+  renderMonthly();
+  updateViewSwitcherUI('monthly');
   
   if (datePickerContainer) {
     datePickerContainer.classList.add('is-faded');
@@ -2279,7 +2281,8 @@ function applyBrushToCell(cell: HTMLElement): void {
   if (dateVal && isWeekend(dateVal)) {
     if (state.activeBrush !== OperatorStatus.Licencia &&
         state.activeBrush !== OperatorStatus.Vacaciones &&
-        state.activeBrush !== OperatorStatus.Franco) {
+        state.activeBrush !== OperatorStatus.Franco &&
+        state.activeBrush !== OperatorStatus.HomeOffice) {
       return;
     }
   }
@@ -2676,7 +2679,7 @@ function setupEventListeners(): void {
         const btn = opt as HTMLButtonElement;
         const status = btn.dataset.status;
         if (isWk) {
-          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco') {
+          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco' || status === OperatorStatus.HomeOffice) {
             btn.classList.remove('hidden');
           } else {
             btn.classList.add('hidden');

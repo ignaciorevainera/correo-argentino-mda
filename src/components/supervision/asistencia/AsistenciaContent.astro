@@ -16,6 +16,11 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const defaultDate =
   urlDate && dateRegex.test(urlDate) ? urlDate : `${y}-${m}-${d}`;
 
+const formattedDefaultDate = (() => {
+  const parts = defaultDate.split("-");
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+})();
+
 const initialData = await getAttendanceData(defaultDate, defaultDate);
 ---
 
@@ -39,7 +44,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
           id="date-display"
           class="text-sm font-semibold tabular-nums text-base-content pointer-events-none"
         >
-          {defaultDate}
+          {formattedDefaultDate}
         </span>
         <input
           type="date"
@@ -256,7 +261,13 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   let renderedData: any[] = [];
   let pendingEdits: Record<number, any> = {};
   let selectedDate = "";
-  let currentSort = "alpha";
+  let currentSort = (() => {
+    try {
+      return localStorage.getItem("asistenciaActiveSort") || "alpha";
+    } catch {
+      return "alpha";
+    }
+  })();
 
   const dateInput = document.getElementById(
     "attendance-date",
@@ -974,10 +985,19 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     }
   }
 
+  function formatToDDMMYYYY(dateStr: string): string {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  }
+
   dateInput?.addEventListener("change", (e) => {
     const target = e.target as HTMLInputElement;
     selectedDate = target.value;
-    if (dateDisplay) dateDisplay.textContent = selectedDate;
+    if (dateDisplay) dateDisplay.textContent = formatToDDMMYYYY(selectedDate);
     if (dayOfWeekLabel)
       dayOfWeekLabel.textContent = getSpanishDayName(selectedDate);
     fetchAttendance(selectedDate);
@@ -1014,12 +1034,18 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
   sortAlphaBtn?.addEventListener("click", () => {
     currentSort = "alpha";
+    try {
+      localStorage.setItem("asistenciaActiveSort", "alpha");
+    } catch {}
     updateSortUI();
     renderTable();
   });
 
   sortSedeBtn?.addEventListener("click", () => {
     currentSort = "sede";
+    try {
+      localStorage.setItem("asistenciaActiveSort", "sede");
+    } catch {}
     updateSortUI();
     renderTable();
   });
@@ -1156,7 +1182,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     selectedDate = dateInput?.value || "";
   }
 
-  if (dateDisplay) dateDisplay.textContent = selectedDate;
+  if (dateDisplay) dateDisplay.textContent = formatToDDMMYYYY(selectedDate);
   if (dayOfWeekLabel)
     dayOfWeekLabel.textContent = getSpanishDayName(selectedDate);
 
@@ -1170,8 +1196,10 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     delete initWindow.__ATTENDANCE_INITIAL_DATA_DATE__;
     pendingEdits = {};
     updateToolbar();
+    updateSortUI();
     renderTable();
   } else {
+    updateSortUI();
     fetchAttendance(selectedDate);
   }
 </script>
