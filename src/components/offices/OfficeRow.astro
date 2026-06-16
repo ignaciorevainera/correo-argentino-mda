@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import CopyButton from "@components/ui/CopyButton.astro";
 import type { OfficeDirectoryItem } from "@/types/offices";
 import {
   officeTypeLabelByType,
@@ -29,8 +30,18 @@ const normalizedType =
     : office.type;
 
 const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""}`;
-const totalAssets = office.assets.length + office.terminals.length;
-const hasDetails = office.contacts.length > 0 || totalAssets > 0;
+const hasContacts = office.contacts && office.contacts.length > 0;
+const hasInfo = Boolean(office.email || office.notes);
+const hasInfoSection = hasContacts || hasInfo;
+
+const totalAssets =
+  (office.assets?.length || 0) + (office.terminals?.length || 0);
+const hasAssetsSection = totalAssets > 0;
+
+const hasDetails = hasInfoSection || hasAssetsSection;
+
+const activeSectionsCount =
+  (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
 
 const officeDirectoryRowGridClass =
   "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr] items-center gap-4";
@@ -75,12 +86,13 @@ const officeDirectoryRowGridClass =
             <Icon
               name="boxicons:chevron-down-filled"
               data-chevron-closed
-              class="size-4"
+              size={16}
             />
             <Icon
               name="boxicons:chevron-up-filled"
               data-chevron-open
-              class="hidden size-4"
+              class="hidden"
+              size={16}
             />
           </span>
         ) : (
@@ -142,7 +154,8 @@ const officeDirectoryRowGridClass =
         <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
           <Icon
             name="boxicons:location-pin-filled"
-            class="size-4 shrink-0 text-secondary"
+            class="shrink-0 text-secondary"
+            size={16}
             aria-hidden="true"
           />
           <span class="truncate" title={office.address}>
@@ -179,224 +192,227 @@ const officeDirectoryRowGridClass =
     class="hidden border-b border-base-300 bg-base-200/20"
   >
     <div class="office-detail-panel mx-4 my-3">
-      <div
-        class:list={[
-          "grid gap-5",
-          office.contacts.length > 0 ? "lg:grid-cols-2" : "grid-cols-1",
-        ]}
-      >
-        {/* --- Columna Izquierda: Contactos (solo si existen) --- */}
-        {
-          office.contacts.length > 0 && (
-            <div class="space-y-5">
-              <section class="min-w-0 space-y-3">
-                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                  <Icon
-                    name="boxicons:user-filled"
-                    class="size-4 text-secondary"
-                    aria-hidden="true"
-                  />
-                  Contactos de la oficina
-                </h2>
-
-                <div class="grid gap-3 sm:grid-cols-2">
-                  {office.contacts.map((contact) => (
-                    <article class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md">
-                      <h3 class="truncate text-sm font-semibold text-base-content">
-                        {contact.name}
-                      </h3>
-                      <div class="mt-3 space-y-2 text-xs text-base-content/70">
-                        {contact.timeSlot && (
-                          <p class="flex items-center gap-2">
-                            <Icon
-                              name="boxicons:clock-filled"
-                              class="size-4 shrink-0 text-base-content/50"
-                              aria-hidden="true"
-                            />
-                            <span>{contact.timeSlot}</span>
-                          </p>
-                        )}
-                        {contact.phone && (
-                          <p class="flex items-center gap-2">
-                            <Icon
-                              name="boxicons:phone-filled"
-                              class="size-4 shrink-0 text-base-content/50"
-                              aria-hidden="true"
-                            />
-                            <span class="font-mono">{contact.phone}</span>
-                          </p>
-                        )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            </div>
-          )
-        }
-
-        {/* --- Columna Derecha/Completa: Info + Activos --- */}
-        <div class="min-w-0 space-y-5">
-          {/* --- Sección de correo y notas --- */}
+      <div class="bg-base-100 border border-base-300 rounded-box p-4">
+        <div class="flex flex-col lg:flex-row gap-6">
           {
-            (office.email || office.notes) && (
-              <section class="space-y-3">
-                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                  <Icon
-                    name="boxicons:info-circle"
-                    class="size-4 text-secondary"
-                    aria-hidden="true"
-                  />
-                  Información de la oficina
-                </h2>
-                <div class="rounded-lg border border-base-300 bg-base-100 p-3 shadow-md space-y-2">
-                  {office.email && (
-                    <p class="flex items-center gap-2 text-sm text-base-content/80">
+            hasInfoSection && (
+              <div
+                class:list={[
+                  "space-y-5",
+                  hasAssetsSection ? "lg:w-2/5" : "w-full",
+                ]}
+              >
+                {hasContacts && (
+                  <section class="min-w-0 space-y-3">
+                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
                       <Icon
-                        name="boxicons:envelope-filled"
-                        class="size-4 shrink-0 text-base-content/50"
+                        name="boxicons:user-filled"
+                        size={16}
+                        class="text-secondary"
                         aria-hidden="true"
                       />
-                      <span class="font-mono text-xs break-all">
-                        {office.email}
-                      </span>
-                    </p>
-                  )}
-                  {office.notes && (
-                    <p class="flex items-start gap-2 text-xs text-base-content/60">
+                      Contactos
+                    </h2>
+
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                      {office.contacts.map((contact) => (
+                        <article class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
+                          <h3 class="truncate text-sm font-semibold text-base-content">
+                            {contact.name}
+                          </h3>
+                          <div class="mt-3 space-y-2 text-xs text-base-content/70">
+                            {contact.timeSlot && (
+                              <p class="flex items-center gap-2">
+                                <Icon
+                                  name="boxicons:clock-filled"
+                                  size={14}
+                                  class="shrink-0 text-base-content/50"
+                                  aria-hidden="true"
+                                />
+                                <span>{contact.timeSlot}</span>
+                              </p>
+                            )}
+                            {contact.phone && (
+                              <p class="flex items-center gap-2">
+                                <Icon
+                                  name="boxicons:phone-filled"
+                                  size={14}
+                                  class="shrink-0 text-base-content/50"
+                                  aria-hidden="true"
+                                />
+                                <span class="font-mono">{contact.phone}</span>
+                              </p>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {hasInfo && (
+                  <section class="space-y-3">
+                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
                       <Icon
-                        name="boxicons:note-filled"
-                        class="mt-0.5 size-4 shrink-0 text-base-content/40"
+                        name="boxicons:info-circle"
+                        size={16}
+                        class="text-secondary"
                         aria-hidden="true"
                       />
-                      <span>{office.notes}</span>
-                    </p>
-                  )}
-                </div>
-              </section>
+                      Información
+                    </h2>
+                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm space-y-2">
+                      {office.email && (
+                        <p class="flex items-center gap-2 text-sm text-base-content/80">
+                          <Icon
+                            name="boxicons:envelope-filled"
+                            size={14}
+                            class="shrink-0 text-base-content/50"
+                            aria-hidden="true"
+                          />
+                          <span class="font-mono text-xs break-all">
+                            {office.email}
+                          </span>
+                        </p>
+                      )}
+                      {office.notes && (
+                        <p class="flex items-start gap-2 text-xs text-base-content/60">
+                          <Icon
+                            name="boxicons:note-filled"
+                            size={14}
+                            class="mt-0.5 shrink-0 text-base-content/40"
+                            aria-hidden="true"
+                          />
+                          <span>{office.notes}</span>
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                )}
+              </div>
             )
           }
 
-          <section class="min-w-0 space-y-3">
-            <h2
-              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70"
-            >
-              <Icon
-                name="boxicons:desktop-filled"
-                class="size-4 text-secondary"
-                aria-hidden="true"
-              />
-              Activos tecnológicos
-            </h2>
+          {
+            hasAssetsSection && (
+              <div
+                class:list={[
+                  "flex flex-col min-w-0",
+                  hasInfoSection ? "lg:w-3/5" : "w-full",
+                ]}
+              >
+                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70 mb-3">
+                  <Icon
+                    name="boxicons:desktop-filled"
+                    size={16}
+                    class="text-secondary"
+                    aria-hidden="true"
+                  />
+                  Equipos ({totalAssets})
+                </h2>
+                <div class="max-h-[320px] overflow-y-auto pr-1">
+                  <div
+                    class:list={[
+                      "grid gap-3 p-1",
+                      hasInfoSection
+                        ? "grid-cols-1 xl:grid-cols-2"
+                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                    ]}
+                  >
+                    {/* Terminales sincronizadas */}
+                    {[...office.terminals]
+                      .sort((a, b) => {
+                        const osCompare = (
+                          a.operatingSystem || ""
+                        ).localeCompare(b.operatingSystem || "");
+                        if (osCompare !== 0) return osCompare;
+                        return (a.hostname || "").localeCompare(
+                          b.hostname || "",
+                        );
+                      })
+                      .map((terminal) => (
+                        <div class="flex items-center gap-3 p-3 bg-base-100 rounded-lg border border-base-300 shadow-sm hover:shadow-md transition-shadow min-w-0">
+                          <span
+                            class:list={[
+                              "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
+                              getTerminalColorClass(
+                                terminal.operatingSystem,
+                                office.type === "TELEGRAFIA",
+                              ),
+                            ]}
+                            aria-hidden="true"
+                          >
+                            <Icon name="boxicons:desktop-filled" size={18} />
+                          </span>
+                          <div class="min-w-0 flex-1">
+                            <p class="text-xxs font-medium text-base-content/60 truncate">
+                              {getTerminalTypeLabel(terminal.operatingSystem)}
+                            </p>
+                            <p class="truncate font-mono text-xs font-semibold text-base-content">
+                              {terminal.hostname}
+                            </p>
+                          </div>
+                          <div class="text-right shrink-0">
+                            <CopyButton
+                              value={terminal.ipAddress}
+                              variant="value"
+                              monospace={true}
+                              size="xs"
+                              appearance="surface"
+                              class="text-xxs font-medium"
+                            />
+                          </div>
+                        </div>
+                      ))}
 
-            {
-              totalAssets > 0 ? (
-                <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-md">
-                  <table class="table table-sm">
-                    <thead>
-                      <tr class="text-xs uppercase tracking-wide text-base-content/60">
-                        <th>Tipo / Hostname</th>
-                        <th>Dirección IP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Terminales sincronizadas */}
-                      {[...office.terminals]
-                        .sort((a, b) => {
-                          const osCompare = (
-                            a.operatingSystem || ""
-                          ).localeCompare(b.operatingSystem || "");
-                          if (osCompare !== 0) return osCompare;
-                          return (a.hostname || "").localeCompare(
-                            b.hostname || "",
-                          );
-                        })
-                        .map((terminal) => (
-                          <tr>
-                            <td>
-                              <div class="flex min-w-0 items-center gap-3">
-                                <span
-                                  class:list={[
-                                    "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                                    getTerminalColorClass(
-                                      terminal.operatingSystem,
-                                      office.type === "TELEGRAFIA",
-                                    ),
-                                  ]}
-                                  aria-hidden="true"
-                                >
-                                  <Icon
-                                    name="boxicons:desktop-filled"
-                                    class="size-4"
-                                  />
-                                </span>
-                                <div class="min-w-0">
-                                  <div class="flex items-center gap-2">
-                                    <p class="text-xs font-medium text-base-content/60">
-                                      {getTerminalTypeLabel(
-                                        terminal.operatingSystem,
-                                      )}
-                                    </p>
-                                  </div>
-                                  <p class="truncate font-mono text-sm font-semibold text-base-content">
-                                    {terminal.hostname}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td class="font-mono text-sm">
-                              {terminal.ipAddress}
-                            </td>
-                          </tr>
-                        ))}
-                      {/* Activos manuales */}
-                      {[...office.assets]
-                        .sort(
-                          (a, b) =>
-                            assetOrderByType[a.type] - assetOrderByType[b.type],
-                        )
-                        .map((asset) => (
-                          <tr>
-                            <td>
-                              <div class="flex min-w-0 items-center gap-3">
-                                <span
-                                  class:list={[
-                                    "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                                    assetColorByType[asset.type],
-                                  ]}
-                                  aria-hidden="true"
-                                >
-                                  <Icon
-                                    name={
-                                      assetIconByType[asset.type] ||
-                                      "boxicons:info-circle"
-                                    }
-                                    class="size-4"
-                                  />
-                                </span>
-                                <div class="min-w-0">
-                                  <p class="text-xs font-medium text-base-content/60">
-                                    {assetLabelByType[asset.type]}
-                                  </p>
-                                  <p class="truncate font-mono text-sm font-semibold text-base-content">
-                                    {asset.hostname}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td class="font-mono text-sm">{asset.ip}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+                    {/* Activos manuales */}
+                    {[...office.assets]
+                      .sort(
+                        (a, b) =>
+                          assetOrderByType[a.type] - assetOrderByType[b.type],
+                      )
+                      .map((asset) => (
+                        <div class="flex items-center gap-3 p-3 bg-base-100 rounded-lg border border-base-300 shadow-sm hover:shadow-md transition-shadow min-w-0">
+                          <span
+                            class:list={[
+                              "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
+                              assetColorByType[asset.type],
+                            ]}
+                            aria-hidden="true"
+                          >
+                            <Icon
+                              name={
+                                assetIconByType[asset.type] ||
+                                "boxicons:info-circle"
+                              }
+                              size={18}
+                            />
+                          </span>
+                          <div class="min-w-0 flex-1">
+                            <p class="text-xxs font-medium text-base-content/60 truncate">
+                              {assetLabelByType[asset.type]}
+                            </p>
+                            <p class="truncate font-mono text-xs font-semibold text-base-content">
+                              {asset.hostname}
+                            </p>
+                          </div>
+                          <div class="text-right shrink-0">
+                            <CopyButton
+                              value={asset.ip}
+                              variant="value"
+                              monospace={true}
+                              size="xs"
+                              appearance="surface"
+                              class="text-xxs font-medium"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              ) : (
-                <p class="rounded-lg border border-base-300 bg-base-100 p-4 text-sm italic text-base-content/60">
-                  Sin activos tecnológicos registrados ni terminales detectadas.
-                </p>
-              )
-            }
-          </section>
+              </div>
+            )
+          }
         </div>
       </div>
     </div>
