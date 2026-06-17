@@ -301,6 +301,8 @@ export const resourceLinks = sqliteTable("resource_links", {
   url: text("url").notNull(),
   subtitle: text("subtitle"),
   iconPath: text("icon_path"),
+  sortOrder: integer("sortOrder").default(0),
+  deprecated: integer("deprecated", { mode: "boolean" }).default(false),
 });
 
 export const resourceCategoriesRelations = relations(
