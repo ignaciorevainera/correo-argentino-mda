@@ -3,7 +3,17 @@ import { db } from '../../src/db/index';
 import { users, sessions, applications, applicationCategories } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 
-let MOCK_SESSION_ID = `test-admin-session-${Date.now()}`;
+import { createHmac } from 'crypto';
+
+const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
+
+function signSessionId(sessionId: string): string {
+  const signature = createHmac("sha256", SECRET_KEY).update(sessionId).digest("base64url");
+  return `${sessionId}.${signature}`;
+}
+
+const rawSessionId = `test-admin-session-${Date.now()}`;
+const MOCK_SESSION_ID = signSessionId(rawSessionId);
 let testUserId: number;
 let testCategoryId: string = `cat-test-${Date.now()}`;
 let testAppId: number;
@@ -19,7 +29,7 @@ test.beforeAll(async () => {
 
   // 2. Create a fake session
   await db.insert(sessions).values({
-    id: MOCK_SESSION_ID,
+    id: rawSessionId,
     userId: testUserId,
     expiresAt: Date.now() + 1000 * 60 * 60 * 24, // 1 day
   });
@@ -59,8 +69,8 @@ test.afterAll(async () => {
   if (testCategoryId) {
     await db.delete(applicationCategories).where(eq(applicationCategories.id, testCategoryId));
   }
-  if (MOCK_SESSION_ID) {
-    await db.delete(sessions).where(eq(sessions.id, MOCK_SESSION_ID));
+  if (rawSessionId) {
+    await db.delete(sessions).where(eq(sessions.id, rawSessionId));
   }
   if (testUserId) {
     await db.delete(users).where(eq(users.id, testUserId));
