@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useDebounce } from "./useDebounce";
 
 declare const chrome: any;
 
@@ -17,10 +18,23 @@ export function useTitles() {
   const [titles, setTitles] = useState<TitleData[]>([]);
   const [filteredTitles, setFilteredTitles] = useState<TitleData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("Todos");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+    const saved = localStorage.getItem("favorites");
+    return saved ? JSON.parse(saved) : [];
+  })
+
+  // Debounce
+  const debouncedSearch = useDebounce(searchQuery, 200);
+
+  // Fetch desde el sheet
+   useEffect(() => {
     const loadTitles = async () => {
       try {
         const res = await fetch(SHEET_URL);
@@ -58,32 +72,66 @@ export function useTitles() {
     loadTitles();
   }, []);
 
+
+  // Favoritos
+  useEffect(() => {
+    localStorage.setItem("favorites", JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (title: string) => {
+    setFavorites((prev) => {
+      if (prev.includes(title)) {
+        return prev.filter(
+          (item) => item !== title
+        );
+      }
+      return [...prev, title];
+    });
+  };
+
+  // Búsqueda y filtros 
   useEffect(() => {
     const normalize = (str: string) =>
-      str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      str.normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
 
-    const term = normalize(searchQuery);
+    const term = normalize(debouncedSearch);
 
-    if (!term) {
-      setFilteredTitles(titles);
-    } else {
-      setFilteredTitles(
-        titles.filter(
-          (t) =>
-            normalize(t.title).includes(term) ||
-            normalize(t.ci).includes(term) ||
-            normalize(t.service).includes(term)
-        )
+    let result = titles;
+
+    // filtro en búsqueda
+    if (term) {
+      result = result.filter(
+        (t) =>
+          normalize(t.title).includes(term) ||
+          normalize(t.ci).includes(term) ||
+          normalize(t.service).includes(term)
       );
     }
-  }, [searchQuery, titles]);
+    // filtro por categoría
+    if (activeFilter === "Favoritos") {
+      result = result.filter(
+        (t) => favorites.includes(t.title)
+      );
+    }
+    else if (activeFilter !== "Todos") {
+      result = result.filter(
+        (t) =>
+          normalize(t.service) ===
+          normalize(activeFilter)
+      );
+    }
 
-  const copyToClipboard = useCallback(async (text: string, index: number) => {
-    const copied = await copyText(text);
-    if (copied) {
-      setCopiedIndex(index);
+    setFilteredTitles(result);
+  }, [debouncedSearch, activeFilter, titles, favorites]);
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
-      
+
       if (typeof chrome !== "undefined" && chrome.tabs) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -92,8 +140,16 @@ export function useTitles() {
           payload: text,
         });
       }
+    } catch (err) {
+      console.error("Error copying to clipboard:", err);
     }
   }, []);
+
+  const sortedTitles = useMemo(() => {
+    return [...filteredTitles].sort((a, b) =>
+      a.title.localeCompare(b.title, "es")
+    )
+  }, [filteredTitles])
 
   return {
     titles,
@@ -103,6 +159,11 @@ export function useTitles() {
     setSearchQuery,
     copyToClipboard,
     copiedIndex,
+    setActiveFilter,
+    activeFilter,
+    sortedTitles,
+    favorites,
+    toggleFavorite
   };
 }
 
