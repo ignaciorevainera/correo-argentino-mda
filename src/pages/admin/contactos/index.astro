@@ -11,7 +11,7 @@ const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
-if (!user || !["admin", "supervisor"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+if (!user || !["admin", "supervisor", "team_leader"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
@@ -32,12 +32,12 @@ if (Astro.request.method === "POST") {
         if (deleted) {
           const successMsg = `Contacto "${deleted.provider} - ${deleted.service}" eliminado con éxito.`;
           await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el contacto "${deleted.provider} - ${deleted.service}"`);
-          return Astro.redirect(`${cleanBase}admin/contacts?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`);
+          return Astro.redirect(`${cleanBase}admin/contactos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`);
         } else {
-          return Astro.redirect(`${cleanBase}admin/contacts?toast_msg=${encodeURIComponent("El contacto indicado no existe.")}&toast_type=error`);
+          return Astro.redirect(`${cleanBase}admin/contactos?toast_msg=${encodeURIComponent("El contacto indicado no existe.")}&toast_type=error`);
         }
       } catch (e) {
-        return Astro.redirect(`${cleanBase}admin/contacts?toast_msg=${encodeURIComponent("Error al eliminar el contacto.")}&toast_type=error`);
+        return Astro.redirect(`${cleanBase}admin/contactos?toast_msg=${encodeURIComponent("Error al eliminar el contacto.")}&toast_type=error`);
       }
     }
   }

@@ -13,6 +13,9 @@ if (!user) {
 const roleLabelMap: Record<string, string> = {
   admin: "Administrador",
   supervisor: "Supervisor",
+  team_leader: "Team Leader",
+  "team-leader": "Team Leader",
+  "team leader": "Team Leader",
   referent: "Referente",
   agent: "Agente",
 };
@@ -20,6 +23,9 @@ const roleLabelMap: Record<string, string> = {
 const roleAvatarClasses: Record<string, string> = {
   admin: "bg-error/10 text-error ring-error/20",
   supervisor: "bg-info/10 text-info ring-info/20",
+  team_leader: "bg-accent/10 text-accent ring-accent/20",
+  "team-leader": "bg-accent/10 text-accent ring-accent/20",
+  "team leader": "bg-accent/10 text-accent ring-accent/20",
   referent: "bg-warning/10 text-warning ring-warning/20",
   agent: "bg-neutral/10 text-neutral-content ring-neutral/20",
 };
@@ -27,6 +33,9 @@ const roleAvatarClasses: Record<string, string> = {
 const badgeClasses: Record<string, string> = {
   admin: "badge-error",
   supervisor: "badge-info",
+  team_leader: "badge-accent",
+  "team-leader": "badge-accent",
+  "team leader": "badge-accent",
   referent: "badge-warning",
   agent: "badge-neutral",
 };
@@ -34,6 +43,9 @@ const badgeClasses: Record<string, string> = {
 const roleIconClasses: Record<string, string> = {
   admin: "bg-error/10 text-error",
   supervisor: "bg-info/10 text-info",
+  team_leader: "bg-accent/10 text-accent",
+  "team-leader": "bg-accent/10 text-accent",
+  "team leader": "bg-accent/10 text-accent",
   referent: "bg-warning/10 text-warning",
   agent: "bg-secondary/10 text-secondary",
 };
@@ -139,9 +151,10 @@ const categories: CategoryCard[] = [
     ],
   },
   {
-    title: "Cronograma",
+    title: "Cronograma y Asistencia",
     icon: "boxicons:calendar",
-    description: "Planificación de guardias, turnos y tareas del equipo.",
+    description:
+      "Planificación de guardias, turnos, tareas del equipo y control de asistencia.",
     actions: [
       {
         label: "Visualizar cronogramas de trabajo",
@@ -150,6 +163,10 @@ const categories: CategoryCard[] = [
       {
         label: "Editar y coordinar cronogramas",
         featureName: "Editar cronogramas",
+      },
+      {
+        label: "Control de asistencia del equipo",
+        featureName: "Control de asistencia del equipo",
       },
     ],
   },
@@ -185,13 +202,18 @@ const categories: CategoryCard[] = [
     ],
   },
   {
-    title: "Usuarios",
+    title: "Administración y Seguridad",
     icon: "boxicons:group",
-    description: "Alta de operadores, blanqueos y cambio de roles del portal.",
+    description:
+      "Alta de usuarios, roles, blanqueo de contraseñas y registros de auditoría.",
     actions: [
       {
         label: "Gestionar cuentas de usuario y roles",
         featureName: "Gestión de usuarios",
+      },
+      {
+        label: "Visualizar logs de auditoría",
+        featureName: "Visualización de logs de auditoría",
       },
     ],
   },
@@ -199,7 +221,8 @@ const categories: CategoryCard[] = [
 
 const isAllowed = (featureName: string, role: string) => {
   const feature = rolesMatrix.find((f) => f.feature === featureName);
-  return feature ? feature[role as keyof typeof feature] === true : false;
+  const normalizedRole = role.replace(/[- ]/g, "_");
+  return feature ? feature[normalizedRole as keyof typeof feature] === true : false;
 };
 
 const visibleCategories = categories

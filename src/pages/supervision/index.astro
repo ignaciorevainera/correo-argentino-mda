@@ -3,15 +3,13 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
+import { normalizeRole, hasPermission } from "@lib/rbac";
 
 const user = Astro.locals.user;
-const role = user.role;
+const role = normalizeRole(user.role);
 
 const isLocked = (href: string) => {
-  if (href === "/supervision/cronograma" || href === "/supervision/asistencia") {
-    return !["admin", "supervisor"].includes(role);
-  }
-  return false;
+  return !hasPermission(href, role);
 };
 
 const supervisionTools = [

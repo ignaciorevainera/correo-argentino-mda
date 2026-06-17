@@ -26,6 +26,7 @@ export interface ImportantLink {
   description?: string;
   alternatives?: LinkAlternative[];
   iconPath?: string;
+  deprecated?: boolean;
 }
 
 export interface RawLinkCategory {

@@ -14,7 +14,7 @@ const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
-if (!user || !["admin", "supervisor"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+if (!user || !["admin", "supervisor", "team_leader"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
 
 const { id } = Astro.params;
 const isNew = id === "new";
@@ -36,7 +36,7 @@ if (!isNew) {
     .from(providerContacts)
     .where(eq(providerContacts.id, Number(id)));
 
-  if (!result) return Astro.redirect(`${cleanBase}admin/contacts`);
+  if (!result) return Astro.redirect(`${cleanBase}admin/contactos`);
   contact = result;
 }
 
@@ -120,7 +120,7 @@ if (Astro.request.method === "POST") {
 
       const toastMessage = isNew ? "Contacto creado con éxito." : "Contacto actualizado con éxito.";
       return Astro.redirect(
-        `${cleanBase}admin/contacts?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`
+        `${cleanBase}admin/contactos?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`
       );
     }
   } catch (e: any) {
@@ -144,11 +144,11 @@ const urlsText =
     {/* ── Breadcrumb / Volver ── */}
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/contacts`}
+        href={`${cleanBase}admin/contactos`}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
-        Gestión de contactos
+        Contactos
       </a>
       <span>/</span>
       <span class="text-base-content font-medium truncate">{pageTitle}</span>
@@ -290,7 +290,7 @@ http://www.google.com"
       {/* ── Acciones ── */}
       <div class="flex items-center justify-between gap-3 pt-1">
         <a
-          href={`${cleanBase}admin/contacts`}
+          href={`${cleanBase}admin/contactos`}
           class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
         >
           <Icon name="boxicons:arrow-left-filled" size={16} />

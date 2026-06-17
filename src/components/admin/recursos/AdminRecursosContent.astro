@@ -17,9 +17,11 @@ const resolveUrl = (path: string) => {
 };
 
 const q = Astro.url.searchParams.get("q")?.trim() || "";
-const categoryFilter = Astro.url.searchParams.get("category")?.trim() || "";
 
-const categories = await db.select().from(resourceCategories).orderBy(resourceCategories.title);
+const categories = await db
+  .select()
+  .from(resourceCategories)
+  .orderBy(resourceCategories.title);
 
 const links = await db
   .select({
@@ -30,259 +32,296 @@ const links = await db
     categoryName: resourceCategories.title,
     categoryId: resourceLinks.categoryId,
     iconPath: resourceLinks.iconPath,
+    deprecated: resourceLinks.deprecated,
+    sortOrder: resourceLinks.sortOrder,
   })
   .from(resourceLinks)
   .leftJoin(resourceCategories, eq(resourceLinks.categoryId, resourceCategories.id))
-  .orderBy(resourceLinks.title);
+  .orderBy(resourceLinks.sortOrder, resourceLinks.title);
 
-const linksGridCols = "grid-cols-[50px_minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_100px]";
-const categoriesGridCols = "grid-cols-[60px_minmax(0,1.5fr)_100px_100px]";
+const linksGridCols = "grid-cols-[40px_40px_minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_80px] gap-4";
 
 const toneColors: Record<string, string> = {
-  primary: "text-primary bg-primary/10",
-  secondary: "text-secondary bg-secondary/10",
-  accent: "text-accent bg-accent/10",
-  info: "text-info bg-info/10",
-  success: "text-success bg-success/10",
-  warning: "text-warning bg-warning/10",
-  error: "text-error bg-error/10",
-  neutral: "text-neutral bg-neutral/10",
+  primary: "text-primary bg-primary/10 border-primary/20",
+  secondary: "text-secondary bg-secondary/10 border-secondary/20",
+  accent: "text-accent bg-accent/10 border-accent/20",
+  info: "text-info bg-info/10 border-info/20",
+  success: "text-success bg-success/10 border-success/20",
+  warning: "text-warning bg-warning/10 border-warning/20",
+  error: "text-error bg-error/10 border-error/20",
+  neutral: "text-neutral bg-neutral/10 border-neutral/20",
 };
+
+// Map to pre-calculate links count per category
+const categoryCounts = new Map<string, number>();
+links.forEach((link) => {
+  categoryCounts.set(link.categoryId, (categoryCounts.get(link.categoryId) || 0) + 1);
+});
 ---
 
 <PageContainer>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
     <PageHeader
-      description="Administración de enlaces y categorías útiles del portal."
+      title="Gestión de Enlaces y Recursos"
+      description="Refactorizá, reordená y organizá los accesos rápidos de soporte técnico."
     />
-    <div class="flex gap-2 shrink-0 mt-4 sm:mt-0">
-      <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-outline gap-2">
-        <Icon name="boxicons:folder-plus" size={20} />
+    <div class="flex gap-2 shrink-0">
+      <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-outline btn-sm gap-2">
+        <Icon name="boxicons:folder-plus" size={16} />
         Nueva Categoría
       </a>
-      <a href={resolveUrl("/admin/recursos/enlace/nuevo")} class="btn btn-primary gap-2">
-        <Icon name="boxicons:plus" size={20} />
+      <a
+        id="btn-add-link"
+        href={resolveUrl("/admin/recursos/enlace/nuevo")}
+        class="btn btn-primary btn-sm gap-2"
+      >
+        <Icon name="boxicons:plus" size={16} />
         Agregar Sitio Web
       </a>
     </div>
   </div>
 
-  <!-- SECCIÓN DE CATEGORÍAS -->
-  <section class="mb-10">
-    <h2 class="text-xl font-bold mb-4">Categorías</h2>
+  <!-- Contenedor Principal Split View -->
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
     
-    <!-- Buscador de Categorías -->
-    <div class="bg-base-100 p-4 rounded-box border border-base-300 mb-6 shadow-sm">
-      <div class="w-full max-w-xs">
-        <SearchInput
-          id="categories-search"
-          name="q_cat"
-          label="Buscar categoría"
-          placeholder="Buscar categoría..."
-        />
+    <!-- Panel Izquierdo: Categorías -->
+    <aside class="lg:col-span-1 bg-base-100 border border-base-300 rounded-box p-4 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center justify-between border-b border-base-200 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-base-content/60">Categorías</span>
       </div>
-    </div>
 
-    <!-- Tabla de Categorías -->
-    <DataTable
-      id="categories-table"
-      ariaLabel="Listado de categorías"
-      headerGridClass={categoriesGridCols}
-      rowGridClass={categoriesGridCols}
-    >
-      <Fragment slot="header">
-        <DataTableHeaderCell>Ícono</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="tone">Tono</DataTableHeaderCell>
-        <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-      </Fragment>
-
-      {
-        categories.length === 0 ? (
-          <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-            <div class="rounded-full bg-base-200/40 p-4">
-              <Icon name="boxicons:folder" size={32} class="opacity-30" aria-hidden="true" />
+      <nav class="flex flex-col gap-1" id="categories-list">
+        <div
+          class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+          data-category-id="all"
+          data-category-tone="neutral"
+          data-category-title="Todos"
+        >
+          <div class="flex items-center gap-2.5 min-w-0 grow">
+            <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors.neutral}`}>
+              <Icon name="boxicons:grid-9-filled" size={18} />
             </div>
-            <div class="space-y-1 text-center">
-              <p class="text-sm font-semibold">No hay categorías registradas</p>
-              <p class="text-xs">Comenzá agregando una nueva categoría.</p>
-            </div>
+            <span class="text-sm font-semibold truncate label-title">Todos</span>
           </div>
-        ) : (
-          categories.map((cat) => (
-            <div
-              class="group grid items-center gap-4 border-b border-base-200 px-4 py-3 transition-colors hover:bg-base-200/50"
-              data-table-row
-              data-category-row
-              data-category-search={cat.title.toLowerCase()}
-              data-sort-title={cat.title}
-              data-sort-tone={cat.tone}
-            >
-              <div>
-                <div class={`flex items-center justify-center size-10 rounded-lg ${toneColors[cat.tone] || toneColors.primary}`}>
-                  <Icon name={cat.iconName} size={24} />
-                </div>
-              </div>
-              <div class="truncate font-semibold" title={cat.title} data-highlight-category-target>{cat.title}</div>
-              <div>
-                <span class={`badge badge-outline capitalize border-${cat.tone} text-${cat.tone}`}>{cat.tone}</span>
-              </div>
-              <div class="flex items-center justify-end gap-1">
-                <a
-                  href={resolveUrl(`/admin/recursos/categoria/${cat.id}`)}
-                  class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-primary hover:bg-primary/10"
-                  title="Editar Categoría"
-                >
-                  <Icon name="boxicons:pencil" size={18} />
-                </a>
-                {
-                  cat.id !== "uncategorized" && (
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-error hover:bg-error/10"
-                      title="Eliminar Categoría"
-                      onclick={`window.openDeleteCategoryModal('${cat.id}')`}
-                    >
-                      <Icon name="boxicons:trash" size={18} />
-                    </button>
-                  )
-                }
-              </div>
-            </div>
-          ))
-        )
-      }
-    </DataTable>
-  </section>
-
-  <!-- SECCIÓN DE ENLACES -->
-  <section>
-    <h2 class="text-xl font-bold mb-4">Sitios Web</h2>
-    
-    <!-- Buscador y Filtros de Enlaces -->
-    <div class="bg-base-100 p-4 rounded-box border border-base-300 mb-6 shadow-sm">
-      <div class="flex flex-col sm:flex-row gap-4 items-center">
-        <div class="w-full max-w-xs">
-          <SearchInput
-            id="recursos-search"
-            name="q"
-            value={q}
-            label="Buscar enlace"
-            placeholder="Buscar enlace o URL..."
-          />
+          
+          <div class="flex items-center gap-1.5 shrink-0 ml-2">
+            <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={links.length}>
+              {links.length}
+            </span>
+          </div>
         </div>
-        <select id="category-filter" name="category" class="select select-bordered w-full max-w-xs" aria-label="Filtrar por categoría">
-          <option value="">Todas las categorías</option>
-          {
-            categories.map((cat) => (
-              <option value={cat.id} selected={cat.id === categoryFilter}>
-                {cat.title}
-              </option>
-            ))
-          }
-        </select>
-      </div>
-    </div>
 
-    <!-- Tabla Única de Enlaces -->
-    <DataTable
-      id="recursos-table"
-      ariaLabel="Listado de enlaces útiles"
-      headerGridClass={linksGridCols}
-      rowGridClass={linksGridCols}
-    >
-      <Fragment slot="header">
-        <DataTableHeaderCell>Ícono</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="subtitle">Descripción</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="url">URL</DataTableHeaderCell>
-        <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
-        <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-      </Fragment>
+        {
+          categories.length === 0 ? (
+            <p class="text-xs text-base-content/50 py-4 text-center">No hay categorías registradas.</p>
+          ) : (
+            categories.map((cat) => {
+              const count = categoryCounts.get(cat.id) || 0;
+              return (
+                <div
+                  class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+                  data-category-id={cat.id}
+                  data-category-tone={cat.tone}
+                  data-category-title={cat.title}
+                  data-category-dropzone
+                >
+                  <div class="flex items-center gap-2.5 min-w-0 grow">
+                    <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors[cat.tone] || toneColors.primary}`}>
+                      <Icon name={cat.iconName} size={18} />
+                    </div>
+                    <span class="text-sm font-semibold truncate label-title">{cat.title}</span>
+                  </div>
+                  
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
+                      {count}
+                    </span>
+                    <div class="hidden group-hover:flex items-center gap-0.5">
+                      <a
+                        href={resolveUrl(`/admin/recursos/categoria/${cat.id}`)}
+                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                        title="Editar"
+                        onclick="event.stopPropagation();"
+                      >
+                        <Icon name="boxicons:pencil" size={14} />
+                      </a>
+                      {cat.id !== "uncategorized" && (
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
+                          title="Eliminar"
+                          onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
+                        >
+                          <Icon name="boxicons:trash" size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )
+        }
+      </nav>
+    </aside>
 
-      {
-        links.length === 0 ? (
-          <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-            <div class="rounded-full bg-base-200/40 p-4">
-              <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+    <!-- Panel Derecho: Enlaces -->
+    <main class="lg:col-span-3 flex flex-col gap-4">
+      <div class="bg-base-100 border border-base-300 rounded-box p-4 shadow-sm">
+        
+        <!-- Cabecera de Categoría Seleccionada y Buscador -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b border-base-200">
+          <div class="flex items-center gap-3">
+            <div id="active-category-icon-wrapper" class="flex items-center justify-center size-9 rounded-lg border text-primary bg-primary/10 border-primary/20">
+              <Icon id="active-category-icon" name="boxicons:folder" size={20} />
             </div>
-            <div class="space-y-1 text-center">
-              <p class="text-sm font-semibold">No hay enlaces registrados</p>
-              <p class="text-xs">Comenzá agregando un nuevo sitio web.</p>
+            <div>
+              <h2 id="active-category-title" class="text-lg font-bold text-base-content">Cargando...</h2>
+              <p id="reorder-instructions" class="text-xs text-base-content/60">Arrastrá las filas para cambiar el orden del menú.</p>
             </div>
           </div>
-        ) : (
-          links.map((link) => (
-            <div
-              class="group grid items-center gap-4 border-b border-base-200 px-4 py-3 transition-colors hover:bg-base-200/50"
-              data-table-row
-              data-link-row
-              data-link-search={`${link.title} ${link.subtitle || ""} ${link.url}`.toLowerCase()}
-              data-link-category={link.categoryId}
-              data-sort-title={link.title}
-              data-sort-subtitle={link.subtitle || ""}
-              data-sort-url={link.url}
-              data-sort-category={link.categoryName || ""}
-            >
-              <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
-                {link.iconPath ? (
-                  <img
-                    src={`${cleanBase}api/icons/${link.iconPath}`}
-                    alt={`Ícono de ${link.title}`}
-                    class="h-full w-full object-contain"
-                  />
-                ) : (
-                  <Icon name="boxicons:link" class="h-5 w-5 text-base-content/40" />
-                )}
-              </div>
-              <div class="truncate font-semibold" title={link.title} data-highlight-target>{link.title}</div>
-              <div class="truncate text-sm text-base-content/70" title={link.subtitle || ""} data-highlight-target>{link.subtitle || "-"}</div>
-              <div class="truncate">
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-primary hover:underline hover:text-primary-focus block truncate"
-                  title={link.url}
-                  data-highlight-target
-                >
-                  {link.url}
-                </a>
-              </div>
-              <div class="truncate">
-                <span class="badge badge-ghost font-medium truncate" title={link.categoryName || "Sin categoría"}>
-                  {link.categoryName || "Sin categoría"}
-                </span>
-              </div>
-              <div class="flex items-center justify-end gap-1">
-                <a
-                  href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
-                  class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-primary hover:bg-primary/10"
-                  title="Editar Enlace"
-                >
-                  <Icon name="boxicons:pencil" size={18} />
-                </a>
-                <form 
-                  method="POST" 
-                  action={resolveUrl(`/admin/recursos/enlace/${link.id}/eliminar`)} 
-                  class="inline"
-                  onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
-                >
-                  <button
-                    type="submit"
-                    class="btn btn-sm btn-ghost btn-square text-base-content/70 hover:text-error hover:bg-error/10"
-                    title="Eliminar Enlace"
+          <div class="w-full sm:max-w-xs shrink-0">
+            <SearchInput
+              id="recursos-search"
+              name="q"
+              value={q}
+              label="Buscar enlace"
+              placeholder="Buscar por título o URL..."
+            />
+          </div>
+        </div>
+
+        <!-- Tabla Única de Enlaces -->
+        <DataTable
+          id="recursos-table"
+          ariaLabel="Listado de enlaces en la categoría"
+          headerGridClass={linksGridCols}
+          rowGridClass={linksGridCols}
+        >
+          <Fragment slot="header">
+            <DataTableHeaderCell></DataTableHeaderCell>
+            <DataTableHeaderCell>Ícono</DataTableHeaderCell>
+            <DataTableHeaderCell>Título</DataTableHeaderCell>
+            <DataTableHeaderCell>Descripción</DataTableHeaderCell>
+            <DataTableHeaderCell>URL</DataTableHeaderCell>
+            <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+          </Fragment>
+
+          <div id="links-container" class="divide-y divide-base-200">
+            {
+              links.length === 0 ? (
+                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50" id="empty-state">
+                  <div class="rounded-full bg-base-200/40 p-4">
+                    <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+                  </div>
+                  <div class="space-y-1 text-center">
+                    <p class="text-sm font-semibold">No hay enlaces registrados</p>
+                    <p class="text-xs">Comenzá agregando un nuevo sitio web.</p>
+                  </div>
+                </div>
+              ) : (
+                links.map((link) => (
+                  <div
+                    class:list={[
+                      "group grid items-center px-4 py-3 transition-colors hover:bg-base-200/30 link-row",
+                      linksGridCols,
+                      link.deprecated && "opacity-50"
+                    ]}
+                    data-table-row
+                    data-link-row
+                    data-link-id={link.id}
+                    data-link-category={link.categoryId}
+                    data-link-search={`${link.title} ${link.subtitle || ""} ${link.url}`.toLowerCase()}
+                    draggable="true"
                   >
-                    <Icon name="boxicons:trash" size={18} />
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))
-        )
-      }
-    </DataTable>
-  </section>
+                    <div class="flex items-center justify-center text-base-content/30 cursor-grab active:cursor-grabbing hover:text-base-content/70 transition-colors drag-handle">
+                      <Icon name="boxicons:menu" size={20} />
+                    </div>
+
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
+                      {link.iconPath ? (
+                        <img
+                          src={`${cleanBase}api/icons/${link.iconPath}`}
+                          alt={`Ícono de ${link.title}`}
+                          class="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <Icon name="boxicons:link" class="h-5 w-5 text-base-content/40" />
+                      )}
+                    </div>
+
+                    <div class="min-w-0 truncate font-semibold flex items-center gap-2" title={link.title}>
+                      <span class="truncate" data-highlight-target>{link.title}</span>
+                      {link.deprecated && (
+                        <span class="badge badge-neutral badge-xs font-semibold uppercase shrink-0">
+                          Obsoleto
+                        </span>
+                      )}
+                    </div>
+
+                    <div class="min-w-0 truncate text-sm text-base-content/60" title={link.subtitle || ""} data-highlight-target>
+                      {link.subtitle || "—"}
+                    </div>
+
+                    <!-- URL -->
+                    <div class="min-w-0 truncate">
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-secondary hover:underline block truncate text-sm font-mono"
+                        title={link.url}
+                        data-highlight-target
+                      >
+                        {link.url.replace(/^https?:\/\/(www\.)?/, "")}
+                      </a>
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="flex items-center justify-end gap-1">
+                      <a
+                        href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
+                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
+                        title="Editar Enlace"
+                      >
+                        <Icon name="boxicons:pencil" size={16} />
+                      </a>
+                      <form
+                        method="POST"
+                        action={resolveUrl(`/admin/recursos/enlace/${link.id}/eliminar`)}
+                        class="inline"
+                        onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
+                      >
+                        <button
+                          type="submit"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
+                          title="Eliminar Enlace"
+                        >
+                          <Icon name="boxicons:trash" size={16} />
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                ))
+              )
+            }
+          </div>
+        </DataTable>
+        
+        <!-- Estado vacío de categoría sin elementos -->
+        <div id="category-empty-state" class="hidden flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200/40 p-4">
+            <Icon name="boxicons:link" size={32} class="opacity-30" />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">Esta categoría está vacía</p>
+            <p class="text-xs">Arrastrá enlaces aquí o creá uno nuevo.</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
 
   <!-- Modal de Eliminación de Categoría -->
   <dialog id="delete-category-modal" class="modal modal-bottom sm:modal-middle">
@@ -294,16 +333,16 @@ const toneColors: Record<string, string> = {
           <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
             <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
             <div class="flex flex-col gap-1 flex-1 min-w-0">
-              <span class="label-text font-bold text-base leading-tight whitespace-normal wrap-break-word">Desvincular y conservar enlaces</span>
-              <span class="text-xs text-base-content/60 whitespace-normal wrap-break-word leading-relaxed">La categoría será eliminada, pero los enlaces se conservarán y se moverán a "Sin categoría".</span>
+              <span class="label-text font-bold text-base leading-tight">Desvincular y conservar enlaces</span>
+              <span class="text-xs text-base-content/60 leading-relaxed">La categoría será eliminada, pero los enlaces se conservarán y se moverán a "Sin categoría".</span>
             </div>
           </label>
 
           <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
             <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
             <div class="flex flex-col gap-1 flex-1 min-w-0">
-              <span class="label-text font-bold text-error text-base leading-tight whitespace-normal wrap-break-word">Eliminar todo en Cascada</span>
-              <span class="text-xs text-base-content/60 whitespace-normal wrap-break-word leading-relaxed">La categoría y todos los enlaces que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+              <span class="label-text font-bold text-error text-base leading-tight">Eliminar todo en Cascada</span>
+              <span class="text-xs text-base-content/60 leading-relaxed">La categoría y todos los enlaces que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
             </div>
           </label>
         </div>
@@ -324,116 +363,327 @@ const toneColors: Record<string, string> = {
 </PageContainer>
 
 <script>
-  // Utils
-  const normalizeValue = (value: string): string =>
-    value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-  const escapeRegExp = (value: string): string =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  const escapeHtml = (value: string): string =>
-    value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-
-  const highlightText = (element: HTMLElement, query: string): void => {
-    const originalText = element.dataset.originalText ?? element.textContent ?? "";
-
-    if (!element.dataset.originalText) {
-      element.dataset.originalText = originalText;
-    }
-
-    if (query.length === 0) {
-      element.textContent = originalText;
-      return;
-    }
-
-    const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
-
-    if (!matcher.test(originalText)) {
-      element.textContent = originalText;
-      return;
-    }
-
-    matcher.lastIndex = 0;
-    const highlighted = originalText
-      .split(matcher)
-      .map((chunk, index) =>
-        index % 2 === 1
-          ? `<mark class="rounded bg-warning/30 px-0.5 text-base-content">${escapeHtml(chunk)}</mark>`
-          : escapeHtml(chunk),
-      )
-      .join("");
-
-    element.innerHTML = highlighted;
+  // Styling mappings
+  const toneColors: Record<string, string> = {
+    primary: "text-primary bg-primary/10 border-primary/20",
+    secondary: "text-secondary bg-secondary/10 border-secondary/20",
+    accent: "text-accent bg-accent/10 border-accent/20",
+    info: "text-info bg-info/10 border-info/20",
+    success: "text-success bg-success/10 border-success/20",
+    warning: "text-warning bg-warning/10 border-warning/20",
+    error: "text-error bg-error/10 border-error/20",
+    neutral: "text-neutral bg-neutral/10 border-neutral/20",
   };
 
-  // Links Filtering
-  const linksSearchInput = document.querySelector<HTMLInputElement>("#recursos-search");
-  const categoryFilterSelect = document.querySelector<HTMLSelectElement>("#category-filter");
-  const linkRows = Array.from(document.querySelectorAll<HTMLElement>("[data-link-row]"));
+  // State
+  let activeCategoryId = "";
+  
+  // Elements
+  const categoriesList = document.getElementById("categories-list");
+  const categoryItems = Array.from(document.querySelectorAll<HTMLElement>(".category-item"));
+  const linkRows = Array.from(document.querySelectorAll<HTMLElement>(".link-row"));
+  const linksContainer = document.getElementById("links-container");
+  const searchInput = document.querySelector<HTMLInputElement>("#recursos-search");
+  
+  const activeIconWrapper = document.getElementById("active-category-icon-wrapper");
+  const activeCategoryTitle = document.getElementById("active-category-title");
+  const btnAddLink = document.getElementById("btn-add-link") as HTMLAnchorElement | null;
+  const generalEmptyState = document.getElementById("empty-state");
+  const categoryEmptyState = document.getElementById("category-empty-state");
+  const reorderSpinner = document.getElementById("reorder-spinner");
 
-  const updateLinksFilter = () => {
-    if (!linksSearchInput || !categoryFilterSelect) return;
-
-    const rawSearchValue = linksSearchInput.value.trim();
-    const searchValue = normalizeValue(rawSearchValue);
-    const selectedCategory = categoryFilterSelect.value;
-
-    linkRows.forEach((row) => {
-      const searchableContent = normalizeValue(row.dataset.linkSearch ?? "");
-      const rowCategory = row.dataset.linkCategory ?? "";
-
-      const matchesSearch = searchValue.length === 0 || searchableContent.includes(searchValue);
-      const matchesCategory = selectedCategory === "" || rowCategory === selectedCategory;
-      const isVisible = matchesSearch && matchesCategory;
-
-      row.classList.toggle("hidden", !isVisible);
-
-      const rowTargets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
-      rowTargets.forEach((target) => {
-        highlightText(target, isVisible ? rawSearchValue : "");
-      });
-    });
-  };
-
-  if (linksSearchInput) linksSearchInput.addEventListener("input", updateLinksFilter);
-  if (categoryFilterSelect) categoryFilterSelect.addEventListener("change", updateLinksFilter);
-  updateLinksFilter();
-
-  // Categories Filtering
-  const categoriesSearchInput = document.querySelector<HTMLInputElement>("#categories-search");
-  const categoryRows = Array.from(document.querySelectorAll<HTMLElement>("[data-category-row]"));
-
-  const updateCategoriesFilter = () => {
-    if (!categoriesSearchInput) return;
+  // Selection Handler
+  const selectCategory = (categoryId: string) => {
+    activeCategoryId = categoryId;
     
-    const rawSearchValue = categoriesSearchInput.value.trim();
-    const searchValue = normalizeValue(rawSearchValue);
-
-    categoryRows.forEach((row) => {
-      const searchableContent = normalizeValue(row.dataset.categorySearch ?? "");
-      const isVisible = searchValue.length === 0 || searchableContent.includes(searchValue);
-
-      row.classList.toggle("hidden", !isVisible);
-
-      const rowTargets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-category-target]"));
-      rowTargets.forEach((target) => {
-        highlightText(target, isVisible ? rawSearchValue : "");
-      });
+    // Update Category visual classes in sidebar
+    categoryItems.forEach(item => {
+      const isSelected = item.dataset.categoryId === categoryId;
+      const tone = item.dataset.categoryTone || "primary";
+      
+      // Clean classes
+      item.classList.remove("bg-base-200/60", "border-base-300", "shadow-sm", "bg-primary/5", "bg-secondary/5", "bg-accent/5", "bg-info/5", "bg-success/5", "bg-warning/5", "bg-error/5", "bg-neutral/5");
+      
+      if (isSelected) {
+        item.classList.add(`bg-${tone}/5`, "border-base-300", "shadow-sm");
+      } else {
+        item.classList.add("border-transparent");
+      }
     });
+
+    // Update Header of current selection
+    const selectedItem = categoryItems.find(item => item.dataset.categoryId === categoryId);
+    if (selectedItem && activeCategoryTitle && activeIconWrapper) {
+      const title = selectedItem.dataset.categoryTitle || "";
+      const tone = selectedItem.dataset.categoryTone || "primary";
+      
+      activeCategoryTitle.textContent = title;
+      
+      // Update icon tone classes
+      activeIconWrapper.className = `flex items-center justify-center size-9 rounded-lg border ${toneColors[tone] || toneColors.primary}`;
+      
+      // Update icon SVG
+      const icon = selectedItem.querySelector("svg")?.cloneNode(true);
+      const iconTarget = activeIconWrapper.querySelector("svg");
+      if (icon && iconTarget) {
+        activeIconWrapper.replaceChild(icon, iconTarget);
+      }
+    }
+
+    // Prefill categoryId in Creation URL
+    if (btnAddLink) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      if (categoryId === "all") {
+        btnAddLink.href = `${cleanBase}admin/recursos/enlace/nuevo`;
+      } else {
+        btnAddLink.href = `${cleanBase}admin/recursos/enlace/nuevo?categoryId=${encodeURIComponent(categoryId)}`;
+      }
+    }
+
+    // Toggle reorder handle visibility based on "Todos" category selection
+    const isAll = categoryId === "all";
+    const dragHandles = Array.from(document.querySelectorAll(".drag-handle"));
+    dragHandles.forEach(h => {
+      if (isAll) {
+        h.classList.add("invisible", "pointer-events-none");
+      } else {
+        h.classList.remove("invisible", "pointer-events-none");
+      }
+    });
+
+    const reorderInstructions = document.getElementById("reorder-instructions");
+    if (reorderInstructions) {
+      reorderInstructions.classList.toggle("hidden", isAll);
+    }
+
+    // Refresh rows visibility
+    filterLinks();
   };
 
-  if (categoriesSearchInput) categoriesSearchInput.addEventListener("input", updateCategoriesFilter);
-  updateCategoriesFilter();
+  // Initialize original text for highlighting
+  const highlightTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+  highlightTargets.forEach(el => {
+    el.dataset.originalText = el.textContent?.trim() || "";
+  });
 
-  // Modal logic attached to window for inline onclick handler
+  // Filters links based on active category and query
+  const filterLinks = () => {
+    const query = searchInput?.value.trim().toLowerCase() || "";
+    let visibleCount = 0;
+
+    linkRows.forEach(row => {
+      const rowCategory = row.dataset.linkCategory || "";
+      const searchContent = row.dataset.linkSearch || "";
+      
+      const matchesCategory = activeCategoryId === "all" || rowCategory === activeCategoryId;
+      const matchesSearch = query === "" || searchContent.includes(query);
+      const isVisible = matchesCategory && matchesSearch;
+
+      row.classList.toggle("hidden", !isVisible);
+      if (isVisible) {
+        visibleCount++;
+        
+        // Highlight matching terms
+        const targets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+        targets.forEach(el => {
+          const original = el.dataset.originalText || el.textContent?.trim() || "";
+          if (query === "") {
+            el.textContent = original;
+          } else {
+            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, "gi");
+            el.innerHTML = original.replace(regex, '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>');
+          }
+        });
+      }
+    });
+
+    // Handle Empty States
+    if (generalEmptyState) generalEmptyState.classList.add("hidden");
+    
+    if (visibleCount === 0) {
+      categoryEmptyState?.classList.remove("hidden");
+      categoryEmptyState?.classList.add("flex");
+    } else {
+      categoryEmptyState?.classList.add("hidden");
+      categoryEmptyState?.classList.remove("flex");
+    }
+  };
+
+  // Add click handlers to Category menu items
+  categoryItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const id = item.dataset.categoryId;
+      if (id) selectCategory(id);
+    });
+  });
+
+  // Select first category on load
+  if (categoryItems.length > 0) {
+    const firstCatId = categoryItems[0].dataset.categoryId;
+    if (firstCatId) selectCategory(firstCatId);
+  }
+
+  // Hook search
+  searchInput?.addEventListener("input", filterLinks);
+
+  // ----------------------------------------------------
+  // Drag and Drop: Reorder links inside category
+  // ----------------------------------------------------
+  let draggedRow: HTMLElement | null = null;
+
+  linkRows.forEach(row => {
+    row.addEventListener("dragstart", (e) => {
+      if (activeCategoryId === "all") {
+        e.preventDefault();
+        return;
+      }
+      draggedRow = row;
+      row.classList.add("opacity-40", "border-primary/50", "border-dashed");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", row.dataset.linkId || "");
+      }
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("opacity-40", "border-primary/50", "border-dashed");
+      draggedRow = null;
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedRow || draggedRow === row) return;
+
+      const currentCategory = row.dataset.linkCategory;
+      const draggedCategory = draggedRow.dataset.linkCategory;
+      if (currentCategory !== draggedCategory) return; // Only allow sorting within same category
+
+      const bounding = row.getBoundingClientRect();
+      const offset = e.clientY - bounding.top - bounding.height / 2;
+
+      if (linksContainer) {
+        if (offset < 0) {
+          linksContainer.insertBefore(draggedRow, row);
+        } else {
+          linksContainer.insertBefore(draggedRow, row.nextSibling);
+        }
+      }
+    });
+
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      saveReorderedLinks();
+    });
+  });
+
+  // ----------------------------------------------------
+  // Drag and Drop: Move link to another category
+  // ----------------------------------------------------
+  categoryItems.forEach(zone => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      if (draggedRow && draggedRow.dataset.linkCategory !== targetCategoryId) {
+        zone.classList.add("bg-base-300", "scale-[1.02]");
+      }
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+    });
+
+    zone.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+
+      const linkId = e.dataTransfer?.getData("text/plain");
+
+      if (!linkId || !targetCategoryId || !draggedRow) return;
+      
+      const sourceCategoryId = draggedRow.dataset.linkCategory;
+      if (sourceCategoryId === targetCategoryId) return;
+
+      // Update in local state/DOM
+      draggedRow.dataset.linkCategory = targetCategoryId;
+      
+      // Update link badges if necessary (no badge in this layout, but filters are updated)
+      filterLinks();
+
+      // Update counters visually
+      const sourceBadge = categoryItems.find(item => item.dataset.categoryId === sourceCategoryId)?.querySelector(".count-badge");
+      const targetBadge = zone.querySelector(".count-badge");
+      
+      if (sourceBadge) {
+        const count = Math.max(0, parseInt(sourceBadge.textContent || "0") - 1);
+        sourceBadge.textContent = String(count);
+      }
+      if (targetBadge) {
+        const count = parseInt(targetBadge.textContent || "0") + 1;
+        targetBadge.textContent = String(count);
+      }
+
+      // Save to database
+      await saveReorderedLinks();
+    });
+  });
+
+  // Bulk update call to API
+  const saveReorderedLinks = async () => {
+    if (reorderSpinner) reorderSpinner.classList.remove("hidden");
+
+    try {
+      // Gather all rows in their current DOM positions to build sequential orders
+      const allRows = Array.from(document.querySelectorAll<HTMLElement>(".link-row"));
+      
+      // We group them by category to update order properly inside each category
+      const categoryGroups: Record<string, HTMLElement[]> = {};
+      allRows.forEach(row => {
+        const catId = row.dataset.linkCategory || "";
+        if (!categoryGroups[catId]) categoryGroups[catId] = [];
+        categoryGroups[catId].push(row);
+      });
+
+      const items: any[] = [];
+      Object.keys(categoryGroups).forEach(catId => {
+        categoryGroups[catId].forEach((row, index) => {
+          items.push({
+            id: row.dataset.linkId,
+            sortOrder: index * 10, // increments of 10
+            categoryId: catId
+          });
+        });
+      });
+
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      
+      const response = await fetch(`${cleanBase}api/admin/recursos/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error de red al intentar guardar cambios");
+      }
+      
+      (window as any).showToast?.("Menú y categorías sincronizadas con éxito", "alert-success");
+    } catch (err) {
+      console.error(err);
+      (window as any).showToast?.("Error al guardar el nuevo orden del menú", "alert-error");
+    } finally {
+      if (reorderSpinner) reorderSpinner.classList.add("hidden");
+    }
+  };
+
+  // ----------------------------------------------------
+  // Modal logic attached to window for delete modal
+  // ----------------------------------------------------
   (window as any).openDeleteCategoryModal = (categoryId: string) => {
     const modal = document.getElementById("delete-category-modal") as (HTMLDialogElement & { showModal(): void }) | null;
     const form = document.getElementById("delete-category-form") as HTMLFormElement | null;

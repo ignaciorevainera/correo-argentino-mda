@@ -3,10 +3,10 @@ import { Icon } from "astro-icon/components";
 import AnnouncementBanner from "@components/ui/AnnouncementBanner.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import CategoryCard from "@/pages/enlaces-recursos/_components/CategoryCard.astro";
+import CategoryCard from "@/pages/recursos/_components/CategoryCard.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { db } from "@/db";
-import type { CategoryTone, CategoryViewModel } from "@/pages/enlaces-recursos/_components/types";
+import type { CategoryTone, CategoryViewModel } from "@/pages/recursos/_components/types";
 
 const rawCategories = await db.query.resourceCategories.findMany({
   with: {
@@ -20,11 +20,21 @@ const importantCategories = rawCategories.map(
     category: category.title,
     icon: category.iconName as unknown as `boxicons:${string}`,
     tone: (category.tone || "primary") as CategoryTone,
-    links: category.links.map((link) => ({
-      ...link,
-      subtitle: link.subtitle ?? undefined,
-      iconPath: link.iconPath ?? undefined,
-    })),
+    links: category.links
+      .sort((a, b) => {
+        const orderA = a.sortOrder ?? 0;
+        const orderB = b.sortOrder ?? 0;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return a.title.localeCompare(b.title);
+      })
+      .map((link) => ({
+        ...link,
+        subtitle: link.subtitle ?? undefined,
+        iconPath: link.iconPath ?? undefined,
+        deprecated: link.deprecated ?? false,
+      })),
   }),
 );
 
@@ -69,7 +79,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     description="Descarga herramientas de mesa de ayuda desde un paquete .zip o por aplicativo individual para mantener la operatoria diaria."
     icon="boxicons:link-filled"
     badgeLabel="Nuevo"
-    href={`${cleanBase}catalogo-aplicativos`}
+    href={`${cleanBase}recursos/aplicativos`}
     ctaLabel="Ir al catálogo"
     tone="primary"
   />

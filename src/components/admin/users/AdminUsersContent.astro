@@ -110,7 +110,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
               name="role"
               label="Rol en sistema"
               options={[
+                { value: "agent", label: "Agente" },
                 { value: "referent", label: "Referente" },
+                { value: "team_leader", label: "Team Leader" },
                 { value: "supervisor", label: "Supervisor" },
                 { value: "admin", label: "Administrador" }
               ]}
@@ -207,9 +209,11 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                             ? "bg-error text-error-content"
                             : u.role === "supervisor"
                               ? "bg-info text-info-content"
-                              : u.role === "referent"
-                                ? "bg-warning text-warning-content"
-                                : "bg-neutral text-neutral-content",
+                              : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                                ? "bg-accent text-accent-content"
+                                : u.role === "referent"
+                                  ? "bg-warning text-warning-content"
+                                  : "bg-neutral text-neutral-content",
                         ]}
                         aria-hidden="true"
                       >
@@ -229,18 +233,22 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           ? "badge-error"
                           : u.role === "supervisor"
                             ? "badge-info"
-                            : u.role === "referent"
-                              ? "badge-warning"
-                              : "badge-neutral",
+                            : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                              ? "badge-accent"
+                              : u.role === "referent"
+                                ? "badge-warning"
+                                : "badge-neutral",
                       ]}
                     >
                       {u.role === "admin"
                         ? "Admin"
                         : u.role === "supervisor"
                           ? "Supervisor"
-                          : u.role === "referent"
-                            ? "Referente"
-                            : "Agente"}
+                          : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                            ? "Team Leader"
+                            : u.role === "referent"
+                              ? "Referente"
+                              : "Agente"}
                     </span>
                   </div>
 
@@ -412,6 +420,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         options={[
           { value: "agent", label: "Agente" },
           { value: "referent", label: "Referente" },
+          { value: "team_leader", label: "Team Leader" },
           { value: "supervisor", label: "Supervisor" },
           { value: "admin", label: "Administrador" }
         ]}
@@ -448,7 +457,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 </dialog>
 
 <dialog id="modal-permissions-matrix" class="modal">
-  <div class="modal-box max-w-4xl border border-base-300">
+  <div class="modal-box max-w-none w-fit border border-base-300">
     <h3
       class="mb-2 text-lg font-bold text-base-content flex items-center gap-2"
     >
@@ -459,7 +468,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
       Detalle comparativo de las acciones y accesos permitidos para cada rol
       en la plataforma.
     </p>
-    <div class="overflow-x-auto">
+    <div>
       <table class="table table-xs md:table-sm w-full">
         <thead>
           <tr class="text-base-content/70">
@@ -469,6 +478,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             >
             <th class="bg-warning text-warning-content text-center font-bold"
               >Referente</th
+            >
+            <th class="bg-accent text-accent-content text-center font-bold"
+              >Team Leader</th
             >
             <th class="bg-info text-info-content text-center font-bold"
               >Supervisor</th
@@ -507,6 +519,21 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                 </td>
                 <td class="text-center bg-warning/5">
                   {row.referent ? (
+                    <Icon
+                      name="boxicons:check"
+                      class="inline-block text-success"
+                      size={24}
+                    />
+                  ) : (
+                    <Icon
+                      name="boxicons:x"
+                      class="inline-block text-error"
+                      size={24}
+                    />
+                  )}
+                </td>
+                <td class="text-center bg-accent/5">
+                  {row.team_leader ? (
                     <Icon
                       name="boxicons:check"
                       class="inline-block text-success"
@@ -578,7 +605,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     admin:
       "Acceso total al sistema. Puede gestionar usuarios, configuraciones generales, ver el sistema de diseño y acceder a todas las herramientas de supervisión.",
     supervisor:
-      "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. No tiene acceso a administración ni sistema de diseño.",
+      "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. Acceso general al panel de administración excepto la creación de usuarios.",
+    team_leader:
+      "Acceso intermedio. Puede modificar cronogramas, controlar la asistencia del equipo, auditar la calidad y realizar asignaciones de autogestión. Acceso general al panel de administración excepto la creación de usuarios.",
     referent:
       "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
     agent:
@@ -603,6 +632,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         containerEl.classList.add("bg-error/5", "border-error/30");
       } else if (role === "supervisor") {
         containerEl.classList.add("bg-info/5", "border-info/30");
+      } else if (role === "team_leader" || role === "team-leader" || role === "team leader") {
+        containerEl.classList.add("bg-accent/5", "border-accent/30");
       } else if (role === "referent") {
         containerEl.classList.add("bg-warning/5", "border-warning/30");
       } else {

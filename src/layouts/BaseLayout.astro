@@ -9,6 +9,7 @@ import packageJson from "../../package.json";
 import { navSections, getSectionTitle, getResolvedPathname, type NavItem } from "@lib/navigation";
 import ToastContainer from "@components/ui/ToastContainer.astro";
 import GithubLink from "@components/ui/GithubLink.astro";
+import { normalizeRole, hasPermission } from "@lib/rbac";
 
 interface Props {
   title?: string;
@@ -86,7 +87,18 @@ const isActiveRoute = (href: string) =>
       relativeCurrentPath.startsWith(`${href}/`);
 
 const user = Astro.locals.user;
-const visibleNavSections = navSections.filter((section) => section.items.length > 0);
+const normalizedUserRole = normalizeRole(user.role);
+
+const isRouteLocked = (href: string): boolean => {
+  return !hasPermission(href, normalizedUserRole);
+};
+
+const visibleNavSections = navSections
+  .map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !isRouteLocked(item.href)),
+  }))
+  .filter((section) => section.items.length > 0);
 
 const drawerNavItems = visibleNavSections.flatMap((section) =>
   section.items.map((item) => ({ ...item, children: undefined })),
@@ -99,6 +111,7 @@ const userInitials = user.username.slice(0, 2).toUpperCase();
 const roleAvatarClasses: Record<string, string> = {
   admin: "bg-error text-error-content",
   supervisor: "bg-info text-info-content",
+  team_leader: "bg-accent text-accent-content",
   referent: "bg-warning text-warning-content",
   agent: "bg-neutral text-neutral-content",
 };
@@ -106,35 +119,13 @@ const roleAvatarClasses: Record<string, string> = {
 const roleLabelMap: Record<string, string> = {
   admin: "Administrador",
   supervisor: "Supervisor",
+  team_leader: "Team Leader",
   referent: "Referente",
   agent: "Agente",
 };
 
-const avatarClass = roleAvatarClasses[user.role] ?? roleAvatarClasses.agent;
-const roleLabel = roleLabelMap[user.role] ?? "Agente";
-
-const isRouteLocked = (href: string): boolean => {
-  const role = (user.role || "").toLowerCase().trim();
-
-  if (href.startsWith("/admin")) {
-    if (href === "/admin/users" || href.startsWith("/admin/users/")) {
-      return role !== "admin";
-    }
-    return !["admin", "supervisor"].includes(role);
-  }
-
-
-
-  if (href === "/supervision/cronograma") {
-    return !["admin", "supervisor"].includes(role);
-  }
-
-  if (href.startsWith("/supervision")) {
-    return !["admin", "supervisor", "referent", "referente"].includes(role);
-  }
-
-  return false;
-};
+const avatarClass = roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
+const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
 ---
 
 <html lang="es">

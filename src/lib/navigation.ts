@@ -41,13 +41,13 @@ export const navSections: NavSection[] = [
         ],
       },
       {
-        href: "/titulos-tickets",
-        label: "Títulos de tickets",
+        href: "/titulos",
+        label: "Títulos",
         icon: "boxicons:list-ul-filled",
       },
       {
-        href: "/guia-soportes",
-        label: "Guía de soportes",
+        href: "/soportes",
+        label: "Soportes",
         icon: "boxicons:buoy-filled",
       },
     ],
@@ -57,8 +57,8 @@ export const navSections: NavSection[] = [
     label: "Consultas y recursos",
     items: [
       {
-        href: "/buscador-usuarios",
-        label: "Buscador de usuarios",
+        href: "/usuarios",
+        label: "Usuarios",
         icon: "boxicons:group-filled",
       },
       {
@@ -72,13 +72,13 @@ export const navSections: NavSection[] = [
         icon: "boxicons:phone-filled",
       },
       {
-        href: "/enlaces-recursos",
-        label: "Enlaces y recursos",
+        href: "/recursos",
+        label: "Recursos",
         icon: "boxicons:link-filled",
         children: [
           {
-            href: "/catalogo-aplicativos",
-            label: "Catálogo de aplicativos",
+            href: "/recursos/aplicativos",
+            label: "Aplicativos",
             icon: "boxicons:link-filled",
           },
         ],
@@ -87,12 +87,12 @@ export const navSections: NavSection[] = [
   },
 
   {
-    id: "directorio-oficinas",
-    label: "Directorio de oficinas",
+    id: "oficinas",
+    label: "Oficinas",
     items: [
       {
-        href: "/directorio-oficinas",
-        label: "Directorio de oficinas",
+        href: "/oficinas",
+        label: "Oficinas",
         icon: "boxicons:building-filled",
       },
     ],
@@ -102,8 +102,8 @@ export const navSections: NavSection[] = [
     label: "Inventario",
     items: [
       {
-        href: "/inventario-equipos",
-        label: "Inventario de equipos",
+        href: "/inventario-terminales",
+        label: "Inventario de terminales",
         icon: "boxicons:desktop-filled",
       },
     ],
@@ -118,38 +118,38 @@ export const navSections: NavSection[] = [
         icon: "boxicons:apps-filled",
         children: [
           {
-            href: "/admin/users",
-            label: "Gestión de usuarios",
+            href: "/admin/usuarios",
+            label: "Usuarios",
             icon: "boxicons:group-filled",
           },
           {
-            href: "/admin/cubics",
-            label: "Gestión de cubics",
+            href: "/admin/inventario-terminales",
+            label: "Terminales",
             icon: "boxicons:server-filled",
           },
           {
-            href: "/admin/offices",
-            label: "Gestión de oficinas",
+            href: "/admin/oficinas",
+            label: "Oficinas",
             icon: "boxicons:building-filled",
           },
           {
-            href: "/admin/contacts",
-            label: "Gestión de contactos",
+            href: "/admin/contactos",
+            label: "Contactos",
             icon: "boxicons:phone-filled",
           },
           {
             href: "/admin/recursos",
-            label: "Gestión de recursos",
+            label: "Recursos",
             icon: "boxicons:link-filled",
           },
           {
             href: "/admin/operadores",
-            label: "Gestión de operadores",
+            label: "Operadores",
             icon: "boxicons:user-id-card-filled",
           },
           {
-            href: "/admin/logs",
-            label: "Registro de auditoría",
+            href: "/admin/auditoria",
+            label: "Auditoría",
             icon: "boxicons:history",
           },
         ],

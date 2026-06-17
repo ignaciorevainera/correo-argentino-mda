@@ -14,7 +14,7 @@ const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
-if (!["admin", "supervisor"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+if (!["admin", "supervisor", "team_leader"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
 
 const { id } = Astro.params;
 const isNew = id === "new";
@@ -140,14 +140,14 @@ if (Astro.request.method === "POST") {
 
       if (isNew) {
         await logAdminAction(user?.username || 'Sistema', `Creó el ordenador "${cubicData.name}"`);
-        return Astro.redirect(`${cleanBase}admin/cubics?toast_msg=${encodeURIComponent("Cubic creado con éxito.")}&toast_type=success`);
+        return Astro.redirect(`${cleanBase}admin/inventario-terminales?toast_msg=${encodeURIComponent("Cubic creado con éxito.")}&toast_type=success`);
       }
       if (oldName && oldName !== cubicData.name) {
         await logAdminAction(user?.username || 'Sistema', `Actualizó el ordenador ID ${cubicId} (de "${oldName}" a "${cubicData.name}")`);
       } else {
         await logAdminAction(user?.username || 'Sistema', `Actualizó el ordenador "${cubicData.name}" (ID ${cubicId})`);
       }
-      return Astro.redirect(`${cleanBase}admin/cubics?toast_msg=${encodeURIComponent("Cubic actualizado con éxito.")}&toast_type=success`);
+      return Astro.redirect(`${cleanBase}admin/inventario-terminales?toast_msg=${encodeURIComponent("Cubic actualizado con éxito.")}&toast_type=success`);
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")
@@ -181,7 +181,7 @@ if (!isNew) {
       },
     },
   });
-  if (!result) return Astro.redirect(`${cleanBase}admin/cubics`);
+  if (!result) return Astro.redirect(`${cleanBase}admin/inventario-terminales`);
   cubic = result as unknown as CubicRecord;
 }
 
@@ -217,11 +217,11 @@ for (const agent of allAgents) {
     {/* ── Breadcrumb / Volver ── */}
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/cubics`}
+        href={`${cleanBase}admin/inventario-terminales`}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
-        Gestión de cubics
+        Terminales
       </a>
       <span>/</span>
       <span class="text-base-content font-medium truncate">{pageTitle}</span>
@@ -410,7 +410,7 @@ for (const agent of allAgents) {
       {/* ── Acciones ── */}
       <div class="flex items-center justify-between gap-3 pt-1">
         <a
-          href={`${cleanBase}admin/cubics`}
+          href={`${cleanBase}admin/inventario-terminales`}
           class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
         >
           <Icon name="boxicons:arrow-left-filled" size={16} />

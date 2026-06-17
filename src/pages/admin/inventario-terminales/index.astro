@@ -11,7 +11,7 @@ const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
-if (!user || !["admin", "supervisor"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+if (!user || !["admin", "supervisor", "team_leader"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
@@ -29,12 +29,12 @@ if (Astro.request.method === "POST") {
         if (deleted) {
           const successMsg = `Ordenador "${deleted.name}" dado de baja con éxito.`;
           await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el ordenador "${deleted.name}"`);
-          return Astro.redirect(`${cleanBase}admin/cubics?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`);
+          return Astro.redirect(`${cleanBase}admin/inventario-terminales?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`);
         } else {
-          return Astro.redirect(`${cleanBase}admin/cubics?toast_msg=${encodeURIComponent("El ordenador indicado no existe.")}&toast_type=error`);
+          return Astro.redirect(`${cleanBase}admin/inventario-terminales?toast_msg=${encodeURIComponent("El ordenador indicado no existe.")}&toast_type=error`);
         }
       } catch (e) {
-        return Astro.redirect(`${cleanBase}admin/cubics?toast_msg=${encodeURIComponent("Error al eliminar el ordenador.")}&toast_type=error`);
+        return Astro.redirect(`${cleanBase}admin/inventario-terminales?toast_msg=${encodeURIComponent("Error al eliminar el ordenador.")}&toast_type=error`);
       }
     }
   }
