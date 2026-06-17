@@ -4,10 +4,24 @@ import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { db } from "@/db";
-import { cubics, users } from "@/db/schema";
+import { cubics, users, terminals } from "@/db/schema";
 import { sql } from "drizzle-orm";
 
 const execPromise = promisify(exec);
+
+function getNextSyncDate(): string {
+  const now = new Date();
+  const next = new Date(now);
+  if (now.getHours() < 5) {
+    next.setHours(5, 0, 0, 0);
+  } else if (now.getHours() < 17) {
+    next.setHours(17, 0, 0, 0);
+  } else {
+    next.setDate(next.getDate() + 1);
+    next.setHours(5, 0, 0, 0);
+  }
+  return next.toISOString();
+}
 
 export const GET: APIRoute = async ({ locals, url }) => {
   if (!locals.user) {
@@ -63,6 +77,16 @@ export const GET: APIRoute = async ({ locals, url }) => {
       // Si el archivo no existe, no hacemos nada (quedará en null)
     }
 
+    let lastSyncDB: string | null = null;
+    try {
+      const [syncResult] = await db
+        .select({ maxSync: sql<string>`max(${terminals.syncedAt})` })
+        .from(terminals);
+      lastSyncDB = syncResult?.maxSync || null;
+    } catch (dbError) {
+      console.error("[SyncStatus API] Error al consultar última sincronización en DB:", dbError);
+    }
+
     // 3. Consultar la fecha del último ping registrado en base de datos
     let lastPing: string | null = null;
     try {
@@ -78,9 +102,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
       JSON.stringify({
         sync: {
           status: syncProcess?.pm2_env?.status || "stopped",
-          lastExecution: lastSyncDetails?.lastExecution || null,
+          lastExecution: lastSyncDB || lastSyncDetails?.lastExecution || null,
           lastStatus: lastSyncDetails?.status || null,
           error: lastSyncDetails?.error || null,
+          nextExecution: getNextSyncDate(),
         },
         ping: {
           status: pingProcess?.pm2_env?.status || "stopped",
