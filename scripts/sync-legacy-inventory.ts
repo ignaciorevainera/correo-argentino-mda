@@ -101,7 +101,30 @@ async function upsertRecord(
   record: TerminalRecord,
   syncedAt: string,
 ): Promise<void> {
-  const searchableText = normalizeSearchValue([record.hostname, record.ipAddress, record.macAddress].filter(Boolean).join(" "));
+  let displayArch = "";
+  if (record.osArchitecture) {
+    if (record.osArchitecture.includes("64")) {
+      displayArch = "64 bits";
+    } else if (record.osArchitecture.includes("32") || record.osArchitecture.includes("86")) {
+      displayArch = "32 bits";
+    } else {
+      displayArch = record.osArchitecture;
+    }
+  }
+
+  const textToSearch = [
+    record.hostname,
+    record.ipAddress,
+    record.macAddress,
+    record.manufacturer,
+    record.model,
+    record.serialNumber,
+    record.operatingSystem,
+    record.osArchitecture,
+    displayArch,
+    record.ram
+  ].filter(Boolean).join(" ");
+  const searchableText = normalizeSearchValue(textToSearch);
 
   await db
     .insert(terminals)
