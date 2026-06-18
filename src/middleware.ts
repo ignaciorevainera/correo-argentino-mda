@@ -75,10 +75,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   locals.user = currentUser;
 
-  // Redirigir si no está autenticado e intenta acceder a supervisión o admin
+  const lowerPath = relativePath.toLowerCase();
+
+  // Proteger endpoints de API para usuarios no autenticados
   if (
-    relativePath === "/supervision" || relativePath.startsWith("/supervision/") ||
-    relativePath === "/admin" || relativePath.startsWith("/admin/")
+    lowerPath.startsWith("/api/cronograma") ||
+    lowerPath.startsWith("/api/disponibilidad") ||
+    lowerPath.startsWith("/api/asistencia") ||
+    lowerPath.startsWith("/api/calidad") ||
+    lowerPath.startsWith("/api/admin")
+  ) {
+    if (currentUser.id === 0) {
+      return new Response(JSON.stringify({ error: "Sesión no iniciada" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  // Redirigir si no está autenticado e intenta acceder a supervisión o admin (insensible a mayúsculas/minúsculas)
+  if (
+    lowerPath === "/supervision" || lowerPath.startsWith("/supervision/") ||
+    lowerPath === "/admin" || lowerPath.startsWith("/admin/")
   ) {
     if (currentUser.id === 0) {
       return redirect(resolveUrl("/login"));
