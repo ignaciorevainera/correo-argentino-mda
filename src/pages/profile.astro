@@ -5,9 +5,12 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 import { rolesMatrix } from "@lib/rolesMatrix";
 
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
 const user = Astro.locals.user;
-if (!user) {
-  return Astro.redirect("/login");
+if (!user || user.id === 0) {
+  return Astro.redirect(`${cleanBase}login`);
 }
 
 const roleLabelMap: Record<string, string> = {
