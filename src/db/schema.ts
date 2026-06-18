@@ -195,6 +195,7 @@ export const officeAssetsRelations = relations(officeAssets, ({ one }) => ({
 export const regions = sqliteTable("regions", {
   id: text("id").primaryKey(), // Ej: 'SUR'
   name: text("name").notNull(),
+  color: text("color"), // Hex color for map legend, ej: '#003B71'
 });
 
 export const provinces = sqliteTable("provinces", {

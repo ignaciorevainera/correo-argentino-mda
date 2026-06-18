@@ -30,6 +30,7 @@ export const GET: APIRoute = async () => {
         name: provinces.name,
         regionId: provinces.regionId,
         regionName: regions.name,
+        regionColor: regions.color,
       })
       .from(provinces)
       .leftJoin(regions, eq(provinces.regionId, regions.id))
@@ -42,7 +43,12 @@ export const GET: APIRoute = async () => {
       provincesByRegion[rName].push({ code: p.code, name: p.name });
     }
 
-    return new Response(JSON.stringify({ sucursales, provincesByRegion }), {
+    const allRegions = await db
+      .select({ id: regions.id, name: regions.name, color: regions.color })
+      .from(regions)
+      .orderBy(regions.name);
+
+    return new Response(JSON.stringify({ sucursales, provincesByRegion, regions: allRegions }), {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",

@@ -15,6 +15,7 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
 import OfficeForm from "@components/admin/OfficeForm.astro";
+import { officeFormSchema } from "@lib/validations";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -43,26 +44,64 @@ if (Astro.request.method === "POST") {
       officeType = "NO_AUTOMATIZADA";
     }
 
-    const officeData = {
-      code: fd.get("code")?.toString().trim() ?? "",
-      name: fd.get("name")?.toString().trim() ?? "",
-      type: type,
-      officeType: officeType,
-      provinceCode: fd.get("provinceCode")?.toString().trim() ?? "",
-      address: fd.get("address")?.toString().trim() || null,
-      locality: fd.get("locality")?.toString().trim() || null,
-      county: fd.get("county")?.toString().trim() || null,
-      zone: fd.get("zone")?.toString().trim() || null,
-      email: fd.get("email")?.toString().trim() || null,
-      notes: fd.get("notes")?.toString().trim() || null,
-      parentNis: fd.get("parentNis")?.toString().trim() || null,
-      paqarAdmision: fd.get("paqarAdmision") === "on",
-      paqarEntrega: fd.get("paqarEntrega") === "on",
+    const valStr = (key: string) => {
+      const val = fd.get(key)?.toString().trim();
+      return val ? val : null;
     };
 
-    if (!officeData.code || !officeData.name) {
-      errorMsg = "Código y nombre son obligatorios.";
+    const rawData = {
+      code: valStr("code") ?? "",
+      name: valStr("name") ?? "",
+      type: type,
+      officeType: officeType,
+      provinceCode: valStr("provinceCode") ?? "",
+      address: valStr("address"),
+      locality: valStr("locality"),
+      county: valStr("county"),
+      zone: valStr("zone"),
+      email: valStr("email"),
+      notes: valStr("notes"),
+      parentNis: valStr("parentNis"),
+      enRed: fd.get("enRed") === "on",
+      paqarAdmision: fd.get("paqarAdmision") === "on",
+      paqarEntrega: fd.get("paqarEntrega") === "on",
+      payroll: fd.get("payroll") === "on",
+      taxExempt: fd.get("taxExempt") === "on",
+      division: valStr("division"),
+      company: valStr("company"),
+      warehouse: valStr("warehouse"),
+      profitCenter: valStr("profitCenter"),
+      cctAdminOffice: valStr("cctAdminOffice"),
+      ccCommercial: valStr("ccCommercial"),
+      ccCommercialCorp: valStr("ccCommercialCorp"),
+      ccElectoral: valStr("ccElectoral"),
+      ccNetworkMgmt: valStr("ccNetworkMgmt"),
+      ccOperations: valStr("ccOperations"),
+      ccOperational: valStr("ccOperational"),
+      ccHr: valStr("ccHr"),
+      ccSecurity: valStr("ccSecurity"),
+      ccAdmin: valStr("ccAdmin"),
+      ccAdmission: valStr("ccAdmission"),
+      ccCtp: valStr("ccCtp"),
+      ccCtt: valStr("ccCtt"),
+      ccTransport: valStr("ccTransport"),
+      ccLogistics: valStr("ccLogistics"),
+      posAutoAuto: valStr("posAutoAuto"),
+      posCurrentAccount: valStr("posCurrentAccount"),
+      posManual: valStr("posManual"),
+      posManualAuto: valStr("posManualAuto"),
+      posPlantaMg: valStr("posPlantaMg"),
+      posVirtual: valStr("posVirtual"),
+      posAutoAuto2: valStr("posAutoAuto2"),
+      posSapTerminal: valStr("posSapTerminal"),
+    };
+
+    const parsed = officeFormSchema.safeParse(rawData);
+
+    if (!parsed.success) {
+      errorMsg = parsed.error.issues.map((i) => i.message).join(", ");
     } else {
+      const officeData = parsed.data;
       let officeId: number;
 
       let oldName = "";
@@ -189,11 +228,41 @@ type OfficeRecord = {
   locality?: string | null;
   county?: string | null;
   zone?: string | null;
-  paqarAdmision?: boolean | null;
-  paqarEntrega?: boolean | null;
   email: string | null;
   notes: string | null;
   parentNis: string | null;
+  enRed?: boolean | null;
+  paqarAdmision?: boolean | null;
+  paqarEntrega?: boolean | null;
+  payroll?: boolean | null;
+  taxExempt?: boolean | null;
+  division?: string | null;
+  company?: string | null;
+  warehouse?: string | null;
+  profitCenter?: string | null;
+  cctAdminOffice?: string | null;
+  ccCommercial?: string | null;
+  ccCommercialCorp?: string | null;
+  ccElectoral?: string | null;
+  ccNetworkMgmt?: string | null;
+  ccOperations?: string | null;
+  ccOperational?: string | null;
+  ccHr?: string | null;
+  ccSecurity?: string | null;
+  ccAdmin?: string | null;
+  ccAdmission?: string | null;
+  ccCtp?: string | null;
+  ccCtt?: string | null;
+  ccTransport?: string | null;
+  ccLogistics?: string | null;
+  posAutoAuto?: string | null;
+  posCurrentAccount?: string | null;
+  posManual?: string | null;
+  posManualAuto?: string | null;
+  posPlantaMg?: string | null;
+  posVirtual?: string | null;
+  posAutoAuto2?: string | null;
+  posSapTerminal?: string | null;
   contacts: {
     role: string | null;
     timeSlot: string | null;

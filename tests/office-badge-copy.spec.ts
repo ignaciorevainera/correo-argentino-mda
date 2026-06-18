@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Office badge copy behavior", () => {
-  test("clicking the office code badge copies text and does not expand row", async ({ page }) => {
+  test("clicking the office code badge copies text, shows toast, and does not expand row", async ({ page }) => {
     await page.goto("/oficinas");
     await page.waitForSelector("[data-master-detail-sort-item]");
 
@@ -16,25 +16,18 @@ test.describe("Office badge copy behavior", () => {
     // Click the badge to trigger copy
     await badge.click();
 
-    // Wait for the success feedback (ring-success class appears on the button)
-    await expect(badge).toHaveClass(/ring-success/);
+    // Verify toast notification appears with the copied NIS message
+    const toastContainer = page.locator("#global-toast-container");
+    await expect(toastContainer).toContainText(/NIS .+ copiado al portapapeles/);
 
     // Verify row was NOT toggled (aria-expanded unchanged)
     const rowAriaExpandedAfter = await row.getAttribute("aria-expanded");
     expect(rowAriaExpandedAfter).toBe(rowAriaExpandedBefore);
 
-    // Verify the checkmark icon is visible after click
-    const checkIcon = badge.locator("[data-copy-icon-success]");
-    await expect(checkIcon).toBeVisible();
-
-    // Wait for the feedback timeout (1800ms + buffer)
-    await page.waitForTimeout(2200);
-
-    // Verify the checkmark icon is hidden again after reset
-    await expect(checkIcon).toBeHidden();
-
-    // Verify the label text is visible again (not invisible)
-    const label = badge.locator("[data-copy-label]");
-    await expect(label).not.toHaveClass(/invisible/);
+    // Toast should disappear after the 3000ms timeout
+    const toast = toastContainer.locator(".alert");
+    await expect(toast).toHaveCount(1);
+    await page.waitForTimeout(3200);
+    await expect(toast).toHaveCount(0);
   });
 });

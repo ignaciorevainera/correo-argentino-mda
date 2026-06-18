@@ -190,7 +190,7 @@ const tooltipClasses = [
   ) : feedbackOnly ? (
     <button
       type="button"
-      class:list={["btn", valueButtonClasses, "relative"]}
+      class:list={["btn", valueButtonClasses]}
       data-copy-control
       data-copy-value={value}
       data-copy-label-default={buttonLabel}
@@ -208,16 +208,6 @@ const tooltipClasses = [
         data-highlight-target={highlightable ? "" : undefined}
       >
         {buttonLabel}
-      </span>
-
-      <span class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-        <Icon
-          name="boxicons:check-filled"
-          size={20}
-          class="hidden scale-75 opacity-0 text-success transition-all duration-200"
-          data-copy-icon-success
-          aria-hidden="true"
-        />
       </span>
     </button>
   ) : (
@@ -335,6 +325,16 @@ const tooltipClasses = [
 
       control.blur();
 
+      const isFeedbackOnly = control.hasAttribute("data-feedback-only");
+
+      if (isFeedbackOnly) {
+        const toastMsg =
+          control.dataset.copyLabelSuccess ||
+          `${value} copiado al portapapeles`;
+        (window as any).showToast?.(toastMsg, "alert-success");
+        return;
+      }
+
       const label =
         control.querySelector<HTMLElement>("[data-copy-label]");
       const defaultIcons = Array.from(
@@ -345,7 +345,6 @@ const tooltipClasses = [
       );
       const shouldReplaceLabel =
         control.dataset.copyReplaceLabel === "true";
-      const isFeedbackOnly = control.hasAttribute("data-feedback-only");
 
       if (shouldReplaceLabel) {
         label?.replaceChildren(
@@ -369,10 +368,6 @@ const tooltipClasses = [
         icon.classList.remove("hidden", "opacity-0", "scale-75");
         icon.classList.add("scale-100", "opacity-100");
       });
-
-      if (isFeedbackOnly && label) {
-        label.classList.add("invisible");
-      }
 
       const existingTimer = copyTimers.get(control);
       if (existingTimer !== undefined) {
@@ -402,10 +397,6 @@ const tooltipClasses = [
           icon.classList.add("hidden", "opacity-0", "scale-75");
           icon.classList.remove("scale-100", "opacity-100");
         });
-
-        if (isFeedbackOnly && label) {
-          label.classList.remove("invisible");
-        }
 
         copyTimers.delete(control);
       }, 1800);
