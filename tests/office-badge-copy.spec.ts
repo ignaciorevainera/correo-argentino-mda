@@ -1,6 +1,29 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Office badge copy behavior", () => {
+  test("clicking the chevron button toggles the row detail", async ({ page }) => {
+    await page.goto("/oficinas");
+    await page.waitForSelector("[data-master-detail-sort-item]");
+
+    // Find the first chevron toggle button
+    const chevron = page.locator("[data-chevron-toggle]").first();
+    await expect(chevron).toBeVisible();
+
+    // Find the parent row
+    const row = page.locator("[data-office-master-row]").first();
+
+    // Row should start collapsed
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+
+    // Click the chevron to expand
+    await chevron.click();
+    await expect(row).toHaveAttribute("aria-expanded", "true");
+
+    // Click the chevron to collapse
+    await chevron.click();
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("clicking the office code badge copies text, shows toast, and does not expand row", async ({ page }) => {
     await page.goto("/oficinas");
     await page.waitForSelector("[data-master-detail-sort-item]");

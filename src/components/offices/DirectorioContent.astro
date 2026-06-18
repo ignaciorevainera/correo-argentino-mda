@@ -553,28 +553,31 @@ const mainTabs = [
   });
 
   const bindRowEvents = (parent: HTMLElement | Document = document) => {
-    const masterRows = Array.from(
-      parent.querySelectorAll<HTMLElement>("[data-office-master-row]"),
+    const toggleButtons = Array.from(
+      parent.querySelectorAll<HTMLElement>("[data-chevron-toggle]"),
     );
 
-    masterRows.forEach((row) => {
-      if (row.dataset.eventsBound === "true") return;
-      row.dataset.eventsBound = "true";
+    toggleButtons.forEach((btn) => {
+      if (btn.dataset.eventsBound === "true") return;
+      btn.dataset.eventsBound = "true";
 
-      const officeId = row.dataset.officeId ?? "";
+      const masterRow = btn.closest<HTMLElement>("[data-office-master-row]");
+      if (!masterRow) return;
+
+      const officeId = masterRow.dataset.officeId ?? "";
       const detailRow = document.querySelector<HTMLElement>(
         `[data-office-detail-row][data-office-id="${officeId}"]`,
       );
 
       const toggleRow = (): void => {
-        const isExpanded = row.getAttribute("aria-expanded") === "true";
+        const isExpanded = masterRow.getAttribute("aria-expanded") === "true";
         const newExpanded = !isExpanded;
 
-        row.classList.toggle("bg-base-200/70", newExpanded);
-        row.setAttribute("aria-expanded", newExpanded ? "true" : "false");
+        masterRow.classList.toggle("bg-base-200/70", newExpanded);
+        masterRow.setAttribute("aria-expanded", newExpanded ? "true" : "false");
 
-        const openIcon = row.querySelector<HTMLElement>("[data-chevron-open]");
-        const closedIcon = row.querySelector<HTMLElement>(
+        const openIcon = masterRow.querySelector<HTMLElement>("[data-chevron-open]");
+        const closedIcon = masterRow.querySelector<HTMLElement>(
           "[data-chevron-closed]",
         );
 
@@ -583,17 +586,7 @@ const mainTabs = [
         detailRow?.classList.toggle("hidden", !newExpanded);
       };
 
-      row.addEventListener("click", (e) => {
-        const target = e.target as HTMLElement;
-        if (target.closest("[data-copy-control]")) return;
-        toggleRow();
-      });
-      row.addEventListener("keydown", (event) => {
-        const shouldToggle = event.key === "Enter" || event.key === " ";
-        if (!shouldToggle) return;
-        event.preventDefault();
-        toggleRow();
-      });
+      btn.addEventListener("click", toggleRow);
     });
   };
 
