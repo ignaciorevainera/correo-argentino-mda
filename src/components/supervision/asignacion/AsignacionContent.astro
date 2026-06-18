@@ -308,24 +308,26 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     </div>
   </div>
 
-  {
-    flashMessage && (
-      <div
-        class={`alert mb-6 shadow-md ${flashMessage.type === "success" ? "alert-success" : "alert-error"}`}
-        role="alert"
-      >
-        <Icon
-          name={
-            flashMessage.type === "success"
-              ? "boxicons:check-circle"
-              : "boxicons:alert-octagon-filled"
-          }
-          size={20}
-        />
-        <span>{flashMessage.text}</span>
-      </div>
-    )
-  }
+  <div id="alert-container">
+    {
+      flashMessage && (
+        <div
+          class={`alert mb-6 shadow-md ${flashMessage.type === "success" ? "alert-success" : "alert-error"}`}
+          role="alert"
+        >
+          <Icon
+            name={
+              flashMessage.type === "success"
+                ? "boxicons:check-circle"
+                : "boxicons:alert-octagon-filled"
+            }
+            size={20}
+          />
+          <span>{flashMessage.text}</span>
+        </div>
+      )
+    }
+  </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     <!-- Card Disponibles -->
@@ -457,16 +459,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         >
       </label>
     </div>
-    <form method="POST" class="m-0">
-      <input type="hidden" name="action" value="assign_cyclic" />
+    <div class="m-0">
       <button
-        type="submit"
+        id="btn-assign-cyclic"
+        type="button"
         class="btn btn-primary btn-md shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-300"
       >
         <Icon name="boxicons:user-check" size={20} aria-hidden="true" />
         Asignar Siguiente (Cíclico)
       </button>
-    </form>
+    </div>
   </div>
 
   <DataTable
@@ -633,11 +635,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               class="flex items-center justify-end gap-2"
               data-op-actions={op.agentId}
             >
-              <form method="POST" class="m-0">
-                <input type="hidden" name="action" value="assign_manual" />
-                <input type="hidden" name="agentId" value={op.agentId} />
+              <div class="m-0">
                 <button
-                  type="submit"
+                  type="button"
                   class="btn btn-secondary btn-xs btn-soft font-bold uppercase tracking-wider"
                   data-op-assign-btn={op.agentId}
                   title={`Asignar autogestión a ${op.nombre}`}
@@ -645,7 +645,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                 >
                   Asignar
                 </button>
-              </form>
+              </div>
 
               <div data-op-exception-container={op.agentId} class="relative">
                 {op.estadoExcepcional ? (
@@ -1087,7 +1087,24 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       updateVisibility();
     };
 
-    // Event delegation for exceptional states
+    const showAlert = (type: "success" | "error", message: string) => {
+      const alertContainer = document.getElementById("alert-container");
+      if (!alertContainer) return;
+
+      const alertClass = type === "success" ? "alert-success" : "alert-error";
+      const iconSvg = type === "success"
+        ? `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+        : `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+
+      alertContainer.innerHTML = `
+        <div class="alert mb-6 shadow-md ${alertClass}" role="alert">
+          ${iconSvg}
+          <span>${message}</span>
+        </div>
+      `;
+    };
+
+    // Event delegation for exceptional states and assignments
     document.addEventListener("click", async (e) => {
       const target = e.target as HTMLElement;
 
@@ -1232,6 +1249,60 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             console.error(err);
           } finally {
             liftBtn.removeAttribute("disabled");
+          }
+        }
+        return;
+      }
+
+      // 3. Cyclic assign
+      const assignCyclicBtn = target.closest("#btn-assign-cyclic");
+      if (assignCyclicBtn) {
+        assignCyclicBtn.setAttribute("disabled", "true");
+        try {
+          const res = await fetch("/api/disponibilidad/asignar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+          const data = await res.json();
+          if (res.ok && data.success && data.agent) {
+            showAlert("success", `Autogestión asignada cíclicamente a ${data.agent.nombre || data.agent.name}.`);
+            await fetchDisponibilidad();
+          } else {
+            showAlert("error", data.error || "No hay operadores disponibles o dentro de horario operativo para asignar.");
+          }
+        } catch (err: any) {
+          console.error(err);
+          showAlert("error", `Ocurrió un error al procesar la asignación cíclica: ${err.message || err}`);
+        } finally {
+          assignCyclicBtn.removeAttribute("disabled");
+        }
+        return;
+      }
+
+      // 4. Manual assign
+      const assignManualBtn = target.closest("[data-op-assign-btn]");
+      if (assignManualBtn) {
+        const agentId = Number(assignManualBtn.getAttribute("data-op-assign-btn"));
+        if (!isNaN(agentId)) {
+          assignManualBtn.setAttribute("disabled", "true");
+          try {
+            const res = await fetch("/api/disponibilidad/asignar-manual", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ agentId }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showAlert("success", `Autogestión asignada manualmente a ${data.agentName}.`);
+              await fetchDisponibilidad();
+            } else {
+              showAlert("error", data.error || "No se pudo realizar la asignación manual.");
+            }
+          } catch (err: any) {
+            console.error(err);
+            showAlert("error", `Ocurrió un error al procesar la asignación manual: ${err.message || err}`);
+          } finally {
+            assignManualBtn.removeAttribute("disabled");
           }
         }
         return;
