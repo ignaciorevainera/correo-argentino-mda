@@ -29,7 +29,12 @@ export const GET: APIRoute = async ({ url }) => {
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     const { id, weekendStartDate, agentId, date, startTime, endTime } = await request.json();
     if (!weekendStartDate || !agentId || !date || !startTime || !endTime) {
@@ -61,7 +66,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ url, request }) => {
+export const DELETE: APIRoute = async ({ url, request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     // Support id from URL query param (e.g. DELETE /shifts?id=5) or from body
     let id: number | undefined;
@@ -97,7 +105,10 @@ export const DELETE: APIRoute = async ({ url, request }) => {
 };
 
 // PUT: explicit update alias (same as POST with id)
-export const PUT: APIRoute = async ({ request }) => {
+export const PUT: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     const { id, agentId, date, startTime, endTime } = await request.json();
     if (!id || !agentId || !date || !startTime || !endTime) {

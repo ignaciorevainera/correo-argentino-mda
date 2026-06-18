@@ -6,7 +6,12 @@ import { and, eq } from "drizzle-orm";
 const MONTH_REGEX = /^\d{4}-\d{2}$/;
 const VALID_GROUPS = ["A", "B", "C", "D"];
 
-export const POST: APIRoute = async ({ request }) => {
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     let body;
     try {

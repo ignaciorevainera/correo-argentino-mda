@@ -68,7 +68,12 @@ export const GET: APIRoute = async ({ url }) => {
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     let body;
     try {

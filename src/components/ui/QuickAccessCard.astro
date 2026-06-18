@@ -8,6 +8,7 @@ interface Props {
   icon: string;
   iconTone?: string;
   locked?: boolean;
+  comingSoon?: boolean;
 }
 
 const {
@@ -17,6 +18,7 @@ const {
   icon,
   iconTone = "bg-secondary/10 text-secondary",
   locked = false,
+  comingSoon = false,
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL || "/";
@@ -30,16 +32,16 @@ const resolvedHref =
     ? href
     : `${cleanBase}${href.startsWith("/") ? href.slice(1) : href}`;
 
-const Wrapper = locked ? "div" : "a";
+const Wrapper = (locked || comingSoon) ? "div" : "a";
 ---
 
 <Wrapper
-  {...!locked
+  {...!(locked || comingSoon)
     ? { href: resolvedHref, "aria-label": `Abrir ${title}` }
-    : { "aria-label": `${title} (Restringido)` }}
+    : { "aria-label": `${title} (${comingSoon ? "Próximamente" : "Restringido"})` }}
   class:list={[
     "card card-compact bg-base-100 border border-base-300 h-full shadow-md",
-    locked
+    (locked || comingSoon)
       ? "opacity-40 grayscale cursor-not-allowed select-none"
       : "transition-all duration-300 hover:-translate-y-1 hover:border-primary group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
   ]}
@@ -55,7 +57,7 @@ const Wrapper = locked ? "div" : "a";
       <Icon
         name={icon}
         size={32}
-        class={locked
+        class={(locked || comingSoon)
           ? ""
           : "transition-transform duration-300 group-hover:scale-110"}
       />
@@ -70,7 +72,9 @@ const Wrapper = locked ? "div" : "a";
     </p>
     <div class="card-actions mt-2 justify-end">
       {
-        locked ? (
+        comingSoon ? (
+          <span class="badge badge-warning font-bold">Próximamente</span>
+        ) : locked ? (
           <Icon
             name="boxicons:lock"
             size={24}

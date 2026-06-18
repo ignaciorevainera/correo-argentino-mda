@@ -4,7 +4,12 @@ import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
 
-export const POST: APIRoute = async ({ request }) => {
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "asignacion_ag");
+  if (denied) return denied;
+
   try {
     const { agentId } = await request.json();
 

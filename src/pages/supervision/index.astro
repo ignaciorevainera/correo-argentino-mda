@@ -12,6 +12,13 @@ const isLocked = (href: string) => {
   return !hasPermission(href, role);
 };
 
+const isComingSoon = (href: string) => {
+  if (href === "/supervision/asistencia") {
+    return !["admin", "supervisor", "team_leader"].includes(role);
+  }
+  return false;
+};
+
 const supervisionTools = [
   {
     title: "Cronograma",
@@ -54,16 +61,21 @@ const supervisionTools = [
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {
-        supervisionTools.map((tool) => (
-          <QuickAccessCard
-            href={tool.href}
-            title={tool.title}
-            description={tool.description}
-            icon={tool.icon}
-            iconTone={tool.iconTone}
-            locked={isLocked(tool.href)}
-          />
-        ))
+        supervisionTools.map((tool) => {
+          const comingSoon = isComingSoon(tool.href);
+          const locked = !comingSoon && isLocked(tool.href);
+          return (
+            <QuickAccessCard
+              href={tool.href}
+              title={tool.title}
+              description={tool.description}
+              icon={tool.icon}
+              iconTone={tool.iconTone}
+              locked={locked}
+              comingSoon={comingSoon}
+            />
+          );
+        })
       }
     </div>
   </PageContainer>

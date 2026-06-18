@@ -10,12 +10,19 @@ import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
 import HolidaysModal from "./subcomponents/HolidaysModal.astro";
 import DailyTableSkeleton from "./subcomponents/DailyTableSkeleton.astro";
 import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
+
+interface Props {
+  userRole?: string;
+}
+
+const { userRole = "agent" } = Astro.props;
 ---
 
-<div
-  id="cronograma-container"
-  class="animate-in fade-in duration-700 w-full pb-12 space-y-8"
->
+<div id="cronograma-app-container" data-user-role={userRole}>
+  <div
+    id="cronograma-container"
+    class="animate-in fade-in duration-700 w-full pb-12 space-y-8"
+  >
   <div class="w-full flex flex-col gap-6">
     <div
       class="flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -706,6 +713,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
         </div>
         <!-- Configuration form -->
         <div
+          id="rotation-config-card"
           class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60 shadow-sm"
         >
           <form
@@ -812,7 +820,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
                 id="group-A-list"
               >
               </div>
-              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5 add-member-container">
                 <label
                   class="text-tiny font-black uppercase tracking-wider text-base-content/40"
                   >Agregar Operador</label
@@ -858,7 +866,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
                 id="group-B-list"
               >
               </div>
-              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5 add-member-container">
                 <label
                   class="text-tiny font-black uppercase tracking-wider text-base-content/40"
                   >Agregar Operador</label
@@ -904,7 +912,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
                 id="group-C-list"
               >
               </div>
-              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5 add-member-container">
                 <label
                   class="text-tiny font-black uppercase tracking-wider text-base-content/40"
                   >Agregar Operador</label
@@ -950,7 +958,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
                 id="group-D-list"
               >
               </div>
-              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5">
+              <div class="border-t border-base-300 pt-3 flex flex-col gap-1.5 add-member-container">
                 <label
                   class="text-tiny font-black uppercase tracking-wider text-base-content/40"
                   >Agregar Operador</label
@@ -1173,6 +1181,10 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
         >
           <option value="">Sin asignar</option>
         </select>
+        <span
+          id="overtime-referente-text"
+          class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
+        ></span>
       </div>
 
       <button
@@ -1226,7 +1238,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
     </div>
 
     <!-- Add shift form -->
-    <div class="space-y-3">
+    <div class="space-y-3" id="overtime-add-shift-section">
       <p
         class="text-tiny font-black uppercase tracking-wider text-base-content/40"
       >
@@ -1366,6 +1378,10 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
           >
             <option value="">SIN OPERADOR</option>
           </select>
+          <span
+            id="pasiva-monthly-operator-text"
+            class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
+          ></span>
         </div>
       </div>
     </div>
@@ -1722,6 +1738,7 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
     </form>
   </div>
 </dialog>
+</div>
 
 <style is:global>
   #edit-mode-toolbar {
@@ -2188,6 +2205,102 @@ import MonthlyTableSkeleton from "./subcomponents/MonthlyTableSkeleton.astro";
     border-color: rgba(168, 85, 247, 0.8) !important;
     box-shadow: 0 0 8px rgba(168, 85, 247, 0.3) !important;
     transform: translateY(-1px);
+  }
+
+  /* ==========================================
+     RBAC - ESTILOS DE SOLO LECTURA
+     ========================================== */
+  
+  /* Ocultar botones globales de edición y carga */
+  #cronograma-app-container[data-user-role="agent"] #toggle-edit-mode-btn,
+  #cronograma-app-container[data-user-role="referent"] #toggle-edit-mode-btn,
+  #cronograma-app-container[data-user-role="agent"] #import-csv-btn,
+  #cronograma-app-container[data-user-role="referent"] #import-csv-btn,
+  #cronograma-app-container[data-user-role="agent"] #add-month-btn,
+  #cronograma-app-container[data-user-role="referent"] #add-month-btn,
+  #cronograma-app-container[data-user-role="agent"] #delete-month-btn,
+  #cronograma-app-container[data-user-role="referent"] #delete-month-btn,
+  #cronograma-app-container[data-user-role="agent"] #config-rules-btn,
+  #cronograma-app-container[data-user-role="referent"] #config-rules-btn,
+  #cronograma-app-container[data-user-role="agent"] #open-holidays-modal,
+  #cronograma-app-container[data-user-role="referent"] #open-holidays-modal,
+  #cronograma-app-container[data-user-role="agent"] #open-new-op-modal,
+  #cronograma-app-container[data-user-role="referent"] #open-new-op-modal,
+  #cronograma-app-container[data-user-role="agent"] .edit-op-btn,
+  #cronograma-app-container[data-user-role="referent"] .edit-op-btn,
+  #cronograma-app-container[data-user-role="agent"] .delete-op-btn,
+  #cronograma-app-container[data-user-role="referent"] .delete-op-btn {
+    display: none !important;
+  }
+
+  /* Ocultar la configuración de rotación de Grupos */
+  #cronograma-app-container[data-user-role="agent"] #rotation-config-card,
+  #cronograma-app-container[data-user-role="referent"] #rotation-config-card {
+    display: none !important;
+  }
+
+  /* Ocultar acciones lápiz/cruz y la sección de Agregar operador en Grupos */
+  #cronograma-app-container[data-user-role="agent"] .remove-member-btn,
+  #cronograma-app-container[data-user-role="referent"] .remove-member-btn,
+  #cronograma-app-container[data-user-role="agent"] .edit-member-schedule-btn,
+  #cronograma-app-container[data-user-role="referent"] .edit-member-schedule-btn,
+  #cronograma-app-container[data-user-role="agent"] .add-member-container,
+  #cronograma-app-container[data-user-role="referent"] .add-member-container {
+    display: none !important;
+  }
+
+  /* Ocultar elementos de escritura en la vista de Pasivas y Extras */
+  #cronograma-app-container[data-user-role="agent"] #guardia-config-form,
+  #cronograma-app-container[data-user-role="referent"] #guardia-config-form,
+  #cronograma-app-container[data-user-role="agent"] #overtime-shift-form,
+  #cronograma-app-container[data-user-role="referent"] #overtime-shift-form,
+  #cronograma-app-container[data-user-role="agent"] #overtime-add-shift-section,
+  #cronograma-app-container[data-user-role="referent"] #overtime-add-shift-section,
+  #cronograma-app-container[data-user-role="agent"] #save-overtime-referente-btn,
+  #cronograma-app-container[data-user-role="referent"] #save-overtime-referente-btn,
+  #cronograma-app-container[data-user-role="agent"] .overtime-delete-shift-btn,
+  #cronograma-app-container[data-user-role="referent"] .overtime-delete-shift-btn {
+    display: none !important;
+  }
+
+  /* Mostrar texto plano en vez de select para operador del mes en Pasivas y referente en Extras */
+  #cronograma-app-container[data-user-role="agent"] #pasiva-monthly-operator-select,
+  #cronograma-app-container[data-user-role="referent"] #pasiva-monthly-operator-select,
+  #cronograma-app-container[data-user-role="agent"] #overtime-referente-select,
+  #cronograma-app-container[data-user-role="referent"] #overtime-referente-select {
+    display: none !important;
+  }
+  #cronograma-app-container[data-user-role="agent"] #pasiva-monthly-operator-text,
+  #cronograma-app-container[data-user-role="referent"] #pasiva-monthly-operator-text,
+  #cronograma-app-container[data-user-role="agent"] #overtime-referente-text,
+  #cronograma-app-container[data-user-role="referent"] #overtime-referente-text {
+    display: flex !important;
+  }
+
+  /* Deshabilitar interacciones en el modal de detalle del día */
+  #cronograma-app-container[data-user-role="agent"] #monthly-detail-schedule-container,
+  #cronograma-app-container[data-user-role="referent"] #monthly-detail-schedule-container {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+  #cronograma-app-container[data-user-role="agent"] #monthly-detail-schedule-text,
+  #cronograma-app-container[data-user-role="referent"] #monthly-detail-schedule-text {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  #cronograma-app-container[data-user-role="agent"] #monthly-detail-break-section input,
+  #cronograma-app-container[data-user-role="referent"] #monthly-detail-break-section input {
+    pointer-events: none !important;
+    background-color: var(--color-base-200) !important;
+    border-color: transparent !important;
+    cursor: default !important;
+  }
+
+  /* Privacidad: ocultar sección de comentarios en el modal de detalle */
+  #cronograma-app-container[data-user-role="agent"] #monthly-detail-comment-section,
+  #cronograma-app-container[data-user-role="referent"] #monthly-detail-comment-section {
+    display: none !important;
   }
 </style>
 

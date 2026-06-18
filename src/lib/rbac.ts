@@ -27,8 +27,10 @@ export const routePermissions: RoutePermission[] = [
   { path: "/admin/auditoria", roles: ["admin"] },
   { path: "/admin", roles: ["admin", "supervisor", "team_leader"] },
   { path: "/supervision/asistencia", roles: ["admin", "supervisor", "team_leader"] },
-  { path: "/supervision/cronograma", roles: ["admin", "supervisor"] },
-  { path: "/supervision", roles: ["admin", "supervisor", "team_leader", "referent"] },
+  { path: "/supervision/cronograma", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
+  { path: "/supervision/calidad-operadores", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
+  { path: "/supervision/asignacion-autogestiones", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
+  { path: "/supervision", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
@@ -49,4 +51,57 @@ export function hasPermission(path: string, userRole: string): boolean {
     return userRank >= allowedRank;
   });
 }
+
+export interface ModulePermission {
+  canRead: boolean;
+  canWrite: boolean;
+  canViewAll: boolean;      // Ver datos de todos los operadores
+  canViewComments: boolean; // Ver comentarios detallados en Cronograma
+  canViewTotals: boolean;   // Ver columnas totales P/HO/L
+}
+
+export function getModulePermissions(moduleName: string, userRole: string): ModulePermission {
+  const role = normalizeRole(userRole);
+  const rank = ROLE_HIERARCHY[role] || 0;
+
+  // Default block
+  const perm: ModulePermission = {
+    canRead: false,
+    canWrite: false,
+    canViewAll: true,
+    canViewComments: true,
+    canViewTotals: true,
+  };
+
+  if (moduleName === "cronograma") {
+    // Todos leen
+    perm.canRead = true;
+    // Escriben: admin, supervisor, team_leader
+    perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
+    // Ocultar totales y comentarios a operador (agent) y referente
+    if (rank < ROLE_HIERARCHY.team_leader) {
+      perm.canViewComments = false;
+      perm.canViewTotals = false;
+    }
+  } else if (moduleName === "asignacion_ag") {
+    // Todos leen
+    perm.canRead = true;
+    // Escriben: todos excepto agent
+    perm.canWrite = rank >= ROLE_HIERARCHY.referent;
+  } else if (moduleName === "calidad") {
+    // Todos leen
+    perm.canRead = true;
+    // Escriben: todos excepto agent
+    perm.canWrite = rank >= ROLE_HIERARCHY.referent;
+    // agent solo ve su propia calidad
+    perm.canViewAll = rank >= ROLE_HIERARCHY.referent;
+  } else if (moduleName === "asistencia") {
+    // Leen/escriben: admin, supervisor, team_leader
+    perm.canRead = rank >= ROLE_HIERARCHY.team_leader;
+    perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
+  }
+
+  return perm;
+}
+
 

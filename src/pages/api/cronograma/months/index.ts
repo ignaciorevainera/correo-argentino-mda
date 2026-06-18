@@ -3,7 +3,12 @@ import { db } from "@/db";
 import { agents, schedules } from "@/db/schema";
 import { and, eq, like } from "drizzle-orm";
 
-export const POST: APIRoute = async ({ request }) => {
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { year, month } = body; // month is 0-indexed (0 = Enero)
@@ -72,7 +77,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ request }) => {
+export const DELETE: APIRoute = async ({ request, locals }) => {
+  const denied = requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { year, month } = body; // month is 0-indexed (0 = Enero)

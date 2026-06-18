@@ -6,7 +6,7 @@ import { normalizeSearchValue } from "@lib/clientSearch";
 
 export const GET: APIRoute = async ({ url, locals }) => {
   // Verificación de autenticación basada en Astro.locals.user
-  if (!locals.user) {
+  if (!locals.user || locals.user.id === 0) {
     return new Response(JSON.stringify({ error: "No autorizado" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

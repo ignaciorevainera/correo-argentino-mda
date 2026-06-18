@@ -1,5 +1,6 @@
-import { defineAction } from "astro:actions";
+import { defineAction, ActionError } from "astro:actions";
 import { z } from "astro:schema";
+import { requireWriteAccess } from "../lib/rbac-middleware";
 import { db } from "@db/index";
 import { qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -16,7 +17,14 @@ export const server = {
         isDeleted: z.boolean().optional().default(false),
       }))
     }),
-    handler: async (input) => {
+    handler: async (input, context) => {
+      const denied = requireWriteAccess(context.locals, "calidad");
+      if (denied) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para modificar parámetros de calidad.",
+        });
+      }
       const generateCode = (name: string): string => {
         const base = name
           .toLowerCase()
@@ -150,7 +158,14 @@ export const server = {
       notes: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
       isCriticalFailure: z.any().transform(v => v === "on" || v === true || v === "true" || v === 1 || v === "1"),
     }).passthrough(),
-    handler: async (input) => {
+    handler: async (input, context) => {
+      const denied = requireWriteAccess(context.locals, "calidad");
+      if (denied) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para guardar auditorías.",
+        });
+      }
       // 1. Obtener los parámetros correspondientes
       let allParams;
       if (input.id) {
@@ -258,7 +273,14 @@ export const server = {
     input: z.object({
       id: z.string().transform(v => parseInt(v, 10)),
     }),
-    handler: async (input) => {
+    handler: async (input, context) => {
+      const denied = requireWriteAccess(context.locals, "calidad");
+      if (denied) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para eliminar auditorías.",
+        });
+      }
       try {
         await db.delete(qualityAudits).where(eq(qualityAudits.id, input.id));
         return { success: true };
@@ -276,7 +298,14 @@ export const server = {
       month: z.string().min(1),
       summary: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
     }),
-    handler: async (input) => {
+    handler: async (input, context) => {
+      const denied = requireWriteAccess(context.locals, "calidad");
+      if (denied) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para guardar resúmenes mensuales.",
+        });
+      }
       try {
         // We use insert with onConflictDoUpdate since we have a composite PK
         await db.insert(monthlySummaries)

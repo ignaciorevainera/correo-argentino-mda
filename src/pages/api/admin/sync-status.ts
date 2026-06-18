@@ -24,7 +24,7 @@ function getNextSyncDate(): string {
 }
 
 export const GET: APIRoute = async ({ locals, url }) => {
-  if (!locals.user) {
+  if (!locals.user || locals.user.id === 0) {
     return new Response(JSON.stringify({ error: "No autorizado" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

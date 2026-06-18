@@ -126,7 +126,28 @@ for (const s of allMonthlySummaries) {
   summariesByAgent.set(s.agentId, s);
 }
 
-const operatorsQuality = allAgents.map((agent) => {
+import { normalizeRole } from "@/lib/rbac";
+
+const user = Astro.locals.user;
+const role = normalizeRole(user.role);
+const isAgent = role === "agent";
+
+let finalAgents = allAgents;
+let agentNotFound = false;
+
+if (isAgent) {
+  const matched = allAgents.find(
+    (a) => a.username?.toLowerCase().trim() === user.username.toLowerCase().trim()
+  );
+  if (matched) {
+    finalAgents = [matched];
+  } else {
+    finalAgents = [];
+    agentNotFound = true;
+  }
+}
+
+const operatorsQuality = finalAgents.map((agent) => {
   const agentAudits = auditsByAgent.get(agent.id) || [];
   const currentMonthAudits = agentAudits.filter(
     (a) => a.month === selectedMonth,
@@ -263,7 +284,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   class="hidden"
 >
 </div>
-<PageContainer class="max-w-7xl mx-auto">
+<PageContainer class="max-w-7xl mx-auto" data-is-agent={isAgent} data-agent-not-found={agentNotFound}>
   <a
     href={`${cleanBase}supervision`}
     class="btn btn-ghost btn-sm mb-2 w-fit pl-2"
@@ -312,20 +333,35 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         <Icon name="boxicons:chevron-right" size={24} />
       </button>
       <div class="divider divider-horizontal mx-1 hidden sm:flex"></div>
-      <button
-        id="btn-configure-parameters"
-        class="btn btn-sm btn-outline btn-secondary gap-1.5 font-bold uppercase text-xs"
-        title="Configurar Parámetros de Calidad"
-      >
-        <Icon name="boxicons:cog" size={18} />
-        <span>Parámetros</span>
-      </button>
+      {!isAgent && (
+        <button
+          id="btn-configure-parameters"
+          class="btn btn-sm btn-outline btn-secondary gap-1.5 font-bold uppercase text-xs"
+          title="Configurar Parámetros de Calidad"
+        >
+          <Icon name="boxicons:cog" size={18} />
+          <span>Parámetros</span>
+        </button>
+      )}
     </div>
   </div>
 
-  <div
-    class="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative"
-  >
+  {
+    agentNotFound ? (
+      <div class="alert alert-warning shadow-md rounded-2xl p-6 mb-6 flex gap-4">
+        <Icon name="boxicons:error" size={24} class="shrink-0 text-amber-600" />
+        <div>
+          <h3 class="font-bold text-sm uppercase tracking-wide">Ficha de Operador no encontrada</h3>
+          <p class="text-xs mt-1">
+            No se encontró tu ficha de operador vinculada a tu nombre de usuario (@{user.username}).
+            Por favor, solicita a tu supervisor que cree tu ficha en el sistema.
+          </p>
+        </div>
+      </div>
+    ) : (
+      <div
+        class="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative"
+      >
     <!-- Panel Izquierdo: Lista Navegable -->
     <aside
       class="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]"
@@ -836,7 +872,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         </div>
       </div>
     </main>
-  </div>
+      </div>
+    )
+  }
 </PageContainer>
 
 <dialog id="audit-modal" class="modal modal-bottom sm:modal-middle z-200">
@@ -1228,6 +1266,28 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 </dialog>
 
 <style>
+  /* RBAC - Vista de calidad para Operador (Solo Lectura) */
+  [data-is-agent="true"] aside {
+    display: none !important;
+  }
+  [data-is-agent="true"] main {
+    grid-column: span 12 / span 12 !important;
+  }
+  [data-is-agent="true"] #btn-back-to-summary {
+    display: none !important;
+  }
+  [data-is-agent="true"] #btn-new-audit {
+    display: none !important;
+  }
+  [data-is-agent="true"] #btn-edit-month-summary {
+    display: none !important;
+  }
+  [data-is-agent="true"] .edit-audit-btn,
+  [data-is-agent="true"] .delete-audit-btn,
+  [data-is-agent="true"] #btn-delete-audit {
+    display: none !important;
+  }
+
   /* Animaciones útiles para las transiciones de estado */
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out forwards;
@@ -2639,10 +2699,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       });
     }
 
-    // Auto-select operator on page load if agentId is in URL
+    // Auto-select operator on page load if agentId is in URL or if user is an agent
     const urlParams = new URLSearchParams(window.location.search);
     const urlAgentId = urlParams.get("agentId");
-    if (urlAgentId) {
+    const rbacContainer = document.querySelector("[data-is-agent]");
+    const isUserAgent = rbacContainer && rbacContainer.getAttribute("data-is-agent") === "true";
+
+    if (isUserAgent) {
+      const firstOpBtn = document.querySelector(".operator-item") as HTMLButtonElement | null;
+      if (firstOpBtn) {
+        firstOpBtn.click();
+      }
+    } else if (urlAgentId) {
       const opBtn = Array.from(
         document.querySelectorAll(".operator-item"),
       ).find(

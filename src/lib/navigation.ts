@@ -38,6 +38,11 @@ export const navSections: NavSection[] = [
             label: "Asignación de autogestiones",
             icon: "boxicons:git-branch-filled",
           },
+          {
+            href: "/supervision/asistencia",
+            label: "Control de asistencia",
+            icon: "boxicons:clock-filled",
+          },
         ],
       },
       {
