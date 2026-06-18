@@ -75,6 +75,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   locals.user = currentUser;
 
+  // Redirigir si no está autenticado e intenta acceder a supervisión o admin
+  if (
+    relativePath === "/supervision" || relativePath.startsWith("/supervision/") ||
+    relativePath === "/admin" || relativePath.startsWith("/admin/")
+  ) {
+    if (currentUser.id === 0) {
+      return redirect(resolveUrl("/login"));
+    }
+  }
+
   if (relativePath === "/login") {
     return next();
   }
