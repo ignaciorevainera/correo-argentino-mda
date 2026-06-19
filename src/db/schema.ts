@@ -91,7 +91,7 @@ export const offices = sqliteTable("offices", {
 }));
 
 export const contactCategories = sqliteTable("contact_categories", {
-  id: text("id").primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
   icon: text("icon").notNull(),
   tone: text("tone").notNull(),
@@ -99,7 +99,7 @@ export const contactCategories = sqliteTable("contact_categories", {
 
 export const providerContacts = sqliteTable("provider_contacts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  categoryId: text("category_id").references(() => contactCategories.id),
+  categoryId: integer("category_id").references(() => contactCategories.id),
   provider: text("provider").notNull(),
   service: text("service").notNull(),
   phones: text("phones", { mode: "json" }).$type<string[]>(),
@@ -317,15 +317,15 @@ export const schedules = sqliteTable("schedules", {
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
 export const resourceCategories = sqliteTable("resource_categories", {
-  id: text("id").primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
   iconName: text("iconName").notNull(),
   tone: text("tone").notNull().default("primary"),
 });
 
 export const resourceLinks = sqliteTable("resource_links", {
-  id: text("id").primaryKey(),
-  categoryId: text("category_id")
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  categoryId: integer("category_id")
     .notNull()
     .references(() => resourceCategories.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
@@ -518,14 +518,14 @@ export const auditScoresRelations = relations(auditScores, ({ one }) => ({
 }));
 
 export const applicationCategories = sqliteTable("application_categories", {
-  id: text("id").primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
 });
 
 export const applications = sqliteTable("applications", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
-  categoryId: text("category_id").references(() => applicationCategories.id),
+  categoryId: integer("category_id").references(() => applicationCategories.id),
   description: text("description"),
   version: text("version"),
   filePath: text("file_path"),
