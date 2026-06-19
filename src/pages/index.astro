@@ -154,73 +154,41 @@ const quickAccessItems: QuickAccessItem[] = [
       </p>
     </header>
 
-    <!-- Módulos Principales -->
-    {user && user.id !== 0 && (
-      <div
-        class:list={[
-          "grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8",
-          userRole === "agent" ? "lg:grid-cols-3" : "lg:grid-cols-4"
-        ]}
-      >
-        {
-          mainModules
-            .filter((mod) => !(userRole === "agent" && mod.href === "/supervision/asistencia"))
-            .map((mod) => {
-              const locked = isRouteLocked(mod.href);
-              const Wrapper = locked ? "div" : "a";
-              return (
-              <Wrapper
-                {...(!locked ? { href: mod.href, "aria-label": `Abrir módulo ${mod.label}` } : { "aria-label": `Módulo ${mod.label} (Restringido)` })}
-                class:list={[
-                  "relative overflow-hidden rounded-2xl border border-base-300 bg-base-100 p-5 flex items-center justify-between shadow-md transition-all duration-300",
-                  locked
-                    ? "opacity-45 grayscale cursor-not-allowed select-none"
-                    : "hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                ]}
-              >
-                <div class="flex items-center gap-4">
-                  <div class:list={[
-                    "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-all duration-300 shadow-inner",
-                    locked ? "bg-base-200 text-base-content/40" : mod.tone
-                  ]}>
-                    <Icon 
-                      name={mod.icon} 
-                      size={32} 
-                      class={locked ? "" : "transition-transform duration-300 group-hover:scale-110"} 
-                      aria-hidden="true" 
-                    />
-                  </div>
-                  <div>
-                    <h3 class="font-bold text-lg text-base-content leading-tight">
-                      {mod.label}
-                    </h3>
-                    <p class="text-xs text-base-content/50 mt-1 font-medium">
-                      {mod.sublabel}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-center" aria-hidden="true">
-                  {locked ? (
-                    <Icon name="boxicons:lock" size={24} class="text-base-content/40" />
-                  ) : (
-                    <Icon
-                      name="boxicons:chevron-right"
-                      size={28}
-                      class="text-base-content/30 group-hover:translate-x-1 transition-all duration-300"
-                    />
-                  )}
-                </div>
-              </Wrapper>
-            );
-          })
-        }
-      </div>
-    )}
-
+    <!-- Panel de Módulos y Accesos -->
     <section
-      aria-label="Enlaces de acceso rápido"
-      class="flex flex-col gap-4"
+      aria-label="Panel de módulos y accesos directos de la plataforma"
+      class="flex flex-col gap-6"
     >
+      <!-- Módulos Principales -->
+      {user && user.id !== 0 && (
+        <div
+          class:list={[
+            "grid grid-cols-1 sm:grid-cols-2 gap-6",
+            userRole === "agent" ? "lg:grid-cols-3" : "lg:grid-cols-4"
+          ]}
+        >
+          {
+            mainModules
+              .filter((mod) => !(userRole === "agent" && mod.href === "/supervision/asistencia"))
+              .map((mod) => {
+                const locked = isRouteLocked(mod.href);
+                return (
+                  <QuickAccessCard
+                    href={mod.href}
+                    title={mod.label}
+                    description={mod.sublabel}
+                    icon={mod.icon}
+                    iconTone={mod.tone}
+                    locked={locked}
+                    layout="horizontal"
+                  />
+                );
+              })
+          }
+        </div>
+      )}
+
+      <!-- Enlaces de acceso rápido -->
       <div
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >

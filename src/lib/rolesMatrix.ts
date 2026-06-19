@@ -93,7 +93,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
   {
     feature: "Asignación de autogestiones",
     icon: "boxicons:user-check",
-    agent: true,
+    agent: false,
     referent: true,
     team_leader: true,
     supervisor: true,

@@ -349,7 +349,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   {
     agentNotFound ? (
       <div class="alert alert-warning shadow-md rounded-2xl p-6 mb-6 flex gap-4">
-        <Icon name="boxicons:error" size={24} class="shrink-0 text-amber-600" />
+        <Icon name="boxicons:alert-circle-filled" size={24} class="shrink-0 text-amber-600" />
         <div>
           <h3 class="font-bold text-sm uppercase tracking-wide">Ficha de Operador no encontrada</h3>
           <p class="text-xs mt-1">
@@ -364,7 +364,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       >
     <!-- Panel Izquierdo: Lista Navegable -->
     <aside
-      class="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]"
+      class:list={[
+        "flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]",
+        isAgent ? "hidden" : "lg:col-span-4"
+      ]}
     >
       <div
         class="card border border-base-300 bg-base-100 shadow-md flex-1 flex flex-col overflow-hidden"
@@ -467,9 +470,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     </aside>
 
     <!-- Panel Derecho: Información / Detalle -->
-    <main class="lg:col-span-8 h-full">
+    <main class:list={["h-full", isAgent ? "lg:col-span-12" : "lg:col-span-8"]}>
       <!-- Estado 1: Información General (Default) -->
-      <div id="general-info-panel" class="space-y-6 animate-fade-in">
+      <div id="general-info-panel" class:list={["space-y-6 animate-fade-in", isAgent && "hidden"]}>
         <!-- Stats Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Hero Stat: Promedio General (Takes 2 cols/2 rows) -->
@@ -668,103 +671,109 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       <!-- Estado 2: Detalle del Operador (Oculto por defecto) -->
       <div
         id="operator-details-panel"
-        class="hidden space-y-6 animate-fade-in pb-8"
+        class:list={[
+          "animate-fade-in pb-8",
+          !isAgent && "hidden space-y-6",
+          isAgent && "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+        ]}
       >
-        <div class="flex justify-between items-center mb-2 no-print">
-          <button
-            id="btn-back-to-summary"
-            class="btn btn-sm btn-ghost w-fit pl-2 text-base-content/70 hover:text-base-content hover:bg-base-200"
-          >
-            <Icon name="boxicons:arrow-to-left" size={18} />
-            Volver al resumen
-          </button>
-          <div class="flex items-center gap-2">
+        <div class:list={[isAgent ? "col-span-full" : "w-full"]}>
+          <div class="flex justify-between items-center mb-2 no-print">
             <button
-              id="btn-export-csv"
-              class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
-              title="Exportar Reporte de Operador a CSV"
+              id="btn-back-to-summary"
+              class="btn btn-sm btn-ghost w-fit pl-2 text-base-content/70 hover:text-base-content hover:bg-base-200"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5 shrink-0">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              <span>Exportar CSV</span>
+              <Icon name="boxicons:arrow-to-left" size={18} />
+              Volver al resumen
             </button>
-            <button
-              class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
-              onclick="window.print()"
-            >
-              <Icon name="boxicons:printer" size={14} />
-              Exportar Reporte
-            </button>
-          </div>
-        </div>
-
-        <!-- Header del Detalle -->
-        <div
-          class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
-        >
-          <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-            <div
-              class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
-              id="detail-avatar"
-            >
-              --
+            <div class="flex items-center gap-2">
+              <button
+                id="btn-export-csv"
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
+                title="Exportar Reporte de Operador a CSV"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5 shrink-0">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Exportar CSV</span>
+              </button>
+              <button
+                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
+                onclick="window.print()"
+              >
+                <Icon name="boxicons:printer" size={14} />
+                Exportar Reporte
+              </button>
             </div>
-            <div>
+          </div>
+
+          <!-- Header del Detalle -->
+          <div
+            class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
+          >
+            <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div
+                class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
+                id="detail-avatar"
+              >
+                --
+              </div>
+              <div>
+                <div
+                  class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                >
+                  Perfil del Operador
+                </div>
+                <h3
+                  class="text-4xl font-black text-base-content tracking-tighter"
+                  id="detail-name"
+                >
+                  --
+                </h3>
+                <div
+                  class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                >
+                  <span class="flex items-center gap-1"
+                    ><Icon
+                      name="boxicons:user-id-card"
+                      size={18}
+                      class="opacity-70"
+                    />
+                    <span id="detail-id" class="font-mono">--</span></span
+                  >
+                  <span class="opacity-30">•</span>
+                  <span class="flex items-center gap-1"
+                    ><Icon
+                      name="boxicons:calendar"
+                      size={18}
+                      class="opacity-70"
+                    />
+                    <span id="detail-month">--</span></span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200"
+            >
               <div
                 class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
               >
-                Perfil del Operador
+                Score Mensual
               </div>
-              <h3
-                class="text-4xl font-black text-base-content tracking-tighter"
-                id="detail-name"
-              >
-                --
-              </h3>
               <div
-                class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                class="text-5xl font-black tracking-tighter"
+                id="detail-score"
               >
-                <span class="flex items-center gap-1"
-                  ><Icon
-                    name="boxicons:user-id-card"
-                    size={18}
-                    class="opacity-70"
-                  />
-                  <span id="detail-id" class="font-mono">--</span></span
-                >
-                <span class="opacity-30">•</span>
-                <span class="flex items-center gap-1"
-                  ><Icon
-                    name="boxicons:calendar"
-                    size={18}
-                    class="opacity-70"
-                  />
-                  <span id="detail-month">--</span></span
-                >
+                --%
               </div>
-            </div>
-          </div>
-
-          <div
-            class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200"
-          >
-            <div
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
-            >
-              Score Mensual
-            </div>
-            <div
-              class="text-5xl font-black tracking-tighter"
-              id="detail-score"
-            >
-              --%
             </div>
           </div>
         </div>
 
         <!-- Insights y Tendencia -->
-        <div class="grid sm:grid-cols-2 gap-6 mt-6">
+        <div class:list={[isAgent ? "col-span-full lg:col-span-4 flex flex-col gap-6" : "grid sm:grid-cols-2 gap-6 mt-6"]}>
           <!-- Tendencia -->
           <div
             class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md"
@@ -807,76 +816,78 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           </div>
         </div>
 
-        <!-- Observaciones del Mes -->
-        <div
-          class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md mt-6"
-        >
-          <div class="flex justify-between items-center mb-4">
+        <div class:list={[isAgent ? "col-span-full lg:col-span-8 flex flex-col gap-6" : "space-y-6"]}>
+          <!-- Observaciones del Mes -->
+          <div
+            class:list={["bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md", !isAgent && "mt-6"]}
+          >
+            <div class="flex justify-between items-center mb-4">
+              <h4
+                class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+              >
+                <Icon name="boxicons:note" size={18} />
+                Observaciones del Mes
+              </h4>
+              {
+                !isAgent && (
+                  <button
+                    id="btn-edit-month-summary"
+                    class="btn btn-sm btn-ghost btn-square"
+                    title="Editar observaciones"
+                  >
+                    <Icon name="boxicons:edit-alt" size={18} />
+                  </button>
+                )
+              }
+            </div>
+            <p
+              id="detail-month-summary"
+              class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
+            >
+              <!-- dynamic summary -->
+            </p>
+            <p
+              id="detail-month-summary-empty"
+              class="text-sm font-medium text-base-content/40 italic"
+            >
+              No hay observaciones para este mes.
+            </p>
+          </div>
+
+          <!-- Section Titulo -->
+          <div
+            class:list={["flex items-center justify-between border-b border-base-300 pb-2", !isAgent && "mt-8"]}
+          >
             <h4
-              class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+              class="font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
             >
-              <Icon name="boxicons:note" size={18} />
-              Observaciones del Mes
+              <Icon name="boxicons:headphone" size={24} />
+              Desglose de Llamadas
             </h4>
-            {
-              !isAgent && (
-                <button
-                  id="btn-edit-month-summary"
-                  class="btn btn-sm btn-ghost btn-square"
-                  title="Editar observaciones"
-                >
-                  <Icon name="boxicons:edit-alt" size={18} />
-                </button>
-              )
-            }
+            <div class="flex items-center gap-2">
+              <span
+                id="calls-count-badge"
+                class="text-xs font-medium text-base-content/50 badge badge-ghost"
+                >-- Aleatorias</span
+              >
+              {
+                !isAgent && (
+                  <button
+                    id="btn-new-audit"
+                    class="btn btn-sm btn-primary rounded-lg font-bold text-xs uppercase"
+                  >
+                    <Icon name="boxicons:plus" size={16} />
+                    Nueva Auditoría
+                  </button>
+                )
+              }
+            </div>
           </div>
-          <p
-            id="detail-month-summary"
-            class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
-          >
-            <!-- dynamic summary -->
-          </p>
-          <p
-            id="detail-month-summary-empty"
-            class="text-sm font-medium text-base-content/40 italic"
-          >
-            No hay observaciones para este mes.
-          </p>
-        </div>
 
-        <!-- Section Titulo -->
-        <div
-          class="flex items-center justify-between border-b border-base-300 pb-2 mt-8"
-        >
-          <h4
-            class="font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
-          >
-            <Icon name="boxicons:headphone" size={24} />
-            Desglose de Llamadas
-          </h4>
-          <div class="flex items-center gap-2">
-            <span
-              id="calls-count-badge"
-              class="text-xs font-medium text-base-content/50 badge badge-ghost"
-              >-- Aleatorias</span
-            >
-            {
-              !isAgent && (
-                <button
-                  id="btn-new-audit"
-                  class="btn btn-sm btn-primary rounded-lg font-bold text-xs uppercase"
-                >
-                  <Icon name="boxicons:plus" size={16} />
-                  Nueva Auditoría
-                </button>
-              )
-            }
+          <!-- Grid de Llamadas -->
+          <div class="grid gap-6" id="detail-calls-container">
+            <!-- Renderizado dinámico vía JS -->
           </div>
-        </div>
-
-        <!-- Grid de Llamadas -->
-        <div class="grid gap-6" id="detail-calls-container">
-          <!-- Renderizado dinámico vía JS -->
         </div>
       </div>
     </main>

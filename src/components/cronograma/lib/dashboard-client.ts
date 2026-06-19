@@ -4008,6 +4008,7 @@ async function renderPasivaView(): Promise<void> {
 
     state.pasivaState.operatorId = data.operatorId;
     state.pasivaState.originalOperatorId = data.operatorId;
+    state.pasivaState.supervisors = data.supervisors || [];
 
     if (monthlyOperatorSelect) {
       monthlyOperatorSelect.value = data.operatorId ? String(data.operatorId) : '';
@@ -4063,7 +4064,7 @@ function populatePasivaWeekInputs(): void {
     tdLabel.textContent = label;
     tr.appendChild(tdLabel);
     
-    const container = document.getElementById('cronograma-container');
+    const container = document.getElementById('cronograma-app-container');
     const userRole = container?.dataset.userRole || 'agent';
     const isReadOnly = ['agent', 'referent'].includes(userRole);
 
@@ -4075,15 +4076,29 @@ function populatePasivaWeekInputs(): void {
       supervisorText.textContent = w.supervisorName || 'SIN ASIGNAR';
       tdSupervisor.appendChild(supervisorText);
     } else {
-      const supervisorInput = document.createElement('input');
-      supervisorInput.type = 'text';
-      supervisorInput.className = 'input input-bordered input-sm font-bold text-xs h-9 w-full max-w-xs rounded-xl bg-base-100 focus:outline-none focus:border-secondary';
-      supervisorInput.value = w.supervisorName;
-      supervisorInput.addEventListener('input', () => {
-        w.supervisorName = supervisorInput.value;
+      const supervisorSelect = document.createElement('select');
+      supervisorSelect.className = 'select select-bordered select-sm font-bold text-xs h-9 w-full max-w-xs rounded-xl bg-base-100 focus:outline-none focus:border-secondary';
+      
+      state.pasivaState.supervisors.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        supervisorSelect.appendChild(opt);
+      });
+      
+      if (w.supervisorName && !state.pasivaState.supervisors.includes(w.supervisorName)) {
+        const opt = document.createElement('option');
+        opt.value = w.supervisorName;
+        opt.textContent = w.supervisorName;
+        supervisorSelect.appendChild(opt);
+      }
+      
+      supervisorSelect.value = w.supervisorName || '';
+      supervisorSelect.addEventListener('change', () => {
+        w.supervisorName = supervisorSelect.value;
         updatePasivaToolbarUI();
       });
-      tdSupervisor.appendChild(supervisorInput);
+      tdSupervisor.appendChild(supervisorSelect);
     }
     tr.appendChild(tdSupervisor);
     

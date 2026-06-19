@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
-import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments } from "@/db/schema";
+import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments, users } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 
 const DEFAULT_SUPERVISOR = "Tomasi Alejandro";
@@ -99,7 +99,25 @@ export const GET: APIRoute = async ({ url }) => {
       };
     });
 
-    return new Response(JSON.stringify({ operatorId, weeks: weeksWithData }), {
+    // 5. Obtener lista de usuarios que pueden ser supervisores (admin, supervisor, team_leader)
+    const supervisorsList = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(inArray(users.role, ["admin", "supervisor", "team_leader"]));
+
+    const supervisors = supervisorsList.map(u => {
+      return u.username
+        .split(/[\s._-]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    });
+
+    // Garantizar que el supervisor por defecto esté en la lista
+    if (!supervisors.includes(DEFAULT_SUPERVISOR)) {
+      supervisors.push(DEFAULT_SUPERVISOR);
+    }
+
+    return new Response(JSON.stringify({ operatorId, weeks: weeksWithData, supervisors }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

@@ -9,6 +9,7 @@ interface Props {
   iconTone?: string;
   locked?: boolean;
   comingSoon?: boolean;
+  layout?: "horizontal" | "vertical";
 }
 
 const {
@@ -19,6 +20,7 @@ const {
   iconTone = "bg-secondary/10 text-secondary",
   locked = false,
   comingSoon = false,
+  layout = "vertical",
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL || "/";
@@ -35,63 +37,112 @@ const resolvedHref =
 const Wrapper = (locked || comingSoon) ? "div" : "a";
 ---
 
-<Wrapper
-  {...!(locked || comingSoon)
-    ? { href: resolvedHref, "aria-label": `Abrir ${title}` }
-    : { "aria-label": `${title} (${comingSoon ? "Próximamente" : "Restringido"})` }}
-  class:list={[
-    "card card-compact bg-base-100 border border-base-300 h-full shadow-md",
-    (locked || comingSoon)
-      ? "opacity-40 grayscale cursor-not-allowed select-none"
-      : "transition-all duration-300 hover:-translate-y-1 hover:border-primary group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-  ]}
->
-  <div class="card-body gap-3 flex flex-col h-full">
-    <div
-      aria-hidden="true"
+{
+  layout === "horizontal" ? (
+    <Wrapper
+      {...!(locked || comingSoon)
+        ? { href: resolvedHref, "aria-label": `Abrir ${title}` }
+        : { "aria-label": `${title} (${comingSoon ? "Próximamente" : "Restringido"})` }}
       class:list={[
-        "mb-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
-        iconTone,
+        "relative overflow-hidden rounded-2xl border border-base-300 bg-base-100 p-5 flex items-center justify-between shadow-md transition-all duration-300 w-full h-full",
+        (locked || comingSoon)
+          ? "opacity-45 grayscale cursor-not-allowed select-none"
+          : "hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
       ]}
     >
-      <Icon
-        name={icon}
-        size={32}
-        class={(locked || comingSoon)
-          ? ""
-          : "transition-transform duration-300 group-hover:scale-110"}
-      />
-    </div>
-    <h3
-      class="card-title text-base font-semibold text-base-content transition-colors"
-    >
-      {title}
-    </h3>
-    <p class="text-sm text-base-content/70 grow leading-relaxed">
-      {description}
-    </p>
-    <div class="card-actions mt-2 justify-end">
-      {
-        comingSoon ? (
-          <span class="badge badge-warning font-bold">Próximamente</span>
-        ) : locked ? (
-          <Icon
-            name="boxicons:lock"
-            size={24}
-            class="opacity-60"
-            aria-hidden="true"
+      <div class="flex items-center gap-4">
+        <div class:list={[
+          "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-all duration-300 shadow-inner",
+          (locked || comingSoon) ? "bg-base-200 text-base-content/40" : iconTone
+        ]}>
+          <Icon 
+            name={icon} 
+            size={32} 
+            class={(locked || comingSoon) ? "" : "transition-transform duration-300 group-hover:scale-110"} 
+            aria-hidden="true" 
           />
+        </div>
+        <div>
+          <h3 class="font-bold text-lg text-base-content leading-tight">
+            {title}
+          </h3>
+          <p class="text-xs text-base-content/50 mt-1 font-medium">
+            {description}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center" aria-hidden="true">
+        {(locked || comingSoon) ? (
+          <Icon name="boxicons:lock" size={24} class="text-base-content/40" />
         ) : (
-          <span class="flex items-center gap-1 text-sm font-medium text-base-content/40 transition-colors duration-300">
-            Acceder{" "}
-            <Icon
-              name="boxicons:arrow-right-stroke-filled"
-              size={24}
-              aria-hidden="true"
-            />
-          </span>
-        )
-      }
-    </div>
-  </div>
-</Wrapper>
+          <Icon
+            name="boxicons:chevron-right"
+            size={28}
+            class="text-base-content/30 group-hover:translate-x-1 transition-all duration-300"
+          />
+        )}
+      </div>
+    </Wrapper>
+  ) : (
+    <Wrapper
+      {...!(locked || comingSoon)
+        ? { href: resolvedHref, "aria-label": `Abrir ${title}` }
+        : { "aria-label": `${title} (${comingSoon ? "Próximamente" : "Restringido"})` }}
+      class:list={[
+        "card card-compact bg-base-100 border border-base-300 h-full shadow-md",
+        (locked || comingSoon)
+          ? "opacity-40 grayscale cursor-not-allowed select-none"
+          : "transition-all duration-300 hover:-translate-y-1 hover:border-primary group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+      ]}
+    >
+      <div class="card-body gap-3 flex flex-col h-full">
+        <div
+          aria-hidden="true"
+          class:list={[
+            "mb-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
+            iconTone,
+          ]}
+        >
+          <Icon
+            name={icon}
+            size={32}
+            class={(locked || comingSoon)
+              ? ""
+              : "transition-transform duration-300 group-hover:scale-110"}
+          />
+        </div>
+        <h3
+          class="card-title text-base font-semibold text-base-content transition-colors"
+        >
+          {title}
+        </h3>
+        <p class="text-sm text-base-content/70 grow leading-relaxed">
+          {description}
+        </p>
+        <div class="card-actions mt-2 justify-end">
+          {
+            comingSoon ? (
+              <span class="badge badge-warning font-bold">Próximamente</span>
+            ) : locked ? (
+              <Icon
+                name="boxicons:lock"
+                size={24}
+                class="opacity-60"
+                aria-hidden="true"
+              />
+            ) : (
+              <span class="flex items-center gap-1 text-sm font-medium text-base-content/40 transition-colors duration-300">
+                Acceder{" "}
+                <Icon
+                  name="boxicons:arrow-right-stroke-filled"
+                  size={24}
+                  aria-hidden="true"
+                />
+              </span>
+            )
+          }
+        </div>
+      </div>
+    </Wrapper>
+  )
+}

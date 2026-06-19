@@ -55,6 +55,7 @@ class CronogramaState {
   pasivaState = {
     operatorId: null as number | null,
     originalOperatorId: null as number | null,
+    supervisors: [] as string[],
     weeklyAssignments: {} as Record<
       string,
       {
