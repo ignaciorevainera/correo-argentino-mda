@@ -704,49 +704,7 @@ const mainTabs = [
     }
   };
 
-  // Handle DELETE office click
-  const tableWrapper = document.getElementById("office-table-wrapper");
-  tableWrapper?.addEventListener("click", async (e) => {
-    const target = e.target as HTMLElement;
-    const deleteBtn = target.closest(".btn-delete-office") as HTMLButtonElement | null;
-    if (!deleteBtn) return;
 
-    const id = deleteBtn.dataset.id;
-    const name = deleteBtn.dataset.name;
-    const code = deleteBtn.dataset.code;
-
-    if (!id) return;
-
-    if (!confirm(`¿Estás seguro de que deseas eliminar la oficina "${name}" (${code})?`)) {
-      return;
-    }
-
-    try {
-      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${baseUrl}/api/oficinas/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        (window as any).showToast?.(data.message || "Oficina eliminada con éxito", "alert-success");
-        const row = deleteBtn.closest("[data-master-detail-sort-item]");
-        row?.remove();
-        
-        const remainingRows = tableWrapper.querySelectorAll("[data-master-detail-sort-item]");
-        if (remainingRows.length === 0) {
-          document.getElementById("office-table-container")?.classList.add("hidden");
-          document.getElementById("no-results-state")?.classList.remove("hidden");
-        }
-      } else {
-        (window as any).showToast?.(data.error || "Error al eliminar la oficina", "alert-error");
-      }
-    } catch (err) {
-      console.error(err);
-      (window as any).showToast?.("Error de conexión al eliminar la oficina", "alert-error");
-    }
-  });
 
   let map: any = null;
   const initializeMap = async () => {
