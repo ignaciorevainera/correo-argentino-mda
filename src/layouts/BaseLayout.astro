@@ -97,10 +97,10 @@ const isRouteLocked = (href: string): boolean => {
   return !hasPermission(href, normalizedUserRole);
 };
 
-const visibleNavSections = navSections
+let visibleNavSections = navSections
   .map((section) => ({
     ...section,
-    items: section.items.filter((item) => !isRouteLocked(item.href)),
+    items: section.items.filter((item) => !isRouteLocked(item.href) && item.href !== "/supervision"),
   }))
   .filter((section) => section.items.length > 0);
 
@@ -415,44 +415,46 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
                       const isActive = isActiveRoute(item.href);
                       const isLocked = isRouteLocked(item.href);
                       return (
-                        <li>
-                          <a
-                            href={isLocked ? undefined : resolveUrl(item.href)}
-                            aria-label={item.label}
-                            aria-disabled={isLocked ? "true" : undefined}
-                            data-tip={
-                              isLocked
-                                ? `${item.label} (restringido)`
-                                : item.label
-                            }
-                            tabindex={isLocked ? -1 : undefined}
-                            class:list={[
-                              "group flex items-center gap-2.5 rounded-lg text-xs p-2.5 font-medium transition",
-                              "lg:justify-center lg:px-2.5",
-                              "tooltip tooltip-right tooltip-neutral",
-                              isLocked
-                                ? "opacity-40 cursor-not-allowed pointer-events-none grayscale select-none"
-                                : isActive
-                                  ? "bg-primary text-primary-content shadow-sm"
-                                  : "text-secondary-content/70 hover:bg-white/10 hover:text-white",
-                            ]}
-                          >
-                            <Icon
-                              name={item.icon}
-                              size={24}
-                              class="shrink-0 opacity-80 transition group-hover:opacity-100"
-                            />
-                            <span class="truncate lg:hidden">{item.label}</span>
-                            {isLocked && (
+                        <>
+                          <li>
+                            <a
+                              href={isLocked ? undefined : resolveUrl(item.href)}
+                              aria-label={item.label}
+                              aria-disabled={isLocked ? "true" : undefined}
+                              data-tip={
+                                isLocked
+                                  ? `${item.label} (restringido)`
+                                  : item.label
+                              }
+                              tabindex={isLocked ? -1 : undefined}
+                              class:list={[
+                                "group flex items-center gap-2.5 rounded-lg text-xs p-2.5 font-medium transition",
+                                "lg:justify-center lg:px-2.5",
+                                "tooltip tooltip-right tooltip-neutral",
+                                isLocked
+                                  ? "opacity-40 cursor-not-allowed pointer-events-none grayscale select-none"
+                                  : isActive
+                                    ? "bg-primary text-primary-content shadow-sm"
+                                    : "text-secondary-content/70 hover:bg-white/10 hover:text-white",
+                              ]}
+                            >
                               <Icon
-                                name="boxicons:lock"
-                                size={14}
-                                class="ml-auto shrink-0 opacity-60 lg:hidden"
-                                aria-hidden="true"
+                                name={item.icon}
+                                size={24}
+                                class="shrink-0 opacity-80 transition group-hover:opacity-100"
                               />
-                            )}
-                          </a>
-                        </li>
+                              <span class="truncate lg:hidden">{item.label}</span>
+                              {isLocked && (
+                                <Icon
+                                  name="boxicons:lock"
+                                  size={14}
+                                  class="ml-auto shrink-0 opacity-60 lg:hidden"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </a>
+                          </li>
+                        </>
                       );
                     })}
                   </ul>

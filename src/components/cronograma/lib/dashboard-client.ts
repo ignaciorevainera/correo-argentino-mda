@@ -2333,47 +2333,7 @@ function updateBrushUI(): void {
 }
 
 function updateMaximizeUI(isMax: boolean): void {
-  const htmlEl = document.documentElement;
-  
-  const maxBtn = document.getElementById('maximize-cronograma-btn');
-  const maxIcon = maxBtn?.querySelector('.max-icon');
-  const minIcon = maxBtn?.querySelector('.min-icon');
-  const maxText = document.getElementById('maximize-text');
-
-  const maxBtnDaily = document.getElementById('maximize-cronograma-btn-daily');
-  const maxIconDaily = maxBtnDaily?.querySelector('.max-icon');
-  const minIconDaily = maxBtnDaily?.querySelector('.min-icon');
-  const maxTextDaily = document.getElementById('maximize-text-daily');
-  
-  if (isMax) {
-    htmlEl.classList.add('cronograma-maximized');
-    
-    maxIcon?.classList.add('hidden');
-    minIcon?.classList.remove('hidden');
-    if (maxText) maxText.innerText = "Restaurar";
-    maxBtn?.setAttribute('title', 'Restaurar cronograma');
-    maxBtn?.setAttribute('aria-label', 'Restaurar cronograma');
-
-    maxIconDaily?.classList.add('hidden');
-    minIconDaily?.classList.remove('hidden');
-    if (maxTextDaily) maxTextDaily.innerText = "Restaurar";
-    maxBtnDaily?.setAttribute('title', 'Restaurar cronograma');
-    maxBtnDaily?.setAttribute('aria-label', 'Restaurar cronograma');
-  } else {
-    htmlEl.classList.remove('cronograma-maximized');
-    
-    maxIcon?.classList.remove('hidden');
-    minIcon?.classList.add('hidden');
-    if (maxText) maxText.innerText = "Maximizar";
-    maxBtn?.setAttribute('title', 'Maximizar cronograma');
-    maxBtn?.setAttribute('aria-label', 'Maximizar cronograma');
-
-    maxIconDaily?.classList.remove('hidden');
-    minIconDaily?.classList.add('hidden');
-    if (maxTextDaily) maxTextDaily.innerText = "Maximizar";
-    maxBtnDaily?.setAttribute('title', 'Maximizar cronograma');
-    maxBtnDaily?.setAttribute('aria-label', 'Maximizar cronograma');
-  }
+  document.documentElement.classList.add('cronograma-maximized');
 }
 
 function setupEventListeners(): void {
@@ -3002,18 +2962,7 @@ function setupEventListeners(): void {
     importInput.addEventListener('change', handleImportCSV);
   }
 
-  // --- Maximize Mode Handler ---
-  const maxBtn = document.getElementById('maximize-cronograma-btn');
-  const maxBtnDaily = document.getElementById('maximize-cronograma-btn-daily');
-
-  const handleMaximizeClick = () => {
-    const isMax = !document.documentElement.classList.contains('cronograma-maximized');
-    safeSetItem('cronoMaximized', isMax ? 'true' : 'false');
-    updateMaximizeUI(isMax);
-  };
-
-  maxBtn?.addEventListener('click', handleMaximizeClick);
-  maxBtnDaily?.addEventListener('click', handleMaximizeClick);
+  // Maximize logic removed; forced unconditionally
 
   document.addEventListener('click', (e) => {
     const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
@@ -3892,9 +3841,8 @@ document.addEventListener('mouseout', (e) => {
   }
 });
 
-if (safeGetItem('cronoMaximized', 'false') === 'true') {
-  updateMaximizeUI(true);
-}
+// Force maximized layout unconditionally
+updateMaximizeUI(true);
 
 // ===================================================
 // PASIVA VIEW FUNCTIONS

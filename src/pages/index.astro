@@ -1,8 +1,70 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
+import { Icon } from "astro-icon/components";
+import { normalizeRole, hasPermission } from "@lib/rbac";
+import { db } from "@db/index";
+import { agents } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+const user = Astro.locals.user;
+const userRole = normalizeRole(user?.role || "agent");
+
+let displayName = user?.username || "Usuario";
+if (user && user.id !== 0) {
+  const matchedAgent = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.username, user.username))
+    .limit(1);
+  if (matchedAgent.length > 0) {
+    displayName = matchedAgent[0].name;
+  }
+}
+
+if (displayName === user?.username) {
+  displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+}
+
+const isRouteLocked = (href: string): boolean => {
+  const lowerHref = href.toLowerCase();
+  if (user?.id === 0 && (lowerHref === "/supervision" || lowerHref.startsWith("/supervision/") || lowerHref === "/admin" || lowerHref.startsWith("/admin/"))) {
+    return true;
+  }
+  return !hasPermission(href, userRole);
+};
+
+const mainModules = [
+  {
+    href: "/supervision/cronograma",
+    label: "Cronograma",
+    sublabel: "Gestión de turnos",
+    icon: "boxicons:calendar-filled",
+    tone: "bg-error/10 text-error",
+  },
+  {
+    href: "/supervision/asistencia",
+    label: "Asistencia",
+    sublabel: "Control de presentismo",
+    icon: "boxicons:clock-filled",
+    tone: "bg-success/10 text-success",
+  },
+  {
+    href: "/supervision/calidad-operadores",
+    label: "Calidad",
+    sublabel: "Auditoría de llamadas",
+    icon: "boxicons:bar-chart-big-filled",
+    tone: "bg-primary/10 text-primary",
+  },
+  {
+    href: "/supervision/asignacion-autogestiones",
+    label: "AGS",
+    sublabel: "Asignación de tareas",
+    icon: "boxicons:git-branch-filled",
+    tone: "bg-secondary/10 text-secondary",
+  },
+];
 
 type BoxiconName = `boxicons:${string}`;
 
@@ -79,22 +141,86 @@ const quickAccessItems: QuickAccessItem[] = [
 
 <BaseLayout>
   <PageContainer>
-    <PageHeader
-      title="¡Hola!"
-      description="Bienvenido al panel principal. Desde aquí puedes entrar rápido a los módulos operativos del portal."
-    />
+    <header class="space-y-2 mb-6">
+      <h1 class="text-3xl font-bold tracking-tight text-base-content">
+        {user?.id !== 0 ? (
+          <>¡Hola, <span class="text-secondary">{displayName}</span>!</>
+        ) : (
+          "¡Hola!"
+        )}
+      </h1>
+      <p class="max-w-3xl text-sm leading-relaxed text-base-content/70 sm:text-base">
+        Bienvenido al panel principal. Desde aquí puedes entrar rápido a los módulos operativos del portal.
+      </p>
+    </header>
+
+    <!-- Módulos Principales -->
+    {user && user.id !== 0 && (
+      <div
+        class:list={[
+          "grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8",
+          userRole === "agent" ? "lg:grid-cols-3" : "lg:grid-cols-4"
+        ]}
+      >
+        {
+          mainModules
+            .filter((mod) => !(userRole === "agent" && mod.href === "/supervision/asistencia"))
+            .map((mod) => {
+              const locked = isRouteLocked(mod.href);
+              const Wrapper = locked ? "div" : "a";
+              return (
+              <Wrapper
+                {...(!locked ? { href: mod.href, "aria-label": `Abrir módulo ${mod.label}` } : { "aria-label": `Módulo ${mod.label} (Restringido)` })}
+                class:list={[
+                  "relative overflow-hidden rounded-2xl border border-base-300 bg-base-100 p-5 flex items-center justify-between shadow-md transition-all duration-300",
+                  locked
+                    ? "opacity-45 grayscale cursor-not-allowed select-none"
+                    : "hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                ]}
+              >
+                <div class="flex items-center gap-4">
+                  <div class:list={[
+                    "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-all duration-300 shadow-inner",
+                    locked ? "bg-base-200 text-base-content/40" : mod.tone
+                  ]}>
+                    <Icon 
+                      name={mod.icon} 
+                      size={32} 
+                      class={locked ? "" : "transition-transform duration-300 group-hover:scale-110"} 
+                      aria-hidden="true" 
+                    />
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-lg text-base-content leading-tight">
+                      {mod.label}
+                    </h3>
+                    <p class="text-xs text-base-content/50 mt-1 font-medium">
+                      {mod.sublabel}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center" aria-hidden="true">
+                  {locked ? (
+                    <Icon name="boxicons:lock" size={24} class="text-base-content/40" />
+                  ) : (
+                    <Icon
+                      name="boxicons:chevron-right"
+                      size={28}
+                      class="text-base-content/30 group-hover:translate-x-1 transition-all duration-300"
+                    />
+                  )}
+                </div>
+              </Wrapper>
+            );
+          })
+        }
+      </div>
+    )}
 
     <section
-      aria-labelledby="accesos-rapidos-heading"
+      aria-label="Enlaces de acceso rápido"
       class="flex flex-col gap-4"
     >
-      <h2
-        id="accesos-rapidos-heading"
-        class="text-xl font-semibold text-base-content"
-      >
-        Accesos rápidos
-      </h2>
-
       <div
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
