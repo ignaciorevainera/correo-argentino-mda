@@ -637,14 +637,20 @@ const inventoryTabs = [
                     >
                       <Icon name="boxicons:edit-alt" class="size-3.5" />
                     </a>
-                    <button
-                      class="btn btn-xs btn-outline btn-error btn-delete-cubic"
-                      data-id={machine.id}
-                      data-name={machine.name}
-                      title="Eliminar"
+                    <form
+                      method="POST"
+                      action={`${import.meta.env.BASE_URL}inventario-terminales/cubics/edit/${machine.id}/eliminar`}
+                      class="inline"
+                      onsubmit="return confirm('¿Estás seguro de que deseas dar de baja el ordenador \"${machine.name}\"?');"
                     >
-                      <Icon name="boxicons:trash" class="size-3.5" />
-                    </button>
+                      <button
+                        type="submit"
+                        class="btn btn-xs btn-outline btn-error"
+                        title="Eliminar"
+                      >
+                        <Icon name="boxicons:trash" class="size-3.5" />
+                      </button>
+                    </form>
                   </div>
                 )}
               </article>
@@ -1024,40 +1030,7 @@ const inventoryTabs = [
     });
   });
 
-  viewCubics?.addEventListener("click", async (e) => {
-    const target = e.target as HTMLElement;
-    const deleteBtn = target.closest(".btn-delete-cubic") as HTMLButtonElement | null;
-    if (!deleteBtn) return;
 
-    const id = deleteBtn.dataset.id;
-    const name = deleteBtn.dataset.name;
-
-    if (!id) return;
-
-    if (!confirm(`¿Estás seguro de que deseas dar de baja el ordenador "${name}"?`)) {
-      return;
-    }
-
-    try {
-      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${baseUrl}/api/cubics/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        (window as any).showToast?.(data.message || "Ordenador dado de baja con éxito", "alert-success");
-        const row = deleteBtn.closest("[data-machine-row]");
-        row?.remove();
-      } else {
-        (window as any).showToast?.(data.error || "Error al dar de baja el ordenador", "alert-error");
-      }
-    } catch (err) {
-      console.error(err);
-      (window as any).showToast?.("Error de conexión al dar de baja el ordenador", "alert-error");
-    }
-  });
 
   function bindSorting(tableId: string, rows: HTMLElement[]) {
     const table = document.getElementById(tableId);
