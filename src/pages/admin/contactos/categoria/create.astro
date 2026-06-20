@@ -45,11 +45,13 @@ if (Astro.request.method === "POST") {
       throw new Error("El título y el icono son obligatorios.");
     }
 
+    if (title.toLowerCase() === "sin categoría" || title.toLowerCase() === "sin categoria") {
+      throw new Error("No se puede crear una categoría con este nombre reservado.");
+    }
+
     const tone = formData.get("tone")?.toString().trim() || "primary";
 
-    const newId = crypto.randomUUID();
     await db.insert(contactCategories).values({
-      id: newId,
       title,
       icon,
       tone,
@@ -59,6 +61,7 @@ if (Astro.request.method === "POST") {
     const successMsg = "Categoría creada con éxito.";
     return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
   } catch (error: any) {
+    console.error("DEBUG ERROR CREATE CATEGORIA:", error);
     errorMsg = error.message || "Error al guardar la categoría.";
   }
 }
@@ -92,7 +95,18 @@ if (Astro.request.method === "POST") {
           {
             errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
               </script>
             )
           }

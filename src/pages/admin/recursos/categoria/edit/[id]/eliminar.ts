@@ -5,40 +5,42 @@ import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 
 export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
-  const categoryId = params.id;
-  if (!categoryId) return new Response("ID de categoría no proporcionado", { status: 400 });
-
-  if (categoryId === "uncategorized") {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`);
-  }
+  const categoryId = parseInt(params.id as string, 10);
+  if (!categoryId || isNaN(categoryId)) return new Response("ID de categoría no válido", { status: 400 });
 
   const formData = await request.formData();
   const deleteOption = formData.get("deleteOption")?.toString(); // "cascade" | "unassign"
 
   try {
-    if (deleteOption === "unassign") {
-      // Asegurarse de que la categoría "uncategorized" exista
-      const existingDefault = await db
-        .select()
-        .from(resourceCategories)
-        .where(eq(resourceCategories.id, "uncategorized"))
-        .limit(1);
+    let existingDefault = await db
+      .select()
+      .from(resourceCategories)
+      .where(eq(resourceCategories.title, "Sin Categoría"))
+      .limit(1);
 
+    if (existingDefault.length > 0 && categoryId === existingDefault[0].id) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+      return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`);
+    }
+
+    if (deleteOption === "unassign") {
+      let defaultCategoryId;
       if (existingDefault.length === 0) {
-        await db.insert(resourceCategories).values({
-          id: "uncategorized",
+        const [inserted] = await db.insert(resourceCategories).values({
           title: "Sin Categoría",
           iconName: "boxicons:folder",
           tone: "neutral",
-        });
+        }).returning({ id: resourceCategories.id });
+        defaultCategoryId = inserted.id;
+      } else {
+        defaultCategoryId = existingDefault[0].id;
       }
 
       // Reasignar los enlaces a la categoría por defecto
       await db
         .update(resourceLinks)
-        .set({ categoryId: "uncategorized" })
+        .set({ categoryId: defaultCategoryId })
         .where(eq(resourceLinks.categoryId, categoryId));
     }
 

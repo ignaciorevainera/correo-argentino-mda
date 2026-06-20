@@ -21,11 +21,15 @@ const resolveUrl = (path: string) => {
 let errorMsg = "";
 let category = { id: "", title: "" };
 
+const numericId = Number(id);
 const existingCategory = await db.query.applicationCategories.findFirst({
-  where: eq(applicationCategories.id, id || ""),
+  where: eq(applicationCategories.id, numericId),
 });
 if (existingCategory) {
-  category = existingCategory;
+  if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
+    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+  }
+  category = existingCategory as any;
 } else {
   return Astro.redirect(resolveUrl("/admin/aplicativos"));
 }
@@ -43,7 +47,7 @@ if (Astro.request.method === "POST") {
     await db
       .update(applicationCategories)
       .set({ title })
-      .where(eq(applicationCategories.id, id || ""));
+      .where(eq(applicationCategories.id, numericId));
 
     if (oldTitle && oldTitle !== title) {
       await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
@@ -86,7 +90,18 @@ if (Astro.request.method === "POST") {
           {
             errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
               </script>
             )
           }

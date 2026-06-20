@@ -27,15 +27,18 @@ if (Astro.request.method === "POST") {
       throw new Error("El título es obligatorio.");
     }
 
-    const newId = crypto.randomUUID();
+    if (title.toLowerCase() === "sin categoría" || title.toLowerCase() === "sin categoria") {
+      throw new Error("No se puede crear una categoría con este nombre reservado.");
+    }
+
     await db.insert(applicationCategories).values({
-      id: newId,
       title,
     });
     await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de aplicativos "${title}"`);
 
     return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría creada con éxito.")}&toast_type=success`));
   } catch (error: any) {
+    console.error("DEBUG ERROR CREATE CATEGORIA APLICATIVOS:", error);
     errorMsg = error.message || "Error al guardar la categoría.";
   }
 }
@@ -69,7 +72,18 @@ if (Astro.request.method === "POST") {
           {
             errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
               </script>
             )
           }

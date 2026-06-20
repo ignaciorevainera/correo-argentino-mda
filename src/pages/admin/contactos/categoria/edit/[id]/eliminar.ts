@@ -5,40 +5,42 @@ import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 
 export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
-  const categoryId = params.id;
-  if (!categoryId) return new Response("ID de categoría no proporcionado", { status: 400 });
-
-  if (categoryId === "uncategorized") {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/contactos?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`);
-  }
+  const categoryId = parseInt(params.id as string, 10);
+  if (!categoryId || isNaN(categoryId)) return new Response("ID de categoría no válido", { status: 400 });
 
   const formData = await request.formData();
   const deleteOption = formData.get("deleteOption")?.toString(); // "cascade" | "unassign"
 
   try {
-    if (deleteOption === "unassign") {
-      // Asegurarse de que la categoría "uncategorized" exista
-      const existingDefault = await db
-        .select()
-        .from(contactCategories)
-        .where(eq(contactCategories.id, "uncategorized"))
-        .limit(1);
+    let existingDefault = await db
+      .select()
+      .from(contactCategories)
+      .where(eq(contactCategories.title, "Sin Categoría"))
+      .limit(1);
 
+    if (existingDefault.length > 0 && categoryId === existingDefault[0].id) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+      return redirect(`${cleanBase}/admin/contactos?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`);
+    }
+
+    if (deleteOption === "unassign") {
+      let defaultCategoryId;
       if (existingDefault.length === 0) {
-        await db.insert(contactCategories).values({
-          id: "uncategorized",
+        const [inserted] = await db.insert(contactCategories).values({
           title: "Sin Categoría",
           icon: "boxicons:folder",
           tone: "neutral",
-        });
+        }).returning({ id: contactCategories.id });
+        defaultCategoryId = inserted.id;
+      } else {
+        defaultCategoryId = existingDefault[0].id;
       }
 
       // Reasignar los contactos a la categoría por defecto
       await db
         .update(providerContacts)
-        .set({ categoryId: "uncategorized" })
+        .set({ categoryId: defaultCategoryId })
         .where(eq(providerContacts.categoryId, categoryId));
     }
 

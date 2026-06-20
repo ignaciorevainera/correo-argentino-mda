@@ -22,12 +22,16 @@ const resolveUrl = (path: string) => {
 let errorMsg = "";
 let category = { id: "", title: "", icon: "", tone: "primary" };
 
-if (id) {
+const parsedId = parseInt(id as string, 10);
+if (id && !isNaN(parsedId)) {
   const existingCategory = await db.query.contactCategories.findFirst({
-    where: eq(contactCategories.id, id),
+    where: eq(contactCategories.id, parsedId),
   });
   if (existingCategory) {
-    category = existingCategory;
+    if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
+      return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    }
+    category = existingCategory as any;
   } else {
     return Astro.redirect(resolveUrl("/admin/contactos"));
   }
@@ -70,7 +74,8 @@ if (Astro.request.method === "POST") {
 
     const tone = formData.get("tone")?.toString().trim() || "primary";
 
-    if (id) {
+    const parsedId = parseInt(id as string, 10);
+    if (id && !isNaN(parsedId)) {
       const oldTitle = category.title;
       await db
         .update(contactCategories)
@@ -79,7 +84,7 @@ if (Astro.request.method === "POST") {
           icon,
           tone,
         })
-        .where(eq(contactCategories.id, id));
+        .where(eq(contactCategories.id, parsedId));
       if (oldTitle && oldTitle !== title) {
         await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de contactos de "${oldTitle}" a "${title}"`);
       } else {

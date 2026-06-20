@@ -23,11 +23,15 @@ let errorMsg = "";
 let category = { id: "", title: "", iconName: "", tone: "primary" };
 
 if (id) {
+  const numericId = Number(id);
   const existingCategory = await db.query.resourceCategories.findFirst({
-    where: eq(resourceCategories.id, id),
+    where: eq(resourceCategories.id, numericId),
   });
   if (existingCategory) {
-    category = existingCategory;
+    if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
+      return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    }
+    category = existingCategory as any;
   } else {
     return Astro.redirect(resolveUrl("/admin/recursos"));
   }
@@ -70,7 +74,8 @@ if (Astro.request.method === "POST") {
 
     const tone = formData.get("tone")?.toString().trim() || "primary";
 
-    if (id) {
+      if (id) {
+      const numericId = Number(id);
       const oldTitle = category.title;
       await db
         .update(resourceCategories)
@@ -79,7 +84,7 @@ if (Astro.request.method === "POST") {
           iconName,
           tone,
         })
-        .where(eq(resourceCategories.id, id));
+        .where(eq(resourceCategories.id, numericId));
       if (oldTitle && oldTitle !== title) {
         await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de recursos de "${oldTitle}" a "${title}"`);
       } else {
