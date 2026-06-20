@@ -34,12 +34,28 @@ function columnType(db: Database.Database, table: string, col: string): string |
 }
 
 function cleanupResidualTables(db: Database.Database): void {
-  const rows = db.prepare(
+  const residualTables = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')"
   ).all("\\_map\\_%", "\\_\\_new\\_%") as { name: string }[];
-  for (const { name } of rows) {
+  for (const { name } of residualTables) {
     db.exec(`DROP TABLE IF EXISTS "${name}"`);
     console.log(`[Fix]  → Tabla residual "${name}" eliminada.`);
+  }
+
+  const ftsTriggers = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE ? ESCAPE '\\'"
+  ).all("\\%\\_fts\\_%") as { name: string }[];
+  for (const { name } of ftsTriggers) {
+    db.exec(`DROP TRIGGER IF EXISTS "${name}"`);
+    console.log(`[Fix]  → Trigger FTS "${name}" eliminado.`);
+  }
+
+  const ftsTables = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ? ESCAPE '\\'"
+  ).all("\\%\\_fts") as { name: string }[];
+  for (const { name } of ftsTables) {
+    db.exec(`DROP TABLE IF EXISTS "${name}"`);
+    console.log(`[Fix]  → Tabla FTS "${name}" eliminada.`);
   }
 }
 
