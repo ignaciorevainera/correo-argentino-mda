@@ -73,14 +73,31 @@ function ensurePreMigrationState(db: Database.Database): void {
   }
 }
 
-function applyMigrationFile(filePath: string): void {
-  const db = new Database(DB_PATH);
-  db.exec("PRAGMA foreign_keys = OFF;");
+function needsMigration001(db: Database.Database): boolean {
+  const row = db.prepare("SELECT 1 FROM pragma_table_info('applications') WHERE name='sortOrder'").get();
+  return !row;
+}
+
+function applyPendingMigrations(db: Database.Database): void {
   cleanupResidualTables(db);
   ensurePreMigrationState(db);
-  db.exec(readFileSync(filePath, "utf-8"));
-  db.exec("PRAGMA foreign_keys = ON;");
-  db.close();
+
+  // Migration 0001: needed if sortOrder doesn't exist on applications
+  if (needsMigration001(db)) {
+    console.log("[Fix]  → Aplicando migración 0001 (sortOrder, color)...");
+    db.exec(readFileSync(resolve("drizzle/0001_exotic_roxanne_simpson.sql"), "utf-8"));
+    writeJournalEntry({ idx: 1, tag: "0001_exotic_roxanne_simpson" });
+    console.log("[Fix]     Migración 0001 aplicada.");
+  }
+
+  // Migration 0002: needed if contact_categories.id is still TEXT
+  const ccType = columnType(db, "contact_categories", "id");
+  if (ccType !== "INTEGER") {
+    console.log("[Fix]  → Aplicando migración 0002 (text→integer PKs)...");
+    db.exec(readFileSync(resolve("drizzle/0002_yielding_fantastic_four.sql"), "utf-8"));
+    writeJournalEntry({ idx: 2, tag: "0002_yielding_fantastic_four" });
+    console.log("[Fix]     Migración 0002 aplicada.");
+  }
 }
 
 function writeJournalEntry(entry: { idx: number; tag: string }): void {
@@ -128,10 +145,13 @@ function run(): void {
 
   console.log(`[Fix] Se detectaron ${issues.length} problema(s):`);
   for (const issue of issues) console.log(`       - ${issue}`);
-  console.log("[Fix] Aplicando migración 0002 para corregirlos...");
+  console.log("[Fix] Aplicando migraciones pendientes para corregirlos...");
 
-  applyMigrationFile(resolve("drizzle/0002_yielding_fantastic_four.sql"));
-  writeJournalEntry({ idx: 2, tag: "0002_yielding_fantastic_four" });
+  const dbFix = new Database(DB_PATH);
+  dbFix.exec("PRAGMA foreign_keys = OFF;");
+  applyPendingMigrations(dbFix);
+  dbFix.exec("PRAGMA foreign_keys = ON;");
+  dbFix.close();
 
   // Verify
   const verify = new Database(DB_PATH);
