@@ -10,98 +10,130 @@ const MIGRATIONS = [
   "0002_yielding_fantastic_four",
 ];
 
+// Tables that migration 0002 changed from text PK to integer PK
+const TEXT_TO_INT_TABLES = [
+  { table: "application_categories", expectTable: true },
+  { table: "contact_categories", expectTable: true },
+  { table: "resource_categories", expectTable: true },
+  { table: "resource_links", expectTable: true },
+];
+
+// Columns that changed from text FK to integer FK
+const TEXT_TO_INT_FK = [
+  { table: "applications", column: "category_id" },
+  { table: "provider_contacts", column: "category_id" },
+];
+
 function tableExists(db: Database.Database, name: string): boolean {
-  const row = db
-    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")
-    .get(name);
-  return !!row;
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
 }
 
 function columnType(db: Database.Database, table: string, col: string): string | null {
-  const row = db
-    .prepare("SELECT type FROM pragma_table_info(?) WHERE name=?")
-    .get(table, col) as { type: string } | undefined;
+  const row = db.prepare("SELECT type FROM pragma_table_info(?) WHERE name=?").get(table, col) as { type: string } | undefined;
   return row?.type ?? null;
 }
 
-function appliedMigrations(journal: { entries: { tag: string }[] }): Set<string> {
-  return new Set(journal.entries.map((e) => e.tag));
+function applyMigrationFile(filePath: string): void {
+  const db = new Database(DB_PATH);
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec(readFileSync(filePath, "utf-8"));
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.close();
 }
 
-function readJournal(): { entries: { idx: number; tag: string; version: string; when: number; breakpoints: boolean }[] } {
-  try {
-    return JSON.parse(readFileSync(JOURNAL_PATH, "utf-8"));
-  } catch {
-    return { entries: [] };
-  }
-}
-
-function writeJournal(entry: { idx: number; tag: string; version: string; when: number; breakpoints: boolean }): void {
-  const journal = readJournal();
-  if (!journal.entries.some((e) => e.tag === entry.tag)) {
-    journal.entries.push(entry);
+function writeJournalEntry(entry: { idx: number; tag: string }): void {
+  const raw = readFileSync(JOURNAL_PATH, "utf-8");
+  const journal = JSON.parse(raw);
+  if (!journal.entries.some((e: { tag: string }) => e.tag === entry.tag)) {
+    journal.entries.push({ ...entry, version: "6", when: Date.now(), breakpoints: true });
     writeFileSync(JOURNAL_PATH, JSON.stringify(journal, null, 2) + "\n");
   }
 }
 
-function fix(db: Database.Database): void {
-  const acExists = tableExists(db, "application_categories");
-  const acType = acExists ? columnType(db, "application_categories", "id") : null;
-
-  if (acExists && acType === "INTEGER") {
-    console.log("[Fix] La BD ya está en sync. No se requiere ninguna acción.");
-    return;
-  }
-
-  if (acExists && acType === "TEXT") {
-    console.log("[Fix] Detectada PK text → integer. Aplicando migración 0002...");
-    const sql = readFileSync(resolve("drizzle/0002_yielding_fantastic_four.sql"), "utf-8");
-    db.exec("PRAGMA foreign_keys = OFF;");
-    db.exec(sql);
-    db.exec("PRAGMA foreign_keys = ON;");
-    writeJournal({ idx: 2, tag: "0002_yielding_fantastic_four", version: "6", when: Date.now(), breakpoints: true });
-    console.log("[Fix] Migración 0002 aplicada. Journal actualizado.");
-    return;
-  }
-
-  if (!acExists) {
-    console.log("[Fix] La tabla application_categories no existe. Aplicando migraciones desde 0...");
-    const journal = readJournal();
-    const applied = appliedMigrations(journal);
-
-    db.exec("PRAGMA foreign_keys = OFF;");
-
-    for (const tag of MIGRATIONS) {
-      if (!applied.has(tag)) {
-        console.log(`[Fix]  → Aplicando ${tag}...`);
-        const sql = readFileSync(resolve(`drizzle/${tag}.sql`), "utf-8");
-        db.exec(sql);
-        writeJournal({ idx: parseInt(tag.slice(0, 4)), tag, version: "6", when: Date.now(), breakpoints: true });
-        console.log(`[Fix]     ${tag} aplicada. Journal actualizado.`);
-      } else {
-        console.log(`[Fix]  → ${tag} ya estaba aplicada, se omite.`);
-      }
-    }
-
-    db.exec("PRAGMA foreign_keys = ON;");
-    console.log("[Fix] Migraciones completadas.");
-    return;
-  }
-
-  console.error("[Fix] Estado no esperado de la BD. Revisar manualmente.");
-}
-
 function run(): void {
-  try {
-    readFileSync(DB_PATH);
-  } catch {
-    console.error("[Fix] No se encuentra database/mda.db");
+  try { readFileSync(DB_PATH); }
+  catch { console.error("[Fix] No se encuentra database/mda.db"); process.exit(1); }
+
+  const db = new Database(DB_PATH);
+  const issues: string[] = [];
+
+  // 1. Check all TEXT→INTEGER tables
+  for (const { table } of TEXT_TO_INT_TABLES) {
+    if (!tableExists(db, table)) {
+      issues.push(`${table}: no existe`);
+    } else {
+      const t = columnType(db, table, "id");
+      if (t === "TEXT") issues.push(`${table}.id es TEXT, debería ser INTEGER`);
+    }
+  }
+
+  // 2. Check all TEXT→INTEGER foreign keys
+  for (const { table, column } of TEXT_TO_INT_FK) {
+    if (tableExists(db, table)) {
+      const t = columnType(db, table, column);
+      if (t === "TEXT") issues.push(`${table}.${column} es TEXT, debería ser INTEGER`);
+    }
+  }
+
+  db.close();
+
+  if (issues.length === 0) {
+    console.log("[Fix] No se detectan mismatches en ninguna tabla. La BD ya está en sync.");
+    console.log("[Fix] Si drizzle-kit push sigue fallando, podés recrear la BD desde 0 con:");
+    console.log("[Fix]   npx tsx scripts/fix-drizzle-mismatch.ts --force");
+    return;
+  }
+
+  console.log(`[Fix] Se detectaron ${issues.length} problema(s):`);
+  for (const issue of issues) console.log(`       - ${issue}`);
+  console.log("[Fix] Aplicando migración 0002 para corregirlos...");
+
+  applyMigrationFile(resolve("drizzle/0002_yielding_fantastic_four.sql"));
+  writeJournalEntry({ idx: 2, tag: "0002_yielding_fantastic_four" });
+
+  // Verify
+  const verify = new Database(DB_PATH);
+  let remaining = 0;
+  for (const { table } of TEXT_TO_INT_TABLES) {
+    if (tableExists(verify, table) && columnType(verify, table, "id") === "TEXT") remaining++;
+  }
+  for (const { table, column } of TEXT_TO_INT_FK) {
+    if (tableExists(verify, table) && columnType(verify, table, column) === "TEXT") remaining++;
+  }
+  verify.close();
+
+  if (remaining > 0) {
+    console.error(`[Fix] Quedan ${remaining} mismatch(es) sin resolver.`);
     process.exit(1);
   }
 
+  console.log("[Fix] Todo corregido. Ya podés ejecutar npx drizzle-kit push.");
+}
+
+// --- FORCE MODE: recreate full database ---
+if (process.argv.includes("--force")) {
+  console.log("[Fix] Modo --force: aplicando las 3 migraciones desde 0...");
+  const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf-8"));
+  const applied = new Set(journal.entries.map((e: { tag: string }) => e.tag));
+
   const db = new Database(DB_PATH);
-  fix(db);
+  db.exec("PRAGMA foreign_keys = OFF;");
+
+  for (const tag of MIGRATIONS) {
+    if (!applied.has(tag)) {
+      console.log(`[Fix]  → Aplicando ${tag}...`);
+      db.exec(readFileSync(resolve(`drizzle/${tag}.sql`), "utf-8"));
+      writeJournalEntry({ idx: parseInt(tag.slice(0, 4)), tag });
+      console.log(`[Fix]     ${tag} aplicada.`);
+    } else {
+      console.log(`[Fix]  → ${tag} ya estaba aplicada, se omite.`);
+    }
+  }
+
+  db.exec("PRAGMA foreign_keys = ON;");
   db.close();
+  console.log("[Fix] Migraciones completadas.");
+  process.exit(0);
 }
 
 run();
