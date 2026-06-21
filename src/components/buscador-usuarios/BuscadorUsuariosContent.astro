@@ -93,14 +93,14 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
     <div
       id="results-skeleton"
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      class="grid grid-cols-1 md:grid-cols-2 gap-6"
     >
       {[1, 2, 3, 4, 5, 6].map(() => <SkeletonCard type="user" />)}
     </div>
 
     <div
       id="results-grid"
-      class="hidden grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 transition-opacity duration-500"
+      class="hidden grid-cols-1 md:grid-cols-2 gap-6 opacity-0 transition-opacity duration-500"
     >
     </div>
 
@@ -241,8 +241,6 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   const termInfoFullname = document.getElementById("term-info-fullname");
   const termInfoTitle = document.getElementById("term-info-title");
   const termInfoPwdLastSet = document.getElementById("term-info-pwdlastset");
-  const termInfoBadPwdCount = document.getElementById("term-info-badpwdcount");
-  const termInfoLockout = document.getElementById("term-info-lockout");
   const termInfoExpires = document.getElementById("term-info-expires");
   const termInfoEmployeeNumber = document.getElementById(
     "term-info-employeenumber",
@@ -252,6 +250,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   const btnSearchManager = document.getElementById("btn-search-manager");
   const termInfoLastLogon = document.getElementById("term-info-lastlogon");
   const termInfoWhenCreated = document.getElementById("term-info-whencreated");
+
+  // Botones de copia de terminal
+  const btnCopyUsername = document.getElementById("btn-copy-username");
+  const btnCopyFullname = document.getElementById("btn-copy-fullname");
+  const btnCopyTitle = document.getElementById("btn-copy-title");
+  const btnCopyEmployeeNumber = document.getElementById("btn-copy-employeenumber");
+  const btnCopyOffice = document.getElementById("btn-copy-office");
+  const btnCopyManager = document.getElementById("btn-copy-manager");
+  const btnCopyPwdLastSet = document.getElementById("btn-copy-pwdlastset");
+  const btnCopyLastLogon = document.getElementById("btn-copy-lastlogon");
+  const btnCopyWhenCreated = document.getElementById("btn-copy-whencreated");
+  const btnCopyExpires = document.getElementById("btn-copy-expires");
   const terminalGroupsCount = document.getElementById("terminal-groups-count");
   const terminalGroupsSearch = document.getElementById(
     "terminal-groups-search",
@@ -339,6 +349,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     if (statusText) statusText.textContent = "Listo para buscar.";
     resultsSkeleton?.classList.add("hidden");
     resultsGrid?.classList.remove("hidden");
+    resultsGrid?.classList.add("grid");
     setTimeout(() => resultsGrid?.classList.remove("opacity-0"), 50);
     displayResults([]);
   }
@@ -349,6 +360,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     if (resultsCount) resultsCount.textContent = String(users.length);
     if (users.length === 0) {
       resultsGrid.classList.add("hidden");
+      resultsGrid.classList.remove("grid");
       emptyState?.classList.remove("hidden");
       emptyState?.classList.add("flex");
 
@@ -400,6 +412,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       return;
     }
     resultsGrid.classList.remove("hidden");
+    resultsGrid.classList.add("grid");
     emptyState?.classList.add("hidden");
     emptyState?.classList.remove("flex");
     const fragment = document.createDocumentFragment();
@@ -407,34 +420,38 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     users.forEach((user) => {
       const clone = cardTemplate.content.cloneNode(true) as DocumentFragment;
       const nombreEl = clone.querySelector("[data-user-nombre]");
-      const dniEl = clone.querySelector("[data-user-dni]");
-      const userEl = clone.querySelector("[data-user-id]");
-      const internoEl = clone.querySelector("[data-user-interno]");
-      const telefonoEl = clone.querySelector("[data-user-telefono]");
-      const emailEl = clone.querySelector("[data-user-email]");
-      const sucursalEl = clone.querySelector("[data-user-sucursal]");
 
       if (nombreEl) {
         nombreEl.innerHTML = user.nombre
           ? highlightText(user.nombre, query)
           : "Sin Nombre";
       }
-      if (dniEl) {
-        dniEl.innerHTML = user.dni ? highlightText(user.dni, query) : "-";
-      }
-      if (userEl) {
-        userEl.innerHTML = user.usuario
-          ? highlightText(user.usuario, query)
-          : "-";
-      }
-      if (internoEl) internoEl.textContent = user.interno || "-";
-      if (telefonoEl) telefonoEl.textContent = user.telefono || "-";
-      if (emailEl) {
-        emailEl.innerHTML = user.email
-          ? highlightText(user.email, query)
-          : "Sin Email";
-      }
-      if (sucursalEl) sucursalEl.textContent = user.sucursal || "Sin sucursal";
+
+      // Función auxiliar para actualizar los CopyButton del template de la tarjeta
+      const updateCardCopyButton = (btnSelector: string, value: string, highlightQuery: string = "") => {
+        const btn = clone.querySelector(btnSelector) as HTMLElement | null;
+        if (btn) {
+          const val = value || "";
+          btn.setAttribute("data-copy-value", val);
+          btn.setAttribute("data-copy-label-default", val || "-");
+          btn.setAttribute("aria-label", `Copiar: ${val || "-"}`);
+          
+          const labelSpan = btn.querySelector("[data-copy-label]") as HTMLElement | null;
+          if (labelSpan) {
+            if (highlightQuery && val) {
+              labelSpan.innerHTML = highlightText(val, highlightQuery);
+            } else {
+              labelSpan.textContent = val || "-";
+            }
+          }
+        }
+      };
+
+      updateCardCopyButton(".user-card-username-btn", user.usuario, query);
+      updateCardCopyButton(".user-card-dni-btn", user.dni, query);
+      updateCardCopyButton(".user-card-interno-btn", user.interno);
+      updateCardCopyButton(".user-card-telefono-btn", user.telefono);
+      updateCardCopyButton(".user-card-email-btn", user.email, query);
 
       const safeNombre = user.nombre || "U";
       const initials = safeNombre
@@ -453,20 +470,6 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         const colorClass = getAvatarColor(safeNombre);
         colorClass.split(" ").forEach((cls) => avatarBg.classList.add(cls));
       }
-      const setupCopy = (selector: string, value: string) => {
-        const btn = clone.querySelector(selector) as HTMLElement | null;
-        if (btn && value) {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            copyToClipboard(value, btn);
-          });
-        }
-      };
-      setupCopy("[data-copy-dni]", user.dni);
-      setupCopy("[data-copy-user]", user.usuario);
-      setupCopy("[data-copy-interno]", user.interno);
-      setupCopy("[data-copy-telefono]", user.telefono);
-      setupCopy("[data-copy-email]", user.email);
 
       // Botón de edición
       const editBtn = clone.querySelector(
@@ -709,33 +712,35 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     );
     if (allBtn) {
       allBtn.className =
-        "btn btn-xs rounded-full cursor-pointer transition-all bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 font-sans font-bold gap-1";
+        "btn btn-xs rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
     }
 
     terminalUserTitle.textContent = username;
     terminalCommandUsername.textContent = username;
     terminalOutput.textContent = "";
 
-    // Resetear campos del panel organizado
+    // Resetear campos del panel organizado y sus botones de copia
     if (termInfoUsername) termInfoUsername.textContent = username;
+    if (btnCopyUsername) btnCopyUsername.setAttribute("data-copy-value", username);
     if (termInfoFullname) termInfoFullname.textContent = "-";
+    if (btnCopyFullname) btnCopyFullname.setAttribute("data-copy-value", "");
     if (termInfoTitle) termInfoTitle.textContent = "-";
+    if (btnCopyTitle) btnCopyTitle.setAttribute("data-copy-value", "");
     if (termInfoEmployeeNumber) termInfoEmployeeNumber.textContent = "-";
+    if (btnCopyEmployeeNumber) btnCopyEmployeeNumber.setAttribute("data-copy-value", "");
     if (termInfoOffice) termInfoOffice.textContent = "-";
+    if (btnCopyOffice) btnCopyOffice.setAttribute("data-copy-value", "");
     if (termInfoManager) termInfoManager.textContent = "-";
+    if (btnCopyManager) btnCopyManager.setAttribute("data-copy-value", "");
     if (btnSearchManager) btnSearchManager.classList.add("hidden");
     if (termInfoPwdLastSet) termInfoPwdLastSet.textContent = "-";
-    if (termInfoBadPwdCount) {
-      termInfoBadPwdCount.textContent = "-";
-      termInfoBadPwdCount.className =
-        "text-sm font-semibold text-neutral-200 mt-1";
-    }
-    if (termInfoLockout)
-      termInfoLockout.innerHTML =
-        '<span class="text-neutral-400 text-xs">-</span>';
+    if (btnCopyPwdLastSet) btnCopyPwdLastSet.setAttribute("data-copy-value", "");
     if (termInfoLastLogon) termInfoLastLogon.textContent = "-";
+    if (btnCopyLastLogon) btnCopyLastLogon.setAttribute("data-copy-value", "");
     if (termInfoWhenCreated) termInfoWhenCreated.textContent = "-";
+    if (btnCopyWhenCreated) btnCopyWhenCreated.setAttribute("data-copy-value", "");
     if (termInfoExpires) termInfoExpires.textContent = "-";
+    if (btnCopyExpires) btnCopyExpires.setAttribute("data-copy-value", "");
     if (terminalGroupsCount) terminalGroupsCount.textContent = "0 grupos";
     if (terminalGroupsList) terminalGroupsList.innerHTML = "";
     currentLdapGroups = [];
@@ -762,17 +767,27 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         // Cargar datos estructurados
         if (termInfoFullname)
           termInfoFullname.textContent = result.fullname || "No especificado";
+        if (btnCopyFullname)
+          btnCopyFullname.setAttribute("data-copy-value", result.fullname || "");
         if (termInfoTitle)
           termInfoTitle.textContent = result.title || "No especificado";
+        if (btnCopyTitle)
+          btnCopyTitle.setAttribute("data-copy-value", result.title || "");
         if (termInfoEmployeeNumber)
           termInfoEmployeeNumber.textContent =
             result.employee_number || "No especificado";
+        if (btnCopyEmployeeNumber)
+          btnCopyEmployeeNumber.setAttribute("data-copy-value", result.employee_number || "");
         if (termInfoOffice)
           termInfoOffice.textContent =
             result.physical_office || "No especificado";
+        if (btnCopyOffice)
+          btnCopyOffice.setAttribute("data-copy-value", result.physical_office || "");
         if (termInfoManager)
           termInfoManager.textContent =
             result.manager_name || "No especificado";
+        if (btnCopyManager)
+          btnCopyManager.setAttribute("data-copy-value", result.manager_name || "");
         if (btnSearchManager) {
           if (
             result.manager_name &&
@@ -786,38 +801,24 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         if (termInfoLastLogon)
           termInfoLastLogon.textContent =
             result.last_logon || "No especificado";
+        if (btnCopyLastLogon)
+          btnCopyLastLogon.setAttribute("data-copy-value", result.last_logon || "");
         if (termInfoWhenCreated)
           termInfoWhenCreated.textContent =
             result.when_created || "No especificado";
+        if (btnCopyWhenCreated)
+          btnCopyWhenCreated.setAttribute("data-copy-value", result.when_created || "");
 
         // Poblar diagnósticos de seguridad
         if (termInfoPwdLastSet)
           termInfoPwdLastSet.textContent =
             result.pwd_last_set || "No especificado";
-        if (termInfoBadPwdCount) {
-          const badCount =
-            result.bad_pwd_count !== undefined
-              ? Number(result.bad_pwd_count)
-              : 0;
-          termInfoBadPwdCount.textContent = String(badCount);
-          if (badCount > 0) {
-            termInfoBadPwdCount.className = "text-sm font-bold text-error mt-1";
-          } else {
-            termInfoBadPwdCount.className =
-              "text-sm font-semibold text-success mt-1";
-          }
-        }
-        if (termInfoLockout) {
-          if (result.is_locked) {
-            termInfoLockout.innerHTML =
-              '<span class="badge badge-error badge-sm text-xxs font-sans font-bold select-none flex items-center gap-1"><svg class="size-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg> BLOQUEADA</span>';
-          } else {
-            termInfoLockout.innerHTML =
-              '<span class="badge badge-success badge-sm text-xxs font-sans font-bold select-none flex items-center gap-1"><svg class="size-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Activa</span>';
-          }
-        }
+        if (btnCopyPwdLastSet)
+          btnCopyPwdLastSet.setAttribute("data-copy-value", result.pwd_last_set || "");
         if (termInfoExpires)
           termInfoExpires.textContent = result.account_expires || "Nunca";
+        if (btnCopyExpires)
+          btnCopyExpires.setAttribute("data-copy-value", result.account_expires || "Nunca");
 
         currentLdapGroups = result.groups || [];
         if (terminalGroupsCount) {
@@ -901,7 +902,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       key: "otros",
       label: "Acceso",
       colorClass:
-        "border-base-300 bg-base-200/50 text-base-content hover:bg-base-200",
+        "border-base-300 bg-base-200 text-base-content hover:bg-base-300",
       icon: `<svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg>`,
     };
   }
@@ -956,7 +957,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     // Aplicar el diseño según la vista seleccionada
     if (currentViewMode === "grid") {
       terminalGroupsList.className =
-        "flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-[380px] min-h-[380px] scrollbar-thin transition-all grid grid-cols-1 sm:grid-cols-2 gap-2";
+        "flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-[380px] min-h-[380px] scrollbar-thin transition-all grid grid-cols-2 gap-2";
     } else {
       terminalGroupsList.className =
         "flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-[380px] min-h-[380px] scrollbar-thin transition-all flex flex-col gap-2";
@@ -982,16 +983,20 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     filtered.forEach((group) => {
       const categoryInfo = getGroupCategory(group);
       const item = document.createElement("div");
-      item.className = `flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-lg border transition-all font-sans relative group ${categoryInfo.colorClass}`;
+      // Alto estandarizado h-11 para tamaño fijo independientemente de la cantidad
+      item.className = `flex items-center justify-between gap-2.5 px-3 h-11 rounded-lg border transition-all font-sans relative group ${categoryInfo.colorClass}`;
 
       item.innerHTML = `
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="size-4 shrink-0 select-none flex items-center justify-center">${categoryInfo.icon}</span>
             <span class="font-semibold truncate text-small select-all text-base-content leading-none" title="${group}">${highlightGroupText(group, filterText)}</span>
           </div>
-          <button type="button" class="btn btn-ghost btn-xs text-neutral-400 hover:text-primary transition-all p-1 cursor-pointer opacity-0 group-hover:opacity-100 shrink-0" data-copy-group="${group}" title="Copiar nombre de grupo">
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0" data-copy-control data-copy-value="${group}" data-copy-label-default="Copiar grupo" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar nombre de grupo">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-copy-icon-default>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-copy-icon-success>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
           </button>
         `;
@@ -1005,61 +1010,6 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       terminalModal.close();
     }
   }
-
-  // Copiar campo de detalles de red individual
-  document.querySelectorAll("[data-copy-field]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const fieldId = btn.getAttribute("data-copy-field");
-      if (!fieldId) return;
-      const targetEl = document.getElementById(fieldId);
-      const text = targetEl?.textContent || "";
-      if (!text || text === "-") return;
-
-      const copied = await copyText(text);
-      if (copied) {
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          `;
-        btn.classList.add("text-success");
-        setTimeout(() => {
-          btn.innerHTML = originalHTML;
-          btn.classList.remove("text-success");
-        }, 1500);
-      }
-    });
-  });
-
-  // Copiar grupo individual desde el listado delegado
-  terminalGroupsList?.addEventListener("click", async (e) => {
-    const target = e.target as HTMLElement;
-    const copyBtn = target.closest(
-      "[data-copy-group]",
-    ) as HTMLButtonElement | null;
-    if (copyBtn) {
-      e.stopPropagation();
-      const groupName = copyBtn.getAttribute("data-copy-group") || "";
-      if (!groupName) return;
-
-      const copied = await copyText(groupName);
-      if (copied) {
-        const originalHTML = copyBtn.innerHTML;
-        copyBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          `;
-        copyBtn.classList.add("text-success");
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove("text-success");
-        }, 1500);
-      }
-    }
-  });
 
   // Copiar todos los grupos filtrados en formato lista limpia
   copyAllGroupsBtn?.addEventListener("click", async () => {
@@ -1096,10 +1046,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   btnViewGrid?.addEventListener("click", () => {
     currentViewMode = "grid";
     btnViewGrid.className =
-      "btn btn-xs join-item px-2.5 text-primary bg-base-300 cursor-pointer";
+      "btn btn-sm join-item px-3 text-secondary bg-base-300 cursor-pointer border-0";
     if (btnViewList)
       btnViewList.className =
-        "btn btn-xs join-item px-2.5 text-base-content/50 hover:text-base-content bg-base-100 cursor-pointer";
+        "btn btn-sm join-item px-3 text-base-content/50 hover:text-base-content bg-transparent cursor-pointer border-0";
     renderGroups(
       currentLdapGroups,
       terminalGroupsSearch?.value || "",
@@ -1111,9 +1061,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     currentViewMode = "list";
     if (btnViewGrid)
       btnViewGrid.className =
-        "btn btn-xs join-item px-2.5 text-base-content/50 hover:text-base-content bg-base-100 cursor-pointer";
+        "btn btn-sm join-item px-3 text-base-content/50 hover:text-base-content bg-transparent cursor-pointer border-0";
     btnViewList.className =
-      "btn btn-xs join-item px-2.5 text-primary bg-base-300 cursor-pointer";
+      "btn btn-sm join-item px-3 text-secondary bg-base-300 cursor-pointer border-0";
     renderGroups(
       currentLdapGroups,
       terminalGroupsSearch?.value || "",
@@ -1137,7 +1087,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
       if (filter === "all") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 font-sans font-bold gap-1";
+          "btn btn-xs rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
       } else if (filter === "seguridad") {
         btn.className =
           "btn btn-xs rounded-full cursor-pointer transition-all bg-error/20 text-error border border-error/30 hover:bg-error/30 font-sans font-bold gap-1";
@@ -1181,9 +1131,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
   // Control de pestañas (Tabs)
   tabPanelBtn?.addEventListener("click", () => {
-    tabPanelBtn.classList.add("border-primary", "text-primary");
+    tabPanelBtn.classList.add("border-secondary", "text-secondary");
     tabPanelBtn.classList.remove("border-transparent", "text-base-content/60");
-    tabConsoleBtn?.classList.remove("border-primary", "text-primary");
+    tabConsoleBtn?.classList.remove("border-secondary", "text-secondary");
     tabConsoleBtn?.classList.add("border-transparent", "text-base-content/60");
 
     viewPanel?.classList.remove("hidden");
@@ -1191,12 +1141,12 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   });
 
   tabConsoleBtn?.addEventListener("click", () => {
-    tabConsoleBtn.classList.add("border-primary", "text-primary");
+    tabConsoleBtn.classList.add("border-secondary", "text-secondary");
     tabConsoleBtn.classList.remove(
       "border-transparent",
       "text-base-content/60",
     );
-    tabPanelBtn?.classList.remove("border-primary", "text-primary");
+    tabPanelBtn?.classList.remove("border-secondary", "text-secondary");
     tabPanelBtn?.classList.add("border-transparent", "text-base-content/60");
 
     viewConsole?.classList.remove("hidden");

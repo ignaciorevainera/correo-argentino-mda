@@ -13,47 +13,50 @@ if (Astro.locals.user.id !== 0) {
   return Astro.redirect(import.meta.env.BASE_URL || "/");
 }
 
-let errorMsg = "";
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith('/') ? base : base + '/';
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
   const usernameInput = formData.get("username")?.toString().trim();
   const passwordInput = formData.get("password")?.toString();
 
-  if (usernameInput && passwordInput) {
-    const [userFound] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, usernameInput));
-
-    if (userFound) {
-      const isPasswordValid = await bcrypt.compare(
-        passwordInput,
-        userFound.password,
-      );
-
-      if (isPasswordValid) {
-        const sessionId = generateSessionId();
-        const expiresAtMs = Date.now() + 1000 * 60 * 60 * 24 * 7;
-        const expiresAtDate = new Date(expiresAtMs);
-
-        await db.insert(sessions).values({
-          id: sessionId,
-          userId: userFound.id,
-          expiresAt: expiresAtMs,
-        });
-
-        const signedId = signSessionId(sessionId);
-        setSessionCookie(Astro.cookies, signedId, expiresAtDate);
-
-        return Astro.redirect(import.meta.env.BASE_URL || "/");
-      } else {
-        errorMsg = "Contraseña incorrecta.";
-      }
-    } else {
-      errorMsg = "El usuario no existe.";
-    }
+  if (!usernameInput || !passwordInput) {
+    return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("Completá todos los campos")}&toast_type=warning`);
   }
+
+  const [userFound] = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, usernameInput));
+
+  if (userFound) {
+    const isPasswordValid = await bcrypt.compare(
+      passwordInput,
+      userFound.password,
+    );
+
+    if (isPasswordValid) {
+      const sessionId = generateSessionId();
+      const expiresAtMs = Date.now() + 1000 * 60 * 60 * 24 * 7;
+      const expiresAtDate = new Date(expiresAtMs);
+
+      await db.insert(sessions).values({
+        id: sessionId,
+        userId: userFound.id,
+        expiresAt: expiresAtMs,
+      });
+
+      const signedId = signSessionId(sessionId);
+      setSessionCookie(Astro.cookies, signedId, expiresAtDate);
+
+      return Astro.redirect(base);
+    }
+
+    return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("Contraseña incorrecta")}&toast_type=error`);
+  }
+
+  return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("El usuario no existe")}&toast_type=error`);
 }
 ---
 
@@ -79,15 +82,6 @@ if (Astro.request.method === "POST") {
               Inicia sesión con tu usuario
             </p>
           </div>
-
-          {
-            errorMsg && (
-              <div role="alert" class="alert alert-error text-xs">
-                <Icon name="boxicons:alert-circle" size={18} class="shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )
-          }
 
           <form method="POST">
             <FormField

@@ -1,0 +1,438 @@
+---
+import { db } from "@db/index";
+import { agents, workLocations, schedules } from "@db/schema";
+import { eq } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import { Icon } from "astro-icon/components";
+import { getDisponibilidadHoy } from "@/lib/disponibilidad";
+import { logAdminAction } from "@lib/auditLogger";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+const user = Astro.locals.user;
+if (!["admin", "supervisor", "team_leader"].includes(user.role)) return Astro.redirect(`${cleanBase}login`);
+
+const { id } = Astro.params;
+const isNew = false;
+let successMsg = "";
+let errorMsg = "";
+
+if (!id || isNaN(Number(id))) {
+  return Astro.redirect(`${cleanBase}admin/operadores`);
+}
+
+const daysOfWeek = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+
+const dayNameMapping: Record<string, string> = {
+  "Lunes": "Lunes",
+  "Martes": "Martes",
+  "Miércoles": "Miercoles",
+  "Jueves": "Jueves",
+  "Viernes": "Viernes",
+  "Sábado": "Sabado",
+  "Domingo": "Domingo",
+  "Miercoles": "Miércoles",
+  "Sabado": "Sábado"
+};
+
+const allLocations = await db
+  .select({ id: workLocations.id, name: workLocations.name })
+  .from(workLocations)
+  .orderBy(workLocations.name);
+
+if (Astro.request.method === "POST") {
+  try {
+    const fd = await Astro.request.formData();
+
+    const name = fd.get("name")?.toString().trim() ?? "";
+    const username = fd.get("id")?.toString().trim() || null;
+    const locationId = fd.get("locationId")?.toString().trim() || "";
+
+    const loc = allLocations.find((l) => l.id === locationId);
+    const locationName = loc ? loc.name : "Monte Grande";
+
+    if (!name) {
+      errorMsg = "El nombre completo es obligatorio.";
+    } else {
+      const newEsquemaSemanal: Record<string, string> = {};
+      const newEsquemaHorario: Record<string, string> = {};
+      const newEsquemaBreakInicio: Record<string, string> = {};
+      const newEsquemaBreakFin: Record<string, string> = {};
+
+      for (const day of daysOfWeek) {
+        const cronoDay = dayNameMapping[day] || day;
+
+        const homeStart = fd.get(`home_${day}_start`)?.toString().trim() || "";
+        const homeEnd = fd.get(`home_${day}_end`)?.toString().trim() || "";
+        const homeBreak = fd.get(`home_${day}_break`)?.toString().trim() || "";
+
+        const presStart = fd.get(`presencial_${day}_start`)?.toString().trim() || "";
+        const presEnd = fd.get(`presencial_${day}_end`)?.toString().trim() || "";
+        const presBreak = fd.get(`presencial_${day}_break`)?.toString().trim() || "";
+
+        if (presStart || presEnd) {
+          newEsquemaSemanal[cronoDay] = `Presencial ${locationName}`;
+          newEsquemaHorario[cronoDay] = `${presStart || "08:00"} - ${presEnd || "17:00"}`;
+          if (presBreak) {
+            newEsquemaBreakInicio[cronoDay] = presBreak;
+            const [h, m] = presBreak.split(":").map(Number);
+            const endHour = (h + 1) % 24;
+            newEsquemaBreakFin[cronoDay] = `${String(endHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          } else {
+            newEsquemaBreakInicio[cronoDay] = "";
+            newEsquemaBreakFin[cronoDay] = "";
+          }
+        } else if (homeStart || homeEnd) {
+          newEsquemaSemanal[cronoDay] = "Home Office";
+          newEsquemaHorario[cronoDay] = `${homeStart || "08:00"} - ${homeEnd || "17:00"}`;
+          if (homeBreak) {
+            newEsquemaBreakInicio[cronoDay] = homeBreak;
+            const [h, m] = homeBreak.split(":").map(Number);
+            const endHour = (h + 1) % 24;
+            newEsquemaBreakFin[cronoDay] = `${String(endHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          } else {
+            newEsquemaBreakInicio[cronoDay] = "";
+            newEsquemaBreakFin[cronoDay] = "";
+          }
+        } else {
+          newEsquemaSemanal[cronoDay] = "Franco";
+          newEsquemaHorario[cronoDay] = "";
+          newEsquemaBreakInicio[cronoDay] = "";
+          newEsquemaBreakFin[cronoDay] = "";
+        }
+      }
+
+      const initials = name
+        .split(/\s+/)
+        .map((p) => p[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+
+      const agentId = Number(id);
+      const [original] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, agentId));
+
+      await db
+        .update(agents)
+        .set({
+          name,
+          username,
+          avatarInitials: initials,
+          location: locationName,
+          esquemaSemanal: newEsquemaSemanal,
+          esquemaHorario: newEsquemaHorario,
+          esquemaBreakInicio: newEsquemaBreakInicio,
+          esquemaBreakFin: newEsquemaBreakFin,
+        })
+        .where(eq(agents.id, agentId));
+
+      if (original && original.name !== name) {
+        await db
+          .update(schedules)
+          .set({ agentName: name })
+          .where(eq(schedules.agentName, original.name));
+      }
+
+      let logMessage = `Actualizó el operador "${name}"`;
+      if (original && original.name !== name) {
+        logMessage = `Actualizó el operador de "${original.name}" a "${name}"`;
+      }
+
+      await logAdminAction(user?.username || 'Sistema', logMessage);
+      return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`);
+    }
+  } catch (e: any) {
+    console.error("POST Admin Operator Error:", e);
+    errorMsg = e.message.includes("UNIQUE")
+      ? "Ya existe un operador con ese nombre o ID de usuario."
+      : "Error al guardar el operador.";
+  }
+}
+
+type OperatorRecord = {
+  id: string;
+  name: string;
+  username: string;
+  status: string;
+  location: string;
+  locationId: string | null;
+};
+
+let operator: OperatorRecord | null = null;
+let operatorSchedulesData: Record<string, Record<string, any>> = {};
+
+const agentId = Number(id);
+const [result] = await db.select().from(agents).where(eq(agents.id, agentId));
+
+if (!result) return Astro.redirect(`${cleanBase}admin/operadores`);
+
+const availList = await getDisponibilidadHoy();
+const currentAvail = availList.find((a) => a.agentId === agentId);
+
+operator = {
+  id: String(result.id),
+  name: result.name,
+  username: result.username || "",
+  status: currentAvail?.disponible ? "disponible" : (currentAvail?.motivo || "Franco"),
+  location: result.location,
+  locationId: allLocations.find((l) => l.name === result.location)?.id || null,
+};
+
+const esquemaSemanal = (result.esquemaSemanal as Record<string, string>) || {};
+const esquemaHorario = (result.esquemaHorario as Record<string, string>) || {};
+const esquemaBreakInicio = (result.esquemaBreakInicio as Record<string, string>) || {};
+
+for (const day of daysOfWeek) {
+  const cronoDay = dayNameMapping[day] || day;
+  const status = esquemaSemanal[cronoDay] || "Franco";
+  const horario = esquemaHorario[cronoDay] || "";
+  const breakInicio = esquemaBreakInicio[cronoDay] || "";
+
+  const [start, end] = horario.split(" - ");
+
+  operatorSchedulesData[day] = {};
+
+  if (status === "Home Office") {
+    operatorSchedulesData[day]["home"] = {
+      shiftStart: start || "",
+      shiftEnd: end || "",
+      breakTime: breakInicio || "",
+    };
+  } else if (status?.startsWith("Presencial")) {
+    operatorSchedulesData[day]["presencial"] = {
+      shiftStart: start || "",
+      shiftEnd: end || "",
+      breakTime: breakInicio || "",
+    };
+  }
+}
+
+const pageTitle = `Editar: ${operator!.name}`;
+---
+
+<BaseLayout title={pageTitle}>
+  <PageContainer>
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a
+        href={`${cleanBase}admin/operadores`}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Gestión de operadores
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">{pageTitle}</span>
+    </div>
+
+    <PageHeader
+      title={pageTitle}
+      description={`ID de base de datos: ${operator!.id}`}
+    />
+
+    {
+      errorMsg && (
+        <script is:inline define:vars={{ errorMsg }}>
+          window.showToast?.(errorMsg, "alert-error");
+        </script>
+      )
+    }
+    {
+      successMsg && (
+        <script is:inline define:vars={{ successMsg }}>
+          window.showToast?.(successMsg, "alert-success");
+        </script>
+      )
+    }
+
+    <form method="POST" id="operator-form" class="space-y-4">
+      <section class="card bg-base-100 border border-base-300 shadow-md">
+        <div class="card-body gap-4 p-5">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
+              <Icon name="boxicons:user-id-card-filled" size={15} />
+            </span>
+            Datos del operador
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              id="input-id"
+              name="id"
+              label="ID de usuario"
+              required
+              value={operator?.username ?? ""}
+              placeholder="ej: jperez"
+              autocomplete="off"
+              readonly
+              inputClass="input-sm font-mono input-disabled bg-base-200 cursor-not-allowed"
+            />
+
+            <FormField
+              id="input-name"
+              name="name"
+              label="Nombre completo"
+              required
+              value={operator?.name ?? ""}
+              placeholder="ej: Juan Pérez"
+              autocomplete="off"
+              inputClass="input-sm"
+            />
+
+            <SelectField
+              id="select-locationId"
+              name="locationId"
+              label="Ubicación presencial"
+              selectClass="select-sm"
+            >
+              <option value="" selected={!operator?.locationId}>
+                Sin asignar
+              </option>
+              {
+                allLocations.map((loc) => (
+                  <option
+                    value={loc.id}
+                    selected={operator?.locationId === loc.id}
+                  >
+                    {loc.name}
+                  </option>
+                ))
+              }
+            </SelectField>
+
+            <FormField
+              id="input-status"
+              name="status"
+              label="Estado"
+              readonly
+              value={operator?.status === "disponible" ? "Activo (en servicio)" : "No disponible / Excepción"}
+              inputClass="input-sm input-disabled bg-base-200 cursor-not-allowed"
+              helpText="El estado de disponibilidad se calcula automáticamente basado en la matriz de horarios y Cronograma."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section class="card bg-base-100 border border-base-300 shadow-md">
+        <div class="card-body gap-4 p-5">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
+              <Icon name="boxicons:calendar" size={15} />
+            </span>
+            Matriz de Horarios (Esquema Semanal)
+          </h2>
+          <div class="space-y-2">
+            {
+              daysOfWeek.map((day) => (
+                <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+                  <input type="checkbox" />
+                  <div class="collapse-title text-sm font-medium">{day}</div>
+                  <div class="collapse-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                          <span>🏠</span> Home Office
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                          <FormField
+                            id={`home_${day}_start`}
+                            type="time"
+                            name={`home_${day}_start`}
+                            label="Entrada"
+                            value={operatorSchedulesData[day]?.home?.shiftStart || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`home_${day}_end`}
+                            type="time"
+                            name={`home_${day}_end`}
+                            label="Salida"
+                            value={operatorSchedulesData[day]?.home?.shiftEnd || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`home_${day}_break`}
+                            type="time"
+                            name={`home_${day}_break`}
+                            label="Break"
+                            value={operatorSchedulesData[day]?.home?.breakTime || ""}
+                            inputClass="input-sm"
+                          />
+                        </div>
+                      </div>
+                      <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase text-base-content/70 flex items-center gap-1">
+                          <span>🏢</span> Presencial
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                          <FormField
+                            id={`presencial_${day}_start`}
+                            type="time"
+                            name={`presencial_${day}_start`}
+                            label="Entrada"
+                            value={operatorSchedulesData[day]?.presencial?.shiftStart || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`presencial_${day}_end`}
+                            type="time"
+                            name={`presencial_${day}_end`}
+                            label="Salida"
+                            value={operatorSchedulesData[day]?.presencial?.shiftEnd || ""}
+                            inputClass="input-sm"
+                          />
+                          <FormField
+                            id={`presencial_${day}_break`}
+                            type="time"
+                            name={`presencial_${day}_break`}
+                            label="Break"
+                            value={operatorSchedulesData[day]?.presencial?.breakTime || ""}
+                            inputClass="input-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <div class="flex items-center justify-between gap-3 pt-1">
+        <a
+          href={`${cleanBase}admin/operadores`}
+          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
+        >
+          <Icon name="boxicons:arrow-left-filled" size={16} />
+          Volver al listado
+        </a>
+        <button type="submit" class="btn btn-primary btn-sm gap-2">
+          <Icon name="boxicons:save-filled" size={16} />
+          Guardar cambios
+        </button>
+      </div>
+    </form>
+  </PageContainer>
+</BaseLayout>

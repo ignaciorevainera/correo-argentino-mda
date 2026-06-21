@@ -601,65 +601,89 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 <script>
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
-  const roleDescriptions = {
-    admin:
-      "Acceso total al sistema. Puede gestionar usuarios, configuraciones generales, ver el sistema de diseño y acceder a todas las herramientas de supervisión.",
-    supervisor:
-      "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. Acceso general al panel de administración excepto la creación de usuarios.",
-    team_leader:
-      "Acceso intermedio. Puede modificar cronogramas, controlar la asistencia del equipo, auditar la calidad y realizar asignaciones de autogestión. Acceso general al panel de administración excepto la creación de usuarios.",
-    referent:
-      "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
-    agent:
-      "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
-  };
+  function initUsersAdmin() {
+    const roleSelect = document.getElementById("change-role-select") as HTMLSelectElement | null;
+    if (!roleSelect) return false;
 
-  const modal = document.getElementById("modal-change-role") as HTMLDialogElement | null;
-  const userIdInput = document.getElementById("change-role-user-id") as HTMLInputElement | null;
-  const roleSelect = document.getElementById("change-role-select") as HTMLSelectElement | null;
-  const descEl = document.getElementById("role-permissions-desc");
-  const containerEl = document.getElementById("role-desc-container");
+    const roleDescriptions = {
+      admin:
+        "Acceso total al sistema. Puede gestionar usuarios, configuraciones generales, ver el sistema de diseño y acceder a todas las herramientas de supervisión.",
+      supervisor:
+        "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. Acceso general al panel de administración excepto la creación de usuarios.",
+      team_leader:
+        "Acceso intermedio. Puede modificar cronogramas, controlar la asistencia del equipo, auditar la calidad y realizar asignaciones de autogestión. Acceso general al panel de administración excepto la creación de usuarios.",
+      referent:
+        "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
+      agent:
+        "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
+    };
 
-  const updateDesc = (role: keyof typeof roleDescriptions) => {
-    if (descEl) {
-      descEl.textContent =
-        roleDescriptions[role] || "Sin descripción disponible.";
-    }
-    if (containerEl) {
-      containerEl.className =
-        "p-3 border rounded-lg text-xs space-y-1 transition-all duration-300";
-      if (role === "admin") {
-        containerEl.classList.add("bg-error/5", "border-error/30");
-      } else if (role === "supervisor") {
-        containerEl.classList.add("bg-info/5", "border-info/30");
-      } else if (role === "team_leader" || role === "team-leader" || role === "team leader") {
-        containerEl.classList.add("bg-accent/5", "border-accent/30");
-      } else if (role === "referent") {
-        containerEl.classList.add("bg-warning/5", "border-warning/30");
-      } else {
-        containerEl.classList.add("bg-base-200", "border-base-300");
+    const modal = document.getElementById("modal-change-role") as HTMLDialogElement | null;
+    const userIdInput = document.getElementById("change-role-user-id") as HTMLInputElement | null;
+    const descEl = document.getElementById("role-permissions-desc");
+    const containerEl = document.getElementById("role-desc-container");
+
+    const updateDesc = (role: keyof typeof roleDescriptions) => {
+      if (descEl) {
+        descEl.textContent =
+          roleDescriptions[role] || "Sin descripción disponible.";
       }
-    }
-  };
-
-  roleSelect?.addEventListener("change", (e) => {
-    const val = (e.target as HTMLSelectElement).value as keyof typeof roleDescriptions;
-    updateDesc(val);
-  });
-
-  document
-    .querySelectorAll('[data-action="change-role-btn"]')
-    .forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const userId = btn.getAttribute("data-user-id");
-        const userRole = btn.getAttribute("data-user-role") as keyof typeof roleDescriptions;
-
-        if (userIdInput && roleSelect && modal) {
-          userIdInput.value = userId || "";
-          roleSelect.value = userRole || "agent";
-          updateDesc(roleSelect.value as keyof typeof roleDescriptions);
-          modal.showModal();
+      if (containerEl) {
+        containerEl.className =
+          "p-3 border rounded-lg text-xs space-y-1 transition-all duration-300";
+        if (role === "admin") {
+          containerEl.classList.add("bg-error/5", "border-error/30");
+        } else if (role === "supervisor") {
+          containerEl.classList.add("bg-info/5", "border-info/30");
+        } else if (role === "team_leader" || role === "team-leader" || role === "team leader") {
+          containerEl.classList.add("bg-accent/5", "border-accent/30");
+        } else if (role === "referent") {
+          containerEl.classList.add("bg-warning/5", "border-warning/30");
+        } else {
+          containerEl.classList.add("bg-base-200", "border-base-300");
         }
-      });
+      }
+    };
+
+    roleSelect?.addEventListener("change", (e) => {
+      const val = (e.target as HTMLSelectElement).value as keyof typeof roleDescriptions;
+      updateDesc(val);
     });
+
+    document
+      .querySelectorAll('[data-action="change-role-btn"]')
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const userId = btn.getAttribute("data-user-id");
+          const userRole = btn.getAttribute("data-user-role") as keyof typeof roleDescriptions;
+
+          if (userIdInput && roleSelect && modal) {
+            userIdInput.value = userId || "";
+            roleSelect.value = userRole || "agent";
+            updateDesc(roleSelect.value as keyof typeof roleDescriptions);
+            modal.showModal();
+          }
+        });
+      });
+
+    return true;
+  }
+
+  function setupUsersObserver() {
+    if (initUsersAdmin()) return;
+
+    const observer = new MutationObserver((_, obs) => {
+      if (initUsersAdmin()) {
+        obs.disconnect();
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  setupUsersObserver();
+
+  document.addEventListener("astro:page-load", () => {
+    setupUsersObserver();
+  });
 </script>

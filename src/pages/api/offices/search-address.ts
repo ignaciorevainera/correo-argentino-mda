@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { offices } from "@/db/schema";
-import { isNotNull, and, sql } from "drizzle-orm";
+import { isNotNull, and, sql, like } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 export const GET: APIRoute = async ({ url, locals }) => {
@@ -36,7 +36,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .where(
         and(
           isNotNull(offices.address),
-          sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${'"' + normalizedQuery + '"'})`
+          like(offices.searchableText, `%${normalizedQuery}%`)
         )
       )
       .groupBy(offices.address)

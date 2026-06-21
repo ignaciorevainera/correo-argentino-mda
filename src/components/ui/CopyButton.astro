@@ -4,6 +4,7 @@ import { Icon } from "astro-icon/components";
 interface Props {
   value: string;
   variant?: "value" | "link" | "icon";
+  feedbackOnly?: boolean;
   label?: string;
   copiedLabel?: string;
   ariaLabel?: string;
@@ -28,6 +29,7 @@ const {
   monospace = false,
   fullWidth = false,
   highlightable = false,
+  feedbackOnly = false,
   tooltipText,
   tooltipPosition = "top",
   class: className = "",
@@ -185,6 +187,29 @@ const tooltipClasses = [
         <span data-copy-label>{buttonLabel}</span>
       </button>
     </div>
+  ) : feedbackOnly ? (
+    <button
+      type="button"
+      class:list={["btn", valueButtonClasses]}
+      data-copy-control
+      data-copy-value={value}
+      data-copy-label-default={buttonLabel}
+      data-copy-label-success={copiedLabel}
+      data-copy-replace-label="false"
+      aria-label={ariaLabel}
+      data-feedback-only
+    >
+      <span
+        class:list={[
+          "min-w-0 flex-1 truncate text-sm text-base-content transition-all duration-200",
+          monospace && "font-mono",
+        ]}
+        data-copy-label
+        data-highlight-target={highlightable ? "" : undefined}
+      >
+        {buttonLabel}
+      </span>
+    </button>
   ) : (
     <button
       type="button"
@@ -279,47 +304,52 @@ const tooltipClasses = [
     return fallbackCopyToClipboard(value);
   };
 
-  const copyControls = document.querySelectorAll("[data-copy-control]");
+  if (!document._copyButtonHandlerAttached) {
+    document._copyButtonHandlerAttached = true;
 
-  copyControls.forEach((control) => {
-    if (!(control instanceof HTMLButtonElement)) {
-      return;
-    }
+    const copyTimers = new WeakMap<HTMLElement, number>();
 
-    if (control.dataset.copyControlBound === "true") {
-      return;
-    }
+    document.addEventListener("click", async (e) => {
+      const control = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-copy-control]",
+      );
+      if (!control) return;
 
-    control.dataset.copyControlBound = "true";
-
-    const label = control.querySelector<HTMLElement>("[data-copy-label]");
-    const defaultIcons = Array.from(
-      control.querySelectorAll("[data-copy-icon-default]"),
-    );
-    const successIcons = Array.from(
-      control.querySelectorAll("[data-copy-icon-success]"),
-    );
-    let resetTimer: number | null = null;
-
-    control.addEventListener("click", async () => {
       const value = control.dataset.copyValue ?? "";
 
-      if (value.trim().length === 0) {
-        return;
-      }
+      if (value.trim().length === 0) return;
 
       const copied = await copyToClipboard(value);
 
-      if (!copied) {
-        return;
-      }
+      if (!copied) return;
 
       control.blur();
 
-      const shouldReplaceLabel = control.dataset.copyReplaceLabel === "true";
+      const isFeedbackOnly = control.hasAttribute("data-feedback-only");
+
+      if (isFeedbackOnly) {
+        const toastMsg =
+          control.dataset.copyLabelSuccess ||
+          `${value} copiado al portapapeles`;
+        (window as any).showToast?.(toastMsg, "alert-success");
+        return;
+      }
+
+      const label =
+        control.querySelector<HTMLElement>("[data-copy-label]");
+      const defaultIcons = Array.from(
+        control.querySelectorAll("[data-copy-icon-default]"),
+      );
+      const successIcons = Array.from(
+        control.querySelectorAll("[data-copy-icon-success]"),
+      );
+      const shouldReplaceLabel =
+        control.dataset.copyReplaceLabel === "true";
 
       if (shouldReplaceLabel) {
-        label?.replaceChildren(control.dataset.copyLabelSuccess ?? "Copiado");
+        label?.replaceChildren(
+          control.dataset.copyLabelSuccess ?? "Copiado",
+        );
       }
 
       control.classList.add(
@@ -339,13 +369,16 @@ const tooltipClasses = [
         icon.classList.add("scale-100", "opacity-100");
       });
 
-      if (resetTimer !== null) {
-        window.clearTimeout(resetTimer);
+      const existingTimer = copyTimers.get(control);
+      if (existingTimer !== undefined) {
+        window.clearTimeout(existingTimer);
       }
 
-      resetTimer = window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
         if (shouldReplaceLabel) {
-          label?.replaceChildren(control.dataset.copyLabelDefault ?? "Copiar");
+          label?.replaceChildren(
+            control.dataset.copyLabelDefault ?? "Copiar",
+          );
         }
 
         control.classList.remove(
@@ -364,7 +397,11 @@ const tooltipClasses = [
           icon.classList.add("hidden", "opacity-0", "scale-75");
           icon.classList.remove("scale-100", "opacity-100");
         });
+
+        copyTimers.delete(control);
       }, 1800);
+
+      copyTimers.set(control, timer);
     });
-  });
+  }
 </script>

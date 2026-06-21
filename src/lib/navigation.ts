@@ -128,12 +128,12 @@ export const navSections: NavSection[] = [
             icon: "boxicons:group-filled",
           },
           {
-            href: "/admin/inventario-terminales",
+            href: "/inventario-terminales",
             label: "Terminales",
             icon: "boxicons:server-filled",
           },
           {
-            href: "/admin/oficinas",
+            href: "/oficinas",
             label: "Oficinas",
             icon: "boxicons:building-filled",
           },

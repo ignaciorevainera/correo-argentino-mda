@@ -53,6 +53,12 @@ if (Astro.request.method === "POST") {
         errorMsg = pwdValidation.error.issues[0].message;
       } else {
         try {
+          const [targetUser] = await db
+            .select({ username: users.username })
+            .from(users)
+            .where(eq(users.id, userId));
+          const targetUsername = targetUser?.username || "desconocido";
+
           const hashedPassword = await hashPassword(newPassword);
           await db
             .update(users)
@@ -61,7 +67,7 @@ if (Astro.request.method === "POST") {
           successMsg = "Contraseña actualizada con éxito.";
           await logAdminAction(
             Astro.locals.user?.username || "Sistema",
-            `Blanqueó la contraseña del usuario ID ${userId}`,
+            `Blanqueó la contraseña de "${targetUsername}"`,
           );
         } catch (e) {
           errorMsg = "Error al actualizar la contraseña.";
@@ -92,7 +98,7 @@ if (Astro.request.method === "POST") {
         successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
         await logAdminAction(
           Astro.locals.user?.username || "Sistema",
-          `Renombró al usuario ID ${userId} (de "${oldUsername}" a "${newUsername}")`,
+          `Renombró al usuario de "${oldUsername}" a "${newUsername}"`,
         );
       } catch (e) {
         errorMsg = "Error: Ese nombre de usuario ya existe.";
@@ -105,6 +111,13 @@ if (Astro.request.method === "POST") {
     const newRole = formData.get("newRole")?.toString();
     if (userId && newRole) {
       try {
+        const [targetUser] = await db
+          .select({ username: users.username, role: users.role })
+          .from(users)
+          .where(eq(users.id, userId));
+        const targetUsername = targetUser?.username || "desconocido";
+        const oldRole = targetUser?.role || "desconocido";
+
         await db
           .update(users)
           .set({ role: newRole as any })
@@ -112,7 +125,7 @@ if (Astro.request.method === "POST") {
         successMsg = "Rol de usuario actualizado con éxito.";
         await logAdminAction(
           Astro.locals.user?.username || "Sistema",
-          `Cambió el rol del usuario ID ${userId} a ${newRole}`,
+          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}"`,
         );
       } catch (e) {
         errorMsg = "Error al actualizar el rol de usuario.";

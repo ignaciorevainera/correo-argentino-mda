@@ -1,6 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
+import { isAllowed } from "@lib/rolesMatrix";
 import type { OfficeDirectoryItem } from "@/types/offices";
 import {
   officeTypeLabelByType,
@@ -21,6 +22,9 @@ interface Props {
 }
 
 const { office, isVisibleByDefault = true } = Astro.props;
+
+const user = Astro.locals.user;
+const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
 
 const normalizedType =
   office.type === "SUCURSAL"
@@ -43,8 +47,9 @@ const hasDetails = hasInfoSection || hasAssetsSection;
 const activeSectionsCount =
   (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
 
-const officeDirectoryRowGridClass =
-  "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr] items-center gap-4";
+const officeDirectoryRowGridClass = isAllowedAdmin
+  ? "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr_120px] items-center gap-4"
+  : "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr] items-center gap-4";
 ---
 
 <article
@@ -65,23 +70,20 @@ const officeDirectoryRowGridClass =
   <div
     data-office-master-row={hasDetails ? "" : undefined}
     data-office-id={office.id}
-    role={hasDetails ? "button" : undefined}
-    tabindex={hasDetails ? "0" : undefined}
     aria-expanded={hasDetails ? "false" : undefined}
     class:list={[
       officeDirectoryRowGridClass,
       "border-b border-base-300 px-4 py-3 transition-colors",
-      hasDetails
-        ? "cursor-pointer hover:bg-base-200/70 focus:outline-none focus-visible:bg-base-200/80 focus-visible:ring-2 focus-visible:ring-primary/50"
-        : "",
     ]}
   >
     <div>
       {
         hasDetails ? (
-          <span
-            class="inline-flex size-8 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors"
-            aria-hidden="true"
+          <button
+            type="button"
+            data-chevron-toggle
+            class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            aria-label="Expandir detalle"
           >
             <Icon
               name="boxicons:chevron-down-filled"
@@ -94,24 +96,25 @@ const officeDirectoryRowGridClass =
               class="hidden"
               size={16}
             />
-          </span>
+          </button>
         ) : (
-          <span class="inline-flex size-8" aria-hidden="true" />
+          <span class="inline-flex size-8" />
         )
       }
     </div>
 
     <div>
-      <span
-        class:list={[
-          "inline-flex px-2 py-1 font-mono text-sm font-semibold",
-          officeTypeChipClassByType[normalizedType] ||
-            "office-type-chip bg-base-300 text-base-content",
-        ]}
-        data-highlight-target
-      >
-        {office.code}
-      </span>
+      <CopyButton
+        value={office.code}
+        variant="value"
+        feedbackOnly={true}
+        copiedLabel={`NIS ${office.code} copiado al portapapeles`}
+        size="xs"
+        appearance="ghost"
+        monospace={true}
+        highlightable={true}
+        class={`font-semibold ${officeTypeChipClassByType[normalizedType] || "office-type-chip bg-base-300 text-base-content"}`}
+      />
     </div>
 
     <div class="min-w-0">
@@ -184,6 +187,32 @@ const officeDirectoryRowGridClass =
         </div>
       </div>
     </div>
+
+    {isAllowedAdmin && (
+      <div class="min-w-0 flex items-center justify-end gap-1.5">
+        <a
+          href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
+          class="btn btn-xs btn-outline btn-warning"
+          title="Editar"
+        >
+          <Icon name="boxicons:edit-alt" class="size-3.5" />
+        </a>
+        <form
+          method="POST"
+          action={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}/eliminar`}
+          class="inline"
+          onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
+        >
+          <button
+            type="submit"
+            class="btn btn-xs btn-outline btn-error"
+            title="Eliminar"
+          >
+            <Icon name="boxicons:trash" class="size-3.5" />
+          </button>
+        </form>
+      </div>
+    )}
   </div>
 
   <div
@@ -214,7 +243,7 @@ const officeDirectoryRowGridClass =
                       Contactos
                     </h2>
 
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
                       {office.contacts.map((contact) => (
                         <article class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
                           <h3 class="truncate text-sm font-semibold text-base-content">
@@ -311,13 +340,13 @@ const officeDirectoryRowGridClass =
                   Equipos ({totalAssets})
                 </h2>
                 <div class="max-h-[320px] overflow-y-auto pr-1">
-                  <div
-                    class:list={[
-                      "grid gap-3 p-1",
-                      hasInfoSection
-                        ? "grid-cols-1 xl:grid-cols-2"
-                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-                    ]}
+                    <div
+                     class:list={[
+                       "grid gap-3 p-1",
+                       hasInfoSection
+                         ? "grid-cols-1 xl:grid-cols-2"
+                         : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
+                     ]}
                   >
                     {/* Terminales sincronizadas */}
                     {[...office.terminals]

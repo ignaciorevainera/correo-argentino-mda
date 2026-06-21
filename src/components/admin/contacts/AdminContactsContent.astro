@@ -9,17 +9,34 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
 
-
-
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
 
-const allCategories = await db
+const q = Astro.url.searchParams.get("q")?.trim() || "";
+
+let uncategorizedDbId: number | null = null;
+let filteredCategories: any[] = [];
+
+const dbCategories = await db
   .select()
   .from(contactCategories)
-  .orderBy(asc(contactCategories.title));
+  .orderBy(contactCategories.title);
 
-const allContacts = await db
+dbCategories.forEach((cat) => {
+  const t = cat.title.toLowerCase();
+  if (t === "sin categoría" || t === "sin categoria") {
+    uncategorizedDbId = cat.id;
+  } else {
+    filteredCategories.push(cat);
+  }
+});
+const categories = filteredCategories;
+
+const contacts = await db
   .select({
     id: providerContacts.id,
     provider: providerContacts.provider,
@@ -27,258 +44,667 @@ const allContacts = await db
     categoryId: providerContacts.categoryId,
     categoryTitle: contactCategories.title,
     categoryTone: contactCategories.tone,
+    sortOrder: providerContacts.sortOrder,
   })
   .from(providerContacts)
-  .leftJoin(
-    contactCategories,
-    eq(providerContacts.categoryId, contactCategories.id),
-  )
-  .orderBy(asc(providerContacts.provider), asc(providerContacts.service));
+  .leftJoin(contactCategories, eq(providerContacts.categoryId, contactCategories.id))
+  .orderBy(asc(providerContacts.sortOrder), asc(providerContacts.provider));
 
-const categoryBadgeClass: Record<string, string> = {
-  primary: "badge-primary",
-  secondary: "badge-secondary",
-  accent: "badge-accent",
-  info: "badge-info",
-  success: "badge-success",
-  warning: "badge-warning",
+const contactsGridCols = "grid-cols-[40px_minmax(0,1.5fr)_minmax(0,1.5fr)_100px] gap-4";
+
+const toneColors: Record<string, string> = {
+  primary: "text-primary bg-primary/10 border-primary/20",
+  secondary: "text-secondary bg-secondary/10 border-secondary/20",
+  accent: "text-accent bg-accent/10 border-accent/20",
+  info: "text-info bg-info/10 border-info/20",
+  success: "text-success bg-success/10 border-success/20",
+  warning: "text-warning bg-warning/10 border-warning/20",
+  error: "text-error bg-error/10 border-error/20",
+  neutral: "text-neutral bg-neutral/10 border-neutral/20",
 };
 
-const headerGridClass = "grid-cols-[1.5fr_1.5fr_1.5fr_140px] gap-4";
-const rowGridClass =
-  "grid grid-cols-[1.5fr_1.5fr_1.5fr_140px] items-center gap-4";
+// Map to pre-calculate contacts count per category
+const categoryCounts = new Map<string | number, number>();
+let uncategorizedCount = 0;
+
+contacts.forEach((contact) => {
+  if (!contact.categoryId || contact.categoryId === uncategorizedDbId) {
+    uncategorizedCount++;
+    categoryCounts.set("uncategorized", uncategorizedCount);
+  } else {
+    categoryCounts.set(contact.categoryId, (categoryCounts.get(contact.categoryId) || 0) + 1);
+  }
+});
 ---
 
 <PageContainer>
-  <PageHeader
-    description="Listar, crear, modificar y eliminar los contactos útiles de la mesa de ayuda."
-  />
-
-
-
-  {/* ── Toolbar ── */}
-  <div
-    class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-  >
-    <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-base-content">
-        Contactos registrados
-      </h2>
-      {
-        allContacts.length > 0 && (
-          <span
-            id="contact-count-badge"
-            class="badge badge-neutral badge-sm font-mono"
-          >
-            {allContacts.length}
-          </span>
-        )
-      }
-    </div>
-
-    <div
-      class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
-    >
-      <select
-        id="admin-contact-category-filter"
-        class="select border-base-300 w-full sm:w-auto focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        aria-label="Filtrar por categoría"
-      >
-        <option value="all">Todas las categorías</option>
-        {
-          allCategories.map((cat) => (
-            <option value={cat.id}>{cat.title}</option>
-          ))
-        }
-      </select>
-      <SearchInput
-        id="admin-contact-search"
-        label="Buscar contacto"
-        placeholder="Buscar por proveedor o servicio"
-        class="w-full sm:w-64"
-      />
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <PageHeader
+      title="Gestión de Contactos Útiles"
+      description="Refactorizá, reordená y organizá los contactos de soporte técnico y helpdesk."
+    />
+    <div class="flex gap-2 shrink-0">
+      <a href={resolveUrl("/admin/contactos/categoria/create")} class="btn btn-outline btn-sm gap-2">
+        <Icon name="boxicons:folder-plus" size={16} />
+        Nueva Categoría
+      </a>
       <a
-        href={`${cleanBase}admin/contactos/new`}
-        class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent w-full sm:w-auto text-xs"
+        id="btn-add-contact"
+        href={resolveUrl("/admin/contactos/create")}
+        class="btn btn-primary btn-sm gap-2"
       >
-        <Icon name="boxicons:plus" size={18} />
-        Nuevo contacto
+        <Icon name="boxicons:plus" size={16} />
+        Nuevo Contacto
       </a>
     </div>
   </div>
 
-  {/* ── Tabla ── */}
-  <DataTable
-    ariaLabel="Listado de contactos registrados"
-    minWidthClass="min-w-200"
-    headerGridClass={headerGridClass}
-    rowGridClass={rowGridClass}
-  >
-    <div slot="header">
-      <DataTableHeaderCell sortKey="provider">Proveedor</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="service">Servicio</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
-    </div>
-    <div slot="header" class="text-right">
-      <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-    </div>
+  <!-- Contenedor Principal Split View -->
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+    
+    <!-- Panel Izquierdo: Categorías -->
+    <aside class="lg:col-span-1 bg-base-100 border border-base-300 rounded-box p-4 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center justify-between border-b border-base-200 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-base-content/60">Categorías</span>
+      </div>
 
-    {
-      allContacts.length === 0 ? (
-        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200 p-4">
-            <Icon
-              name="boxicons:phone-filled"
-              size={32}
-              class="opacity-30"
-              aria-hidden="true"
-            />
+      <nav class="flex flex-col gap-1" id="categories-list">
+        <div
+          class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+          data-category-id="all"
+          data-category-tone="neutral"
+          data-category-title="Todos"
+        >
+          <div class="flex items-center gap-2.5 min-w-0 grow">
+            <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors.neutral}`}>
+              <Icon name="boxicons:grid-9-filled" size={18} />
+            </div>
+            <span class="text-sm font-semibold truncate label-title">Todos</span>
           </div>
-          <div class="space-y-1 text-center">
-            <p class="text-sm font-semibold">No hay contactos registrados</p>
-            <p class="text-xs">
-              Comenzá cargando el primer contacto desde el botón superior.
-            </p>
+          
+          <div class="flex items-center gap-1.5 shrink-0 ml-2">
+            <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={contacts.length}>
+              {contacts.length}
+            </span>
           </div>
         </div>
-      ) : (
-        <>
-          {allContacts.map((contact) => (
-            <article
-              data-table-row
-              data-sort-provider={contact.provider}
-              data-sort-service={contact.service}
-              data-sort-category={contact.categoryTitle ?? ""}
-              data-category-id={contact.categoryId ?? ""}
-              data-search-text={`${contact.provider} ${contact.service} ${contact.categoryTitle ?? ""}`.toLowerCase()}
-              class:list={[
-                rowGridClass,
-                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-              ]}
-            >
-              {/* Proveedor */}
-              <div class="min-w-0">
-                <span
-                  data-highlight-target
-                  class="font-mono text-sm font-semibold text-base-content"
+
+        {
+          categories.length === 0 ? (
+            <p class="text-xs text-base-content/50 py-4 text-center">No hay categorías registradas.</p>
+          ) : (
+            categories.map((cat) => {
+              const count = categoryCounts.get(cat.id) || 0;
+              return (
+                <div
+                  class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+                  data-category-id={cat.id}
+                  data-category-tone={cat.tone}
+                  data-category-title={cat.title}
+                  data-category-dropzone
                 >
-                  {contact.provider}
+                  <div class="flex items-center gap-2.5 min-w-0 grow">
+                    <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors[cat.tone] || toneColors.primary}`}>
+                      <Icon name={cat.icon || "boxicons:folder"} size={18} />
+                    </div>
+                    <span class="text-sm font-semibold truncate label-title">{cat.title}</span>
+                  </div>
+                  
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
+                      {count}
+                    </span>
+                    {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
+                      <div class="hidden group-hover:flex items-center gap-0.5">
+                        <a
+                          href={resolveUrl(`/admin/contactos/categoria/edit/${cat.id}`)}
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                          title="Editar"
+                          onclick="event.stopPropagation();"
+                        >
+                          <Icon name="boxicons:pencil" size={14} />
+                        </a>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
+                          title="Eliminar"
+                          onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
+                        >
+                          <Icon name="boxicons:trash" size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )
+        }
+
+        {/* Sin categoría */}
+        {(() => {
+          const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
+          if (uncategorizedCount === 0) return null;
+          return (
+            <div
+              class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+              data-category-id="uncategorized"
+              data-category-tone="warning"
+              data-category-title="Sin categoría"
+              data-category-dropzone
+            >
+              <div class="flex items-center gap-2.5 min-w-0 grow">
+                <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-warning/20 bg-warning/10 text-warning">
+                  <Icon name="boxicons:folder" size={18} />
+                </div>
+                <span class="text-sm font-semibold truncate label-title">Sin categoría</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={uncategorizedCount}>
+                  {uncategorizedCount}
                 </span>
               </div>
+            </div>
+          );
+        })()}
+      </nav>
+    </aside>
 
-              {/* Servicio */}
-              <div class="min-w-0">
-                <p
-                  data-highlight-target
-                  class="truncate text-sm font-semibold text-base-content"
-                >
-                  {contact.service}
-                </p>
-              </div>
+    <!-- Panel Derecho: Contactos -->
+    <main class="lg:col-span-3 flex flex-col gap-4">
+      <div class="bg-base-100 border border-base-300 rounded-box p-4 shadow-sm">
+        
+        <!-- Cabecera de Categoría Seleccionada y Buscador -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b border-base-200">
+          <div class="flex items-center gap-3">
+            <div id="active-category-icon-wrapper" class="flex items-center justify-center size-9 rounded-lg border text-primary bg-primary/10 border-primary/20">
+              <Icon id="active-category-icon" name="boxicons:folder" size={20} />
+            </div>
+            <div>
+              <h2 id="active-category-title" class="text-lg font-bold text-base-content">Cargando...</h2>
+              <p id="reorder-instructions" class="text-xs text-base-content/60">Arrastrá las filas para cambiar el orden del menú.</p>
+            </div>
+          </div>
+          <div class="w-full sm:max-w-xs shrink-0">
+            <SearchInput
+              id="contactos-search"
+              name="q"
+              value={q}
+              label="Buscar contacto"
+              placeholder="Buscar por proveedor o servicio..."
+            />
+          </div>
+        </div>
 
-              {/* Categoría */}
-              <div>
-                {contact.categoryTitle ? (
-                  <span
-                    data-highlight-target
+        <!-- Tabla Única de Contactos -->
+        <DataTable
+          id="contactos-table"
+          ariaLabel="Listado de contactos en la categoría"
+          headerGridClass={contactsGridCols}
+          rowGridClass={contactsGridCols}
+        >
+          <Fragment slot="header">
+            <DataTableHeaderCell></DataTableHeaderCell>
+            <DataTableHeaderCell>Proveedor</DataTableHeaderCell>
+            <DataTableHeaderCell>Servicio</DataTableHeaderCell>
+            <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+          </Fragment>
+
+          <div id="contacts-container" class="divide-y divide-base-200">
+            {
+              contacts.length === 0 ? (
+                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50" id="empty-state">
+                  <div class="rounded-full bg-base-200/40 p-4">
+                    <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+                  </div>
+                  <div class="space-y-1 text-center">
+                    <p class="text-sm font-semibold">No hay contactos registrados</p>
+                    <p class="text-xs">Comenzá agregando un nuevo contacto.</p>
+                  </div>
+                </div>
+              ) : (
+                contacts.map((contact) => (
+                  <div
                     class:list={[
-                      "badge badge-sm font-bold uppercase tracking-wide",
-                      categoryBadgeClass[contact.categoryTone ?? ""] ??
-                        "badge-neutral",
+                      "group grid items-center px-4 py-3 transition-colors hover:bg-base-200/30 contact-row",
+                      contactsGridCols
                     ]}
+                    data-table-row
+                    data-contact-row
+                    data-contact-id={contact.id}
+                    data-contact-category={(!contact.categoryId || contact.categoryId === uncategorizedDbId) ? "uncategorized" : contact.categoryId}
+                    data-contact-search={`${contact.provider} ${contact.service || ""}`.toLowerCase()}
+                    draggable="true"
                   >
-                    {contact.categoryTitle}
-                  </span>
-                ) : (
-                  <span class="text-base-content/30">&mdash;</span>
-                )}
-              </div>
+                    <div class="flex items-center justify-center text-base-content/30 cursor-grab active:cursor-grabbing hover:text-base-content/70 transition-colors drag-handle">
+                      <Icon name="boxicons:menu" size={20} />
+                    </div>
 
-              {/* Acciones */}
-              <div class="flex items-center justify-end gap-1">
-                <a
-                  href={`${cleanBase}admin/contactos/${contact.id}`}
-                  class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent text-xs"
-                  aria-label={`Editar ${contact.provider}`}
-                >
-                  <Icon name="boxicons:pencil-filled" size={14} />
-                  <span>Editar</span>
-                </a>
+                    <div class="min-w-0 truncate font-semibold flex items-center gap-2" title={contact.provider}>
+                      <span class="truncate" data-highlight-target>{contact.provider}</span>
+                    </div>
 
-                <form
-                  method="POST"
-                  class="inline"
-                  onsubmit="return confirm('¿Estás seguro de que querés eliminar este contacto?')"
-                >
-                  <input type="hidden" name="action" value="delete_contact" />
-                  <input type="hidden" name="contactId" value={contact.id} />
-                  <button
-                    type="submit"
-                    class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200 text-xs"
-                    aria-label={`Eliminar ${contact.provider}`}
-                  >
-                    <Icon name="boxicons:trash-filled" size={14} />
-                    <span>Eliminar</span>
-                  </button>
-                </form>
-              </div>
-            </article>
-          ))}
-        </>
-      )
-    }
-  </DataTable>
+                    <div class="min-w-0 truncate text-sm text-base-content/60" title={contact.service || ""} data-highlight-target>
+                      {contact.service || "—"}
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="flex items-center justify-end gap-1">
+                      <a
+                        href={resolveUrl(`/admin/contactos/edit/${contact.id}`)}
+                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
+                        title="Editar Contacto"
+                      >
+                        <Icon name="boxicons:pencil" size={16} />
+                      </a>
+                      <form
+                        method="POST"
+                        action={resolveUrl(`/admin/contactos/edit/${contact.id}/eliminar`)}
+                        class="inline"
+                        onsubmit="return confirm('¿Estás seguro de que deseas eliminar este contacto?');"
+                      >
+                        <button
+                          type="submit"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
+                          title="Eliminar Contacto"
+                        >
+                          <Icon name="boxicons:trash" size={16} />
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                ))
+              )
+            }
+          </div>
+        </DataTable>
+        
+        <!-- Estado vacío de categoría sin elementos -->
+        <div id="category-empty-state" class="hidden flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200/40 p-4">
+            <Icon name="boxicons:phone" size={32} class="opacity-30" />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">Esta categoría está vacía</p>
+            <p class="text-xs">Arrastrá contactos aquí o creá uno nuevo.</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal de Eliminación de Categoría -->
+  <dialog id="delete-category-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-lg w-full">
+      <h3 class="font-bold text-lg text-base-content">Eliminar Categoría</h3>
+      <p class="py-4 text-base-content/80 text-sm">¿Qué deseas hacer con los contactos que están asignados a esta categoría?</p>
+      <form id="delete-category-form" method="POST" action="">
+        <div class="flex flex-col gap-3 mt-2">
+          <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+            <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
+            <div class="flex flex-col gap-1 flex-1 min-w-0">
+              <span class="label-text font-bold text-base leading-tight whitespace-normal">Desvincular y conservar contactos</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría será eliminada, pero los contactos se conservarán y se moverán a "Sin categoría".</span>
+            </div>
+          </label>
+
+          <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+            <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
+            <div class="flex flex-col gap-1 flex-1 min-w-0">
+              <span class="label-text font-bold text-error text-base leading-tight whitespace-normal">Eliminar todo en Cascada</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría y todos los contactos que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+            </div>
+          </label>
+        </div>
+        
+        <div class="modal-action flex-col sm:flex-row mt-6 gap-2">
+          <button type="button" class="btn btn-ghost w-full sm:w-auto" onclick="document.getElementById('delete-category-modal').close()">Cancelar</button>
+          <button type="submit" class="btn btn-error gap-2 w-full sm:w-auto ml-0 sm:ml-2">
+            <Icon name="boxicons:trash" size={20} />
+            Confirmar Eliminación
+          </button>
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>cerrar</button>
+    </form>
+  </dialog>
 </PageContainer>
 
 <script>
-  import {
-    matchesSearchQuery,
-    highlightSearchTargets,
-  } from "@lib/clientSearch";
+  // Styling mappings
+  const toneColors: Record<string, string> = {
+    primary: "text-primary bg-primary/10 border-primary/20",
+    secondary: "text-secondary bg-secondary/10 border-secondary/20",
+    accent: "text-accent bg-accent/10 border-accent/20",
+    info: "text-info bg-info/10 border-info/20",
+    success: "text-success bg-success/10 border-success/20",
+    warning: "text-warning bg-warning/10 border-warning/20",
+    error: "text-error bg-error/10 border-error/20",
+    neutral: "text-neutral bg-neutral/10 border-neutral/20",
+  };
 
-  const searchInput = document.querySelector<HTMLInputElement>(
-    "#admin-contact-search",
-  );
-  const categoryFilter = document.querySelector<HTMLSelectElement>(
-    "#admin-contact-category-filter",
-  );
-  const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
-  const countBadge = document.querySelector<HTMLElement>(
-    "#contact-count-badge",
-  );
+  // State
+  let activeCategoryId = "";
+  
+  // Elements
+  const categoryItems = Array.from(document.querySelectorAll<HTMLElement>(".category-item"));
+  const contactRows = Array.from(document.querySelectorAll<HTMLElement>(".contact-row"));
+  const contactsContainer = document.getElementById("contacts-container");
+  const searchInput = document.querySelector<HTMLInputElement>("#contactos-search");
+  
+  const activeIconWrapper = document.getElementById("active-category-icon-wrapper");
+  const activeCategoryTitle = document.getElementById("active-category-title");
+  const btnAddContact = document.getElementById("btn-add-contact") as HTMLAnchorElement | null;
+  const generalEmptyState = document.getElementById("empty-state");
+  const categoryEmptyState = document.getElementById("category-empty-state");
+  const reorderSpinner = document.getElementById("reorder-spinner");
 
-  function applyFilters() {
-    const query = searchInput?.value.trim() || "";
-    const categoryValue = categoryFilter?.value || "all";
-    let visibleCount = 0;
-
-    rows.forEach((row) => {
-      const searchText = row.dataset.searchText || "";
-      const rowCategory = row.dataset.categoryId || "";
-
-      const matchSearch = matchesSearchQuery(query, [searchText]);
-      const matchCategory =
-        categoryValue === "all" || rowCategory === categoryValue;
-
-      const isVisible = matchSearch && matchCategory;
-
-      row.classList.toggle("hidden", !isVisible);
-      highlightSearchTargets(row, isVisible ? query : "");
-
-      if (isVisible) {
-        visibleCount++;
+  // Selection Handler
+  const selectCategory = (categoryId: string) => {
+    activeCategoryId = categoryId;
+    
+    // Update Category visual classes in sidebar
+    categoryItems.forEach(item => {
+      const isSelected = item.dataset.categoryId === categoryId;
+      const tone = item.dataset.categoryTone || "primary";
+      
+      // Clean classes
+      item.classList.remove("bg-base-200/60", "border-base-300", "shadow-sm", "bg-primary/5", "bg-secondary/5", "bg-accent/5", "bg-info/5", "bg-success/5", "bg-warning/5", "bg-error/5", "bg-neutral/5");
+      
+      if (isSelected) {
+        item.classList.add(`bg-${tone}/5`, "border-base-300", "shadow-sm");
+      } else {
+        item.classList.add("border-transparent");
       }
     });
 
-    if (countBadge) {
-      countBadge.textContent = visibleCount.toString();
+    // Update Header of current selection
+    const selectedItem = categoryItems.find(item => item.dataset.categoryId === categoryId);
+    if (selectedItem && activeCategoryTitle && activeIconWrapper) {
+      const title = selectedItem.dataset.categoryTitle || "";
+      const tone = selectedItem.dataset.categoryTone || "primary";
+      
+      activeCategoryTitle.textContent = title;
+      
+      // Update icon tone classes
+      activeIconWrapper.className = `flex items-center justify-center size-9 rounded-lg border ${toneColors[tone] || toneColors.primary}`;
+      
+      // Update icon SVG
+      const icon = selectedItem.querySelector("svg")?.cloneNode(true);
+      const iconTarget = activeIconWrapper.querySelector("svg");
+      if (icon && iconTarget) {
+        activeIconWrapper.replaceChild(icon, iconTarget);
+      }
     }
+
+    // Prefill categoryId in Creation URL
+    if (btnAddContact) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      if (categoryId === "all") {
+        btnAddContact.href = `${cleanBase}admin/contactos/create`;
+      } else {
+        btnAddContact.href = `${cleanBase}admin/contactos/create?categoryId=${encodeURIComponent(categoryId)}`;
+      }
+    }
+
+    // Toggle reorder handle visibility based on "Todos" category selection
+    const isAll = categoryId === "all";
+    const dragHandles = Array.from(document.querySelectorAll(".drag-handle"));
+    dragHandles.forEach(h => {
+      if (isAll) {
+        h.classList.add("invisible", "pointer-events-none");
+      } else {
+        h.classList.remove("invisible", "pointer-events-none");
+      }
+    });
+
+    const reorderInstructions = document.getElementById("reorder-instructions");
+    if (reorderInstructions) {
+      reorderInstructions.classList.toggle("hidden", isAll);
+    }
+
+    // Refresh rows visibility
+    filterContacts();
+  };
+
+  // Initialize original text for highlighting
+  const highlightTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+  highlightTargets.forEach(el => {
+    el.dataset.originalText = el.textContent?.trim() || "";
+  });
+
+  // Filters contacts based on active category and query
+  const filterContacts = () => {
+    const query = searchInput?.value.trim().toLowerCase() || "";
+    let visibleCount = 0;
+
+    contactRows.forEach(row => {
+      const rowCategory = row.dataset.contactCategory || "uncategorized";
+      const searchContent = row.dataset.contactSearch || "";
+      
+      const matchesCategory = activeCategoryId === "all" || rowCategory === activeCategoryId;
+      const matchesSearch = query === "" || searchContent.includes(query);
+      const isVisible = matchesCategory && matchesSearch;
+
+      row.classList.toggle("hidden", !isVisible);
+      if (isVisible) {
+        visibleCount++;
+        
+        // Highlight matching terms
+        const targets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+        targets.forEach(el => {
+          const original = el.dataset.originalText || el.textContent?.trim() || "";
+          if (query === "") {
+            el.textContent = original;
+          } else {
+            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, "gi");
+            el.innerHTML = original.replace(regex, '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>');
+          }
+        });
+      }
+    });
+
+    // Handle Empty States
+    if (generalEmptyState) generalEmptyState.classList.add("hidden");
+    
+    if (visibleCount === 0) {
+      categoryEmptyState?.classList.remove("hidden");
+      categoryEmptyState?.classList.add("flex");
+    } else {
+      categoryEmptyState?.classList.add("hidden");
+      categoryEmptyState?.classList.remove("flex");
+    }
+  };
+
+  // Add click handlers to Category menu items
+  categoryItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const id = item.dataset.categoryId;
+      if (id) selectCategory(id);
+    });
+  });
+
+  // Select first category on load
+  if (categoryItems.length > 0) {
+    const firstCatId = categoryItems[0].dataset.categoryId;
+    if (firstCatId) selectCategory(firstCatId);
   }
 
-  searchInput?.addEventListener("input", applyFilters);
-  categoryFilter?.addEventListener("change", applyFilters);
+  // Hook search
+  searchInput?.addEventListener("input", filterContacts);
+
+  // ----------------------------------------------------
+  // Drag and Drop: Reorder contacts inside category
+  // ----------------------------------------------------
+  let draggedRow: HTMLElement | null = null;
+
+  contactRows.forEach(row => {
+    row.addEventListener("dragstart", (e) => {
+      if (activeCategoryId === "all") {
+        e.preventDefault();
+        return;
+      }
+      draggedRow = row;
+      row.classList.add("opacity-40", "border-primary/50", "border-dashed");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", row.dataset.contactId || "");
+      }
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("opacity-40", "border-primary/50", "border-dashed");
+      draggedRow = null;
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedRow || draggedRow === row) return;
+
+      const currentCategory = row.dataset.contactCategory;
+      const draggedCategory = draggedRow.dataset.contactCategory;
+      if (currentCategory !== draggedCategory) return; // Only allow sorting within same category
+
+      const bounding = row.getBoundingClientRect();
+      const offset = e.clientY - bounding.top - bounding.height / 2;
+
+      if (contactsContainer) {
+        if (offset < 0) {
+          contactsContainer.insertBefore(draggedRow, row);
+        } else {
+          contactsContainer.insertBefore(draggedRow, row.nextSibling);
+        }
+      }
+    });
+
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      saveReorderedContacts();
+    });
+  });
+
+  // ----------------------------------------------------
+  // Drag and Drop: Move contact to another category
+  // ----------------------------------------------------
+  categoryItems.forEach(zone => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      if (draggedRow && draggedRow.dataset.contactCategory !== targetCategoryId) {
+        zone.classList.add("bg-base-300", "scale-[1.02]");
+      }
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+    });
+
+    zone.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+
+      const contactId = e.dataTransfer?.getData("text/plain");
+
+      if (!contactId || !targetCategoryId || !draggedRow) return;
+      
+      const sourceCategoryId = draggedRow.dataset.contactCategory || "uncategorized";
+      if (sourceCategoryId === targetCategoryId) return;
+
+      // Update in local state/DOM
+      draggedRow.dataset.contactCategory = targetCategoryId;
+      
+      // Update filters
+      filterContacts();
+
+      // Update counters visually
+      const sourceBadge = categoryItems.find(item => item.dataset.categoryId === sourceCategoryId)?.querySelector(".count-badge");
+      const targetBadge = zone.querySelector(".count-badge");
+      
+      if (sourceBadge) {
+        const count = Math.max(0, parseInt(sourceBadge.textContent || "0") - 1);
+        sourceBadge.textContent = String(count);
+      }
+      if (targetBadge) {
+        const count = parseInt(targetBadge.textContent || "0") + 1;
+        targetBadge.textContent = String(count);
+      }
+
+      // Save to database
+      await saveReorderedContacts();
+    });
+  });
+
+  // Bulk update call to API
+  const saveReorderedContacts = async () => {
+    if (reorderSpinner) reorderSpinner.classList.remove("hidden");
+
+    try {
+      // Gather all rows in their current DOM positions to build sequential orders
+      const allRows = Array.from(document.querySelectorAll<HTMLElement>(".contact-row"));
+      
+      // We group them by category to update order properly inside each category
+      const categoryGroups: Record<string, HTMLElement[]> = {};
+      allRows.forEach(row => {
+        const catId = row.dataset.contactCategory || "uncategorized";
+        if (!categoryGroups[catId]) categoryGroups[catId] = [];
+        categoryGroups[catId].push(row);
+      });
+
+      const items: any[] = [];
+      Object.keys(categoryGroups).forEach(catId => {
+        categoryGroups[catId].forEach((row, index) => {
+          items.push({
+            id: parseInt(row.dataset.contactId || "0"),
+            sortOrder: index * 10, // increments of 10
+            categoryId: catId
+          });
+        });
+      });
+
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      
+      const response = await fetch(`${cleanBase}api/admin/contactos/reorder`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error de red al intentar guardar cambios");
+      }
+      
+      (window as any).showToast?.("Contactos y categorías sincronizadas con éxito", "alert-success");
+    } catch (err) {
+      console.error(err);
+      (window as any).showToast?.("Error al guardar el nuevo orden de los contactos", "alert-error");
+    } finally {
+      if (reorderSpinner) reorderSpinner.classList.add("hidden");
+    }
+  };
+
+  // ----------------------------------------------------
+  // Modal logic attached to window for delete modal
+  // ----------------------------------------------------
+  (window as any).openDeleteCategoryModal = (categoryId: string) => {
+    const modal = document.getElementById("delete-category-modal") as (HTMLDialogElement & { showModal(): void }) | null;
+    const form = document.getElementById("delete-category-form") as HTMLFormElement | null;
+    
+    if (modal && form) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      const cleanPath = `admin/contactos/categoria/edit/${categoryId}/eliminar`;
+      
+      form.action = `${cleanBase}${cleanPath}`;
+      modal.showModal();
+    }
+  };
 </script>

@@ -10,7 +10,7 @@ export type RoleMatrixFeature = {
 
 export const rolesMatrix: RoleMatrixFeature[] = [
   {
-    feature: "Consulta de oficinas",
+    feature: "Ver Oficinas",
     icon: "boxicons:building-house",
     agent: true,
     referent: true,
@@ -19,7 +19,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Consulta de enlaces",
+    feature: "Ver Enlaces",
     icon: "boxicons:git-branch-filled",
     agent: true,
     referent: true,
@@ -28,7 +28,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Consulta de títulos",
+    feature: "Ver Títulos",
     icon: "boxicons:note",
     agent: true,
     referent: true,
@@ -37,7 +37,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Consulta de guía de soportes",
+    feature: "Ver Soportes",
     icon: "boxicons:headphone",
     agent: true,
     referent: true,
@@ -46,7 +46,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Consulta de inventario de terminales/cubics",
+    feature: "Ver Inventario",
     icon: "boxicons:chip-filled",
     agent: true,
     referent: true,
@@ -55,7 +55,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Generar firmas",
+    feature: "Generar Firmas",
     icon: "boxicons:edit-alt",
     agent: true,
     referent: true,
@@ -64,7 +64,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Visualizar cronogramas",
+    feature: "Ver Cronogramas",
     icon: "boxicons:calendar",
     agent: true,
     referent: true,
@@ -73,7 +73,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Observar calidad de operador del usuario logueado",
+    feature: "Métricas Propias",
     icon: "boxicons:user-id-card",
     agent: true,
     referent: true,
@@ -82,7 +82,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Gestionar calidad de operadores",
+    feature: "Gestión de Calidad",
     icon: "boxicons:star",
     agent: false,
     referent: true,
@@ -91,7 +91,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Asignación de autogestiones",
+    feature: "Autogestiones",
     icon: "boxicons:user-check",
     agent: false,
     referent: true,
@@ -100,7 +100,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Editar cronogramas",
+    feature: "Editar Cronogramas",
     icon: "boxicons:calendar",
     agent: false,
     referent: false,
@@ -109,7 +109,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Control de asistencia del equipo",
+    feature: "Asistencia",
     icon: "boxicons:clock",
     agent: false,
     referent: false,
@@ -118,7 +118,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Gestión de títulos",
+    feature: "Administrar Títulos",
     icon: "boxicons:note",
     agent: false,
     referent: false,
@@ -127,7 +127,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Gestión de oficinas/enlaces/títulos/soportes/inventario",
+    feature: "Administrar Contenido",
     icon: "boxicons:task",
     agent: false,
     referent: false,
@@ -136,7 +136,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Gestión de usuarios",
+    feature: "Administrar Usuarios",
     icon: "boxicons:group",
     agent: false,
     referent: false,
@@ -145,7 +145,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Visualización de logs de auditoría",
+    feature: "Logs de Auditoría",
     icon: "boxicons:history",
     agent: false,
     referent: false,
@@ -154,3 +154,9 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
 ];
+
+export const isAllowed = (featureName: string, role: string) => {
+  const feature = rolesMatrix.find((f) => f.feature === featureName);
+  const normalizedRole = role.replace(/[- ]/g, "_");
+  return feature ? feature[normalizedRole as keyof typeof feature] === true : false;
+};

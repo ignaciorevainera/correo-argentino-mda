@@ -1,0 +1,271 @@
+---
+import { db } from "@db/index";
+import {
+  offices,
+  contacts,
+  officeContacts,
+  officeAssets,
+  provinces,
+  regions,
+} from "@db/schema";
+import { eq, and, isNull } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
+import OfficeForm from "@components/admin/OfficeForm.astro";
+import { officeFormSchema } from "@lib/validations";
+import { normalizeSearchValue } from "@lib/clientSearch";
+import { isAllowed } from "@lib/rolesMatrix";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+const user = Astro.locals.user;
+if (!user || !isAllowed("Administrar Contenido", user.role)) {
+  return Astro.redirect(`${cleanBase}oficinas`);
+}
+
+const isNew = true;
+let successMsg = "";
+let errorMsg = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const fd = await Astro.request.formData();
+
+    const rawType = fd.get("type")?.toString() ?? "TELEGRAFIA";
+    let type = rawType;
+    let officeType = null;
+
+    if (rawType === "SUCURSAL_AUTOMATIZADA") {
+      type = "SUCURSAL";
+      officeType = "AUTOMATIZADA";
+    } else if (rawType === "SUCURSAL_NO_AUTOMATIZADA") {
+      type = "SUCURSAL";
+      officeType = "NO_AUTOMATIZADA";
+    }
+
+    const valStr = (key: string) => {
+      const val = fd.get(key)?.toString().trim();
+      return val ? val : null;
+    };
+
+    const rawData = {
+      code: valStr("code") ?? "",
+      name: valStr("name") ?? "",
+      type: type,
+      officeType: officeType,
+      provinceCode: valStr("provinceCode") ?? "",
+      address: valStr("address"),
+      locality: valStr("locality"),
+      county: valStr("county"),
+      zone: valStr("zone"),
+      email: valStr("email"),
+      notes: valStr("notes"),
+      parentNis: valStr("parentNis"),
+      enRed: fd.get("enRed") === "on",
+      paqarAdmision: fd.get("paqarAdmision") === "on",
+      paqarEntrega: fd.get("paqarEntrega") === "on",
+      payroll: fd.get("payroll") === "on",
+      taxExempt: fd.get("taxExempt") === "on",
+      division: valStr("division"),
+      company: valStr("company"),
+      warehouse: valStr("warehouse"),
+      profitCenter: valStr("profitCenter"),
+      cctAdminOffice: valStr("cctAdminOffice"),
+      ccCommercial: valStr("ccCommercial"),
+      ccCommercialCorp: valStr("ccCommercialCorp"),
+      ccElectoral: valStr("ccElectoral"),
+      ccNetworkMgmt: valStr("ccNetworkMgmt"),
+      ccOperations: valStr("ccOperations"),
+      ccOperational: valStr("ccOperational"),
+      ccHr: valStr("ccHr"),
+      ccSecurity: valStr("ccSecurity"),
+      ccAdmin: valStr("ccAdmin"),
+      ccAdmission: valStr("ccAdmission"),
+      ccCtp: valStr("ccCtp"),
+      ccCtt: valStr("ccCtt"),
+      ccTransport: valStr("ccTransport"),
+      ccLogistics: valStr("ccLogistics"),
+      posAutoAuto: valStr("posAutoAuto"),
+      posCurrentAccount: valStr("posCurrentAccount"),
+      posManual: valStr("posManual"),
+      posManualAuto: valStr("posManualAuto"),
+      posPlantaMg: valStr("posPlantaMg"),
+      posVirtual: valStr("posVirtual"),
+      posAutoAuto2: valStr("posAutoAuto2"),
+      posSapTerminal: valStr("posSapTerminal"),
+    };
+
+    const parsed = officeFormSchema.safeParse(rawData);
+
+    if (!parsed.success) {
+      errorMsg = parsed.error.issues.map((i) => i.message).join(", ");
+    } else {
+      const officeData = parsed.data;
+      let officeId: number;
+
+      const nextSearchableText = normalizeSearchValue(
+        [
+          officeData.code,
+          officeData.name,
+          officeData.locality,
+          officeData.parentNis,
+          officeData.address,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+
+      const [created] = await db
+        .insert(offices)
+        .values({
+          ...officeData,
+          searchableText: nextSearchableText,
+        })
+        .returning({ id: offices.id });
+      officeId = created.id;
+
+      await db.delete(officeAssets).where(eq(officeAssets.officeId, officeId));
+
+      const assetTypes = fd.getAll("asset_type");
+      const assetHostnames = fd.getAll("asset_hostname");
+      const assetIps = fd.getAll("asset_ip");
+
+      for (let i = 0; i < assetTypes.length; i++) {
+        const aType = assetTypes[i]?.toString().trim();
+        if (!aType) continue;
+        await db.insert(officeAssets).values({
+          officeId,
+          type: aType,
+          hostname: assetHostnames[i]?.toString().trim() || null,
+          ip: assetIps[i]?.toString().trim() || null,
+        });
+      }
+
+      await db
+        .delete(officeContacts)
+        .where(eq(officeContacts.officeId, officeId));
+
+      const cIds = fd.getAll("contact_id");
+      const cNames = fd.getAll("contact_name");
+      const cPhones = fd.getAll("contact_phone");
+      const cRoles = fd.getAll("contact_role");
+      const cTimeSlots = fd.getAll("contact_timeslot");
+
+      for (let i = 0; i < cNames.length; i++) {
+        const cIdStr = cIds[i]?.toString().trim();
+        const cName = cNames[i]?.toString().trim();
+        if (!cName) continue;
+        const cPhone = cPhones[i]?.toString().trim() || null;
+
+        let contactId: number;
+        if (cIdStr) {
+          contactId = Number(cIdStr);
+          await db
+            .update(contacts)
+            .set({ name: cName, phone: cPhone })
+            .where(eq(contacts.id, contactId));
+        } else {
+          let existing;
+          if (cPhone) {
+            [existing] = await db
+              .select()
+              .from(contacts)
+              .where(and(eq(contacts.name, cName), eq(contacts.phone, cPhone)));
+          } else {
+            [existing] = await db
+              .select()
+              .from(contacts)
+              .where(and(eq(contacts.name, cName), isNull(contacts.phone)));
+          }
+
+          if (existing) {
+            contactId = existing.id;
+          } else {
+            const [created] = await db
+              .insert(contacts)
+              .values({ name: cName, phone: cPhone })
+              .returning({ id: contacts.id });
+            contactId = created.id;
+          }
+        }
+
+        try {
+          await db.insert(officeContacts).values({
+            officeId,
+            contactId,
+            role: cRoles[i]?.toString().trim() || null,
+            timeSlot: cTimeSlots[i]?.toString().trim() || null,
+          });
+        } catch (e: any) {}
+      }
+
+      await logAdminAction(user?.username || 'Sistema', `Creó la oficina "${officeData.name}" (${officeData.code})`);
+      return Astro.redirect(`${cleanBase}oficinas?toast_msg=${encodeURIComponent("Oficina creada con éxito.")}&toast_type=success`);
+    }
+  } catch (e: any) {
+    console.error("[CreateOffice] Error guardando la oficina:", e);
+    errorMsg = e.message?.includes("UNIQUE")
+      ? "Ya existe una oficina con ese código."
+      : "Error al guardar la oficina: " + (e.message || "");
+  }
+}
+
+const allProvincesWithRegion = await db
+  .select({
+    code: provinces.code,
+    name: provinces.name,
+    regionId: provinces.regionId,
+    regionName: regions.name,
+  })
+  .from(provinces)
+  .leftJoin(regions, eq(provinces.regionId, regions.id))
+  .orderBy(regions.name, provinces.name);
+
+const groupedProvinces = Array.from(
+  allProvincesWithRegion.reduce((map, p) => {
+    const rName = p.regionName ?? "Sin región";
+    if (!map.has(rName)) map.set(rName, []);
+    map.get(rName)!.push({ code: p.code, name: p.name });
+    return map;
+  }, new Map<string, { code: string; name: string }[]>()),
+).map(([regionName, provs]) => ({ regionName, provinces: provs }));
+
+const pageTitle = "Nueva sucursal";
+---
+
+<BaseLayout title={pageTitle}>
+  <PageContainer>
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a
+        href={`${cleanBase}oficinas`}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Oficinas
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">{pageTitle}</span>
+    </div>
+
+    <PageHeader
+      title={pageTitle}
+      description="Completá los datos para registrar una nueva sucursal."
+    />
+
+    {
+      errorMsg && (
+        <script is:inline define:vars={{ errorMsg }}>
+          window.addEventListener('load', () => {
+            window.showToast?.(errorMsg, "alert-error");
+          });
+        </script>
+      )
+    }
+
+    <OfficeForm office={null} groupedProvinces={groupedProvinces} isNew={isNew} />
+  </PageContainer>
+</BaseLayout>

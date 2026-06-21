@@ -83,7 +83,7 @@ const rowGridClass =
         class="w-full sm:w-64"
       />
       <a
-        href={`${cleanBase}admin/operadores/nuevo`}
+        href={`${cleanBase}admin/operadores/create`}
         class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent w-full sm:w-auto"
       >
         <Icon name="boxicons:plus" size={18} />
@@ -97,6 +97,10 @@ const rowGridClass =
     minWidthClass="min-w-200"
     headerGridClass={headerGridClass}
     rowGridClass={rowGridClass}
+    emptyStateTitle="No hay coincidencias"
+    emptyStateDescription="No hemos podido encontrar operadores que coincidan con los filtros seleccionados. Probá modificando los criterios o restableciendo la búsqueda para explorar el directorio completo."
+    showClearButton={true}
+    clearButtonHref={`${cleanBase}admin/operadores`}
   >
     <div slot="header">
       <DataTableHeaderCell sortKey="id">ID</DataTableHeaderCell>
@@ -193,7 +197,7 @@ const rowGridClass =
 
               <div class="flex items-center justify-end gap-1">
                 <a
-                  href={`${cleanBase}admin/operadores/${op.id}`}
+                  href={`${cleanBase}admin/operadores/edit/${op.id}`}
                   class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   aria-label={`Editar ${op.name}`}
                 >
@@ -203,15 +207,10 @@ const rowGridClass =
 
                 <form
                   method="POST"
+                  action={`${cleanBase}admin/operadores/edit/${op.id}/eliminar`}
                   class="inline"
                   onsubmit="return confirm('¿Estás seguro de que querés eliminar este operador? Se borrarán también sus turnos vinculados.')"
                 >
-                  <input
-                    type="hidden"
-                    name="action"
-                    value="delete_operator"
-                  />
-                  <input type="hidden" name="operatorId" value={op.id} />
                   <button
                     type="submit"
                     class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
@@ -236,34 +235,57 @@ const rowGridClass =
     highlightSearchTargets,
   } from "@lib/clientSearch";
 
-  const searchInput = document.querySelector<HTMLInputElement>(
-    "#admin-operator-search",
-  );
-  const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
-  const countBadge = document.querySelector<HTMLElement>(
-    "#operator-count-badge",
-  );
+  function initSearch() {
+    const searchInput = document.querySelector<HTMLInputElement>(
+      "#admin-operator-search",
+    );
+    if (!searchInput) return false;
 
-  function applyFilters() {
-    const query = searchInput?.value.trim() || "";
-    let visibleCount = 0;
+    const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
+    const countBadge = document.querySelector<HTMLElement>(
+      "#operator-count-badge",
+    );
 
-    rows.forEach((row) => {
-      const searchText = row.dataset.searchText || "";
-      const isVisible = matchesSearchQuery(query, [searchText]);
+    function applyFilters() {
+      const query = searchInput.value.trim();
+      let visibleCount = 0;
 
-      row.classList.toggle("hidden", !isVisible);
-      highlightSearchTargets(row, isVisible ? query : "");
+      rows.forEach((row) => {
+        const searchText = row.dataset.searchText || "";
+        const isVisible = matchesSearchQuery(query, [searchText]);
 
-      if (isVisible) {
-        visibleCount++;
+        row.classList.toggle("hidden", !isVisible);
+        highlightSearchTargets(row, isVisible ? query : "");
+
+        if (isVisible) {
+          visibleCount++;
+        }
+      });
+
+      if (countBadge) {
+        countBadge.textContent = visibleCount.toString();
+      }
+    }
+
+    searchInput.addEventListener("input", applyFilters);
+    return true;
+  }
+
+  function setupSearchObserver() {
+    if (initSearch()) return;
+
+    const observer = new MutationObserver((_, obs) => {
+      if (initSearch()) {
+        obs.disconnect();
       }
     });
 
-    if (countBadge) {
-      countBadge.textContent = visibleCount.toString();
-    }
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  searchInput?.addEventListener("input", applyFilters);
+  setupSearchObserver();
+
+  document.addEventListener("astro:page-load", () => {
+    setupSearchObserver();
+  });
 </script>

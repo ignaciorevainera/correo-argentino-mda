@@ -18,8 +18,38 @@ export interface OfficeFormData {
   locality?: string | null;
   county?: string | null;
   zone?: string | null;
+  enRed?: boolean | null;
   paqarAdmision?: boolean | null;
   paqarEntrega?: boolean | null;
+  payroll?: boolean | null;
+  taxExempt?: boolean | null;
+  division?: string | null;
+  company?: string | null;
+  warehouse?: string | null;
+  profitCenter?: string | null;
+  cctAdminOffice?: string | null;
+  ccCommercial?: string | null;
+  ccCommercialCorp?: string | null;
+  ccElectoral?: string | null;
+  ccNetworkMgmt?: string | null;
+  ccOperations?: string | null;
+  ccOperational?: string | null;
+  ccHr?: string | null;
+  ccSecurity?: string | null;
+  ccAdmin?: string | null;
+  ccAdmission?: string | null;
+  ccCtp?: string | null;
+  ccCtt?: string | null;
+  ccTransport?: string | null;
+  ccLogistics?: string | null;
+  posAutoAuto?: string | null;
+  posCurrentAccount?: string | null;
+  posManual?: string | null;
+  posManualAuto?: string | null;
+  posPlantaMg?: string | null;
+  posVirtual?: string | null;
+  posAutoAuto2?: string | null;
+  posSapTerminal?: string | null;
 
   // Relacionales y adicionales
   parentNis?: string | null;
@@ -220,24 +250,26 @@ if (office?.type === "SUCURSAL") {
             />
           </div>
           
-          <div class="col-span-2 flex items-center gap-6 mt-6 md:mt-0 md:justify-end">
-            <label class="cursor-pointer label gap-2">
-              <span class="label-text font-medium">Admite Paq.AR (Admisión)</span>
-              <input
-                type="checkbox"
-                name="paqarAdmision"
-                class="toggle toggle-primary toggle-sm"
-                checked={office?.paqarAdmision || false}
-              />
+          <div class="col-span-2 flex flex-wrap items-center gap-4 mt-6 md:mt-0 md:justify-end">
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Habilita la red interna">
+              <span class="label-text font-medium">En Red</span>
+              <input type="checkbox" name="enRed" class="toggle toggle-primary toggle-sm" checked={office?.enRed || false} />
             </label>
-            <label class="cursor-pointer label gap-2">
-              <span class="label-text font-medium">Entrega Paq.AR (Entrega)</span>
-              <input
-                type="checkbox"
-                name="paqarEntrega"
-                class="toggle toggle-primary toggle-sm"
-                checked={office?.paqarEntrega || false}
-              />
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Habilita la admisión de Paq.AR">
+              <span class="label-text font-medium">Paq.AR (Adm)</span>
+              <input type="checkbox" name="paqarAdmision" class="toggle toggle-primary toggle-sm" checked={office?.paqarAdmision || false} />
+            </label>
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Habilita la entrega de Paq.AR">
+              <span class="label-text font-medium">Paq.AR (Ent)</span>
+              <input type="checkbox" name="paqarEntrega" class="toggle toggle-primary toggle-sm" checked={office?.paqarEntrega || false} />
+            </label>
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Nómina habilitada">
+              <span class="label-text font-medium">Payroll</span>
+              <input type="checkbox" name="payroll" class="toggle toggle-primary toggle-sm" checked={office?.payroll || false} />
+            </label>
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Exento de impuestos">
+              <span class="label-text font-medium">Tax Exempt</span>
+              <input type="checkbox" name="taxExempt" class="toggle toggle-primary toggle-sm" checked={office?.taxExempt || false} />
             </label>
           </div>
         </div>
@@ -257,10 +289,79 @@ if (office?.type === "SUCURSAL") {
     </div>
   </section>
 
+  {/* ── Clasificación y Organización ── */}
+  <section class="card bg-base-100 border border-base-300 shadow-md">
+    <div class="card-body gap-4 p-5">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon name="boxicons:sitemap" size={15} />
+        </span>
+        Clasificación y Organización
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <FormField id="input-division" name="division" label="División" value={office?.division ?? ""} placeholder="ej: SUR" inputClass="input-sm" />
+        <FormField id="input-company" name="company" label="Compañía" value={office?.company ?? ""} placeholder="ej: COASA" inputClass="input-sm" />
+        <FormField id="input-warehouse" name="warehouse" label="Almacén" value={office?.warehouse ?? ""} placeholder="ej: ALM-01" inputClass="input-sm" />
+        <FormField id="input-profitCenter" name="profitCenter" label="Centro de Beneficio" value={office?.profitCenter ?? ""} placeholder="ej: CB-123" inputClass="input-sm" />
+      </div>
+    </div>
+  </section>
+
+  {/* ── Centros de Costo ── */}
+  <section class="card bg-base-100 border border-base-300 shadow-md">
+    <div class="card-body gap-4 p-5">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
+          <Icon name="boxicons:wallet" size={15} />
+        </span>
+        Centros de Costo
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <FormField id="input-cctAdminOffice" name="cctAdminOffice" label="Oficina Admin." value={office?.cctAdminOffice ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccCommercial" name="ccCommercial" label="Comercial" value={office?.ccCommercial ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccCommercialCorp" name="ccCommercialCorp" label="Comercial Corp." value={office?.ccCommercialCorp ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccElectoral" name="ccElectoral" label="Electoral" value={office?.ccElectoral ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccNetworkMgmt" name="ccNetworkMgmt" label="Gestión de Red" value={office?.ccNetworkMgmt ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccOperations" name="ccOperations" label="Operaciones" value={office?.ccOperations ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccOperational" name="ccOperational" label="Operativo" value={office?.ccOperational ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccHr" name="ccHr" label="RRHH" value={office?.ccHr ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccSecurity" name="ccSecurity" label="Seguridad" value={office?.ccSecurity ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccAdmin" name="ccAdmin" label="Admin" value={office?.ccAdmin ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccAdmission" name="ccAdmission" label="Admisión" value={office?.ccAdmission ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccCtp" name="ccCtp" label="CTP" value={office?.ccCtp ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccCtt" name="ccCtt" label="CTT" value={office?.ccCtt ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccTransport" name="ccTransport" label="Transporte" value={office?.ccTransport ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-ccLogistics" name="ccLogistics" label="Logística" value={office?.ccLogistics ?? ""} inputClass="input-sm font-mono" />
+      </div>
+    </div>
+  </section>
+
+  {/* ── Puntos de Venta (POS) ── */}
+  <section class="card bg-base-100 border border-base-300 shadow-md">
+    <div class="card-body gap-4 p-5">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
+        <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
+          <Icon name="boxicons:store-alt" size={15} />
+        </span>
+        Puntos de Venta (POS)
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <FormField id="input-posAutoAuto" name="posAutoAuto" label="Auto-Auto" value={office?.posAutoAuto ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posCurrentAccount" name="posCurrentAccount" label="Cta. Corriente" value={office?.posCurrentAccount ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posManual" name="posManual" label="Manual" value={office?.posManual ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posManualAuto" name="posManualAuto" label="Manual-Auto" value={office?.posManualAuto ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posPlantaMg" name="posPlantaMg" label="Planta MG" value={office?.posPlantaMg ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posVirtual" name="posVirtual" label="Virtual" value={office?.posVirtual ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posAutoAuto2" name="posAutoAuto2" label="Auto-Auto 2" value={office?.posAutoAuto2 ?? ""} inputClass="input-sm font-mono" />
+        <FormField id="input-posSapTerminal" name="posSapTerminal" label="Terminal SAP" value={office?.posSapTerminal ?? ""} inputClass="input-sm font-mono" />
+      </div>
+    </div>
+  </section>
+
   {/* ── Bottom: Infra + Contactos ── */}
   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
     {/* ── Infraestructura ── */}
-    <section class="card bg-base-100 border border-base-300 shadow-md">
+    <section id="section-assets" class="card bg-base-100 border border-base-300 shadow-md">
       <div class="card-body gap-3 p-5">
         <div class="flex items-center justify-between">
           <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
@@ -325,7 +426,7 @@ if (office?.type === "SUCURSAL") {
     </section>
 
     {/* ── Personal a cargo ── */}
-    <section class="card bg-base-100 border border-base-300 shadow-md flex-1">
+    <section id="section-contacts" class="card bg-base-100 border border-base-300 shadow-md flex-1">
       <div class="card-body gap-3 p-5">
         <div class="flex items-center justify-between">
           <h2 class="flex items-center gap-2 text-sm font-semibold text-base-content">
@@ -404,7 +505,7 @@ if (office?.type === "SUCURSAL") {
   {/* ── Acciones ── */}
   <div class="flex items-center justify-between gap-3 pt-1">
     <a
-      href="/admin/oficinas"
+      href="/oficinas"
       class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
     >
       <Icon name="boxicons:arrow-left-filled" size={16} />
@@ -645,6 +746,59 @@ if (office?.type === "SUCURSAL") {
     console.log("initAddressAutocomplete: completed successfully");
   }
 
+  function initTypeToggle() {
+    console.log("initTypeToggle: starting initialization");
+    const typeSelect = document.getElementById("select-type") as HTMLSelectElement;
+    const assetsSection = document.getElementById("section-assets");
+    const contactsSection = document.getElementById("section-contacts");
+    
+    if (!typeSelect || !assetsSection || !contactsSection) {
+      console.warn("initTypeToggle: required elements not found");
+      return;
+    }
+
+    function toggleAssets() {
+      const isTelegrafia = typeSelect.value.toUpperCase() === "TELEGRAFIA";
+      if (isTelegrafia) {
+        assetsSection.style.display = "";
+        contactsSection.classList.remove("xl:col-span-2");
+      } else {
+        assetsSection.style.display = "none";
+        contactsSection.classList.add("xl:col-span-2");
+      }
+    }
+
+    if (typeSelect.dataset.toggleBound !== "true") {
+      typeSelect.dataset.toggleBound = "true";
+      typeSelect.addEventListener("change", toggleAssets);
+    }
+    
+    // Initial call
+    toggleAssets();
+  }
+
+  function initTextFormatting() {
+    const textInputs = document.querySelectorAll('#office-form input[type="text"], #office-form textarea') as NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
+    textInputs.forEach(el => {
+      if (el.name !== 'email' && el.dataset.formatBound !== "true") {
+        el.dataset.formatBound = "true";
+        el.addEventListener('input', function() {
+          this.value = this.value.toUpperCase();
+        });
+      }
+    });
+
+    const emailInputs = document.querySelectorAll('#office-form input[type="email"]') as NodeListOf<HTMLInputElement>;
+    emailInputs.forEach(el => {
+      if (el.dataset.formatBound !== "true") {
+        el.dataset.formatBound = "true";
+        el.addEventListener('input', function() {
+          this.value = this.value.toLowerCase();
+        });
+      }
+    });
+  }
+
   function runInitializations() {
     try {
       initDynamicRows();
@@ -655,6 +809,16 @@ if (office?.type === "SUCURSAL") {
       initAddressAutocomplete();
     } catch (e) {
       console.error("Error running initAddressAutocomplete:", e);
+    }
+    try {
+      initTypeToggle();
+    } catch (e) {
+      console.error("Error running initTypeToggle:", e);
+    }
+    try {
+      initTextFormatting();
+    } catch (e) {
+      console.error("Error running initTextFormatting:", e);
     }
   }
 

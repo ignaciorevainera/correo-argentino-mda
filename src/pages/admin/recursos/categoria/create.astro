@@ -1,0 +1,245 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { resourceCategories } from "@db/schema";
+import { logAdminAction } from "@lib/auditLogger";
+
+const isNew = true;
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let category = { id: "", title: "", iconName: "", tone: "primary" };
+
+const PREDEFINED_ICONS = [
+  { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
+  { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
+  { value: "boxicons:group-filled", label: "Grupo (Usuarios / RRHH)" },
+  { value: "boxicons:building-filled", label: "Edificio (Intranet)" },
+  { value: "boxicons:chip-filled", label: "Microchip (Hardware)" },
+  { value: "boxicons:spanner-filled", label: "Llave (Herramientas)" },
+  { value: "boxicons:check-shield-filled", label: "Escudo (Seguridad / VPN)" },
+  { value: "boxicons:link-filled", label: "Enlace (Portales / Accesos)" },
+  { value: "boxicons:help-circle-filled", label: "Ayuda (Soporte / FAQ)" },
+  { value: "boxicons:calendar-filled", label: "Calendario (Cronograma)" },
+];
+
+const iconsList = [...PREDEFINED_ICONS];
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const title = formData.get("title")?.toString().trim();
+    const iconName = formData.get("iconName")?.toString().trim();
+
+    if (!title || !iconName) {
+      throw new Error("El título y el icono son obligatorios.");
+    }
+
+    if (title.toLowerCase() === "sin categoría" || title.toLowerCase() === "sin categoria") {
+      throw new Error("No se puede crear una categoría con este nombre reservado.");
+    }
+
+    const tone = formData.get("tone")?.toString().trim() || "primary";
+
+    await db.insert(resourceCategories).values({
+      title,
+      iconName,
+      tone,
+    });
+    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de recursos "${title}"`);
+
+    const successMsg = "Categoría creada con éxito.";
+    return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+  } catch (error: any) {
+    console.error("DEBUG ERROR CREATE CATEGORIA RECURSOS:", error);
+    errorMsg = error.message || "Error al guardar la categoría.";
+  }
+}
+---
+
+<BaseLayout title="Nueva Categoría">
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                Nueva Categoría
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Definí cómo se agruparán y visualizarán los enlaces.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/recursos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <script is:inline define:vars={{ errorMsg }}>
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
+              </script>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 gap-y-5">
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título de la Categoría"
+                required
+                value={category.title}
+                placeholder="Ej: Sistemas operativos"
+                inputClass="font-medium"
+                autofocus
+              />
+
+              <SelectField
+                id="select-iconName"
+                name="iconName"
+                label="Ícono Visual"
+                selectClass="font-medium"
+                options={iconsList}
+                value="boxicons:star-filled"
+              />
+
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
+                  >Color de Identificación (Tono)</legend
+                >
+                <div
+                  class="flex flex-col gap-2.5 bg-base-200/50 p-4 rounded-xl border border-base-300 w-full"
+                >
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="primary"
+                      class="radio radio-primary radio-sm"
+                      checked
+                    />
+                    <span class="text-sm font-medium">Amarillo (Principal)</span
+                    >
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="secondary"
+                      class="radio radio-secondary radio-sm"
+                    />
+                    <span class="text-sm font-medium">Azul (Secundario)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="accent"
+                      class="radio radio-accent radio-sm"
+                    />
+                    <span class="text-sm font-medium">Celeste (Acento)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="success"
+                      class="radio radio-success radio-sm"
+                    />
+                    <span class="text-sm font-medium">Verde (Éxito)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="info"
+                      class="radio radio-info radio-sm"
+                    />
+                    <span class="text-sm font-medium">Azul claro (Info)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="warning"
+                      class="radio radio-warning radio-sm"
+                    />
+                    <span class="text-sm font-medium">Naranja (Alerta)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="error"
+                      class="radio radio-error radio-sm"
+                    />
+                    <span class="text-sm font-medium">Rojo (Error)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="neutral"
+                      class="radio radio-neutral radio-sm"
+                    />
+                    <span class="text-sm font-medium">Gris (Neutral)</span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/recursos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Categoría
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>

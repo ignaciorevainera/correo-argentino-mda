@@ -21,6 +21,10 @@ import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 import { and, eq } from "drizzle-orm";
 import { getShiftType } from "@lib/cubics";
 import OperatorAvatar from "@components/cubics/OperatorAvatar.astro";
+import { isAllowed } from "@lib/rolesMatrix";
+
+const user = Astro.locals.user;
+const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
 
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
@@ -116,6 +120,12 @@ for (const agent of allAgents) {
 
 const cubicHeaderGridClass = "grid-cols-12 gap-4";
 const cubicRowGridClass = "grid grid-cols-12 items-center gap-4";
+
+const hostSpan = isAllowedAdmin ? "col-span-3" : "col-span-4";
+const ipSpan = "col-span-3";
+const statusSpan = isAllowedAdmin ? "col-span-2" : "col-span-3";
+const assignedSpan = "col-span-2";
+const actionsSpan = "col-span-2";
 
 const inventoryTabs = [
   {
@@ -460,6 +470,17 @@ const inventoryTabs = [
   </div>
 
   <div id="view-cubics" class="hidden space-y-6 mt-6">
+    {isAllowedAdmin && (
+      <div class="flex justify-end">
+        <a
+          href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/create`}
+          class="btn btn-secondary btn-sm gap-2"
+        >
+          <Icon name="boxicons:plus" class="size-4" />
+          Registrar Cubic
+        </a>
+      </div>
+    )}
     <section class="space-y-3">
       <DataTable
         id="table-cubics"
@@ -468,18 +489,23 @@ const inventoryTabs = [
         headerGridClass={cubicHeaderGridClass}
         rowGridClass={cubicRowGridClass}
       >
-        <div slot="header" class="col-span-4">
+        <div slot="header" class={hostSpan}>
           <DataTableHeaderCell sortKey="hostname">Hostname</DataTableHeaderCell>
         </div>
-        <div slot="header" class="col-span-3">
+        <div slot="header" class={ipSpan}>
           <DataTableHeaderCell sortKey="ip">Dirección IP</DataTableHeaderCell>
         </div>
-        <div slot="header" class="col-span-3">
+        <div slot="header" class={statusSpan}>
           <DataTableHeaderCell>Estado</DataTableHeaderCell>
         </div>
-        <div slot="header" class="col-span-2">
+        <div slot="header" class={assignedSpan}>
           <DataTableHeaderCell>Asignado a</DataTableHeaderCell>
         </div>
+        {isAllowedAdmin && (
+          <div slot="header" class={actionsSpan}>
+            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
+          </div>
+        )}
 
         {
           cubicMachines.map((machine) => {
@@ -502,7 +528,7 @@ const inventoryTabs = [
                   "border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-300/50 last:border-b-0",
                 ]}
               >
-                <div class="col-span-4 min-w-0">
+                <div class={hostSpan + " min-w-0"}>
                   <div class="flex items-center gap-3">
                     <span class="inline-flex size-8 shrink-0 self-center items-center justify-center rounded-lg border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400 border">
                       <Icon name="boxicons:desktop-filled" size={16} />
@@ -522,7 +548,7 @@ const inventoryTabs = [
                     </div>
                   </div>
                 </div>
-                <div class="col-span-3 min-w-0">
+                <div class={ipSpan + " min-w-0"}>
                   <CopyButton
                     value={machine.ip ?? ""}
                     variant="value"
@@ -535,7 +561,7 @@ const inventoryTabs = [
                     class="-ml-2"
                   />
                 </div>
-                <div class="col-span-3 min-w-0">
+                <div class={statusSpan + " min-w-0"}>
                   <div class="flex flex-col gap-0.5">
                     <div class="flex items-center gap-2">
                       <div class="inline-grid *:[grid-area:1/1]">
@@ -566,7 +592,7 @@ const inventoryTabs = [
                     </p>
                   </div>
                 </div>
-                <div class="col-span-2 min-w-0">
+                <div class={assignedSpan + " min-w-0"}>
                   <div class="flex items-center gap-2">
                     {machine.assignments.length > 0 ? (
                       machine.assignments.map((assignment) => {
@@ -602,6 +628,31 @@ const inventoryTabs = [
                     )}
                   </div>
                 </div>
+                {isAllowedAdmin && (
+                  <div class={actionsSpan + " min-w-0 flex items-center justify-end gap-1.5"}>
+                    <a
+                      href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/edit/${machine.id}`}
+                      class="btn btn-xs btn-outline btn-warning"
+                      title="Editar"
+                    >
+                      <Icon name="boxicons:edit-alt" class="size-3.5" />
+                    </a>
+                    <form
+                      method="POST"
+                      action={`${import.meta.env.BASE_URL}inventario-terminales/cubics/edit/${machine.id}/eliminar`}
+                      class="inline"
+                      onsubmit={`return confirm('¿Estás seguro de que deseas dar de baja el ordenador "${machine.name}"?');`}
+                    >
+                      <button
+                        type="submit"
+                        class="btn btn-xs btn-outline btn-error"
+                        title="Eliminar"
+                      >
+                        <Icon name="boxicons:trash" class="size-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                )}
               </article>
             );
           })
@@ -978,6 +1029,8 @@ const inventoryTabs = [
       }
     });
   });
+
+
 
   function bindSorting(tableId: string, rows: HTMLElement[]) {
     const table = document.getElementById(tableId);

@@ -1,6 +1,6 @@
 import { db } from "@db/index";
 import { provinces, regions, offices, officeAssets } from "@db/schema";
-import { eq, or, and, sql, inArray, asc, desc } from "drizzle-orm";
+import { eq, or, and, sql, inArray, asc, desc, like } from "drizzle-orm";
 import type {
   OfficeDirectoryItem,
   OfficeAssetType,
@@ -97,12 +97,11 @@ export async function getOffices(params: GetOfficesParams) {
     }
   }
 
-  // Search filter (FTS5)
+  // Search filter
   if (searchFilter) {
     const normalizedSearch = normalizeSearchValue(searchFilter);
-    const ftsSearch = `"${normalizedSearch}"`;
     whereConditions.push(
-      sql`${offices.id} IN (SELECT rowid FROM offices_fts WHERE searchable_text MATCH ${ftsSearch})`
+      like(offices.searchableText, `%${normalizedSearch}%`)
     );
   }
 

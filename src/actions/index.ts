@@ -2,9 +2,10 @@ import { defineAction, ActionError } from "astro:actions";
 import { z } from "astro:schema";
 import { requireWriteAccess } from "../lib/rbac-middleware";
 import { db } from "@db/index";
-import { qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
+import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { calculateAuditScores } from "../lib/qualityCalculator";
+import { logAdminAction } from "@lib/auditLogger";
 
 export const server = {
   saveParameters: defineAction({
@@ -137,6 +138,11 @@ export const server = {
           }
         });
         
+        await logAdminAction(
+          (context.locals as any).user?.username || 'Sistema',
+          `Actualizó la configuración de parámetros de calidad`
+        );
+
         return { success: true };
       } catch (error: any) {
         console.error("Error saving parameters:", error);
@@ -224,6 +230,13 @@ export const server = {
         isCriticalFailure: input.isCriticalFailure,
       };
 
+      const [agentForAudit] = await db
+        .select({ name: agents.name })
+        .from(agents)
+        .where(eq(agents.id, input.agentId))
+        .limit(1);
+      const agentName = agentForAudit?.name || `ID ${input.agentId}`;
+
       try {
         if (input.id) {
           db.transaction((tx) => {
@@ -241,6 +254,10 @@ export const server = {
               ).run();
             }
           });
+          await logAdminAction(
+            (context.locals as any).user?.username || 'Sistema',
+            `Actualizó auditoría de calidad para "${agentName}" (call ${input.callId})`
+          );
           return { success: true, id: input.id };
         } else {
           let insertedId: number;
@@ -259,6 +276,10 @@ export const server = {
               ).run();
             }
           });
+          await logAdminAction(
+            (context.locals as any).user?.username || 'Sistema',
+            `Guardó auditoría de calidad para "${agentName}" (call ${input.callId})`
+          );
           return { success: true, id: insertedId! };
         }
       } catch (error: any) {
@@ -282,7 +303,29 @@ export const server = {
         });
       }
       try {
+        const [auditToDelete] = await db
+          .select({ agentId: qualityAudits.agentId, callId: qualityAudits.callId })
+          .from(qualityAudits)
+          .where(eq(qualityAudits.id, input.id))
+          .limit(1);
+
+        let agentName = `ID ${auditToDelete?.agentId || 'desconocido'}`;
+        if (auditToDelete?.agentId) {
+          const [agent] = await db
+            .select({ name: agents.name })
+            .from(agents)
+            .where(eq(agents.id, auditToDelete.agentId))
+            .limit(1);
+          if (agent) agentName = agent.name;
+        }
+
         await db.delete(qualityAudits).where(eq(qualityAudits.id, input.id));
+
+        await logAdminAction(
+          (context.locals as any).user?.username || 'Sistema',
+          `Eliminó auditoría de calidad de "${agentName}" (call ${auditToDelete?.callId || input.id})`
+        );
+
         return { success: true };
       } catch (error: any) {
         console.error("Error deleting audit:", error);
@@ -307,6 +350,13 @@ export const server = {
         });
       }
       try {
+        const [agentForSummary] = await db
+          .select({ name: agents.name })
+          .from(agents)
+          .where(eq(agents.id, input.agentId))
+          .limit(1);
+        const agentName = agentForSummary?.name || `ID ${input.agentId}`;
+
         // We use insert with onConflictDoUpdate since we have a composite PK
         await db.insert(monthlySummaries)
           .values({
@@ -318,6 +368,12 @@ export const server = {
             target: [monthlySummaries.agentId, monthlySummaries.month],
             set: { summary: input.summary }
           });
+
+        await logAdminAction(
+          (context.locals as any).user?.username || 'Sistema',
+          `Guardó observaciones de calidad de "${agentName}" (${input.month})`
+        );
+
         return { success: true };
       } catch (error: any) {
         console.error("Error saving month summary:", error);

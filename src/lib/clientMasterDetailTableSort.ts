@@ -325,3 +325,16 @@ const bindTableEmptyState = (root: HTMLElement): void => {
   updateEmptyState();
 };
 
+export const initMasterDetailTableSortObserver = (): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    bindMasterDetailTableSort();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  bindMasterDetailTableSort();
+};
+

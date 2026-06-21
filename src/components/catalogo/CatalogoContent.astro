@@ -8,12 +8,10 @@ import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
 
-const BUNDLE_CATEGORY_ID = "paquetes";
-
 interface AppRow {
   id: number;
   title: string;
-  categoryId: string | null;
+  categoryId: number | null; // Changed to number
   description: string | null;
   version: string | null;
   filePath: string | null;
@@ -22,7 +20,7 @@ interface AppRow {
 }
 
 let allApps: AppRow[] = [];
-let categories: { id: string; title: string }[] = [];
+let categories: { id: number; title: string }[] = []; // Changed id to number
 let errorMsg = "";
 
 try {
@@ -43,26 +41,26 @@ try {
       eq(applications.categoryId, applicationCategories.id),
     );
 
-  allApps = rawApps;
-  categories = await db.select().from(applicationCategories);
+  allApps = rawApps as AppRow[];
+  categories = await db.select().from(applicationCategories) as any;
 } catch (error: any) {
   errorMsg = "No se pudo cargar el catálogo. Intentá de nuevo más tarde.";
 }
 
-const bundleApps = allApps.filter(
-  (app) => app.categoryId === BUNDLE_CATEGORY_ID,
-);
+const isBundleCategory = (title: string | null) => {
+  if (!title) return false;
+  const t = title.toLowerCase();
+  return t === "paquetes" || t === "paquete base";
+};
+
+const bundleApps = allApps.filter((app) => isBundleCategory(app.categoryTitle));
 const bundle = bundleApps.length > 0 ? bundleApps[0] : null;
 
-const regularApps = allApps.filter(
-  (app) => app.categoryId !== BUNDLE_CATEGORY_ID,
-);
+const regularApps = allApps.filter((app) => !isBundleCategory(app.categoryTitle));
 
-const displayCategories = categories.filter(
-  (cat) => cat.id !== BUNDLE_CATEGORY_ID,
-);
+const displayCategories = categories.filter((cat) => !isBundleCategory(cat.title));
 
-const appsByCategory = new Map<string, AppRow[]>();
+const appsByCategory = new Map<number, AppRow[]>();
 const uncategorized: AppRow[] = [];
 
 for (const app of regularApps) {

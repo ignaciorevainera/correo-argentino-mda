@@ -3,9 +3,8 @@ type SortDirection = "none" | "ascending" | "descending";
 const SORT_DIRECTIONS: SortDirection[] = ["none", "ascending", "descending"];
 
 const getRows = (body: HTMLElement): HTMLElement[] =>
-  Array.from(body.children).filter(
-    (child): child is HTMLElement =>
-      child instanceof HTMLElement && child.hasAttribute("data-table-row"),
+  Array.from(body.querySelectorAll<HTMLElement>("[data-table-row]")).filter(
+    (row) => row.closest("[data-table-sort-body]") === body,
   );
 
 const getSortValue = (row: HTMLElement, sortKey: string): string =>
@@ -98,7 +97,7 @@ const sortRows = (
   });
 
   sortedRows.forEach((row) => {
-    body.append(row);
+    row.parentElement?.append(row);
   });
 };
 
@@ -222,5 +221,18 @@ const bindTableEmptyState = (root: HTMLElement): void => {
 
   root.dataset.tableEmptyStateBound = "true";
   updateEmptyState();
+};
+
+export const initTableSortObserver = (): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    bindClientTableSort();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  bindClientTableSort();
 };
 

@@ -1,12 +1,15 @@
 ---
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
+import { isAllowed } from "@lib/rolesMatrix";
 
 interface Props {
   guide: any;
 }
 
 const { guide } = Astro.props;
+const user = Astro.locals.user;
+const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
 let topicsList: string[] = [];
 if (guide.topics) {
   try {
@@ -105,14 +108,41 @@ const modalId = `modal_guide_${guide.id}`;
     </div>
 
     <!-- Acciones -->
-    <div class="min-w-0 flex items-start justify-end">
+    <div class="min-w-0 flex items-start justify-end gap-1.5">
       <button
-        class="btn btn-xs btn-outline btn-secondary gap-1"
+        class="btn btn-xs btn-outline btn-secondary"
         onclick={`document.getElementById('${modalId}').showModal()`}
+        title="Más info"
       >
         <Icon name="boxicons:info-circle" class="size-3.5" />
-        Más info
       </button>
+      {
+        isAllowedAdmin && (
+          <>
+            <a
+              href={`${import.meta.env.BASE_URL}soportes/edit/${guide.id}`}
+              class="btn btn-xs btn-outline btn-warning"
+              title="Editar"
+            >
+              <Icon name="boxicons:edit-alt" class="size-3.5" />
+            </a>
+            <form
+              method="POST"
+              action={`${import.meta.env.BASE_URL}soportes/edit/${guide.id}/eliminar`}
+              class="inline"
+              onsubmit={`return confirm('¿Estás seguro de que deseas eliminar el soporte "${guide.helpDeskName}"?');`}
+            >
+              <button
+                type="submit"
+                class="btn btn-xs btn-outline btn-error"
+                title="Eliminar"
+              >
+                <Icon name="boxicons:trash" class="size-3.5" />
+              </button>
+            </form>
+          </>
+        )
+      }
     </div>
   </div>
 </article>

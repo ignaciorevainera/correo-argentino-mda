@@ -1,0 +1,138 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { applicationCategories } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
+
+const { id } = Astro.params;
+const isNew = false;
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let category = { id: "", title: "" };
+
+const numericId = Number(id);
+const existingCategory = await db.query.applicationCategories.findFirst({
+  where: eq(applicationCategories.id, numericId),
+});
+if (existingCategory) {
+  if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
+    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+  }
+  category = existingCategory as any;
+} else {
+  return Astro.redirect(resolveUrl("/admin/aplicativos"));
+}
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const title = formData.get("title")?.toString().trim();
+
+    if (!title) {
+      throw new Error("El título es obligatorio.");
+    }
+
+    const oldTitle = category.title;
+    await db
+      .update(applicationCategories)
+      .set({ title })
+      .where(eq(applicationCategories.id, numericId));
+
+    if (oldTitle && oldTitle !== title) {
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
+    } else {
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos "${title}"`);
+    }
+
+    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría actualizada con éxito.")}&toast_type=success`));
+  } catch (error: any) {
+    errorMsg = error.message || "Error al guardar la categoría.";
+  }
+}
+---
+
+<BaseLayout title="Editar Categoría de Aplicativos">
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                Editar Categoría
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Modificá el nombre de la categoría de aplicativos.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/aplicativos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <script is:inline define:vars={{ errorMsg }}>
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
+              </script>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 gap-y-5">
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título de la Categoría"
+                required
+                value={category.title}
+                placeholder="Ej: Herramientas de Red"
+                inputClass="font-medium"
+              />
+            </div>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/aplicativos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Categoría
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>

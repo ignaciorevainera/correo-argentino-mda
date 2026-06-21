@@ -18,10 +18,23 @@ const resolveUrl = (path: string) => {
 
 const q = Astro.url.searchParams.get("q")?.trim() || "";
 
-const categories = await db
+let uncategorizedDbId: number | null = null;
+let filteredCategories: any[] = [];
+
+const dbCategories = await db
   .select()
   .from(resourceCategories)
   .orderBy(resourceCategories.title);
+
+dbCategories.forEach((cat) => {
+  const t = cat.title.toLowerCase();
+  if (t === "sin categoría" || t === "sin categoria") {
+    uncategorizedDbId = cat.id;
+  } else {
+    filteredCategories.push(cat);
+  }
+});
+const categories = filteredCategories;
 
 const links = await db
   .select({
@@ -53,9 +66,16 @@ const toneColors: Record<string, string> = {
 };
 
 // Map to pre-calculate links count per category
-const categoryCounts = new Map<string, number>();
+const categoryCounts = new Map<string | number, number>();
+let uncategorizedCount = 0;
+
 links.forEach((link) => {
-  categoryCounts.set(link.categoryId, (categoryCounts.get(link.categoryId) || 0) + 1);
+  if (!link.categoryId || link.categoryId === uncategorizedDbId) {
+    uncategorizedCount++;
+    categoryCounts.set("uncategorized", uncategorizedCount);
+  } else {
+    categoryCounts.set(link.categoryId, (categoryCounts.get(link.categoryId) || 0) + 1);
+  }
 });
 ---
 
@@ -66,13 +86,13 @@ links.forEach((link) => {
       description="Refactorizá, reordená y organizá los accesos rápidos de soporte técnico."
     />
     <div class="flex gap-2 shrink-0">
-      <a href={resolveUrl("/admin/recursos/categoria/nueva")} class="btn btn-outline btn-sm gap-2">
+      <a href={resolveUrl("/admin/recursos/categoria/create")} class="btn btn-outline btn-sm gap-2">
         <Icon name="boxicons:folder-plus" size={16} />
         Nueva Categoría
       </a>
       <a
         id="btn-add-link"
-        href={resolveUrl("/admin/recursos/enlace/nuevo")}
+        href={resolveUrl("/admin/recursos/enlace/create")}
         class="btn btn-primary btn-sm gap-2"
       >
         <Icon name="boxicons:plus" size={16} />
@@ -136,16 +156,16 @@ links.forEach((link) => {
                     <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
                       {count}
                     </span>
-                    <div class="hidden group-hover:flex items-center gap-0.5">
-                      <a
-                        href={resolveUrl(`/admin/recursos/categoria/${cat.id}`)}
-                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
-                        title="Editar"
-                        onclick="event.stopPropagation();"
-                      >
-                        <Icon name="boxicons:pencil" size={14} />
-                      </a>
-                      {cat.id !== "uncategorized" && (
+                    {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
+                      <div class="hidden group-hover:flex items-center gap-0.5">
+                        <a
+                          href={resolveUrl(`/admin/recursos/categoria/edit/${cat.id}`)}
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                          title="Editar"
+                          onclick="event.stopPropagation();"
+                        >
+                          <Icon name="boxicons:pencil" size={14} />
+                        </a>
                         <button
                           type="button"
                           class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
@@ -154,14 +174,41 @@ links.forEach((link) => {
                         >
                           <Icon name="boxicons:trash" size={14} />
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })
           )
         }
+
+        {/* Sin categoría */}
+        {(() => {
+          const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
+          if (uncategorizedCount === 0) return null;
+          return (
+            <div
+              class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+              data-category-id="uncategorized"
+              data-category-tone="warning"
+              data-category-title="Sin categoría"
+              data-category-dropzone
+            >
+              <div class="flex items-center gap-2.5 min-w-0 grow">
+                <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-warning/20 bg-warning/10 text-warning">
+                  <Icon name="boxicons:folder" size={18} />
+                </div>
+                <span class="text-sm font-semibold truncate label-title">Sin categoría</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={uncategorizedCount}>
+                  {uncategorizedCount}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </nav>
     </aside>
 
@@ -230,7 +277,7 @@ links.forEach((link) => {
                     data-table-row
                     data-link-row
                     data-link-id={link.id}
-                    data-link-category={link.categoryId}
+                    data-link-category={(!link.categoryId || link.categoryId === uncategorizedDbId) ? "uncategorized" : link.categoryId}
                     data-link-search={`${link.title} ${link.subtitle || ""} ${link.url}`.toLowerCase()}
                     draggable="true"
                   >
@@ -280,7 +327,7 @@ links.forEach((link) => {
                     <!-- Acciones -->
                     <div class="flex items-center justify-end gap-1">
                       <a
-                        href={resolveUrl(`/admin/recursos/enlace/${link.id}`)}
+                        href={resolveUrl(`/admin/recursos/enlace/edit/${link.id}`)}
                         class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
                         title="Editar Enlace"
                       >
@@ -288,7 +335,7 @@ links.forEach((link) => {
                       </a>
                       <form
                         method="POST"
-                        action={resolveUrl(`/admin/recursos/enlace/${link.id}/eliminar`)}
+                        action={resolveUrl(`/admin/recursos/enlace/edit/${link.id}/eliminar`)}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
                       >
@@ -333,16 +380,16 @@ links.forEach((link) => {
           <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
             <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
             <div class="flex flex-col gap-1 flex-1 min-w-0">
-              <span class="label-text font-bold text-base leading-tight">Desvincular y conservar enlaces</span>
-              <span class="text-xs text-base-content/60 leading-relaxed">La categoría será eliminada, pero los enlaces se conservarán y se moverán a "Sin categoría".</span>
+              <span class="label-text font-bold text-base leading-tight whitespace-normal">Desvincular y conservar enlaces</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría será eliminada, pero los enlaces se conservarán y se moverán a "Sin categoría".</span>
             </div>
           </label>
 
           <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
             <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
             <div class="flex flex-col gap-1 flex-1 min-w-0">
-              <span class="label-text font-bold text-error text-base leading-tight">Eliminar todo en Cascada</span>
-              <span class="text-xs text-base-content/60 leading-relaxed">La categoría y todos los enlaces que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+              <span class="label-text font-bold text-error text-base leading-tight whitespace-normal">Eliminar todo en Cascada</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría y todos los enlaces que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
             </div>
           </label>
         </div>
@@ -435,9 +482,9 @@ links.forEach((link) => {
       const base = import.meta.env.BASE_URL || "/";
       const cleanBase = base.endsWith("/") ? base : base + "/";
       if (categoryId === "all") {
-        btnAddLink.href = `${cleanBase}admin/recursos/enlace/nuevo`;
+        btnAddLink.href = `${cleanBase}admin/recursos/enlace/create`;
       } else {
-        btnAddLink.href = `${cleanBase}admin/recursos/enlace/nuevo?categoryId=${encodeURIComponent(categoryId)}`;
+        btnAddLink.href = `${cleanBase}admin/recursos/enlace/create?categoryId=${encodeURIComponent(categoryId)}`;
       }
     }
 
@@ -691,7 +738,7 @@ links.forEach((link) => {
     if (modal && form) {
       const base = import.meta.env.BASE_URL || "/";
       const cleanBase = base.endsWith("/") ? base : base + "/";
-      const cleanPath = `admin/recursos/categoria/${categoryId}/eliminar`;
+      const cleanPath = `admin/recursos/categoria/edit/${categoryId}/eliminar`;
       
       form.action = `${cleanBase}${cleanPath}`;
       modal.showModal();

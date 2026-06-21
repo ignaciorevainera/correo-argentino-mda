@@ -1,0 +1,121 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { applicationCategories } from "@db/schema";
+import { logAdminAction } from "@lib/auditLogger";
+
+const isNew = true;
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const title = formData.get("title")?.toString().trim();
+
+    if (!title) {
+      throw new Error("El título es obligatorio.");
+    }
+
+    if (title.toLowerCase() === "sin categoría" || title.toLowerCase() === "sin categoria") {
+      throw new Error("No se puede crear una categoría con este nombre reservado.");
+    }
+
+    await db.insert(applicationCategories).values({
+      title,
+    });
+    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de aplicativos "${title}"`);
+
+    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría creada con éxito.")}&toast_type=success`));
+  } catch (error: any) {
+    console.error("DEBUG ERROR CREATE CATEGORIA APLICATIVOS:", error);
+    errorMsg = error.message || "Error al guardar la categoría.";
+  }
+}
+---
+
+<BaseLayout title="Nueva Categoría de Aplicativos">
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                Nueva Categoría
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Definí cómo se agruparán los aplicativos en la intranet.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/aplicativos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <script is:inline define:vars={{ errorMsg }}>
+                const triggerToast = () => {
+                  if (window.showToast) {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(triggerToast, 100);
+                  }
+                };
+                if (document.readyState === "loading") {
+                  document.addEventListener("DOMContentLoaded", triggerToast);
+                } else {
+                  triggerToast();
+                }
+              </script>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 gap-y-5">
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título de la Categoría"
+                required
+                value=""
+                placeholder="Ej: Herramientas de Red"
+                inputClass="font-medium"
+                autofocus
+              />
+            </div>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/aplicativos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Categoría
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>

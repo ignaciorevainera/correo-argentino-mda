@@ -1,0 +1,272 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { contactCategories } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
+
+const { id } = Astro.params;
+const isNew = false;
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let category = { id: "", title: "", icon: "", tone: "primary" };
+
+const parsedId = parseInt(id as string, 10);
+if (id && !isNaN(parsedId)) {
+  const existingCategory = await db.query.contactCategories.findFirst({
+    where: eq(contactCategories.id, parsedId),
+  });
+  if (existingCategory) {
+    if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
+      return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    }
+    category = existingCategory as any;
+  } else {
+    return Astro.redirect(resolveUrl("/admin/contactos"));
+  }
+}
+
+const PREDEFINED_ICONS = [
+  { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
+  { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
+  { value: "boxicons:group-filled", label: "Grupo (Usuarios / RRHH)" },
+  { value: "boxicons:building-filled", label: "Edificio (Intranet)" },
+  { value: "boxicons:chip-filled", label: "Microchip (Hardware)" },
+  { value: "boxicons:spanner-filled", label: "Llave (Herramientas)" },
+  { value: "boxicons:check-shield-filled", label: "Escudo (Seguridad / VPN)" },
+  { value: "boxicons:link-filled", label: "Enlace (Portales / Accesos)" },
+  { value: "boxicons:help-circle-filled", label: "Ayuda (Soporte / FAQ)" },
+  { value: "boxicons:calendar-filled", label: "Calendario (Cronograma)" },
+];
+
+const currentIcon = category.icon || "boxicons:star-filled";
+const iconExistsInPredefined = PREDEFINED_ICONS.some(
+  (icon) => icon.value === currentIcon,
+);
+const iconsList = [...PREDEFINED_ICONS];
+if (category.icon && !iconExistsInPredefined) {
+  iconsList.push({
+    value: category.icon,
+    label: `Personalizado (${category.icon})`,
+  });
+}
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const title = formData.get("title")?.toString().trim();
+    const icon = formData.get("icon")?.toString().trim();
+
+    if (!title || !icon) {
+      throw new Error("El título y el icono son obligatorios.");
+    }
+
+    const tone = formData.get("tone")?.toString().trim() || "primary";
+
+    const parsedId = parseInt(id as string, 10);
+    if (id && !isNaN(parsedId)) {
+      const oldTitle = category.title;
+      await db
+        .update(contactCategories)
+        .set({
+          title,
+          icon,
+          tone,
+        })
+        .where(eq(contactCategories.id, parsedId));
+      if (oldTitle && oldTitle !== title) {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de contactos de "${oldTitle}" a "${title}"`);
+      } else {
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de contactos "${title}"`);
+      }
+    }
+
+    const successMsg = "Categoría actualizada con éxito.";
+    return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+  } catch (error: any) {
+    errorMsg = error.message || "Error al guardar la categoría.";
+  }
+}
+---
+
+<BaseLayout title="Editar Categoría de Contactos">
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                Editar Categoría de Contactos
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Definí cómo se agruparán y visualizarán los contactos.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/contactos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <script is:inline define:vars={{ errorMsg }}>
+                window.showToast?.(errorMsg, "alert-error");
+              </script>
+            )
+          }
+
+          <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-1 gap-y-5">
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título de la Categoría"
+                required
+                value={category.title}
+                placeholder="Ej: Proveedores de red"
+                inputClass="font-medium"
+              />
+
+              <SelectField
+                id="select-icon"
+                name="icon"
+                label="Ícono Visual"
+                selectClass="font-medium"
+                options={iconsList}
+                value={currentIcon}
+              />
+
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
+                  >Color de Identificación (Tono)</legend
+                >
+                <div
+                  class="flex flex-col gap-2.5 bg-base-200/50 p-4 rounded-xl border border-base-300 w-full"
+                >
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="primary"
+                      class="radio radio-primary radio-sm"
+                      checked={category.tone === "primary" || !category.tone}
+                    />
+                    <span class="text-sm font-medium">Amarillo (Principal)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="secondary"
+                      class="radio radio-secondary radio-sm"
+                      checked={category.tone === "secondary"}
+                    />
+                    <span class="text-sm font-medium">Azul (Secundario)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="accent"
+                      class="radio radio-accent radio-sm"
+                      checked={category.tone === "accent"}
+                    />
+                    <span class="text-sm font-medium">Celeste (Acento)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="success"
+                      class="radio radio-success radio-sm"
+                      checked={category.tone === "success"}
+                    />
+                    <span class="text-sm font-medium">Verde (Éxito)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="info"
+                      class="radio radio-info radio-sm"
+                      checked={category.tone === "info"}
+                    />
+                    <span class="text-sm font-medium">Azul claro (Info)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="warning"
+                      class="radio radio-warning radio-sm"
+                      checked={category.tone === "warning"}
+                    />
+                    <span class="text-sm font-medium">Naranja (Alerta)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="error"
+                      class="radio radio-error radio-sm"
+                      checked={category.tone === "error"}
+                    />
+                    <span class="text-sm font-medium">Rojo (Error)</span>
+                  </label>
+
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tone"
+                      value="neutral"
+                      class="radio radio-neutral radio-sm"
+                      checked={category.tone === "neutral"}
+                    />
+                    <span class="text-sm font-medium">Gris (Neutral)</span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/contactos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar Categoría
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>

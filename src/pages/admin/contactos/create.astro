@@ -1,0 +1,236 @@
+---
+import { db } from "@db/index";
+import { providerContacts, contactCategories } from "@db/schema";
+import { eq, asc } from "drizzle-orm";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import { Icon } from "astro-icon/components";
+import { logAdminAction } from "@lib/auditLogger";
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+
+const isNew = true;
+
+let errorMsg = "";
+
+const allCategories = await db
+  .select()
+  .from(contactCategories)
+  .orderBy(asc(contactCategories.title));
+
+if (Astro.request.method === "POST") {
+  try {
+    const fd = await Astro.request.formData();
+
+    const categoryId = fd.get("categoryId")?.toString() || null;
+    const provider = fd.get("provider")?.toString().trim() ?? "";
+    const service = fd.get("service")?.toString().trim() ?? "";
+
+    const phones =
+      fd
+        .get("phones")
+        ?.toString()
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
+
+    const emails =
+      fd
+        .get("emails")
+        ?.toString()
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
+
+    const urls =
+      fd
+        .get("urls")
+        ?.toString()
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const parts = line.split(",");
+          if (parts.length >= 2) {
+            const label = parts[0].trim();
+            const url = parts.slice(1).join(",").trim();
+            return { label, url };
+          }
+          return { label: "Enlace", url: line };
+        }) ?? [];
+
+    if (!provider || !service) {
+      errorMsg = "Proveedor y servicio son obligatorios.";
+    } else {
+      await db.insert(providerContacts).values({
+        categoryId,
+        provider,
+        service,
+        phones,
+        emails,
+        urls,
+      });
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el contacto "${provider} - ${service}"`);
+
+      const toastMessage = "Contacto creado con éxito.";
+      return Astro.redirect(
+        `${cleanBase}admin/contactos?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`
+      );
+    }
+  } catch (e: any) {
+    errorMsg = "Error al guardar el contacto.";
+  }
+}
+---
+
+<BaseLayout title="Nuevo contacto">
+  <PageContainer>
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a
+        href={`${cleanBase}admin/contactos`}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Contactos
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">Nuevo contacto</span>
+    </div>
+
+    <PageHeader
+      title="Nuevo contacto"
+      description="Completá los datos para registrar un nuevo contacto útil."
+    />
+
+    {
+      errorMsg && (
+        <script is:inline define:vars={{ errorMsg }}>
+          window.showToast?.(errorMsg, "alert-error");
+        </script>
+      )
+    }
+
+    <form
+      method="POST"
+      id="contact-form"
+      class="space-y-4"
+    >
+      <section class="card bg-base-100 border border-base-300 shadow-md">
+        <div class="card-body gap-4 p-5">
+          <h2
+            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+          >
+            <span
+              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
+            >
+              <Icon name="boxicons:phone-filled" size={15} />
+            </span>
+            Datos del contacto
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <FormField
+                id="input-provider"
+                name="provider"
+                label="Proveedor"
+                required
+                placeholder="ej: CORASA"
+                autocomplete="off"
+                inputClass="input-sm font-semibold"
+                autofocus
+              />
+
+              <FormField
+                id="input-service"
+                name="service"
+                label="Servicio"
+                required
+                placeholder="ej: Mesa de Ayuda"
+                autocomplete="off"
+                inputClass="input-sm"
+              />
+
+              <SelectField
+                id="select-categoryId"
+                name="categoryId"
+                label="Categoría"
+                selectClass="select-sm"
+              >
+                <option value="">
+                  Ninguna
+                </option>
+                {
+                  allCategories.map((cat) => (
+                    <option
+                      value={cat.id}
+                    >
+                      {cat.title}
+                    </option>
+                  ))
+                }
+              </SelectField>
+            </div>
+
+            <div class="space-y-3">
+              <fieldset class="fieldset gap-1 font-mono">
+                <legend class="fieldset-legend text-xs"
+                  >Teléfonos (uno por línea)</legend
+                >
+                <textarea
+                  name="phones"
+                  rows={2}
+                  class="textarea textarea-sm w-full text-xs font-mono"
+                  placeholder="ej: 6316-1111
+0810-777-7787"
+                ></textarea>
+              </fieldset>
+
+              <fieldset class="fieldset gap-1 font-mono">
+                <legend class="fieldset-legend text-xs"
+                  >Correos electrónicos (uno por línea)</legend
+                >
+                <textarea
+                  name="emails"
+                  rows={2}
+                  class="textarea textarea-sm w-full text-xs font-mono"
+                  placeholder="ej: soporte@correo.com.ar"></textarea>
+              </fieldset>
+
+              <fieldset class="fieldset gap-1 font-mono">
+                <legend class="fieldset-legend text-xs"
+                  >Enlaces web (uno por línea como: Etiqueta, URL)</legend
+                >
+                <textarea
+                  name="urls"
+                  rows={2}
+                  class="textarea textarea-sm w-full text-xs font-mono"
+                  placeholder="ej: Portal, http://sm.correo.local
+http://www.google.com"
+                ></textarea>
+              </fieldset>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="flex items-center justify-between gap-3 pt-1">
+        <a
+          href={`${cleanBase}admin/contactos`}
+          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
+        >
+          <Icon name="boxicons:arrow-left-filled" size={16} />
+          Volver al listado
+        </a>
+        <button type="submit" class="btn btn-secondary btn-sm gap-2">
+          <Icon name="boxicons:save-filled" size={16} />
+          Crear contacto
+        </button>
+      </div>
+    </form>
+  </PageContainer>
+</BaseLayout>

@@ -1,0 +1,418 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { applications, applicationCategories } from "@db/schema";
+import { logAdminAction } from "@lib/auditLogger";
+import { processIconUpload } from "@lib/iconUpload";
+
+const isNew = true;
+
+const base = import.meta.env.BASE_URL || "/";
+const cleanBase = base.endsWith("/") ? base : base + "/";
+const resolveUrl = (p: string) => {
+  const cleanPath = p.startsWith("/") ? p.slice(1) : p;
+  return `${cleanBase}${cleanPath}`;
+};
+
+let errorMsg = "";
+let app = {
+  id: 0,
+  title: "",
+  categoryId: "",
+  description: "",
+  version: "",
+  filePath: "",
+  iconPath: "",
+};
+
+const categories = await db.select().from(applicationCategories);
+
+let formUploadType = "";
+let formExternalUrl = "";
+let formSnapshot: FormData | null = null;
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    formSnapshot = formData;
+
+    const title = formData.get("title")?.toString().trim();
+    const categoryId = formData.get("categoryId")?.toString().trim() || null;
+    const description = formData.get("description")?.toString().trim() || null;
+    const version = formData.get("version")?.toString().trim() || null;
+    const uploadType = formData.get("uploadType")?.toString() as
+      | "local"
+      | "external"
+      | null;
+
+    if (!title) {
+      throw new Error("El título es obligatorio.");
+    }
+
+    let filePath = null;
+    let iconPath = null;
+
+    if (uploadType === "external") {
+      const externalUrl =
+        formData.get("externalUrl")?.toString().trim() || null;
+      if (externalUrl) {
+        filePath = externalUrl;
+      }
+    } else {
+      const file = formData.get("file") as File | null;
+
+      if (file && file.size > 0 && file.name) {
+        const fs = await import("node:fs");
+        const path = await import("node:path");
+
+        const uploadDir = path.resolve(
+          process.env.EXTERNAL_STORAGE_DIR ||
+            (import.meta.env.EXTERNAL_STORAGE_DIR as string) ||
+            "C:/Projects/correo-argentino-mda-programs",
+        );
+
+        try {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        } catch (dirError: any) {
+          if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
+            throw dirError;
+          }
+          console.error(
+            `[aplicativos] No se pudo crear el directorio "${uploadDir}": ${dirError.message}. Asegurate de que exista y tenga permisos de escritura.`,
+          );
+        }
+
+        const ext = path.extname(file.name);
+        const baseName = path
+          .basename(file.name, ext)
+          .replace(/[^a-zA-Z0-9_\-\.]/g, "_")
+          .replace(/_+/g, "_");
+        const safeFileName = `${Date.now()}_${baseName}${ext}`;
+
+        try {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          fs.writeFileSync(path.join(uploadDir, safeFileName), buffer);
+        } catch (writeError: any) {
+          console.error(
+            `[aplicativos] Error al escribir el archivo "${safeFileName}": ${writeError.message}`,
+          );
+          throw new Error(
+            `No se pudo guardar el archivo en el servidor. Verificá los permisos de la carpeta de almacenamiento.`,
+          );
+        }
+
+        filePath = `${resolveUrl("api/download/")}${safeFileName}`;
+      }
+    }
+
+    const newIconPath = await processIconUpload({
+      iconFile: formData.get("icon") as File | null,
+      currentIconPath: null,
+    });
+    if (newIconPath) {
+      iconPath = newIconPath;
+    }
+
+    await db.insert(applications).values({
+      title,
+      categoryId,
+      description,
+      version,
+      filePath,
+      iconPath,
+    });
+    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el aplicativo "${title}"`);
+
+    return Astro.redirect(
+      resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo creado con éxito.")}&toast_type=success`)
+    );
+  } catch (error: any) {
+    errorMsg = error.message || "Error al guardar el aplicativo.";
+    if (formSnapshot) {
+      app.title = formSnapshot.get("title")?.toString() || "";
+      app.categoryId = formSnapshot.get("categoryId")?.toString() || "";
+      app.description = formSnapshot.get("description")?.toString() || "";
+      app.version = formSnapshot.get("version")?.toString() || "";
+      formUploadType = formSnapshot.get("uploadType")?.toString() || "";
+      formExternalUrl = formSnapshot.get("externalUrl")?.toString() || "";
+    }
+  }
+}
+
+const isExternal = formUploadType
+  ? formUploadType === "external"
+  : false;
+---
+
+<BaseLayout title="Nuevo aplicativo">
+  <PageContainer>
+    <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-6 sm:p-8">
+          <div
+            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
+          >
+            <div>
+              <h1 class="text-xl font-bold text-base-content">
+                Nuevo aplicativo
+              </h1>
+              <p class="text-sm text-base-content/60 mt-1">
+                Registrá un nuevo aplicativo disponible para descarga.
+              </p>
+            </div>
+            <a
+              href={resolveUrl("/admin/aplicativos")}
+              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
+              title="Cerrar"
+            >
+              <Icon name="boxicons:x" size={24} />
+            </a>
+          </div>
+
+          {
+            errorMsg && (
+              <script is:inline define:vars={{ errorMsg }}>
+                window.showToast?.(errorMsg, "alert-error");
+              </script>
+            )
+          }
+
+          <form method="POST" enctype="multipart/form-data" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+              <FormField
+                id="input-title"
+                name="title"
+                label="Título"
+                required
+                value={app.title}
+                placeholder="Ej: ShareX"
+                autofocus
+              />
+
+              <SelectField
+                id="select-categoryId"
+                name="categoryId"
+                label="Categoría"
+                selectClass="font-medium"
+              >
+                <option value="" selected={!app.categoryId}>
+                  Sin categoría
+                </option>
+                {
+                  categories.map((cat) => (
+                    <option
+                      value={cat.id}
+                      selected={cat.id === app.categoryId}
+                    >
+                      {cat.title}
+                    </option>
+                  ))
+                }
+              </SelectField>
+
+              <FormField
+                id="input-version"
+                name="version"
+                label="Versión"
+                value={app.version}
+                placeholder="Ej: 1.2.0"
+                inputClass="font-mono text-sm"
+                helpText="(Opcional)"
+              />
+            </div>
+
+            <fieldset class="fieldset">
+              <legend
+                class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+              >
+                Ícono
+                <span class="text-base-content/40 font-normal normal-case ml-1"
+                  >(Opcional, .png, .jpg, .svg, .ico)</span
+                >
+              </legend>
+              <div class="flex items-center gap-4">
+                <input
+                  type="file"
+                  name="icon"
+                  accept="image/png, image/jpeg, image/svg+xml, .ico"
+                  class="file-input file-input-bordered w-full"
+                />
+              </div>
+            </fieldset>
+
+            <fieldset class="fieldset">
+              <legend
+                class="fieldset-legend font-semibold uppercase tracking-wide text-xs mb-2"
+              >
+                Origen del archivo
+              </legend>
+              <div
+                class="flex gap-1 rounded-lg bg-base-200/60 p-1"
+                role="radiogroup"
+                aria-label="Tipo de subida"
+              >
+                <label
+                  class:list={[
+                    "flex-1 flex items-center justify-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
+                    !isExternal
+                      ? "bg-base-100 shadow-sm text-base-content"
+                      : "text-base-content/50 hover:text-base-content/80",
+                  ]}
+                >
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="local"
+                    checked={!isExternal}
+                    class="hidden"
+                    id="radio-local"
+                  />
+                  <Icon
+                    name="boxicons:arrow-in-up-square-half-filled"
+                    size={16}
+                    class="shrink-0"
+                  />
+                  Archivo local
+                </label>
+                <label
+                  class:list={[
+                    "flex-1 flex items-center justify-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
+                    isExternal
+                      ? "bg-base-100 shadow-sm text-base-content"
+                      : "text-base-content/50 hover:text-base-content/80",
+                  ]}
+                >
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="external"
+                    checked={isExternal}
+                    class="hidden"
+                    id="radio-external"
+                  />
+                  <Icon
+                    name="boxicons:arrow-out-up-right-square-filled"
+                    size={16}
+                    class="shrink-0"
+                  />
+                  Enlace externo
+                </label>
+              </div>
+            </fieldset>
+
+            <div id="localUploadGroup" class:list={[isExternal && "hidden"]}>
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+                >
+                  Archivo
+                  <span
+                    class="text-base-content/40 font-normal normal-case ml-1"
+                    >(.zip, .exe, .msi, .rar)</span
+                  >
+                </legend>
+                <input
+                  type="file"
+                  name="file"
+                  accept=".zip,.exe,.msi,.rar"
+                  class="file-input file-input-bordered w-full"
+                />
+              </fieldset>
+            </div>
+
+            <div id="externalUrlGroup" class:list={[!isExternal && "hidden"]}>
+              <fieldset class="fieldset">
+                <legend
+                  class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+                >
+                  URL externa
+                </legend>
+                <input
+                  type="url"
+                  name="externalUrl"
+                  value={formExternalUrl}
+                  placeholder="https://ejemplo.com/descarga/archivo.zip"
+                  class="input input-bordered w-full font-mono text-sm"
+                />
+              </fieldset>
+            </div>
+
+            <fieldset class="fieldset">
+              <legend
+                class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+              >
+                Descripción
+                <span class="text-base-content/40 font-normal normal-case ml-1"
+                  >(Opcional)</span
+                >
+              </legend>
+              <textarea
+                name="description"
+                rows="3"
+                placeholder="Breve descripción del aplicativo y su uso operativo."
+                class="textarea textarea-bordered w-full"
+                >{app.description}</textarea
+              >
+            </fieldset>
+
+            <div
+              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+            >
+              <a href={resolveUrl("/admin/aplicativos")} class="btn btn-ghost"
+                >Cancelar</a
+              >
+              <button type="submit" class="btn btn-primary gap-2">
+                <Icon name="boxicons:save" size={18} />
+                Guardar aplicativo
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  const radios = document.querySelectorAll<HTMLInputElement>(
+    'input[name="uploadType"]',
+  );
+  const localGroup = document.getElementById("localUploadGroup");
+  const externalGroup = document.getElementById("externalUrlGroup");
+
+  function syncGroups() {
+    const selected = document.querySelector<HTMLInputElement>(
+      'input[name="uploadType"]:checked',
+    );
+    if (!selected || !localGroup || !externalGroup) return;
+
+    const isExternal = selected.value === "external";
+
+    localGroup.classList.toggle("hidden", isExternal);
+    externalGroup.classList.toggle("hidden", !isExternal);
+
+    radios.forEach((radio) => {
+      const label = radio.closest("label");
+      if (!label) return;
+      if (radio.checked) {
+        label.classList.add("bg-base-100", "shadow-sm", "text-base-content");
+        label.classList.remove(
+          "text-base-content/50",
+          "hover:text-base-content/80",
+        );
+      } else {
+        label.classList.remove("bg-base-100", "shadow-sm", "text-base-content");
+        label.classList.add(
+          "text-base-content/50",
+          "hover:text-base-content/80",
+        );
+      }
+    });
+  }
+
+  radios.forEach((radio) => radio.addEventListener("change", syncGroups));
+</script>

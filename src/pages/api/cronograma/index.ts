@@ -9,6 +9,7 @@ import {
   agentSaturdayGroups,
 } from "@/db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
+import { logAdminAction } from "@lib/auditLogger";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -303,7 +304,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const body = await request.json();
     const { edits, weeklySchedules } = body; // Array of { agentName, date, status, comment, horario } or weeklySchedules
 
+    let weeklyCount = 0;
+
     if (weeklySchedules && Array.isArray(weeklySchedules)) {
+      weeklyCount = weeklySchedules.length;
       for (const ws of weeklySchedules) {
         const { agentName, esquema_semanal, esquema_horario, esquema_break_inicio, esquema_break_fin } = ws;
         if (!agentName) continue;
@@ -331,6 +335,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       if (!edits || !Array.isArray(edits)) {
+        await logAdminAction(
+          (locals as any).user?.username || 'Sistema',
+          `Actualizó esquemas semanales de ${weeklyCount} operadores`
+        );
         return new Response(JSON.stringify({ success: true, message: "Weekly schedules updated" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -408,6 +416,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
       }
     });
+
+    const editCount = edits?.length || 0;
+    let logMessages: string[] = [];
+    if (weeklyCount > 0) {
+      logMessages.push(`Actualizó esquemas semanales de ${weeklyCount} operadores`);
+    }
+    if (editCount > 0) {
+      logMessages.push(`Guardó cambios en el cronograma (${editCount} registros)`);
+    }
+    if (logMessages.length > 0) {
+      await logAdminAction(
+        (locals as any).user?.username || 'Sistema',
+        logMessages.join(' y ')
+      );
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

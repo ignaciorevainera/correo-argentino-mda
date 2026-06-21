@@ -11,30 +11,17 @@ import { Icon } from "astro-icon/components";
       class="bg-base-200 px-4 py-2.5 flex items-center justify-between border-b border-base-300 select-none"
     >
       <div class="flex items-center gap-2">
-        <div class="flex gap-1.5">
-          <span class="size-3 rounded-full bg-error inline-block"></span>
-          <span class="size-3 rounded-full bg-warning inline-block"></span>
-          <span class="size-3 rounded-full bg-success inline-block"></span>
-        </div>
         <span class="text-xs font-semibold text-base-content/70"
           >cmd.exe - net user <span id="terminal-user-title"></span> /domain</span
         >
       </div>
-      <button
-        type="button"
-        class="text-base-content/50 hover:text-base-content transition-colors font-sans text-lg font-bold cursor-pointer"
-        id="close-terminal-btn"
-        aria-label="Cerrar terminal"
-      >
-        &times;
-      </button>
     </div>
 
     <!-- Tabs de Navegación -->
     <div class="flex border-b border-base-300 bg-base-200/50 px-4">
       <button
         id="tab-panel-btn"
-        class="px-4 py-3 text-xs font-bold border-b-2 border-primary text-primary transition-all focus:outline-hidden cursor-pointer font-sans"
+        class="px-4 py-3 text-xs font-bold border-b-2 border-secondary text-secondary transition-all focus:outline-hidden cursor-pointer font-sans"
         type="button"
       >
         Panel Organizado
@@ -55,7 +42,7 @@ import { Icon } from "astro-icon/components";
         id="terminal-loading"
         class="hidden absolute inset-0 bg-base-100/95 flex-col items-center justify-center gap-3 z-20"
       >
-        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <span class="loading loading-spinner loading-lg text-secondary"></span>
         <span class="text-xs text-base-content/60"
           >Consultando Active Directory...</span
         >
@@ -79,194 +66,310 @@ import { Icon } from "astro-icon/components";
           <div class="space-y-3 font-sans">
             <!-- Cuenta de red -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon name="boxicons:user" size={14} class="text-primary" />
-                  Cuenta de Red
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-username"
-                  title="Copiar cuenta"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:user" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Cuenta de Red
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5 font-mono break-all"
+                    id="term-info-username"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1 font-mono break-all"
-                id="term-info-username"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar cuenta"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-username"
+                title="Copiar cuenta"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Nombre Completo -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:user-id-card-filled"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Nombre Completo
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-fullname"
-                  title="Copiar nombre"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:user-id-card-filled" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Nombre Completo
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-fullname"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-fullname"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar nombre"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-fullname"
+                title="Copiar nombre"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Cargo -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:briefcase"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Cargo / Puesto
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-title"
-                  title="Copiar cargo"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:briefcase" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Cargo / Puesto
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-title"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-title"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar cargo"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-title"
+                title="Copiar cargo"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Número de Legajo -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon name="boxicons:badge" size={14} class="text-primary" />
-                  Número de Legajo
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-employeenumber"
-                  title="Copiar legajo"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:badge" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Número de Legajo
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5 font-mono"
+                    id="term-info-employeenumber"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1 font-mono"
-                id="term-info-employeenumber"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar legajo"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-employeenumber"
+                title="Copiar legajo"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Ubicación / Oficina -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:building"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Ubicación / Oficina
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-office"
-                  title="Copiar oficina"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:building" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Ubicación / Oficina
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-office"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-office"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar oficina"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-office"
+                title="Copiar oficina"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Jefe / Supervisor -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:user-circle-filled"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Jefe Directo / Supervisor
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-manager"
-                  title="Copiar jefe"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:user-circle-filled" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Jefe Directo / Supervisor
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5 flex items-center justify-between gap-2"
+                  >
+                    <span id="term-info-manager">-</span>
+                    <button
+                      type="button"
+                      id="btn-search-manager"
+                      class="btn btn-secondary btn-xs font-sans px-2 hidden cursor-pointer shrink-0"
+                      title="Buscar supervisor en el portal"
+                    >
+                      <Icon name="boxicons:search" size={12} class="shrink-0" />
+                      <span>Buscar</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1 flex items-center justify-between gap-2"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0 animate-fade-in"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar jefe"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-manager"
+                title="Copiar jefe"
               >
-                <span id="term-info-manager">-</span>
-                <button
-                  type="button"
-                  id="btn-search-manager"
-                  class="btn btn-ghost btn-xs text-primary hover:bg-primary/10 gap-1 p-1 hidden cursor-pointer text-xxs"
-                  title="Buscar supervisor en el portal"
-                >
-                  <Icon name="boxicons:search" size={12} class="shrink-0" />
-                  <span>Buscar</span>
-                </button>
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
           </div>
 
@@ -280,168 +383,202 @@ import { Icon } from "astro-icon/components";
           <div class="space-y-3 font-sans">
             <!-- Último cambio de contraseña -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
-                >
-                  <Icon
-                    name="boxicons:lock-filled"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Último cambio de clave
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-pwdlastset"
-                  title="Copiar fecha"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
-              </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-pwdlastset"
-              >
-                -
-              </div>
-            </div>
-
-            <!-- Intentos fallidos y Estado de Cuenta (Grid en 1 fila) -->
-            <div class="grid grid-cols-2 gap-2">
-              <!-- Estado / Bloqueo -->
-              <div
-                class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group"
-              >
-                <span
-                  class="text-base-content/50 text-tiny uppercase font-bold tracking-wider flex items-center gap-1 select-none"
-                >
-                  <Icon
-                    name="boxicons:lock-open-filled"
-                    size={14}
-                    class="text-warning"
-                  />
-                  Bloqueo / Estado
-                </span>
-                <div class="mt-1" id="term-info-lockout">-</div>
-              </div>
-
-              <!-- Intentos Fallidos -->
-              <div
-                class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group"
-              >
-                <span
-                  class="text-base-content/50 text-tiny uppercase font-bold tracking-wider flex items-center gap-1 select-none"
-                >
-                  <Icon
-                    name="boxicons:alert-octagon-filled"
-                    size={14}
-                    class="text-error"
-                  />
-                  Intentos fallidos
-                </span>
+              <div class="flex items-center gap-3 min-w-0 flex-1">
                 <div
-                  class="text-sm font-semibold text-base-content mt-1"
-                  id="term-info-badpwdcount"
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  -
+                  <Icon name="boxicons:lock-filled" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Último cambio de clave
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-pwdlastset"
+                  >
+                    -
+                  </div>
                 </div>
               </div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar fecha"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-pwdlastset"
+                title="Copiar fecha"
+              >
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Último inicio de sesión -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:door-open-alt-filled"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Último login en red
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-lastlogon"
-                  title="Copiar login"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:door-open-alt-filled" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Último login en red
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-lastlogon"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-lastlogon"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar login"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-lastlogon"
+                title="Copiar login"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Fecha de creación (alta) -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon
-                    name="boxicons:calendar-plus"
-                    size={14}
-                    class="text-primary"
-                  />
-                  Fecha de alta (cuenta)
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-whencreated"
-                  title="Copiar fecha de alta"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:calendar-plus" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Fecha de alta (cuenta)
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-whencreated"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-whencreated"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar fecha de alta"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-whencreated"
+                title="Copiar fecha de alta"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
 
             <!-- Vencimiento de Cuenta -->
             <div
-              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative"
+              class="bg-base-200/50 border border-base-300 rounded-lg p-3 hover:border-base-content/20 transition-colors group relative flex items-center justify-between gap-4"
             >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-base-content/50 text-xxs uppercase font-bold tracking-wider flex items-center gap-1.5 select-none"
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div
+                  class="size-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0"
                 >
-                  <Icon name="boxicons:timer" size={14} class="text-primary" />
-                  Vencimiento cuenta
-                </span>
-                <button
-                  type="button"
-                  class="text-base-content/40 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-0.5 cursor-pointer"
-                  data-copy-field="term-info-expires"
-                  title="Copiar vencimiento"
-                >
-                  <Icon name="boxicons:copy" size={13} />
-                </button>
+                  <Icon name="boxicons:timer" size={18} />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="text-base-content/50 text-xxs uppercase font-bold tracking-wider select-none"
+                  >
+                    Vencimiento cuenta
+                  </span>
+                  <div
+                    class="text-sm font-semibold text-base-content mt-0.5"
+                    id="term-info-expires"
+                  >
+                    -
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-sm font-semibold text-base-content mt-1"
-                id="term-info-expires"
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0"
+                data-copy-control
+                data-copy-value=""
+                data-copy-label-default="Copiar vencimiento"
+                data-copy-label-success="Copiado"
+                data-copy-replace-label="false"
+                id="btn-copy-expires"
+                title="Copiar vencimiento"
               >
-                -
-              </div>
+                <Icon
+                  name="boxicons:copy"
+                  size={14}
+                  data-copy-icon-default
+                  class="transition-all duration-200"
+                />
+                <Icon
+                  name="boxicons:check-filled"
+                  size={14}
+                  data-copy-icon-success
+                  class="hidden opacity-0 scale-75 text-success transition-all duration-200"
+                />
+              </button>
             </div>
           </div>
         </div>
@@ -458,13 +595,13 @@ import { Icon } from "astro-icon/components";
                 >Grupos de Dominio</span
               >
               <span
-                class="badge badge-sm badge-primary text-xxs font-sans font-bold"
+                class="badge badge-sm badge-secondary text-secondary-content text-xxs font-sans font-bold"
                 id="terminal-groups-count">0 grupos</span
               >
             </div>
             <button
               type="button"
-              class="btn btn-ghost btn-xs text-primary hover:bg-primary/10 font-sans cursor-pointer gap-1 transition-all"
+              class="btn btn-ghost btn-xs text-secondary hover:bg-secondary/10 font-sans cursor-pointer gap-1 transition-all"
               id="copy-all-groups-btn"
               title="Copiar lista de grupos filtrados"
             >
@@ -481,7 +618,7 @@ import { Icon } from "astro-icon/components";
                 type="text"
                 id="terminal-groups-search"
                 placeholder="Buscar o filtrar grupos..."
-                class="w-full bg-base-200 border border-base-300 rounded-lg pl-8 pr-8 py-2 text-xs text-base-content placeholder-base-content/40 focus:outline-hidden focus:border-primary font-sans transition-all"
+                class="w-full bg-base-200 border border-base-300 rounded-lg pl-8 pr-8 py-2 text-xs text-base-content placeholder-base-content/40 focus:outline-hidden focus:border-secondary font-sans transition-all"
                 autocomplete="off"
               />
               <Icon
@@ -499,22 +636,22 @@ import { Icon } from "astro-icon/components";
             </div>
 
             <!-- Selector de vista Grilla/Lista -->
-            <div class="join border border-base-300 bg-base-100 shrink-0">
+            <div class="join bg-base-200/50 shrink-0">
               <button
                 type="button"
                 id="btn-view-grid"
-                class="btn btn-xs join-item px-2.5 text-primary bg-base-300 cursor-pointer"
+                class="btn btn-sm join-item px-3 text-secondary bg-base-300 cursor-pointer border-0"
                 title="Vista Grilla"
               >
-                <Icon name="boxicons:grid" size={14} />
+                <Icon name="boxicons:grid" size={16} />
               </button>
               <button
                 type="button"
                 id="btn-view-list"
-                class="btn btn-xs join-item px-2.5 text-base-content/50 hover:text-base-content bg-base-100 cursor-pointer"
+                class="btn btn-sm join-item px-3 text-base-content/50 hover:text-base-content bg-transparent cursor-pointer border-0"
                 title="Vista Lista"
               >
-                <Icon name="boxicons:list-ul" size={14} />
+                <Icon name="boxicons:list-ul" size={16} />
               </button>
             </div>
           </div>
@@ -527,52 +664,47 @@ import { Icon } from "astro-icon/components";
             <button
               type="button"
               data-filter="all"
-              class="btn btn-xs rounded-full cursor-pointer transition-all bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 font-sans font-bold gap-1"
+              class="btn btn-xs rounded-full"
+              >Todos (<span id="count-all">0</span>)</button
             >
-              Todos (<span id="count-all">0</span>)
-            </button>
             <button
               type="button"
               data-filter="seguridad"
-              class="btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1"
-            >
-              <Icon name="boxicons:shield" size={12} /> Seguridad (<span
+              class="btn btn-xs rounded-full"
+              ><Icon name="boxicons:shield" size={12} />Seguridad (<span
                 id="count-seguridad">0</span
-              >)
-            </button>
+              >)</button
+            >
             <button
               type="button"
               data-filter="correo"
-              class="btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1"
-            >
-              <Icon name="boxicons:envelope" size={12} /> Correo (<span
+              class="btn btn-xs rounded-full"
+              ><Icon name="boxicons:envelope" size={12} />Correo (<span
                 id="count-correo">0</span
-              >)
-            </button>
+              >)</button
+            >
             <button
               type="button"
               data-filter="sistemas"
-              class="btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1"
-            >
-              <Icon name="boxicons:desktop" size={12} /> Sistemas (<span
+              class="btn btn-xs rounded-full"
+              ><Icon name="boxicons:desktop" size={12} />Sistemas (<span
                 id="count-sistemas">0</span
-              >)
-            </button>
+              >)</button
+            >
             <button
               type="button"
               data-filter="otros"
-              class="btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1"
-            >
-              <Icon name="boxicons:key" size={12} /> Otros (<span
+              class="btn btn-xs rounded-full"
+              ><Icon name="boxicons:key" size={12} />Otros (<span
                 id="count-otros">0</span
-              >)
-            </button>
+              >)</button
+            >
           </div>
 
           <!-- Listado de grupos scrollable (por defecto en grid) -->
           <div
             id="terminal-groups-list"
-            class="flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-95 min-h-95 scrollbar-thin transition-all grid grid-cols-1 sm:grid-cols-2 gap-2"
+            class="flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-95 min-h-95 scrollbar-thin transition-all grid grid-cols-2 gap-2"
           >
             <!-- Elementos dinámicos -->
           </div>
@@ -589,7 +721,8 @@ import { Icon } from "astro-icon/components";
         </div>
 
         <div class="flex items-start gap-1 text-xs">
-          <span class="text-primary font-bold shrink-0">C:\Users\mda&gt;</span>
+          <span class="text-secondary font-bold shrink-0">C:\Users\mda&gt;</span
+          >
           <span class="text-base-content font-mono"
             >net user "<span id="terminal-command-username"></span>" /domain</span
           >
@@ -617,7 +750,7 @@ import { Icon } from "astro-icon/components";
       <div class="flex gap-2">
         <button
           type="button"
-          class="btn btn-ghost border border-base-300 btn-xs text-base-content/85 hover:bg-base-300 font-sans cursor-pointer gap-1"
+          class="btn btn-ghost btn-xs"
           id="copy-terminal-btn"
         >
           <Icon name="boxicons:copy" size={12} />
@@ -625,7 +758,7 @@ import { Icon } from "astro-icon/components";
         </button>
         <button
           type="button"
-          class="btn btn-ghost border border-base-300 btn-xs text-base-content/85 hover:bg-base-300 font-sans cursor-pointer"
+          class="btn btn-ghost btn-xs"
           id="close-terminal-footer-btn"
         >
           Cerrar

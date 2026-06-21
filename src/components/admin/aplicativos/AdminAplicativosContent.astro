@@ -20,79 +20,45 @@ const resolveUrl = (p: string) => {
 let deleteSuccess = false;
 let deleteError = "";
 
-if (Astro.request.method === "POST") {
-  try {
-    const formData = await Astro.request.formData();
-    const action = formData.get("_action")?.toString();
-    const appId = Number(formData.get("appId"));
+let categories = [];
+let allApps = [];
 
-    if (action === "delete" && appId) {
-      const [existing] = await db
-        .select()
-        .from(applications)
-        .where(eq(applications.id, appId));
-
-      if (existing?.filePath && !existing.filePath.startsWith("http")) {
-        try {
-          const fs = await import("node:fs");
-          const path = await import("node:path");
-          const storageDir = path.resolve(
-            process.env.EXTERNAL_STORAGE_DIR ||
-              (import.meta.env.EXTERNAL_STORAGE_DIR as string) ||
-              "C:/Projects/correo-argentino-mda-programs",
-          );
-          const downloadPrefix = resolveUrl("api/download/");
-          const fileName = existing.filePath.startsWith(downloadPrefix)
-            ? existing.filePath.slice(downloadPrefix.length)
-            : path.basename(existing.filePath);
-
-          const absPath = path.join(storageDir, fileName);
-          if (fs.existsSync(absPath)) {
-            fs.unlinkSync(absPath);
-          }
-        } catch (fsError: any) {
-          console.error(
-            `[aplicativos] No se pudo eliminar el archivo físico: ${fsError.message}`,
-          );
-        }
-      }
-
-      await db.delete(applications).where(eq(applications.id, appId));
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Eliminó el aplicativo "${existing?.title || appId}"`);
-      deleteSuccess = true;
-    }
-  } catch (error: any) {
-    deleteError = error.message || "Error al eliminar el aplicativo.";
-  }
-}
-
-type AppRow = {
-  id: number;
-  title: string;
-  version: string | null;
-  filePath: string | null;
-  categoryTitle: string | null;
-  iconPath: string | null;
-};
-
-let allApps: AppRow[] = [];
+let uncategorizedDbId: number | null = null;
+let filteredCategories: typeof categories = [];
 
 try {
+  const dbCategories = await db
+    .select()
+    .from(applicationCategories)
+    .orderBy(applicationCategories.title);
+
+  dbCategories.forEach((cat) => {
+    const t = cat.title.toLowerCase();
+    if (t === "sin categoría" || t === "sin categoria") {
+      uncategorizedDbId = cat.id;
+    } else {
+      filteredCategories.push(cat);
+    }
+  });
+  categories = filteredCategories;
+
   allApps = await db
     .select({
       id: applications.id,
       title: applications.title,
       version: applications.version,
       filePath: applications.filePath,
+      categoryId: applications.categoryId,
       categoryTitle: applicationCategories.title,
       iconPath: applications.iconPath,
+      sortOrder: applications.sortOrder,
     })
     .from(applications)
     .leftJoin(
       applicationCategories,
       eq(applications.categoryId, applicationCategories.id),
     )
-    .orderBy(asc(applications.title));
+    .orderBy(asc(applications.sortOrder), asc(applications.title));
 } catch (dbError: any) {
   console.error(
     `[aplicativos] Error al consultar la base de datos: ${dbError.message}`,
@@ -100,26 +66,24 @@ try {
   deleteError = deleteError || "No se pudieron cargar los aplicativos.";
 }
 
-const headerGridClass = "grid-cols-[50px_1.5fr_1fr_80px_1.5fr_120px] gap-4";
-const rowGridClass =
-  "grid grid-cols-[50px_1.5fr_1fr_80px_1.5fr_120px] items-center gap-4";
+const appsGridCols = "grid-cols-[40px_50px_1.5fr_2fr_100px] gap-4";
 
-const categoryColors: Record<string, string> = {
-  programa: "badge-primary text-primary-content",
-  extensión: "badge-accent text-accent-content",
-  paquetes: "badge-secondary text-secondary-content",
-  extension: "badge-accent text-accent-content",
-};
+// Calculate apps count per category
+const categoryCounts = new Map<string | number, number>();
+let uncategorizedCount = 0;
 
-const getCategoryBadgeClass = (title: string | null) => {
-  if (!title) return "badge-ghost";
-  const key = title.trim().toLowerCase();
-  return categoryColors[key] || "badge-neutral text-neutral-content";
-};
+allApps.forEach((app) => {
+  if (!app.categoryId || app.categoryId === uncategorizedDbId) {
+    uncategorizedCount++;
+    categoryCounts.set("uncategorized", uncategorizedCount);
+  } else {
+    categoryCounts.set(app.categoryId, (categoryCounts.get(app.categoryId) || 0) + 1);
+  }
+});
 
 const truncatePath = (filePath: string | null) => {
   if (!filePath) return "";
-  const maxLength = 30;
+  const maxLength = 40;
   return filePath.length > maxLength
     ? filePath.slice(0, maxLength) + "..."
     : filePath;
@@ -127,9 +91,26 @@ const truncatePath = (filePath: string | null) => {
 ---
 
 <PageContainer>
-  <PageHeader
-    description="Gestión de los aplicativos disponibles para descarga y distribución interna."
-  />
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <PageHeader
+      title="Gestión de Aplicativos"
+      description="Gestión de los aplicativos disponibles para descarga y distribución interna."
+    />
+    <div class="flex gap-2 shrink-0">
+      <a href={resolveUrl("/admin/aplicativos/categorias/create")} class="btn btn-outline btn-sm gap-2">
+        <Icon name="boxicons:folder-plus" size={16} />
+        Nueva Categoría
+      </a>
+      <a
+        id="btn-add-app"
+        href={resolveUrl("/admin/aplicativos/create")}
+        class="btn btn-primary btn-sm gap-2"
+      >
+        <Icon name="boxicons:plus" size={16} />
+        Nuevo Aplicativo
+      </a>
+    </div>
+  </div>
 
   {
     deleteSuccess && (
@@ -146,244 +127,594 @@ const truncatePath = (filePath: string | null) => {
     )
   }
 
-  <div class="flex flex-col gap-4">
-    <div
-      class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-    >
-      <div class="flex items-center gap-3">
-        <h2 class="text-lg font-semibold text-base-content">
-          Aplicativos registrados
-        </h2>
-        {
-          allApps.length > 0 && (
-            <span
-              id="app-count-badge"
-              class="badge badge-neutral badge-sm font-mono"
-            >
+  <!-- Split View layout -->
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+    
+    <!-- Sidebar: Categorías -->
+    <aside class="lg:col-span-1 bg-base-100 border border-base-300 rounded-box p-4 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center justify-between border-b border-base-200 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-base-content/60">Categorías</span>
+      </div>
+
+      <nav class="flex flex-col gap-1" id="categories-list">
+        <div
+          class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+          data-category-id="all"
+          data-category-title="Todos"
+        >
+          <div class="flex items-center gap-2.5 min-w-0 grow">
+            <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-neutral/20 bg-neutral/10 text-neutral">
+              <Icon name="boxicons:grid-9-filled" size={18} />
+            </div>
+            <span class="text-sm font-semibold truncate label-title">Todos</span>
+          </div>
+          
+          <div class="flex items-center gap-1.5 shrink-0 ml-2">
+            <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={allApps.length}>
               {allApps.length}
             </span>
+          </div>
+        </div>
+
+        {
+          categories.length === 0 ? (
+            <p class="text-xs text-base-content/50 py-4 text-center">No hay categorías registradas.</p>
+          ) : (
+            categories.map((cat) => {
+              const count = categoryCounts.get(cat.id) || 0;
+              return (
+                <div
+                  class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+                  data-category-id={cat.id}
+                  data-category-title={cat.title}
+                  data-category-dropzone
+                >
+                  <div class="flex items-center gap-2.5 min-w-0 grow">
+                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-primary/20 bg-primary/10 text-primary">
+                      <Icon name="boxicons:folder" size={18} />
+                    </div>
+                    <span class="text-sm font-semibold truncate label-title">{cat.title}</span>
+                  </div>
+                  
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
+                      {count}
+                    </span>
+                    {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
+                      <div class="hidden group-hover:flex items-center gap-0.5">
+                        <a
+                          href={resolveUrl(`/admin/aplicativos/categorias/edit/${cat.id}`)}
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                          title="Editar"
+                          onclick="event.stopPropagation();"
+                        >
+                          <Icon name="boxicons:pencil" size={14} />
+                        </a>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
+                          title="Eliminar"
+                          onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
+                        >
+                          <Icon name="boxicons:trash" size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
           )
         }
-      </div>
 
-      <div
-        class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
-      >
-        <SearchInput
-          id="admin-app-search"
-          label="Buscar aplicativo"
-          placeholder="Buscar por título, categoría o archivo"
-          class="w-full sm:w-64"
-        />
-        <a
-          href={resolveUrl("/admin/aplicativos/nuevo")}
-          class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent w-full sm:w-auto"
-        >
-          <Icon name="boxicons:plus" size={18} />
-          Nuevo aplicativo
-        </a>
-      </div>
-    </div>
-
-    <DataTable
-      ariaLabel="Listado de aplicativos registrados"
-      minWidthClass="min-w-table-min md:min-w-full"
-      headerGridClass={headerGridClass}
-      rowGridClass={rowGridClass}
-    >
-      <div slot="header">
-        <DataTableHeaderCell>Ícono</DataTableHeaderCell>
-      </div>
-      <div slot="header">
-        <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
-      </div>
-      <div slot="header">
-        <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
-      </div>
-      <div slot="header">
-        <DataTableHeaderCell sortKey="version">Versión</DataTableHeaderCell>
-      </div>
-      <div slot="header">
-        <DataTableHeaderCell sortKey="file"
-          >Ruta de Archivo</DataTableHeaderCell
-        >
-      </div>
-      <div slot="header" class="text-right flex justify-end">
-        <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-      </div>
-
-      {
-        allApps.length === 0 ? (
-          <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-            <div class="rounded-full bg-base-200 p-4">
-              <Icon
-                name="boxicons:archive-in"
-                size={32}
-                class="opacity-30"
-                aria-hidden="true"
-              />
+        {/* Sin categoría */}
+        {(() => {
+          const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
+          if (uncategorizedCount === 0) return null;
+          return (
+            <div
+              class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+              data-category-id="uncategorized"
+              data-category-title="Sin categoría"
+              data-category-dropzone
+            >
+              <div class="flex items-center gap-2.5 min-w-0 grow">
+                <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-warning/20 bg-warning/10 text-warning">
+                  <Icon name="boxicons:folder" size={18} />
+                </div>
+                <span class="text-sm font-semibold truncate label-title">Sin categoría</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={uncategorizedCount}>
+                  {uncategorizedCount}
+                </span>
+              </div>
             </div>
-            <div class="space-y-1 text-center">
-              <p class="text-sm font-semibold">
-                No hay aplicativos registrados todavía.
-              </p>
-              <p class="text-xs">
-                Comenzá cargando el primer aplicativo desde el botón superior.
-              </p>
+          );
+        })()}
+      </nav>
+    </aside>
+
+    <!-- Main Content Panel: Aplicativos -->
+    <main class="lg:col-span-3 flex flex-col gap-4">
+      <div class="bg-base-100 border border-base-300 rounded-box p-4 shadow-sm">
+        
+        <!-- Header & Search -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b border-base-200">
+          <div class="flex items-center gap-3">
+            <div id="active-category-icon-wrapper" class="flex items-center justify-center size-9 rounded-lg border text-primary bg-primary/10 border-primary/20">
+              <Icon id="active-category-icon" name="boxicons:folder" size={20} />
+            </div>
+            <div>
+              <h2 id="active-category-title" class="text-lg font-bold text-base-content font-sans">Cargando...</h2>
+              <p id="reorder-instructions" class="text-xs text-base-content/60">Arrastrá las filas para cambiar el orden de los aplicativos.</p>
             </div>
           </div>
-        ) : (
-          <>
-            {allApps.map((app) => (
-              <article
-                data-table-row
-                data-sort-title={app.title}
-                data-sort-category={app.categoryTitle}
-                data-sort-version={app.version}
-                data-sort-file={app.filePath}
-                data-search-text={`${app.title} ${app.categoryTitle || ""} ${app.version || ""} ${app.filePath || ""}`.toLowerCase()}
-                class:list={[
-                  rowGridClass,
-                  "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-                ]}
-              >
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
-                  {app.iconPath ? (
-                    <img
-                      src={`${cleanBase}api/icons/${app.iconPath}`}
-                      alt={`Ícono de ${app.title}`}
-                      class="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <Icon name="boxicons:cube" class="h-5 w-5 text-base-content/40" />
-                  )}
-                </div>
-                <div class="min-w-0">
-                  <p
-                    data-highlight-target
-                    class="truncate font-medium text-base-content text-sm"
-                  >
-                    {app.title}
-                  </p>
-                </div>
-                <div class="min-w-0">
-                  {app.categoryTitle ? (
-                    <span
-                      data-highlight-target
-                      class:list={[
-                        "badge badge-sm truncate block w-fit max-w-full",
-                        getCategoryBadgeClass(app.categoryTitle),
-                      ]}
-                    >
-                      {app.categoryTitle}
-                    </span>
-                  ) : (
-                    <span class="text-base-content/40 text-xs">
-                      Sin categoría
-                    </span>
-                  )}
-                </div>
-                <div class="min-w-0">
-                  <span
-                    data-highlight-target
-                    class="font-mono text-xs truncate block"
-                  >
-                    {app.version || "—"}
-                  </span>
-                </div>
-                <div class="min-w-0">
-                  {app.filePath ? (
-                    <span
-                      data-highlight-target
-                      class="truncate text-xs font-mono text-base-content/70 block"
-                      title={app.filePath}
-                    >
-                      {truncatePath(app.filePath)}
-                    </span>
-                  ) : (
-                    <span class="badge badge-sm badge-warning gap-1 whitespace-nowrap">
-                      Sin archivo
-                    </span>
-                  )}
-                </div>
-                <div class="flex items-center justify-end gap-1">
-                  <a
-                    href={resolveUrl(`/admin/aplicativos/${app.id}`)}
-                    class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    title="Editar"
-                  >
-                    <Icon name="boxicons:pencil-filled" size={14} />
-                    <span class="hidden lg:inline">Editar</span>
-                  </a>
-                  <form
-                    method="POST"
-                    class="inline"
-                    onsubmit="return confirm('¿Eliminar este aplicativo?')"
-                  >
-                    <input type="hidden" name="_action" value="delete" />
-                    <input
-                      type="hidden"
-                      name="appId"
-                      value={String(app.id)}
-                    />
-                    <button
-                      type="submit"
-                      class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
-                      title="Eliminar"
-                    >
-                      <Icon name="boxicons:trash-filled" size={14} />
-                      <span class="hidden lg:inline">Eliminar</span>
-                    </button>
-                  </form>
-                </div>
-              </article>
-            ))}
-          </>
-        )
-      }
-    </DataTable>
+          <div class="w-full sm:max-w-xs shrink-0">
+            <SearchInput
+              id="aplicativos-search"
+              label="Buscar aplicativo"
+              placeholder="Buscar por nombre o archivo..."
+            />
+          </div>
+        </div>
 
-    <div class="flex justify-start pt-2">
-      <a href={resolveUrl("/admin")} class="btn btn-ghost btn-sm gap-2">
-        <Icon name="boxicons:arrow-left-stroke-filled" size={16} />
-        Volver a administración
-      </a>
-    </div>
+        <!-- DataTable with drag & drop support -->
+        <DataTable
+          id="aplicativos-table"
+          ariaLabel="Listado de aplicativos registrados"
+          headerGridClass={appsGridCols}
+          rowGridClass={appsGridCols}
+        >
+          <Fragment slot="header">
+            <DataTableHeaderCell></DataTableHeaderCell>
+            <DataTableHeaderCell>Ícono</DataTableHeaderCell>
+            <DataTableHeaderCell>Nombre</DataTableHeaderCell>
+            <DataTableHeaderCell>Archivo</DataTableHeaderCell>
+            <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+          </Fragment>
+
+          <div id="apps-container" class="divide-y divide-base-200">
+            {
+              allApps.length === 0 ? (
+                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50" id="empty-state">
+                  <div class="rounded-full bg-base-200/40 p-4">
+                    <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+                  </div>
+                  <div class="space-y-1 text-center">
+                    <p class="text-sm font-semibold">No hay aplicativos registrados</p>
+                    <p class="text-xs">Comenzá cargando el primer aplicativo.</p>
+                  </div>
+                </div>
+              ) : (
+                allApps.map((app) => (
+                  <div
+                    class:list={[
+                      "group grid items-center px-4 py-3 transition-colors hover:bg-base-200/30 app-row",
+                      appsGridCols
+                    ]}
+                    data-table-row
+                    data-app-row
+                    data-app-id={app.id}
+                    data-app-category={(!app.categoryId || app.categoryId === uncategorizedDbId) ? "uncategorized" : app.categoryId}
+                    data-app-search={`${app.title} ${app.filePath || ""}`.toLowerCase()}
+                    draggable="true"
+                  >
+                    <div class="flex items-center justify-center text-base-content/30 cursor-grab active:cursor-grabbing hover:text-base-content/70 transition-colors drag-handle">
+                      <Icon name="boxicons:menu" size={20} />
+                    </div>
+
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
+                      {app.iconPath ? (
+                        <img
+                          src={`${cleanBase}api/icons/${app.iconPath}`}
+                          alt={`Ícono de ${app.title}`}
+                          class="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <Icon name="boxicons:cube" class="h-5 w-5 text-base-content/40" />
+                      )}
+                    </div>
+
+                    <div class="min-w-0 truncate font-semibold" title={app.title}>
+                      <span class="truncate" data-highlight-target>{app.title}</span>
+                      {app.version && (
+                        <span class="ml-1 text-xs font-mono text-base-content/50">v{app.version}</span>
+                      )}
+                    </div>
+
+                    <div class="min-w-0 truncate text-xs font-mono text-base-content/60" title={app.filePath || ""}>
+                      {app.filePath ? (
+                        <span data-highlight-target>{truncatePath(app.filePath)}</span>
+                      ) : (
+                        <span class="badge badge-sm badge-warning">Sin archivo</span>
+                      )}
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center justify-end gap-1">
+                      <a
+                        href={resolveUrl(`/admin/aplicativos/edit/${app.id}`)}
+                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
+                        title="Editar Aplicativo"
+                      >
+                        <Icon name="boxicons:pencil" size={16} />
+                      </a>
+                      <form
+                        method="POST"
+                        action={resolveUrl(`/admin/aplicativos/edit/${app.id}/eliminar`)}
+                        class="inline"
+                        onsubmit="return confirm('¿Estás seguro de que deseas eliminar este aplicativo?');"
+                      >
+                        <button
+                          type="submit"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
+                          title="Eliminar Aplicativo"
+                        >
+                          <Icon name="boxicons:trash" size={16} />
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                ))
+              )
+            }
+          </div>
+        </DataTable>
+
+        <!-- Category Empty State -->
+        <div id="category-empty-state" class="hidden flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200/40 p-4">
+            <Icon name="boxicons:box" size={32} class="opacity-30" />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">Esta categoría está vacía</p>
+            <p class="text-xs">Arrastrá aplicativos aquí o cargá uno nuevo.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-start pt-2">
+        <a href={resolveUrl("/admin")} class="btn btn-ghost btn-sm gap-2">
+          <Icon name="boxicons:arrow-left-stroke-filled" size={16} />
+          Volver a administración
+        </a>
+      </div>
+    </main>
   </div>
+
+  <!-- Delete Category Modal -->
+  <dialog id="delete-category-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-lg w-full">
+      <h3 class="font-bold text-lg text-base-content">Eliminar Categoría de Aplicativos</h3>
+      <p class="py-4 text-base-content/80 text-sm">¿Qué deseas hacer con los aplicativos asignados a esta categoría?</p>
+      <form id="delete-category-form" method="POST" action="">
+        <div class="flex flex-col gap-3 mt-2">
+          <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+            <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
+            <div class="flex flex-col gap-1 flex-1 min-w-0">
+              <span class="label-text font-bold text-base leading-tight whitespace-normal">Desvincular y conservar aplicativos</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría será eliminada, pero los aplicativos se conservarán y se moverán a "Sin categoría".</span>
+            </div>
+          </label>
+
+          <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
+            <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
+            <div class="flex flex-col gap-1 flex-1 min-w-0">
+              <span class="label-text font-bold text-error text-base leading-tight whitespace-normal">Eliminar todo en Cascada</span>
+              <span class="text-xs text-base-content/60 leading-relaxed whitespace-normal">La categoría y todos los aplicativos (incluyendo sus archivos físicos) serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+            </div>
+          </label>
+        </div>
+        
+        <div class="modal-action flex-col sm:flex-row mt-6 gap-2">
+          <button type="button" class="btn btn-ghost w-full sm:w-auto" onclick="document.getElementById('delete-category-modal').close()">Cancelar</button>
+          <button type="submit" class="btn btn-error gap-2 w-full sm:w-auto ml-0 sm:ml-2">
+            <Icon name="boxicons:trash" size={20} />
+            Confirmar Eliminación
+          </button>
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>cerrar</button>
+    </form>
+  </dialog>
 </PageContainer>
 
 <script>
-  import {
-    matchesSearchQuery,
-    highlightSearchTargets,
-  } from "@lib/clientSearch";
+  // State
+  let activeCategoryId = "";
+  
+  // Elements
+  const categoryItems = Array.from(document.querySelectorAll<HTMLElement>(".category-item"));
+  const appRows = Array.from(document.querySelectorAll<HTMLElement>(".app-row"));
+  const appsContainer = document.getElementById("apps-container");
+  const searchInput = document.querySelector<HTMLInputElement>("#aplicativos-search");
+  
+  const activeIconWrapper = document.getElementById("active-category-icon-wrapper");
+  const activeCategoryTitle = document.getElementById("active-category-title");
+  const btnAddApp = document.getElementById("btn-add-app") as HTMLAnchorElement | null;
+  const generalEmptyState = document.getElementById("empty-state");
+  const categoryEmptyState = document.getElementById("category-empty-state");
 
-  const searchInput =
-    document.querySelector<HTMLInputElement>("#admin-app-search");
-  const rows = document.querySelectorAll<HTMLElement>("[data-table-row]");
-  const countBadge =
-    document.querySelector<HTMLElement>("#app-count-badge");
-
-  function applyFilters() {
-    const query = searchInput?.value.trim() || "";
-    let visibleCount = 0;
-
-    rows.forEach((row) => {
-      const searchText = row.dataset.searchText || "";
-      const isVisible = matchesSearchQuery(query, [searchText]);
-
-      row.classList.toggle("hidden", !isVisible);
-      highlightSearchTargets(row, isVisible ? query : "");
-
-      if (isVisible) {
-        visibleCount++;
+  // Selection Handler
+  const selectCategory = (categoryId: string) => {
+    activeCategoryId = categoryId;
+    
+    // Update Category visual classes in sidebar
+    categoryItems.forEach(item => {
+      const isSelected = item.dataset.categoryId === categoryId;
+      
+      item.classList.remove("bg-primary/5", "border-base-300", "shadow-sm");
+      if (isSelected) {
+        item.classList.add("bg-primary/5", "border-base-300", "shadow-sm");
+      } else {
+        item.classList.add("border-transparent");
       }
     });
 
-    if (countBadge) {
-      countBadge.textContent = visibleCount.toString();
+    // Update Header
+    const selectedItem = categoryItems.find(item => item.dataset.categoryId === categoryId);
+    if (selectedItem && activeCategoryTitle && activeIconWrapper) {
+      const title = selectedItem.dataset.categoryTitle || "";
+      activeCategoryTitle.textContent = title;
+      
+      const icon = selectedItem.querySelector("svg")?.cloneNode(true);
+      const iconTarget = activeIconWrapper.querySelector("svg");
+      if (icon && iconTarget) {
+        activeIconWrapper.replaceChild(icon, iconTarget);
+      }
     }
+
+    // Prefill categoryId in creation URL
+    if (btnAddApp) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      if (categoryId === "all" || categoryId === "uncategorized") {
+        btnAddApp.href = `${cleanBase}admin/aplicativos/create`;
+      } else {
+        btnAddApp.href = `${cleanBase}admin/aplicativos/create?categoryId=${encodeURIComponent(categoryId)}`;
+      }
+    }
+
+    // Reorder instructions and drag handles display based on 'all'
+    const isAll = categoryId === "all";
+    const dragHandles = Array.from(document.querySelectorAll(".drag-handle"));
+    dragHandles.forEach(h => {
+      if (isAll) {
+        h.classList.add("invisible", "pointer-events-none");
+      } else {
+        h.classList.remove("invisible", "pointer-events-none");
+      }
+    });
+
+    const reorderInstructions = document.getElementById("reorder-instructions");
+    if (reorderInstructions) {
+      reorderInstructions.classList.toggle("hidden", isAll);
+    }
+
+    filterApps();
+  };
+
+  // Initialize original text for highlighting
+  const highlightTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+  highlightTargets.forEach(el => {
+    el.dataset.originalText = el.textContent?.trim() || "";
+  });
+
+  // Filters apps
+  const filterApps = () => {
+    const query = searchInput?.value.trim().toLowerCase() || "";
+    let visibleCount = 0;
+
+    appRows.forEach(row => {
+      const rowCategory = row.dataset.appCategory || "uncategorized";
+      const searchContent = row.dataset.appSearch || "";
+      
+      const matchesCategory = activeCategoryId === "all" || rowCategory === activeCategoryId;
+      const matchesSearch = query === "" || searchContent.includes(query);
+      const isVisible = matchesCategory && matchesSearch;
+
+      row.classList.toggle("hidden", !isVisible);
+      if (isVisible) {
+        visibleCount++;
+        
+        const targets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
+        targets.forEach(el => {
+          const original = el.dataset.originalText || el.textContent?.trim() || "";
+          if (query === "") {
+            el.textContent = original;
+          } else {
+            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, "gi");
+            el.innerHTML = original.replace(regex, '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>');
+          }
+        });
+      }
+    });
+
+    if (generalEmptyState) generalEmptyState.classList.add("hidden");
+    
+    if (visibleCount === 0) {
+      categoryEmptyState?.classList.remove("hidden");
+      categoryEmptyState?.classList.add("flex");
+    } else {
+      categoryEmptyState?.classList.add("hidden");
+      categoryEmptyState?.classList.remove("flex");
+    }
+  };
+
+  // Click on categories
+  categoryItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const id = item.dataset.categoryId;
+      if (id) selectCategory(id);
+    });
+  });
+
+  // Select first category
+  if (categoryItems.length > 0) {
+    const firstCatId = categoryItems[0].dataset.categoryId;
+    if (firstCatId) selectCategory(firstCatId);
   }
 
-  searchInput?.addEventListener("input", applyFilters);
+  searchInput?.addEventListener("input", filterApps);
+
+  // Drag & drop sorting
+  let draggedRow: HTMLElement | null = null;
+
+  appRows.forEach(row => {
+    row.addEventListener("dragstart", (e) => {
+      if (activeCategoryId === "all") {
+        e.preventDefault();
+        return;
+      }
+      draggedRow = row;
+      row.classList.add("opacity-40", "border-primary/50", "border-dashed");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", row.dataset.appId || "");
+      }
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("opacity-40", "border-primary/50", "border-dashed");
+      draggedRow = null;
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedRow || draggedRow === row) return;
+
+      const currentCategory = row.dataset.appCategory;
+      const draggedCategory = draggedRow.dataset.appCategory;
+      if (currentCategory !== draggedCategory) return;
+
+      const bounding = row.getBoundingClientRect();
+      const offset = e.clientY - bounding.top - bounding.height / 2;
+
+      if (appsContainer) {
+        if (offset < 0) {
+          appsContainer.insertBefore(draggedRow, row);
+        } else {
+          appsContainer.insertBefore(draggedRow, row.nextSibling);
+        }
+      }
+    });
+
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      saveReorderedApps();
+    });
+  });
+
+  // Drag to Category
+  categoryItems.forEach(zone => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      if (draggedRow && draggedRow.dataset.appCategory !== targetCategoryId) {
+        zone.classList.add("bg-base-300", "scale-[1.02]");
+      }
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+    });
+
+    zone.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const targetCategoryId = zone.dataset.categoryId;
+      if (targetCategoryId === "all") return;
+      zone.classList.remove("bg-base-300", "scale-[1.02]");
+
+      const appId = e.dataTransfer?.getData("text/plain");
+      if (!appId || !targetCategoryId || !draggedRow) return;
+      
+      const sourceCategoryId = draggedRow.dataset.appCategory || "uncategorized";
+      if (sourceCategoryId === targetCategoryId) return;
+
+      draggedRow.dataset.appCategory = targetCategoryId;
+      filterApps();
+
+      const sourceBadge = categoryItems.find(item => item.dataset.categoryId === sourceCategoryId)?.querySelector(".count-badge");
+      const targetBadge = zone.querySelector(".count-badge");
+      
+      if (sourceBadge) {
+        const count = Math.max(0, parseInt(sourceBadge.textContent || "0") - 1);
+        sourceBadge.textContent = String(count);
+      }
+      if (targetBadge) {
+        const count = parseInt(targetBadge.textContent || "0") + 1;
+        targetBadge.textContent = String(count);
+      }
+
+      await saveReorderedApps();
+    });
+  });
+
+  const saveReorderedApps = async () => {
+    try {
+      const allRows = Array.from(document.querySelectorAll<HTMLElement>(".app-row"));
+      const categoryGroups: Record<string, HTMLElement[]> = {};
+      
+      allRows.forEach(row => {
+        const catId = row.dataset.appCategory || "uncategorized";
+        if (!categoryGroups[catId]) categoryGroups[catId] = [];
+        categoryGroups[catId].push(row);
+      });
+
+      const items: any[] = [];
+      Object.keys(categoryGroups).forEach(catId => {
+        categoryGroups[catId].forEach((row, index) => {
+          items.push({
+            id: parseInt(row.dataset.appId || "0"),
+            sortOrder: index * 10,
+            categoryId: catId
+          });
+        });
+      });
+
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      
+      const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) throw new Error("Error de red");
+      (window as any).showToast?.("Aplicativos sincronizados con éxito", "alert-success");
+    } catch (err) {
+      console.error(err);
+      (window as any).showToast?.("Error al guardar el nuevo orden", "alert-error");
+    }
+  };
+
+  // Toast from URL query param
+  const urlParams = new URLSearchParams(window.location.search);
+  const toastMsg = urlParams.get("toast_msg");
+  const toastType = urlParams.get("toast_type") || "alert-success";
+  if (toastMsg) {
+    (window as any).showToast?.(decodeURIComponent(toastMsg), toastType);
+    // clean search params without reloading
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+
+  // Delete category modal
+  (window as any).openDeleteCategoryModal = (categoryId: string) => {
+    const modal = document.getElementById("delete-category-modal") as any;
+    const form = document.getElementById("delete-category-form") as HTMLFormElement | null;
+    
+    if (modal && form) {
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+      form.action = `${cleanBase}admin/aplicativos/categorias/edit/${categoryId}/eliminar`;
+      modal.showModal();
+    }
+  };
 </script>
