@@ -18,6 +18,6 @@ export interface UsefulContactCategory {
   id: string;
   title: string;
   icon: BoxiconName;
-  tone: "primary" | "secondary" | "accent" | "info" | "success" | "warning";
+  tone: "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error" | "neutral";
   contacts: UsefulContact[];
 }
