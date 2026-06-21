@@ -5,6 +5,8 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -322,31 +324,23 @@ links.forEach((link) => {
                       >
                         {link.url.replace(/^https?:\/\/(www\.)?/, "")}
                       </a>
-                    </div>
-
-                    <!-- Acciones -->
-                    <div class="flex items-center justify-end gap-1">
-                      <a
+                       <!-- Acciones -->
+                    <div class="flex items-center justify-end gap-2">
+                      <ActionEditButton
                         href={resolveUrl(`/admin/recursos/enlace/edit/${link.id}`)}
-                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
-                        title="Editar Enlace"
-                      >
-                        <Icon name="boxicons:pencil" size={16} />
-                      </a>
+                        ariaLabel={`Editar enlace ${link.title}`}
+                      />
                       <form
                         method="POST"
                         action={resolveUrl(`/admin/recursos/enlace/edit/${link.id}/eliminar`)}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
                       >
-                        <button
-                          type="submit"
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
-                          title="Eliminar Enlace"
-                        >
-                          <Icon name="boxicons:trash" size={16} />
-                        </button>
+                        <ActionDeleteButton
+                          ariaLabel={`Eliminar enlace ${link.title}`}
+                        />
                       </form>
+                    </div>
                     </div>
                   </div>
                 ))

@@ -8,6 +8,8 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -289,27 +291,20 @@ contacts.forEach((contact) => {
                     </div>
 
                     <!-- Acciones -->
-                    <div class="flex items-center justify-end gap-1">
-                      <a
+                    <div class="flex items-center justify-end gap-2">
+                      <ActionEditButton
                         href={resolveUrl(`/admin/contactos/edit/${contact.id}`)}
-                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
-                        title="Editar Contacto"
-                      >
-                        <Icon name="boxicons:pencil" size={16} />
-                      </a>
+                        ariaLabel={`Editar contacto ${contact.provider}`}
+                      />
                       <form
                         method="POST"
                         action={resolveUrl(`/admin/contactos/edit/${contact.id}/eliminar`)}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este contacto?');"
                       >
-                        <button
-                          type="submit"
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
-                          title="Eliminar Contacto"
-                        >
-                          <Icon name="boxicons:trash" size={16} />
-                        </button>
+                        <ActionDeleteButton
+                          ariaLabel={`Eliminar contacto ${contact.provider}`}
+                        />
                       </form>
                     </div>
                   </div>

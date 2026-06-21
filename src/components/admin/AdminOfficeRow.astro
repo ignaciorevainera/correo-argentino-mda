@@ -1,11 +1,12 @@
 ---
-import { Icon } from "astro-icon/components";
 import type { OfficeDirectoryItem } from "@/types/offices";
 import {
   officeTypeLabelByType,
   officeTypeChipClassByType,
   defaultChipClass,
 } from "@lib/officeHelpers";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 
 interface Props {
   office: OfficeDirectoryItem;
@@ -116,15 +117,11 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
   </div>
 
   {/* Acciones */}
-  <div class="flex items-center justify-end gap-1">
-    <a
+  <div class="flex items-center justify-end gap-2">
+    <ActionEditButton
       href={`${cleanBase}admin/oficinas/${office.dbId}`}
-      class="btn btn-sm btn-ghost h-7 px-2 text-base-content/60 hover:text-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      aria-label={`Editar ${office.name}`}
-    >
-      <Icon name="boxicons:pencil-filled" size={14} />
-      <span class="hidden sm:inline">Editar</span>
-    </a>
+      ariaLabel={`Editar ${office.name}`}
+    />
 
     <form
       method="POST"
@@ -133,14 +130,9 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
     >
       <input type="hidden" name="action" value="delete_office" />
       <input type="hidden" name="officeId" value={office.dbId} />
-      <button
-        type="submit"
-        class="btn btn-ghost btn-sm h-7 rounded-lg px-2 text-base-content/60 hover:text-error hover:bg-error/10 transition-all duration-200"
-        aria-label={`Eliminar ${office.name}`}
-      >
-        <Icon name="boxicons:trash-filled" size={14} />
-        <span class="hidden sm:inline">Eliminar</span>
-      </button>
+      <ActionDeleteButton
+        ariaLabel={`Eliminar ${office.name}`}
+      />
     </form>
   </div>
 </article>

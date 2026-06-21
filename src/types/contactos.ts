@@ -15,7 +15,7 @@ export interface UsefulContact {
 }
 
 export interface UsefulContactCategory {
-  id: string;
+  id: number;
   title: string;
   icon: BoxiconName;
   tone: "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error" | "neutral";

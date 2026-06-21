@@ -5,27 +5,27 @@ import { Icon } from "astro-icon/components";
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="sync-dashboard">
   <!-- Card 1: Sincronización de Terminales -->
   <div
-    class="stat bg-base-100 shadow rounded-box flex items-center justify-between p-6 border border-base-200"
+    class="card bg-base-100 border border-base-300 shadow-sm flex flex-row items-center justify-between p-5 md:p-6"
   >
     <div class="flex-1 min-w-0">
-      <div class="stat-title text-sm font-medium text-base-content/70 truncate">
+      <div class="text-xs font-semibold uppercase tracking-wider text-base-content/60 truncate">
         Sincronización de Terminales
       </div>
       <div
-        class="stat-value text-lg font-bold mt-1 text-base-content"
+        class="text-lg md:text-xl font-bold mt-0.5 text-base-content"
         id="sync-status"
       >
         Cargando...
       </div>
       <div
-        class="stat-desc text-xs text-base-content/60 mt-1 truncate"
+        class="text-xs text-base-content/50 mt-1 truncate"
         id="sync-desc"
       >
         Esperando datos...
       </div>
     </div>
     <div
-      class="text-base-content/30 p-2 shrink-0 ml-4"
+      class="bg-base-200/60 text-base-content/40 p-3 rounded-xl shrink-0 ml-4"
       id="sync-icon-container"
     >
       <Icon
@@ -38,27 +38,27 @@ import { Icon } from "astro-icon/components";
 
   <!-- Card 2: Monitoreo de Cubics (Ping) -->
   <div
-    class="stat bg-base-100 shadow rounded-box flex items-center justify-between p-6 border border-base-200"
+    class="card bg-base-100 border border-base-300 shadow-sm flex flex-row items-center justify-between p-5 md:p-6"
   >
     <div class="flex-1 min-w-0">
-      <div class="stat-title text-sm font-medium text-base-content/70 truncate">
+      <div class="text-xs font-semibold uppercase tracking-wider text-base-content/60 truncate">
         Monitoreo de Cubics (Ping)
       </div>
       <div
-        class="stat-value text-lg font-bold mt-1 text-base-content"
+        class="text-lg md:text-xl font-bold mt-0.5 text-base-content"
         id="ping-status"
       >
         Cargando...
       </div>
       <div
-        class="stat-desc text-xs text-base-content/60 mt-1 truncate"
+        class="text-xs text-base-content/50 mt-1 truncate"
         id="ping-desc"
       >
         Esperando datos...
       </div>
     </div>
     <div
-      class="text-base-content/30 p-2 shrink-0 ml-4"
+      class="bg-base-200/60 text-base-content/40 p-3 rounded-xl shrink-0 ml-4"
       id="ping-icon-container"
     >
       <Icon name="boxicons:desktop-filled" size={32} />
@@ -101,23 +101,23 @@ import { Icon } from "astro-icon/components";
       // 1. Actualizar Sincronización de Terminales
       if (data.sync) {
         let statusText = "Detenido";
-        let statusClass = "stat-value text-lg text-error";
-        let iconClass = "text-error";
+        let statusClass = "text-lg md:text-xl font-bold mt-0.5 text-error";
+        let iconContainerClass = "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
         let isSpinning = false;
 
         if (data.sync.status === "online") {
           statusText = "En Ejecución";
-          statusClass = "stat-value text-lg text-success";
-          iconClass = "text-success";
+          statusClass = "text-lg md:text-xl font-bold mt-0.5 text-success";
+          iconContainerClass = "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
           isSpinning = true;
         } else if (data.sync.lastStatus === "error") {
           statusText = "Fallo de Sincronización";
-          statusClass = "stat-value text-lg text-error font-bold";
-          iconClass = "text-error";
+          statusClass = "text-lg md:text-xl font-bold mt-0.5 text-error font-bold";
+          iconContainerClass = "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
         } else if (data.sync.lastStatus === "success") {
           statusText = "Sincronizado";
-          statusClass = "stat-value text-lg text-success";
-          iconClass = "text-success";
+          statusClass = "text-lg md:text-xl font-bold mt-0.5 text-success";
+          iconContainerClass = "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
         }
 
         if (syncStatusEl) {
@@ -135,7 +135,7 @@ import { Icon } from "astro-icon/components";
         }
 
         if (syncIconContainer) {
-          syncIconContainer.className = `p-2 shrink-0 ml-4 ${iconClass}`;
+          syncIconContainer.className = iconContainerClass;
           const iconEl = syncIconContainer.querySelector("svg");
           if (iconEl) {
             if (isSpinning) {
@@ -150,14 +150,14 @@ import { Icon } from "astro-icon/components";
       // 2. Actualizar Monitoreo de Cubics
       if (data.ping) {
         let statusText = "Inactivo";
-        let statusClass = "stat-value text-lg text-error";
-        let iconClass = "text-error";
+        let statusClass = "text-lg md:text-xl font-bold mt-0.5 text-error";
+        let iconContainerClass = "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
         let isPulse = false;
 
         if (data.ping.status === "online") {
           statusText = "Activo";
-          statusClass = "stat-value text-lg text-success";
-          iconClass = "text-success";
+          statusClass = "text-lg md:text-xl font-bold mt-0.5 text-success";
+          iconContainerClass = "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
           isPulse = true;
         }
 
@@ -173,7 +173,7 @@ import { Icon } from "astro-icon/components";
         }
 
         if (pingIconContainer) {
-          pingIconContainer.className = `p-2 shrink-0 ml-4 ${iconClass}`;
+          pingIconContainer.className = iconContainerClass;
           const iconEl = pingIconContainer.querySelector("svg");
           if (iconEl) {
             if (isPulse) {
@@ -188,13 +188,22 @@ import { Icon } from "astro-icon/components";
       console.error("[SyncDashboard] Error al actualizar estado:", err);
       const syncStatusEl = document.getElementById("sync-status");
       const pingStatusEl = document.getElementById("ping-status");
+      const syncIconContainer = document.getElementById("sync-icon-container");
+      const pingIconContainer = document.getElementById("ping-icon-container");
+
       if (syncStatusEl) {
         syncStatusEl.textContent = "Error de Conexión";
-        syncStatusEl.className = "stat-value text-lg text-warning";
+        syncStatusEl.className = "text-lg md:text-xl font-bold mt-0.5 text-warning";
       }
       if (pingStatusEl) {
         pingStatusEl.textContent = "Error de Conexión";
-        pingStatusEl.className = "stat-value text-lg text-warning";
+        pingStatusEl.className = "text-lg md:text-xl font-bold mt-0.5 text-warning";
+      }
+      if (syncIconContainer) {
+        syncIconContainer.className = "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+      }
+      if (pingIconContainer) {
+        pingIconContainer.className = "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
       }
     }
   }

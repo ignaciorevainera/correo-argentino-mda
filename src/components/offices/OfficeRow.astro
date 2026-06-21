@@ -1,6 +1,8 @@
 ---
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 import { isAllowed } from "@lib/rolesMatrix";
 import type { OfficeDirectoryItem } from "@/types/offices";
 import {
@@ -189,27 +191,20 @@ const officeDirectoryRowGridClass = isAllowedAdmin
     </div>
 
     {isAllowedAdmin && (
-      <div class="min-w-0 flex items-center justify-end gap-1.5">
-        <a
+      <div class="min-w-0 flex items-center justify-end gap-2">
+        <ActionEditButton
           href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
-          class="btn btn-xs btn-outline btn-warning"
-          title="Editar"
-        >
-          <Icon name="boxicons:edit-alt" class="size-3.5" />
-        </a>
+          ariaLabel={`Editar oficina ${office.name}`}
+        />
         <form
           method="POST"
           action={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}/eliminar`}
           class="inline"
           onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
         >
-          <button
-            type="submit"
-            class="btn btn-xs btn-outline btn-error"
-            title="Eliminar"
-          >
-            <Icon name="boxicons:trash" class="size-3.5" />
-          </button>
+          <ActionDeleteButton
+            ariaLabel={`Eliminar oficina ${office.name}`}
+          />
         </form>
       </div>
     )}
