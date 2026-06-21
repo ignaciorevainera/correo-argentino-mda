@@ -95,6 +95,7 @@ export const contactCategories = sqliteTable("contact_categories", {
   title: text("title").notNull(),
   icon: text("icon").notNull(),
   tone: text("tone").notNull(),
+  sortOrder: integer("sortOrder").default(0),
 });
 
 export const providerContacts = sqliteTable("provider_contacts", {
@@ -321,6 +322,7 @@ export const resourceCategories = sqliteTable("resource_categories", {
   title: text("title").notNull(),
   iconName: text("iconName").notNull(),
   tone: text("tone").notNull().default("primary"),
+  sortOrder: integer("sortOrder").default(0),
 });
 
 export const resourceLinks = sqliteTable("resource_links", {
@@ -520,6 +522,7 @@ export const auditScoresRelations = relations(auditScores, ({ one }) => ({
 export const applicationCategories = sqliteTable("application_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
+  sortOrder: integer("sortOrder").default(0),
 });
 
 export const applications = sqliteTable("applications", {
