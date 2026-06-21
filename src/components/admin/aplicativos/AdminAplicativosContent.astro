@@ -48,7 +48,7 @@ try {
   const dbCategories = await db
     .select()
     .from(applicationCategories)
-    .orderBy(applicationCategories.title);
+    .orderBy(asc(applicationCategories.sortOrder), asc(applicationCategories.title));
 
   dbCategories.forEach((cat) => {
     const t = cat.title.toLowerCase();
@@ -185,9 +185,14 @@ const truncatePath = (filePath: string | null) => {
                   class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
                   data-category-id={cat.id}
                   data-category-title={cat.title}
+                  data-category-sortorder={cat.sortOrder}
                   data-category-dropzone
+                  draggable="true"
                 >
                   <div class="flex items-center gap-2.5 min-w-0 grow">
+                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 cursor-grab active:cursor-grabbing text-base-content/20 hover:text-base-content/40 transition-colors opacity-0 group-hover:opacity-100 category-drag-handle">
+                      <Icon name="boxicons:menu" size={18} />
+                    </div>
                     <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-primary/20 bg-primary/10 text-primary">
                       <Icon name="boxicons:folder" size={18} />
                     </div>
@@ -641,6 +646,10 @@ const truncatePath = (filePath: string | null) => {
       if (targetCategoryId === "all") return;
       zone.classList.remove("bg-base-300", "scale-[1.02]");
 
+      // If a category is being dragged, skip item categorization
+      const categoryId = e.dataTransfer?.getData("text/category-id");
+      if (categoryId) return;
+
       const appId = e.dataTransfer?.getData("text/plain");
       if (!appId || !targetCategoryId || !draggedRow) return;
       
@@ -702,6 +711,101 @@ const truncatePath = (filePath: string | null) => {
     } catch (err) {
       console.error(err);
       (window as any).showToast?.("Error al guardar el nuevo orden", "alert-error");
+    }
+  };
+
+  // ----------------------------------------------------
+  // Drag and Drop: Reorder categories in sidebar
+  // ----------------------------------------------------
+  let draggedCategoryItem: HTMLElement | null = null;
+
+  const categoryDragItems = Array.from(
+    document.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+  );
+
+  categoryDragItems.forEach(item => {
+    item.addEventListener("dragstart", (e) => {
+      const catId = item.dataset.categoryId;
+      if (catId === "all" || catId === "uncategorized") {
+        e.preventDefault();
+        return;
+      }
+      draggedCategoryItem = item;
+      item.classList.add("opacity-40");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/category-id", catId || "");
+      }
+    });
+
+    item.addEventListener("dragend", () => {
+      item.classList.remove("opacity-40");
+      draggedCategoryItem = null;
+    });
+
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedCategoryItem || draggedCategoryItem === item) return;
+      const targetCatId = item.dataset.categoryId;
+      const draggedCatId = draggedCategoryItem.dataset.categoryId;
+      if (targetCatId === "all" || targetCatId === "uncategorized" || draggedCatId === "all" || draggedCatId === "uncategorized") return;
+
+      const bounding = item.getBoundingClientRect();
+      const offset = e.clientY - bounding.top - bounding.height / 2;
+
+      const categoriesList = document.getElementById("categories-list");
+      if (categoriesList) {
+        if (offset < 0) {
+          categoriesList.insertBefore(draggedCategoryItem, item);
+        } else {
+          categoriesList.insertBefore(draggedCategoryItem, item.nextSibling);
+        }
+      }
+    });
+
+    item.addEventListener("drop", (e) => {
+      e.preventDefault();
+      saveReorderedCategories();
+    });
+  });
+
+  const saveReorderedCategories = async () => {
+    try {
+      const categoriesList = document.getElementById("categories-list");
+      if (!categoriesList) return;
+
+      const categoryEls = Array.from(
+        categoriesList.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+      );
+
+      const items: { id: number; sortOrder: number }[] = [];
+      let index = 0;
+
+      categoryEls.forEach(el => {
+        const catId = el.dataset.categoryId;
+        if (catId === "all" || catId === "uncategorized") return;
+        const id = parseInt(catId || "0");
+        if (!id) return;
+        items.push({ id, sortOrder: index * 10 });
+        index++;
+      });
+
+      if (items.length === 0) return;
+
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+
+      const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder-categorias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) throw new Error("Error de red");
+      (window as any).showToast?.("Categorías reordenadas con éxito", "alert-success");
+    } catch (err) {
+      console.error(err);
+      (window as any).showToast?.("Error al guardar el nuevo orden de categorías", "alert-error");
     }
   };
 
