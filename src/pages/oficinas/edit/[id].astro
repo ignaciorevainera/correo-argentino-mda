@@ -223,9 +223,13 @@ if (Astro.request.method === "POST") {
     }
   } catch (e: any) {
     console.error("[EditOffice] Error actualizando la oficina:", e);
-    errorMsg = e.message?.includes("UNIQUE")
-      ? "Ya existe una oficina con ese código."
-      : "Error al guardar la oficina: " + (e.message || "");
+    if (e.message?.includes("UNIQUE")) {
+      errorMsg = "Ya existe una oficina con ese código.";
+    } else if (e.message?.includes("FOREIGN KEY constraint failed")) {
+      errorMsg = "No se puede modificar el código (NIS): la oficina está vinculada a terminales sincronizadas u otros registros.";
+    } else {
+      errorMsg = "Error al guardar la oficina: " + (e.message || "");
+    }
   }
 }
 
@@ -322,7 +326,7 @@ const pageTitle = `Editar: ${office.name}`;
 ---
 
 <BaseLayout title={pageTitle}>
-  <PageContainer>
+  <PageContainer width="xxl">
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
         href={`${cleanBase}oficinas`}
