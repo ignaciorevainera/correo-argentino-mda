@@ -25,6 +25,7 @@ let deleteError = "";
 interface Category {
   id: number;
   title: string;
+  sortOrder: number | null;
 }
 
 interface AppInfo {
@@ -84,7 +85,7 @@ try {
   deleteError = deleteError || "No se pudieron cargar los aplicativos.";
 }
 
-const appsGridCols = "grid-cols-[40px_50px_1.5fr_2fr_100px] gap-4";
+const appsGridCols = "grid-cols-[40px_50px_1fr_100px] gap-4";
 
 // Calculate apps count per category
 const categoryCounts = new Map<string | number, number>();
@@ -205,22 +206,20 @@ const truncatePath = (filePath: string | null) => {
                     </span>
                     {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
                       <div class="hidden group-hover:flex items-center gap-0.5">
-                        <a
+                        <ActionEditButton
                           href={resolveUrl(`/admin/aplicativos/categorias/edit/${cat.id}`)}
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                          size="xs"
+                          ariaLabel="Editar"
                           title="Editar"
                           onclick="event.stopPropagation();"
-                        >
-                          <Icon name="boxicons:pencil" size={14} />
-                        </a>
-                        <button
+                        />
+                        <ActionDeleteButton
                           type="button"
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
+                          size="xs"
+                          ariaLabel="Eliminar"
                           title="Eliminar"
                           onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
-                        >
-                          <Icon name="boxicons:trash" size={14} />
-                        </button>
+                        />
                       </div>
                     )}
                   </div>
@@ -293,7 +292,6 @@ const truncatePath = (filePath: string | null) => {
             <DataTableHeaderCell></DataTableHeaderCell>
             <DataTableHeaderCell>Ícono</DataTableHeaderCell>
             <DataTableHeaderCell>Nombre</DataTableHeaderCell>
-            <DataTableHeaderCell>Archivo</DataTableHeaderCell>
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
           </Fragment>
 
@@ -343,14 +341,6 @@ const truncatePath = (filePath: string | null) => {
                       <span class="truncate" data-highlight-target>{app.title}</span>
                       {app.version && (
                         <span class="ml-1 text-xs font-mono text-base-content/50">v{app.version}</span>
-                      )}
-                    </div>
-
-                    <div class="min-w-0 truncate text-xs font-mono text-base-content/60" title={app.filePath || ""}>
-                      {app.filePath ? (
-                        <span data-highlight-target>{truncatePath(app.filePath)}</span>
-                      ) : (
-                        <span class="badge badge-sm badge-warning">Sin archivo</span>
                       )}
                     </div>
 

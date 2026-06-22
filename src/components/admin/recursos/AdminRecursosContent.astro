@@ -54,7 +54,7 @@ const links = await db
   .leftJoin(resourceCategories, eq(resourceLinks.categoryId, resourceCategories.id))
   .orderBy(resourceLinks.sortOrder, resourceLinks.title);
 
-const linksGridCols = "grid-cols-[40px_40px_minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_80px] gap-4";
+const linksGridCols = "grid-cols-[40px_40px_minmax(0,1.5fr)_minmax(0,1.5fr)_80px] gap-4";
 
 const toneColors: Record<string, string> = {
   primary: "text-primary bg-primary/10 border-primary/20",
@@ -98,7 +98,7 @@ links.forEach((link) => {
         class="btn btn-primary btn-sm gap-2"
       >
         <Icon name="boxicons:plus" size={16} />
-        Agregar Sitio Web
+        Agregar sitio web
       </a>
     </div>
   </div>
@@ -164,22 +164,20 @@ links.forEach((link) => {
                     </span>
                     {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
                       <div class="hidden group-hover:flex items-center gap-0.5">
-                        <a
+                        <ActionEditButton
                           href={resolveUrl(`/admin/recursos/categoria/edit/${cat.id}`)}
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary"
+                          size="xs"
+                          ariaLabel="Editar"
                           title="Editar"
                           onclick="event.stopPropagation();"
-                        >
-                          <Icon name="boxicons:pencil" size={14} />
-                        </a>
-                        <button
+                        />
+                        <ActionDeleteButton
                           type="button"
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error"
+                          size="xs"
+                          ariaLabel="Eliminar"
                           title="Eliminar"
                           onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
-                        >
-                          <Icon name="boxicons:trash" size={14} />
-                        </button>
+                        />
                       </div>
                     )}
                   </div>
@@ -255,7 +253,6 @@ links.forEach((link) => {
             <DataTableHeaderCell></DataTableHeaderCell>
             <DataTableHeaderCell>Ícono</DataTableHeaderCell>
             <DataTableHeaderCell>Título</DataTableHeaderCell>
-            <DataTableHeaderCell>Descripción</DataTableHeaderCell>
             <DataTableHeaderCell>URL</DataTableHeaderCell>
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
           </Fragment>
@@ -312,10 +309,6 @@ links.forEach((link) => {
                       )}
                     </div>
 
-                    <div class="min-w-0 truncate text-sm text-base-content/60" title={link.subtitle || ""} data-highlight-target>
-                      {link.subtitle || "—"}
-                    </div>
-
                     <!-- URL -->
                     <div class="min-w-0 truncate">
                       <a
@@ -328,7 +321,7 @@ links.forEach((link) => {
                       >
                         {link.url.replace(/^https?:\/\/(www\.)?/, "")}
                       </a>
-                       <!-- Acciones -->
+                    </div>
                     <div class="flex items-center justify-end gap-2">
                       <ActionEditButton
                         href={resolveUrl(`/admin/recursos/enlace/edit/${link.id}`)}
@@ -344,7 +337,6 @@ links.forEach((link) => {
                           ariaLabel={`Eliminar enlace ${link.title}`}
                         />
                       </form>
-                    </div>
                     </div>
                   </div>
                 ))
