@@ -103,11 +103,11 @@ export const navSections: NavSection[] = [
   },
   {
     id: "admin",
-    label: "Administración",
+    label: "Panel de Administración",
     items: [
       {
         href: "/admin",
-        label: "Admin",
+        label: "Panel de Administración",
         icon: "boxicons:apps-filled",
         children: [
           {
