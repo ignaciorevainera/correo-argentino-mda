@@ -1,6 +1,8 @@
 ---
 import { Icon } from "astro-icon/components";
-import CopyButton from "@components/ui/CopyButton.astro";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
+import ActionInfoButton from "@/components/ui/ActionInfoButton.astro";
 import { isAllowed } from "@lib/rolesMatrix";
 
 interface Props {
@@ -108,37 +110,27 @@ const modalId = `modal_guide_${guide.id}`;
     </div>
 
     <!-- Acciones -->
-    <div class="min-w-0 flex items-start justify-end gap-1.5">
-      <button
-        class="btn btn-xs btn-outline btn-secondary"
+    <div class="min-w-0 flex items-start justify-end gap-2">
+      <ActionInfoButton
         onclick={`document.getElementById('${modalId}').showModal()`}
-        title="Más info"
-      >
-        <Icon name="boxicons:info-circle" class="size-3.5" />
-      </button>
+        ariaLabel={`Más información sobre ${guide.helpDeskName}`}
+      />
       {
         isAllowedAdmin && (
           <>
-            <a
+            <ActionEditButton
               href={`${import.meta.env.BASE_URL}soportes/edit/${guide.id}`}
-              class="btn btn-xs btn-outline btn-warning"
-              title="Editar"
-            >
-              <Icon name="boxicons:edit-alt" class="size-3.5" />
-            </a>
+              ariaLabel={`Editar soporte ${guide.helpDeskName}`}
+            />
             <form
               method="POST"
               action={`${import.meta.env.BASE_URL}soportes/edit/${guide.id}/eliminar`}
               class="inline"
               onsubmit={`return confirm('¿Estás seguro de que deseas eliminar el soporte "${guide.helpDeskName}"?');`}
             >
-              <button
-                type="submit"
-                class="btn btn-xs btn-outline btn-error"
-                title="Eliminar"
-              >
-                <Icon name="boxicons:trash" class="size-3.5" />
-              </button>
+              <ActionDeleteButton
+                ariaLabel={`Eliminar soporte ${guide.helpDeskName}`}
+              />
             </form>
           </>
         )
@@ -149,11 +141,11 @@ const modalId = `modal_guide_${guide.id}`;
 
 <!-- Modal -->
 <dialog id={modalId} class="modal modal-bottom sm:modal-middle">
-  <div class="modal-box bg-base-100 border-t-4 border-t-primary shadow-xl">
+  <div class="modal-box bg-base-100 border-t-4 border-t-secondary shadow-xl">
     <h3
       class="font-black text-lg text-base-content flex items-center gap-2 mb-4"
     >
-      <Icon name="boxicons:buoy-filled" class="size-6 text-primary" />
+      <Icon name="boxicons:buoy-filled" class="size-6 text-secondary" />
       {guide.helpDeskName}
     </h3>
 

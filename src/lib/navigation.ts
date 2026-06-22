@@ -15,8 +15,8 @@ export interface NavSection {
 
 export const navSections: NavSection[] = [
   {
-    id: "mesa-ayuda",
-    label: "Mesa de ayuda",
+    id: "supervision",
+    label: "Supervisión",
     items: [
       {
         href: "/supervision",
@@ -45,40 +45,30 @@ export const navSections: NavSection[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    id: "accesos-rapidos",
+    label: "Accesos rápidos",
+    items: [
       {
         href: "/titulos",
         label: "Títulos",
         icon: "boxicons:list-ul-filled",
       },
       {
-        href: "/soportes",
-        label: "Soportes",
-        icon: "boxicons:buoy-filled",
-      },
-    ],
-  },
-  {
-    id: "consultas-recursos",
-    label: "Consultas y recursos",
-    items: [
-      {
-        href: "/usuarios",
-        label: "Usuarios",
-        icon: "boxicons:group-filled",
+        href: "/oficinas",
+        label: "Oficinas",
+        icon: "boxicons:building-filled",
       },
       {
-        href: "/generador-firmas",
-        label: "Generador de firmas",
-        icon: "boxicons:pencil-draw-filled",
-      },
-      {
-        href: "/contactos",
-        label: "Contactos",
-        icon: "boxicons:phone-filled",
+        href: "/inventario-terminales",
+        label: "Terminales",
+        icon: "boxicons:desktop-filled",
       },
       {
         href: "/recursos",
-        label: "Recursos",
+        label: "Enlaces",
         icon: "boxicons:link-filled",
         children: [
           {
@@ -88,28 +78,26 @@ export const navSections: NavSection[] = [
           },
         ],
       },
-    ],
-  },
-
-  {
-    id: "oficinas",
-    label: "Oficinas",
-    items: [
       {
-        href: "/oficinas",
-        label: "Oficinas",
-        icon: "boxicons:building-filled",
+        href: "/contactos",
+        label: "Contactos",
+        icon: "boxicons:phone-filled",
       },
     ],
   },
   {
-    id: "terminales",
-    label: "Inventario",
+    id: "herramientas",
+    label: "Herramientas",
     items: [
       {
-        href: "/inventario-terminales",
-        label: "Inventario de terminales",
-        icon: "boxicons:desktop-filled",
+        href: "/usuarios",
+        label: "Buscador de usuarios",
+        icon: "boxicons:group-filled",
+      },
+      {
+        href: "/generador-firmas",
+        label: "Generador de firmas",
+        icon: "boxicons:pencil-draw-filled",
       },
     ],
   },
@@ -119,24 +107,9 @@ export const navSections: NavSection[] = [
     items: [
       {
         href: "/admin",
-        label: "Panel de administración",
+        label: "Admin",
         icon: "boxicons:apps-filled",
         children: [
-          {
-            href: "/admin/usuarios",
-            label: "Usuarios",
-            icon: "boxicons:group-filled",
-          },
-          {
-            href: "/inventario-terminales",
-            label: "Terminales",
-            icon: "boxicons:server-filled",
-          },
-          {
-            href: "/oficinas",
-            label: "Oficinas",
-            icon: "boxicons:building-filled",
-          },
           {
             href: "/admin/contactos",
             label: "Contactos",
@@ -146,6 +119,11 @@ export const navSections: NavSection[] = [
             href: "/admin/recursos",
             label: "Recursos",
             icon: "boxicons:link-filled",
+          },
+          {
+            href: "/admin/usuarios",
+            label: "Usuarios",
+            icon: "boxicons:group-filled",
           },
           {
             href: "/admin/operadores",

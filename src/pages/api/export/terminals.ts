@@ -22,6 +22,7 @@ export const GET: APIRoute = async () => {
       "NIS Alternativo",
       "Último Contacto",
       "Sincronizado El",
+      "Texto de Búsqueda",
     ];
 
     const rows = data.map((terminal) => [
@@ -39,6 +40,7 @@ export const GET: APIRoute = async () => {
       terminal.nis2,
       terminal.lastContact,
       terminal.syncedAt,
+      terminal.searchableText,
     ]);
 
     const csvStr = generateCsv(headers, rows);

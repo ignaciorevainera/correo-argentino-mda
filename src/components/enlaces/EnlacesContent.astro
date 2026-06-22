@@ -6,9 +6,12 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import CategoryCard from "@/pages/recursos/_components/CategoryCard.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { db } from "@/db";
+import { resourceCategories } from "@/db/schema";
+import { asc } from "drizzle-orm";
 import type { CategoryTone, CategoryViewModel } from "@/pages/recursos/_components/types";
 
 const rawCategories = await db.query.resourceCategories.findMany({
+  orderBy: [asc(resourceCategories.sortOrder), asc(resourceCategories.title)],
   with: {
     links: true,
   },
@@ -16,7 +19,7 @@ const rawCategories = await db.query.resourceCategories.findMany({
 
 const importantCategories = rawCategories.map(
   (category): CategoryViewModel => ({
-    id: category.id,
+    id: String(category.id),
     category: category.title,
     icon: category.iconName as unknown as `boxicons:${string}`,
     tone: (category.tone || "primary") as CategoryTone,
@@ -31,6 +34,7 @@ const importantCategories = rawCategories.map(
       })
       .map((link) => ({
         ...link,
+        id: String(link.id),
         subtitle: link.subtitle ?? undefined,
         iconPath: link.iconPath ?? undefined,
         deprecated: link.deprecated ?? false,
@@ -103,6 +107,21 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 </PageContainer>
 
 <script>
+  const debounce = <T extends (...args: any[]) => void>(
+    func: T,
+    delay: number,
+  ): ((...args: Parameters<T>) => void) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    return (...args: Parameters<T>) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
+
   const normalizeSearchValue = (value: string): string =>
     value
       .toLowerCase()
@@ -129,14 +148,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     }
 
     if (query.length === 0) {
-      element.textContent = originalText;
+      if (element.textContent !== originalText) {
+        element.textContent = originalText;
+      }
       return;
     }
 
     const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
 
     if (!matcher.test(originalText)) {
-      element.textContent = originalText;
+      if (element.textContent !== originalText) {
+        element.textContent = originalText;
+      }
       return;
     }
 
@@ -145,12 +168,14 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       .split(matcher)
       .map((chunk, index) =>
         index % 2 === 1
-          ? `<mark class=\"rounded bg-warning/30 px-0.5 text-base-content\">${escapeHtml(chunk)}</mark>`
+          ? `<mark class="rounded bg-warning/30 px-0.5 text-base-content">${escapeHtml(chunk)}</mark>`
           : escapeHtml(chunk),
       )
       .join("");
 
-    element.innerHTML = highlighted;
+    if (element.innerHTML !== highlighted) {
+      element.innerHTML = highlighted;
+    }
   };
 
   const searchInput = document.getElementById(
@@ -166,10 +191,24 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     document.querySelectorAll<HTMLElement>("[data-link-category]"),
   );
 
+  let isFiltered = false;
+  let currentSearchId = 0;
+
   const updateVisibleLinks = (): void => {
     const rawSearchValue = searchInput?.value.trim() ?? "";
     const query = normalizeSearchValue(rawSearchValue);
+
+    if (query.length === 0 && !isFiltered) {
+      return;
+    }
+
+    currentSearchId++;
+    const searchId = currentSearchId;
+
+    isFiltered = query.length > 0;
     let visibleLinks = 0;
+
+    const itemsToHighlight: { element: HTMLElement; query: string }[] = [];
 
     categoryCards.forEach((categoryCard) => {
       const categorySearch = normalizeSearchValue(
@@ -194,7 +233,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         );
 
         itemTargets.forEach((target) => {
-          highlightText(target, isVisible ? rawSearchValue : "");
+          itemsToHighlight.push({
+            element: target,
+            query: isVisible ? rawSearchValue : "",
+          });
         });
 
         if (isVisible) {
@@ -203,28 +245,53 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         }
       });
 
-      categoryCard.classList.toggle("hidden", visibleCategoryLinks === 0);
+      const isCategoryVisible = visibleCategoryLinks > 0;
+      categoryCard.classList.toggle("hidden", !isCategoryVisible);
 
       const categoryTitle = categoryCard.querySelector<HTMLElement>(
         "header [data-highlight-target]",
       );
 
       if (categoryTitle) {
-        highlightText(
-          categoryTitle,
-          visibleCategoryLinks > 0 ? rawSearchValue : "",
-        );
+        itemsToHighlight.push({
+          element: categoryTitle,
+          query: isCategoryVisible ? rawSearchValue : "",
+        });
       }
     });
 
     linksGrid?.classList.toggle("hidden", visibleLinks === 0);
     emptyState?.classList.toggle("hidden", visibleLinks > 0);
     emptyState?.classList.toggle("flex", visibleLinks === 0);
+
+    let index = 0;
+    const CHUNK_SIZE = 30;
+
+    const processChunk = () => {
+      if (searchId !== currentSearchId) {
+        return;
+      }
+
+      const limit = Math.min(index + CHUNK_SIZE, itemsToHighlight.length);
+      for (; index < limit; index++) {
+        const item = itemsToHighlight[index];
+        highlightText(item.element, item.query);
+      }
+
+      if (index < itemsToHighlight.length) {
+        requestAnimationFrame(() => setTimeout(processChunk, 0));
+      }
+    };
+
+    processChunk();
   };
 
-  searchInput?.addEventListener("input", () => {
-    updateVisibleLinks();
-  });
+  const debouncedUpdate = debounce(updateVisibleLinks, 150);
 
-  updateVisibleLinks();
+  searchInput?.addEventListener("input", debouncedUpdate);
+
+  // Initialize only if there's a pre-filled value
+  if (searchInput && searchInput.value.trim().length > 0) {
+    updateVisibleLinks();
+  }
 </script>

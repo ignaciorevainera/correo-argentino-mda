@@ -22,9 +22,13 @@ import { and, eq } from "drizzle-orm";
 import { getShiftType } from "@lib/cubics";
 import OperatorAvatar from "@components/cubics/OperatorAvatar.astro";
 import { isAllowed } from "@lib/rolesMatrix";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 
 const user = Astro.locals.user;
-const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
+const isAllowedAdmin = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
 
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
@@ -264,7 +268,7 @@ const inventoryTabs = [
           title="Limpiar todos los filtros"
         >
           <Icon name="boxicons:trash" class="size-4" />
-          Limpiar Filtros
+          Limpiar filtros
         </button>
       </div>
 
@@ -313,29 +317,46 @@ const inventoryTabs = [
             title="Limpiar todos los filtros"
           >
             <Icon name="boxicons:trash" class="size-4" />
-            Limpiar Filtros
+            Limpiar filtros
           </button>
         </div>
 
-        <aside
-          class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
-          aria-label="Resumen de conectividad"
-        >
-          <div
-            class="card-body flex-row items-center justify-between sm:justify-start gap-2 px-3 py-2"
+        <div class="flex flex-row gap-3 items-center">
+          <aside
+            class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
+            aria-label="Resumen de conectividad"
           >
-            <p
-              class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
+            <div
+              class="card-body flex-row items-center justify-between sm:justify-start gap-2 px-3 py-2"
             >
-              Conectividad
-            </p>
-            <div class="flex items-center gap-2">
-              <span class="badge badge-success font-mono"
-                >{onlineCount}/{totalMachines}</span
+              <p
+                class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
               >
+                Conectividad
+              </p>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-success font-mono"
+                  >{onlineCount}/{totalMachines}</span
+                >
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+          {
+            isAllowedAdmin && (
+              <div>
+                <a
+                  href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/create`}
+                  class="btn btn-secondary font-semibold shadow-sm shrink-0 gap-2"
+                  aria-label="Registrar nueva cubic"
+                >
+                  <Icon name="boxicons:plus" class="size-4" />
+                  <span class="hidden sm:inline">Registrar cubic</span>
+                  <span class="sm:hidden">Registrar</span>
+                </a>
+              </div>
+            )
+          }
+        </div>
       </div>
     </div>
 
@@ -470,17 +491,6 @@ const inventoryTabs = [
   </div>
 
   <div id="view-cubics" class="hidden space-y-6 mt-6">
-    {isAllowedAdmin && (
-      <div class="flex justify-end">
-        <a
-          href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/create`}
-          class="btn btn-secondary btn-sm gap-2"
-        >
-          <Icon name="boxicons:plus" class="size-4" />
-          Registrar Cubic
-        </a>
-      </div>
-    )}
     <section class="space-y-3">
       <DataTable
         id="table-cubics"
@@ -501,11 +511,13 @@ const inventoryTabs = [
         <div slot="header" class={assignedSpan}>
           <DataTableHeaderCell>Asignado a</DataTableHeaderCell>
         </div>
-        {isAllowedAdmin && (
-          <div slot="header" class={actionsSpan}>
-            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
-          </div>
-        )}
+        {
+          isAllowedAdmin && (
+            <div slot="header" class={actionsSpan}>
+              <DataTableHeaderCell>Acciones</DataTableHeaderCell>
+            </div>
+          )
+        }
 
         {
           cubicMachines.map((machine) => {
@@ -629,27 +641,25 @@ const inventoryTabs = [
                   </div>
                 </div>
                 {isAllowedAdmin && (
-                  <div class={actionsSpan + " min-w-0 flex items-center justify-end gap-1.5"}>
-                    <a
+                  <div
+                    class={
+                      actionsSpan +
+                      " min-w-0 flex items-center justify-end gap-2"
+                    }
+                  >
+                    <ActionEditButton
                       href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/edit/${machine.id}`}
-                      class="btn btn-xs btn-outline btn-warning"
-                      title="Editar"
-                    >
-                      <Icon name="boxicons:edit-alt" class="size-3.5" />
-                    </a>
+                      ariaLabel={`Editar cubic ${machine.name}`}
+                    />
                     <form
                       method="POST"
                       action={`${import.meta.env.BASE_URL}inventario-terminales/cubics/edit/${machine.id}/eliminar`}
                       class="inline"
                       onsubmit={`return confirm('¿Estás seguro de que deseas dar de baja el ordenador "${machine.name}"?');`}
                     >
-                      <button
-                        type="submit"
-                        class="btn btn-xs btn-outline btn-error"
-                        title="Eliminar"
-                      >
-                        <Icon name="boxicons:trash" class="size-3.5" />
-                      </button>
+                      <ActionDeleteButton
+                        ariaLabel={`Eliminar cubic ${machine.name}`}
+                      />
                     </form>
                   </div>
                 )}
@@ -1029,8 +1039,6 @@ const inventoryTabs = [
       }
     });
   });
-
-
 
   function bindSorting(tableId: string, rows: HTMLElement[]) {
     const table = document.getElementById(tableId);

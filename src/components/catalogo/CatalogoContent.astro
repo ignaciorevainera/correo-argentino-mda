@@ -6,7 +6,7 @@ import CatalogAppCard from "@/pages/recursos/aplicativos/_components/CatalogAppC
 import CatalogBundleBanner from "@/pages/recursos/aplicativos/_components/CatalogBundleBanner.astro";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 interface AppRow {
   id: number;
@@ -42,7 +42,7 @@ try {
     );
 
   allApps = rawApps as AppRow[];
-  categories = await db.select().from(applicationCategories) as any;
+  categories = await db.select().from(applicationCategories).orderBy(asc(applicationCategories.sortOrder), asc(applicationCategories.title)) as any;
 } catch (error: any) {
   errorMsg = "No se pudo cargar el catálogo. Intentá de nuevo más tarde.";
 }

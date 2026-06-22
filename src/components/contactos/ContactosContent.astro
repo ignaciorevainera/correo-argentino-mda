@@ -8,9 +8,12 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { db } from "@/db";
+import { asc } from "drizzle-orm";
+import { contactCategories } from "@/db/schema";
 import type { UsefulContactCategory } from "@/types/contactos";
 
 const usefulContactCategories = (await db.query.contactCategories.findMany({
+  orderBy: [asc(contactCategories.sortOrder), asc(contactCategories.title)],
   with: {
     contacts: true,
   },
@@ -60,10 +63,22 @@ const themeByTone: Record<UsefulContactCategory["tone"], CategoryTheme> = {
     topBorderClass: "border-t-warning",
     badgeClass: "badge-warning",
   },
+  error: {
+    iconContainerClass: "border-error bg-error text-error-content",
+    headerClass: "bg-error/10",
+    topBorderClass: "border-t-error",
+    badgeClass: "badge-error",
+  },
+  neutral: {
+    iconContainerClass: "border-neutral bg-neutral text-neutral-content",
+    headerClass: "bg-neutral/10",
+    topBorderClass: "border-t-neutral",
+    badgeClass: "badge-neutral",
+  },
 };
 
 const getCategoryTheme = (category: UsefulContactCategory): CategoryTheme =>
-  themeByTone[category.tone];
+  themeByTone[category.tone] ?? themeByTone.primary;
 
 const getCategorySearchText = (category: UsefulContactCategory): string =>
   category.contacts
@@ -281,6 +296,7 @@ const contactRowGridClass =
                                 variant="icon"
                                 appearance="ghost"
                                 size="xs"
+                                showTooltip={false}
                                 ariaLabel={`Copiar teléfono ${phone}`}
                                 class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                               />
@@ -319,6 +335,7 @@ const contactRowGridClass =
                                 variant="icon"
                                 appearance="ghost"
                                 size="xs"
+                                showTooltip={false}
                                 ariaLabel={`Copiar correo ${email}`}
                                 class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                               />
@@ -363,6 +380,7 @@ const contactRowGridClass =
                                 variant="icon"
                                 appearance="ghost"
                                 size="xs"
+                                showTooltip={false}
                                 class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                                 ariaLabel={`Copiar link ${resource.label} de ${contact.service}`}
                               />

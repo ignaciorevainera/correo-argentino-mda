@@ -22,7 +22,9 @@ import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
 
 const user = Astro.locals.user;
-const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
+const isAllowedAdmin = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -163,10 +165,7 @@ const uniqueRegions = [
   ),
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
-const allRegions = await db
-  .select()
-  .from(regions)
-  .orderBy(regions.name);
+const allRegions = await db.select().from(regions).orderBy(regions.name);
 
 const allZonesRaw = await db
   .select({ zone: offices.zone })
@@ -331,7 +330,7 @@ const mainTabs = [
           title="Limpiar todos los filtros"
         >
           <Icon name="boxicons:trash" class="size-4" />
-          Limpiar Filtros
+          Limpiar filtros
         </a>
       </div>
 
@@ -355,17 +354,19 @@ const mainTabs = [
           <span class="hidden sm:inline">Exportar CSV</span>
           <span class="sm:hidden">CSV</span>
         </a>
-        {isAllowedAdmin && (
-          <a
-            href={`${import.meta.env.BASE_URL}oficinas/create`}
-            class="btn btn-secondary font-semibold shadow-sm shrink-0 gap-2"
-            aria-label="Registrar nueva oficina"
-          >
-            <Icon name="boxicons:plus" class="size-5" />
-            <span class="hidden sm:inline">Registrar Oficina</span>
-            <span class="sm:hidden">Registrar</span>
-          </a>
-        )}
+        {
+          isAllowedAdmin && (
+            <a
+              href={`${import.meta.env.BASE_URL}oficinas/create`}
+              class="btn btn-secondary font-semibold shadow-sm shrink-0 gap-2"
+              aria-label="Registrar nueva oficina"
+            >
+              <Icon name="boxicons:plus" class="size-5" />
+              <span class="hidden sm:inline">Registrar oficina</span>
+              <span class="sm:hidden">Registrar</span>
+            </a>
+          )
+        }
       </div>
     </form>
 
@@ -401,11 +402,13 @@ const mainTabs = [
               >Dirección</DataTableHeaderCell
             >
           </div>
-          {isAllowedAdmin && (
-            <div slot="header">
-              <DataTableHeaderCell>Acciones</DataTableHeaderCell>
-            </div>
-          )}
+          {
+            isAllowedAdmin && (
+              <div slot="header">
+                <DataTableHeaderCell>Acciones</DataTableHeaderCell>
+              </div>
+            )
+          }
           {officeDirectoryItems.map((office) => <OfficeRow office={office} />)}
         </MasterDetailTable>
       </div>
@@ -462,11 +465,21 @@ const mainTabs = [
         <div id="map-controls" class="flex flex-col gap-6 shrink-0">
           <div class="flex flex-col gap-3">
             <label class="label cursor-pointer justify-start gap-3 px-0">
-              <input type="checkbox" class="toggle toggle-primary" checked id="chk-polygons" />
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                checked
+                id="chk-polygons"
+              />
               <span class="label-text font-medium">Regiones</span>
             </label>
             <label class="label cursor-pointer justify-start gap-3 px-0">
-              <input type="checkbox" class="toggle toggle-primary" checked id="chk-labels" />
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                checked
+                id="chk-labels"
+              />
               <span class="label-text font-medium">Códigos</span>
             </label>
           </div>
@@ -483,7 +496,7 @@ const mainTabs = [
                   <span
                     class="size-4 rounded-sm shrink-0"
                     style={`background-color: ${r.color}`}
-                  ></span>
+                  />
                   <span class="text-sm font-medium">{r.name}</span>
                 </div>
               ))
@@ -597,7 +610,9 @@ const mainTabs = [
         masterRow.classList.toggle("bg-base-200/70", newExpanded);
         masterRow.setAttribute("aria-expanded", newExpanded ? "true" : "false");
 
-        const openIcon = masterRow.querySelector<HTMLElement>("[data-chevron-open]");
+        const openIcon = masterRow.querySelector<HTMLElement>(
+          "[data-chevron-open]",
+        );
         const closedIcon = masterRow.querySelector<HTMLElement>(
           "[data-chevron-closed]",
         );
@@ -704,8 +719,6 @@ const mainTabs = [
     }
   };
 
-
-
   let map: any = null;
   const initializeMap = async () => {
     if (map) return;
@@ -778,8 +791,12 @@ const mainTabs = [
 
     const regionLayers: Record<string, any[]> = {};
 
-    const chkPolygons = document.getElementById("chk-polygons") as HTMLInputElement | null;
-    const chkLabels = document.getElementById("chk-labels") as HTMLInputElement | null;
+    const chkPolygons = document.getElementById(
+      "chk-polygons",
+    ) as HTMLInputElement | null;
+    const chkLabels = document.getElementById(
+      "chk-labels",
+    ) as HTMLInputElement | null;
 
     if (chkPolygons) {
       chkPolygons.addEventListener("change", () => {
@@ -918,7 +935,10 @@ const mainTabs = [
 
         const legendEl = document.getElementById("map-legend");
         if (legendEl) {
-          const highlightRegion = (regionName: string | undefined, highlight: boolean) => {
+          const highlightRegion = (
+            regionName: string | undefined,
+            highlight: boolean,
+          ) => {
             if (!regionName || !regionLayers[regionName]) return;
             regionLayers[regionName].forEach((layer: any) => {
               if (highlight) {
@@ -926,7 +946,8 @@ const mainTabs = [
                 layer.bringToFront();
               } else {
                 const name = layer.feature?.properties?.nombre;
-                const opacity = name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15;
+                const opacity =
+                  name === "Ciudad Autónoma de Buenos Aires" ? 0.35 : 0.15;
                 layer.setStyle({ fillOpacity: opacity, weight: 1.5 });
               }
             });
@@ -935,13 +956,19 @@ const mainTabs = [
           legendEl.addEventListener("mouseover", (e) => {
             const item = (e.target as HTMLElement).closest(".legend-item");
             if (!item) return;
-            highlightRegion(item.getAttribute("data-region") ?? undefined, true);
+            highlightRegion(
+              item.getAttribute("data-region") ?? undefined,
+              true,
+            );
           });
 
           legendEl.addEventListener("mouseout", (e) => {
             const item = (e.target as HTMLElement).closest(".legend-item");
             if (!item) return;
-            highlightRegion(item.getAttribute("data-region") ?? undefined, false);
+            highlightRegion(
+              item.getAttribute("data-region") ?? undefined,
+              false,
+            );
           });
         }
       });
@@ -964,11 +991,13 @@ const mainTabs = [
     } else if (value === "map") {
       mainViewDir?.classList.add("hidden");
       mainViewMap?.classList.remove("hidden");
-      initializeMap().then(() => {
-        if (map) map.invalidateSize();
-      }).catch((err) => {
-        console.error("Error initializing map:", err);
-      });
+      initializeMap()
+        .then(() => {
+          if (map) map.invalidateSize();
+        })
+        .catch((err) => {
+          console.error("Error initializing map:", err);
+        });
     }
   });
 

@@ -8,6 +8,8 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import { Icon } from "astro-icon/components";
+import ActionEditButton from "@/components/ui/ActionEditButton.astro";
+import ActionDeleteButton from "@/components/ui/ActionDeleteButton.astro";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -24,7 +26,7 @@ let filteredCategories: any[] = [];
 const dbCategories = await db
   .select()
   .from(contactCategories)
-  .orderBy(contactCategories.title);
+  .orderBy(asc(contactCategories.sortOrder), asc(contactCategories.title));
 
 dbCategories.forEach((cat) => {
   const t = cat.title.toLowerCase();
@@ -86,7 +88,7 @@ contacts.forEach((contact) => {
     <div class="flex gap-2 shrink-0">
       <a href={resolveUrl("/admin/contactos/categoria/create")} class="btn btn-outline btn-sm gap-2">
         <Icon name="boxicons:folder-plus" size={16} />
-        Nueva Categoría
+        Nueva categoría
       </a>
       <a
         id="btn-add-contact"
@@ -94,7 +96,7 @@ contacts.forEach((contact) => {
         class="btn btn-primary btn-sm gap-2"
       >
         <Icon name="boxicons:plus" size={16} />
-        Nuevo Contacto
+        Nuevo contacto
       </a>
     </div>
   </div>
@@ -142,8 +144,12 @@ contacts.forEach((contact) => {
                   data-category-tone={cat.tone}
                   data-category-title={cat.title}
                   data-category-dropzone
+                  draggable="true"
                 >
                   <div class="flex items-center gap-2.5 min-w-0 grow">
+                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 cursor-grab active:cursor-grabbing text-base-content/20 hover:text-base-content/40 transition-colors opacity-0 group-hover:opacity-100 category-drag-handle">
+                      <Icon name="boxicons:menu" size={18} />
+                    </div>
                     <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors[cat.tone] || toneColors.primary}`}>
                       <Icon name={cat.icon || "boxicons:folder"} size={18} />
                     </div>
@@ -289,27 +295,20 @@ contacts.forEach((contact) => {
                     </div>
 
                     <!-- Acciones -->
-                    <div class="flex items-center justify-end gap-1">
-                      <a
+                    <div class="flex items-center justify-end gap-2">
+                      <ActionEditButton
                         href={resolveUrl(`/admin/contactos/edit/${contact.id}`)}
-                        class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary hover:bg-primary/10"
-                        title="Editar Contacto"
-                      >
-                        <Icon name="boxicons:pencil" size={16} />
-                      </a>
+                        ariaLabel={`Editar contacto ${contact.provider}`}
+                      />
                       <form
                         method="POST"
                         action={resolveUrl(`/admin/contactos/edit/${contact.id}/eliminar`)}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este contacto?');"
                       >
-                        <button
-                          type="submit"
-                          class="btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-error hover:bg-error/10"
-                          title="Eliminar Contacto"
-                        >
-                          <Icon name="boxicons:trash" size={16} />
-                        </button>
+                        <ActionDeleteButton
+                          ariaLabel={`Eliminar contacto ${contact.provider}`}
+                        />
                       </form>
                     </div>
                   </div>
@@ -611,6 +610,10 @@ contacts.forEach((contact) => {
       if (targetCategoryId === "all") return;
       zone.classList.remove("bg-base-300", "scale-[1.02]");
 
+      // If a category is being dragged, skip item categorization
+      const categoryId = e.dataTransfer?.getData("text/category-id");
+      if (categoryId) return;
+
       const contactId = e.dataTransfer?.getData("text/plain");
 
       if (!contactId || !targetCategoryId || !draggedRow) return;
@@ -688,6 +691,101 @@ contacts.forEach((contact) => {
       (window as any).showToast?.("Error al guardar el nuevo orden de los contactos", "alert-error");
     } finally {
       if (reorderSpinner) reorderSpinner.classList.add("hidden");
+    }
+  };
+
+  // ----------------------------------------------------
+  // Drag and Drop: Reorder categories in sidebar
+  // ----------------------------------------------------
+  let draggedCategoryItem: HTMLElement | null = null;
+
+  const categoryDragItems = Array.from(
+    document.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+  );
+
+  categoryDragItems.forEach(item => {
+    item.addEventListener("dragstart", (e) => {
+      const catId = item.dataset.categoryId;
+      if (catId === "all" || catId === "uncategorized") {
+        e.preventDefault();
+        return;
+      }
+      draggedCategoryItem = item;
+      item.classList.add("opacity-40");
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/category-id", catId || "");
+      }
+    });
+
+    item.addEventListener("dragend", () => {
+      item.classList.remove("opacity-40");
+      draggedCategoryItem = null;
+    });
+
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedCategoryItem || draggedCategoryItem === item) return;
+      const targetCatId = item.dataset.categoryId;
+      const draggedCatId = draggedCategoryItem.dataset.categoryId;
+      if (targetCatId === "all" || targetCatId === "uncategorized" || draggedCatId === "all" || draggedCatId === "uncategorized") return;
+
+      const bounding = item.getBoundingClientRect();
+      const offset = e.clientY - bounding.top - bounding.height / 2;
+
+      const categoriesList = document.getElementById("categories-list");
+      if (categoriesList) {
+        if (offset < 0) {
+          categoriesList.insertBefore(draggedCategoryItem, item);
+        } else {
+          categoriesList.insertBefore(draggedCategoryItem, item.nextSibling);
+        }
+      }
+    });
+
+    item.addEventListener("drop", (e) => {
+      e.preventDefault();
+      saveReorderedCategories();
+    });
+  });
+
+  const saveReorderedCategories = async () => {
+    try {
+      const categoriesList = document.getElementById("categories-list");
+      if (!categoriesList) return;
+
+      const categoryEls = Array.from(
+        categoriesList.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+      );
+
+      const items: { id: number; sortOrder: number }[] = [];
+      let index = 0;
+
+      categoryEls.forEach(el => {
+        const catId = el.dataset.categoryId;
+        if (catId === "all" || catId === "uncategorized") return;
+        const id = parseInt(catId || "0");
+        if (!id) return;
+        items.push({ id, sortOrder: index * 10 });
+        index++;
+      });
+
+      if (items.length === 0) return;
+
+      const base = import.meta.env.BASE_URL || "/";
+      const cleanBase = base.endsWith("/") ? base : base + "/";
+
+      const response = await fetch(`${cleanBase}api/admin/contactos/reorder-categorias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+
+      if (!response.ok) throw new Error("Error de red");
+      (window as any).showToast?.("Categorías reordenadas con éxito", "alert-success");
+    } catch (err) {
+      console.error(err);
+      (window as any).showToast?.("Error al guardar el nuevo orden de categorías", "alert-error");
     }
   };
 
