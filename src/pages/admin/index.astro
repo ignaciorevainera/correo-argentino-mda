@@ -23,19 +23,36 @@ const resolveUrl = (path: string) => {
   return `${cleanBase}${cleanPath}`;
 };
 
-const modules: AdminModule[] = [
+const modulesGroup1: AdminModule[] = [
+  {
+    title: "Usuarios",
+    icon: "boxicons:group-filled",
+    iconTone: "text-secondary",
+    href: "/admin/usuarios",
+    active: true,
+  },
+  {
+    title: "Auditoría",
+    icon: "boxicons:history",
+    iconTone: "text-neutral",
+    href: "/admin/auditoria",
+    active: true,
+  },
+];
+
+const modulesGroup2: AdminModule[] = [
+  {
+    title: "Operadores",
+    icon: "boxicons:user-id-card-filled",
+    iconTone: "text-error",
+    href: "/admin/operadores",
+    active: true,
+  },
   {
     title: "Títulos",
     icon: "boxicons:list-ul-filled",
     iconTone: "text-base-content/30",
     active: false,
-  },
-  {
-    title: "Contactos",
-    icon: "boxicons:phone-filled",
-    iconTone: "text-primary",
-    href: "/admin/contactos",
-    active: true,
   },
   {
     title: "Recursos",
@@ -52,30 +69,10 @@ const modules: AdminModule[] = [
     active: true,
   },
   {
-    title: "Usuarios",
-    icon: "boxicons:group-filled",
-    iconTone: "text-secondary",
-    href: "/admin/usuarios",
-    active: true,
-  },
-  {
-    title: "Operadores",
-    icon: "boxicons:user-id-card-filled",
-    iconTone: "text-error",
-    href: "/admin/operadores",
-    active: true,
-  },
-  {
-    title: "Alertas globales",
-    icon: "boxicons:bell-ring-filled",
-    iconTone: "text-base-content/30",
-    active: false,
-  },
-  {
-    title: "Auditoría",
-    icon: "boxicons:history",
-    iconTone: "text-neutral",
-    href: "/admin/auditoria",
+    title: "Contactos",
+    icon: "boxicons:phone-filled",
+    iconTone: "text-primary",
+    href: "/admin/contactos",
     active: true,
   },
 ];
@@ -94,8 +91,11 @@ const modules: AdminModule[] = [
       class="card bg-base-100 border border-base-300 divide-y divide-base-200 overflow-hidden"
     >
       {
-        modules.map((mod) => {
-          const isLocked = (mod.href === "/admin/usuarios" || mod.href === "/admin/auditoria") && user.role !== "admin";
+        modulesGroup1.map((mod) => {
+          const isLocked =
+            (mod.href === "/admin/usuarios" ||
+              mod.href === "/admin/auditoria") &&
+            user.role !== "admin";
 
           if (mod.active && mod.href && !isLocked) {
             return (
@@ -149,6 +149,61 @@ const modules: AdminModule[] = [
                     Pronto
                   </span>
                 )}
+              </div>
+            );
+          }
+        })
+      }
+    </div>
+
+    <div
+      class="card bg-base-100 border border-base-300 divide-y divide-base-200 overflow-hidden"
+    >
+      {
+        modulesGroup2.map((mod) => {
+          if (mod.active && mod.href) {
+            return (
+              <a
+                href={resolveUrl(mod.href)}
+                class="flex items-center gap-4 px-6 py-5 hover:bg-base-200 transition-colors duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                aria-label={`Ir a ${mod.title}`}
+              >
+                <Icon
+                  name={mod.icon}
+                  size={24}
+                  class:list={["shrink-0 transition-colors", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-base md:text-lg font-semibold text-base-content">
+                  {mod.title}
+                </span>
+                <Icon
+                  name="boxicons:arrow-right-stroke-circle-filled"
+                  size={22}
+                  class="text-base-content/30 group-hover:text-base-content/60 transition-colors duration-150"
+                  aria-hidden="true"
+                />
+              </a>
+            );
+          } else {
+            return (
+              <div
+                aria-disabled="true"
+                title="Próximamente"
+                class="flex items-center gap-4 px-6 py-5 opacity-40 cursor-not-allowed select-none"
+              >
+                <Icon
+                  name={mod.icon}
+                  size={24}
+                  class:list={["shrink-0", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-base md:text-lg font-semibold text-base-content">
+                  {mod.title}
+                </span>
+                <span class="badge badge-ghost badge-sm font-medium">
+                  Pronto
+                </span>
               </div>
             );
           }
