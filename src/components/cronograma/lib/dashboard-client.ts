@@ -109,6 +109,27 @@ function getNextSaturdayForGroup(targetGroup: string): string | null {
   if (N === 0) return null;
   if (!groups.includes(targetGroup)) return null;
 
+  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const activeMonthPrefix = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+  const [yearStr, monthStr] = activeMonthPrefix.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10) - 1;
+
+  const daysInMonth = getDaysInMonth(year, month);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    if (date.getDay() === 6) {
+      const y = date.getFullYear();
+      const mStr = String(date.getMonth() + 1).padStart(2, '0');
+      const dStr = String(date.getDate()).padStart(2, '0');
+      const satStr = `${y}-${mStr}-${dStr}`;
+      if (getActiveGroupForDate(satStr) === targetGroup) {
+        return satStr;
+      }
+    }
+  }
+
+  // Fallback to original calculation
   const start = new Date(startDate + "T12:00:00");
   const startIndex = groups.indexOf(startGroup);
   const targetIndex = groups.indexOf(targetGroup);
@@ -348,15 +369,15 @@ function updateNavigationButtons(): void {
 
 function updateGroupsActiveMonthBadge(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-  const badge = document.getElementById('groups-active-month-badge');
-  if (badge && dateInput && dateInput.value) {
+  const textEl = document.getElementById('groups-active-month-text');
+  if (textEl && dateInput && dateInput.value) {
     const currentYM = dateInput.value.slice(0, 7);
     const [yearStr, monthStr] = currentYM.split('-');
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10) - 1;
     const dateObj = new Date(year, month, 15);
     const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-    badge.innerText = `Mes: ${formatter.format(dateObj)}`;
+    textEl.innerText = `Mes: ${formatter.format(dateObj)}`;
   }
 }
 
@@ -385,7 +406,8 @@ function updateMonthDisplay(): void {
 
 function renderMonthDropdown(): void {
   const list = document.getElementById('month-dropdown-list');
-  if (!list) return;
+  const groupsList = document.getElementById('groups-month-dropdown-list');
+  if (!list && !groupsList) return;
 
   let html = '';
   state.uniqueMonths.forEach(ymStr => {
@@ -405,22 +427,26 @@ function renderMonthDropdown(): void {
     `;
   });
 
-  list.innerHTML = html;
+  if (list) list.innerHTML = html;
+  if (groupsList) groupsList.innerHTML = html;
 
   // Attach click listeners
-  list.querySelectorAll('[data-month-val]').forEach(item => {
-    item.addEventListener('click', (e) => {
-      const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
-      if (val) {
-        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-        if (dateInput) {
-          dateInput.value = val;
-          updateDateInputDisplay();
-          reloadDataForActiveMonth(val.slice(0, 7));
+  const allDropdowns = [list, groupsList].filter(Boolean) as HTMLElement[];
+  allDropdowns.forEach(dropdown => {
+    dropdown.querySelectorAll('[data-month-val]').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
+        if (val) {
+          const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+          if (dateInput) {
+            dateInput.value = val;
+            updateDateInputDisplay();
+            reloadDataForActiveMonth(val.slice(0, 7));
+          }
         }
-      }
-      // Force close dropdown by blurring active element
-      (document.activeElement as HTMLElement | null)?.blur();
+        // Force close dropdown by blurring active element
+        (document.activeElement as HTMLElement | null)?.blur();
+      });
     });
   });
 }
@@ -1175,7 +1201,7 @@ function renderMonthly(): void {
     return;
   }
 
-  const container = document.getElementById('cronograma-container');
+  const container = document.getElementById('cronograma-app-container');
   const userRole = container?.dataset.userRole || 'agent';
   const isReadOnly = ['agent', 'referent'].includes(userRole);
   const hideComments = isReadOnly;
@@ -1351,7 +1377,7 @@ function renderMonthly(): void {
       </td>
     </tr>`;
   } else {
-    sortedOps.forEach(op => {
+    sortedOps.forEach((op, opIdx) => {
       const stats = { P: 0, HO: 0, L: 0 };
       const username = op.username || '';
       dates.forEach(d => {
@@ -1466,9 +1492,15 @@ function renderMonthly(): void {
         const otAttr = dayOvertime ? `data-overtime="${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}"` : '';
 
         if (isFrancoCell) {
-          let francoBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center relative ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
+          let francoBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center relative hover:z-[60] ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
           if (isHoliday) {
             francoBtnClass += " line-through opacity-60 !bg-orange-200/60 dark:!bg-orange-600/60 !border-orange-300 dark:!border-orange-500";
+          }
+          let tooltipAttrs = '';
+          if (dayOvertime) {
+            const tooltipDir = opIdx === 0 ? 'tooltip-bottom' : 'tooltip-top';
+            francoBtnClass += ` tooltip ${tooltipDir} tooltip-neutral`;
+            tooltipAttrs = `data-tip="HE: ${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}"`;
           }
           let francoAria = `Ver detalle de ${safeName} el ${safeDate}: Franco`;
           if (isHoliday && pd.feriadoName) {
@@ -1490,7 +1522,8 @@ function renderMonthly(): void {
               data-break-fin="${escapeHtml(breakFin)}"
               aria-label="${francoAria}"
               ${otAttr}
-              ${isHoliday && pd.feriadoName ? `title="Franco (Feriado: ${pd.feriadoName})"` : ''}
+              ${(isHoliday && pd.feriadoName && !dayOvertime) ? `title="Franco (Feriado: ${pd.feriadoName})"` : ''}
+              ${tooltipAttrs}
             >
               ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight">HE: ${dayOvertime.startTime}</span>` : ''}
               ${hasComment ? `<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ${dayOvertime ? 'mt-0.5' : ''}" title="Tiene comentario"></div>` : ''}
@@ -1506,8 +1539,15 @@ function renderMonthly(): void {
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
 
-        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-[60] relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
         
+        let tooltipAttrs = '';
+        if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios || status === OperatorStatus.HomeOffice) {
+          const tooltipDir = opIdx === 0 ? 'tooltip-bottom' : 'tooltip-top';
+          statusBtnClass += ` tooltip ${tooltipDir} tooltip-neutral`;
+          tooltipAttrs = `data-tip="${safeHorario}"`;
+        }
+
         const dateObj = new Date(date + "T12:00:00");
         const isSaturday = dateObj.getDay() === 6;
         const activeGroup = getActiveGroupForDate(date);
@@ -1536,7 +1576,7 @@ function renderMonthly(): void {
             <button
               type="button"
               class="${statusBtnClass}"
-              title="${statusTitle}"
+              ${tooltipAttrs ? '' : `title="${statusTitle}"`}
               data-monthly-detail
               data-operator="${safeName}"
               data-date="${safeDate}"
@@ -1549,6 +1589,7 @@ function renderMonthly(): void {
               aria-label="${statusAria}"
               ${otAttr}
               ${isRotationCell ? `data-saturday-rotation="true" data-rotation-horario="${escapeHtml(op.saturdayHorario || '07:00 - 13:00')}"` : ''}
+              ${tooltipAttrs}
             >
               <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
               ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight mt-0.5 scale-90">HE: ${dayOvertime.startTime}</span>` : ''}
@@ -2529,23 +2570,29 @@ function setupEventListeners(): void {
   monthlySearch?.addEventListener('input', handleSearchInput);
   dailySearch?.addEventListener('input', handleSearchInput);
 
-  const monthlySort = document.getElementById('monthly-sort') as HTMLSelectElement | null;
-  const dailySort = document.getElementById('daily-sort') as HTMLSelectElement | null;
-
-  if (monthlySort) monthlySort.value = state.activeSort;
-  if (dailySort) dailySort.value = state.activeSort;
-
-  const handleSortChange = (e: Event) => {
-    const val = (e.target as HTMLSelectElement).value;
-    state.activeSort = val;
-    if (monthlySort && monthlySort !== e.target) monthlySort.value = val;
-    if (dailySort && dailySort !== e.target) dailySort.value = val;
-    renderMonthly();
-    renderDaily();
+  const syncSortDropdowns = (val: string) => {
+    const mLabel = document.getElementById('monthly-sort-label');
+    const dLabel = document.getElementById('daily-sort-label');
+    const opt = document.querySelector(`.sort-option[data-value="${val}"]`);
+    if (opt) {
+      const txt = opt.querySelector('span')?.textContent?.trim() || opt.textContent?.trim() || '';
+      if (mLabel) mLabel.textContent = `Ordenar: ${txt}`;
+      if (dLabel) dLabel.textContent = `Ordenar: ${txt}`;
+    }
   };
 
-  monthlySort?.addEventListener('change', handleSortChange);
-  dailySort?.addEventListener('change', handleSortChange);
+  syncSortDropdowns(state.activeSort);
+
+  document.querySelectorAll('.sort-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const val = opt.getAttribute('data-value') || 'alphabetical';
+      state.activeSort = val;
+      syncSortDropdowns(val);
+      (document.activeElement as HTMLElement)?.blur();
+      renderMonthly();
+      renderDaily();
+    });
+  });
 
   // Wire up filter buttons
   const filterAllBtn = document.getElementById('filter-all-btn');
@@ -2621,7 +2668,7 @@ function setupEventListeners(): void {
   let activeCell: HTMLElement | null = null;
 
   monthlyBody?.addEventListener('contextmenu', (e) => {
-    const container = document.getElementById('cronograma-container');
+    const container = document.getElementById('cronograma-app-container');
     const userRole = container?.dataset.userRole || 'agent';
     const isReadOnly = ['agent', 'referent'].includes(userRole);
     if (isReadOnly) return;
@@ -3452,8 +3499,8 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
   hoursContainer.innerHTML = `
     <div class="flex flex-col flex-1">
       <div class="flex border-b border-base-300/60">
-        <div style="width: ${satWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-warning/80 border-r border-base-300/50 py-1 px-2 bg-warning/5">Sábado (tarde)</div>
-        <div style="width: ${sunWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-info/80 py-1 px-2 bg-info/5">Domingo</div>
+        <div style="width: ${satWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 border-r border-base-300/50 py-1 px-2 bg-warning/5">Sábado (tarde)</div>
+        <div style="width: ${sunWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-info py-1 px-2 bg-info/5">Domingo</div>
       </div>
       <div class="flex">
         ${hours.map((h, i) => {
@@ -3522,7 +3569,7 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
       const cappedEndMin = Math.min(endMin, TOTAL_MINUTES);
       const lp = (startMin / TOTAL_MINUTES) * 100;
       const wp = ((cappedEndMin - startMin) / TOTAL_MINUTES) * 100;
-      return `<div class="absolute top-1 bottom-1 rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden cursor-pointer hover:bg-warning/95 overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" title="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><span class="text-micro font-black text-warning-content truncate px-1">${s.startTime}-${s.endTime}</span></div>`;
+      return `<div class="absolute top-1 bottom-1 rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden cursor-pointer hover:bg-warning/95 overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" title="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><span class="text-xxs font-black text-warning-content truncate px-1">${s.startTime}-${s.endTime}</span></div>`;
     }).join('');
     return `
       <div class="flex items-stretch min-h-[40px] border-b border-base-300/30 last:border-0">

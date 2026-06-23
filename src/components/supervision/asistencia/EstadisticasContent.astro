@@ -65,34 +65,38 @@ const initialData = await getAttendanceData(startDate, endDate);
         <canvas id="doughnut-chart"></canvas>
       </div>
     </div>
-    <!-- Bar Chart -->
-    <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 lg:col-span-2">
-      <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Tendencia Semanal de Puntualidad</h3>
-      <div class="relative w-full h-[220px]">
-        <canvas id="bar-chart"></canvas>
+    <!-- Bar Chart & Details Panel Container -->
+    <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden lg:col-span-2 relative">
+      <div id="slide-wrapper" class="flex w-[200%] transition-transform duration-500 ease-in-out">
+        <!-- Panel A: Bar Chart -->
+        <div class="w-1/2 p-5 flex flex-col gap-4 shrink-0">
+          <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Tendencia Semanal de Puntualidad</h3>
+          <div class="relative w-full h-[220px]">
+            <canvas id="bar-chart"></canvas>
+          </div>
+        </div>
+        <!-- Panel B: Eventuality Details -->
+        <div class="w-1/2 p-5 flex flex-col gap-4 shrink-0 bg-base-50/50">
+          <div class="flex items-center justify-between border-b border-base-200 pb-2">
+            <div class="flex items-center gap-2">
+              <span id="detail-color-indicator" class="w-3 h-3 rounded-full"></span>
+              <h3 id="detail-title" class="text-xs font-black uppercase tracking-wider text-base-content/80">Detalle de Eventualidad</h3>
+            </div>
+            <button id="close-detail-btn" class="btn btn-xs btn-ghost gap-1 font-bold text-base-content/60 hover:text-base-content hover:bg-base-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+              Volver al Gráfico
+            </button>
+          </div>
+          <div id="detail-content" class="overflow-y-auto max-h-[220px] pr-2 space-y-2 text-xs font-semibold text-base-content/85">
+            <!-- Dynamically populated list of operators & dates -->
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Ranking and Operator Profile Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-    <!-- Podio / Rankings -->
-    <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4">
-      <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Ranking de Puntualidad</h3>
-      <div class="flex flex-col gap-4">
-        <div>
-          <h4 class="text-xxs font-bold text-success uppercase tracking-wider mb-2">Puntualidad Perfecta 🏆</h4>
-          <ol id="ranking-top" class="list-decimal list-inside text-xs font-semibold flex flex-col gap-1.5 text-base-content/80"></ol>
-        </div>
-        <div class="border-t border-base-200 pt-3">
-          <h4 class="text-xxs font-bold text-warning uppercase tracking-wider mb-2">Más Tardanzas / Retiros ⚠️</h4>
-          <ol id="ranking-bottom" class="list-decimal list-inside text-xs font-semibold flex flex-col gap-1.5 text-base-content/80"></ol>
-        </div>
-      </div>
-    </div>
-
-    <!-- Operator Details Sheet -->
-    <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 lg:col-span-2">
+  <!-- Operator Details Sheet -->
+  <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 w-full">
       <div class="flex items-center justify-between border-b border-base-200 pb-3">
         <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Ficha del Operador</h3>
         <select id="operator-select" class="select select-sm select-bordered rounded-xl max-w-[200px] w-full text-xs font-bold">
@@ -102,22 +106,26 @@ const initialData = await getAttendanceData(startDate, endDate);
 
       <!-- Operator Stats Block -->
       <div id="operator-stats" class="hidden flex flex-col gap-4 animate-in fade-in duration-300">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 min-[640px]:grid-cols-5 gap-3">
           <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
             <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Puntualidad</span>
             <span class="text-base font-black text-secondary" id="op-kpi-punctuality">--%</span>
           </div>
           <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Días Trabajados</span>
+            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Cumplió</span>
             <span class="text-base font-black text-emerald-500" id="op-kpi-worked">--</span>
           </div>
           <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Llegadas Tarde</span>
+            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Tarde / Retiro</span>
             <span class="text-base font-black text-warning" id="op-kpi-lates">--</span>
           </div>
           <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Ausencias</span>
-            <span class="text-base font-black text-error" id="op-kpi-absences">--</span>
+            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Incumplió</span>
+            <span class="text-base font-black text-error/80" id="op-kpi-failed">--</span>
+          </div>
+          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
+            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Ausencias / Eventualidades</span>
+            <span class="text-base font-black text-violet-500 dark:text-violet-400" id="op-kpi-absences">--</span>
           </div>
         </div>
 
@@ -131,7 +139,8 @@ const initialData = await getAttendanceData(startDate, endDate);
           <div class="flex items-center gap-3 mt-3 text-tiny font-bold text-base-content/40 select-none">
             <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/30"></span> Cumplió</div>
             <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500/20 border border-amber-500/30"></span> Tarde / Retiro</div>
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-error/15 border border-error/30"></span> Incumplió / Ausente</div>
+            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-error/15 border border-error/30"></span> Incumplió</div>
+            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-violet-500/20 border border-violet-500/30"></span> Ausencia / Eventualidad</div>
             <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-base-200/50 border border-base-300/40"></span> Franco</div>
           </div>
         </div>
@@ -142,7 +151,6 @@ const initialData = await getAttendanceData(startDate, endDate);
         Seleccione un operador en el menú superior para ver su ficha estadística.
       </div>
     </div>
-  </div>
 
   <!-- Chart.js CDN Link -->
   <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
@@ -203,35 +211,6 @@ const initialData = await getAttendanceData(startDate, endDate);
         stats.lates++;
       }
     });
-
-    const rankingData = Object.values(agentStats).map(s => ({
-      name: s.name,
-      pct: s.total > 0 ? Math.round((s.punctuals / s.total) * 100) : 0,
-      lates: s.lates
-    }));
-
-    const top3 = [...rankingData]
-      .sort((a, b) => b.pct - a.pct || a.lates - b.lates)
-      .slice(0, 3);
-
-    const bottom3 = [...rankingData]
-      .filter(s => s.lates > 0)
-      .sort((a, b) => b.lates - a.lates || a.pct - b.pct)
-      .slice(0, 3);
-
-    const topList = document.getElementById('ranking-top');
-    const bottomList = document.getElementById('ranking-bottom');
-
-    if (topList) {
-      topList.innerHTML = top3.length > 0 
-        ? top3.map(op => `<li>${op.name} <span class="text-success font-black float-right">${op.pct}%</span></li>`).join('') 
-        : '<li class="text-base-content/40 normal-case">Sin registros suficientes</li>';
-    }
-    if (bottomList) {
-      bottomList.innerHTML = bottom3.length > 0 
-        ? bottom3.map(op => `<li>${op.name} <span class="text-warning font-black float-right">${op.lates} incid.</span></li>`).join('') 
-        : '<li class="text-base-content/40 normal-case">Sin incidencias registradas</li>';
-    }
   }
 
   function updateCharts() {
@@ -269,6 +248,19 @@ const initialData = await getAttendanceData(startDate, endDate);
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (event, elements, chart) => {
+            if (elements.length > 0) {
+              const elementIndex = elements[0].index;
+              const label = chart.data.labels[elementIndex];
+              const color = chart.data.datasets[0].backgroundColor[elementIndex];
+              showEventualityDetail(label, color, elementIndex);
+            }
+          },
+          onHover: (event, chartElement) => {
+            if (event && event.native && event.native.target) {
+              (event.native.target as HTMLElement).style.cursor = chartElement.length ? 'pointer' : 'default';
+            }
+          },
           plugins: {
             legend: {
               position: 'bottom',
@@ -348,6 +340,81 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
   }
 
+  function showEventualityDetail(label: string, color: string, index: number) {
+    if (doughnutChartInstance) {
+      const activeBorderColors = doughnutChartInstance.data.datasets[0].data.map((_, i) => 
+        i === index ? color.replace('0.65', '1') : 'rgba(150, 150, 150, 0.1)'
+      );
+      const activeBorderWidths = doughnutChartInstance.data.datasets[0].data.map((_, i) => 
+        i === index ? 4 : 1.5
+      );
+      doughnutChartInstance.data.datasets[0].borderColor = activeBorderColors;
+      doughnutChartInstance.data.datasets[0].borderWidth = activeBorderWidths;
+      doughnutChartInstance.update();
+    }
+
+    const titleEl = document.getElementById('detail-title');
+    const colorEl = document.getElementById('detail-color-indicator');
+    if (titleEl) titleEl.textContent = `Detalle: ${label}`;
+    if (colorEl) {
+      colorEl.style.backgroundColor = color;
+      colorEl.style.boxShadow = `0 0 12px ${color}`;
+    }
+
+    const matchingLogs = rawLogs.filter(log => log.ausencia === label)
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const contentEl = document.getElementById('detail-content');
+    if (contentEl) {
+      if (matchingLogs.length === 0) {
+        contentEl.innerHTML = '<div class="text-center py-12 text-base-content/40 font-bold">No hay registros de esta eventualidad en este mes.</div>';
+      } else {
+        const baseUrl = import.meta.env.BASE_URL || "/";
+        const finalBase = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        contentEl.innerHTML = matchingLogs.map(log => {
+          const parts = log.date.split('-');
+          const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          const initials = log.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+          const hasComment = !!log.detalle;
+          const cardClass = `eventuality-detail-card ${hasComment ? 'cursor-pointer active:scale-[0.99] hover:bg-base-200/40 dark:hover:bg-base-200/80' : ''} flex flex-col p-3.5 bg-base-100 dark:bg-base-200/50 rounded-xl border border-base-300/40 shadow-sm transition-all duration-200`;
+          return `
+            <div class="${cardClass}">
+              <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center font-black text-xs text-secondary animate-in fade-in zoom-in duration-200 shrink-0">
+                    ${initials}
+                  </div>
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="font-bold text-sm text-base-content truncate">${log.nombre}</span>
+                    ${hasComment ? `
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square text-amber-500/80 animate-pulse shrink-0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    ` : ''}
+                  </div>
+                </div>
+                <a href="${finalBase}supervision/asistencia?date=${log.date}" 
+                   class="text-xs font-bold bg-base-200/80 hover:bg-secondary/15 hover:text-secondary px-3 py-1.5 rounded-lg text-base-content/80 tracking-wider transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0"
+                   title="Ir al control de asistencia de este día">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar shrink-0"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                  ${formattedDate}
+                </a>
+              </div>
+              ${hasComment ? `
+                <span class="comment-text text-sm text-base-content/75 font-medium mt-2 leading-relaxed">
+                  ${log.detalle}
+                </span>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    const wrapper = document.getElementById('slide-wrapper');
+    if (wrapper) {
+      wrapper.style.transform = 'translateX(-50%)';
+    }
+  }
+
   function showOperatorDetails(agentId: number) {
     const opLogs = rawLogs.filter(log => log.agentId === agentId);
     if (opLogs.length === 0) return;
@@ -364,17 +431,25 @@ const initialData = await getAttendanceData(startDate, endDate);
     const totalSchedules = schedulesWithTime.length;
     
     const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
-    const lates = schedulesWithTime.filter(log => log.cumplimiento && log.cumplimiento !== "Cumplió" && log.cumplimiento !== "Sin Registro").length;
+    const complied = opLogs.filter(log => log.cumplimiento === "Cumplió").length;
+    const lates = opLogs.filter(log => 
+      log.cumplimiento === "Llegada Tarde" || 
+      log.cumplimiento === "Retiro Anticipado" || 
+      log.cumplimiento === "Tarde y Retiro Anticipado"
+    ).length;
+    const failed = opLogs.filter(log => log.cumplimiento === "Incumplió").length;
     const absences = opLogs.filter(log => log.ausencia && log.ausencia !== "").length;
 
     const opKpiPunctuality = document.getElementById('op-kpi-punctuality');
     const opKpiWorked = document.getElementById('op-kpi-worked');
     const opKpiLates = document.getElementById('op-kpi-lates');
+    const opKpiFailed = document.getElementById('op-kpi-failed');
     const opKpiAbsences = document.getElementById('op-kpi-absences');
 
     if (opKpiPunctuality) opKpiPunctuality.textContent = totalSchedules > 0 ? `${Math.round((punctuals / totalSchedules) * 100)}%` : '100%';
-    if (opKpiWorked) opKpiWorked.textContent = String(totalSchedules);
+    if (opKpiWorked) opKpiWorked.textContent = String(complied);
     if (opKpiLates) opKpiLates.textContent = String(lates);
+    if (opKpiFailed) opKpiFailed.textContent = String(failed);
     if (opKpiAbsences) opKpiAbsences.textContent = String(absences);
 
     const grid = document.getElementById('op-calendar-grid');
@@ -409,7 +484,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         ];
         if (log.ausencia && validAusencias.includes(log.ausencia)) {
           const dot = document.createElement('span');
-          dot.className = 'absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-error border-2 border-base-100';
+          dot.className = 'absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-base-100';
           cell.appendChild(dot);
         }
         
@@ -519,6 +594,28 @@ const initialData = await getAttendanceData(startDate, endDate);
   }
 
   monthInput?.addEventListener('change', loadData);
+
+  document.getElementById('close-detail-btn')?.addEventListener('click', () => {
+    const wrapper = document.getElementById('slide-wrapper');
+    if (wrapper) {
+      wrapper.style.transform = 'translateX(0)';
+    }
+    if (doughnutChartInstance) {
+      doughnutChartInstance.data.datasets[0].borderColor = 'rgba(150, 150, 150, 0.1)';
+      doughnutChartInstance.data.datasets[0].borderWidth = 1.5;
+      doughnutChartInstance.update();
+    }
+  });
+
+  document.getElementById('detail-content')?.addEventListener('click', (event) => {
+    const card = (event.target as HTMLElement).closest('.eventuality-detail-card');
+    if (!card) return;
+    
+    // If click is on a link, don't toggle expansion
+    if ((event.target as HTMLElement).closest('a')) return;
+    
+    card.classList.toggle('is-expanded');
+  });
   
   // Wait for Chart.js to load via CDN before running the data processing
   function safeInit() {
@@ -531,3 +628,19 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   safeInit();
 </script>
+
+<style is:global>
+  .eventuality-detail-card .comment-text {
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .eventuality-detail-card.is-expanded .comment-text {
+    white-space: normal;
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+  }
+</style>
