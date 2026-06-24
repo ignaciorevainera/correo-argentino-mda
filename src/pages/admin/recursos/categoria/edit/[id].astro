@@ -8,6 +8,7 @@ import { db } from "@db/index";
 import { resourceCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const { id } = Astro.params;
 const isNew = false;
@@ -28,8 +29,15 @@ if (id) {
     where: eq(resourceCategories.id, numericId),
   });
   if (existingCategory) {
-    if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
-      return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    if (
+      existingCategory.title.toLowerCase() === "sin categoría" ||
+      existingCategory.title.toLowerCase() === "sin categoria"
+    ) {
+      return Astro.redirect(
+        resolveUrl(
+          `/admin/recursos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`,
+        ),
+      );
     }
     category = existingCategory as any;
   } else {
@@ -63,6 +71,7 @@ if (category.iconName && !iconExistsInPredefined) {
 }
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const formData = await Astro.request.formData();
     const title = formData.get("title")?.toString().trim();
@@ -74,7 +83,7 @@ if (Astro.request.method === "POST") {
 
     const tone = formData.get("tone")?.toString().trim() || "primary";
 
-      if (id) {
+    if (id) {
       const numericId = Number(id);
       const oldTitle = category.title;
       await db
@@ -86,21 +95,37 @@ if (Astro.request.method === "POST") {
         })
         .where(eq(resourceCategories.id, numericId));
       if (oldTitle && oldTitle !== title) {
-        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de recursos de "${oldTitle}" a "${title}"`);
+        await logAdminAction(
+          Astro.locals.user?.username || "Sistema",
+          `Actualizó la categoría de recursos de "${oldTitle}" a "${title}"`,
+        );
       } else {
-        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de recursos "${title}"`);
+        await logAdminAction(
+          Astro.locals.user?.username || "Sistema",
+          `Actualizó la categoría de recursos "${title}"`,
+        );
       }
     }
 
     const successMsg = "Categoría actualizada con éxito.";
-    return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return Astro.redirect(
+      resolveUrl(
+        `/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`,
+      ),
+    );
   } catch (error: any) {
     errorMsg = error.message || "Error al guardar la categoría.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
   }
 }
 ---
 
-<BaseLayout title="Editar Categoría">
+<BaseLayout title="Editar categoría">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
       <div class="card bg-base-100 border border-base-300 shadow-sm">
@@ -110,7 +135,7 @@ if (Astro.request.method === "POST") {
           >
             <div>
               <h1 class="text-xl font-bold text-base-content">
-                Editar Categoría
+                Editar categoría
               </h1>
               <p class="text-sm text-base-content/60 mt-1">
                 Definí cómo se agruparán y visualizarán los enlaces.
@@ -133,7 +158,7 @@ if (Astro.request.method === "POST") {
             )
           }
 
-          <form method="POST" class="space-y-5">
+          <form method="POST" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 gap-y-5">
               <FormField
                 id="input-title"
@@ -270,4 +295,5 @@ if (Astro.request.method === "POST") {
       </div>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>

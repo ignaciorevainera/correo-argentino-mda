@@ -7,6 +7,7 @@ import { db } from "@db/index";
 import { applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const { id } = Astro.params;
 const isNew = false;
@@ -35,6 +36,7 @@ if (existingCategory) {
 }
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const formData = await Astro.request.formData();
     const title = formData.get("title")?.toString().trim();
@@ -55,14 +57,31 @@ if (Astro.request.method === "POST") {
       await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos "${title}"`);
     }
 
+    if (isAjax) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Categoría actualizada con éxito.",
+          redirectUrl: resolveUrl("/admin/aplicativos"),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría actualizada con éxito.")}&toast_type=success`));
   } catch (error: any) {
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     errorMsg = error.message || "Error al guardar la categoría.";
   }
 }
 ---
 
-<BaseLayout title="Editar Categoría de Aplicativos">
+<BaseLayout title="Editar categoría de Aplicativos">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
       <div class="card bg-base-100 border border-base-300 shadow-sm">
@@ -72,7 +91,7 @@ if (Astro.request.method === "POST") {
           >
             <div>
               <h1 class="text-xl font-bold text-base-content">
-                Editar Categoría
+                Editar categoría
               </h1>
               <p class="text-sm text-base-content/60 mt-1">
                 Modificá el nombre de la categoría de aplicativos.
@@ -106,7 +125,7 @@ if (Astro.request.method === "POST") {
             )
           }
 
-          <form method="POST" class="space-y-5">
+          <form method="POST" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 gap-y-5">
               <FormField
                 id="input-title"
@@ -136,3 +155,4 @@ if (Astro.request.method === "POST") {
     </div>
   </PageContainer>
 </BaseLayout>
+<AsyncFormScript />

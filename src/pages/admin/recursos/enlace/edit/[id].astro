@@ -9,6 +9,8 @@ import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
+import { encrypt } from "@/lib/encryption";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const { id } = Astro.params;
 const isNew = false;
@@ -29,20 +31,26 @@ let link = {
   subtitle: "",
   iconPath: "",
   deprecated: false,
+  credentialUsername: "",
+  credentialPassword: "",
 };
 
 const categories = await db.select().from(resourceCategories);
 
 if (id) {
   const existingLink = await db.query.resourceLinks.findFirst({
-    where: eq(resourceLinks.id, id),
+    where: eq(resourceLinks.id, Number(id)),
   });
   if (existingLink) {
     link = {
       ...existingLink,
+      id: String(existingLink.id),
+      categoryId: String(existingLink.categoryId),
       subtitle: existingLink.subtitle || "",
       iconPath: existingLink.iconPath || "",
       deprecated: existingLink.deprecated || false,
+      credentialUsername: existingLink.credentialUsername || "",
+      credentialPassword: existingLink.credentialPassword || "",
     };
   } else {
     return Astro.redirect(resolveUrl("/admin/recursos"));
@@ -52,6 +60,7 @@ if (id) {
 let formSnapshot = null;
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const formData = await Astro.request.formData();
     formSnapshot = formData;
@@ -61,6 +70,9 @@ if (Astro.request.method === "POST") {
     const categoryId = formData.get("categoryId")?.toString().trim();
     const subtitle = formData.get("subtitle")?.toString().trim() || null;
     const deprecated = formData.get("deprecated") === "on";
+    const credentialUsername = formData.get("credentialUsername")?.toString().trim() || null;
+    const rawPassword = formData.get("credentialPassword")?.toString().trim() || "";
+    const credentialPassword = rawPassword ? encrypt(rawPassword) : (link.credentialPassword || null);
 
     let iconPath = link.iconPath || null;
 
@@ -81,14 +93,16 @@ if (Astro.request.method === "POST") {
       await db
         .update(resourceLinks)
         .set({
-          categoryId,
+          categoryId: Number(categoryId),
           title,
           url,
           subtitle,
           iconPath,
           deprecated,
+          credentialUsername,
+          credentialPassword,
         })
-        .where(eq(resourceLinks.id, id));
+        .where(eq(resourceLinks.id, Number(id)));
       if (oldTitle && oldTitle !== title) {
         await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace de "${oldTitle}" a "${title}"`);
       } else {
@@ -97,15 +111,22 @@ if (Astro.request.method === "POST") {
     }
 
     const successMsg = "Enlace actualizado con éxito.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
   } catch (error: any) {
     errorMsg = error.message || "Error al guardar el enlace.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
     if (formSnapshot) {
       link.title = formSnapshot.get("title")?.toString() || "";
       link.url = formSnapshot.get("url")?.toString() || "";
       link.categoryId = formSnapshot.get("categoryId")?.toString() || "";
       link.subtitle = formSnapshot.get("subtitle")?.toString() || "";
       link.deprecated = formSnapshot.get("deprecated") === "on";
+      link.credentialUsername = formSnapshot.get("credentialUsername")?.toString() || "";
     }
   }
 }
@@ -129,12 +150,23 @@ if (Astro.request.method === "POST") {
           {
             errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
+                const showError = () => {
+                  if (typeof window.showToast === 'function') {
+                    window.showToast(errorMsg, "alert-error");
+                  } else {
+                    setTimeout(showError, 50);
+                  }
+                };
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                  showError();
+                } else {
+                  document.addEventListener('DOMContentLoaded', showError);
+                }
               </script>
             )
           }
 
-          <form method="POST" enctype="multipart/form-data" class="space-y-5">
+          <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
               <FormField
                 id="input-title"
@@ -151,7 +183,7 @@ if (Astro.request.method === "POST") {
                 label="Categoría"
                 required
                 selectClass="font-medium"
-                options={categories.map(c => ({ value: c.id, label: c.title }))}
+                options={categories.map(c => ({ value: String(c.id), label: c.title }))}
                 value={link.categoryId}
               />
 
@@ -175,6 +207,24 @@ if (Astro.request.method === "POST") {
                 placeholder="Breve explicación del propósito del enlace"
                 helpText="(Opcional)"
                 class="sm:col-span-2"
+              />
+
+              <FormField
+                id="input-credentialUsername"
+                name="credentialUsername"
+                label="Usuario (Credenciales)"
+                value={link.credentialUsername}
+                placeholder="Ej: admin_soti"
+                helpText="(Opcional)"
+              />
+
+              <FormField
+                id="input-credentialPassword"
+                type="password"
+                name="credentialPassword"
+                label="Contraseña (Credenciales)"
+                placeholder="••••••••"
+                helpText="(Opcional, dejar vacío para no modificar)"
               />
 
               <div class="sm:col-span-2 flex items-center gap-3">
@@ -234,4 +284,5 @@ if (Astro.request.method === "POST") {
       </div>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>

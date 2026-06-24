@@ -336,6 +336,8 @@ export const resourceLinks = sqliteTable("resource_links", {
   iconPath: text("icon_path"),
   sortOrder: integer("sortOrder").default(0),
   deprecated: integer("deprecated", { mode: "boolean" }).default(false),
+  credentialUsername: text("credential_username"),
+  credentialPassword: text("credential_password"),
 });
 
 export const resourceCategoriesRelations = relations(
@@ -534,6 +536,8 @@ export const applications = sqliteTable("applications", {
   filePath: text("file_path"),
   iconPath: text("icon_path"),
   sortOrder: integer("sortOrder").default(0),
+  metadata: text("metadata"),
+  instructionPdfPath: text("instruction_pdf_path"),
 });
 
 export const applicationCategoriesRelations = relations(

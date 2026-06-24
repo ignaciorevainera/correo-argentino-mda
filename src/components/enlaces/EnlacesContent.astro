@@ -9,6 +9,9 @@ import { db } from "@/db";
 import { resourceCategories } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import type { CategoryTone, CategoryViewModel } from "@/pages/recursos/_components/types";
+import { decrypt } from "@/lib/encryption";
+
+const isAuthenticated = Astro.locals.user && Astro.locals.user.id !== 0;
 
 const rawCategories = await db.query.resourceCategories.findMany({
   orderBy: [asc(resourceCategories.sortOrder), asc(resourceCategories.title)],
@@ -38,6 +41,12 @@ const importantCategories = rawCategories.map(
         subtitle: link.subtitle ?? undefined,
         iconPath: link.iconPath ?? undefined,
         deprecated: link.deprecated ?? false,
+        credentials: isAuthenticated && (link.credentialUsername || link.credentialPassword)
+          ? {
+              username: link.credentialUsername || "",
+              password: link.credentialPassword ? decrypt(link.credentialPassword) : undefined,
+            }
+          : undefined,
       })),
   }),
 );
@@ -86,6 +95,13 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     description="La búsqueda no coincidió con ningún enlace. Probá con otro nombre, URL o descripción."
   />
 </PageContainer>
+
+<style is:global>
+  ::highlight(search-match) {
+    background-color: rgba(226, 173, 31, 0.3);
+    color: inherit;
+  }
+</style>
 
 <script>
   import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";

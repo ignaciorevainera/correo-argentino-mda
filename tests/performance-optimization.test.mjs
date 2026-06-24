@@ -12,11 +12,11 @@ console.log("Checking login.astro SSR configuration...");
 const loginPage = await read("src/pages/login/index.astro");
 assert.doesNotMatch(loginPage, /export\s+const\s+prerender\s*=\s*true/, "login/index.astro MUST NOT be prerendered since it handles POST requests");
 
-// 2. Check LinkItem.astro uses lazy loading and async decoding for img tags
+// 2. Check LinkItem.astro uses lazy loading and async decoding for img or Image tags
 console.log("Checking LinkItem.astro image optimization...");
 const linkItem = await read("src/pages/recursos/_components/LinkItem.astro");
-assert.match(linkItem, /<img[^>]*loading=["']lazy["']/, "LinkItem.astro img should have loading='lazy'");
-assert.match(linkItem, /<img[^>]*decoding=["']async["']/, "LinkItem.astro img should have decoding='async'");
+assert.match(linkItem, /<(?:img|Image)[^>]*loading=["']lazy["']/, "LinkItem.astro image should have loading='lazy'");
+assert.match(linkItem, /<(?:img|Image)[^>]*decoding=["']async["']/, "LinkItem.astro image should have decoding='async'");
 
 // 3. Check CatalogAppCard.astro uses lazy loading and async decoding for img tags
 console.log("Checking CatalogAppCard.astro image optimization...");
