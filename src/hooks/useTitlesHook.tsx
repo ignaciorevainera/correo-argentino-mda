@@ -132,6 +132,7 @@ export function useTitles() {
       await navigator.clipboard.writeText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
 
+      alert(`Titulo "${text}" copiado al portapapeles.`)
       if (typeof chrome !== "undefined" && chrome.tabs) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 

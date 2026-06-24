@@ -5,6 +5,7 @@ import { useTitles, type TitleData } from "@/hooks/useTitlesHook";
 
 import TitleCard from "./TitleCard";
 import TitleDrawer from "./TitleDrawer";
+import { TitleCardSkeleton } from "./TitleCardSkeleton";
 
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline"
 
@@ -36,7 +37,7 @@ export default function TitlesContainer() {
 
   return (
     <>
-      <header className="w-full bg-base-100 h-28 pt-3 sticky top-16 z-10">
+      <header className="w-full bg-base-100 h-28 pt-3 sticky -top-6 z-10 border-b border-base-300 ">
         <label className="input max-w-xl w-full rounded-md">
           <MagnifyingGlassIcon className="size-6 opacity-50" />
           <input
@@ -62,41 +63,35 @@ export default function TitlesContainer() {
         </div>
       </header>
       <section className="min-h-128">
-        {loading ? (
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-8">
-            {Array.from({ length: 12 }).map((_, index) => (
-              <div key={index} className="h-32 w-full skeleton" />
-            ))}
-          </section>
-        ) : (
-          <>
-            {sortedTitles.length === 0 ? (
-              <div className="bg-base-200 mt-8 h-48 w-full rounded-md flex flex-col items-center justify-center gap-y-1">
-                <h3 className="text-xl font-semibold">
-                  No se encontraron coincidencias
-                </h3>
-                <p className="text-sm opacity-70">
-                  Intentá con otro término
-                </p>
-              </div>
-
-            ) : (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-8">
-                {sortedTitles
-                  .map((t) => (
-                    <TitleCard
-                      key={t.title}
-                      title={t}
-                      onOpen={handleOpenDrawer}
-                      isFavorite={favorites.includes(t.title)}
-                      onToggleFavorite={toggleFavorite}
-                      onCopy={copyToClipboard}
-                    />
-                  ))}
-              </section>
-            )}
-          </>
-        )}
+        {loading ? <TitleCardSkeleton count={20} />
+          : (
+            <>
+              {sortedTitles.length === 0 ? (
+                <div className="bg-base-200 mt-8 h-48 w-full rounded-md flex flex-col items-center justify-center gap-y-1">
+                  <h3 className="text-xl font-semibold">
+                    No se encontraron coincidencias
+                  </h3>
+                  <p className="text-sm opacity-70">
+                    Intentá con otro término
+                  </p>
+                </div>
+              ) : (
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
+                  {sortedTitles
+                    .map((t) => (
+                      <TitleCard
+                        key={t.title}
+                        title={t}
+                        onOpen={handleOpenDrawer}
+                        isFavorite={favorites.includes(t.title)}
+                        onToggleFavorite={toggleFavorite}
+                        onCopy={copyToClipboard}
+                      />
+                    ))}
+                </section>
+              )}
+            </>
+          )}
       </section>
       <TitleDrawer
         open={drawerOpen}
