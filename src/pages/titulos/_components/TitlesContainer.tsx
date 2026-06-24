@@ -36,7 +36,7 @@ export default function TitlesContainer() {
 
   return (
     <>
-      <header className="w-full bg-base-100 h-28 pt-3 sticky top-16 z-10">
+      <header className="w-full bg-base-100 h-28 pt-3 sticky -top-6 z-10 border-b border-base-300 ">
         <label className="input max-w-xl w-full rounded-md">
           <MagnifyingGlassIcon className="size-6 opacity-50" />
           <input
@@ -63,8 +63,8 @@ export default function TitlesContainer() {
       </header>
       <section className="min-h-128">
         {loading ? (
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-8">
-            {Array.from({ length: 12 }).map((_, index) => (
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
+            {Array.from({ length: 20 }).map((_, index) => (
               <div key={index} className="h-32 w-full skeleton" />
             ))}
           </section>
@@ -81,7 +81,7 @@ export default function TitlesContainer() {
               </div>
 
             ) : (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-8">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
                 {sortedTitles
                   .map((t) => (
                     <TitleCard
