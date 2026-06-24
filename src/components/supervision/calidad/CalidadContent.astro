@@ -216,6 +216,17 @@ const operatorsQuality = finalAgents.map((agent) => {
     };
   });
 
+  const prevMonth = dynamicMonthsList[1];
+  const prevMonthAudits = prevMonth ? agentAudits.filter((a) => a.month === prevMonth) : [];
+  const prevAverageScore = prevMonthAudits.length > 0
+    ? Math.round(
+        prevMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+          prevMonthAudits.length,
+      )
+    : 0;
+  const prevCallsCount = prevMonthAudits.length;
+  const prevCriticalCount = prevMonthAudits.filter((a) => a.isCriticalFailure).length;
+
   return {
     id: agent.id.toString(),
     name: agent.name,
@@ -225,6 +236,9 @@ const operatorsQuality = finalAgents.map((agent) => {
     calls,
     history,
     averageScore,
+    prevAverageScore,
+    prevCallsCount,
+    prevCriticalCount,
   };
 });
 
@@ -708,68 +722,180 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           </div>
 
           <!-- Header del Detalle -->
-          <div
-            class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
-          >
-            <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-              <div
-                class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
-                id="detail-avatar"
-              >
-                --
+          {isAgent ? (
+            <!-- Vista de Agente (Fila única original con métricas en el medio) -->
+            <div
+              class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
+            >
+              <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+                <div
+                  class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
+                  id="detail-avatar"
+                >
+                  --
+                </div>
+                <div>
+                  <div
+                    class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                  >
+                    Perfil del Operador
+                  </div>
+                  <h3
+                    class="text-4xl font-black text-base-content tracking-tighter"
+                    id="detail-name"
+                  >
+                    --
+                  </h3>
+                  <div
+                    class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                  >
+                    <span class="flex items-center gap-1"
+                      ><Icon
+                        name="boxicons:user-id-card"
+                        size={18}
+                        class="opacity-70"
+                      />
+                      <span id="detail-id" class="font-mono">--</span></span
+                    >
+                    <span class="opacity-30">•</span>
+                    <span class="flex items-center gap-1"
+                      ><Icon
+                        name="boxicons:calendar"
+                        size={18}
+                        class="opacity-70"
+                      />
+                      <span id="detail-month">--</span></span
+                    >
+                  </div>
+                </div>
               </div>
-              <div>
+
+              <!-- Stats in the middle -->
+              <div class="flex items-center gap-3 sm:gap-4 flex-wrap bg-base-200/20 p-3 sm:p-4 rounded-2xl border border-base-200 shadow-sm shrink-0">
+                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Score vs Mes Ant.</span>
+                  <span id="detail-stat-diff" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Duración Promedio</span>
+                  <span id="detail-stat-aht" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Interacción</span>
+                  <span id="detail-stat-interaction" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex flex-col px-2 sm:px-3">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Gestión</span>
+                  <span id="detail-stat-management" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+              </div>
+
+              <!-- Score Card -->
+              <div
+                class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200 shrink-0 w-full sm:w-fit sm:min-w-[140px]"
+              >
                 <div
                   class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
                 >
-                  Perfil del Operador
+                  Score Mensual
                 </div>
-                <h3
-                  class="text-4xl font-black text-base-content tracking-tighter"
-                  id="detail-name"
-                >
-                  --
-                </h3>
                 <div
-                  class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                  class="text-5xl font-black tracking-tighter text-secondary"
+                  id="detail-score"
                 >
-                  <span class="flex items-center gap-1"
-                    ><Icon
-                      name="boxicons:user-id-card"
-                      size={18}
-                      class="opacity-70"
-                    />
-                    <span id="detail-id" class="font-mono">--</span></span
-                  >
-                  <span class="opacity-30">•</span>
-                  <span class="flex items-center gap-1"
-                    ><Icon
-                      name="boxicons:calendar"
-                      size={18}
-                      class="opacity-70"
-                    />
-                    <span id="detail-month">--</span></span
-                  >
+                  --%
                 </div>
               </div>
             </div>
-
+          ) : (
+            <!-- Vista de Supervisor/Admin/Referente (Bloque de métricas abajo) -->
             <div
-              class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200"
+              class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-md border-y border-r border-base-200 mt-2"
             >
-              <div
-                class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
-              >
-                Score Mensual
+              <!-- Top section: Avatar, Name and Monthly Score -->
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+                  <div
+                    class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
+                    id="detail-avatar"
+                  >
+                    --
+                  </div>
+                  <div>
+                    <div
+                      class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                    >
+                      Perfil del Operador
+                    </div>
+                    <h3
+                      class="text-4xl font-black text-base-content tracking-tighter"
+                      id="detail-name"
+                    >
+                      --
+                    </h3>
+                    <div
+                      class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                    >
+                      <span class="flex items-center gap-1"
+                        ><Icon
+                          name="boxicons:user-id-card"
+                          size={18}
+                          class="opacity-70"
+                        />
+                        <span id="detail-id" class="font-mono">--</span></span
+                      >
+                      <span class="opacity-30">•</span>
+                      <span class="flex items-center gap-1"
+                        ><Icon
+                          name="boxicons:calendar"
+                          size={18}
+                          class="opacity-70"
+                        />
+                        <span id="detail-month">--</span></span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Score Card -->
+                <div
+                  class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200 shrink-0 w-full sm:w-fit sm:min-w-[140px]"
+                >
+                  <div
+                    class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                  >
+                    Score Mensual
+                  </div>
+                  <div
+                    class="text-5xl font-black tracking-tighter text-secondary"
+                    id="detail-score"
+                  >
+                    --%
+                  </div>
+                </div>
               </div>
-              <div
-                class="text-5xl font-black tracking-tighter"
-                id="detail-score"
-              >
-                --%
+
+              <!-- Bottom section: Stats block -->
+              <div class="flex items-center gap-3 sm:gap-4 flex-wrap bg-base-200/20 p-3 sm:p-4 rounded-2xl border border-base-200 shadow-sm w-full">
+                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Score vs Mes Ant.</span>
+                  <span id="detail-stat-diff" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Duración Promedio</span>
+                  <span id="detail-stat-aht" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Interacción</span>
+                  <span id="detail-stat-interaction" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
+                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3">
+                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Gestión</span>
+                  <span id="detail-stat-management" class="text-lg sm:text-xl font-black text-base-content">--</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <!-- Insights y Tendencia -->
@@ -814,45 +940,69 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
               <!-- dynamic insights -->
             </ul>
           </div>
+
+          <!-- Observaciones del Mes (Para Agentes en la columna izquierda) -->
+          {isAgent && (
+            <div class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md">
+              <div class="flex justify-between items-center mb-4">
+                <h4
+                  class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+                >
+                  <Icon name="boxicons:note" size={18} />
+                  Observaciones del Mes
+                </h4>
+              </div>
+              <p
+                id="detail-month-summary"
+                class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
+              >
+                <!-- dynamic summary -->
+              </p>
+              <p
+                id="detail-month-summary-empty"
+                class="text-sm font-medium text-base-content/40 italic"
+              >
+                No hay observaciones para este mes.
+              </p>
+            </div>
+          )}
         </div>
 
         <div class:list={[isAgent ? "col-span-full lg:col-span-8 flex flex-col gap-6" : "space-y-6"]}>
-          <!-- Observaciones del Mes -->
-          <div
-            class:list={["bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md", !isAgent && "mt-6"]}
-          >
-            <div class="flex justify-between items-center mb-4">
-              <h4
-                class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+          <!-- Observaciones del Mes (Para Supervisores/Admins en el flujo principal) -->
+          {!isAgent && (
+            <div
+              class:list={["bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md", !isAgent && "mt-6"]}
+            >
+              <div class="flex justify-between items-center mb-4">
+                <h4
+                  class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+                >
+                  <Icon name="boxicons:note" size={18} />
+                  Observaciones del Mes
+                </h4>
+                <button
+                  id="btn-edit-month-summary"
+                  class="btn btn-sm btn-ghost btn-square"
+                  title="Editar observaciones"
+                >
+                  <Icon name="boxicons:edit-alt" size={18} />
+                </button>
+              </div>
+              <p
+                id="detail-month-summary"
+                class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
               >
-                <Icon name="boxicons:note" size={18} />
-                Observaciones del Mes
-              </h4>
-              {
-                !isAgent && (
-                  <button
-                    id="btn-edit-month-summary"
-                    class="btn btn-sm btn-ghost btn-square"
-                    title="Editar observaciones"
-                  >
-                    <Icon name="boxicons:edit-alt" size={18} />
-                  </button>
-                )
-              }
+                <!-- dynamic summary -->
+              </p>
+              <p
+                id="detail-month-summary-empty"
+                class="text-sm font-medium text-base-content/40 italic"
+              >
+                No hay observaciones para este mes.
+              </p>
             </div>
-            <p
-              id="detail-month-summary"
-              class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
-            >
-              <!-- dynamic summary -->
-            </p>
-            <p
-              id="detail-month-summary-empty"
-              class="text-sm font-medium text-base-content/40 italic"
-            >
-              No hay observaciones para este mes.
-            </p>
-          </div>
+          )}
 
           <!-- Section Titulo -->
           <div
@@ -1587,6 +1737,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     const dId = document.getElementById("detail-id");
     const dMonth = document.getElementById("detail-month");
     const dScore = document.getElementById("detail-score");
+    const dStatDiff = document.getElementById("detail-stat-diff");
+    const dStatAht = document.getElementById("detail-stat-aht");
+    const dStatInteraction = document.getElementById("detail-stat-interaction");
+    const dStatManagement = document.getElementById("detail-stat-management");
     const dMonthSummary = document.getElementById("detail-month-summary");
     const dMonthSummaryEmpty = document.getElementById(
       "detail-month-summary-empty",
@@ -2257,6 +2411,81 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
             dScore.className = `text-5xl font-black tracking-tighter ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
           }
 
+          if (dStatDiff) {
+            const currentScore = operator.averageScore;
+            const prevScore = operator.prevAverageScore || 0;
+            const hasPrevAudits = (operator.prevCallsCount ?? 0) > 0;
+            
+            if (hasPrevAudits) {
+              const diff = currentScore - prevScore;
+              if (diff > 0) {
+                dStatDiff.textContent = `+${diff}%`;
+                dStatDiff.className = "text-xl font-black text-success";
+              } else if (diff < 0) {
+                dStatDiff.textContent = `${diff}%`;
+                dStatDiff.className = "text-xl font-black text-error";
+              } else {
+                dStatDiff.textContent = `0%`;
+                dStatDiff.className = "text-xl font-black text-base-content/40";
+              }
+            } else {
+              dStatDiff.textContent = "N/A";
+              dStatDiff.className = "text-xl font-black text-base-content/40";
+            }
+          }
+
+          if (dStatAht) {
+            const calls = operator.calls || [];
+            if (calls.length > 0) {
+              const parseDurationToSeconds = (durStr: string) => {
+                if (!durStr) return 0;
+                const parts = durStr.split(":").map(Number);
+                if (parts.length === 2) {
+                  return parts[0] * 60 + parts[1];
+                } else if (parts.length === 3) {
+                  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                }
+                return 0;
+              };
+              const formatSecondsToDuration = (totalSecs: number) => {
+                const m = Math.floor(totalSecs / 60);
+                const s = Math.round(totalSecs % 60);
+                return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+              };
+              const totalSecs = calls.reduce((acc: number, c: any) => acc + parseDurationToSeconds(c.duration), 0);
+              const avgSecs = totalSecs / calls.length;
+              dStatAht.textContent = formatSecondsToDuration(avgSecs);
+              dStatAht.className = "text-xl font-black text-base-content";
+            } else {
+              dStatAht.textContent = "--";
+              dStatAht.className = "text-xl font-black text-base-content/40";
+            }
+          }
+
+          if (dStatInteraction) {
+            const calls = operator.calls || [];
+            if (calls.length > 0) {
+              const avgS1 = Math.round(calls.reduce((acc: number, c: any) => acc + c.section1.score, 0) / calls.length);
+              dStatInteraction.textContent = `${avgS1}%`;
+              dStatInteraction.className = `text-xl font-black ${avgS1 >= 90 ? "text-success" : avgS1 >= 80 ? "text-warning" : "text-error"}`;
+            } else {
+              dStatInteraction.textContent = "--";
+              dStatInteraction.className = "text-xl font-black text-base-content/40";
+            }
+          }
+
+          if (dStatManagement) {
+            const calls = operator.calls || [];
+            if (calls.length > 0) {
+              const avgS2 = Math.round(calls.reduce((acc: number, c: any) => acc + c.section2.score, 0) / calls.length);
+              dStatManagement.textContent = `${avgS2}%`;
+              dStatManagement.className = `text-xl font-black ${avgS2 >= 90 ? "text-success" : avgS2 >= 80 ? "text-warning" : "text-error"}`;
+            } else {
+              dStatManagement.textContent = "--";
+              dStatManagement.className = "text-xl font-black text-base-content/40";
+            }
+          }
+
           if (dMonthSummary && dMonthSummaryEmpty) {
             activeAgentSummary = operator.monthSummary || "";
             if (activeAgentSummary.trim()) {
@@ -2660,6 +2889,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         const monthSelector = document.getElementById("month-selector") as HTMLSelectElement;
         const monthStr = monthSelector ? monthSelector.value : "calidad";
 
+        // Obtener todos los parámetros configurados en el sistema
+        const params = getAuditParameters();
+
         // Headers for CSV
         const headers = [
           "Periodo",
@@ -2672,11 +2904,18 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           "Puntaje Secc. 1 (Interaccion)",
           "Puntaje Secc. 2 (Gestion)",
           "Puntaje Total",
-          "Falla Critica",
-          "Observaciones"
+          "Falla Critica"
         ];
 
-        const csvRows = [headers.join(",")];
+        // Añadir una columna por cada parámetro dinámico
+        params.forEach((param: any) => {
+          headers.push(`[${param.code}] ${param.name}`);
+        });
+
+        // La columna de observaciones va al final
+        headers.push("Observaciones");
+
+        const csvRows = [headers.join(";")];
 
         selectedOp.calls.forEach((call: any) => {
           const row = [
@@ -2690,17 +2929,36 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
             call.section1.score,
             call.section2.score,
             call.totalScore,
-            call.isCriticalFailure ? "Si" : "No",
-            // Escape quotes and wrap notes in quotes
-            `"${(call.notes || "").replace(/"/g, '""')}"`
+            call.isCriticalFailure ? "Si" : "No"
           ];
-          const escapedRow = row.map(val => {
-            if (typeof val === "string" && !val.startsWith('"')) {
-              return `"${val.replace(/"/g, '""')}"`;
+
+          // Determinar cumplimiento para cada parámetro dinámico
+          params.forEach((param: any) => {
+            let compliance = "N/A";
+            
+            // Buscar en detalles de Sección 1 (Interacción)
+            if (call.section1 && call.section1.details && call.section1.details.hasOwnProperty(param.code)) {
+              compliance = call.section1.details[param.code] ? "Cumple" : "No cumple";
             }
-            return val;
+            // Buscar en detalles de Sección 2 (Gestión)
+            else if (call.section2 && call.section2.details && call.section2.details.hasOwnProperty(param.code)) {
+              compliance = call.section2.details[param.code] ? "Cumple" : "No cumple";
+            }
+
+            row.push(compliance);
           });
-          csvRows.push(escapedRow.join(","));
+
+          // Agregar la observación al final de la fila
+          row.push(call.notes || "");
+
+          const escapedRow = row.map(val => {
+            const valStr = typeof val === "string" ? val : String(val);
+            if (valStr.includes(";") || valStr.includes("\n") || valStr.includes("\r") || valStr.includes('"')) {
+              return `"${valStr.replace(/"/g, '""')}"`;
+            }
+            return valStr;
+          });
+          csvRows.push(escapedRow.join(";"));
         });
 
         // Add UTF-8 BOM so Excel displays accents correctly
