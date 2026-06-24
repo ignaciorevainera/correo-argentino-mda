@@ -2,6 +2,8 @@
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import CatalogAppCard from "@/pages/recursos/aplicativos/_components/CatalogAppCard.astro";
 import CatalogBundleBanner from "@/pages/recursos/aplicativos/_components/CatalogBundleBanner.astro";
 import { db } from "@db/index";
@@ -103,12 +105,29 @@ for (const app of regularApps) {
   }
 
   {
+    !errorMsg && regularApps.length > 0 && (
+      <SearchInput
+        id="catalog-search"
+        label="Buscar aplicativos"
+        placeholder="Buscar por nombre, descripción o categoría"
+        class="max-w-md"
+      />
+    )
+  }
+
+  <SearchEmptyState
+    id="catalog-empty-state"
+    title="Sin resultados"
+    description="La búsqueda no coincidió con ningún aplicativo. Probá con otro nombre, descripción o categoría."
+  />
+
+  {
     displayCategories.map((cat) => {
       const apps = appsByCategory.get(cat.id) ?? [];
       if (apps.length === 0) return null;
 
       return (
-        <section class="space-y-3" aria-labelledby={`cat-${cat.id}`}>
+        <section class="space-y-3" aria-labelledby={`cat-${cat.id}`} data-catalog-section>
           <div class="flex items-center gap-2">
             <Icon
               name="boxicons:folder-filled"
@@ -119,6 +138,7 @@ for (const app of regularApps) {
             <h2
               id={`cat-${cat.id}`}
               class="text-lg font-semibold text-base-content"
+              data-highlight-target
             >
               {cat.title}
             </h2>
@@ -144,7 +164,7 @@ for (const app of regularApps) {
 
   {
     uncategorized.length > 0 && (
-      <section class="space-y-3" aria-labelledby="cat-otros">
+      <section class="space-y-3" aria-labelledby="cat-otros" data-catalog-section>
         <div class="flex items-center gap-2">
           <Icon
             name="boxicons:folder-filled"
@@ -152,7 +172,7 @@ for (const app of regularApps) {
             class="text-base-content/70"
             aria-hidden="true"
           />
-          <h2 id="cat-otros" class="text-lg font-semibold text-base-content">
+          <h2 id="cat-otros" class="text-lg font-semibold text-base-content" data-highlight-target>
             Otros
           </h2>
           <span class="badge badge-sm badge-ghost">
@@ -191,3 +211,57 @@ for (const app of regularApps) {
     )
   }
 </PageContainer>
+
+<script>
+  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+
+  const searchInput = document.getElementById("catalog-search") as HTMLInputElement | null;
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"));
+  const emptyState = document.getElementById("catalog-empty-state");
+
+  let isFiltered = false;
+
+  function updateCatalogSearch(): void {
+    const query = searchInput?.value.trim() ?? "";
+
+    if (query.length === 0 && !isFiltered) {
+      return;
+    }
+
+    isFiltered = query.length > 0;
+    let visibleApps = 0;
+
+    sections.forEach((section) => {
+      const sectionTitle = section.querySelector<HTMLElement>("[data-highlight-target]");
+      const cards = Array.from(section.querySelectorAll<HTMLElement>("[data-app-card]"));
+      let visibleCards = 0;
+
+      cards.forEach((card) => {
+        const searchText = card.dataset.searchText ?? "";
+        const isVisible = matchesSearchQuery(query, [searchText]);
+
+        card.classList.toggle("hidden", !isVisible);
+        highlightSearchTargets(card, isVisible ? query : "");
+
+        if (isVisible) visibleCards++;
+      });
+
+      section.classList.toggle("hidden", visibleCards === 0);
+
+      if (sectionTitle) {
+        highlightSearchTargets(sectionTitle, visibleCards > 0 ? query : "");
+      }
+
+      visibleApps += visibleCards;
+    });
+
+    emptyState?.classList.toggle("hidden", visibleApps > 0);
+    emptyState?.classList.toggle("flex", visibleApps === 0);
+  }
+
+  searchInput?.addEventListener("input", updateCatalogSearch);
+
+  if (searchInput && searchInput.value.trim().length > 0) {
+    updateCatalogSearch();
+  }
+</script>

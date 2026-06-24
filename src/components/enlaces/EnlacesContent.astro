@@ -1,8 +1,8 @@
 ---
-import { Icon } from "astro-icon/components";
 import AnnouncementBanner from "@components/ui/AnnouncementBanner.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchInput from "@components/ui/SearchInput.astro";
 import CategoryCard from "@/pages/recursos/_components/CategoryCard.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { db } from "@/db";
@@ -52,31 +52,12 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     class="max-w-3xl"
   />
 
-  <div class="form-control w-full max-w-md">
-    <label class="sr-only" for="important-links-search">
-      Buscar enlaces y recursos
-    </label>
-    <div
-      class="input input-bordered flex w-full items-center gap-2 bg-base-100"
-    >
-      <Icon
-        name="boxicons:search"
-        class="size-5 text-base-content/50"
-        aria-hidden="true"
-      />
-      <input
-        id="important-links-search"
-        type="search"
-        class="grow"
-        placeholder="Buscar por nombre, URL o descripción"
-        autocomplete="off"
-        aria-describedby="important-links-search-help"
-      />
-    </div>
-    <p id="important-links-search-help" class="sr-only">
-      Filtra los enlaces mientras escribís.
-    </p>
-  </div>
+  <SearchInput
+    id="important-links-search"
+    label="Buscar enlaces y recursos"
+    placeholder="Buscar por nombre, URL o descripción"
+    class="max-w-md"
+  />
 
   <AnnouncementBanner
     title="Nuevo catálogo de aplicativos"
@@ -90,7 +71,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
   <div
     id="important-links-grid"
-    class="columns-1 gap-5 md:columns-2 xl:columns-3"
+    class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
   >
     {
       importantCategories.map((category) => (
@@ -107,137 +88,36 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 </PageContainer>
 
 <script>
-  const debounce = <T extends (...args: any[]) => void>(
-    func: T,
-    delay: number,
-  ): ((...args: Parameters<T>) => void) => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    return (...args: Parameters<T>) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => {
-        func(...args);
-      }, delay);
-    };
-  };
+  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
 
-  const normalizeSearchValue = (value: string): string =>
-    value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-  const escapeRegExp = (value: string): string =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  const escapeHtml = (value: string): string =>
-    value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-
-  const highlightText = (element: HTMLElement, query: string): void => {
-    const originalText =
-      element.dataset.originalText ?? element.textContent ?? "";
-
-    if (!element.dataset.originalText) {
-      element.dataset.originalText = originalText;
-    }
-
-    if (query.length === 0) {
-      if (element.textContent !== originalText) {
-        element.textContent = originalText;
-      }
-      return;
-    }
-
-    const matcher = new RegExp(`(${escapeRegExp(query)})`, "ig");
-
-    if (!matcher.test(originalText)) {
-      if (element.textContent !== originalText) {
-        element.textContent = originalText;
-      }
-      return;
-    }
-
-    matcher.lastIndex = 0;
-    const highlighted = originalText
-      .split(matcher)
-      .map((chunk, index) =>
-        index % 2 === 1
-          ? `<mark class="rounded bg-warning/30 px-0.5 text-base-content">${escapeHtml(chunk)}</mark>`
-          : escapeHtml(chunk),
-      )
-      .join("");
-
-    if (element.innerHTML !== highlighted) {
-      element.innerHTML = highlighted;
-    }
-  };
-
-  const searchInput = document.getElementById(
-    "important-links-search",
-  ) as HTMLInputElement | null;
-  const linksGrid = document.getElementById(
-    "important-links-grid",
-  ) as HTMLElement | null;
-  const emptyState = document.getElementById(
-    "important-links-empty",
-  ) as HTMLElement | null;
-  const categoryCards = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-link-category]"),
-  );
+  const searchInput = document.getElementById("important-links-search") as HTMLInputElement | null;
+  const linksGrid = document.getElementById("important-links-grid") as HTMLElement | null;
+  const emptyState = document.getElementById("important-links-empty") as HTMLElement | null;
+  const categoryCards = Array.from(document.querySelectorAll<HTMLElement>("[data-link-category]"));
 
   let isFiltered = false;
-  let currentSearchId = 0;
 
   const updateVisibleLinks = (): void => {
-    const rawSearchValue = searchInput?.value.trim() ?? "";
-    const query = normalizeSearchValue(rawSearchValue);
+    const query = searchInput?.value.trim() ?? "";
 
     if (query.length === 0 && !isFiltered) {
       return;
     }
 
-    currentSearchId++;
-    const searchId = currentSearchId;
-
     isFiltered = query.length > 0;
     let visibleLinks = 0;
 
-    const itemsToHighlight: { element: HTMLElement; query: string }[] = [];
-
     categoryCards.forEach((categoryCard) => {
-      const categorySearch = normalizeSearchValue(
-        categoryCard.dataset.categorySearch ?? "",
-      );
-      const categoryMatches =
-        query.length > 0 && categorySearch.includes(query);
-      const categoryItems = Array.from(
-        categoryCard.querySelectorAll<HTMLElement>("[data-link-item]"),
-      );
+      const categorySearch = categoryCard.dataset.categorySearch ?? "";
+      const categoryItems = Array.from(categoryCard.querySelectorAll<HTMLElement>("[data-link-item]"));
       let visibleCategoryLinks = 0;
 
       categoryItems.forEach((item) => {
-        const linkSearch = normalizeSearchValue(item.dataset.linkSearch ?? "");
-        const isVisible =
-          query.length === 0 || categoryMatches || linkSearch.includes(query);
+        const linkSearch = item.dataset.linkSearch ?? "";
+        const isVisible = matchesSearchQuery(query, [categorySearch, linkSearch]);
 
         item.classList.toggle("hidden", !isVisible);
-
-        const itemTargets = Array.from(
-          item.querySelectorAll<HTMLElement>("[data-highlight-target]"),
-        );
-
-        itemTargets.forEach((target) => {
-          itemsToHighlight.push({
-            element: target,
-            query: isVisible ? rawSearchValue : "",
-          });
-        });
+        highlightSearchTargets(item, isVisible ? query : "");
 
         if (isVisible) {
           visibleLinks += 1;
@@ -248,49 +128,19 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       const isCategoryVisible = visibleCategoryLinks > 0;
       categoryCard.classList.toggle("hidden", !isCategoryVisible);
 
-      const categoryTitle = categoryCard.querySelector<HTMLElement>(
-        "header [data-highlight-target]",
-      );
-
+      const categoryTitle = categoryCard.querySelector<HTMLElement>("header [data-highlight-target]");
       if (categoryTitle) {
-        itemsToHighlight.push({
-          element: categoryTitle,
-          query: isCategoryVisible ? rawSearchValue : "",
-        });
+        highlightSearchTargets(categoryTitle, isCategoryVisible ? query : "");
       }
     });
 
     linksGrid?.classList.toggle("hidden", visibleLinks === 0);
     emptyState?.classList.toggle("hidden", visibleLinks > 0);
     emptyState?.classList.toggle("flex", visibleLinks === 0);
-
-    let index = 0;
-    const CHUNK_SIZE = 30;
-
-    const processChunk = () => {
-      if (searchId !== currentSearchId) {
-        return;
-      }
-
-      const limit = Math.min(index + CHUNK_SIZE, itemsToHighlight.length);
-      for (; index < limit; index++) {
-        const item = itemsToHighlight[index];
-        highlightText(item.element, item.query);
-      }
-
-      if (index < itemsToHighlight.length) {
-        requestAnimationFrame(() => setTimeout(processChunk, 0));
-      }
-    };
-
-    processChunk();
   };
 
-  const debouncedUpdate = debounce(updateVisibleLinks, 150);
+  searchInput?.addEventListener("input", updateVisibleLinks);
 
-  searchInput?.addEventListener("input", debouncedUpdate);
-
-  // Initialize only if there's a pre-filled value
   if (searchInput && searchInput.value.trim().length > 0) {
     updateVisibleLinks();
   }

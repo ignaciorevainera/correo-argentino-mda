@@ -43,10 +43,13 @@ const hasItemUrl = itemUrl.length > 0;
 const isExternal = hasItemUrl && !itemUrl.includes("/api/download/") && isWebUrl(itemUrl);
 
 const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
+const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""].join(" ").toLowerCase();
 ---
 
 <article
   class="card h-full border border-base-300 bg-base-100 shadow-md transition-colors hover:border-secondary/40"
+  data-app-card
+  data-search-text={searchText}
 >
   <div class="card-body flex-row items-start gap-4 p-4 sm:p-5">
     <div
@@ -70,7 +73,7 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
     <div class="flex min-w-0 flex-1 flex-col gap-4 h-full">
       <div class="min-w-0 space-y-2">
         <div class="flex items-start justify-between gap-3">
-          <h3 class="text-base font-semibold leading-tight text-base-content">
+          <h3 class="text-base font-semibold leading-tight text-base-content" data-highlight-target>
             {title}
           </h3>
           {
@@ -83,7 +86,7 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
         </div>
         {
           description && (
-            <p class="text-sm leading-relaxed text-base-content/70">
+            <p class="text-sm leading-relaxed text-base-content/70" data-highlight-target>
               {description}
             </p>
           )
