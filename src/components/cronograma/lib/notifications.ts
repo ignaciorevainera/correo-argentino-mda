@@ -1,50 +1,13 @@
+import { showToast as globalShowToast, type ToastType } from '../../../lib/toastClient';
+
 export function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void {
-  if (typeof window !== 'undefined' && (window as any).showToast) {
-    const typeMap: Record<string, string> = {
-      success: "alert-success",
-      error: "alert-error",
-      warning: "alert-warning",
-      info: "alert-info"
-    };
-    (window as any).showToast(message, typeMap[type] || "alert-info");
-    return;
-  }
-
-  if (typeof document === 'undefined') return;
-
-  let container = document.getElementById('crono-toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'crono-toast-container';
-    container.className = 'toast toast-end toast-bottom z-[300]';
-    document.body.appendChild(container);
-  }
-
-  const alertDiv = document.createElement('div');
-  let alertTypeClass = 'alert-info';
-  if (type === 'success') alertTypeClass = 'alert-success text-success-content';
-  if (type === 'error') alertTypeClass = 'alert-error text-error-content';
-  if (type === 'warning') alertTypeClass = 'alert-warning text-warning-content';
-
-  alertDiv.className = `alert ${alertTypeClass} shadow-lg font-bold text-xs uppercase tracking-wider rounded-2xl border border-base-300/10 transition-all duration-300 transform translate-y-10 opacity-0`;
-  alertDiv.innerHTML = `<span>${message}</span>`;
-  container.appendChild(alertDiv);
-
-  // Trigger fade-in animation
-  setTimeout(() => {
-    alertDiv.classList.remove('translate-y-10', 'opacity-0');
-  }, 10);
-
-  // Auto-remove toast
-  setTimeout(() => {
-    alertDiv.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => {
-      alertDiv.remove();
-      if (container && container.childNodes.length === 0) {
-        container.remove();
-      }
-    }, 300);
-  }, 3000);
+  const typeMap: Record<'success' | 'error' | 'warning' | 'info', ToastType> = {
+    success: 'alert-success',
+    error: 'alert-error',
+    warning: 'alert-warning',
+    info: 'alert-info'
+  };
+  globalShowToast(message, typeMap[type] || 'alert-info');
 }
 
 export function showConfirm(message: string): Promise<boolean> {

@@ -13,6 +13,7 @@ import { rolesMatrix } from "../../../lib/rolesMatrix";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 interface Props {
   successMsg?: string;
@@ -61,34 +62,28 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 
           <!-- Feedback -->
           {
-            errorMsg && (
-              <div role="alert" class="alert alert-error alert-soft text-sm">
-                <Icon
-                  name="boxicons:alert-circle-filled"
-                  size={20}
-                  class="shrink-0"
-                />
-                <span>{errorMsg}</span>
-              </div>
-            )
-          }
-          {
-            successMsg && (
-              <div
-                role="alert"
-                class="alert alert-success alert-soft text-sm"
-              >
-                <Icon
-                  name="boxicons:check-circle-filled"
-                  size={20}
-                  class="shrink-0"
-                />
-                <span>{successMsg}</span>
-              </div>
+            (successMsg || errorMsg) && (
+              <script is:inline define:vars={{ successMsg, errorMsg }}>
+                (() => {
+                  const triggerToast = () => {
+                    if (typeof window.showToast === "function") {
+                      if (successMsg) {
+                        window.showToast(successMsg, "alert-success");
+                      }
+                      if (errorMsg) {
+                        window.showToast(errorMsg, "alert-error");
+                      }
+                    } else {
+                      setTimeout(triggerToast, 50);
+                    }
+                  };
+                  triggerToast();
+                })();
+              </script>
             )
           }
 
-          <form method="POST" class="space-y-4">
+          <form method="POST" class="space-y-4" data-async-form>
             <FormField
               id="admin-username"
               name="username"
@@ -287,7 +282,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           {u.username}
                         </span>
                       </p>
-                      <form method="POST" class="space-y-3">
+                      <form method="POST" class="space-y-3" data-async-form>
                         <input
                           type="hidden"
                           name="action"
@@ -338,7 +333,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                         </span>
                         .
                       </p>
-                      <form method="POST" class="space-y-3">
+                      <form method="POST" class="space-y-3" data-async-form>
                         <input
                           type="hidden"
                           name="action"
@@ -398,7 +393,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     <p class="mb-4 text-xs text-base-content/60">
       Modifica el rol del usuario en el sistema.
     </p>
-    <form method="POST" class="space-y-4">
+    <form method="POST" class="space-y-4" data-async-form>
       <input type="hidden" name="action" value="change-role" />
       <input type="hidden" name="userId" id="change-role-user-id" />
       <SelectField
@@ -586,6 +581,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     <button>cerrar</button>
   </form>
 </dialog>
+
+<AsyncFormScript />
 
 <script>
   // La validación de contraseñas es gestionada internamente por el componente PasswordField

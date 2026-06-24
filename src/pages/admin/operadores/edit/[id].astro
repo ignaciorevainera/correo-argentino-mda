@@ -10,6 +10,7 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { getDisponibilidadHoy } from "@/lib/disponibilidad";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -54,6 +55,7 @@ const allLocations = await db
   .orderBy(workLocations.name);
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const fd = await Astro.request.formData();
 
@@ -152,6 +154,9 @@ if (Astro.request.method === "POST") {
       }
 
       await logAdminAction(user?.username || 'Sistema', logMessage);
+      if (isAjax) {
+        return new Response(JSON.stringify({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: `${cleanBase}admin/operadores` }), { status: 200, headers: {"Content-Type": "application/json"} });
+      }
       return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`);
     }
   } catch (e: any) {
@@ -159,6 +164,9 @@ if (Astro.request.method === "POST") {
     errorMsg = e.message.includes("UNIQUE")
       ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+    }
   }
 }
 
@@ -257,7 +265,7 @@ const pageTitle = `Editar: ${operator!.name}`;
       )
     }
 
-    <form method="POST" id="operator-form" class="space-y-4">
+    <form method="POST" id="operator-form" class="space-y-4" data-async-form>
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-4 p-5">
           <h2
@@ -435,4 +443,5 @@ const pageTitle = `Editar: ${operator!.name}`;
       </div>
     </form>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
