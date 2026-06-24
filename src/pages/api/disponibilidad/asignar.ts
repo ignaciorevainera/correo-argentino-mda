@@ -8,7 +8,8 @@ export const POST: APIRoute = async ({ locals }) => {
   if (denied) return denied;
 
   try {
-    const result = await asignarSiguienteAutogestion();
+    const assignedBy = locals.user?.name || locals.user?.username || "Sistema";
+    const result = await asignarSiguienteAutogestion(assignedBy);
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 400,
       headers: {

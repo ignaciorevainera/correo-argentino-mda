@@ -29,6 +29,9 @@ export interface OperatorQuality {
   calls: QualityCall[];
   history: number[];
   averageScore: number;
+  prevAverageScore?: number;
+  prevCallsCount?: number;
+  prevCriticalCount?: number;
 }
 
 export interface AuditParameter {

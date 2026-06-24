@@ -15,7 +15,15 @@ import { eq, inArray } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
-const selectedMonth = searchParams.get("month") || "05-2026";
+
+const currentActualMonth = (() => {
+  const now = new Date();
+  const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+  const yyyy = now.getFullYear();
+  return `${mm}-${yyyy}`;
+})();
+
+const selectedMonth = searchParams.get("month") || currentActualMonth;
 
 // Generate the last 6 months based on the selected month
 const getDynamicMonths = (baseMonthStr: string) => {
@@ -56,12 +64,6 @@ const formatMonthLabel = (monthStr: string) => {
   return `${monthLabels[mm] || mm} ${yyyy}`;
 };
 
-const currentActualMonth = (() => {
-  const now = new Date();
-  const mm = (now.getMonth() + 1).toString().padStart(2, "0");
-  const yyyy = now.getFullYear();
-  return `${mm}-${yyyy}`;
-})();
 
 const selectorMonthsList = getDynamicMonths(currentActualMonth);
 if (!selectorMonthsList.includes(selectedMonth)) {

@@ -1210,6 +1210,9 @@ function renderMonthly(): void {
   if (hideTotals) {
     state.isTotalsCollapsed = true;
   }
+  if (isReadOnly) {
+    state.isCoverageMinimized = true;
+  }
 
   const thead = document.getElementById('monthly-thead');
   const tbody = document.getElementById('monthly-tbody');
@@ -1424,12 +1427,16 @@ function renderMonthly(): void {
       const hoViolation = maxConsecutiveHO > opMaxHO;
       if (hoViolation || pWeekViolation) totalInconsistencies++;
 
+      const showViolation = !isReadOnly && (hoViolation || pWeekViolation);
+      const showHOViolation = !isReadOnly && hoViolation;
+      const showPWeekViolation = !isReadOnly && pWeekViolation;
+
       const opShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]' : '';
 
-      tbodyHtml += `<tr class="group ${(hoViolation || pWeekViolation) ? 'bg-error/2' : ''}" data-op-name="${op.nombre.toLowerCase()}">
+      tbodyHtml += `<tr class="group ${showViolation ? 'bg-error/2' : ''}" data-op-name="${op.nombre.toLowerCase()}">
         <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full ${(hoViolation || pWeekViolation) ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
+            <span class="w-2 h-2 rounded-full ${showViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
                 <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
@@ -1444,8 +1451,8 @@ function renderMonthly(): void {
                   </button>
                 </div>
               </div>
-              ${hoViolation ? `<span class="text-tiny bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
-              ${pWeekViolation ? `<span class="text-tiny bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Faltan días P.</span>` : ''}
+              ${showHOViolation ? `<span class="text-tiny bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Exceso de HO (${maxConsecutiveHO}d)</span>` : ''}
+              ${showPWeekViolation ? `<span class="text-tiny bg-error/10 border border-error/20 px-2 py-0.5 rounded-md font-black text-error uppercase tracking-wider mt-1 inline-block w-fit shadow-sm">⚠️ Faltan días P.</span>` : ''}
             </div>
           </div>
         </td>
@@ -1631,6 +1638,7 @@ function renderMonthly(): void {
     <td class="sticky left-0 bg-base-200 z-50 w-[200px] min-w-[200px] ${pyClass} px-6 border-r border-base-300 ${shadowClass}">
       <div class="flex items-center justify-between gap-2">
         <span class="text-xxs font-black uppercase tracking-widest text-base-content/60">Resumen Cobertura</span>
+        ${isReadOnly ? '' : `
         <button
           type="button"
           id="toggle-coverage-btn"
@@ -1640,6 +1648,7 @@ function renderMonthly(): void {
         >
           ${chevronIcon}
         </button>
+        `}
       </div>
     </td>
   `;
@@ -2121,16 +2130,11 @@ async function renderGroupsView(): Promise<void> {
     const activeMonthPrefix = activeDateStr.slice(0, 7);
 
     if (!rotationTimelineSelectedDate || !rotationTimelineSelectedDate.startsWith(activeMonthPrefix)) {
-      const [y, m] = activeDateStr.split('-').map(Number);
-      let firstSat = 1;
-      for (let d = 1; d <= 7; d++) {
-        const dayVal = new Date(y, m - 1, d).getDay();
-        if (dayVal === 6) {
-          firstSat = d;
-          break;
-        }
-      }
-      rotationTimelineSelectedDate = `${y}-${String(m).padStart(2, '0')}-${String(firstSat).padStart(2, '0')}`;
+      const baseDate = new Date(activeDateStr + 'T12:00:00');
+      const dayVal = baseDate.getDay();
+      const diff = dayVal === 0 ? -1 : 6 - dayVal;
+      baseDate.setDate(baseDate.getDate() + diff);
+      rotationTimelineSelectedDate = formatYMD(baseDate);
     }
 
     const rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;

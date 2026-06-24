@@ -14,6 +14,7 @@ export interface AgentDisponibilidad {
   breakFinHoy?: string;       // "13:00"
   retornoEstimado?: string;   // "13:00"
   lastAutogestionAssignedAt: number | null;
+  lastAutogestionAssignedBy?: string | null;
   modalidadHoy?: string;      // "Presencial", "Home Office", "Horas Extras", "Franco", etc.
   estadoExcepcional?: string;          // Tipo de excepción activa: "devolucion_supervisor" | "break_extendido" | "problema_tecnico"
   estadoExcepcionalMotivo?: string;    // Comentario del supervisor
@@ -122,6 +123,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       breakInicioHoy: breakInicio || undefined,
       breakFinHoy: breakFin || undefined,
       lastAutogestionAssignedAt: agent.lastAutogestionAssignedAt,
+      lastAutogestionAssignedBy: agent.lastAutogestionAssignedBy,
       modalidadHoy: status,
       estadoExcepcional: agent.estadoExcepcional || undefined,
       estadoExcepcionalMotivo: agent.estadoExcepcionalMotivo || undefined,
@@ -277,7 +279,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
   return list;
 }
 
-export async function asignarSiguienteAutogestion(): Promise<{
+export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"): Promise<{
   success: boolean;
   agent?: AgentDisponibilidad;
   error?: string;
@@ -310,10 +312,14 @@ export async function asignarSiguienteAutogestion(): Promise<{
   // Update in DB
   await db
     .update(agents)
-    .set({ lastAutogestionAssignedAt: now })
+    .set({ 
+      lastAutogestionAssignedAt: now,
+      lastAutogestionAssignedBy: assignedBy
+    })
     .where(eq(agents.id, winner.agentId));
 
   winner.lastAutogestionAssignedAt = now;
+  winner.lastAutogestionAssignedBy = assignedBy;
   
   return {
     success: true,
@@ -321,11 +327,14 @@ export async function asignarSiguienteAutogestion(): Promise<{
   };
 }
 
-export async function asignarManual(agentId: number): Promise<{ success: boolean; error?: string }> {
+export async function asignarManual(agentId: number, assignedBy: string = "Sistema"): Promise<{ success: boolean; error?: string }> {
   // Update lastAutogestionAssignedAt for the manually assigned agent
   await db
     .update(agents)
-    .set({ lastAutogestionAssignedAt: Date.now() })
+    .set({ 
+      lastAutogestionAssignedAt: Date.now(),
+      lastAutogestionAssignedBy: assignedBy
+    })
     .where(eq(agents.id, agentId));
   return { success: true };
 }

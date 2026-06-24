@@ -32,7 +32,7 @@ if (Astro.request.method === "POST" && !isReadOnly) {
     if (action === "assign_manual") {
       const agentId = Number(formData.get("agentId"));
       if (!isNaN(agentId)) {
-        await asignarManual(agentId);
+        await asignarManual(agentId, user?.name || user?.username || "Sistema");
 
         const [ag] = await db
           .select({ name: agents.name })
@@ -45,7 +45,7 @@ if (Astro.request.method === "POST" && !isReadOnly) {
         };
       }
     } else if (action === "assign_cyclic") {
-      const res = await asignarSiguienteAutogestion();
+      const res = await asignarSiguienteAutogestion(user?.name || user?.username || "Sistema");
       if (res.success && res.agent) {
         flashMessage = {
           type: "success",
@@ -76,15 +76,27 @@ const disponiblesCount = allOperators.filter((op) => op.disponible).length;
 const noDisponiblesList = allOperators.filter((op) => !op.disponible);
 const noDisponiblesCount = noDisponiblesList.length;
 
-// Find the ID of the agent who was most recently assigned
+// Find the operator who was most recently assigned
 const maxAssignedTime = Math.max(
   ...allOperators.map((o) => o.lastAutogestionAssignedAt ?? 0),
 );
-const maxAssignedOperatorId =
+const lastAssignedOperator =
   maxAssignedTime > 0
     ? allOperators.find((o) => o.lastAutogestionAssignedAt === maxAssignedTime)
-        ?.agentId
     : null;
+const maxAssignedOperatorId = lastAssignedOperator?.agentId ?? null;
+
+// Find the next suggested operator
+const availableOperators = allOperators.filter((o) => o.disponible);
+const nextSuggestedOperator = availableOperators.length > 0
+  ? [...availableOperators].sort((a, b) => {
+      const tA = a.lastAutogestionAssignedAt ?? 0;
+      const tB = b.lastAutogestionAssignedAt ?? 0;
+      if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
+      if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
+      return tA - tB;
+    })[0]
+  : null;
 
 const STATUS_LABELS: Record<string, string> = {
   "En break": "En Break",
@@ -335,7 +347,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     }
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
     <!-- Card Disponibles -->
     <div
       class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-success/30 transition-all duration-300"
@@ -444,6 +456,96 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               </div>
             ))
           }
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Última Asignación -->
+    <div
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-all duration-300"
+    >
+      <div
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+      >
+        <Icon name="boxicons:history" size={128} />
+      </div>
+      <div class="card-body p-6 flex flex-col justify-between h-full">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-info/10 rounded-lg text-info">
+              <Icon name="boxicons:history" size={24} />
+            </div>
+            <h3
+              class="font-bold text-xs uppercase tracking-widest text-base-content/50"
+            >
+              Última Asignación
+            </h3>
+          </div>
+          <div id="stat-last-assigned-container" class="mt-2 space-y-2">
+            {lastAssignedOperator ? (
+              <div>
+                <div class="text-sm font-semibold text-base-content">
+                  De: <span class="font-black text-info" id="stat-last-assigned-by">{lastAssignedOperator.lastAutogestionAssignedBy || "Sistema"}</span>
+                </div>
+                <div class="text-sm font-semibold text-base-content mt-1">
+                  Para: <span class="font-black text-base-content" id="stat-last-assigned-to">{lastAssignedOperator.nombre}</span>
+                </div>
+                <div class="text-xs text-base-content/50 font-mono mt-2" id="stat-last-assigned-time">
+                  Hora: {new Date(lastAssignedOperator.lastAutogestionAssignedAt!).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+            ) : (
+              <span class="text-xs text-base-content/40 italic">Sin asignaciones hoy</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Próxima Sugerida -->
+    <div
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-primary/30 transition-all duration-300"
+    >
+      <div
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+      >
+        <Icon name="boxicons:sparkles" size={128} />
+      </div>
+      <div class="card-body p-6 flex flex-col justify-between h-full">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-primary/10 rounded-lg text-primary">
+              <Icon name="boxicons:sparkles" size={24} />
+            </div>
+            <h3
+              class="font-bold text-xs uppercase tracking-widest text-base-content/50"
+            >
+              Próxima Sugerencia
+            </h3>
+          </div>
+          <div id="stat-suggested-container" class="mt-2">
+            {nextSuggestedOperator ? (
+              <div>
+                <div
+                  class="text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal"
+                  id="stat-suggested-name"
+                  title={nextSuggestedOperator.nombre}
+                >
+                  {nextSuggestedOperator.nombre}
+                </div>
+                <div
+                  class="text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1"
+                  id="stat-suggested-reason"
+                >
+                  Disponible • {nextSuggestedOperator.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
+                </div>
+              </div>
+            ) : (
+              <div class="text-xs text-base-content/40 italic" id="stat-suggested-name-empty">
+                No hay disponibles
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -704,6 +806,13 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
 <script>
   const init = () => {
+    const escapeHtml = (str: string | null | undefined): string => {
+      if (str == null) return "";
+      const div = document.createElement("div");
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    };
+
     const toggle = document.getElementById(
       "toggle-disponibles",
     ) as HTMLInputElement | null;
@@ -858,6 +967,86 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               container.classList.remove("opacity-40");
             }
           }
+        }
+      }
+
+      // 3b. Update last assigned card and suggested card
+      let maxAssignedTimeForCard = 0;
+      let lastAssignedOp = null;
+      data.forEach((op) => {
+        if (
+          op.lastAutogestionAssignedAt &&
+          op.lastAutogestionAssignedAt > maxAssignedTimeForCard
+        ) {
+          maxAssignedTimeForCard = op.lastAutogestionAssignedAt;
+          lastAssignedOp = op;
+        }
+      });
+
+      const lastAssignedContainer = document.getElementById("stat-last-assigned-container");
+      if (lastAssignedContainer) {
+        if (lastAssignedOp && maxAssignedTimeForCard > 0) {
+          const timeStr = new Date(maxAssignedTimeForCard).toLocaleTimeString("es-AR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          lastAssignedContainer.innerHTML = `
+            <div>
+              <div class="text-sm font-semibold text-base-content">
+                De: <span class="font-black text-info" id="stat-last-assigned-by">${escapeHtml(lastAssignedOp.lastAutogestionAssignedBy || "Sistema")}</span>
+              </div>
+              <div class="text-sm font-semibold text-base-content mt-1">
+                Para: <span class="font-black text-base-content" id="stat-last-assigned-to">${escapeHtml(lastAssignedOp.nombre)}</span>
+              </div>
+              <div class="text-xs text-base-content/50 font-mono mt-2" id="stat-last-assigned-time">
+                Hora: ${timeStr}
+              </div>
+            </div>
+          `;
+        } else {
+          lastAssignedContainer.innerHTML = `<span class="text-xs text-base-content/40 italic">Sin asignaciones hoy</span>`;
+        }
+      }
+
+      const available = data.filter((op) => op.disponible);
+      let nextSuggestedOp = null;
+      if (available.length > 0) {
+        const sorted = [...available].sort((a, b) => {
+          const tA = a.lastAutogestionAssignedAt ?? 0;
+          const tB = b.lastAutogestionAssignedAt ?? 0;
+          if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
+          if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
+          return tA - tB;
+        });
+        nextSuggestedOp = sorted[0];
+      }
+
+      const suggestedContainer = document.getElementById("stat-suggested-container");
+      if (suggestedContainer) {
+        if (nextSuggestedOp) {
+          suggestedContainer.innerHTML = `
+            <div>
+              <div
+                class="text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal"
+                id="stat-suggested-name"
+                title="${escapeHtml(nextSuggestedOp.nombre)}"
+              >
+                ${escapeHtml(nextSuggestedOp.nombre)}
+              </div>
+              <div
+                class="text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1"
+                id="stat-suggested-reason"
+              >
+                Disponible • ${nextSuggestedOp.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
+              </div>
+            </div>
+          `;
+        } else {
+          suggestedContainer.innerHTML = `
+            <div class="text-xs text-base-content/40 italic" id="stat-suggested-name-empty">
+              No hay disponibles
+            </div>
+          `;
         }
       }
 
@@ -1348,8 +1537,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       btnRefresh.addEventListener("click", fetchDisponibilidad);
     }
 
-    // Set up 60-second polling interval
-    const polling = setInterval(fetchDisponibilidad, 60000);
+    // Set up 10-second polling interval
+    const polling = setInterval(fetchDisponibilidad, 10000);
 
     // Close dropdowns on Escape key
     document.addEventListener("keydown", (e) => {

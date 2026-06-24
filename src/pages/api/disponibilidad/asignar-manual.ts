@@ -20,7 +20,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    const result = await asignarManual(agentId);
+    const assignedBy = locals.user?.name || locals.user?.username || "Sistema";
+    const result = await asignarManual(agentId, assignedBy);
     
     let agentName = `ID ${agentId}`;
     try {
