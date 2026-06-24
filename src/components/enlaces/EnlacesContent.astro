@@ -9,6 +9,9 @@ import { db } from "@/db";
 import { resourceCategories } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import type { CategoryTone, CategoryViewModel } from "@/pages/recursos/_components/types";
+import { decrypt } from "@/lib/encryption";
+
+const isAuthenticated = Astro.locals.user && Astro.locals.user.id !== 0;
 
 const rawCategories = await db.query.resourceCategories.findMany({
   orderBy: [asc(resourceCategories.sortOrder), asc(resourceCategories.title)],
@@ -38,6 +41,12 @@ const importantCategories = rawCategories.map(
         subtitle: link.subtitle ?? undefined,
         iconPath: link.iconPath ?? undefined,
         deprecated: link.deprecated ?? false,
+        credentials: isAuthenticated && (link.credentialUsername || link.credentialPassword)
+          ? {
+              username: link.credentialUsername || "",
+              password: link.credentialPassword ? decrypt(link.credentialPassword) : undefined,
+            }
+          : undefined,
       })),
   }),
 );
@@ -105,6 +114,13 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     description="La búsqueda no coincidió con ningún enlace. Probá con otro nombre, URL o descripción."
   />
 </PageContainer>
+
+<style is:global>
+  ::highlight(search-match) {
+    background-color: rgba(226, 173, 31, 0.3);
+    color: inherit;
+  }
+</style>
 
 <script>
   const debounce = <T extends (...args: any[]) => void>(
@@ -178,6 +194,43 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     }
   };
 
+  const getTextNodes = (element: HTMLElement): Text[] => {
+    const walk = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+    const res: Text[] = [];
+    let node;
+    while ((node = walk.nextNode())) {
+      res.push(node as Text);
+    }
+    return res;
+  };
+
+  const getNormalizedMatchRanges = (originalText: string, queryNormalized: string): { start: number; end: number }[] => {
+    const matches: { start: number; end: number }[] = [];
+    if (!queryNormalized) return matches;
+
+    const mapStrippedToOriginal: number[] = [];
+    let strippedText = "";
+
+    for (let i = 0; i < originalText.length; i++) {
+      const char = originalText[i];
+      const normalizedChar = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      for (let j = 0; j < normalizedChar.length; j++) {
+        mapStrippedToOriginal.push(i);
+      }
+      strippedText += normalizedChar;
+    }
+
+    let start = 0;
+    while ((start = strippedText.indexOf(queryNormalized, start)) !== -1) {
+      const originalStart = mapStrippedToOriginal[start];
+      const originalEnd = mapStrippedToOriginal[start + queryNormalized.length - 1] + 1;
+      matches.push({ start: originalStart, end: originalEnd });
+      start += queryNormalized.length;
+    }
+
+    return matches;
+  };
+
   const searchInput = document.getElementById(
     "important-links-search",
   ) as HTMLInputElement | null;
@@ -193,6 +246,11 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
   let isFiltered = false;
   let currentSearchId = 0;
+
+  const hasCSSHighlightAPI =
+    typeof CSS !== "undefined" &&
+    typeof CSS.highlights !== "undefined" &&
+    typeof Highlight !== "undefined";
 
   const updateVisibleLinks = (): void => {
     const rawSearchValue = searchInput?.value.trim() ?? "";
@@ -264,29 +322,56 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     emptyState?.classList.toggle("hidden", visibleLinks > 0);
     emptyState?.classList.toggle("flex", visibleLinks === 0);
 
-    let index = 0;
-    const CHUNK_SIZE = 30;
+    if (hasCSSHighlightAPI) {
+      CSS.highlights.delete("search-match");
+      if (query.length > 0) {
+        const ranges: Range[] = [];
 
-    const processChunk = () => {
-      if (searchId !== currentSearchId) {
-        return;
+        itemsToHighlight.forEach(({ element, query: itemQuery }) => {
+          if (!itemQuery) return;
+          const textNodes = getTextNodes(element);
+          textNodes.forEach((node) => {
+            const text = node.textContent ?? "";
+            const matches = getNormalizedMatchRanges(text, query);
+            matches.forEach(({ start, end }) => {
+              const range = new Range();
+              range.setStart(node, start);
+              range.setEnd(node, end);
+              ranges.push(range);
+            });
+          });
+        });
+
+        if (ranges.length > 0) {
+          const highlight = new Highlight(...ranges);
+          CSS.highlights.set("search-match", highlight);
+        }
       }
+    } else {
+      let index = 0;
+      const CHUNK_SIZE = 30;
 
-      const limit = Math.min(index + CHUNK_SIZE, itemsToHighlight.length);
-      for (; index < limit; index++) {
-        const item = itemsToHighlight[index];
-        highlightText(item.element, item.query);
-      }
+      const processChunk = () => {
+        if (searchId !== currentSearchId) {
+          return;
+        }
 
-      if (index < itemsToHighlight.length) {
-        requestAnimationFrame(() => setTimeout(processChunk, 0));
-      }
-    };
+        const limit = Math.min(index + CHUNK_SIZE, itemsToHighlight.length);
+        for (; index < limit; index++) {
+          const item = itemsToHighlight[index];
+          highlightText(item.element, item.query);
+        }
 
-    processChunk();
+        if (index < itemsToHighlight.length) {
+          requestAnimationFrame(() => setTimeout(processChunk, 0));
+        }
+      };
+
+      processChunk();
+    }
   };
 
-  const debouncedUpdate = debounce(updateVisibleLinks, 150);
+  const debouncedUpdate = debounce(updateVisibleLinks, 300);
 
   searchInput?.addEventListener("input", debouncedUpdate);
 

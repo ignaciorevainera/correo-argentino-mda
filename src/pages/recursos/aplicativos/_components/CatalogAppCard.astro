@@ -1,17 +1,48 @@
 ---
 import { Icon } from "astro-icon/components";
 import CatalogSoftBadge from "./CatalogSoftBadge.astro";
+import { decryptData } from "@lib/encryption";
+import CopyButton from "@components/ui/CopyButton.astro";
 
 interface Props {
+  id: number;
   title: string;
   description?: string | null;
   version?: string | null;
   filePath?: string | null;
   categoryTitle?: string | null;
   iconPath?: string | null;
+  metadata?: string | null;
+  instructionPdfPath?: string | null;
 }
 
-const { title, description, version, filePath, categoryTitle, iconPath } = Astro.props;
+const {
+  id,
+  title,
+  description,
+  version,
+  filePath,
+  categoryTitle,
+  iconPath,
+  metadata,
+  instructionPdfPath,
+} = Astro.props;
+
+const user = Astro.locals.user;
+const isAuthenticated = user && user.id !== 0;
+
+let decryptedMetaList: Array<{ label: string; value: string }> = [];
+let hasSensitiveData = false;
+
+if (isAuthenticated && metadata) {
+  try {
+    const jsonStr = decryptData(metadata);
+    decryptedMetaList = JSON.parse(jsonStr);
+    hasSensitiveData = decryptedMetaList.length > 0;
+  } catch (err) {
+    console.error("Error al desencriptar metadatos en la tarjeta:", err);
+  }
+}
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -40,13 +71,14 @@ const resolveUrl = (path: string): string => {
 
 const itemUrl = resolveUrl(filePath?.trim() ?? "");
 const hasItemUrl = itemUrl.length > 0;
-const isExternal = hasItemUrl && !itemUrl.includes("/api/download/") && isWebUrl(itemUrl);
+const isExternal =
+  hasItemUrl && !itemUrl.includes("/api/download/") && isWebUrl(itemUrl);
 
 const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
 ---
 
 <article
-  class="card h-full border border-base-300 bg-base-100 shadow-md transition-colors hover:border-secondary/40"
+  class="card min-h-56 border border-base-300 bg-base-100 shadow-md transition-colors hover:border-secondary/40"
 >
   <div class="card-body flex-row items-start gap-4 p-4 sm:p-5">
     <div
@@ -67,7 +99,7 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
       }
     </div>
 
-    <div class="flex min-w-0 flex-1 flex-col gap-4 h-full">
+    <div class="flex min-w-0 flex-1 flex-col gap-4">
       <div class="min-w-0 space-y-2">
         <div class="flex items-start justify-between gap-3">
           <h3 class="text-base font-semibold leading-tight text-base-content">
@@ -88,9 +120,100 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
             </p>
           )
         }
+
+        {
+          hasSensitiveData && (
+            <details class="group/creds mt-1.5 w-full">
+              <summary class="list-none btn btn-xs w-full justify-start select-none">
+                <Icon name="boxicons:key" size={14} class="shrink-0" />
+                <span class="group-open/creds:hidden">
+                  Mostrar credenciales
+                </span>
+                <span class="hidden group-open/creds:inline">
+                  Ocultar credenciales
+                </span>
+              </summary>
+              <div class="mt-2 space-y-1.5 bg-base-200 p-2 rounded text-xs w-full">
+                {decryptedMetaList.map((meta, idx) => {
+                  return (
+                    <div class="flex items-center justify-between gap-3">
+                      <span
+                        class="text-base-content/50 flex items-center gap-1 shrink-0 font-semibold"
+                        title={meta.label}
+                      >
+                        <Icon
+                          name="boxicons:key"
+                          size={14}
+                          aria-hidden="true"
+                        />
+                        <span class="max-w-[80px] sm:max-w-[120px] truncate">
+                          {meta.label}
+                        </span>
+                      </span>
+                      <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                        <input
+                          type="password"
+                          value={meta.value}
+                          readonly
+                          class="input input-xs font-mono bg-base-300 border-none flex-1 min-w-0 text-base-content text-right font-bold pr-1"
+                          data-password-input
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost btn-square text-base-content/60 shrink-0"
+                          data-toggle-password
+                          title="Mostrar/Ocultar contraseña"
+                          aria-label="Mostrar u ocultar contraseña"
+                        >
+                          <Icon
+                            name="boxicons:eye-filled"
+                            size={16}
+                            data-show-icon
+                          />
+                          <Icon
+                            name="boxicons:eye-slash-filled"
+                            size={16}
+                            class="hidden"
+                            data-hide-icon
+                          />
+                        </button>
+                        <CopyButton
+                          value={meta.value}
+                          variant="icon"
+                          appearance="ghost"
+                          size="xs"
+                          tooltipText="Copiar contraseña"
+                          showTooltip={true}
+                          ariaLabel={`Copiar credencial para ${meta.label}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )
+        }
       </div>
 
       <div class="card-actions mt-auto justify-end pt-1">
+        {
+          isAuthenticated && instructionPdfPath && (
+            <a
+              href={`${cleanBase}api/aplicativos/pdf/${id}`}
+              class="btn btn-outline btn-info btn-sm gap-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon
+                name="boxicons:file-detail-filled"
+                size={18}
+                aria-hidden="true"
+              />
+              <span>Instructivo</span>
+            </a>
+          )
+        }
         {
           hasItemUrl ? (
             <a
@@ -112,6 +235,7 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
               type="button"
               class="btn btn-ghost btn-disabled btn-sm gap-2"
               disabled
+              tabindex="-1"
             >
               <Icon
                 name="boxicons:calendar-filled"
@@ -126,3 +250,41 @@ const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
     </div>
   </div>
 </article>
+
+<script>
+  const initPasswordToggles = () => {
+    document.querySelectorAll("[data-toggle-password]").forEach((btn) => {
+      if (btn.getAttribute("data-listener-added") === "true") return;
+      btn.setAttribute("data-listener-added", "true");
+
+      btn.addEventListener("click", () => {
+        const parent = btn.closest("div");
+        if (!parent) return;
+        const input = parent.querySelector(
+          "[data-password-input]",
+        ) as HTMLInputElement | null;
+        const showIcon = parent.querySelector(
+          "[data-show-icon]",
+        ) as HTMLElement | null;
+        const hideIcon = parent.querySelector(
+          "[data-hide-icon]",
+        ) as HTMLElement | null;
+
+        if (input) {
+          if (input.type === "password") {
+            input.type = "text";
+            showIcon?.classList.add("hidden");
+            hideIcon?.classList.remove("hidden");
+          } else {
+            input.type = "password";
+            showIcon?.classList.remove("hidden");
+            hideIcon?.classList.add("hidden");
+          }
+        }
+      });
+    });
+  };
+
+  initPasswordToggles();
+  document.addEventListener("astro:page-load", initPasswordToggles);
+</script>

@@ -7,6 +7,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories } from "@db/schema";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const isNew = true;
 
@@ -36,6 +37,7 @@ const PREDEFINED_ICONS = [
 const iconsList = [...PREDEFINED_ICONS];
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const formData = await Astro.request.formData();
     const title = formData.get("title")?.toString().trim();
@@ -59,10 +61,16 @@ if (Astro.request.method === "POST") {
     await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de recursos "${title}"`);
 
     const successMsg = "Categoría creada con éxito.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
   } catch (error: any) {
     console.error("DEBUG ERROR CREATE CATEGORIA RECURSOS:", error);
     errorMsg = error.message || "Error al guardar la categoría.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
   }
 }
 ---
@@ -111,7 +119,7 @@ if (Astro.request.method === "POST") {
             )
           }
 
-          <form method="POST" class="space-y-5">
+          <form method="POST" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 gap-y-5">
               <FormField
                 id="input-title"
@@ -242,4 +250,5 @@ if (Astro.request.method === "POST") {
       </div>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>

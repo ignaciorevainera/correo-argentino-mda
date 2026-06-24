@@ -4,7 +4,11 @@ import { users, sessions } from "@db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { generateSessionId, signSessionId, setSessionCookie } from "../../lib/session";
+import {
+  generateSessionId,
+  signSessionId,
+  setSessionCookie,
+} from "../../lib/session";
 import { Icon } from "astro-icon/components";
 import FormField from "@components/ui/forms/FormField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
@@ -14,7 +18,7 @@ if (Astro.locals.user.id !== 0) {
 }
 
 const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith('/') ? base : base + '/';
+const cleanBase = base.endsWith("/") ? base : base + "/";
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
@@ -22,7 +26,9 @@ if (Astro.request.method === "POST") {
   const passwordInput = formData.get("password")?.toString();
 
   if (!usernameInput || !passwordInput) {
-    return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("Completá todos los campos")}&toast_type=warning`);
+    return Astro.redirect(
+      `${cleanBase}login?toast_msg=${encodeURIComponent("Completá todos los campos")}&toast_type=warning`,
+    );
   }
 
   const [userFound] = await db
@@ -53,10 +59,14 @@ if (Astro.request.method === "POST") {
       return Astro.redirect(base);
     }
 
-    return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("Contraseña incorrecta")}&toast_type=error`);
+    return Astro.redirect(
+      `${cleanBase}login?toast_msg=${encodeURIComponent("Contraseña incorrecta")}&toast_type=error`,
+    );
   }
 
-  return Astro.redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("El usuario no existe")}&toast_type=error`);
+  return Astro.redirect(
+    `${cleanBase}login?toast_msg=${encodeURIComponent("El usuario no existe")}&toast_type=error`,
+  );
 }
 ---
 
@@ -95,7 +105,7 @@ if (Astro.request.method === "POST") {
               minlength="3"
               maxlength="30"
               title="Solo letras, números o guion"
-              icon="boxicons:user"
+              icon="boxicons:user-filled"
               inputClass="validator"
             />
 

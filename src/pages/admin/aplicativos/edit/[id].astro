@@ -9,6 +9,8 @@ import { applications, applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
+import { encryptData, decryptData } from "@lib/encryption";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const { id } = Astro.params;
 const isNew = false;
@@ -29,6 +31,8 @@ let app = {
   version: "",
   filePath: "",
   iconPath: "",
+  metadata: [] as Array<{ label: string; value: string }>,
+  instructionPdfPath: "",
 };
 
 const categories = await db.select().from(applicationCategories);
@@ -43,6 +47,16 @@ const existing = await db.query.applications.findFirst({
   where: eq(applications.id, numericId),
 });
 
+let decryptedMetadata: Array<{ label: string; value: string }> = [];
+if (existing && existing.metadata) {
+  try {
+    const jsonStr = decryptData(existing.metadata);
+    decryptedMetadata = JSON.parse(jsonStr);
+  } catch (err) {
+    console.error("Error al desencriptar metadatos:", err);
+  }
+}
+
 if (existing) {
   app = {
     id: existing.id,
@@ -52,6 +66,8 @@ if (existing) {
     version: existing.version || "",
     filePath: existing.filePath || "",
     iconPath: existing.iconPath || "",
+    metadata: decryptedMetadata,
+    instructionPdfPath: existing.instructionPdfPath || "",
   };
 } else {
   return Astro.redirect(resolveUrl("/admin/aplicativos"));
@@ -62,6 +78,7 @@ let formExternalUrl = "";
 let formSnapshot: FormData | null = null;
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const formData = await Astro.request.formData();
     formSnapshot = formData;
@@ -77,6 +94,12 @@ if (Astro.request.method === "POST") {
 
     if (!title) {
       throw new Error("El título es obligatorio.");
+    }
+    if (title.length > 50) {
+      throw new Error("El título no puede superar los 50 caracteres.");
+    }
+    if (description && description.length > 150) {
+      throw new Error("La descripción no puede superar los 150 caracteres.");
     }
 
     let filePath = app.filePath || null;
@@ -143,8 +166,7 @@ if (Astro.request.method === "POST") {
               if (fs.existsSync(oldAbsPath)) {
                 fs.unlinkSync(oldAbsPath);
               }
-            } catch {
-            }
+            } catch {}
           }
         }
 
@@ -160,6 +182,83 @@ if (Astro.request.method === "POST") {
       iconPath = newIconPath;
     }
 
+    // Procesar metadatos
+    const metadataRaw = formData.get("metadata")?.toString().trim();
+    let metadataEncrypted = null;
+    if (metadataRaw) {
+      try {
+        const parsed = JSON.parse(metadataRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          metadataEncrypted = encryptData(metadataRaw);
+        }
+      } catch (e) {
+        console.error("Error al parsear o encriptar metadatos:", e);
+      }
+    }
+
+    // Procesar PDF de instructivo
+    const instructionPdfFile = formData.get("instructionPdf") as File | null;
+    let instructionPdfPath = app.instructionPdfPath || null;
+
+    if (
+      instructionPdfFile &&
+      instructionPdfFile.size > 0 &&
+      instructionPdfFile.name
+    ) {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+
+      const privateUploadDir = path.resolve(
+        process.env.EXTERNAL_PRIVATE_DIR ||
+          "C:/Projects/correo-argentino-mda-private-pdfs",
+      );
+
+      try {
+        fs.mkdirSync(privateUploadDir, { recursive: true });
+      } catch (dirError: any) {
+        if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
+          throw dirError;
+        }
+        console.error(
+          `[aplicativos] No se pudo crear el directorio privado: ${dirError.message}`,
+        );
+      }
+
+      const ext = path.extname(instructionPdfFile.name);
+      if (ext.toLowerCase() !== ".pdf") {
+        throw new Error("El instructivo adjunto debe ser un archivo PDF.");
+      }
+
+      const baseName = path
+        .basename(instructionPdfFile.name, ext)
+        .replace(/[^a-zA-Z0-9_\-\.]/g, "_")
+        .replace(/_+/g, "_");
+      const safeFileName = `${Date.now()}_${baseName}${ext}`;
+
+      try {
+        const buffer = Buffer.from(await instructionPdfFile.arrayBuffer());
+        fs.writeFileSync(path.join(privateUploadDir, safeFileName), buffer);
+
+        // Si existía un archivo viejo, borrarlo
+        if (app.instructionPdfPath) {
+          const oldAbsPath = path.join(
+            privateUploadDir,
+            app.instructionPdfPath,
+          );
+          if (fs.existsSync(oldAbsPath)) {
+            fs.unlinkSync(oldAbsPath);
+          }
+        }
+
+        instructionPdfPath = safeFileName;
+      } catch (writeError: any) {
+        console.error(
+          `[aplicativos] Error al escribir PDF privado: ${writeError.message}`,
+        );
+        throw new Error(`No se pudo guardar el archivo PDF en el servidor.`);
+      }
+    }
+
     const oldTitle = app.title;
     await db
       .update(applications)
@@ -170,18 +269,45 @@ if (Astro.request.method === "POST") {
         version,
         filePath,
         iconPath,
+        metadata: metadataEncrypted,
+        instructionPdfPath,
       })
       .where(eq(applications.id, app.id));
     if (oldTitle && oldTitle !== title) {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el aplicativo de "${oldTitle}" a "${title}"`);
+      await logAdminAction(
+        Astro.locals.user?.username || "Sistema",
+        `Actualizó el aplicativo de "${oldTitle}" a "${title}"`,
+      );
     } else {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el aplicativo "${title}"`);
+      await logAdminAction(
+        Astro.locals.user?.username || "Sistema",
+        `Actualizó el aplicativo "${title}"`,
+      );
+    }
+
+    if (isAjax) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Aplicativo actualizado con éxito.",
+          redirectUrl: resolveUrl("/admin/aplicativos"),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }
 
     return Astro.redirect(
-      resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo actualizado con éxito.")}&toast_type=success`)
+      resolveUrl(
+        `/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo actualizado con éxito.")}&toast_type=success`,
+      ),
     );
   } catch (error: any) {
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar el aplicativo." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     errorMsg = error.message || "Error al guardar el aplicativo.";
     if (formSnapshot) {
       app.title = formSnapshot.get("title")?.toString() || "";
@@ -190,6 +316,13 @@ if (Astro.request.method === "POST") {
       app.version = formSnapshot.get("version")?.toString() || "";
       formUploadType = formSnapshot.get("uploadType")?.toString() || "";
       formExternalUrl = formSnapshot.get("externalUrl")?.toString() || "";
+
+      const formMeta = formSnapshot.get("metadata")?.toString() || "[]";
+      try {
+        app.metadata = JSON.parse(formMeta);
+      } catch {
+        app.metadata = [];
+      }
     }
   }
 }
@@ -232,7 +365,7 @@ const isExternal = formUploadType
             )
           }
 
-          <form method="POST" enctype="multipart/form-data" class="space-y-5">
+          <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
               <FormField
                 id="input-title"
@@ -241,6 +374,7 @@ const isExternal = formUploadType
                 required
                 value={app.title}
                 placeholder="Ej: ShareX"
+                maxLength={50}
               />
 
               <SelectField
@@ -254,10 +388,7 @@ const isExternal = formUploadType
                 </option>
                 {
                   categories.map((cat) => (
-                    <option
-                      value={cat.id}
-                      selected={cat.id === app.categoryId}
-                    >
+                    <option value={cat.id} selected={cat.id === app.categoryId}>
                       {cat.title}
                     </option>
                   ))
@@ -395,7 +526,8 @@ const isExternal = formUploadType
                 <input
                   type="url"
                   name="externalUrl"
-                  value={formExternalUrl || (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
+                  value={formExternalUrl ||
+                    (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
                   placeholder="https://ejemplo.com/descarga/archivo.zip"
                   class="input input-bordered w-full font-mono text-sm"
                 />
@@ -446,6 +578,91 @@ const isExternal = formUploadType
               <legend
                 class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
               >
+                Instructivo PDF
+                <span class="text-base-content/40 font-normal normal-case ml-1"
+                  >(Opcional, archivo .pdf confidencial)</span
+                >
+              </legend>
+              <input
+                type="file"
+                name="instructionPdf"
+                accept=".pdf"
+                class="file-input file-input-bordered w-full"
+              />
+            </fieldset>
+
+            {
+              app.instructionPdfPath && (
+                <div class="flex items-center gap-3 rounded-lg bg-info/10 border border-info/20 px-4 py-3">
+                  <Icon
+                    name="boxicons:file-detail-filled"
+                    size={20}
+                    class="text-info shrink-0"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-base-content">
+                      Instructivo PDF actual cargado
+                    </p>
+                    <p class="text-xs text-base-content/60 font-mono truncate">
+                      {app.instructionPdfPath}
+                    </p>
+                  </div>
+                  <a
+                    href={resolveUrl(`api/aplicativos/pdf/${app.id}`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-ghost btn-xs gap-1"
+                  >
+                    <Icon
+                      name="boxicons:arrow-in-down-square-half-filled"
+                      size={14}
+                    />
+                    Descargar
+                  </a>
+                </div>
+              )
+            }
+
+            <fieldset
+              class="fieldset border border-base-300 rounded-box p-4 bg-base-200/30"
+            >
+              <legend
+                class="fieldset-legend font-semibold uppercase tracking-wide text-xs px-2"
+              >
+                Credenciales / Metadatos Sensibles
+              </legend>
+              <p class="text-xs text-base-content/60 mb-3 px-2">
+                Agregá credenciales o información confidencial (ej. Entorno:
+                Contraseña). Se almacenarán cifradas.
+              </p>
+
+              <div id="metadata-rows" class="space-y-3 px-2">
+                <!-- Se poblará dinámicamente con JS -->
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  id="btn-add-meta"
+                  class="btn btn-sm btn-outline gap-2 mt-4 ml-2"
+                >
+                  <Icon name="boxicons:plus" size={16} />
+                  Agregar credencial
+                </button>
+              </div>
+
+              <input
+                type="hidden"
+                name="metadata"
+                id="input-metadata-json"
+                value={JSON.stringify(app.metadata || [])}
+              />
+            </fieldset>
+
+            <fieldset class="fieldset">
+              <legend
+                class="fieldset-legend font-semibold uppercase tracking-wide text-xs"
+              >
                 Descripción
                 <span class="text-base-content/40 font-normal normal-case ml-1"
                   >(Opcional)</span
@@ -456,6 +673,7 @@ const isExternal = formUploadType
                 rows="3"
                 placeholder="Breve descripción del aplicativo y su uso operativo."
                 class="textarea textarea-bordered w-full"
+                maxLength={150}
                 >{app.description}</textarea
               >
             </fieldset>
@@ -477,6 +695,7 @@ const isExternal = formUploadType
     </div>
   </PageContainer>
 </BaseLayout>
+<AsyncFormScript />
 
 <script>
   const radios = document.querySelectorAll<HTMLInputElement>(
@@ -516,4 +735,86 @@ const isExternal = formUploadType
   }
 
   radios.forEach((radio) => radio.addEventListener("change", syncGroups));
+
+  // Manejo de Metadatos Dinámicos
+  const metadataRowsContainer = document.getElementById("metadata-rows");
+  const btnAddMeta = document.getElementById("btn-add-meta");
+  const form = document.querySelector("form");
+  const metadataJsonInput = document.getElementById(
+    "input-metadata-json",
+  ) as HTMLInputElement | null;
+
+  function createMetaRow(label = "", value = "") {
+    const row = document.createElement("div");
+    row.className = "flex items-center gap-2 app-meta-row";
+    row.innerHTML = `
+      <input
+        type="text"
+        placeholder="Entorno / Clave (ej: Debian, MySQL)"
+        class="input input-bordered input-sm flex-1 font-semibold"
+        value="${label.replace(/"/g, "&quot;")}"
+        required
+      />
+      <input
+        type="text"
+        placeholder="Valor / Contraseña"
+        class="input input-bordered input-sm flex-1 font-mono"
+        value="${value.replace(/"/g, "&quot;")}"
+        required
+      />
+      <button type="button" class="btn btn-sm btn-circle btn-ghost text-error btn-remove-meta" title="Eliminar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M5 20a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5v12zM18 9v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9h12zM9 5h6V4H9v1zM8 3h8v3H8V3z"/></svg>
+      </button>
+    `;
+
+    row.querySelector(".btn-remove-meta")?.addEventListener("click", () => {
+      row.remove();
+    });
+
+    metadataRowsContainer?.appendChild(row);
+  }
+
+  btnAddMeta?.addEventListener("click", () => {
+    createMetaRow();
+  });
+
+  // Renderizar metadatos iniciales
+  if (metadataJsonInput) {
+    try {
+      const initialMetadata = JSON.parse(metadataJsonInput.value || "[]");
+      if (Array.isArray(initialMetadata)) {
+        initialMetadata.forEach((meta: any) => {
+          if (meta && typeof meta === "object" && meta.label) {
+            createMetaRow(meta.label, meta.value || "");
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Error al parsear metadatos iniciales:", e);
+    }
+  }
+
+  // Antes del submit del formulario, serializar a JSON
+  form?.addEventListener("submit", (e) => {
+    const rows = document.querySelectorAll(".app-meta-row");
+    const metaArray: Array<{ label: string; value: string }> = [];
+
+    rows.forEach((row) => {
+      const inputs = row.querySelectorAll("input");
+      const keyInput = inputs[0];
+      const valInput = inputs[1];
+
+      if (keyInput && valInput) {
+        const label = keyInput.value.trim();
+        const value = valInput.value.trim();
+        if (label || value) {
+          metaArray.push({ label, value });
+        }
+      }
+    });
+
+    if (metadataJsonInput) {
+      metadataJsonInput.value = JSON.stringify(metaArray);
+    }
+  });
 </script>

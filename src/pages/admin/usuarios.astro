@@ -12,6 +12,7 @@ let successMsg = "";
 let errorMsg = "";
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   const formData = await Astro.request.formData();
   const action = formData.get("action")?.toString() ?? "create";
 
@@ -131,6 +132,14 @@ if (Astro.request.method === "POST") {
         errorMsg = "Error al actualizar el rol de usuario.";
       }
     }
+  }
+
+  if (isAjax) {
+    if (errorMsg) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+    }
+    // For forms in modals, we probably want them to reload to see the updated table, so redirectUrl: Astro.url.href
+    return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: Astro.url.href }), { status: 200, headers: {"Content-Type": "application/json"} });
   }
 }
 ---

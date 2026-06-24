@@ -1,0 +1,93 @@
+---
+// AsyncFormScript.astro
+---
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const initAsyncForms = () => {
+      const forms = document.querySelectorAll('form[data-async-form]');
+
+      forms.forEach(form => {
+        // Prevent multiple bindings
+        if (form.dataset.asyncFormInitialized) return;
+        form.dataset.asyncFormInitialized = "true";
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+          let originalButtonText = '';
+
+          if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+            originalButtonText = submitButton.innerHTML;
+            // Add a simple loading indicator
+            submitButton.innerHTML = `<span class="loading loading-spinner loading-sm"></span> Loading...`;
+          }
+
+          try {
+            const formData = new FormData(form as HTMLFormElement);
+            const action = form.getAttribute('action') || window.location.href;
+
+            const response = await fetch(action, {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'Accept': 'application/json'
+              }
+            });
+
+            let json;
+            try {
+              json = await response.json();
+            } catch (err) {
+              throw new Error('Invalid JSON response from server.');
+            }
+
+            if (json.success === true) {
+              if (typeof (window as any).showToast === 'function') {
+                (window as any).showToast(json.message || 'Success', 'alert-success');
+              }
+              if (json.redirectUrl) {
+                setTimeout(() => {
+                  window.location.href = json.redirectUrl;
+                }, 500);
+              } else if (submitButton) {
+                // If there's no redirect, re-enable the button
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                submitButton.innerHTML = originalButtonText;
+              }
+            } else {
+              if (typeof (window as any).showToast === 'function') {
+                (window as any).showToast(json.error || 'An error occurred.', 'alert-error');
+              }
+              if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                submitButton.innerHTML = originalButtonText;
+              }
+            }
+          } catch (error: any) {
+            console.error('Form submission error:', error);
+            if (typeof (window as any).showToast === 'function') {
+              (window as any).showToast(error.message || 'A network or server error occurred.', 'alert-error');
+            }
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+              submitButton.innerHTML = originalButtonText;
+            }
+          }
+        });
+      });
+    };
+
+    // Initialize on DOMContentLoaded
+    initAsyncForms();
+
+    // If using Astro view transitions, initialize on astro:page-load
+    document.addEventListener('astro:page-load', initAsyncForms);
+  });
+</script>

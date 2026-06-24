@@ -9,6 +9,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -48,6 +49,7 @@ const allLocations = await db
   .orderBy(workLocations.name);
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const fd = await Astro.request.formData();
 
@@ -165,6 +167,9 @@ if (Astro.request.method === "POST") {
       }
 
       const toastMessage = `Operador "${inserted?.name || name}" creado con éxito.`;
+      if (isAjax) {
+        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: `${cleanBase}admin/operadores` }), { status: 200, headers: {"Content-Type": "application/json"} });
+      }
       return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`);
     }
   } catch (e: any) {
@@ -172,6 +177,9 @@ if (Astro.request.method === "POST") {
     errorMsg = e.message.includes("UNIQUE")
       ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+    }
   }
 }
 
@@ -212,7 +220,7 @@ const pageTitle = "Nuevo operador";
       )
     }
 
-    <form method="POST" id="operator-form" class="space-y-4">
+    <form method="POST" id="operator-form" class="space-y-4" data-async-form>
       <section class="card bg-base-100 border border-base-300 shadow-md">
         <div class="card-body gap-4 p-5">
           <h2
@@ -387,4 +395,5 @@ const pageTitle = "Nuevo operador";
       </div>
     </form>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>

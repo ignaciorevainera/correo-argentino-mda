@@ -9,6 +9,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 
 const base = import.meta.env.BASE_URL || "/";
 const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -23,6 +24,7 @@ const allCategories = await db
   .orderBy(asc(contactCategories.title));
 
 if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
   try {
     const fd = await Astro.request.formData();
 
@@ -77,11 +79,17 @@ if (Astro.request.method === "POST") {
       await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el contacto "${provider} - ${service}"`);
 
       const toastMessage = "Contacto creado con éxito.";
+      if (isAjax) {
+        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: `${cleanBase}admin/contactos` }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
       return Astro.redirect(
         `${cleanBase}admin/contactos?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`
       );
     }
   } catch (e: any) {
+    if (isAjax) {
+      return new Response(JSON.stringify({ success: false, error: e.message || "Error al guardar el contacto." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
     errorMsg = "Error al guardar el contacto.";
   }
 }
@@ -117,6 +125,7 @@ if (Astro.request.method === "POST") {
     <form
       method="POST"
       id="contact-form"
+      data-async-form
       class="space-y-4"
     >
       <section class="card bg-base-100 border border-base-300 shadow-md">
@@ -233,4 +242,5 @@ http://www.google.com"
       </div>
     </form>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
