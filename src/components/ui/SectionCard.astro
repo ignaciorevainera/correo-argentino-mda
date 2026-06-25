@@ -1,0 +1,54 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  title?: string;
+  description?: string;
+  icon?: string;
+  class?: string;
+  titleClass?: string;
+}
+
+const {
+  title,
+  description,
+  icon,
+  class: className,
+  titleClass,
+} = Astro.props;
+---
+
+<section
+  class:list={[
+    "card card-compact bg-base-100 border border-base-300 shadow-sm",
+    className,
+  ]}
+>
+  {
+    (title || icon) && (
+      <div class="card-body pb-0">
+        <div class="flex items-center gap-2">
+          {icon && <Icon name={icon} class="text-secondary shrink-0" size={20} />}
+          {title && (
+            <h2
+              class:list={[
+                "text-lg font-bold text-base-content tracking-tight",
+                titleClass,
+              ]}
+            >
+              {title}
+            </h2>
+          )}
+        </div>
+        {description && (
+          <p class="text-sm text-base-content/60 mt-1">
+            {description}
+          </p>
+        )}
+      </div>
+    )
+  }
+  <div class="card-body">
+    <slot />
+  </div>
+</section>
