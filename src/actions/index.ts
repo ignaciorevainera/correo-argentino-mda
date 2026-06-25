@@ -393,7 +393,7 @@ export const server = {
     }),
     handler: async (input, context) => {
       const user = context.locals.user;
-      if (!user) {
+      if (!user || user.id === 0) {
         throw new ActionError({
           code: "UNAUTHORIZED",
           message: "Debe iniciar sesión para enviar comentarios.",
