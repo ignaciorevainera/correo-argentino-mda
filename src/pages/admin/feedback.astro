@@ -1,0 +1,393 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "../../db/index";
+import { feedback, users } from "../../db/schema";
+import { eq, desc } from "drizzle-orm";
+
+// Verificar autenticación y rol de administrador
+const user = Astro.locals.user;
+if (!user || user.role !== "admin") {
+  return Astro.redirect("/");
+}
+
+// Traer todos los reportes ordenados por fecha descendente
+const list = await db
+  .select({
+    id: feedback.id,
+    type: feedback.type,
+    subject: feedback.subject,
+    description: feedback.description,
+    status: feedback.status,
+    category: feedback.category,
+    severity: feedback.severity,
+    steps: feedback.steps,
+    userAgent: feedback.userAgent,
+    createdAt: feedback.createdAt,
+    username: users.username,
+  })
+  .from(feedback)
+  .innerJoin(users, eq(feedback.userId, users.id))
+  .orderBy(desc(feedback.createdAt));
+
+const formatDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+};
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <div class="mb-4">
+      <a href="/admin" class="btn btn-ghost btn-sm gap-2">
+        <Icon name="boxicons:arrow-back" size={16} />
+        Volver a Administración
+      </a>
+    </div>
+
+    <PageHeader
+      title="Sugerencias y Reportes de Bugs"
+      description="Gestión y seguimiento de los comentarios, ideas y errores enviados por los operadores."
+    />
+
+    {/* Tarjeta de Contenido Principal */}
+    <div class="card bg-base-100 border border-base-300 shadow-md p-6 mb-6">
+      {/* Controles de Filtros */}
+      <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-primary active-filter" data-filter-type="all">Todos</button>
+          <button type="button" class="btn btn-sm btn-outline" data-filter-type="sugerencia">Sugerencias</button>
+          <button type="button" class="btn btn-sm btn-outline" data-filter-type="bug">Bugs</button>
+        </div>
+        <div class="flex gap-2">
+          <select class="select select-bordered select-sm" id="filter-status">
+            <option value="all">Cualquier Estado</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_revision">En Revisión</option>
+            <option value="resuelto">Resuelto</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Listado */}
+      {list.length === 0 ? (
+        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon name="boxicons:mail-open" size={32} class="opacity-30" />
+          </div>
+          <p class="text-sm font-semibold">No hay sugerencias ni bugs reportados todavía.</p>
+        </div>
+      ) : (
+        <DataTable
+          ariaLabel="Listado de sugerencias y reportes"
+          minWidthClass="min-w-200"
+          headerGridClass="grid-cols-[80px_110px_1fr_120px_130px_110px]"
+          rowGridClass="grid grid-cols-[80px_110px_1fr_120px_130px_110px] items-center gap-4"
+        >
+          <div slot="header"><DataTableHeaderCell>ID</DataTableHeaderCell></div>
+          <div slot="header"><DataTableHeaderCell>Tipo</DataTableHeaderCell></div>
+          <div slot="header"><DataTableHeaderCell>Asunto / Usuario</DataTableHeaderCell></div>
+          <div slot="header"><DataTableHeaderCell>Fecha</DataTableHeaderCell></div>
+          <div slot="header"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
+          <div slot="header" class="text-right"><DataTableHeaderCell align="right">Acción</DataTableHeaderCell></div>
+
+          {list.map((item) => (
+            <div
+              data-table-row
+              data-type={item.type}
+              data-status={item.status}
+              class="grid grid-cols-[80px_110px_1fr_120px_130px_110px] items-center gap-4 border-b border-base-300 px-4 py-3 hover:bg-base-200/50 last:border-b-0"
+            >
+              <span class="font-mono text-xs text-base-content/60">#{item.id}</span>
+              <div>
+                <span
+                  class:list={[
+                    "badge badge-sm font-bold uppercase",
+                    item.type === "bug" ? "badge-error" : "badge-info"
+                  ]}
+                >
+                  {item.type === "bug" ? "BUG" : "IDEA"}
+                </span>
+              </div>
+              <div class="truncate">
+                <div class="font-semibold text-sm text-base-content truncate">{item.subject}</div>
+                <div class="text-xs text-base-content/50 font-mono">Por: {item.username}</div>
+              </div>
+              <span class="text-xs text-base-content/75">{formatDateTime(item.createdAt)}</span>
+              <div>
+                <span
+                  class:list={[
+                    "badge badge-sm",
+                    item.status === "pendiente" && "badge-neutral",
+                    item.status === "en_revision" && "badge-warning",
+                    item.status === "resuelto" && "badge-success",
+                    item.status === "descartado" && "badge-ghost"
+                  ]}
+                >
+                  {item.status === "pendiente" && "Pendiente"}
+                  {item.status === "en_revision" && "En Revisión"}
+                  {item.status === "resuelto" && "Resuelto"}
+                  {item.status === "descartado" && "Descartado"}
+                </span>
+              </div>
+              <div class="text-right">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-primary"
+                  data-action="view-details"
+                  data-id={item.id}
+                  data-item={JSON.stringify(item)}
+                >
+                  Ver detalles
+                </button>
+              </div>
+            </div>
+          ))}
+        </DataTable>
+      )}
+    </div>
+
+    {/* Modal de Detalles del Feedback */}
+    <dialog id="modal-details" class="modal">
+      <div class="modal-box max-w-2xl border border-base-300 p-6 rounded-2xl bg-base-100 relative">
+        <button
+          type="button"
+          class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
+          onclick="document.getElementById('modal-details').close()"
+        >
+          <Icon name="boxicons:x" size={20} />
+        </button>
+
+        <h3 class="text-lg font-bold text-base-content mb-2 flex items-center gap-2">
+          <span id="detail-type-badge" class="badge font-bold uppercase"></span>
+          <span id="detail-id"></span>
+        </h3>
+
+        <div class="space-y-4 mt-4">
+          <div>
+            <span class="text-xxs font-semibold uppercase text-base-content/50 block">Asunto</span>
+            <p id="detail-subject" class="text-base font-semibold text-base-content"></p>
+          </div>
+
+          <div>
+            <span class="text-xxs font-semibold uppercase text-base-content/50 block">Descripción / Propuesta</span>
+            <p id="detail-description" class="text-sm text-base-content bg-base-200 p-3 rounded-lg whitespace-pre-wrap"></p>
+          </div>
+
+          <div id="detail-category-container" class="hidden">
+            <span class="text-xxs font-semibold uppercase text-base-content/50 block">Categoría</span>
+            <span id="detail-category" class="badge badge-outline mt-1 font-semibold"></span>
+          </div>
+
+          <div id="detail-bug-container" class="hidden space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <span class="text-xxs font-semibold uppercase text-base-content/50 block">Gravedad</span>
+                <span id="detail-severity" class="badge mt-1 font-semibold uppercase"></span>
+              </div>
+              <div>
+                <span class="text-xxs font-semibold uppercase text-base-content/50 block">Navegador (userAgent)</span>
+                <p id="detail-useragent" class="text-xs font-mono bg-base-200 p-2 rounded truncate mt-1" title=""></p>
+              </div>
+            </div>
+            <div>
+              <span class="text-xxs font-semibold uppercase text-base-content/50 block">Pasos para reproducir</span>
+              <p id="detail-steps" class="text-sm text-base-content bg-base-200 p-3 rounded-lg whitespace-pre-wrap"></p>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6">
+            <div class="text-xs text-base-content/60">
+              Enviado por: <span id="detail-username" class="font-bold"></span>
+            </div>
+            <div class="flex gap-2">
+              <input type="hidden" id="detail-feedback-id" />
+              <button type="button" class="btn btn-sm btn-warning" data-status-btn="en_revision">En Revisión</button>
+              <button type="button" class="btn btn-sm btn-success" data-status-btn="resuelto">Resolver</button>
+              <button type="button" class="btn btn-sm btn-ghost text-error" data-status-btn="descartado">Descartar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>cerrar</button>
+      </form>
+    </dialog>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  import { actions } from "astro:actions";
+  import { showToast } from "../../lib/toastClient";
+
+  function initFeedbackAdmin() {
+    const typeButtons = document.querySelectorAll("[data-filter-type]");
+    const statusSelect = document.getElementById("filter-status") as HTMLSelectElement | null;
+    const rows = document.querySelectorAll("[data-table-row]");
+    const detailsModal = document.getElementById("modal-details") as HTMLDialogElement | null;
+
+    let currentTypeFilter = "all";
+    let currentStatusFilter = "all";
+
+    // 1. Lógica de Filtros en el Cliente
+    function applyFilters() {
+      rows.forEach((row) => {
+        const type = row.getAttribute("data-type") || "";
+        const status = row.getAttribute("data-status") || "";
+
+        const matchesType = currentTypeFilter === "all" || type === currentTypeFilter;
+        const matchesStatus = currentStatusFilter === "all" || status === currentStatusFilter;
+
+        if (matchesType && matchesStatus) {
+          row.classList.remove("hidden");
+          (row as HTMLElement).style.display = "";
+        } else {
+          row.classList.add("hidden");
+          (row as HTMLElement).style.display = "none";
+        }
+      });
+    }
+
+    typeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        typeButtons.forEach((b) => {
+          b.classList.remove("btn-primary", "active-filter");
+          b.classList.add("btn-outline");
+        });
+        btn.classList.remove("btn-outline");
+        btn.classList.add("btn-primary", "active-filter");
+
+        currentTypeFilter = btn.getAttribute("data-filter-type") || "all";
+        applyFilters();
+      });
+    });
+
+    statusSelect?.addEventListener("change", (e) => {
+      currentStatusFilter = (e.target as HTMLSelectElement).value;
+      applyFilters();
+    });
+
+    // 2. Lógica del Modal de Detalles
+    document.querySelectorAll('[data-action="view-details"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rawData = btn.getAttribute("data-item");
+        if (!rawData || !detailsModal) return;
+
+        const item = JSON.parse(rawData);
+
+        // Rellenar ID y badges
+        const idEl = document.getElementById("detail-id");
+        if (idEl) idEl.textContent = `Reporte #${item.id}`;
+
+        const typeBadge = document.getElementById("detail-type-badge");
+        if (typeBadge) {
+          typeBadge.textContent = item.type === "bug" ? "BUG" : "IDEA / SUGERENCIA";
+          typeBadge.className = item.type === "bug" ? "badge badge-error font-bold" : "badge badge-info font-bold";
+        }
+
+        // Rellenar campos comunes
+        const subjectEl = document.getElementById("detail-subject");
+        if (subjectEl) subjectEl.textContent = item.subject;
+
+        const descEl = document.getElementById("detail-description");
+        if (descEl) descEl.textContent = item.description;
+
+        const userEl = document.getElementById("detail-username");
+        if (userEl) userEl.textContent = item.username;
+
+        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        if (feedbackIdEl) feedbackIdEl.value = item.id.toString();
+
+        // Mostrar/Ocultar campos condicionales
+        const categoryContainer = document.getElementById("detail-category-container");
+        const bugContainer = document.getElementById("detail-bug-container");
+
+        if (item.type === "sugerencia") {
+          if (categoryContainer) categoryContainer.classList.remove("hidden");
+          if (bugContainer) bugContainer.classList.add("hidden");
+
+          const categoryEl = document.getElementById("detail-category");
+          if (categoryEl) categoryEl.textContent = item.category || "Ninguna";
+        } else {
+          if (categoryContainer) categoryContainer.classList.add("hidden");
+          if (bugContainer) bugContainer.classList.remove("hidden");
+
+          const severityEl = document.getElementById("detail-severity");
+          if (severityEl) {
+            severityEl.textContent = item.severity || "leve";
+            severityEl.className =
+              item.severity === "critico"
+                ? "badge badge-error mt-1 font-semibold"
+                : item.severity === "moderado"
+                  ? "badge badge-warning mt-1 font-semibold"
+                  : "badge badge-neutral mt-1 font-semibold";
+          }
+
+          const userAgentEl = document.getElementById("detail-useragent");
+          if (userAgentEl) {
+            userAgentEl.textContent = item.userAgent || "No disponible";
+            userAgentEl.setAttribute("title", item.userAgent || "");
+          }
+
+          const stepsEl = document.getElementById("detail-steps");
+          if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
+        }
+
+        detailsModal.showModal();
+      });
+    });
+
+    // 3. Modificación del Estado mediante Astro Action
+    document.querySelectorAll("[data-status-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        const status = btn.getAttribute("data-status-btn") as any;
+
+        if (!feedbackIdEl || !status) return;
+        const feedbackId = Number(feedbackIdEl.value);
+
+        // Mostrar loader
+        btn.classList.add("loading");
+        (btn as HTMLButtonElement).disabled = true;
+
+        try {
+          const { data, error } = await actions.updateFeedbackStatus({
+            feedbackId,
+            newStatus: status,
+          });
+
+          if (error) {
+            showToast(`Error: ${error.message}`, "alert-error");
+          } else if (data?.success) {
+            showToast("¡Estado actualizado con éxito!", "alert-success");
+            detailsModal?.close();
+            // Recargar la página de manera limpia para reflejar el cambio en la tabla
+            setTimeout(() => {
+              window.location.reload();
+            }, 600);
+          }
+        } catch (err) {
+          showToast("Error inesperado al actualizar el estado.", "alert-error");
+        } finally {
+          btn.classList.remove("loading");
+          (btn as HTMLButtonElement).disabled = false;
+        }
+      });
+    });
+  }
+
+  // Inicializar con View Transitions
+  initFeedbackAdmin();
+  document.addEventListener("astro:page-load", () => {
+    initFeedbackAdmin();
+  });
+</script>
