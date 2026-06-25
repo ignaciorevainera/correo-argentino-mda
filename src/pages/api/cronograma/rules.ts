@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { agents } from "@/db/schema";
+import { db } from "@db/index";
+import { agents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");

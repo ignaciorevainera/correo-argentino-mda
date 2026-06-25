@@ -3,8 +3,8 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { db } from "@/db";
-import { cubics, users, terminals } from "@/db/schema";
+import { db } from "@db/index";
+import { cubics, users, terminals } from "@db/schema";
 import { sql } from "drizzle-orm";
 import { jsonResponse } from "@lib/apiResponse";
 

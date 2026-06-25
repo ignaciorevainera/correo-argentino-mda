@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { weekendOvertimeShifts } from "@/db/schema";
+import { db } from "@db/index";
+import { weekendOvertimeShifts } from "@db/schema";
 import { eq } from "drizzle-orm";
 
 export const GET: APIRoute = async ({ url }) => {
@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ url }) => {
   }
 };
 
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");

@@ -3,7 +3,7 @@ import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
-} from "@/types/offices";
+} from "@types/offices";
 
 export async function getAllOfficesFromDB(): Promise<
   OfficeDirectoryItem[]

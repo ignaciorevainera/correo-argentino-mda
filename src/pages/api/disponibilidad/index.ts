@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getDisponibilidadHoy } from "@/lib/disponibilidad";
+import { getDisponibilidadHoy } from "@lib/disponibilidad";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const GET: APIRoute = async () => {

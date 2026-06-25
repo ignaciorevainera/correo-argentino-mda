@@ -1,11 +1,11 @@
-import { db } from "@/db";
+import { db } from "@db/index";
 import {
   agents,
   schedules,
   operatorAttendance,
   saturdayRotationConfig,
   agentSaturdayGroups,
-} from "@/db/schema";
+} from "@db/schema";
 import { and, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
 
 // Helper to generate dates in range (inclusive, max 31 days)

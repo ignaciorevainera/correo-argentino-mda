@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { asignarSiguienteAutogestion } from "@/lib/disponibilidad";
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { asignarSiguienteAutogestion } from "@lib/disponibilidad";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ locals }) => {

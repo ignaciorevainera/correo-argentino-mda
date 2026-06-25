@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../db";
-import { terminals } from "../../../db/schema";
-import { generateCsv } from "../../../lib/csv";
+import { db } from "@db/index";
+import { terminals } from "@db/schema";
+import { generateCsv } from "@lib/csv";
 
 export const GET: APIRoute = async () => {
   try {

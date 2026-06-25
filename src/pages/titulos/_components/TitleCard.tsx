@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { TitleData } from "@/hooks/useTitlesHook";
+import type { TitleData } from "@hooks/useTitlesHook";
 import {ClipboardIcon, ChevronRightIcon, BookmarkIcon } from "@heroicons/react/24/outline";
 
 import categoryStyles from "./categories";

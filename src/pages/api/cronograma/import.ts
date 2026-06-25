@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { parse } from "csv-parse/sync";
-import { db } from "@/db";
-import { agents } from "@/db/schema";
+import { db } from "@db/index";
+import { agents } from "@db/schema";
 import { jsonResponse } from "@lib/apiResponse";
 
 // Helper to normalize multiple date formats to YYYY-MM-DD

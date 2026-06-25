@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { offices } from "@/db/schema";
+import { db } from "@db/index";
+import { offices } from "@db/schema";
 import { isNotNull, and, sql, like } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
 import { jsonResponse } from "@lib/apiResponse";

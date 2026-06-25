@@ -1,4 +1,4 @@
-import type { TitleData } from "@/hooks/useTitlesHook";
+import type { TitleData } from "@hooks/useTitlesHook";
 import categoryStyles from "./categories";
 
 interface Props {

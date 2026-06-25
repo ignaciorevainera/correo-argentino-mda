@@ -5,7 +5,7 @@ import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
-} from "@/types/offices";
+} from "@types/offices";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 export type OfficeSortKey = "code" | "name" | "parent-nis" | "address" | "type" | "region";

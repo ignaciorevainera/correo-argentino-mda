@@ -1,10 +1,10 @@
 import { defineAction, ActionError } from "astro:actions";
 import { z } from "astro:schema";
-import { requireWriteAccess } from "../lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 import { db } from "@db/index";
 import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { calculateAuditScores } from "../lib/qualityCalculator";
+import { calculateAuditScores } from "@lib/qualityCalculator";
 import { logAdminAction } from "@lib/auditLogger";
 
 export const server = {

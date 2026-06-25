@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { db } from "../../db";
-import { offices, provinces, regions } from "../../db/schema";
+import { db } from "@db/index";
+import { offices, provinces, regions } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 
 export const GET: APIRoute = async () => {

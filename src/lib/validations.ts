@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { users, offices, terminals, supportGuides } from "../db/schema";
+import { users, offices, terminals, supportGuides } from "@db/schema";
 import { z } from "zod";
 
 export const insertUserSchema = createInsertSchema(users);

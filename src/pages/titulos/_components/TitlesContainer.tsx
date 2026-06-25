@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTitles, type TitleData } from "@/hooks/useTitlesHook";
+import { useTitles, type TitleData } from "@hooks/useTitlesHook";
 
 import TitleCard from "./TitleCard";
 import TitleDrawer from "./TitleDrawer";

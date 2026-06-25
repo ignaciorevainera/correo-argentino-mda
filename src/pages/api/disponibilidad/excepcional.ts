@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { marcarEstadoExcepcional, limpiarEstadoExcepcional } from "@/lib/disponibilidad";
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { marcarEstadoExcepcional, limpiarEstadoExcepcional } from "@lib/disponibilidad";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {

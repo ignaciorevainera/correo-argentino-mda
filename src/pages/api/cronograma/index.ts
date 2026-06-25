@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
+import { db } from "@db/index";
 import {
   agents,
   schedules,
@@ -7,7 +7,7 @@ import {
   weekendOvertimeConfig,
   weekendOvertimeShifts,
   agentSaturdayGroups,
-} from "@/db/schema";
+} from "@db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";

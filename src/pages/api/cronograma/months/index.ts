@@ -1,13 +1,13 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { agents, schedules } from "@/db/schema";
+import { db } from "@db/index";
+import { agents, schedules } from "@db/schema";
 import { and, eq, like } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 
 const MONTH_LABELS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");

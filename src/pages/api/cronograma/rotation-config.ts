@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { saturdayRotationConfig } from "@/db/schema";
+import { db } from "@db/index";
+import { saturdayRotationConfig } from "@db/schema";
 import { eq, desc, lt } from "drizzle-orm";
 import { jsonResponse } from "@lib/apiResponse";
 

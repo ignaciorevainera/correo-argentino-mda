@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
-import { asignarManual } from "@/lib/disponibilidad";
+import { asignarManual } from "@lib/disponibilidad";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {

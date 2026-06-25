@@ -1,8 +1,8 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments, users } from "@/db/schema";
+import { db } from "@db/index";
+import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments, users } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
 const DEFAULT_SUPERVISOR = "Tomasi Alejandro";

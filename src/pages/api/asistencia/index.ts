@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
-import { db } from "@/db";
-import { operatorAttendance } from "@/db/schema";
+import { db } from "@db/index";
+import { operatorAttendance } from "@db/schema";
 import { eq, and } from "drizzle-orm";
-import { getAttendanceData, calculateCompliance } from "@/lib/attendance";
-import { requireReadAccess, requireWriteAccess } from "@/lib/rbac-middleware";
-import { logAdminAction } from "@/lib/auditLogger";
+import { getAttendanceData, calculateCompliance } from "@lib/attendance";
+import { requireReadAccess, requireWriteAccess } from "@lib/rbac-middleware";
+import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 
 export { calculateCompliance };

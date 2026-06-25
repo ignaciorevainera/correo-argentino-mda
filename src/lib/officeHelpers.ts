@@ -1,4 +1,4 @@
-import type { OfficeAssetType } from "@/types/offices";
+import type { OfficeAssetType } from "@types/offices";
 
 export type BoxiconName = `boxicons:${string}`;
 
