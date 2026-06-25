@@ -1,23 +1,13 @@
 import type { APIRoute } from "astro";
 import { getDisponibilidadHoy } from "@/lib/disponibilidad";
+import { jsonResponse } from "@lib/apiResponse";
 
 export const GET: APIRoute = async () => {
   try {
     const list = await getDisponibilidadHoy();
-    
-    return new Response(JSON.stringify(list), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    return jsonResponse(list);
   } catch (error: any) {
     console.error("GET /api/disponibilidad Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };

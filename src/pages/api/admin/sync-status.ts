@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { db } from "@/db";
 import { cubics, users, terminals } from "@/db/schema";
 import { sql } from "drizzle-orm";
+import { jsonResponse } from "@lib/apiResponse";
 
 const execPromise = promisify(exec);
 
@@ -25,33 +26,22 @@ function getNextSyncDate(): string {
 
 export const GET: APIRoute = async ({ locals, url }) => {
   if (!locals.user || locals.user.id === 0) {
-    return new Response(JSON.stringify({ error: "No autorizado" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "No autorizado" }, 401);
   }
 
-  // Para depuración: si se solicita ver los usuarios
   if (url.searchParams.get("debug_users") === "true") {
     if (locals.user.role !== "admin") {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "No autorizado" }, 403);
     }
     try {
       const allUsers = await db.select({ id: users.id, username: users.username, role: users.role }).from(users);
-      return new Response(JSON.stringify(allUsers), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse(allUsers);
     } catch (dbError: any) {
-      return new Response(JSON.stringify({ error: dbError.message }), { status: 500 });
+      return jsonResponse({ error: dbError.message }, 500);
     }
   }
 
   try {
-    // 1. Consultar estado en PM2
     let processes: any[] = [];
     try {
       const { stdout } = await execPromise("pm2 jlist");
@@ -67,14 +57,12 @@ export const GET: APIRoute = async ({ locals, url }) => {
       (p: any) => p.name === "mda-ping-cubics"
     );
 
-    // 2. Leer estado del archivo de sincronización
     let lastSyncDetails: any = null;
     try {
       const statusPath = resolve("src/data/last-sync-status.json");
       const content = await readFile(statusPath, "utf-8");
       lastSyncDetails = JSON.parse(content);
     } catch (fileError) {
-      // Si el archivo no existe, no hacemos nada (quedará en null)
     }
 
     let lastSyncDB: string | null = null;
@@ -87,7 +75,6 @@ export const GET: APIRoute = async ({ locals, url }) => {
       console.error("[SyncStatus API] Error al consultar última sincronización en DB:", dbError);
     }
 
-    // 3. Consultar la fecha del último ping registrado en base de datos
     let lastPing: string | null = null;
     try {
       const [pingResult] = await db
@@ -98,33 +85,21 @@ export const GET: APIRoute = async ({ locals, url }) => {
       console.error("[SyncStatus API] Error al consultar último ping en DB:", dbError);
     }
 
-    return new Response(
-      JSON.stringify({
-        sync: {
-          status: syncProcess?.pm2_env?.status || "stopped",
-          lastExecution: lastSyncDB || lastSyncDetails?.lastExecution || null,
-          lastStatus: lastSyncDetails?.status || null,
-          error: lastSyncDetails?.error || null,
-          nextExecution: getNextSyncDate(),
-        },
-        ping: {
-          status: pingProcess?.pm2_env?.status || "stopped",
-          lastPing,
-        },
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return jsonResponse({
+      sync: {
+        status: syncProcess?.pm2_env?.status || "stopped",
+        lastExecution: lastSyncDB || lastSyncDetails?.lastExecution || null,
+        lastStatus: lastSyncDetails?.status || null,
+        error: lastSyncDetails?.error || null,
+        nextExecution: getNextSyncDate(),
+      },
+      ping: {
+        status: pingProcess?.pm2_env?.status || "stopped",
+        lastPing,
+      },
+    });
   } catch (e: any) {
     console.error("[SyncStatus API] Error general:", e);
-    return new Response(
-      JSON.stringify({ error: "Error interno del servidor" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return jsonResponse({ error: "Error interno del servidor" }, 500);
   }
 };

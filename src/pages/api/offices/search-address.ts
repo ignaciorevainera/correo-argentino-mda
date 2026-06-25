@@ -3,30 +3,22 @@ import { db } from "@/db";
 import { offices } from "@/db/schema";
 import { isNotNull, and, sql, like } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
+import { jsonResponse } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ url, locals }) => {
-  // Verificación de autenticación basada en Astro.locals.user
   if (!locals.user || locals.user.id === 0) {
-    return new Response(JSON.stringify({ error: "No autorizado" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "No autorizado" }, 401);
   }
 
   const q = url.searchParams.get("q");
 
   if (!q || q.length < 3) {
-    return new Response(JSON.stringify([]), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse([]);
   }
 
   try {
     const normalizedQuery = normalizeSearchValue(q);
 
-    // Agrupamos por dirección para evitar duplicados y limitar a 6 resultados.
-    // Usamos min(offices.code) como NIS representativo para cada dirección.
     const results = await db
       .select({
         address: offices.address,
@@ -42,15 +34,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .groupBy(offices.address)
       .limit(6);
 
-    return new Response(JSON.stringify(results), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse(results);
   } catch (error: any) {
     console.error("Error en search-address API:", error);
-    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Error interno del servidor" }, 500);
   }
 };
