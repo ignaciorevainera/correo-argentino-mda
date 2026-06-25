@@ -2,8 +2,8 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-
 import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { jsonResponse } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -14,17 +14,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const { agentName, location } = body;
 
     if (!agentName) {
-      return new Response(JSON.stringify({ error: "Missing agentName in request body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Missing agentName in request body" }, 400);
     }
 
     if (location !== "Monte Grande" && location !== "Parque Patricios") {
-      return new Response(JSON.stringify({ error: "Invalid location value" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid location value" }, 400);
     }
 
     // Case-insensitive lookup
@@ -56,15 +50,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Location API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };

@@ -2,6 +2,8 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments, users } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import { requireWriteAccess } from "@/lib/rbac-middleware";
+import { jsonResponse } from "@lib/apiResponse";
 
 const DEFAULT_SUPERVISOR = "Tomasi Alejandro";
 
@@ -61,10 +63,7 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     const month = url.searchParams.get("month");
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      return new Response(JSON.stringify({ error: "Missing or invalid month parameter" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Missing or invalid month parameter" }, 400);
     }
 
     // 1. Obtener operador mensual
@@ -117,20 +116,12 @@ export const GET: APIRoute = async ({ url }) => {
       supervisors.push(DEFAULT_SUPERVISOR);
     }
 
-    return new Response(JSON.stringify({ operatorId, weeks: weeksWithData, supervisors }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors });
   } catch (error: any) {
     console.error("GET Guardia Pasiva Error:", error);
-    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Error interno del servidor" }, 500);
   }
 };
-
-import { requireWriteAccess } from "@/lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -141,10 +132,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const { month, operatorId, weeklyAssignments } = body;
 
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      return new Response(JSON.stringify({ error: "Invalid month parameter" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid month parameter" }, 400);
     }
 
     // Transacción síncrona con SQLite
@@ -202,15 +190,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Guardia Pasiva Error:", error);
-    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Error interno del servidor" }, 500);
   }
 };

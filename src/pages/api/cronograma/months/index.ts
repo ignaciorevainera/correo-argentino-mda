@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { agents, schedules } from "@/db/schema";
 import { and, eq, like } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import { jsonResponse } from "@lib/apiResponse";
 
 const MONTH_LABELS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -17,10 +18,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const { year, month } = body; // month is 0-indexed (0 = Enero)
 
     if (year === undefined || month === undefined) {
-      return new Response(JSON.stringify({ error: "Year and month are required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Year and month are required" }, 400);
     }
 
     // 1. Fetch all agents (operators) from SQLite to get all operators
@@ -72,16 +70,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       `Generó el cronograma del mes ${MONTH_LABELS[month] || month} ${year}`
     );
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Months API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };
 
@@ -94,10 +86,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     const { year, month } = body; // month is 0-indexed (0 = Enero)
 
     if (year === undefined || month === undefined) {
-      return new Response(JSON.stringify({ error: "Year and month are required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Year and month are required" }, 400);
     }
 
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -112,15 +101,9 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
       `Eliminó el cronograma del mes de ${MONTH_LABELS[month] || month} ${year}`
     );
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("DELETE Months API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };

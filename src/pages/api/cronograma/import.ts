@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { parse } from "csv-parse/sync";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
+import { jsonResponse } from "@lib/apiResponse";
 
 // Helper to normalize multiple date formats to YYYY-MM-DD
 function normalizeDate(dateStr: string): string | null {
@@ -123,8 +124,6 @@ function mapStatusText(cellValue: string): string {
   return "Franco"; // Default fallback
 }
 
-import { requireWriteAccess } from "@/lib/rbac-middleware";
-
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
   if (denied) return denied;
@@ -133,7 +132,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const formData = await request.formData();
     const file = formData.get("file");
     if (!file || !(file instanceof File)) {
-      return new Response(JSON.stringify({ error: "No se proporcionó ningún archivo válido" }), { status: 400 });
+      return jsonResponse({ error: "No se proporcionó ningún archivo válido" }, 400);
     }
 
     const csvText = await file.text();
@@ -151,7 +150,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
 
     if (records.length === 0) {
-      return new Response(JSON.stringify({ error: "El archivo CSV está vacío" }), { status: 400 });
+      return jsonResponse({ error: "El archivo CSV está vacío" }, 400);
     }
 
     // Load database agents to validate and match CSV names
@@ -248,7 +247,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       if (dateColumns.length === 0) {
-        return new Response(JSON.stringify({ error: "No se detectaron cabeceras de fecha con formato de Excel original ('lunes, 1 de junio de 2026') o YYYY-MM-DD" }), { status: 400 });
+        return jsonResponse({ error: "No se detectaron cabeceras de fecha con formato de Excel original ('lunes, 1 de junio de 2026') o YYYY-MM-DD" }, 400);
       }
 
       // 2. Parse operator rows (starting from index 2, since index 0 is dates and index 1 is hours)
@@ -284,12 +283,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     }
 
-    return new Response(JSON.stringify({ edits: parsedEdits }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
+    return jsonResponse({ edits: parsedEdits });
   } catch (error: any) {
     console.error("Import CSV Error:", error);
-    return new Response(JSON.stringify({ error: "Error al procesar el archivo CSV: " + error.message }), { status: 500 });
+    return jsonResponse({ error: "Error al procesar el archivo CSV: " + error.message }, 500);
   }
 };

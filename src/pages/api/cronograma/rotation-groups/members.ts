@@ -17,49 +17,31 @@ export const POST: APIRoute = async ({ request, locals }) => {
     try {
       body = await request.json();
     } catch {
-      return new Response(JSON.stringify({ error: "Malformed JSON body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Malformed JSON body" }, 400);
     }
 
     const { agentId, saturdayGroup, saturdayHorario, month } = body;
 
     if (agentId === undefined || agentId === null) {
-      return new Response(JSON.stringify({ error: "Missing agentId" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Missing agentId" }, 400);
     }
 
     if (!month || typeof month !== "string" || !MONTH_REGEX.test(month)) {
-      return new Response(JSON.stringify({ error: "Invalid or missing month. Expected YYYY-MM" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid or missing month. Expected YYYY-MM" }, 400);
     }
 
     const parsedAgentId = typeof agentId === "string" ? parseInt(agentId, 10) : agentId;
 
     if (typeof parsedAgentId !== "number" || isNaN(parsedAgentId)) {
-      return new Response(JSON.stringify({ error: "Invalid agentId. Expected a number" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid agentId. Expected a number" }, 400);
     }
 
     if (saturdayGroup !== null && saturdayGroup !== undefined && !VALID_GROUPS.includes(saturdayGroup)) {
-      return new Response(JSON.stringify({ error: "Invalid saturdayGroup. Expected A, B, C, D or null" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid saturdayGroup. Expected A, B, C, D or null" }, 400);
     }
 
     if (saturdayHorario !== null && saturdayHorario !== undefined && typeof saturdayHorario !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid saturdayHorario. Expected string or null" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid saturdayHorario. Expected string or null" }, 400);
     }
 
     // Verificar existencia del agente
@@ -70,10 +52,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .limit(1);
     
     if (agentList.length === 0) {
-      return new Response(JSON.stringify({ error: "Agent not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Agent not found" }, 404);
     }
 
     // Buscar si ya existe una asignación para este operador y mes
@@ -109,15 +88,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST rotation-groups members API Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 };

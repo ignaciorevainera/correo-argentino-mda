@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { jsonResponse } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ request }) => {
   try {
@@ -9,10 +10,7 @@ export const GET: APIRoute = async ({ request }) => {
     const agentName = url.searchParams.get("agentName");
 
     if (!agentName) {
-      return new Response(JSON.stringify({ error: "Missing agentName parameter" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Missing agentName parameter" }, 400);
     }
 
     // Lookup agent in database case-insensitively
@@ -37,26 +35,15 @@ export const GET: APIRoute = async ({ request }) => {
         notes: "",
       });
 
-      return new Response(JSON.stringify({ notes: "" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ notes: "" });
     }
 
-    return new Response(JSON.stringify({ notes: agent[0].notes || "" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ notes: agent[0].notes || "" });
   } catch (error: any) {
     console.error("GET Notes API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };
-
-import { requireWriteAccess } from "@/lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -67,10 +54,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const { agentName, notes } = body;
 
     if (!agentName) {
-      return new Response(JSON.stringify({ error: "Missing agentName in request body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Missing agentName in request body" }, 400);
     }
 
     // Case-insensitive lookup
@@ -102,15 +86,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Notes API Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: error.message }, 500);
   }
 };

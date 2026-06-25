@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { saturdayRotationConfig } from "@/db/schema";
 import { eq, desc, lt } from "drizzle-orm";
+import { jsonResponse } from "@lib/apiResponse";
 
 const getLocalMonth = () => {
   const d = new Date();
@@ -15,10 +16,7 @@ export const GET: APIRoute = async ({ url }) => {
     const month = url.searchParams.get("month") || getLocalMonth();
     
     if (!MONTH_REGEX.test(month)) {
-      return new Response(JSON.stringify({ error: "Invalid month format. Expected YYYY-MM" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid month format. Expected YYYY-MM" }, 400);
     }
     
     // Intentar obtener la configuración específica de este mes
@@ -55,20 +53,12 @@ export const GET: APIRoute = async ({ url }) => {
       };
     }
 
-    return new Response(JSON.stringify(config), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse(config);
   } catch (error: any) {
     console.error("GET rotation-config API Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 };
-
-import { requireWriteAccess } from "@/lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -79,10 +69,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     try {
       body = await request.json();
     } catch {
-      return new Response(JSON.stringify({ error: "Malformed JSON body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Malformed JSON body" }, 400);
     }
 
     const { month, rotationOrder, startDate, startGroup } = body;
@@ -92,13 +79,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       typeof startGroup !== "string" ||
       typeof rotationOrder !== "string"
     ) {
-      return new Response(
-        JSON.stringify({ error: "Required fields (startDate, startGroup, rotationOrder) must be strings" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return jsonResponse({ error: "Required fields (startDate, startGroup, rotationOrder) must be strings" }, 400);
     }
 
     const targetMonth = (typeof month === "string" && month)
@@ -106,19 +87,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       : startDate.slice(0, 7);
 
     if (!MONTH_REGEX.test(targetMonth)) {
-      return new Response(JSON.stringify({ error: "Invalid target month format. Expected YYYY-MM" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Invalid target month format. Expected YYYY-MM" }, 400);
     }
 
     // Validar que la fecha sea un sábado
     const dateObj = new Date(startDate + "T12:00:00");
     if (isNaN(dateObj.getTime()) || dateObj.getDay() !== 6) {
-      return new Response(JSON.stringify({ error: "Start date must be a valid Saturday" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Start date must be a valid Saturday" }, 400);
     }
 
     const configList = await db
@@ -151,15 +126,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .limit(1);
     const result = updatedList[0];
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse(result);
   } catch (error: any) {
     console.error("POST rotation-config API Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 };
