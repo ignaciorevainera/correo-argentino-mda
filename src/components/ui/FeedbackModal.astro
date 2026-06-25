@@ -1,0 +1,228 @@
+---
+import { Icon } from "astro-icon/components";
+
+const user = Astro.locals.user || { username: "Invitado" };
+---
+
+<dialog id="feedback_modal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box max-w-lg border border-base-300 bg-base-100 p-6 rounded-2xl shadow-xl relative">
+    {/* Botón de cerrar (X) en la esquina superior derecha */}
+    <button
+      type="button"
+      class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
+      aria-label="Cerrar modal"
+      data-close-feedback-modal
+    >
+      <Icon name="boxicons:x" size={20} />
+    </button>
+
+    <h3 class="text-lg font-bold text-base-content mb-4 flex items-center gap-2">
+      <Icon name="boxicons:message-circle-exclamation-filled" size={24} class="text-primary" />
+      <span>Enviar Comentarios o Reportes</span>
+    </h3>
+
+    {/* Pestañas de Navegación del Modal */}
+    <div class="tabs tabs-boxed grid grid-cols-2 bg-base-200 mb-6 rounded-md">
+      <button
+        type="button"
+        id="tab-sugerencia"
+        class="tab tab-active flex items-center justify-center gap-2 text-sm font-medium py-2"
+      >
+        <Icon name="boxicons:bulb" size={18} />
+        <span>Sugerir Idea</span>
+      </button>
+      <button
+        type="button"
+        id="tab-bug"
+        class="tab flex items-center justify-center gap-2 text-sm font-medium py-2"
+      >
+        <Icon name="boxicons:bug" size={18} />
+        <span>Reportar Bug</span>
+      </button>
+    </div>
+
+    {/* Formulario de Sugerir Idea */}
+    <form id="suggestion-form" class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Asunto</label>
+        <input
+          type="text"
+          id="sug-asunto"
+          placeholder="Ej: Agregar exportación a Excel en terminales"
+          class="input input-bordered w-full rounded-md text-sm"
+          required
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Área o Categoría</label>
+        <select id="sug-categoria" class="select select-bordered w-full rounded-md text-sm" required>
+          <option value="" disabled selected>Selecciona una opción</option>
+          <option value="general">General</option>
+          <option value="soporte">Mesa de Ayuda / Soportes</option>
+          <option value="inventario">Inventario de Terminales</option>
+          <option value="usuarios">Buscador de Usuarios</option>
+          <option value="cubics">Cubics</option>
+          <option value="otros">Otros</option>
+        </select>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Tu Propuesta</label>
+        <textarea
+          id="sug-mensaje"
+          placeholder="Describe detalladamente tu propuesta o idea..."
+          class="textarea textarea-bordered w-full h-32 rounded-md text-sm"
+          required
+        ></textarea>
+      </div>
+
+      <div class="modal-action flex items-center justify-between mt-6">
+        <div class="text-xxs text-base-content/50">
+          Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary rounded-md">
+            Enviar sugerencia
+          </button>
+        </div>
+      </div>
+    </form>
+
+    {/* Formulario de Reportar Bug */}
+    <form id="bug-form" class="space-y-4 hidden">
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Asunto</label>
+        <input
+          type="text"
+          id="bug-asunto"
+          placeholder="Ej: El mapa de sucursales no carga en móviles"
+          class="input input-bordered w-full rounded-md text-sm"
+          required
+        />
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Gravedad</label>
+        <select id="bug-gravedad" class="select select-bordered w-full rounded-md text-sm" required>
+          <option value="" disabled selected>Selecciona una opción</option>
+          <option value="leve">Leve (Visual / Estético)</option>
+          <option value="moderado">Moderado (Funcionalidad con alternativa)</option>
+          <option value="critico">Crítico (Fallo bloqueante)</option>
+        </select>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Descripción del Fallo</label>
+        <textarea
+          id="bug-descripcion"
+          placeholder="Describe detalladamente qué ocurrió..."
+          class="textarea textarea-bordered w-full h-24 rounded-md text-sm"
+          required
+        ></textarea>
+      </div>
+
+      <div class="form-control w-full">
+        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Pasos para Reproducir</label>
+        <textarea
+          id="bug-pasos"
+          placeholder="1. Ingresar a /mapa-sucursales&#10;2. Cambiar a vista móvil&#10;3. Observar que..."
+          class="textarea textarea-bordered w-full h-24 rounded-md text-sm"
+          required
+        ></textarea>
+      </div>
+
+      <div class="modal-action flex items-center justify-between mt-6">
+        <div class="text-xxs text-base-content/50">
+          Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary rounded-md">
+            Reportar bug
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {/* Backdrop para poder cerrar haciendo clic afuera */}
+  <form method="dialog" class="modal-backdrop">
+    <button>Cerrar</button>
+  </form>
+</dialog>
+
+<script>
+  import { showToast } from "../../lib/toastClient";
+
+  // Variables y Elementos del DOM
+  const modal = document.getElementById("feedback_modal") as HTMLDialogElement;
+  const tabSugerencia = document.getElementById("tab-sugerencia");
+  const tabBug = document.getElementById("tab-bug");
+  const formSugerencia = document.getElementById("suggestion-form") as HTMLFormElement;
+  const formBug = document.getElementById("bug-form") as HTMLFormElement;
+  const closeButtons = document.querySelectorAll("[data-close-feedback-modal]");
+  const openButtons = document.querySelectorAll("[data-open-feedback-modal]");
+
+  // 1. Manejo del cambio de pestañas
+  function switchTab(activeTab: HTMLElement, inactiveTab: HTMLElement, showForm: HTMLFormElement, hideForm: HTMLFormElement) {
+    activeTab.classList.add("tab-active");
+    inactiveTab.classList.remove("tab-active");
+    showForm.classList.remove("hidden");
+    hideForm.classList.add("hidden");
+  }
+
+  tabSugerencia?.addEventListener("click", () => {
+    if (tabSugerencia && tabBug && formSugerencia && formBug) {
+      switchTab(tabSugerencia, tabBug, formSugerencia, formBug);
+    }
+  });
+
+  tabBug?.addEventListener("click", () => {
+    if (tabBug && tabSugerencia && formBug && formSugerencia) {
+      switchTab(tabBug, tabSugerencia, formBug, formSugerencia);
+    }
+  });
+
+  // 2. Controladores de abrir y cerrar
+  openButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (modal) {
+        modal.showModal();
+      }
+    });
+  });
+
+  closeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (modal) {
+        modal.close();
+      }
+    });
+  });
+
+  // 3. Envío simulado - Formulario de Sugerencias
+  formSugerencia?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    showToast("¡Sugerencia enviada correctamente!", "alert-success");
+    formSugerencia.reset();
+    if (modal) {
+      modal.close();
+    }
+  });
+
+  // 4. Envío simulado - Formulario de Bugs
+  formBug?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    showToast("¡Reporte de bug enviado con éxito!", "alert-success");
+    formBug.reset();
+    if (modal) {
+      modal.close();
+    }
+  });
+</script>
