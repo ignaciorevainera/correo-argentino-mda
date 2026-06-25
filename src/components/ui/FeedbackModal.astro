@@ -164,6 +164,7 @@ const user = Astro.locals.user || { username: "Invitado" };
 </dialog>
 
 <script>
+  import { actions } from "astro:actions";
   import { showToast } from "../../lib/toastClient";
 
   // Variables y Elementos del DOM
@@ -175,23 +176,26 @@ const user = Astro.locals.user || { username: "Invitado" };
   const closeButtons = document.querySelectorAll("[data-close-feedback-modal]");
   const openButtons = document.querySelectorAll("[data-open-feedback-modal]");
 
+  let activeType: "sugerencia" | "bug" = "sugerencia";
+
   // 1. Manejo del cambio de pestañas
-  function switchTab(activeTab: HTMLElement, inactiveTab: HTMLElement, showForm: HTMLFormElement, hideForm: HTMLFormElement) {
+  function switchTab(activeTab: HTMLElement, inactiveTab: HTMLElement, showForm: HTMLFormElement, hideForm: HTMLFormElement, type: "sugerencia" | "bug") {
     activeTab.classList.add("tab-active");
     inactiveTab.classList.remove("tab-active");
     showForm.classList.remove("hidden");
     hideForm.classList.add("hidden");
+    activeType = type;
   }
 
   tabSugerencia?.addEventListener("click", () => {
     if (tabSugerencia && tabBug && formSugerencia && formBug) {
-      switchTab(tabSugerencia, tabBug, formSugerencia, formBug);
+      switchTab(tabSugerencia, tabBug, formSugerencia, formBug, "sugerencia");
     }
   });
 
   tabBug?.addEventListener("click", () => {
     if (tabBug && tabSugerencia && formBug && formSugerencia) {
-      switchTab(tabBug, tabSugerencia, formBug, formSugerencia);
+      switchTab(tabBug, tabSugerencia, formBug, formSugerencia, "bug");
     }
   });
 
@@ -212,23 +216,55 @@ const user = Astro.locals.user || { username: "Invitado" };
     });
   });
 
-  // 3. Envío simulado - Formulario de Sugerencias
-  formSugerencia?.addEventListener("submit", (e) => {
+  // 3. Manejo de envío asíncrono
+  async function handleFormSubmit(e: SubmitEvent, type: "sugerencia" | "bug", form: HTMLFormElement) {
     e.preventDefault();
-    showToast("¡Sugerencia enviada correctamente!", "alert-success");
-    formSugerencia.reset();
-    if (modal) {
-      modal.close();
+    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add("loading");
     }
-  });
 
-  // 4. Envío simulado - Formulario de Bugs
-  formBug?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    showToast("¡Reporte de bug enviado con éxito!", "alert-success");
-    formBug.reset();
-    if (modal) {
-      modal.close();
+    try {
+      const userAgent = navigator.userAgent;
+      let payload: any = {
+        type,
+        userAgent,
+      };
+
+      if (type === "sugerencia") {
+        payload.subject = (document.getElementById("sug-asunto") as HTMLInputElement).value;
+        payload.category = (document.getElementById("sug-categoria") as HTMLSelectElement).value;
+        payload.description = (document.getElementById("sug-mensaje") as HTMLTextAreaElement).value;
+      } else {
+        payload.subject = (document.getElementById("bug-asunto") as HTMLInputElement).value;
+        payload.severity = (document.getElementById("bug-gravedad") as HTMLSelectElement).value;
+        payload.description = (document.getElementById("bug-descripcion") as HTMLTextAreaElement).value;
+        payload.steps = (document.getElementById("bug-pasos") as HTMLTextAreaElement).value;
+      }
+
+      const { data, error } = await actions.submitFeedback(payload);
+
+      if (error) {
+        showToast(`Error al enviar: ${error.message}`, "alert-error");
+      } else if (data?.success) {
+        showToast(
+          type === "sugerencia" ? "¡Sugerencia enviada correctamente!" : "¡Reporte de bug enviado con éxito!",
+          "alert-success"
+        );
+        form.reset();
+        modal.close();
+      }
+    } catch (err: any) {
+      showToast("Ocurrió un error inesperado al enviar.", "alert-error");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("loading");
+      }
     }
-  });
+  }
+
+  formSugerencia?.addEventListener("submit", (e) => handleFormSubmit(e, "sugerencia", formSugerencia));
+  formBug?.addEventListener("submit", (e) => handleFormSubmit(e, "bug", formBug));
 </script>
