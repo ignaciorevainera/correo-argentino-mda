@@ -725,3 +725,30 @@ export const weeklyGuardiaPasivaAssignmentsRelations = relations(
     }),
   })
 );
+
+export const feedback = sqliteTable("feedback", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId")
+    .notNull()
+    .references(() => users.id),
+  type: text("type").notNull(), // 'sugerencia' | 'bug'
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("pendiente"), // 'pendiente' | 'en_revision' | 'resuelto' | 'descartado'
+  category: text("category"), // Solo para 'sugerencia' (ej: 'cronograma', 'asistencia', etc.)
+  severity: text("severity"), // Solo para 'bug' (ej: 'leve', 'moderado', 'critico')
+  steps: text("steps"), // Solo para 'bug' (Pasos para reproducir)
+  userAgent: text("userAgent"), // Información del navegador/OS
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .$onUpdateFn(() => new Date()),
+});
+
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, {
+    fields: [feedback.userId],
+    references: [users.id],
+  }),
+}));
