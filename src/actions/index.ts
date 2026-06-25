@@ -453,5 +453,40 @@ export const server = {
         throw new Error(error.message || "Error al actualizar el estado.");
       }
     },
+  }),
+  assignFeedback: defineAction({
+    input: z.object({
+      feedbackId: z.number(),
+      assign: z.boolean(),
+    }),
+    handler: async (input, context) => {
+      const user = context.locals.user;
+      if (!user || user.role !== "admin" || user.id === 0) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para asignar feedback.",
+        });
+      }
+      try {
+        const assignedToId = input.assign ? user.id : null;
+
+        await db
+          .update(feedback)
+          .set({ assignedToId })
+          .where(eq(feedback.id, input.feedbackId))
+          .run();
+
+        const logMessage = input.assign
+          ? `Se asignó el reporte/sugerencia #${input.feedbackId} a sí mismo`
+          : `Liberó la asignación del reporte/sugerencia #${input.feedbackId}`;
+
+        await logAdminAction(user.username, logMessage);
+
+        return { success: true };
+      } catch (error: any) {
+        console.error("Error assigning feedback:", error);
+        throw new Error(error.message || "Error al modificar la asignación.");
+      }
+    },
   })
 };

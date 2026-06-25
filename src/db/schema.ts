@@ -739,6 +739,7 @@ export const feedback = sqliteTable("feedback", {
   severity: text("severity"), // Solo para 'bug' (ej: 'leve', 'moderado', 'critico')
   steps: text("steps"), // Solo para 'bug' (Pasos para reproducir)
   userAgent: text("userAgent"), // Información del navegador/OS
+  assignedToId: integer("assignedToId").references(() => users.id),
   createdAt: integer("createdAt", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -749,6 +750,10 @@ export const feedback = sqliteTable("feedback", {
 export const feedbackRelations = relations(feedback, ({ one }) => ({
   user: one(users, {
     fields: [feedback.userId],
+    references: [users.id],
+  }),
+  assignedTo: one(users, {
+    fields: [feedback.assignedToId],
     references: [users.id],
   }),
 }));

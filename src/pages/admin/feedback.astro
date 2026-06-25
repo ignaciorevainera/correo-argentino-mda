@@ -8,12 +8,15 @@ import { Icon } from "astro-icon/components";
 import { db } from "../../db/index";
 import { feedback, users } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 
 // Verificar autenticación y rol de administrador
 const user = Astro.locals.user;
 if (!user || user.role !== "admin") {
   return Astro.redirect("/");
 }
+
+const assignedTo = alias(users, "assignedTo");
 
 // Traer todos los reportes ordenados por fecha descendente
 const list = await db
@@ -27,11 +30,14 @@ const list = await db
     severity: feedback.severity,
     steps: feedback.steps,
     userAgent: feedback.userAgent,
+    assignedToId: feedback.assignedToId,
     createdAt: feedback.createdAt,
     username: users.username,
+    assignedToUsername: assignedTo.username,
   })
   .from(feedback)
   .innerJoin(users, eq(feedback.userId, users.id))
+  .leftJoin(assignedTo, eq(feedback.assignedToId, assignedTo.id))
   .orderBy(desc(feedback.createdAt));
 
 const formatDateTime = (date: Date) => {
@@ -88,13 +94,14 @@ const formatDateTime = (date: Date) => {
         <DataTable
           ariaLabel="Listado de sugerencias y reportes"
           minWidthClass="min-w-200"
-          headerGridClass="grid-cols-[80px_110px_1fr_120px_130px_110px]"
-          rowGridClass="grid grid-cols-[80px_110px_1fr_120px_130px_110px] items-center gap-4"
+          headerGridClass="grid-cols-[60px_90px_1fr_120px_130px_120px_100px]"
+          rowGridClass="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4"
         >
           <div slot="header"><DataTableHeaderCell>ID</DataTableHeaderCell></div>
           <div slot="header"><DataTableHeaderCell>Tipo</DataTableHeaderCell></div>
           <div slot="header"><DataTableHeaderCell>Asunto / Usuario</DataTableHeaderCell></div>
           <div slot="header"><DataTableHeaderCell>Fecha</DataTableHeaderCell></div>
+          <div slot="header"><DataTableHeaderCell>Asignado</DataTableHeaderCell></div>
           <div slot="header"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
           <div slot="header" class="text-right"><DataTableHeaderCell align="right">Acción</DataTableHeaderCell></div>
 
@@ -103,7 +110,7 @@ const formatDateTime = (date: Date) => {
               data-table-row
               data-type={item.type}
               data-status={item.status}
-              class="grid grid-cols-[80px_110px_1fr_120px_130px_110px] items-center gap-4 border-b border-base-300 px-4 py-3 hover:bg-base-200/50 last:border-b-0"
+              class="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4 border-b border-base-300 px-4 py-3 hover:bg-base-200/50 last:border-b-0"
             >
               <span class="font-mono text-xs text-base-content/60">#{item.id}</span>
               <div>
@@ -121,6 +128,15 @@ const formatDateTime = (date: Date) => {
                 <div class="text-xs text-base-content/50 font-mono">Por: {item.username}</div>
               </div>
               <span class="text-xs text-base-content/75">{formatDateTime(item.createdAt)}</span>
+              <div class="truncate">
+                {item.assignedToUsername ? (
+                  <span class="badge badge-sm badge-neutral font-semibold truncate max-w-full" title={`Asignado a ${item.assignedToUsername}`}>
+                    👤 {item.assignedToUsername}
+                  </span>
+                ) : (
+                  <span class="text-xs text-base-content/40 italic">Sin asignar</span>
+                )}
+              </div>
               <div>
                 <span
                   class:list={[
@@ -155,7 +171,7 @@ const formatDateTime = (date: Date) => {
     </div>
 
     {/* Modal de Detalles del Feedback */}
-    <dialog id="modal-details" class="modal">
+    <dialog id="modal-details" class="modal" data-current-user-id={user.id}>
       <div class="modal-box max-w-2xl border border-base-300 p-6 rounded-2xl bg-base-100 relative">
         <button
           type="button"
@@ -200,6 +216,21 @@ const formatDateTime = (date: Date) => {
             <div>
               <span class="text-xxs font-semibold uppercase text-base-content/50 block">Pasos para reproducir</span>
               <p id="detail-steps" class="text-sm text-base-content bg-base-200 p-3 rounded-lg whitespace-pre-wrap"></p>
+            </div>
+          </div>
+
+          <div class="bg-base-200 p-3 rounded-lg flex items-center justify-between gap-4">
+            <div>
+              <span class="text-xxs font-semibold uppercase text-base-content/50 block">Asignación</span>
+              <span id="detail-assigned-to" class="text-sm font-semibold text-base-content">Sin asignar</span>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="btn-assign-self" class="btn btn-sm btn-outline btn-primary gap-1">
+                👤 Asignarme Caso
+              </button>
+              <button type="button" id="btn-unassign-self" class="btn btn-sm btn-outline btn-error gap-1 hidden">
+                🔓 Liberar Caso
+              </button>
             </div>
           </div>
 
@@ -342,7 +373,30 @@ const formatDateTime = (date: Date) => {
           if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
         }
 
-        detailsModal.showModal();
+        // Rellenar asignación
+        const assignedToEl = document.getElementById("detail-assigned-to");
+        const btnAssign = document.getElementById("btn-assign-self");
+        const btnUnassign = document.getElementById("btn-unassign-self");
+        const currentUserId = Number(detailsModal?.getAttribute("data-current-user-id") || 0);
+
+        if (assignedToEl) {
+          assignedToEl.textContent = item.assignedToUsername ? item.assignedToUsername : "Sin asignar";
+        }
+
+        if (btnAssign && btnUnassign) {
+          if (!item.assignedToId) {
+            btnAssign.classList.remove("hidden");
+            btnUnassign.classList.add("hidden");
+          } else if (item.assignedToId === currentUserId) {
+            btnAssign.classList.add("hidden");
+            btnUnassign.classList.remove("hidden");
+          } else {
+            btnAssign.classList.add("hidden");
+            btnUnassign.classList.add("hidden");
+          }
+        }
+
+        detailsModal?.showModal();
       });
     });
 
@@ -383,6 +437,44 @@ const formatDateTime = (date: Date) => {
         }
       });
     });
+    // 4. Modificación de la Asignación mediante Astro Action
+    const assignBtn = document.getElementById("btn-assign-self");
+    const unassignBtn = document.getElementById("btn-unassign-self");
+
+    const handleAssignClick = (assign: boolean) => async (e: Event) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+      if (!feedbackIdEl) return;
+      const feedbackId = Number(feedbackIdEl.value);
+
+      btn.classList.add("loading");
+      btn.disabled = true;
+
+      try {
+        const { data, error } = await actions.assignFeedback({
+          feedbackId,
+          assign,
+        });
+
+        if (error) {
+          showToast(`Error: ${error.message}`, "alert-error");
+        } else if (data?.success) {
+          showToast(assign ? "¡Te has asignado el caso!" : "¡Caso liberado!", "alert-success");
+          detailsModal?.close();
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+        }
+      } catch (err) {
+        showToast("Error al procesar la asignación.", "alert-error");
+      } finally {
+        btn.classList.remove("loading");
+        btn.disabled = false;
+      }
+    };
+
+    assignBtn?.addEventListener("click", handleAssignClick(true));
+    unassignBtn?.addEventListener("click", handleAssignClick(false));
   }
 
   // Inicializar con View Transitions

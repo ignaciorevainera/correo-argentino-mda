@@ -86,6 +86,12 @@ test.afterAll(async () => {
 
 test.describe("Feedback and Bug Reporting System", () => {
   test("Agent should be able to submit a suggestion and an admin should be able to view and manage it", async ({ page, context }) => {
+    page.on('console', msg => console.log(`BROWSER CONSOLE: ${msg.text()}`));
+    page.on('pageerror', err => console.log(`BROWSER EXCEPTION: ${err.message}`));
+    page.on('response', res => {
+      if (res.status() >= 400) console.log(`HTTP ERROR ${res.status()}: ${res.url()}`);
+    });
+
     // 1. Iniciar sesión como Agente
     await context.addCookies([{
       name: "session_id",
@@ -136,6 +142,7 @@ test.describe("Feedback and Bug Reporting System", () => {
     const firstRow = page.locator("[data-table-row]").first();
     await expect(firstRow).toContainText("Sugerencia E2E de prueba");
     await expect(firstRow).toContainText(agentUser.username);
+    await expect(firstRow).toContainText("Sin asignar");
 
     // 10. Abrir detalles y verificar contenido
     const detailsBtn = firstRow.locator('[data-action="view-details"]');
@@ -145,6 +152,36 @@ test.describe("Feedback and Bug Reporting System", () => {
     await expect(detailsModal).toBeVisible();
     await expect(page.locator("#detail-subject")).toContainText("Sugerencia E2E de prueba");
     await expect(page.locator("#detail-description")).toContainText("Propuesta de mejora para buscador de oficinas E2E.");
+    await expect(page.locator("#detail-assigned-to")).toContainText("Sin asignar");
+
+    // Asignarse el caso
+    const assignBtn = page.locator("#btn-assign-self");
+    await expect(assignBtn).toBeVisible();
+    await assignBtn.click();
+
+    // Verificar toast y modal cerrado
+    await expect(toast).toContainText("¡Te has asignado el caso!");
+    await expect(detailsModal).not.toBeVisible();
+
+    // Verificar que ahora aparece asignado en la tabla
+    await expect(firstRow).toContainText(adminUser.username);
+
+    // Volver a abrir detalles para verificar que se muestra asignado y se puede liberar
+    await detailsBtn.click();
+    await expect(detailsModal).toBeVisible();
+    await expect(page.locator("#detail-assigned-to")).toContainText(adminUser.username);
+
+    const unassignBtn = page.locator("#btn-unassign-self");
+    await expect(unassignBtn).toBeVisible();
+    await expect(assignBtn).not.toBeVisible();
+
+    // Cerrar el modal usando el botón X
+    await page.locator('#modal-details button.btn-circle').click();
+    await expect(detailsModal).not.toBeVisible();
+
+    // Volver a abrir detalles para cambiar el estado a "En Revisión"
+    await detailsBtn.click();
+    await expect(detailsModal).toBeVisible();
 
     // 11. Cambiar estado a "En Revisión"
     const statusBtn = page.locator('[data-status-btn="en_revision"]');
@@ -155,7 +192,7 @@ test.describe("Feedback and Bug Reporting System", () => {
     await expect(detailsModal).not.toBeVisible();
 
     // Verificar que el estado cambió en la tabla
-    const updatedStatusBadge = page.locator("[data-table-row]").first().locator(".badge").nth(1);
-    await expect(updatedStatusBadge).toContainText("En Revisión");
+    const statusBadge = firstRow.locator('.badge', { hasText: 'En Revisión' });
+    await expect(statusBadge).toBeVisible();
   });
 });
