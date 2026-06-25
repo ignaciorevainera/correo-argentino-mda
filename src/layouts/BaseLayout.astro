@@ -10,6 +10,7 @@ import { navSections, getSectionTitle, getResolvedPathname, type NavItem } from 
 import ToastContainer from "@components/ui/ToastContainer.astro";
 import GithubLink from "@components/ui/GithubLink.astro";
 import { normalizeRole, hasPermission } from "@lib/rbac";
+import FeedbackModal from "@components/ui/FeedbackModal.astro";
 
 interface Props {
   title?: string;
@@ -245,9 +246,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
             <div class="tooltip tooltip-bottom" data-tip="Enviar sugerencia">
               <button
                 type="button"
-                disabled
-                class="btn btn-ghost btn-circle btn-disabled opacity-40"
-                aria-label="Enviar sugerencia (Deshabilitado)"
+                data-open-feedback-modal
+                class="btn btn-ghost btn-circle"
+                aria-label="Enviar sugerencia o reportar bug"
               >
                 <Icon name="boxicons:message-circle-exclamation-filled" size={20} />
               </button>
@@ -679,10 +680,10 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
             </a>
             <button
               type="button"
-              disabled
-              class="btn btn-outline btn-sm gap-2 opacity-50 cursor-not-allowed border-base-300"
+              data-open-feedback-modal
+              class="btn btn-outline btn-sm gap-2 border-base-300"
               title="Reporte de bug"
-              aria-label="Reportar un error (Próximamente)"
+              aria-label="Reportar un error"
             >
               <Icon name="boxicons:bug" size={18} class="text-base-content/75" />
               <span class="text-xs font-semibold">Reportar Bug</span>
@@ -702,6 +703,7 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
       </form>
     </dialog>
 
+    <FeedbackModal />
     <ToastContainer />
 
     <script>
