@@ -15,7 +15,7 @@ function signSessionId(sessionId: string): string {
 const rawSessionId = `test-admin-session-${Date.now()}`;
 const MOCK_SESSION_ID = signSessionId(rawSessionId);
 let testUserId: number;
-let testCategoryId: string = `cat-test-${Date.now()}`;
+let testCategoryId: number;
 let testAppId: number;
 
 test.beforeAll(async () => {
@@ -35,10 +35,10 @@ test.beforeAll(async () => {
   });
 
   // 3. Create a mock category
-  await db.insert(applicationCategories).values({
-    id: testCategoryId,
+  const [newCat] = await db.insert(applicationCategories).values({
     title: 'Categoría de Prueba E2E',
-  }).onConflictDoNothing();
+  }).returning({ id: applicationCategories.id });
+  testCategoryId = newCat.id;
 
   // 4. Create a mock application
   const [newApp] = await db.insert(applications).values({
@@ -79,12 +79,12 @@ test.afterAll(async () => {
 
 test.describe('Vistas de edición de aplicativos', () => {
   test('Debería renderizar los campos existentes correctamente', async ({ page }) => {
-    await page.goto(`/admin/aplicativos/${testAppId}`);
+    await page.goto(`/admin/aplicativos/edit/${testAppId}`);
     
     // Aserciones sobre el renderizado
     await expect(page.getByRole('heading', { name: 'Editar aplicativo' })).toBeVisible();
     await expect(page.locator('input[name="title"]')).toHaveValue('App Prueba E2E');
-    await expect(page.locator('select[name="categoryId"]')).toHaveValue(testCategoryId);
+    await expect(page.locator('select[name="categoryId"]')).toHaveValue(String(testCategoryId));
     await expect(page.locator('input[name="version"]')).toHaveValue('1.0.0');
     await expect(page.locator('textarea[name="description"]')).toHaveValue('Descripción original');
     
@@ -95,7 +95,7 @@ test.describe('Vistas de edición de aplicativos', () => {
   });
 
   test('Debería actualizar los valores y redirigir al listado', async ({ page }) => {
-    await page.goto(`/admin/aplicativos/${testAppId}`);
+    await page.goto(`/admin/aplicativos/edit/${testAppId}`);
     
     // Inyección de nuevos valores
     await page.fill('input[name="title"]', 'App Prueba E2E Modificada');
