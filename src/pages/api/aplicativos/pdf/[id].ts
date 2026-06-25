@@ -70,6 +70,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="${downloadName}"`,
         "Content-Length": fileBuffer.length.toString(),
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (error: any) {

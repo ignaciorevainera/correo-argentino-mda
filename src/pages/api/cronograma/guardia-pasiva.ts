@@ -116,7 +116,7 @@ export const GET: APIRoute = async ({ url }) => {
       supervisors.push(DEFAULT_SUPERVISOR);
     }
 
-    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors });
+    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("GET Guardia Pasiva Error:", error);
     return jsonResponse({ error: "Error interno del servidor" }, 500);

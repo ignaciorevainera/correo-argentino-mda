@@ -282,7 +282,7 @@ export const GET: APIRoute = async ({ url }) => {
       activeMonth,
     };
 
-    return jsonResponse(responsePayload);
+    return jsonResponse(responsePayload, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("GET API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);

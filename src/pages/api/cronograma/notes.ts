@@ -35,10 +35,10 @@ export const GET: APIRoute = async ({ request }) => {
         notes: "",
       });
 
-      return jsonResponse({ notes: "" });
+      return jsonResponse({ notes: "" }, 200, "private, max-age=60");
     }
 
-    return jsonResponse({ notes: agent[0].notes || "" });
+    return jsonResponse({ notes: agent[0].notes || "" }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("GET Notes API Error:", error);
     return jsonResponse({ error: error.message }, 500);

@@ -131,6 +131,7 @@ export const GET: APIRoute = async () => {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="oficinas_${dateStr}.csv"`,
+        "Cache-Control": "public, max-age=3600",
       },
     });
   } catch (error) {

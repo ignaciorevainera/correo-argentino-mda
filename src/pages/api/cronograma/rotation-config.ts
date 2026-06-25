@@ -53,7 +53,7 @@ export const GET: APIRoute = async ({ url }) => {
       };
     }
 
-    return jsonResponse(config);
+    return jsonResponse(config, 200, "public, max-age=3600, stale-while-revalidate");
   } catch (error: any) {
     console.error("GET rotation-config API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);

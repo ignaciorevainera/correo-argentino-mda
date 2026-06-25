@@ -1,10 +1,14 @@
-export function jsonResponse(data: unknown, status = 200) {
+export function jsonResponse(data: unknown, status = 200, cacheControl?: string) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (cacheControl) {
+    headers["Cache-Control"] = cacheControl;
+  }
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers,
   });
 }
 
-export function jsonError(message: string, status = 400) {
-  return jsonResponse({ error: message }, status);
+export function jsonError(message: string, status = 400, cacheControl?: string) {
+  return jsonResponse({ error: message }, status, cacheControl);
 }

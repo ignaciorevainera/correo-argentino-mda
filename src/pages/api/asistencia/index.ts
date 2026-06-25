@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const endDate = url.searchParams.get("endDate") || startDate;
     const responseData = await getAttendanceData(startDate, endDate);
 
-    return jsonResponse(responseData);
+    return jsonResponse(responseData, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("GET Attendance API Error:", error);
     return jsonResponse({ error: error.message }, 500);

@@ -10,7 +10,7 @@ export const GET: APIRoute = async () => {
     for (const h of dbHolidays) {
       feriados[h.date] = h.name;
     }
-    return jsonResponse(feriados);
+    return jsonResponse(feriados, 200, "public, max-age=3600, stale-while-revalidate");
   } catch (err: any) {
     return jsonResponse({ error: err.message }, 500);
   }
