@@ -2,7 +2,7 @@ import { defineAction, ActionError } from "astro:actions";
 import { z } from "astro:schema";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { db } from "@db/index";
-import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries } from "@db/schema";
+import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries, feedback } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { calculateAuditScores } from "@lib/qualityCalculator";
 import { logAdminAction } from "@lib/auditLogger";
@@ -380,5 +380,113 @@ export const server = {
         throw new Error(error.message || "Error al guardar el resumen del mes");
       }
     }
+  }),
+  submitFeedback: defineAction({
+    input: z.object({
+      type: z.enum(["sugerencia", "bug"]),
+      subject: z.string().min(3, "El asunto debe tener al menos 3 caracteres"),
+      description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
+      category: z.string().optional().nullable(),
+      severity: z.string().optional().nullable(),
+      steps: z.string().optional().nullable(),
+      userAgent: z.string().optional().nullable(),
+    }),
+    handler: async (input, context) => {
+      const user = context.locals.user;
+      if (!user || user.id === 0) {
+        throw new ActionError({
+          code: "UNAUTHORIZED",
+          message: "Debe iniciar sesión para enviar comentarios.",
+        });
+      }
+      try {
+        const [inserted] = await db
+          .insert(feedback)
+          .values({
+            userId: user.id,
+            type: input.type,
+            subject: input.subject,
+            description: input.description,
+            category: input.category,
+            severity: input.severity,
+            steps: input.steps,
+            userAgent: input.userAgent,
+            status: "pendiente",
+          })
+          .returning({ id: feedback.id });
+
+        return { success: true, feedbackId: inserted.id };
+      } catch (error: any) {
+        console.error("Error submitting feedback:", error);
+        throw new Error(error.message || "Error al enviar el feedback.");
+      }
+    },
+  }),
+  updateFeedbackStatus: defineAction({
+    input: z.object({
+      feedbackId: z.number(),
+      newStatus: z.enum(["pendiente", "en_revision", "resuelto", "descartado"]),
+    }),
+    handler: async (input, context) => {
+      const user = context.locals.user;
+      if (!user || user.role !== "admin") {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para modificar el estado del feedback.",
+        });
+      }
+      try {
+        await db
+          .update(feedback)
+          .set({ status: input.newStatus })
+          .where(eq(feedback.id, input.feedbackId))
+          .run();
+
+        await logAdminAction(
+          user.username,
+          `Actualizó el estado del reporte/sugerencia #${input.feedbackId} a "${input.newStatus}"`
+        );
+
+        return { success: true };
+      } catch (error: any) {
+        console.error("Error updating feedback status:", error);
+        throw new Error(error.message || "Error al actualizar el estado.");
+      }
+    },
+  }),
+  assignFeedback: defineAction({
+    input: z.object({
+      feedbackId: z.number(),
+      assign: z.boolean(),
+    }),
+    handler: async (input, context) => {
+      const user = context.locals.user;
+      if (!user || user.role !== "admin" || user.id === 0) {
+        throw new ActionError({
+          code: "FORBIDDEN",
+          message: "No tiene permisos para asignar feedback.",
+        });
+      }
+      try {
+        const assignedToId = input.assign ? user.id : null;
+
+        await db
+          .update(feedback)
+          .set({ assignedToId })
+          .where(eq(feedback.id, input.feedbackId))
+          .run();
+
+        const logMessage = input.assign
+          ? `Se asignó el reporte/sugerencia #${input.feedbackId} a sí mismo`
+          : `Liberó la asignación del reporte/sugerencia #${input.feedbackId}`;
+
+        await logAdminAction(user.username, logMessage);
+
+        return { success: true };
+      } catch (error: any) {
+        console.error("Error assigning feedback:", error);
+        throw new Error(error.message || "Error al modificar la asignación.");
+      }
+    },
   })
 };

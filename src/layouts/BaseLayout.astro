@@ -6,11 +6,17 @@ import logo from "@assets/logo.svg";
 import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import geistMonoLatinWoff2 from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 import packageJson from "../../package.json";
-import { navSections, getSectionTitle, getResolvedPathname, type NavItem } from "@lib/navigation";
+import {
+  navSections,
+  getSectionTitle,
+  getResolvedPathname,
+  type NavItem,
+} from "@lib/navigation";
 import ToastContainer from "@components/ui/ToastContainer.astro";
 import GithubLink from "@components/ui/GithubLink.astro";
 import { normalizeRole, hasPermission } from "@lib/rbac";
 import { resolveUrl } from "@lib/url";
+import FeedbackModal from "@components/ui/FeedbackModal.astro";
 
 interface Props {
   title?: string;
@@ -19,10 +25,15 @@ interface Props {
 const { title } = Astro.props;
 const resolvedPath = getResolvedPathname(Astro.request, Astro.url);
 const currentPath = resolvedPath;
-const rawTitle = title || getSectionTitle(resolvedPath) || "Portal Mesa de Ayuda";
-const inferredTitle = rawTitle && rawTitle !== "Portal MDA" && rawTitle !== "Portal Mesa de Ayuda" && rawTitle !== "Portal"
-  ? `Portal MDA | ${rawTitle}`
-  : "Portal MDA";
+const rawTitle =
+  title || getSectionTitle(resolvedPath) || "Portal Mesa de Ayuda";
+const inferredTitle =
+  rawTitle &&
+  rawTitle !== "Portal MDA" &&
+  rawTitle !== "Portal Mesa de Ayuda" &&
+  rawTitle !== "Portal"
+    ? `Portal MDA | ${rawTitle}`
+    : "Portal MDA";
 const globalFontFaceCss = `
   @font-face {
     font-family: "Geist Variable";
@@ -87,7 +98,13 @@ const normalizedUserRole = normalizeRole(user.role);
 
 const isRouteLocked = (href: string): boolean => {
   const lowerHref = href.toLowerCase();
-  if (user.id === 0 && (lowerHref === "/supervision" || lowerHref.startsWith("/supervision/") || lowerHref === "/admin" || lowerHref.startsWith("/admin/"))) {
+  if (
+    user.id === 0 &&
+    (lowerHref === "/supervision" ||
+      lowerHref.startsWith("/supervision/") ||
+      lowerHref === "/admin" ||
+      lowerHref.startsWith("/admin/"))
+  ) {
     return true;
   }
   return !hasPermission(href, normalizedUserRole);
@@ -96,15 +113,18 @@ const isRouteLocked = (href: string): boolean => {
 let visibleNavSections = navSections
   .map((section) => ({
     ...section,
-    items: section.items.filter((item) => !isRouteLocked(item.href) && item.href !== "/supervision"),
+    items: section.items.filter(
+      (item) => !isRouteLocked(item.href) && item.href !== "/supervision",
+    ),
   }))
   .filter((section) => section.items.length > 0);
 
 const drawerNavItems = visibleNavSections.flatMap((section) =>
   section.items.map((item) => ({ ...item, children: undefined })),
 );
-const quickAccessItems: NavItem[] = visibleNavSections
-  .flatMap((section) => flattenQuickAccessItems(section.items));
+const quickAccessItems: NavItem[] = visibleNavSections.flatMap((section) =>
+  flattenQuickAccessItems(section.items),
+);
 const userInitials = user.username.slice(0, 2).toUpperCase();
 
 const roleAvatarClasses: Record<string, string> = {
@@ -123,7 +143,8 @@ const roleLabelMap: Record<string, string> = {
   agent: "Agente",
 };
 
-const avatarClass = roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
+const avatarClass =
+  roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
 const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
 ---
 
@@ -192,7 +213,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
         class="drawer-toggle"
         aria-label="toggle sidebar"
       />
-      <div class="drawer-content flex h-screen max-w-full flex-col overflow-hidden">
+      <div
+        class="drawer-content flex h-screen max-w-full flex-col overflow-hidden"
+      >
         <header
           class="navbar z-30 min-h-20 border-b border-base-300 bg-base-100/95 p-2 md:p-4 text-sm md:text-base text-base-content backdrop-blur"
         >
@@ -237,17 +260,23 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
 
             <div class="divider divider-horizontal m-0 md:hidden"></div>
 
-
-            <div class="tooltip tooltip-bottom" data-tip="Enviar sugerencia">
-              <button
-                type="button"
-                disabled
-                class="btn btn-ghost btn-circle btn-disabled opacity-40"
-                aria-label="Enviar sugerencia (Deshabilitado)"
-              >
-                <Icon name="boxicons:message-circle-exclamation-filled" size={20} />
-              </button>
-            </div>
+            {
+              user.id !== 0 && (
+                <div
+                  class="tooltip tooltip-bottom"
+                  data-tip="Enviar sugerencia"
+                >
+                  <button
+                    type="button"
+                    data-open-feedback-modal
+                    class="btn btn-ghost btn-circle"
+                    aria-label="Enviar sugerencia o reportar bug"
+                  >
+                    <Icon name="boxicons:mail-open" size={20} />
+                  </button>
+                </div>
+              )
+            }
 
             <label class="btn btn-ghost btn-circle swap swap-rotate">
               <input
@@ -283,7 +312,6 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
             >
               <Icon name="boxicons:help-circle-filled" size={24} />
             </button>
-
 
             <div class="flex items-center gap-2">
               <div class="divider divider-horizontal m-0"></div>
@@ -357,7 +385,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
           </div>
         </header>
 
-        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 [scrollbar-gutter:stable_both-edges]">
+        <main
+          class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 [scrollbar-gutter:stable_both-edges]"
+        >
           <slot />
         </main>
       </div>
@@ -415,7 +445,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
                         <>
                           <li>
                             <a
-                              href={isLocked ? undefined : resolveUrl(item.href)}
+                              href={
+                                isLocked ? undefined : resolveUrl(item.href)
+                              }
                               aria-label={item.label}
                               aria-disabled={isLocked ? "true" : undefined}
                               data-tip={
@@ -440,7 +472,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
                                 size={24}
                                 class="shrink-0 opacity-80 transition group-hover:opacity-100"
                               />
-                              <span class="truncate lg:hidden">{item.label}</span>
+                              <span class="truncate lg:hidden">
+                                {item.label}
+                              </span>
                               {isLocked && (
                                 <Icon
                                   name="boxicons:lock"
@@ -661,7 +695,9 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
             </div>
           </div>
 
-          <div class="flex justify-center gap-3 pt-4 border-t border-base-300/50 mt-4">
+          <div
+            class="flex justify-center gap-3 pt-4 border-t border-base-300/50 mt-4"
+          >
             <a
               href="https://github.com/ignaciorevainera/correo-argentino-mda"
               target="_blank"
@@ -670,19 +706,19 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
               title="Repositorio GitHub"
               aria-label="Ver Repositorio de GitHub"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="text-base-content/75"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.527-10-10-10z"/></svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                class="text-base-content/75"
+                ><path
+                  d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.527-10-10-10z"
+                ></path></svg
+              >
               <span class="text-xs font-semibold">GitHub</span>
             </a>
-            <button
-              type="button"
-              disabled
-              class="btn btn-outline btn-sm gap-2 opacity-50 cursor-not-allowed border-base-300"
-              title="Reporte de bug"
-              aria-label="Reportar un error (Próximamente)"
-            >
-              <Icon name="boxicons:bug" size={18} class="text-base-content/75" />
-              <span class="text-xs font-semibold">Reportar Bug</span>
-            </button>
           </div>
         </div>
 
@@ -698,6 +734,7 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
       </form>
     </dialog>
 
+    {user.id !== 0 && <FeedbackModal />}
     <ToastContainer />
 
     <script>
@@ -716,7 +753,7 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
             success: "alert-success",
             error: "alert-error",
             warning: "alert-warning",
-            info: "alert-info"
+            info: "alert-info",
           };
           const toastType = typeMap[typeParam] || "alert-info";
 
