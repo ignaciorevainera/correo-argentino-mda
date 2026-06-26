@@ -1,4 +1,5 @@
 // @ts-check
+// Trigger dev server reload for registering new Astro actions
 import { defineConfig } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 

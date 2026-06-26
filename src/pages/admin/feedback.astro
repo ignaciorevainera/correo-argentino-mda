@@ -1,0 +1,505 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "../../db/index";
+import { feedback, users } from "../../db/schema";
+import { eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
+
+// Verificar autenticación y rol de administrador
+const user = Astro.locals.user;
+if (!user || user.role !== "admin") {
+  return Astro.redirect("/");
+}
+
+const assignedTo = alias(users, "assignedTo");
+
+// Traer todos los reportes ordenados por fecha descendente
+const list = await db
+  .select({
+    id: feedback.id,
+    type: feedback.type,
+    subject: feedback.subject,
+    description: feedback.description,
+    status: feedback.status,
+    category: feedback.category,
+    severity: feedback.severity,
+    steps: feedback.steps,
+    userAgent: feedback.userAgent,
+    assignedToId: feedback.assignedToId,
+    createdAt: feedback.createdAt,
+    username: users.username,
+    assignedToUsername: assignedTo.username,
+  })
+  .from(feedback)
+  .innerJoin(users, eq(feedback.userId, users.id))
+  .leftJoin(assignedTo, eq(feedback.assignedToId, assignedTo.id))
+  .orderBy(desc(feedback.createdAt));
+
+const countAll = list.length;
+const countSugerencias = list.filter(item => item.type === "sugerencia").length;
+const countBugs = list.filter(item => item.type === "bug").length;
+
+const formatDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+};
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <PageHeader
+      title="Sugerencias y Reportes de Bugs"
+      description="Gestión y seguimiento de los comentarios, ideas y errores enviados por los operadores."
+    />
+
+    {/* Tarjeta de Contenido Principal */}
+    <div class="card bg-base-100 border border-base-300 shadow-md p-6 mb-6">
+      {/* Controles de Filtros */}
+      <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-primary rounded-md active-filter" data-filter-type="all">
+            Todos <span class="badge badge-sm bg-primary-content/20 border-none ml-1">{countAll}</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline rounded-md" data-filter-type="sugerencia">
+            Sugerencias <span class="badge badge-sm badge-ghost ml-1">{countSugerencias}</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline rounded-md" data-filter-type="bug">
+            Bugs <span class="badge badge-sm badge-ghost ml-1">{countBugs}</span>
+          </button>
+        </div>
+        <div class="w-full md:w-auto flex justify-end md:pr-4">
+          <select class="select select-bordered select-sm rounded-md w-full md:w-48" id="filter-status">
+            <option value="all">Cualquier Estado</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_revision">En Revisión</option>
+            <option value="resuelto">Resuelto</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Listado */}
+      {list.length === 0 ? (
+        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon name="boxicons:mail-open" size={32} class="opacity-30" />
+          </div>
+          <p class="text-sm font-semibold">No hay sugerencias ni bugs reportados todavía.</p>
+        </div>
+      ) : (
+        <DataTable
+          ariaLabel="Listado de sugerencias y reportes"
+          minWidthClass="min-w-200"
+          headerGridClass="grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center"
+          rowGridClass="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4"
+        >
+          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>ID</DataTableHeaderCell></div>
+          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Tipo</DataTableHeaderCell></div>
+          <div slot="header" class="flex items-center h-full pl-4"><DataTableHeaderCell>Asunto / Usuario</DataTableHeaderCell></div>
+          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Fecha</DataTableHeaderCell></div>
+          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Asignado</DataTableHeaderCell></div>
+          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
+          <div slot="header" class="text-right flex items-center justify-end h-full pr-4"><DataTableHeaderCell align="right">Acción</DataTableHeaderCell></div>
+
+          {list.map((item) => (
+            <div
+              data-table-row
+              data-type={item.type}
+              data-status={item.status}
+              class="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4 border-b border-base-300 px-4 py-3 hover:bg-base-200/50 last:border-b-0"
+            >
+              <span class="font-mono text-xs text-base-content/60">#{item.id}</span>
+              <div>
+                <span
+                  class:list={[
+                    "badge badge-sm font-bold uppercase",
+                    item.type === "bug" ? "badge-error" : "badge-info"
+                  ]}
+                >
+                  {item.type === "bug" ? "BUG" : "IDEA"}
+                </span>
+              </div>
+              <div class="truncate pl-4">
+                <div class="font-semibold text-sm text-base-content truncate">{item.subject}</div>
+                <div class="text-xs text-base-content/70 font-mono mt-0.5">Por: {item.username}</div>
+              </div>
+              <span class="text-xs text-base-content/75">{formatDateTime(item.createdAt)}</span>
+              <div class="truncate">
+                {item.assignedToUsername ? (
+                  <span class="badge badge-sm badge-neutral font-semibold truncate max-w-full" title={`Asignado a ${item.assignedToUsername}`}>
+                     {item.assignedToUsername}
+                  </span>
+                ) : (
+                  <span class="badge badge-sm badge-outline border-dashed border-base-content/30 text-base-content/50 font-medium truncate max-w-full">
+                     Sin asignar
+                  </span>
+                )}
+              </div>
+              <div>
+                <span
+                  class:list={[
+                    "badge badge-sm",
+                    item.status === "pendiente" && "badge-neutral",
+                    item.status === "en_revision" && "badge-warning",
+                    item.status === "resuelto" && "badge-success",
+                    item.status === "descartado" && "badge-ghost"
+                  ]}
+                >
+                  {item.status === "pendiente" && "Pendiente"}
+                  {item.status === "en_revision" && "En Revisión"}
+                  {item.status === "resuelto" && "Resuelto"}
+                  {item.status === "descartado" && "Descartado"}
+                </span>
+              </div>
+              <div class="text-right pr-4">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-xs cursor-pointer rounded-md"
+                  data-action="view-details"
+                  data-id={item.id}
+                  data-item={JSON.stringify(item)}
+                >
+                  Ver detalles
+                </button>
+              </div>
+            </div>
+          ))}
+        </DataTable>
+      )}
+    </div>
+
+    {/* Modal de Detalles del Feedback */}
+    <dialog id="modal-details" class="modal" data-current-user-id={user.id}>
+      <div class="modal-box max-w-3xl border border-base-300 p-6 rounded-2xl bg-base-100 relative">
+        <button
+          type="button"
+          class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
+          onclick="document.getElementById('modal-details').close()"
+        >
+          <Icon name="boxicons:x" size={20} />
+        </button>
+
+        <!-- Cabecera limpia -->
+        <div class="mb-6">
+          <h3 class="text-xl font-bold text-base-content flex items-center gap-2">
+            <span id="detail-id" class="text-base-content/80 font-semibold"></span>
+          </h3>
+        </div>
+
+        <!-- Contenido principal: Grid de 2 Columnas -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Columna Izquierda: Asunto y Descripción (Ancho 2/3) -->
+          <div class="md:col-span-2 space-y-6">
+            <div>
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Asunto</span>
+              <p id="detail-subject" class="text-lg font-semibold text-base-content leading-snug"></p>
+            </div>
+
+            <div class="border-t border-base-200 pt-4">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Descripción / Propuesta</span>
+              <p id="detail-description" class="text-sm text-base-content leading-relaxed whitespace-pre-wrap pl-1"></p>
+            </div>
+
+            <div id="detail-bug-steps-container" class="hidden border-t border-base-200 pt-4">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Pasos para reproducir</span>
+              <p id="detail-steps" class="text-sm text-base-content leading-relaxed whitespace-pre-wrap pl-1"></p>
+            </div>
+          </div>
+
+          <!-- Columna Derecha: Metadatos y Gestión (Ancho 1/3, barra lateral) -->
+          <div class="space-y-5 bg-base-200/40 p-4 rounded-xl border border-base-200">
+            <div>
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Tipo</span>
+              <span id="detail-type-badge" class="badge badge-sm font-bold uppercase tracking-wide"></span>
+            </div>
+
+            <div id="detail-category-container" class="hidden">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Categoría</span>
+              <span id="detail-category" class="badge badge-outline badge-sm font-semibold"></span>
+            </div>
+
+            <div id="detail-severity-container" class="hidden">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Gravedad</span>
+              <span id="detail-severity" class="badge badge-sm font-semibold uppercase"></span>
+            </div>
+
+            <div id="detail-useragent-container" class="hidden">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Navegador (userAgent)</span>
+              <p id="detail-useragent" class="text-xxs font-mono bg-base-200 p-2 rounded break-all leading-normal" title=""></p>
+            </div>
+
+            <div class="border-t border-base-200 pt-4">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Enviado por</span>
+              <div class="text-sm font-bold text-base-content" id="detail-username"></div>
+            </div>
+
+            <div class="border-t border-base-200 pt-4">
+              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Asignación</span>
+              <div class="space-y-2 mt-1">
+                <div id="detail-assigned-to" class="text-xs font-semibold text-base-content">Sin asignar</div>
+                <button type="button" id="btn-assign-self" class="btn btn-xs btn-primary w-full gap-1">
+                  Asignarme Caso
+                </button>
+                <button type="button" id="btn-unassign-self" class="btn btn-xs btn-neutral w-full gap-1 hidden">
+                  Liberar Caso
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acciones Inferiores (Resolver, En Revisión, Descartar) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-end gap-2 mt-8 pt-4 border-t border-base-200">
+          <input type="hidden" id="detail-feedback-id" />
+          <button type="button" class="btn btn-sm btn-outline btn-warning font-semibold" data-status-btn="en_revision">En Revisión</button>
+          <button type="button" class="btn btn-sm btn-success text-success-content font-semibold" data-status-btn="resuelto">Resolver</button>
+          <button type="button" class="btn btn-sm btn-outline btn-error font-semibold" data-status-btn="descartado">Descartar</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>cerrar</button>
+      </form>
+    </dialog>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  import { actions } from "astro:actions";
+  import { showToast } from "../../lib/toastClient";
+
+  function initFeedbackAdmin() {
+    const typeButtons = document.querySelectorAll("[data-filter-type]");
+    const statusSelect = document.getElementById("filter-status") as HTMLSelectElement | null;
+    const rows = document.querySelectorAll("[data-table-row]");
+    const detailsModal = document.getElementById("modal-details") as HTMLDialogElement | null;
+
+    let currentTypeFilter = "all";
+    let currentStatusFilter = "all";
+
+    // 1. Lógica de Filtros en el Cliente
+    function applyFilters() {
+      rows.forEach((row) => {
+        const type = row.getAttribute("data-type") || "";
+        const status = row.getAttribute("data-status") || "";
+
+        const matchesType = currentTypeFilter === "all" || type === currentTypeFilter;
+        const matchesStatus = currentStatusFilter === "all" || status === currentStatusFilter;
+
+        if (matchesType && matchesStatus) {
+          row.classList.remove("hidden");
+          (row as HTMLElement).style.display = "";
+        } else {
+          row.classList.add("hidden");
+          (row as HTMLElement).style.display = "none";
+        }
+      });
+    }
+
+    typeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        typeButtons.forEach((b) => {
+          b.classList.remove("btn-primary", "active-filter");
+          b.classList.add("btn-outline");
+        });
+        btn.classList.remove("btn-outline");
+        btn.classList.add("btn-primary", "active-filter");
+
+        currentTypeFilter = btn.getAttribute("data-filter-type") || "all";
+        applyFilters();
+      });
+    });
+
+    statusSelect?.addEventListener("change", (e) => {
+      currentStatusFilter = (e.target as HTMLSelectElement).value;
+      applyFilters();
+    });
+
+    // 2. Lógica del Modal de Detalles
+    document.querySelectorAll('[data-action="view-details"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rawData = btn.getAttribute("data-item");
+        if (!rawData || !detailsModal) return;
+
+        const item = JSON.parse(rawData);
+
+        // Rellenar ID y badges
+        const idEl = document.getElementById("detail-id");
+        if (idEl) idEl.textContent = `Reporte #${item.id}`;
+
+        const typeBadge = document.getElementById("detail-type-badge");
+        if (typeBadge) {
+          typeBadge.textContent = item.type === "bug" ? "BUG" : "SUGERENCIA";
+          typeBadge.className = item.type === "bug" ? "badge badge-error badge-sm font-bold" : "badge badge-info badge-sm font-bold";
+        }
+
+        // Rellenar campos comunes
+        const subjectEl = document.getElementById("detail-subject");
+        if (subjectEl) subjectEl.textContent = item.subject;
+
+        const descEl = document.getElementById("detail-description");
+        if (descEl) descEl.textContent = item.description;
+
+        const userEl = document.getElementById("detail-username");
+        if (userEl) userEl.textContent = item.username;
+
+        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        if (feedbackIdEl) feedbackIdEl.value = item.id.toString();
+
+        // Mostrar/Ocultar campos condicionales
+        const categoryContainer = document.getElementById("detail-category-container");
+        const severityContainer = document.getElementById("detail-severity-container");
+        const useragentContainer = document.getElementById("detail-useragent-container");
+        const bugStepsContainer = document.getElementById("detail-bug-steps-container");
+
+        if (item.type === "sugerencia") {
+          if (categoryContainer) categoryContainer.classList.remove("hidden");
+          if (severityContainer) severityContainer.classList.add("hidden");
+          if (useragentContainer) useragentContainer.classList.add("hidden");
+          if (bugStepsContainer) bugStepsContainer.classList.add("hidden");
+
+          const categoryEl = document.getElementById("detail-category");
+          if (categoryEl) categoryEl.textContent = item.category || "Ninguna";
+        } else {
+          if (categoryContainer) categoryContainer.classList.add("hidden");
+          if (severityContainer) severityContainer.classList.remove("hidden");
+          if (useragentContainer) useragentContainer.classList.remove("hidden");
+          if (bugStepsContainer) bugStepsContainer.classList.remove("hidden");
+
+          const severityEl = document.getElementById("detail-severity");
+          if (severityEl) {
+            severityEl.textContent = item.severity || "leve";
+            severityEl.className =
+              item.severity === "critico"
+                ? "badge badge-error badge-sm font-semibold"
+                : item.severity === "moderado"
+                  ? "badge badge-warning badge-sm font-semibold"
+                  : "badge badge-neutral badge-sm font-semibold";
+          }
+
+          const userAgentEl = document.getElementById("detail-useragent");
+          if (userAgentEl) {
+            userAgentEl.textContent = item.userAgent || "No disponible";
+            userAgentEl.setAttribute("title", item.userAgent || "");
+          }
+
+          const stepsEl = document.getElementById("detail-steps");
+          if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
+        }
+
+        // Rellenar asignación
+        const assignedToEl = document.getElementById("detail-assigned-to");
+        const btnAssign = document.getElementById("btn-assign-self");
+        const btnUnassign = document.getElementById("btn-unassign-self");
+        const currentUserId = Number(detailsModal?.getAttribute("data-current-user-id") || 0);
+
+        if (assignedToEl) {
+          assignedToEl.textContent = item.assignedToUsername ? item.assignedToUsername : "Sin asignar";
+        }
+
+        if (btnAssign && btnUnassign) {
+          if (!item.assignedToId) {
+            btnAssign.classList.remove("hidden");
+            btnUnassign.classList.add("hidden");
+          } else if (item.assignedToId === currentUserId) {
+            btnAssign.classList.add("hidden");
+            btnUnassign.classList.remove("hidden");
+          } else {
+            btnAssign.classList.add("hidden");
+            btnUnassign.classList.add("hidden");
+          }
+        }
+
+        detailsModal?.showModal();
+      });
+    });
+
+    // 3. Modificación del Estado mediante Astro Action
+    document.querySelectorAll("[data-status-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        const status = btn.getAttribute("data-status-btn") as any;
+
+        if (!feedbackIdEl || !status) return;
+        const feedbackId = Number(feedbackIdEl.value);
+
+        // Mostrar loader
+        btn.classList.add("loading");
+        (btn as HTMLButtonElement).disabled = true;
+
+        try {
+          const { data, error } = await actions.updateFeedbackStatus({
+            feedbackId,
+            newStatus: status,
+          });
+
+          if (error) {
+            showToast(`Error: ${error.message}`, "alert-error");
+          } else if (data?.success) {
+            showToast("¡Estado actualizado con éxito!", "alert-success");
+            detailsModal?.close();
+            // Recargar la página de manera limpia para reflejar el cambio en la tabla
+            setTimeout(() => {
+              window.location.reload();
+            }, 600);
+          }
+        } catch (err) {
+          showToast("Error inesperado al actualizar el estado.", "alert-error");
+        } finally {
+          btn.classList.remove("loading");
+          (btn as HTMLButtonElement).disabled = false;
+        }
+      });
+    });
+    // 4. Modificación de la Asignación mediante Astro Action
+    const assignBtn = document.getElementById("btn-assign-self");
+    const unassignBtn = document.getElementById("btn-unassign-self");
+
+    const handleAssignClick = (assign: boolean) => async (e: Event) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+      if (!feedbackIdEl) return;
+      const feedbackId = Number(feedbackIdEl.value);
+
+      btn.classList.add("loading");
+      btn.disabled = true;
+
+      try {
+        const { data, error } = await actions.assignFeedback({
+          feedbackId,
+          assign,
+        });
+
+        if (error) {
+          showToast(`Error: ${error.message}`, "alert-error");
+        } else if (data?.success) {
+          showToast(assign ? "¡Te has asignado el caso!" : "¡Caso liberado!", "alert-success");
+          detailsModal?.close();
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+        }
+      } catch (err) {
+        showToast("Error al procesar la asignación.", "alert-error");
+      } finally {
+        btn.classList.remove("loading");
+        btn.disabled = false;
+      }
+    };
+
+    assignBtn?.addEventListener("click", handleAssignClick(true));
+    unassignBtn?.addEventListener("click", handleAssignClick(false));
+  }
+
+  // Inicializar con View Transitions
+  initFeedbackAdmin();
+  document.addEventListener("astro:page-load", () => {
+    initFeedbackAdmin();
+  });
+</script>
