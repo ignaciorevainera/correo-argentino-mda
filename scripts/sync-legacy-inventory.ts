@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import Database from "better-sqlite3";
 import { db } from "../src/db/index";
 import { terminals, offices } from "../src/db/schema";
 import { normalizeSearchValue } from "../src/lib/clientSearch";
@@ -196,11 +197,30 @@ async function writeSyncStatus(status: "success" | "error", errorDetail: string 
   }
 }
 
+function cleanupOrphanFtsTriggers(): void {
+  const sqlite = new Database("database/mda.db");
+  try {
+    const triggers = sqlite.prepare(
+      "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE '%_fts_%'",
+    ).all() as { name: string }[];
+    if (triggers.length > 0) {
+      for (const { name } of triggers) {
+        sqlite.exec(`DROP TRIGGER IF EXISTS "${name}"`);
+      }
+      console.log(`[Sync] Triggers FTS huérfanos eliminados: ${triggers.length}`);
+    }
+  } finally {
+    sqlite.close();
+  }
+}
+
 async function syncLegacyInventory(): Promise<void> {
   const startTime = new Date();
   console.log(
     `[Sync] Sincronización de inventario legacy iniciada: ${startTime.toISOString()}`,
   );
+
+  cleanupOrphanFtsTriggers();
 
   const officesList = await db.select({ code: offices.code }).from(offices);
   const validNisSet = new Set<string>(officesList.map((o) => o.code));
