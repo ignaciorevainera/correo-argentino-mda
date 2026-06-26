@@ -1,6 +1,7 @@
 # Auditoría de Rendimiento y Arquitectura
 
-**Fecha:** 2026-06-24
+**Fecha:** 2026-06-25 (actualización post-intervención)
+**Versión inicial:** 2026-06-24
 **Proyecto:** correo-argentino-mda (Portal Mesa de Ayuda)
 **Stack:** Astro v5 SSR + Tailwind v4 + DaisyUI v5 + Drizzle ORM + SQLite + React islands
 
@@ -8,207 +9,229 @@
 
 ## Resumen Ejecutivo
 
-Se identificaron **16 hallazgos** categorizados por severidad:
+Se intervinieron **11 de 18 hallazgos** originales (61%). Quedan **7 pendientes** de la auditoría inicial y se agregaron **5 nuevos hallazgos** descubiertos en el re-análisis post-intervención.
 
-| Severidad | Cantidad |
-|-----------|----------|
-| 🔴 Alta | 6 |
-| 🟡 Media | 6 |
-| 🟢 Baja | 4 |
+| Estado | Cantidad |
+|--------|----------|
+| 🔴 Corregidos | 11 |
+| 🟡 Pendientes originales | 7 |
+| 🆕 Nuevos hallazgos | 5 |
 
-Los hallazgos críticos impactan en seguridad (`checkOrigin: false`), rendimiento (~13 MB de assets huérfanos), y mantenibilidad (~700 líneas de boilerplate modal duplicado).
+Total: **18 intervenidos** de los cuales 11 están resueltos, 7 aún pendientes, y 5 son nuevos descubrimientos.
 
 ---
 
-## 1. Dependencias y Configuración
+## Hallazgos Corregidos (11)
 
-### 1.1 🔴 `@libsql/client` y `@astrojs/mdx` en `dependencies` — No utilizados
+| ID | Hallazgo | Severidad | Resolución | Commit(s) |
+|----|----------|-----------|------------|-----------|
+| 1.1 | `@libsql/client` y `@astrojs/mdx` en `dependencies` — No utilizados | 🔴 | Removidos de `dependencies` | Sesión anterior |
+| 1.2 | `typescript` y `@astrojs/check` en `dependencies` | 🟡 | Movidos a `devDependencies` | Sesión anterior |
+| 1.3 | `cheerio` en `dependencies` | 🟡 | Movido a `devDependencies` | Sesión anterior |
+| 1.4 | `glob` en `devDependencies` — No utilizado | 🟡 | Removido | Sesión anterior |
+| 1.7 | Alias `@middleware/*` apunta a directorio inexistente | 🟡 | Alias removido de `tsconfig.json` | `59a6f8b` |
+| 2.1 | ~13 MB de screenshots PNG en `public/images/` | 🔴 | Movidos a `docs/screenshots/` (fuera de `public/`) | `0ed329f` |
+| 2.2 | `argentina_provincias.geojson` (505 KB) | 🟢 | Convertido a TopoJSON (31 KB, -94%), actualizado `DirectorioContent.astro` | `0ed329f` |
+| 2.4 | Falta `robots.txt` | 🟢 | Creado `public/robots.txt` | `0ed329f` |
+| 3.4 | `resolveUrl` definido en 15 archivos | 🟡 | Extraído a `src/lib/url.ts` como función compartida. 15 archivos actualizados | `3dbcea4` |
+| 3.5 | Triple modal de eliminación de categoría (~105 líneas duplicadas) | 🔴 | Extraído a `src/components/ui/DeleteCategoryModal.astro`. 3 content components actualizados (-74 líneas netas) | `9877c30` |
+| 3.7 | Guard de acceso inline repetido en 5+ páginas | 🟡 | Centralizado en `routePermissions` + middleware `hasPermission()`. Guards removidos de 15+ archivos de página. 28 tests RBAC agregados | 7 commits (sesión 3.7) |
 
-- `@libsql/client` (Turso/libSQL driver) nunca se importa. La DB usa `better-sqlite3`.
-- `@astrojs/mdx` no está registrado en las integraciones de Astro ni se usa ningún archivo `.mdx`.
-- **Impacto:** 0.17 MB de espacio muerto en `node_modules`.
-- **Fix:** Remover ambos de `dependencies`.
+---
 
-### 1.2 🟡 `typescript` y `@astrojs/check` en `dependencies`
-
-Deberían estar en `devDependencies`. No son dependencias de runtime.
-
-### 1.3 🟡 `cheerio` en `dependencies`
-
-Solo se usa en `scripts/fix-drizzle-mismatch.ts` (script de una sola vez). Debe moverse a `devDependencies`.
-
-### 1.4 🟡 `glob` en `devDependencies` — No utilizado
-
-No hay ningún `import ... from "glob"` en el código fuente.
+## Hallazgos Pendientes (de la auditoría original)
 
 ### 1.5 🔴 `security.checkOrigin: false` en `astro.config.mjs`
 
-Desactiva la validación CSRF/origen de Astro para formularios POST. **Riesgo de seguridad** para páginas admin con endpoints de mutación.
-- **Fix:** Setear a `true` o agregar comentario justificando por qué se requiere `false`.
+**No intervenido.** Sigue desactivando la validación CSRF/origen de Astro.
+
+**Estado:** ❌ Sin cambios desde la auditoría inicial.
+**Fix:** Setear a `true` y verificar que los formularios POST no requieran origen cruzado. Si hay un caso legítimo, documentarlo con comentario.
+**Esfuerzo:** 5 min.
+**Impacto:** Seguridad.
 
 ### 1.6 🟡 `NODE_ENV="development"` hardcodeado en esbuild define
 
+**No intervenido.** Sigue presente:
+
 ```js
-vite: { optimizeDeps: { esbuildOptions: { define: { "process.env.NODE_ENV": '"development"' } } } }
+vite: {
+  optimizeDeps: {
+    esbuildOptions: {
+      define: { "process.env.NODE_ENV": JSON.stringify("development") },
+    },
+  },
+},
 ```
 
-Durante `astro build` (producción), React podría ejecutar code paths de desarrollo. Posible copy-paste leftover.
-- **Fix:** Remover el bloque `optimizeDeps` o condicionarlo a `import.meta.env.DEV`.
+**Estado:** ❌ Sin cambios.
+**Fix:** Remover el bloque `optimizeDeps` o condicionarlo a `import.meta.env.DEV`.
+**Esfuerzo:** 5 min.
+**Impacto:** Calidad de build.
 
-### 1.7 🟡 Alias `@middleware/*` apunta a directorio inexistente
+### 2.3 🟢 CSS bundle ~263 KB
 
-`tsconfig.json` mapea `@middleware/*` a `./src/middleware/*`, pero `middleware.ts` es un archivo, no un directorio.
-- **Fix:** Mapear a `./src` (igual que `@/*`) o remover el alias.
+**Estado:** ❌ No intervenido. Peso esperado con DaisyUI completo. Monitoreable.
+**Fix:** Purgar componentes DaisyUI no utilizados (postcss purge).
+**Esfuerzo:** 30 min.
+**Impacto:** Rendimiento (mejorable pero no crítico).
 
----
+### 3.1 🔴 ~20 diálogos `<dialog>` raw sin refactorizar
 
-## 2. Assets y Build Output
+Se intervinieron ~10 modales en M-02 (7 archivos), pero quedan **20 diálogos raw** en **13 archivos** que no usan `Modal.astro`:
 
-### 2.1 🔴 ~13 MB de screenshots PNG en `public/images/`
+| Archivo | Diálogos | Nota |
+|---------|----------|------|
+| `src/layouts/BaseLayout.astro` | 2 (command-palette, about-project) | Candidato directo |
+| `src/components/support-guides/SupportGuideRow.astro` | 1 | Candidato directo |
+| `src/components/buscador-usuarios/TerminalModal.astro` | 1 | Candidato directo |
+| `src/components/buscador-usuarios/EditUserModal.astro` | 1 | Candidato directo |
+| `src/components/supervision/asignacion/AsignacionContent.astro` | 1 | Candidato directo |
+| `src/components/supervision/calidad/CalidadContent.astro` | 3 | Custom z-index y estilos — evaluar |
+| `src/components/admin/users/AdminUsersContent.astro` | 4 | Candidato directo |
+| `src/components/ui/DeleteCategoryModal.astro` | 1 | Nuevo en 3.5 — refactorizar post creación |
+| `src/components/cronograma/CronogramaDashboard.astro` | 1 (inline) | Patrón diferente (shadow-2xl, rounded-3xl) |
+| `src/components/cronograma/subcomponents/HolidaysModal.astro` | 1 | Patrón cronograma |
+| `src/components/cronograma/subcomponents/NewMonthModal.astro` | 1 | Patrón cronograma |
+| `src/components/cronograma/subcomponents/OperatorFormModal.astro` | 1 | Patrón cronograma |
+| `src/components/cronograma/subcomponents/RulesSettingsModal.astro` | 1 | Patrón cronograma |
 
-| Archivo | Tamaño |
-|---------|--------|
-| inventario-equipos.png | 2,248 KB |
-| supervision.png | 1,972 KB |
-| contactos.png | 1,441 KB |
-| catalogo-aplicativos.png | 1,424 KB |
-| generador-firmas.png | 1,290 KB |
-| admin.png | 1,106 KB |
-| guia-soportes.png | 967 KB |
-| directorio-oficinas.png | 946 KB |
-| titulos-tickets.png | 922 KB |
-| buscador-usuarios.png | 880 KB |
-| **Total** | **~13 MB** |
+**Nota:** Los modales de cronograma comparten un patrón visual distinto (`shadow-2xl rounded-3xl p-6`, heading `font-black uppercase tracking-tight`, `modal-backdrop`). Requerirían extender `Modal.astro` con variante de estilo o crear `CronogramaModal.astro`.
 
-**Ninguno es referenciado desde el código fuente** — solo desde `README.md`. Se copian al build y se sirven a todos los visitantes.
-- **Fix:** Mover a `docs/screenshots/` (fuera de `public/`).
+**Estado:** ⚠️ Parcial (10 corregidos, 20 pendientes).
+**Fix:** Aplicar `Modal.astro` a los archivos marcados como "Candidato directo". Para cronograma, evaluar extensión del componente.
+**Esfuerzo:** ~2-3 h para candidatos directos + 1-2 h para cronograma.
+**Impacto:** -400+ líneas de boilerplate.
 
-### 2.2 🟢 `argentina_provincias.geojson` (505 KB) en `public/data/`
+### 3.2 🟡 `SectionCard.astro` sin uso (dead code)
 
-Se sirve como fetch runtime en `DirectorioContent.astro`. Considerar:
-- Compresión gzip/brotli
-- Conversión a TopoJSON (~80% más pequeño)
-- Cacheo agresivo
+**El componente fue creado en M-01 pero NUNCA importado en ningún archivo del código fuente.** Es dead code.
 
-### 2.3 🟢 `BaseLayout.BZV8eW2M.css` en 263 KB
+Paralelamente, existen **~46 archivos** que construyen cards manualmente con `bg-base-100 border border-base-300 shadow-md/shadow-sm`. Entre ellos:
 
-Peso esperado con DaisyUI completo pero monitoreable. Considerar purgar componentes no utilizados.
+| Archivo | Instancias |
+|---------|-----------|
+| `OfficeForm.astro` | 6 |
+| `SignatureGenerator.astro` | 3 |
+| `AsignacionContent.astro` | 4 |
+| Admin CRUD pages (create/edit, ~25 archivos) | 1-2 c/u |
+| `profile.astro`, `admin/index.astro`, etc. | 2 c/u |
 
-### 2.4 🟢 Falta `robots.txt`
+**Decisión requerida:** (a) Eliminar `SectionCard.astro` si no se justifica su existencia, o (b) aplicarlo a los 46 archivos que construyen cards manualmente.
 
-No hay `public/robots.txt` ni ruta SSR. Buena práctica agregarlo.
-
----
-
-## 3. Código Duplicado y Oportunidades de Componentización
-
-### 3.1 🔴 ~22 modales `<dialog>` raw con boilerplate repetido
-
-El componente `src/components/ui/Modal.astro` (53 líneas) existe pero solo se usa parcialmente. Quedan **22 diálogos raw** que replican el shell de DaisyUI manualmente:
-
-| Archivo | Diálogos |
-|---------|----------|
-| `src/components/cronograma/subcomponents/RulesSettingsModal.astro` | 1 |
-| `src/components/cronograma/subcomponents/OperatorFormModal.astro` | 2 |
-| `src/components/cronograma/subcomponents/NewMonthModal.astro` | 1 |
-| `src/components/cronograma/subcomponents/HolidaysModal.astro` | 1 |
-| `src/components/cronograma/subcomponents/MonthlyDetailModal.astro` | 1 |
-| `src/components/cronograma/CronogramaDashboard.astro` | 1 |
-| `src/components/supervision/calidad/CalidadContent.astro` | 3 |
-| `src/components/buscador-usuarios/TerminalModal.astro` | 1 |
-| `src/components/supervision/asignacion/AsignacionContent.astro` | 1 |
-| `src/components/admin/users/AdminUsersContent.astro` | 4+ |
-| `src/components/admin/aplicativos/AdminAplicativosContent.astro` | 1 |
-| `src/components/admin/recursos/AdminRecursosContent.astro` | 1 |
-| `src/components/admin/contacts/AdminContactsContent.astro` | 1 |
-| `src/components/support-guides/SupportGuideRow.astro` | 1 |
-| `src/layouts/BaseLayout.astro` | 2 |
-
-Los modales de cronograma comparten un patrón idéntico: `shadow-2xl rounded-3xl p-6`, heading `font-black uppercase tracking-tight`, y `modal-backdrop`. ~700 líneas de boilerplate.
-
-### 3.2 🟡 `SectionCard.astro` sin uso completo
-
-El componente existe pero tiene aplicación parcial. Varios archivos aún construyen wrappers de card manualmente (`<section class="card bg-base-100 border border-base-300 shadow-md">...`).
-
-### 3.3 ✅ `roleConfig.ts` — Creado pero verificar cobertura
-
-`src/lib/roleConfig.ts` se creó con `ROLE_CONFIG` y `getRoleConfig()`. Los consumidores actualizados:
-- ✅ `BaseLayout.astro`
-- ✅ `profile.astro`
-- ✅ `AdminUsersContent.astro`
-
-### 3.4 🟡 `resolveUrl` definido en 12+ archivos
-
-Cada archivo define el mismo helper:
-```ts
-const base = import.meta.env.BASE_URL || "/";
-const resolveUrl = (p: string) => `${base.replace(/\/$/, "")}${p}`;
-```
-
-**Fix:** Extraer a `src/lib/url.ts` como función compartida.
-
-### 3.5 🔴 Triple modal de eliminación de categoría casi idéntico
-
-`AdminAplicativosContent`, `AdminRecursosContent` y `AdminContactsContent` tienen un modal de "Eliminar Categoría" de ~35 líneas cada uno con la misma estructura (radio buttons, botones, backdrop). Solo cambia el texto específico de la entidad.
-
-El JS de apertura también se repite:
-```js
-(window as any).openDeleteCategoryModal = (categoryId: string) => { ... };
-```
+**Estado:** ⚠️ Componente creado pero sin adoptar.
+**Esfuerzo:** 5 min si se elimina; 2-3 h si se aplica a los 46 archivos.
+**Impacto:** Mantenibilidad.
 
 ### 3.6 🟢 Clases de input/label repetidas
 
-La cadena `input input-bordered input-sm font-bold w-full focus:outline-none focus:border-secondary bg-base-100` aparece 12+ veces. La cadena de label `label-text font-bold text-xs uppercase text-base-content/60` aparece 17+ veces.
+Se mantienen ~24 instancias del patrón de label y varias cadenas de input repetidas:
 
-### 3.7 🟡 Guard de acceso inline repetido
+| Patrón | Conteo | Archivos principales |
+|--------|--------|---------------------|
+| `label-text font-bold text-xs uppercase text-base-content/60` | 17 | cronograma modals, CalidadContent |
+| `label-text font-bold text-xs uppercase text-base-content/40 tracking-wider` | 6 | EditUserModal, AsignacionContent |
+| `input-bordered input-sm font-bold w-(full\|32) focus:outline-none focus:border-secondary bg-base-100` | 6 | RulesSettingsModal, OperatorFormModal, NewMonthModal |
+| `input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-primary bg-base-100` | 3 | CalidadContent |
+| `fieldset-legend font-semibold uppercase tracking-wide text-xs` (+ `mb-2`) | 20+ | Admin CRUD create/edit pages |
+| `text-tiny font-black uppercase tracking-wider text-base-content/40` (+ variantes) | 32 | CronogramaDashboard |
+| `input input-bordered w-full focus:input-primary` | 8 | soportes create/edit |
+| `file-input file-input-bordered w-full` | 8 | Admin aps/recursos create/edit |
+| `textarea textarea-bordered w-full h-24 focus:textarea-primary` (+ variantes) | 8 | soportes create/edit |
+| `btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase` | 7 | cronograma modals, CalidadContent |
+| `btn btn-sm btn-secondary text-xs font-black uppercase` | 7 | cronograma modals, CalidadContent |
 
-`!["admin", "supervisor", "team_leader"].includes(role)` aparece en 5 páginas. `rbac.ts` ya tiene `hasPermission()` para esto.
+**Estado:** ❌ No intervenido (agravado por nuevos hallazgos).
+**Fix:** Crear componentes `FormLabel`, `FormInput`, `FormTextarea` y reemplazar en todos los archivos.
+**Esfuerzo:** ~3-4 h para cobertura completa.
+**Impacto:** -350+ líneas de clases repetidas.
 
----
+### 4.1 🟢 React — Single island (Titles)
 
-## 4. Uso de React
-
-### 4.1 🟢 React es un solo island
-
-```astro
-<TitlesContainer client:idle />
-```
+**Estado:** ❌ No intervenido. Baja prioridad.
 
 | Componente | Líneas | Estado |
 |------------|--------|--------|
-| `useTitlesHook.tsx` | 217 | ✅ Justifica React (useState, useEffect, useCallback, useMemo) |
-| `TitlesContainer.tsx` | 103 | ✅ Entry island, consume hook |
-| `TitleDrawer.tsx` | 85 | 🟢 Convertible a Astro (sin hooks, props → render) |
-| `TitleCard.tsx` | 74 | 🟡 Evaluar (usa memo, podría reescribirse) |
-| `TitleCardSkeleton.tsx` | 30 | 🟢 Convertible a Astro trivialmente |
+| `useTitlesHook.tsx` | 217 | ✅ Justifica React |
+| `TitlesContainer.tsx` | 103 | ✅ Entry island |
+| `TitleDrawer.tsx` | 85 | 🟢 Convertible a Astro |
+| `TitleCard.tsx` | 74 | 🟡 Evaluar |
+| `TitleCardSkeleton.tsx` | 30 | 🟢 Convertible a Astro |
 
-**Dependencias React:** `react`, `react-dom`, `@types/react`, `@types/react-dom`, `@astrojs/react`, `@heroicons/react`.
-
-**Veredicto:** React no es crítico de remover. La migración completa tomaría ~3-4 horas. Prioridad baja.
-
----
-
-## 5. Hallazgos Resueltos en Sesión Actual
-
-| ID | Hallazgo | Resolución |
-|----|----------|------------|
-| M-03 | Mapa rol-a-color duplicado (ternarias inline) | `src/lib/roleConfig.ts` creado. BaseLayout, profile, AdminUsersContent actualizados |
-| M-02 | Boilerplate modal duplicado en varios archivos | `Modal.astro` aplicado a 10 modales en 7 archivos (EditUserModal, SupportGuideRow, AsignacionContent, AdminUsersContent, AdminAplicativosContent, AdminContactsContent, AdminRecursosContent) |
-| C-04 | `@iconify-json/boxicons` en devDependencies | Movido a `dependencies` |
+**Fix:** Convertir TitleDrawer y TitleCardSkeleton a Astro. TitleCard evaluar. Dependencias React: `react`, `react-dom`, `@types/react`, `@types/react-dom`, `@astrojs/react`, `@heroicons/react`.
+**Esfuerzo:** ~3-4 h completa; 1 h parcial (drawer + skeleton).
+**Impacto:** -115 líneas React, simplifica toolchain.
 
 ---
 
-## 6. Plan de Acción Recomendado
+## Nuevos Hallazgos (descubiertos en re-análisis 2026-06-25)
 
-| Prioridad | Hallazgo | Esfuerzo | Impacto |
-|-----------|----------|----------|---------|
-| P0 | 🔴 `security.checkOrigin: false` | 5 min | Seguridad |
-| P0 | 🔴 ~13 MB de PNGs en public/images/ | 10 min | Rendimiento (-90% build) |
-| P1 | 🔴 Remover `@libsql/client` + `@astrojs/mdx` | 2 min | Mantenibilidad |
-| P1 | 🔴 Triple modal delete-category | 30 min | -105 líneas |
-| P2 | 🟡 Mover typescript, @astrojs/check, cheerio a devDeps | 5 min | Correctitud |
-| P2 | 🟡 Remover `glob` unused | 1 min | -1.53 MB |
-| P2 | 🟡 Remover `NODE_ENV=development` esbuild | 5 min | Calidad build |
-| P2 | 🟡 Extraer `resolveUrl` a `src/lib/url.ts` | 15 min | -40+ líneas |
-| P3 | 🟢 Convertir TitleDrawer + TitleCardSkeleton a Astro | 30 min | -115 líneas React |
-| P3 | 🟢 Agregar robots.txt | 5 min | SEO/best practice |
+### N3.8 🟡 `fieldset-legend` repetido 20+ veces en admin CRUD
+
+La clase `fieldset-legend font-semibold uppercase tracking-wide text-xs` aparece en todos los formularios de create/edit de admin/aplicativos, admin/recursos (categorías y enlaces), admin/contactos (categorías). La variante con `mb-2` duplica el conteo.
+
+**Fix:** Crear componente `FormLegend.astro` o usar CSS `@apply` compartido.
+**Archivos clave:** `admin/aplicativos/create.astro`, `admin/aplicativos/edit/[id].astro`, `admin/recursos/enlace/create.astro`, `admin/recursos/enlace/edit/[id].astro`, y sus contrapartes de categorías.
+**Esfuerzo:** 30 min.
+**Impacto:** -100+ líneas.
+
+### N3.9 🟡 `text-tiny font-black uppercase tracking-wider` 32 veces en CronogramaDashboard
+
+Una clase extremadamente específica que aparece exclusivamente en `CronogramaDashboard.astro` como headings de secciones (días, horarios, operadores).
+
+**Fix:** Extraer a clase CSS compartida o componente de heading. Si es un solo archivo, aplicar refactor interno.
+**Esfuerzo:** 15 min.
+**Impacto:** Mantenibilidad de ese archivo (que ya es muy grande).
+
+### N3.10 🟡 `input input-bordered w-full focus:input-primary` 8 veces en soportes
+
+Patrón de input repetido en `soportes/create.astro` y `soportes/edit/[id].astro`. Aparece acompañado de `textarea textarea-bordered w-full h-24 focus:textarea-primary` (8 veces en los mismos archivos).
+
+**Fix:** Mismo `FormInput` / `FormTextarea` propuesto en 3.6.
+**Esfuerzo:** 30 min (incluido en 3.6).
+**Impacto:** -60+ líneas.
+
+### N3.11 🟡 `btn btn-sm btn-ghost` y `btn btn-sm btn-secondary` repetidos 7 veces c/u
+
+Botones de acción en cronograma modals y CalidadContent con estructura idéntica.
+
+| Patrón | Conteo | Ubicación |
+|--------|--------|-----------|
+| `btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase` | 7 | RulesSettingsModal, HolidaysModal, OperatorFormModal, NewMonthModal, CalidadContent |
+| `btn btn-sm btn-secondary text-xs font-black uppercase` | 7 | NewMonthModal, HolidaysModal, RulesSettingsModal, OperatorFormModal, CalidadContent |
+
+**Fix:** Misma extracción que 3.6, o crear componente `ActionButton`.
+**Esfuerzo:** 30 min.
+**Impacto:** -50+ líneas.
+
+### N3.12 🟢 `file-input file-input-bordered w-full` 8 veces en admin forms
+
+Repetido en `admin/aplicativos/create.astro`, `admin/aplicativos/edit/[id].astro`, `admin/recursos/enlace/create.astro`, `admin/recursos/enlace/edit/[id].astro`.
+
+**Fix:** Incluir en componente `FormInput` (3.6) con variante `type="file"`.
+**Esfuerzo:** Incluido en 3.6.
+**Impacto:** Mantenibilidad.
+
+---
+
+## Plan de Acción Recomendado (Actualizado)
+
+| Prioridad | ID | Hallazgo | Esfuerzo | Impacto |
+|-----------|----|----------|----------|---------|
+| **P0** | 1.5 | 🔴 `security.checkOrigin: false` | 5 min | Seguridad |
+| **P1** | 3.1 | 🔴 20 diálogos raw sin Modal.astro | 2-4 h | -400+ líneas boilerplate |
+| **P1** | N3.8 | 🟡 `fieldset-legend` repetido 20+ veces | 30 min | Mantenibilidad |
+| **P1** | N3.11 | 🟡 Botones btn-sm repetidos (14 instancias) | 30 min | Mantenibilidad |
+| **P2** | 1.6 | 🟡 `NODE_ENV=development` en esbuild define | 5 min | Calidad build |
+| **P2** | 3.2 | 🟡 SectionCard.astro dead code o adopción | 5 min-3 h | Mantenibilidad |
+| **P2** | 3.6 / N3.10 / N3.12 | 🟢 Clases input/label/file repetidas | 3-4 h | -350+ líneas |
+| **P2** | N3.9 | 🟡 `text-tiny font-black` 32 veces | 15 min | Mantenibilidad |
+| **P3** | 2.3 | 🟢 CSS bundle 263 KB | 30 min | Rendimiento |
+| **P3** | 4.1 | 🟢 Migrar TitleDrawer + Skeleton a Astro | 1 h | -115 líneas React |
+| **P3** | 4.1 | 🟢 Migración React completa | 3-4 h | Toolchain simplificada |
+
+### Leyenda de prioridades
+- **P0:** Riesgo de seguridad.
+- **P1:** Alto impacto en mantenibilidad, esfuerzo medio-alto pero recuperable en deuda técnica.
+- **P2:** Mejora de calidad/build, esfuerzo bajo o mediano.
+- **P3:** Buenas prácticas / rendimiento marginal.
