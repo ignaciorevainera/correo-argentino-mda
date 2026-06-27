@@ -1,0 +1,141 @@
+---
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@/lib/url";
+import { type NavItem } from "@lib/navigation";
+
+interface NavSection {
+    items: NavItem[];
+}
+
+interface Props {
+    visibleNavSections: NavSection[];
+    isActiveRoute: (href: string) => boolean;
+    isRouteLocked: (href: string) => boolean;
+}
+
+const { visibleNavSections, isActiveRoute, isRouteLocked } =
+    Astro.props as Props;
+---
+
+<aside class="drawer-side z-60 lg:z-60 lg:overflow-visible">
+    <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"/>
+    <div class="flex h-full min-h-full w-64 lg:w-fit lg:overflow-visible flex-col items-start bg-secondary transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <!-- Logo -->
+        <a
+            href={resolveUrl("/")}
+            aria-label="Ir al dashboard"
+            class="flex min-h-20 w-full items-center gap-2.5 border-b border-secondary-content/10 px-3 lg:justify-center lg:px-2"
+        >
+            <picture class="flex items-center justify-center bg-primary text-secondary p-2 size-10 aspect-square rounded-md">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="100"
+                    height="100"
+                    fill="currentColor"
+                    viewBox="0 0 100 100"
+                >
+                    <g
+                        id="isotipo-correo-argentino"
+                        transform="matrix(2.376852, 0, 0, 2.376852, -93.201141, -111.433426)"
+                    >
+                        <path
+                            id="path4586"
+                            d="m 80.699,57.653 c -1.243,-0.053 -2.487,-0.026 -3.757,-0.026 0.185,0.979 0.397,1.852 0.503,2.752 0.688,6.958 -4.789,13.097 -11.827,13.256 -5.08,0.132 -9.737,-2.937 -11.615,-7.699 -0.159,-0.397 -0.344,-0.529 -0.767,-0.529 -4.339,0.026 -8.652,0 -12.991,0 -0.159,0 -0.344,0 -0.556,0 0.027,0.212 0.027,0.397 0.053,0.556 2.328,11.007 13.176,18.283 24.289,16.245 9.922,-1.799 17.118,-10.239 17.251,-20.294 0.026,-1.243 -0.159,-2.513 -0.265,-3.757 0,-0.159 -0.185,-0.503 -0.318,-0.503 z"
+                        />
+                        <path
+                            id="path4588"
+                            d="m 65.195,69.692 c 4.63,0.026 8.308,-3.598 8.361,-8.176 0.026,-4.498 -3.651,-8.176 -8.149,-8.228 -4.577,-0.026 -8.308,3.625 -8.334,8.176 -0.026,4.498 3.625,8.202 8.122,8.228 z m 0.106,-12.515 c 2.434,0 4.366,1.931 4.366,4.366 0,2.381 -1.984,4.313 -4.366,4.313 -2.381,0 -4.339,-1.958 -4.339,-4.339 0,-2.408 1.931,-4.313 4.339,-4.34 z"
+                        />
+                        <path
+                            id="path4602"
+                            d="m 53.632,57.627 c -0.159,0 -0.344,0 -0.556,0 -4.26,0 -8.52,0 -12.779,0 -0.106,0 -0.238,-0.026 -0.318,0 -0.159,0.079 -0.37,0.212 -0.37,0.318 -0.132,1.164 -0.265,2.302 -0.397,3.519 4.71,0 9.26,0 13.811,0 0.212,-1.27 0.423,-2.514 0.609,-3.837 z"
+                        />
+                    </g>
+                </svg>
+            </picture>
+            
+            <article class="lg:hidden min-w-0">
+                <p class="text-xs uppercase font-black tracking-widest text-primary truncate leading-tight">
+                    Correo Argentino
+                </p>
+                <h1 class="text-base font-bold text-secondary-content tracking-tighter truncate leading-none">
+                    Portal MDA
+                </h1>
+            </article>
+        </a>
+
+        <!-- Nav items -->
+        <section class="w-full grow overflow-y-auto lg:overflow-visible py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            { visibleNavSections.map((section, sectionIndex) => (
+                <>
+                    <ul class="menu w-full gap-1 p-2">
+                        {section.items.map((item) => {
+                            const isActive = isActiveRoute(item.href);
+                            const isLocked = isRouteLocked(item.href);
+                            return (
+                                <>
+                                    <li>
+                                        <a
+                                            href={
+                                                isLocked
+                                                    ? undefined
+                                                    : resolveUrl(item.href)
+                                            }
+                                            aria-label={item.label}
+                                            aria-disabled={
+                                                isLocked
+                                                    ? "true"
+                                                    : undefined
+                                            }
+                                            data-tip={
+                                                isLocked
+                                                    ? `${item.label} (restringido)`
+                                                    : item.label
+                                            }
+                                            tabindex={
+                                                isLocked ? -1 : undefined
+                                            }
+                                            class:list={[
+                                                "group flex items-center gap-2.5 rounded-lg text-xs p-2.5 font-medium transition",
+                                                "lg:justify-center lg:px-2.5",
+                                                "tooltip tooltip-right tooltip-neutral",
+                                                isLocked
+                                                    ? "opacity-40 cursor-not-allowed pointer-events-none grayscale select-none"
+                                                    : isActive
+                                                        ? "bg-primary text-primary-content shadow-sm"
+                                                        : "text-secondary-content/70 hover:bg-white/10 hover:text-white",
+                                            ]}
+                                        >
+                                            <Icon
+                                                name={item.icon}
+                                                size={24}
+                                                class="shrink-0 opacity-80 transition group-hover:opacity-100"
+                                            />
+                                            <span class="truncate lg:hidden">
+                                                {item.label}
+                                            </span>
+                                            {isLocked && (
+                                                <Icon
+                                                    name="boxicons:lock"
+                                                    size={14}
+                                                    class="ml-auto shrink-0 opacity-60 lg:hidden"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                        </a>
+                                    </li>
+                                </>
+                            );
+                        })}
+                    </ul>
+
+                    {sectionIndex < visibleNavSections.length - 1 && (
+                        <div class="px-4 my-1 lg:px-2">
+                            <div class="h-px bg-secondary-content/10" />
+                        </div>
+                    )}
+                </>
+            ))}
+        </section>
+    </div>
+</aside>

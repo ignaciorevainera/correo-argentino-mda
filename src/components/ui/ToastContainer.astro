@@ -1,20 +1,52 @@
 ---
 import { Icon } from "astro-icon/components";
 ---
-<div id="global-toast-container" class="toast toast-end z-50">
-</div>
+
+<div id="global-toast-container" class="toast toast-end z-50"></div>
 
 <div id="toast-icon-templates" class="hidden" aria-hidden="true">
   <div id="template-success">
-    <Icon name="boxicons:badge-check-filled" size={20} class="flex-shrink-0" />
+    <Icon name="boxicons:badge-check-filled" size={20} class="shrink-0" />
   </div>
   <div id="template-error">
-    <Icon name="boxicons:x-circle-filled" size={20} class="flex-shrink-0" />
+    <Icon name="boxicons:x-circle-filled" size={20} class="shrink-0" />
   </div>
   <div id="template-warning">
-    <Icon name="boxicons:alert-triangle-filled" size={20} class="flex-shrink-0" />
+    <Icon name="boxicons:alert-triangle-filled" size={20} class="shrink-0" />
   </div>
   <div id="template-info">
-    <Icon name="boxicons:info-square-filled" size={20} class="flex-shrink-0" />
+    <Icon name="boxicons:info-square-filled" size={20} class="shrink-0" />
   </div>
 </div>
+
+<script>
+  import { showToast, type ToastType } from "@lib/toastClient";
+
+  // Exponer a nivel global para llamadas dinámicas desde islas de servidor
+  (window as any).showToast = showToast;
+
+  function checkUrlToasts() {
+    const url = new URL(window.location.href);
+    const msg = url.searchParams.get("toast_msg");
+    const typeParam = url.searchParams.get("toast_type") || "info";
+
+    if (msg) {
+      const typeMap: Record<string, ToastType> = {
+        success: "alert-success",
+        error: "alert-error",
+        warning: "alert-warning",
+        info: "alert-info",
+      };
+      const toastType = typeMap[typeParam] || "alert-info";
+
+      showToast(msg, toastType);
+
+      url.searchParams.delete("toast_msg");
+      url.searchParams.delete("toast_type");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  }
+
+  checkUrlToasts();
+  document.addEventListener("astro:page-load", checkUrlToasts);
+</script>
