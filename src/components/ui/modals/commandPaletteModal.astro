@@ -1,0 +1,209 @@
+---
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@/lib/url";
+
+interface CommandPaletteItem {
+    label: string;
+    href: string;
+    icon: string;
+    parentLabel?: string;
+    nested?: boolean;
+}
+
+interface Props {
+    items: CommandPaletteItem[];
+    isRouteLocked: (href: string) => boolean;
+}
+
+const { items, isRouteLocked } = Astro.props;
+---
+
+<dialog id="command-palette" class="modal">
+    <div
+        class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
+    >
+        <div class="border-b border-base-300 p-4">
+            <label for="command-palette-input" class="sr-only"
+                >Filtrar accesos</label
+            >
+
+            <label class="input w-full">
+                <Icon
+                    name="boxicons:search"
+                    size={20}
+                    class="shrink-0 text-base-content/60"
+                />
+                <input
+                    type="search"
+                    placeholder="Search"
+                    id="command-palette-input"
+                    type="text"
+                    placeholder="Buscar accesos..."
+                    class="grow w-full"
+                    autocomplete="off"
+                />
+            </label>
+        </div>
+
+        <ul class="menu w-full">
+            {
+                items.map((item) => {
+                    const isLocked = isRouteLocked(item.href);
+                    return (
+                        <li
+                            data-command-item
+                            data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
+                            class:list={[
+                                isLocked &&
+                                    "opacity-40 grayscale select-none cursor-not-allowed",
+                            ]}
+                        >
+                            <a
+                                href={
+                                    isLocked ? undefined : resolveUrl(item.href)
+                                }
+                                class="justify-between gap-3"
+                                tabindex={isLocked ? -1 : undefined}
+                            >
+                                <span
+                                    class:list={[
+                                        "flex min-w-0 items-center gap-2",
+                                        item.nested && "pl-5",
+                                    ]}
+                                >
+                                    <Icon
+                                        name={item.icon}
+                                        size={14}
+                                        class="shrink-0"
+                                    />
+                                    <span class="min-w-0">
+                                        {item.parentLabel && (
+                                            <span class="block text-xs text-base-content/50">
+                                                {item.parentLabel}
+                                            </span>
+                                        )}
+                                        <span class="block truncate">
+                                            {item.label}
+                                        </span>
+                                    </span>
+                                </span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-xs text-base-content/60">
+                                        {item.href}
+                                    </span>
+                                    {isLocked && (
+                                        <Icon
+                                            name="boxicons:lock"
+                                            size={12}
+                                            class="opacity-60"
+                                        />
+                                    )}
+                                </div>
+                            </a>
+                        </li>
+                    );
+                })
+            }
+        </ul>
+
+        <p
+            id="command-palette-empty"
+            class="hidden px-4 pb-4 text-sm text-base-content/70"
+        >
+            No hay accesos que coincidan.
+        </p>
+    </div>
+
+    <form method="dialog" class="modal-backdrop">
+        <button aria-label="Cerrar búsqueda">close</button>
+    </form>
+</dialog>
+
+<script>
+    const commandPalette = document.getElementById(
+        "command-palette",
+    ) as HTMLDialogElement | null;
+    const commandPaletteInput = document.getElementById(
+        "command-palette-input",
+    ) as HTMLInputElement | null;
+    const commandPaletteItems = Array.from(
+        document.querySelectorAll("[data-command-item]"),
+    ) as HTMLLIElement[];
+    const commandPaletteEmpty = document.getElementById(
+        "command-palette-empty",
+    ) as HTMLElement | null;
+    const commandPaletteTriggers = Array.from(
+        document.querySelectorAll("[data-open-command-palette]"),
+    ) as HTMLButtonElement[];
+
+    const filterCommandPalette = (): void => {
+        const query = commandPaletteInput?.value.trim().toLowerCase() ?? "";
+        let visibleItems = 0;
+
+        commandPaletteItems.forEach((item: HTMLLIElement) => {
+            const searchText = item.dataset.searchText ?? "";
+            const isVisible = query.length === 0 || searchText.includes(query);
+
+            item.classList.toggle("hidden", !isVisible);
+            if (isVisible) {
+                visibleItems += 1;
+            }
+        });
+
+        commandPaletteEmpty?.classList.toggle("hidden", visibleItems > 0);
+    };
+
+    const openCommandPalette = (): void => {
+        if (!commandPalette) {
+            return;
+        }
+
+        if (!commandPalette.open) {
+            commandPalette.showModal();
+        }
+
+        if (commandPaletteInput) {
+            commandPaletteInput.value = "";
+            filterCommandPalette();
+            commandPaletteInput.focus();
+        }
+    };
+
+    const closeCommandPalette = (): void => {
+        if (commandPalette?.open) {
+            commandPalette.close();
+        }
+    };
+
+    commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
+        trigger.addEventListener("click", () => {
+            openCommandPalette();
+        });
+    });
+
+    commandPaletteInput?.addEventListener("input", () => {
+        filterCommandPalette();
+    });
+
+    commandPalette?.addEventListener("click", (event: MouseEvent) => {
+        if (event.target === commandPalette) {
+            closeCommandPalette();
+        }
+    });
+
+    document.addEventListener("keydown", (event: KeyboardEvent) => {
+        const isCommandShortcut =
+            (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+
+        if (isCommandShortcut) {
+            event.preventDefault();
+            openCommandPalette();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            closeCommandPalette();
+        }
+    });
+    filterCommandPalette();
+</script>
