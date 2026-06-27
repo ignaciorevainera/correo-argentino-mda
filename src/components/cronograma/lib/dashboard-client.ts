@@ -12,7 +12,7 @@ import {
   timeToMinutes
 } from './utils';
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
-import { exportCSV, exportAsImage } from './exporters';
+import { exportCSV, exportAsImage, exportAsClipboardImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
@@ -3005,6 +3005,102 @@ function setupEventListeners(): void {
 
   document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
   document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
+
+  async function handleCopyRotationImage() {
+    const copyBtn = document.getElementById('copy-rotation-image-btn') as HTMLButtonElement | null;
+    const saturdayCard = document.getElementById('saturday-rotation-card');
+    if (!copyBtn || !saturdayCard) return;
+
+    const originalBtnText = copyBtn.innerHTML;
+    try {
+      copyBtn.disabled = true;
+      copyBtn.innerHTML = `
+        <span class="loading loading-spinner loading-xs"></span>
+        <span>Copiando...</span>
+      `;
+
+      saturdayCard.classList.add('exporting-image');
+
+      await exportAsClipboardImage(saturdayCard);
+
+      // Success state
+      copyBtn.classList.remove('btn-secondary');
+      copyBtn.classList.add('btn-success');
+      copyBtn.innerHTML = `
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span>¡Copiado!</span>
+      `;
+      showToast('Tabla de guardia copiada al portapapeles.', 'success');
+
+      setTimeout(() => {
+        copyBtn.classList.remove('btn-success');
+        copyBtn.classList.add('btn-secondary');
+        copyBtn.disabled = false;
+        copyBtn.innerHTML = originalBtnText;
+      }, 2500);
+
+    } catch (error) {
+      console.error('Failed to copy table image:', error);
+      showToast('Error al copiar la imagen.', 'error');
+      copyBtn.disabled = false;
+      copyBtn.innerHTML = originalBtnText;
+    } finally {
+      saturdayCard.classList.remove('exporting-image');
+    }
+  }
+
+  document.getElementById('copy-rotation-image-btn')?.addEventListener('click', handleCopyRotationImage);
+
+  async function handleCopyOvertimeImage() {
+    const copyBtn = document.getElementById('copy-overtime-image-btn') as HTMLButtonElement | null;
+    const overtimeCard = document.getElementById('overtime-card');
+    if (!copyBtn || !overtimeCard) return;
+
+    const originalBtnText = copyBtn.innerHTML;
+    try {
+      copyBtn.disabled = true;
+      copyBtn.innerHTML = `
+        <span class="loading loading-spinner loading-xs"></span>
+        <span>Copiando...</span>
+      `;
+
+      overtimeCard.classList.add('exporting-image');
+
+      await exportAsClipboardImage(overtimeCard);
+
+      // Success state
+      copyBtn.classList.remove('btn-outline');
+      copyBtn.classList.remove('btn-warning');
+      copyBtn.classList.add('btn-success');
+      copyBtn.innerHTML = `
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span>¡Copiado!</span>
+      `;
+      showToast('Horas extras copiadas al portapapeles.', 'success');
+
+      setTimeout(() => {
+        copyBtn.classList.remove('btn-success');
+        copyBtn.classList.add('btn-outline');
+        copyBtn.classList.add('btn-warning');
+        copyBtn.disabled = false;
+        copyBtn.innerHTML = originalBtnText;
+      }, 2500);
+
+    } catch (error) {
+      console.error('Failed to copy overtime image:', error);
+      showToast('Error al copiar la imagen.', 'error');
+      copyBtn.disabled = false;
+      copyBtn.innerHTML = originalBtnText;
+    } finally {
+      overtimeCard.classList.remove('exporting-image');
+    }
+  }
+
+  document.getElementById('copy-overtime-image-btn')?.addEventListener('click', handleCopyOvertimeImage);
 
   const importBtn = document.getElementById('import-csv-btn');
   const importInput = document.getElementById('import-csv-input') as HTMLInputElement | null;

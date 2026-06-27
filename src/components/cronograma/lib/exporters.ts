@@ -292,3 +292,75 @@ export async function exportScheduleToExcel(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+export async function exportAsClipboardImage(
+  element: HTMLElement,
+  onStart?: () => void,
+  onEnd?: () => void
+): Promise<void> {
+  if (onStart) onStart();
+
+  const originalWidth = element.style.width;
+  const originalHeight = element.style.height;
+  const originalMaxWidth = element.style.maxWidth;
+  const originalMaxHeight = element.style.maxHeight;
+  const originalOverflow = element.style.overflow;
+
+  try {
+    // Configure container layout for high-fidelity snapshot
+    element.style.width = element.scrollWidth + 'px';
+    element.style.height = element.scrollHeight + 'px';
+    element.style.maxWidth = 'none';
+    element.style.maxHeight = 'none';
+    element.style.overflow = 'visible';
+
+    // Force layout reflow
+    element.offsetHeight;
+
+    const toPng = await getToPng();
+    const computedBg = window.getComputedStyle(element).backgroundColor || '#ffffff';
+
+    const dataUrl = await toPng(element, {
+      backgroundColor: computedBg,
+      style: {
+        transform: 'scale(1)',
+        transformOrigin: 'top left',
+        width: element.scrollWidth + 'px',
+        height: element.scrollHeight + 'px'
+      },
+      quality: 1.0,
+      pixelRatio: 2
+    });
+
+    // Restore original styles
+    element.style.width = originalWidth;
+    element.style.height = originalHeight;
+    element.style.maxWidth = originalMaxWidth;
+    element.style.maxHeight = originalMaxHeight;
+    element.style.overflow = originalOverflow;
+
+    // Convert data URL to Blob
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+
+    // Write blob to Clipboard
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type]: blob
+      })
+    ]);
+
+  } catch (error: unknown) {
+    // Ensure styles are restored on failure
+    element.style.width = originalWidth;
+    element.style.height = originalHeight;
+    element.style.maxWidth = originalMaxWidth;
+    element.style.maxHeight = originalMaxHeight;
+    element.style.overflow = originalOverflow;
+    console.error('Error copying image to clipboard:', error);
+    throw error;
+  } finally {
+    if (onEnd) onEnd();
+  }
+}
+

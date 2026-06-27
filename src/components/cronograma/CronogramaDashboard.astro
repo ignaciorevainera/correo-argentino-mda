@@ -1089,6 +1089,7 @@ const { userRole = "agent" } = Astro.props;
 
         <!-- Saturday Rotation Timeline Card -->
         <div
+          id="saturday-rotation-card"
           class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6 mt-6"
         >
           <div
@@ -1118,6 +1119,20 @@ const { userRole = "agent" } = Astro.props;
 
             <!-- Saturday selector + Active group display -->
             <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+              <!-- New Copy to Clipboard Button -->
+              <div class="flex flex-col gap-1 no-export">
+                <span class="text-tiny font-black uppercase tracking-wider text-base-content/40 select-none">&nbsp;</span>
+                <button
+                  type="button"
+                  id="copy-rotation-image-btn"
+                  class="btn btn-sm btn-outline btn-secondary gap-2 h-8 min-h-8 px-3 cursor-pointer"
+                  title="Copiar tabla de guardia al portapapeles como imagen"
+                >
+                  <Icon name="boxicons:clipboard" size={14} />
+                  <span>Copiar Tabla</span>
+                </button>
+              </div>
+
               <div class="flex flex-col gap-1">
                 <label
                   class="text-tiny font-black uppercase tracking-wider text-base-content/40"
@@ -1229,6 +1244,7 @@ const { userRole = "agent" } = Astro.props;
     class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden"
   >
     <div
+      id="overtime-card"
       class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6"
     >
       <!-- Header -->
@@ -1305,10 +1321,21 @@ const { userRole = "agent" } = Astro.props;
         <button
           type="button"
           id="save-overtime-referente-btn"
-          class="btn btn-sm btn-warning shrink-0 gap-1.5 uppercase font-bold text-xxs"
+          class="btn btn-sm btn-warning shrink-0 gap-1.5 uppercase font-bold text-xxs no-export"
         >
           <Icon name="boxicons:save" size={14} />
           Guardar Config.
+        </button>
+
+        <!-- New Copy to Clipboard Button for Overtime -->
+        <button
+          type="button"
+          id="copy-overtime-image-btn"
+          class="btn btn-sm btn-outline btn-warning shrink-0 gap-1.5 uppercase font-bold text-xxs no-export cursor-pointer"
+          title="Copiar horas extras al portapapeles como imagen"
+        >
+          <Icon name="boxicons:clipboard" size={14} />
+          Copiar Tabla
         </button>
       </div>
 
@@ -1320,12 +1347,12 @@ const { userRole = "agent" } = Astro.props;
           Línea de Tiempo del Fin de Semana
         </p>
         <div
-          class="relative overflow-x-auto rounded-xl border border-base-300 bg-base-200/30"
+          class="relative overflow-x-auto rounded-xl border border-base-300 bg-base-200/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <!-- Time header labels row -->
           <div
             id="overtime-timeline-header"
-            class="flex min-w-[900px] border-b border-base-300 bg-base-200/60"
+            class="flex min-w-[1200px] border-b border-base-300 bg-base-200/60"
           >
             <div
               class="w-36 shrink-0 px-3 py-2 text-tiny font-black uppercase tracking-wider text-base-content/40 border-r border-base-300"
@@ -1339,7 +1366,7 @@ const { userRole = "agent" } = Astro.props;
           <!-- Timeline body -->
           <div
             id="overtime-timeline-body"
-            class="min-w-[900px] divide-y divide-base-300/40"
+            class="min-w-[1200px] divide-y divide-base-300/40"
           >
             <div
               id="overtime-timeline-placeholder"
@@ -1353,7 +1380,7 @@ const { userRole = "agent" } = Astro.props;
       </div>
 
       <!-- Add shift form -->
-      <div class="space-y-3" id="overtime-add-shift-section">
+      <div class="space-y-3 no-export" id="overtime-add-shift-section">
         <p
           class="text-tiny font-black uppercase tracking-wider text-base-content/40"
         >
@@ -1434,7 +1461,7 @@ const { userRole = "agent" } = Astro.props;
       </div>
 
       <!-- Saved shifts list -->
-      <div class="space-y-2">
+      <div class="space-y-2 no-export">
         <p
           class="text-tiny font-black uppercase tracking-wider text-base-content/40"
         >
@@ -2437,6 +2464,17 @@ const { userRole = "agent" } = Astro.props;
   #cronograma-app-container[data-user-role="referent"]
     #monthly-detail-comment-section {
     display: none !important;
+  }
+
+  /* Ocultar elementos marcados con no-export durante la exportación de imágenes */
+  .exporting-image .no-export {
+    display: none !important;
+  }
+
+  /* Agregar espacio extra en la parte inferior del card al exportar para que no quede pegado */
+  #saturday-rotation-card.exporting-image,
+  #overtime-card.exporting-image {
+    padding-bottom: 2.5rem !important;
   }
 </style>
 
