@@ -720,10 +720,10 @@ function renderDaily(): void {
         ringClass = "bg-secondary/10 text-secondary ring-secondary/30 border border-secondary/20 shadow-sm";
         glowColorClass = "bg-secondary";
       } else if (status === OperatorStatus.PresencialMonteGrande) {
-        ringClass = "bg-primary/10 text-amber-600 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
+        ringClass = "bg-primary/10 text-amber-700 dark:text-amber-400 ring-primary/30 border border-primary/20 shadow-sm";
         glowColorClass = "bg-amber-500";
       } else if (status === OperatorStatus.PresencialParquePatricios) {
-        ringClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/30 border border-purple-500/20 shadow-sm";
+        ringClass = "bg-purple-500/10 text-purple-700 dark:text-purple-400 ring-purple-500/30 border border-purple-500/20 shadow-sm";
         glowColorClass = "bg-purple-500";
       }
 
@@ -1173,7 +1173,7 @@ function renderHourly(dateStr: string): void {
            const onBreak = working && isBreakAtHour(breakStart, breakEnd, hour);
            if (onBreak) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
-                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
+                 <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
                    <span class="text-xxs leading-none">☕</span>
                  </div>
               </td>`;
@@ -1260,9 +1260,9 @@ function renderMonthly(): void {
     let thClass = "sticky top-0 z-40 text-center min-w-[4rem] px-0 border-r border-b border-base-200 transition-colors bg-base-100";
     if (isToday) thClass += " bg-secondary text-secondary-content border-b-secondary border-b-2 z-45";
     else if (isHoliday) thClass = thClass.replace("bg-base-100", "bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-100 font-bold line-through");
-    else if (isWeekend) thClass = thClass.replace("bg-base-100", "bg-base-200 text-base-content/40");
+    else if (isWeekend) thClass = thClass.replace("bg-base-100", "bg-base-200 text-base-content/65");
     else if (isCritical) thClass += " text-error font-bold";
-    else thClass += " text-base-content/70";
+    else thClass += " text-base-content/85";
 
     const dayName = shortDayFormatter.format(d).substring(0, 2).toUpperCase();
     const dateNum = d.getDate();
@@ -1327,7 +1327,7 @@ function renderMonthly(): void {
           title="${tooltipText}"
           aria-label="${tooltipText}"
         >
-          <span class="font-extrabold text-xxs tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-60'}">${pd.dayName}</span>
+          <span class="font-extrabold text-xxs tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-80'}">${pd.dayName}</span>
           <div class="flex items-center gap-1">
              <span class="font-black text-xs ${pd.isToday ? 'scale-110' : ''}">${pd.dateNum}</span>
              ${pd.isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
@@ -1461,7 +1461,7 @@ function renderMonthly(): void {
       if (!state.isTotalsCollapsed) {
         tbodyHtml += `
           <td class="sticky left-[200px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
-          <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-amber-600 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-amber-700 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
           <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-table-edge">${stats.L}</td>
         `;
       }
