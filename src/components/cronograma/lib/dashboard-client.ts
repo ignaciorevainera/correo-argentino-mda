@@ -54,17 +54,22 @@ function isWeekend(dateStr: string): boolean {
   return day === 6 || day === 0;
 }
 
-function resolveOperatorStatusAndHorario(op: OperatorData, dateStr: string): { status: OperatorStatus; horario: string } {
+function resolveOperatorStatusAndHorario(
+  op: OperatorData,
+  dateStr: string,
+  cachedDayOfWeek?: number,
+  cachedActiveGroup?: string | null
+): { status: OperatorStatus; horario: string } {
   let status = op.asistencia[dateStr] || OperatorStatus.Franco;
   let horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario || "";
 
-  const dateObj = new Date(dateStr + "T12:00:00");
-  const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+  const dayOfWeek = cachedDayOfWeek !== undefined ? cachedDayOfWeek : new Date(dateStr + "T12:00:00").getDay();
+  const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
 
   if (isWeekendDay) {
-    const isSaturday = dateObj.getDay() === 6;
+    const isSaturday = dayOfWeek === 6;
     if (isSaturday && op.saturdayGroup) {
-      const activeGroup = getActiveGroupForDate(dateStr);
+      const activeGroup = cachedActiveGroup !== undefined ? cachedActiveGroup : getActiveGroupForDate(dateStr);
       const isOverride = status === OperatorStatus.Vacaciones || status === OperatorStatus.Licencia;
       
       if (op.saturdayGroup === activeGroup && !isOverride) {
@@ -264,65 +269,6 @@ function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
       return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
     }
     
-    if (sortType === 'inconsistencies') {
-      const hasInconsistency = (op: OperatorData): boolean => {
-        const [yearStr, monthStr] = dateStr.split('-');
-        const year = parseInt(yearStr, 10);
-        const month = parseInt(monthStr, 10) - 1;
-        const daysInMonth = getDaysInMonth(year, month);
-        const currentMonthPrefix = `${yearStr}-${monthStr}`;
-        const dates = Array.from({length: daysInMonth}, (_, i) => `${currentMonthPrefix}-${(i + 1).toString().padStart(2, '0')}`);
-        
-        const opMaxHO = (op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null) ? op.maxConsecutiveHO : state.maxConsecutiveHOLimit;
-        const opMinPWeek = (op.minPWeek !== undefined && op.minPWeek !== null) ? op.minPWeek : state.minPWeekLimit;
-
-        let maxConsecutiveHO = 0;
-        let currentHO = 0;
-        
-        let pWeekViolation = false;
-        let currentWeekP = 0;
-        let currentWeekDays = 0;
-
-        for (let i = 0; i < dates.length; i++) {
-          const d = dates[i];
-          const status = op.asistencia[d];
-          
-          if (status === OperatorStatus.HomeOffice) {
-            currentHO++;
-            maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
-          } else if (status !== OperatorStatus.Franco && status) {
-            currentHO = 0;
-          }
-
-          if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios) currentWeekP++;
-          if (status !== OperatorStatus.Franco && status !== OperatorStatus.Licencia && status !== OperatorStatus.Vacaciones && status) {
-             currentWeekDays++;
-          }
-          
-          const dateObj = new Date(d + 'T12:00:00');
-          const dayOfWeek = dateObj.getDay();
-          
-          if (dayOfWeek === 0 || d === dates[dates.length - 1]) {
-             if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
-                pWeekViolation = true;
-             }
-             currentWeekP = 0;
-             currentWeekDays = 0;
-          }
-        }
-        
-        return maxConsecutiveHO > opMaxHO || pWeekViolation;
-      };
-      
-      const incA = hasInconsistency(a) ? 1 : 0;
-      const incB = hasInconsistency(b) ? 1 : 0;
-      
-      if (incA !== incB) {
-        return incB - incA;
-      }
-      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
-    }
-    
     return 0;
   });
 }
@@ -429,26 +375,6 @@ function renderMonthDropdown(): void {
 
   if (list) list.innerHTML = html;
   if (groupsList) groupsList.innerHTML = html;
-
-  // Attach click listeners
-  const allDropdowns = [list, groupsList].filter(Boolean) as HTMLElement[];
-  allDropdowns.forEach(dropdown => {
-    dropdown.querySelectorAll('[data-month-val]').forEach(item => {
-      item.addEventListener('click', (e) => {
-        const val = (e.currentTarget as HTMLElement).getAttribute('data-month-val');
-        if (val) {
-          const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-          if (dateInput) {
-            dateInput.value = val;
-            updateDateInputDisplay();
-            reloadDataForActiveMonth(val.slice(0, 7));
-          }
-        }
-        // Force close dropdown by blurring active element
-        (document.activeElement as HTMLElement | null)?.blur();
-      });
-    });
-  });
 }
 
 function changeMonth(offset: number): void {
@@ -1168,9 +1094,24 @@ function renderHourly(dateStr: string): void {
            </td>
         `;
 
-        hours.forEach(hour => {
-           const working = isWorkingAtHour(horario, hour);
-           const onBreak = working && isBreakAtHour(breakStart, breakEnd, hour);
+        let hS = -1, hE = -1;
+        if (horario && horario !== '-' && horario !== 'Franco') {
+          const parts = horario.split(' - ');
+          if (parts.length === 2) {
+            hS = parseInt(parts[0].split(':')[0], 10);
+            hE = parseInt(parts[1].split(':')[0], 10);
+          }
+        }
+
+        let bhS = -1, bhE = -1;
+        if (breakStart && breakEnd && breakStart !== '-' && breakEnd !== '-') {
+          bhS = parseInt(breakStart.split(':')[0], 10);
+          bhE = parseInt(breakEnd.split(':')[0], 10);
+        }
+
+        hours.forEach((hour, i) => {
+           const working = hS !== -1 && hE !== -1 && (hS <= hE ? (i >= hS && i < hE) : (i >= hS || i < hE));
+           const onBreak = working && bhS !== -1 && bhE !== -1 && (bhS <= bhE ? (i >= bhS && i < bhE) : (i >= bhS || i < bhE));
            if (onBreak) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
                  <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
@@ -1268,6 +1209,8 @@ function renderMonthly(): void {
     const dateNum = d.getDate();
     const monthName = monthLongFormatter.format(d);
 
+    const activeGroup = getActiveGroupForDate(date);
+
     return {
       str: date,
       dateObj: d,
@@ -1280,7 +1223,8 @@ function renderMonthly(): void {
       dateNum,
       monthName,
       feriadoName,
-      isHoliday
+      isHoliday,
+      activeGroup
     };
   });
 
@@ -1468,7 +1412,7 @@ function renderMonthly(): void {
         
       parsedDates.forEach(pd => {
         const date = pd.str;
-        const { status, horario: dailyHorario } = resolveOperatorStatusAndHorario(op, date);
+        const { status, horario: dailyHorario } = resolveOperatorStatusAndHorario(op, date, pd.day, pd.activeGroup);
         const styles = getStatusStyles(status);
         const isTodayCell = pd.isToday;
         const safeName = escapeHtml(op.nombre);
@@ -1491,7 +1435,7 @@ function renderMonthly(): void {
         }
         if (isLicenseOverlap) cellClass += ' ring-1 ring-inset ring-error/30 bg-error/[0.03]';
         
-        const isHoliday = isFeriado(date);
+        const isHoliday = pd.isHoliday;
         if (isHoliday) cellClass += ' bg-orange-100 dark:bg-orange-950';
         
         const hasComment = !hideComments && !!(op.comentarios && op.comentarios[date]);
@@ -1555,10 +1499,8 @@ function renderMonthly(): void {
           tooltipAttrs = `data-tip="${safeHorario}"`;
         }
 
-        const dateObj = new Date(date + "T12:00:00");
-        const isSaturday = dateObj.getDay() === 6;
-        const activeGroup = getActiveGroupForDate(date);
-        const isRotationCell = !!(isSaturday && op.saturdayGroup && op.saturdayGroup === activeGroup && !(op.overrides && op.overrides[date]));
+        const isSaturday = pd.day === 6;
+        const isRotationCell = !!(isSaturday && op.saturdayGroup && op.saturdayGroup === pd.activeGroup && !(op.overrides && op.overrides[date]));
         
         if (isRotationCell) {
           statusBtnClass += ' ring-1 ring-inset ring-secondary/35 border-secondary/40 hover:ring-secondary/50';
@@ -2382,6 +2324,26 @@ function updateMaximizeUI(isMax: boolean): void {
 }
 
 function setupEventListeners(): void {
+  // Month Dropdown Event Delegation
+  const handleDropdownClick = (e: Event) => {
+    const target = (e.target as HTMLElement).closest('[data-month-val]');
+    if (!target) return;
+    const val = target.getAttribute('data-month-val');
+    if (val) {
+      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+      if (dateInput) {
+        dateInput.value = val;
+        updateDateInputDisplay();
+        reloadDataForActiveMonth(val.slice(0, 7));
+      }
+    }
+    // Force close dropdown by blurring active element
+    (document.activeElement as HTMLElement | null)?.blur();
+  };
+
+  document.getElementById('month-dropdown-list')?.addEventListener('click', handleDropdownClick);
+  document.getElementById('groups-month-dropdown-list')?.addEventListener('click', handleDropdownClick);
+
   // New Operator Modal Handlers
   const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
   const openNewOpBtn = document.getElementById('open-new-op-modal');
