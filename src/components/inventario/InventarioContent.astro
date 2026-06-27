@@ -16,7 +16,7 @@ import {
   agents,
   operatorAttendance,
 } from "@db/schema";
-import { getTerminals, getDistinctTerminalModels } from "@lib/terminalQueries";
+import { getTerminals, getTerminalModelsByBrand } from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 import { and, eq } from "drizzle-orm";
 import { getShiftType } from "@lib/cubics";
@@ -51,7 +51,7 @@ const osMap = {
   debian: osVariations.filter((os) => os?.toLowerCase().includes("debian")),
 };
 
-const terminalModels = await getDistinctTerminalModels();
+const terminalModelsByBrand = await getTerminalModelsByBrand();
 
 const sortBy = (Astro.url.searchParams.get("sortBy") || undefined) as
   | TerminalSortKey
@@ -222,6 +222,20 @@ const inventoryTabs = [
         </div>
         <div class="form-control grow">
           <select
+            id="filter-model"
+            class="select select-bordered w-full font-medium text-base-content/80"
+            aria-label="Filtrar por modelo de terminal"
+          >
+            <option value="all">Modelo (Todos)</option>
+            {
+              terminalModelsByBrand.map((entry) => (
+                <option value={entry.model} data-brand={entry.brand}>{entry.model}</option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="form-control grow">
+          <select
             id="filter-ram"
             class="select select-bordered w-full font-medium text-base-content/80"
             aria-label="Filtrar por memoria RAM"
@@ -232,20 +246,6 @@ const inventoryTabs = [
             <option value="4gb">4 GB</option>
             <option value="8gb">8 GB</option>
             <option value=">=16gb">&ge; 16 GB</option>
-          </select>
-        </div>
-        <div class="form-control grow">
-          <select
-            id="filter-model"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por modelo de terminal"
-          >
-            <option value="all">Modelo (Todos)</option>
-            {
-              terminalModels.map((m) => (
-                <option value={m}>{m}</option>
-              ))
-            }
           </select>
         </div>
         <div
@@ -955,6 +955,7 @@ const inventoryTabs = [
     }
     if (archFilterSelect) archFilterSelect.value = "all";
     if (brandFilterSelect) brandFilterSelect.value = "all";
+    syncModelOptionsWithBrand();
     if (ramFilterSelect) ramFilterSelect.value = "all";
     if (modelFilterSelect) modelFilterSelect.value = "all";
     statusRadioInputs.forEach((radio, idx) => {
@@ -989,6 +990,40 @@ const inventoryTabs = [
     updateMachineRows();
   });
 
+  // Parse model brand mapping from server
+  const modelBrandData = JSON.parse(
+    document.getElementById("model-brand-data")?.textContent || "[]",
+  );
+
+  // Style for disabled model options
+  const modelSelectStyle = document.createElement("style");
+  modelSelectStyle.textContent =
+    "#filter-model option:disabled { opacity: 0.4; }";
+  document.head.appendChild(modelSelectStyle);
+
+  // Keep model options in sync with selected brand
+  const syncModelOptionsWithBrand = () => {
+    if (!modelFilterSelect || !brandFilterSelect) return;
+    const selectedBrand = brandFilterSelect.value;
+    let currentModelStillValid = false;
+
+    Array.from(modelFilterSelect.options).forEach((opt) => {
+      if (opt.value === "all") return;
+      const brand = (opt as HTMLOptionElement).dataset.brand || "";
+      const matches = selectedBrand === "all" || brand === selectedBrand;
+      opt.disabled = !matches;
+      opt.classList.toggle("opacity-40", !matches);
+      if (opt.value === modelFilterSelect.value && matches) {
+        currentModelStillValid = true;
+      }
+    });
+
+    if (!currentModelStillValid) {
+      modelFilterSelect.value = "all";
+      currentModel = "all";
+    }
+  };
+
   // Configurar mapa de OS desde el servidor usando un JSON en el script o variable global inyectada
   const osMapData = JSON.parse(
     document.getElementById("os-map-data")?.textContent || "{}",
@@ -1017,7 +1052,10 @@ const inventoryTabs = [
 
   osVariantFilterSelect?.addEventListener("change", triggerSearch);
   archFilterSelect?.addEventListener("change", triggerSearch);
-  brandFilterSelect?.addEventListener("change", triggerSearch);
+  brandFilterSelect?.addEventListener("change", () => {
+    syncModelOptionsWithBrand();
+    triggerSearch();
+  });
   ramFilterSelect?.addEventListener("change", triggerSearch);
   modelFilterSelect?.addEventListener("change", triggerSearch);
   statusRadioInputs.forEach((radio) =>
@@ -1194,4 +1232,9 @@ const inventoryTabs = [
   type="application/json"
   id="os-map-data"
   set:html={JSON.stringify(osMap)}
+/>
+<script
+  type="application/json"
+  id="model-brand-data"
+  set:html={JSON.stringify(terminalModelsByBrand)}
 />

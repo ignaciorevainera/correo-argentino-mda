@@ -329,9 +329,24 @@ const blockedModelPatterns = [
   /[ï¿½]/,
 ];
 
-export async function getDistinctTerminalModels(): Promise<string[]> {
+export interface ModelBrandEntry {
+  model: string;
+  brand: string;
+}
+
+function inferBrandFromManufacturer(manufacturer: string): string | null {
+  const lower = manufacturer.toLowerCase();
+  if (lower.includes("dell")) return "dell";
+  if (lower.includes("lenovo")) return "lenovo";
+  if (lower.includes("hp") || lower.includes("hewlett")) return "hp";
+  if (lower.includes("bangho")) return "bangho";
+  if (lower.includes("coradir")) return "coradir";
+  return null;
+}
+
+export async function getTerminalModelsByBrand(): Promise<ModelBrandEntry[]> {
   const rows = await db
-    .select({ model: terminals.model })
+    .select({ model: terminals.model, manufacturer: terminals.manufacturer })
     .from(terminals)
     .where(
       and(
@@ -339,11 +354,25 @@ export async function getDistinctTerminalModels(): Promise<string[]> {
         knownBrandConditions,
       ),
     )
-    .groupBy(terminals.model)
+    .groupBy(terminals.model, terminals.manufacturer)
     .orderBy(asc(terminals.model));
 
+  const seen = new Set<string>();
   return rows
-    .map((r) => r.model.trim())
-    .filter((m): m is string => Boolean(m))
-    .filter((m) => !blockedModelPatterns.some((p) => p.test(m)));
+    .map((r) => ({
+      model: r.model.trim(),
+      brand: inferBrandFromManufacturer(r.manufacturer),
+    }))
+    .filter((entry) => {
+      if (!entry.model || !entry.brand) return false;
+      if (blockedModelPatterns.some((p) => p.test(entry.model))) return false;
+      if (seen.has(entry.model)) return false;
+      seen.add(entry.model);
+      return true;
+    });
+}
+
+export async function getDistinctTerminalModels(): Promise<string[]> {
+  const entries = await getTerminalModelsByBrand();
+  return entries.map((e) => e.model);
 }
