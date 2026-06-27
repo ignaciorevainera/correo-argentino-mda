@@ -6,6 +6,8 @@ export function getStatusStyles(type: string | undefined): {
   icon: string;
   color: string;
   bgClass: string;
+  indicatorClass: string;
+  textClass: string;
 } {
   switch (type) {
     case OperatorStatus.HomeOffice:
@@ -14,6 +16,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.home,
         color: 'var(--color-secondary)',
         bgClass: 'bg-secondary/10 text-secondary',
+        indicatorClass: 'bg-secondary',
+        textClass: 'text-secondary',
       };
     case OperatorStatus.PresencialMonteGrande:
       return {
@@ -21,6 +25,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.briefcase,
         color: 'var(--color-primary)',
         bgClass: 'bg-primary/10 text-amber-700 dark:text-amber-400 border border-primary/25 shadow-sm',
+        indicatorClass: 'bg-amber-500',
+        textClass: 'text-amber-700 dark:text-amber-400',
       };
     case OperatorStatus.PresencialParquePatricios:
       return {
@@ -28,6 +34,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.briefcase,
         color: '#a855f7',
         bgClass: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25 shadow-sm',
+        indicatorClass: 'bg-purple-500',
+        textClass: 'text-purple-700 dark:text-purple-400',
       };
     case OperatorStatus.Licencia:
       return {
@@ -35,6 +43,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.firstAid,
         color: 'var(--color-error)',
         bgClass: 'bg-error/10 text-error',
+        indicatorClass: 'bg-error',
+        textClass: 'text-error',
       };
     case OperatorStatus.Vacaciones:
       return {
@@ -42,6 +52,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.sun,
         color: 'var(--color-success)',
         bgClass: 'bg-success/10 text-success',
+        indicatorClass: 'bg-success',
+        textClass: 'text-success',
       };
     default:
       return {
@@ -49,6 +61,8 @@ export function getStatusStyles(type: string | undefined): {
         icon: STATUS_ICONS.help,
         color: 'var(--fallback-bc,oklch(var(--bc)/0.4))',
         bgClass: 'bg-base-200/50 text-base-content/70',
+        indicatorClass: 'bg-base-300',
+        textClass: 'text-base-content/70',
       };
   }
 }
