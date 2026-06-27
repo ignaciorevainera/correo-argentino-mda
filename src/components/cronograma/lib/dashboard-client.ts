@@ -1291,7 +1291,7 @@ function renderMonthly(): void {
   const thShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]' : '';
 
   let theadHtml = `<tr>
-    <th class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50 ${thShadowClass}">
+    <th class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/85 ${thShadowClass}">
       <div class="flex items-center justify-between gap-1.5">
         <span>Operador</span>
         <button
@@ -1309,9 +1309,9 @@ function renderMonthly(): void {
   
   if (!state.isTotalsCollapsed) {
     theadHtml += `
-      <th class="sticky top-0 left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/40 text-center" title="Presencial">P</th>
-      <th class="sticky top-0 left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/40 text-center" title="Home Office">HO</th>
-      <th class="sticky top-0 left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/40 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
+      <th class="sticky top-0 left-[200px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/80 text-center" title="Presencial">P</th>
+      <th class="sticky top-0 left-[240px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/80 text-center" title="Home Office">HO</th>
+      <th class="sticky top-0 left-[280px] bg-base-100 z-50 w-[40px] min-w-[40px] border-r border-b border-base-200 px-1 py-4 font-black text-tiny uppercase tracking-widest text-base-content/80 text-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]" title="Licencia/Vacaciones">L</th>
     `;
   }
   
@@ -1327,12 +1327,12 @@ function renderMonthly(): void {
           title="${tooltipText}"
           aria-label="${tooltipText}"
         >
-          <span class="font-extrabold text-xxs tracking-wide ${pd.isToday ? 'opacity-90' : 'opacity-80'}">${pd.dayName}</span>
+          <span class="font-extrabold text-xxs tracking-wide ${pd.isToday ? 'text-secondary-content/95' : 'text-base-content/90'}">${pd.dayName}</span>
           <div class="flex items-center gap-1">
-             <span class="font-black text-xs ${pd.isToday ? 'scale-110' : ''}">${pd.dateNum}</span>
+             <span class="font-black text-xs ${pd.isToday ? 'scale-110 text-secondary-content' : 'text-base-content'}">${pd.dateNum}</span>
              ${pd.isCritical ? '<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>' : ''}
           </div>
-          ${pd.isToday ? `<span class="text-micro font-black tracking-wide uppercase opacity-80">HOY</span>` : ''}
+          ${pd.isToday ? `<span class="text-micro font-black tracking-wide uppercase text-secondary-content/90">HOY</span>` : ''}
         </button>
       </th>
     `;
@@ -3634,14 +3634,15 @@ function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvertimeShif
     return { startMin, endMin };
   };
 
-  const getOpEarliestStart = (opId: number): number => {
+  const getOpEarliestStart = (opId: number | undefined): number => {
+    if (opId === undefined) return Infinity;
     const opShifts = shifts.filter(s => s.agentId === opId);
     if (opShifts.length === 0) return Infinity;
     return Math.min(...opShifts.map(s => getShiftStartAndEnd(s).startMin));
   };
 
   const activeOps = state.cronoData
-    .filter(op => shifts.some(s => s.agentId === op.id))
+    .filter(op => op.id !== undefined && shifts.some(s => s.agentId === op.id))
     .sort((a, b) => {
       const startA = getOpEarliestStart(a.id);
       const startB = getOpEarliestStart(b.id);
