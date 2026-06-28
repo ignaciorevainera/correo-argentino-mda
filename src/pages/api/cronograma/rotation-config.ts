@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { saturdayRotationConfig } from "@db/schema";
 import { eq, desc, lt } from "drizzle-orm";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 const getLocalMonth = () => {
   const d = new Date();
@@ -53,7 +54,7 @@ export const GET: APIRoute = async ({ url }) => {
       };
     }
 
-    return jsonResponse(config, 200, "public, max-age=3600, stale-while-revalidate");
+    return jsonResponse(config, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET rotation-config API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);

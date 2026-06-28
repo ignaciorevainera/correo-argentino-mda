@@ -3,6 +3,7 @@ import { parse } from "csv-parse/sync";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 // Helper to normalize multiple date formats to YYYY-MM-DD
 function normalizeDate(dateStr: string): string | null {
