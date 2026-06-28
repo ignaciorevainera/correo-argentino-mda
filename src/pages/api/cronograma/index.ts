@@ -283,7 +283,7 @@ export const GET: APIRoute = async ({ url }) => {
       activeMonth,
     };
 
-    return jsonResponse(responsePayload, 200, "private, max-age=60");
+    return jsonResponse(responsePayload, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
@@ -342,7 +342,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Process each edit atomically inside a transaction (Transactions for Batch Edits)
-    db.transaction((tx) => {
+    await db.transaction((tx) => {
       for (const edit of edits) {
         const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
         if (!agentName || !date) continue;

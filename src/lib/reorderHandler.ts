@@ -21,7 +21,7 @@ export async function handleReorder(
   if (!Array.isArray(items)) return jsonError("Datos inválidos", 400);
 
   try {
-    db.transaction((tx) => {
+    await db.transaction((tx) => {
       for (const item of items) {
         const data: Record<string, unknown> = { sortOrder: item.sortOrder };
         if (options?.mapItem) {

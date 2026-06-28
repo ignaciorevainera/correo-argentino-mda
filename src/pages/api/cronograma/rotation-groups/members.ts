@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { agentSaturdayGroups, agents } from "@db/schema";
 import { and, eq } from "drizzle-orm";
+import { jsonResponse } from "@lib/apiResponse";
 
 const MONTH_REGEX = /^\d{4}-\d{2}$/;
 const VALID_GROUPS = ["A", "B", "C", "D"];

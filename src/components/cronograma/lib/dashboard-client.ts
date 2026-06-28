@@ -252,6 +252,13 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     if (isPasivaVisible) {
       await renderPasivaView();
     }
+
+    // Actualizar vista de horas extras si está visible
+    const overtimeView = document.getElementById('overtime-view');
+    const isOvertimeVisible = overtimeView && !overtimeView.classList.contains('hidden');
+    if (isOvertimeVisible) {
+      renderOvertimeView();
+    }
   } catch (err) {
     console.error("Error reloading data for month:", err);
     showToast("Error al recargar datos del mes", "error");

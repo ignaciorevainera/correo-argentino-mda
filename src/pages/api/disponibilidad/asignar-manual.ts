@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonResponse({ success: false, error: "ID de agente inválido" }, 400);
     }
 
-    const assignedBy = locals.user?.name || locals.user?.username || "Sistema";
+    const assignedBy = locals.user?.username || "Sistema";
     const result = await asignarManual(agentId, assignedBy);
     
     let agentName = `ID ${agentId}`;
