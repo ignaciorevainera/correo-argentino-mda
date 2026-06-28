@@ -29,9 +29,6 @@ export interface GetOfficesParams {
   province?: string;
   zone?: string;
   paqar?: string;
-  locality?: string;
-  county?: string;
-  parentNis?: string;
   sortBy?: OfficeSortKey;
   sortOrder?: SortOrder;
 }
@@ -46,9 +43,6 @@ export async function getOffices(params: GetOfficesParams) {
   let provinceFilter = params.province || "all";
   const zoneFilter = params.zone || "all";
   const paqarFilter = params.paqar || "all";
-  const localityFilter = params.locality || "all";
-  const countyFilter = params.county || "all";
-  const parentNisFilter = params.parentNis || "all";
   const searchFilter = params.search || "";
 
   // 1. Get provinces mapping
@@ -144,21 +138,6 @@ export async function getOffices(params: GetOfficesParams) {
         and(eq(offices.paqarAdmision, true), eq(offices.paqarEntrega, true)),
       );
     }
-  }
-
-  // Locality filter
-  if (localityFilter !== "all") {
-    whereConditions.push(eq(offices.locality, localityFilter));
-  }
-
-  // County filter
-  if (countyFilter !== "all") {
-    whereConditions.push(eq(offices.county, countyFilter));
-  }
-
-  // Parent NIS filter
-  if (parentNisFilter !== "all") {
-    whereConditions.push(eq(offices.parentNis, parentNisFilter));
   }
 
   const whereClause =

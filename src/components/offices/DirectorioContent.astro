@@ -34,9 +34,6 @@ let provinceFilter = searchParams.get("province") || "all";
 const zoneFilter = searchParams.get("zone") || "all";
 const paqarFilter = searchParams.get("paqar") || "all";
 const searchFilter = searchParams.get("search") || "";
-const localityFilter = searchParams.get("locality") || "all";
-const countyFilter = searchParams.get("county") || "all";
-const parentNisFilter = searchParams.get("parentNis") || "all";
 
 const allProvincesWithRegion = await db
   .select({
@@ -84,9 +81,6 @@ const { data: officeDirectoryItems, hasMore } = await getOffices({
   province: provinceFilter,
   zone: zoneFilter,
   paqar: paqarFilter,
-  locality: localityFilter,
-  county: countyFilter,
-  parentNis: parentNisFilter,
   search: searchFilter,
   sortBy,
   sortOrder,
@@ -183,47 +177,6 @@ const uniqueZones = allZonesRaw
   .map((z) => z.zone)
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-
-// Distinct localities for datalist
-const allLocalities = await db
-  .select({ locality: offices.locality })
-  .from(offices)
-  .where(
-    sql`${offices.locality} IS NOT NULL AND ${offices.locality} != ''`
-  )
-  .groupBy(offices.locality)
-  .orderBy(offices.locality);
-
-const uniqueLocalities = allLocalities
-  .map((r) => r.locality)
-  .filter((l): l is string => Boolean(l));
-
-// Distinct counties for datalist
-const allCounties = await db
-  .select({ county: offices.county })
-  .from(offices)
-  .where(
-    sql`${offices.county} IS NOT NULL AND ${offices.county} != ''`
-  )
-  .groupBy(offices.county)
-  .orderBy(offices.county);
-
-const uniqueCounties = allCounties
-  .map((r) => r.county)
-  .filter((c): c is string => Boolean(c));
-
-// Distinct parentNis with parent office name for datalist
-const allParentNis = await db
-  .select({
-    parentNis: offices.parentNis,
-    parentName: sql`(SELECT name FROM offices o2 WHERE o2.code = ${offices.parentNis})`,
-  })
-  .from(offices)
-  .where(
-    sql`${offices.parentNis} IS NOT NULL AND ${offices.parentNis} != ''`
-  )
-  .groupBy(offices.parentNis)
-  .orderBy(offices.parentNis);
 
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
@@ -369,60 +322,6 @@ const mainTabs = [
               >Admite y Entrega</option
             >
           </select>
-        </div>
-
-        <div class="form-control relative grow">
-          <input
-            type="text"
-            name="locality"
-            list="locality-list"
-            class="input input-bordered w-full font-medium text-base-content/80"
-            placeholder="Localidad"
-            aria-label="Filtrar por localidad"
-            value={localityFilter !== "all" ? localityFilter : ""}
-            onchange="this.form.submit()"
-          />
-          <datalist id="locality-list">
-            {uniqueLocalities.map((loc) => (
-              <option value={loc} />
-            ))}
-          </datalist>
-        </div>
-
-        <div class="form-control relative grow">
-          <input
-            type="text"
-            name="county"
-            list="county-list"
-            class="input input-bordered w-full font-medium text-base-content/80"
-            placeholder="Partido"
-            aria-label="Filtrar por partido"
-            value={countyFilter !== "all" ? countyFilter : ""}
-            onchange="this.form.submit()"
-          />
-          <datalist id="county-list">
-            {uniqueCounties.map((c) => (
-              <option value={c} />
-            ))}
-          </datalist>
-        </div>
-
-        <div class="form-control relative grow">
-          <input
-            type="text"
-            name="parentNis"
-            list="parentNis-list"
-            class="input input-bordered w-full font-medium text-base-content/80"
-            placeholder="Código NIS padre"
-            aria-label="Filtrar por oficina dependiente de"
-            value={parentNisFilter !== "all" ? parentNisFilter : ""}
-            onchange="this.form.submit()"
-          />
-          <datalist id="parentNis-list">
-            {allParentNis.map((p) => (
-              <option value={p.parentNis} label={p.parentName || undefined} />
-            ))}
-          </datalist>
         </div>
         <a
           href={import.meta.env.BASE_URL + "oficinas"}

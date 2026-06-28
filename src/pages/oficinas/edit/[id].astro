@@ -115,6 +115,24 @@ if (Astro.request.method === "POST") {
         .where(eq(offices.id, officeId));
       const oldName = existing?.name || "";
 
+      const activeCostCenter = [
+        officeData.cctAdminOffice,
+        officeData.ccCommercial,
+        officeData.ccCommercialCorp,
+        officeData.ccElectoral,
+        officeData.ccNetworkMgmt,
+        officeData.ccOperations,
+        officeData.ccOperational,
+        officeData.ccHr,
+        officeData.ccSecurity,
+        officeData.ccAdmin,
+        officeData.ccAdmission,
+        officeData.ccCtp,
+        officeData.ccCtt,
+        officeData.ccTransport,
+        officeData.ccLogistics
+      ].find((val) => val && val.trim() !== "");
+
       const nextSearchableText = normalizeSearchValue(
         [
           officeData.code,
@@ -122,6 +140,7 @@ if (Astro.request.method === "POST") {
           officeData.locality,
           officeData.parentNis,
           officeData.address,
+          activeCostCenter,
         ]
           .filter(Boolean)
           .join(" ")
