@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { saturdayRotationConfig } from "@db/schema";
 import { eq, desc, lt } from "drizzle-orm";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 const getLocalMonth = () => {
   const d = new Date();

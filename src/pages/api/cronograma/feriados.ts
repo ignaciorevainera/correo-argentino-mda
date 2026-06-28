@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { holidays } from "@db/schema";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async () => {
   try {

@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async ({ request }) => {
   try {

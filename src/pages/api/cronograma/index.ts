@@ -11,6 +11,7 @@ import {
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
