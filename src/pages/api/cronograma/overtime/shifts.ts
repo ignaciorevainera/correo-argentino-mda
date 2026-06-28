@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ url }) => {
       .where(eq(weekendOvertimeShifts.weekendStartDate, weekendStartDate));
     return new Response(
       JSON.stringify(res),
-      { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "private, max-age=60" } }
+      { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" } }
     );
   } catch (error: any) {
     console.error("GET overtime shifts API Error:", error);

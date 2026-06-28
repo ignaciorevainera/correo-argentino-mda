@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const endDate = url.searchParams.get("endDate") || startDate;
     const responseData = await getAttendanceData(startDate, endDate);
 
-    return jsonResponse(responseData, 200, "private, max-age=60");
+    return jsonResponse(responseData, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET Attendance API Error:", error);
     return jsonResponse({ error: error.message }, 500);
@@ -74,7 +74,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     }
 
-    db.transaction((tx) => {
+    await db.transaction((tx) => {
       for (const edit of edits) {
         const {
           agentId,

@@ -116,7 +116,7 @@ export const server = {
         }
 
         // 3. Ejecutar bloque transaccional rápido (Write-only)
-        db.transaction((tx) => {
+        await db.transaction((tx) => {
           if (hardDeletes.length > 0) {
             tx.delete(auditParameters).where(inArray(auditParameters.id, hardDeletes)).run();
           }
@@ -239,7 +239,7 @@ export const server = {
 
       try {
         if (input.id) {
-          db.transaction((tx) => {
+          await db.transaction((tx) => {
             // Actualizar auditoría principal
             tx.update(qualityAudits)
               .set(auditData)
@@ -261,7 +261,7 @@ export const server = {
           return { success: true, id: input.id };
         } else {
           let insertedId: number;
-          db.transaction((tx) => {
+          await db.transaction((tx) => {
             // Insertar nueva auditoría
             const [inserted] = tx.insert(qualityAudits)
               .values(auditData)

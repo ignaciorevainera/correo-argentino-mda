@@ -116,7 +116,7 @@ export const GET: APIRoute = async ({ url }) => {
       supervisors.push(DEFAULT_SUPERVISOR);
     }
 
-    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors }, 200, "private, max-age=60");
+    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors }, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET Guardia Pasiva Error:", error);
     return jsonResponse({ error: "Error interno del servidor" }, 500);
@@ -136,7 +136,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Transacción síncrona con SQLite
-    db.transaction((tx) => {
+    await db.transaction((tx) => {
       // 1. Actualizar o guardar Operador Mensual
       if (operatorId === null || operatorId === undefined || operatorId === "") {
         tx.delete(monthlyGuardiaPasivaOperator)
