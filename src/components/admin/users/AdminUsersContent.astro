@@ -15,6 +15,7 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
+import Modal from "@components/ui/Modal.astro";
 
 interface Props {
   successMsg?: string;
@@ -190,8 +191,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                   </div>
 
                   {/* ── Modales (Fuera del flujo visual de la fila) ── */}
-                  <dialog id={`modal-rename-${u.id}`} class="modal">
-                    <div class="modal-box max-w-sm border border-base-300">
+                  <Modal id={`modal-rename-${u.id}`}>
+                    <Fragment slot="content">
                       <h3 class="mb-1 text-base font-semibold text-base-content">
                         Renombrar usuario
                       </h3>
@@ -217,7 +218,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           autocomplete="off"
                           inputClass="input-sm"
                         />
-                        <div class="modal-action mt-2 gap-2">
+                        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
                           <button
                             type="submit"
                             class="btn btn-secondary btn-sm gap-1"
@@ -234,14 +235,11 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           </button>
                         </div>
                       </form>
-                    </div>
-                    <form method="dialog" class="modal-backdrop">
-                      <button>cerrar</button>
-                    </form>
-                  </dialog>
+                    </Fragment>
+                  </Modal>
 
-                  <dialog id={`modal-reset-${u.id}`} class="modal">
-                    <div class="modal-box max-w-sm border border-base-300">
+                  <Modal id={`modal-reset-${u.id}`}>
+                    <Fragment slot="content">
                       <h3 class="mb-1 text-base font-semibold text-base-content">
                         Blanquear contraseña
                       </h3>
@@ -269,7 +267,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           autocomplete="new-password"
                           inputClass="input-sm"
                         />
-                        <div class="modal-action mt-2 gap-2">
+                        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
                           <button
                             type="submit"
                             class="btn btn-warning btn-sm gap-1"
@@ -289,11 +287,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           </button>
                         </div>
                       </form>
-                    </div>
-                    <form method="dialog" class="modal-backdrop">
-                      <button>cerrar</button>
-                    </form>
-                  </dialog>
+                    </Fragment>
+                  </Modal>
                 </article>
               ))
             )
@@ -383,8 +378,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
   </div>
 </PageContainer>
 
-<dialog id="modal-change-role" class="modal">
-  <div class="modal-box max-w-sm border border-base-300">
+<Modal id="modal-change-role">
+  <Fragment slot="content">
     <h3 class="mb-1 text-base font-semibold text-base-content">
       Cambiar rol de usuario
     </h3>
@@ -420,7 +415,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         </p>
       </div>
 
-      <div class="modal-action mt-2 gap-2">
+      <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
         <button type="submit" class="btn btn-primary btn-sm gap-1">
           <Icon name="boxicons:check-filled" size={14} />
           Guardar
@@ -432,20 +427,11 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         >
       </div>
     </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>cerrar</button>
-  </form>
-</dialog>
+  </Fragment>
+</Modal>
 
-<dialog id="modal-permissions-matrix" class="modal">
-  <div class="modal-box max-w-none w-fit border border-base-300">
-    <h3
-      class="mb-2 text-lg font-bold text-base-content flex items-center gap-2"
-    >
-      <Icon name="boxicons:universal-access-filled" size={24} />
-      Matriz de permisos por rol
-    </h3>
+<Modal id="modal-permissions-matrix" title="Matriz de permisos por rol" icon="boxicons:universal-access-filled" class="w-fit">
+  <Fragment slot="content">
     <p class="mb-4 text-xs text-base-content/60">
       Detalle comparativo de las acciones y accesos permitidos para cada rol
       en la plataforma.
@@ -565,20 +551,17 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         </tbody>
       </table>
     </div>
-    <div class="modal-action mt-4">
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        onclick="this.closest('dialog').close()"
-      >
-        Cerrar
-      </button>
-    </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>cerrar</button>
-  </form>
-</dialog>
+  </Fragment>
+  <Fragment slot="actions">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      onclick="this.closest('dialog').close()"
+    >
+      Cerrar
+    </button>
+  </Fragment>
+</Modal>
 
 <AsyncFormScript />
 

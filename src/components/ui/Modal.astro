@@ -5,11 +5,13 @@ interface Props {
   id: string;
   title?: string;
   icon?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: "sm" | "md" | "lg" | "xl" | "full" | "2xl" | "3xl";
+  zIndex?: string;
+  titleClass?: string;
   class?: string;
 }
 
-const { id, title, icon, size = "md", class: className } = Astro.props;
+const { id, title, icon, size = "md", zIndex, titleClass, class: className } = Astro.props;
 
 const sizeClasses: Record<string, string> = {
   sm: "max-w-sm",
@@ -17,10 +19,12 @@ const sizeClasses: Record<string, string> = {
   lg: "max-w-lg",
   xl: "max-w-xl",
   full: "max-w-5xl",
+  "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
 };
 ---
 
-<dialog {id} class="modal modal-bottom sm:modal-middle">
+<dialog {id} class:list={["modal modal-bottom sm:modal-middle", zIndex]}>
   <div
     class:list={[
       "modal-box border border-base-300 shadow-xl bg-base-100",
@@ -30,7 +34,7 @@ const sizeClasses: Record<string, string> = {
   >
     {
       title && (
-        <h3 class="font-bold text-lg flex items-center gap-2 mb-4 text-base-content">
+        <h3 class:list={["flex items-center gap-2 mb-4 text-base-content", titleClass || "font-bold text-lg"]}>
           {icon && <Icon name={icon} class="text-primary shrink-0" size={22} />}
           {title}
         </h3>
