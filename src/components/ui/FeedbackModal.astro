@@ -164,7 +164,7 @@ const user = Astro.locals.user || { username: "Invitado" };
 </dialog>
 
 <script>
-  import { actions } from "astro:actions";
+  import { actions, isInputError } from "astro:actions";
   import { showToast } from "../../lib/toastClient";
 
   // Variables y Elementos del DOM
@@ -248,7 +248,14 @@ const user = Astro.locals.user || { username: "Invitado" };
       const { data, error } = await actions.submitFeedback(payload);
 
       if (error) {
-        showToast(`Error al enviar: ${error.message}`, "alert-error");
+        if (isInputError(error)) {
+          const messages = Object.values(error.fields)
+            .flat()
+            .join(". ");
+          showToast(`Error de validación: ${messages}`, "alert-error");
+        } else {
+          showToast(`Error al enviar: ${error.message}`, "alert-error");
+        }
       } else if (data?.success) {
         showToast(
           type === "sugerencia" ? "¡Sugerencia enviada correctamente!" : "¡Reporte de bug enviado con éxito!",
