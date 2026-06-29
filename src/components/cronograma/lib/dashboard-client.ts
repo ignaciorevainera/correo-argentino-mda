@@ -1465,9 +1465,13 @@ function setupEventListeners(): void {
         copyBtn.innerHTML = originalBtnText;
       }, 2500);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to copy table image:', error);
-      showToast('Error al copiar la imagen.', 'error');
+      if (error?.message === "CLIPBOARD_UNAVAILABLE_DOWNLOADED") {
+        showToast('El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.', 'warning');
+      } else {
+        showToast('Error al copiar la imagen.', 'error');
+      }
       copyBtn.disabled = false;
       copyBtn.innerHTML = originalBtnText;
     } finally {
@@ -1513,9 +1517,13 @@ function setupEventListeners(): void {
         copyBtn.innerHTML = originalBtnText;
       }, 2500);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to copy overtime image:', error);
-      showToast('Error al copiar la imagen.', 'error');
+      if (error?.message === "CLIPBOARD_UNAVAILABLE_DOWNLOADED") {
+        showToast('El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.', 'warning');
+      } else {
+        showToast('Error al copiar la imagen.', 'error');
+      }
       copyBtn.disabled = false;
       copyBtn.innerHTML = originalBtnText;
     } finally {
