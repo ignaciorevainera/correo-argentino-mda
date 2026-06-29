@@ -34,6 +34,7 @@ const list = await db
     assignedToId: feedback.assignedToId,
     createdAt: feedback.createdAt,
     username: users.username,
+    role: users.role,
     assignedToUsername: assignedTo.username,
   })
   .from(feedback)
@@ -259,8 +260,7 @@ const formatDateTime = (date: Date) => {
               <div>
                 <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/40 block mb-1">ENVIADO POR:</span>
                 <div class="flex items-center gap-2">
-                  <div class="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center text-xs font-bold text-base-content/60">
-                    <Icon name="boxicons:user" size={14} />
+                  <div id="detail-avatar" class="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center text-[10px] font-bold text-base-content/60 shadow-sm">
                   </div>
                   <div class="text-sm font-bold text-base-content" id="detail-username"></div>
                 </div>
@@ -270,13 +270,13 @@ const formatDateTime = (date: Date) => {
             <!-- Asignación -->
             <div class="border-t border-base-200 pt-4 space-y-2">
               <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">ASIGNACIÓN</span>
-              <div class="flex items-center justify-between gap-4 mt-2">
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
                 <div id="detail-assigned-to" class="text-base font-black text-base-content">Sin asignar</div>
-                <div>
-                  <button type="button" id="btn-assign-self" class="btn btn-sm btn-warning rounded-lg font-bold gap-1 shadow-sm px-4">
+                <div class="ms-auto shrink-0 flex items-center gap-1">
+                  <button type="button" id="btn-assign-self" class="btn btn-sm btn-warning rounded-lg font-bold shadow-sm px-3">
                     Asignarme Caso
                   </button>
-                  <button type="button" id="btn-unassign-self" class="btn btn-sm btn-neutral rounded-lg font-bold gap-1 hidden shadow-sm px-4">
+                  <button type="button" id="btn-unassign-self" class="btn btn-sm btn-neutral rounded-lg font-bold hidden shadow-sm px-3">
                     Liberar Caso
                   </button>
                 </div>
@@ -307,6 +307,23 @@ const formatDateTime = (date: Date) => {
   function initFeedbackAdmin() {
     const typeButtons = document.querySelectorAll("[data-filter-type]");
     const statusSelect = document.getElementById("filter-status") as HTMLSelectElement | null;
+    const roleAvatarClasses: Record<string, string> = {
+      admin: "bg-error text-error-content",
+      supervisor: "bg-info text-info-content",
+      team_leader: "bg-accent text-accent-content",
+      referent: "bg-warning text-warning-content",
+      agent: "bg-neutral text-neutral-content",
+    };
+    function setAvatar(username: string, role: string) {
+      const avatar = document.getElementById("detail-avatar");
+      if (!avatar) return;
+      const initials = (username || "?").slice(0, 2).toUpperCase();
+      avatar.textContent = initials;
+      avatar.className =
+        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm " +
+        (roleAvatarClasses[role] ?? roleAvatarClasses.agent);
+    }
+
     const rows = document.querySelectorAll("[data-table-row]");
     const detailsModal = document.getElementById("modal-details") as HTMLDialogElement | null;
 
@@ -379,7 +396,10 @@ const formatDateTime = (date: Date) => {
         if (descEl) descEl.textContent = item.description;
 
         const userEl = document.getElementById("detail-username");
-        if (userEl) userEl.textContent = item.username;
+        if (userEl) {
+          userEl.textContent = item.username;
+          setAvatar(item.username, item.role);
+        }
 
         const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
         if (feedbackIdEl) feedbackIdEl.value = item.id.toString();
