@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-Before writing any frontend code, read DESIGN.md from the project root. DESIGN.md is the source of truth for the color palette, themes, typography, spacing scale, and visual decisions for this project. Every styling decision must be consistent with what is defined there. If DESIGN.md does not exist, ask before making assumptions about theming or visual direction.
+Before writing any frontend code, read docs/DESIGN.md from the project. docs/DESIGN.md is the source of truth for the color palette, themes, typography, spacing scale, and visual decisions for this project. Every styling decision must be consistent with what is defined there. If DESIGN.md does not exist, ask before making assumptions about theming or visual direction.
 
 Use semantic HTML. Every element must reflect its meaning in the document structure. Never use a div where a nav, section, article, header, footer, main, aside, or button is appropriate.
 
@@ -14,7 +14,7 @@ Always respect the BaseLayout structure. The body must use class="flex flex-col 
 
 Use DaisyUI components and their predefined classes as the first option for any UI element that DaisyUI covers. Use .btn, .card, .modal, .alert, .badge, .input, .select, .textarea, .checkbox, .toggle, .drawer, .navbar, .menu, .tabs, .steps, .hero, and all other DaisyUI primitives directly before building anything custom. Do not reinvent what DaisyUI already provides. Use DaisyUI semantic color tokens (primary, secondary, accent, neutral, base-100, base-200, base-300, info, success, warning, error) for all color decisions — never hardcode hex values, RGB values, or Tailwind color palette values like blue-500 or gray-300 directly. Color decisions belong in the DaisyUI theme configuration.
 
-Use only the theme and color palette defined in DESIGN.md and configured in the Tailwind or DaisyUI config. Never introduce a color, font, or spacing value that is not part of the defined system. If a new token is needed, add it to the theme configuration — do not hardcode it inline.
+Use only the theme and color palette defined in docs/DESIGN.md and configured in the Tailwind or DaisyUI config. Never introduce a color, font, or spacing value that is not part of the defined system. If a new token is needed, add it to the theme configuration — do not hardcode it inline.
 
 Never hardcode arbitrary values in utility classes. Do not write text-[10px], w-[347px], mt-[13px], or any class using bracket notation unless there is no Tailwind scale equivalent and the value is truly one-off. Use the Tailwind scale: text-xs, text-sm, text-base, text-lg, w-full, w-1/2, mt-2, mt-4, gap-6, and so on. If a specific value is needed repeatedly and has no Tailwind equivalent, extend the theme in tailwind.config or the DaisyUI config — whichever the documentation recommends for that type of token — and use the named class from that point on. Never leave repeated arbitrary values scattered across components.
 
