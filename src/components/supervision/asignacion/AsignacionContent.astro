@@ -87,17 +87,17 @@ const lastAssignedOperator =
     : null;
 const maxAssignedOperatorId = lastAssignedOperator?.agentId ?? null;
 
-// Find the next suggested operator
+// Find the next suggested operators (up to 4) for the queue
 const availableOperators = allOperators.filter((o) => o.disponible);
-const nextSuggestedOperator = availableOperators.length > 0
+const nextSuggestedOperators = availableOperators.length > 0
   ? [...availableOperators].sort((a, b) => {
       const tA = a.lastAutogestionAssignedAt ?? 0;
       const tB = b.lastAutogestionAssignedAt ?? 0;
       if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
       if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
       return tA - tB;
-    })[0]
-  : null;
+    }).slice(0, 4)
+  : [];
 
 const STATUS_LABELS: Record<string, string> = {
   "En break": "En Break",
@@ -488,53 +488,76 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       </div>
     </div>
 
-    <!-- Card Próxima Sugerida -->
-    <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-primary/30 transition-all duration-300"
-    >
-      <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
-      >
-        <Icon name="boxicons:sparkles" size={128} />
-      </div>
-      <div class="card-body p-6 flex flex-col justify-between h-full">
-        <div>
-          <div class="flex items-center gap-3 mb-2">
-            <div class="p-2 bg-primary/10 rounded-lg text-primary">
-              <Icon name="boxicons:sparkles" size={24} />
+    <!-- Card Cola de Asignación -->
+    <div class="card bg-base-100 border border-base-300 shadow-md overflow-hidden">
+      <div class="card-body p-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="p-2 bg-primary/10 rounded-lg text-primary">
+            <Icon name="boxicons:sparkles" size={20} />
+          </div>
+          <h3 class="font-bold text-xs uppercase tracking-widest text-base-content/50">
+            Próximos en Cola
+          </h3>
+        </div>
+        <div id="queue-container" class="space-y-0 overflow-hidden relative">
+          {nextSuggestedOperators.length > 0 ? (
+            nextSuggestedOperators.map((op, idx) => {
+              let itemStyle = "";
+              let subtitleStyle = "";
+              let iconStyle = "";
+              if (idx === 0) {
+                itemStyle = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
+                subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
+                iconStyle = "text-primary transition-all duration-300";
+              } else if (idx === 1) {
+                itemStyle = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
+                subtitleStyle = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
+                iconStyle = "text-base-content/40 transition-all duration-300";
+              } else if (idx === 2) {
+                itemStyle = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
+                subtitleStyle = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
+                iconStyle = "text-base-content/30 transition-all duration-300";
+              } else {
+                itemStyle = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
+                subtitleStyle = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
+                iconStyle = "text-base-content/25 transition-all duration-300";
+              }
+
+              return (
+                <div
+                  class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
+                  data-op-id={op.agentId}
+                  data-op-name={op.nombre}
+                  data-op-modalidad={op.modalidadHoy}
+                >
+                  <div>
+                    <div class={itemStyle}>{op.nombre}</div>
+                    <div class={subtitleStyle}>
+                      {op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
+                    </div>
+                  </div>
+                  {idx === 0 ? (
+                    <span class="badge badge-primary badge-sm font-bold gap-1 p-3 shrink-0">
+                      <Icon name="boxicons:check" size={14} />
+                      Siguiente
+                    </span>
+                  ) : (
+                    <span class={`text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}`}>
+                      #{idx + 1}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+              No hay operadores disponibles
             </div>
-            <h3
-              class="font-bold text-xs uppercase tracking-widest text-base-content/50"
-            >
-              Próxima Sugerencia
-            </h3>
-          </div>
-          <div id="stat-suggested-container" class="mt-2">
-            {nextSuggestedOperator ? (
-              <div>
-                <div
-                  class="text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal"
-                  id="stat-suggested-name"
-                  title={nextSuggestedOperator.nombre}
-                >
-                  {nextSuggestedOperator.nombre}
-                </div>
-                <div
-                  class="text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1"
-                  id="stat-suggested-reason"
-                >
-                  Disponible • {nextSuggestedOperator.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
-                </div>
-              </div>
-            ) : (
-              <div class="text-xs text-base-content/40 italic" id="stat-suggested-name-empty">
-                No hay disponibles
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
+
   </div>
 
   <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
@@ -838,6 +861,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     let secondsSinceSync = 0;
 
+    // Initialize lastQueueIds from the SSR rendered elements
+    const initialQueueElements = document.querySelectorAll("#queue-container [data-op-id]");
+    let lastQueueIds: number[] = Array.from(initialQueueElements).map((el) => Number(el.getAttribute("data-op-id")));
+
     const updateIndicatorText = () => {
       if (!syncIndicator) return;
       if (secondsSinceSync === 0) {
@@ -994,47 +1021,194 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
       }
 
-      const available = data.filter((op) => op.disponible);
-      let nextSuggestedOp = null;
-      if (available.length > 0) {
-        const sorted = [...available].sort((a, b) => {
+      const queueContainer = document.getElementById("queue-container");
+      if (queueContainer) {
+        const available = data.filter((op) => op.disponible);
+        const sortedQueue = [...available].sort((a, b) => {
           const tA = a.lastAutogestionAssignedAt ?? 0;
           const tB = b.lastAutogestionAssignedAt ?? 0;
           if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
           if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
           return tA - tB;
-        });
-        nextSuggestedOp = sorted[0];
-      }
+        }).slice(0, 4);
 
-      const suggestedContainer = document.getElementById("stat-suggested-container");
-      if (suggestedContainer) {
-        if (nextSuggestedOp) {
-          suggestedContainer.innerHTML = `
-            <div>
-              <div
-                class="text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal"
-                id="stat-suggested-name"
-                title="${escapeHtml(nextSuggestedOp.nombre)}"
-              >
-                ${escapeHtml(nextSuggestedOp.nombre)}
+        const currentQueueIds = sortedQueue.map((op) => op.agentId);
+        const queueChanged = JSON.stringify(currentQueueIds) !== JSON.stringify(lastQueueIds);
+
+        const renderQueueHTML = (queue: any[]) => {
+          if (queue.length === 0) {
+            return `
+              <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+                No hay operadores disponibles
               </div>
+            `;
+          }
+
+          return queue.map((op, idx) => {
+            let itemStyle = "";
+            let subtitleStyle = "";
+            let iconStyle = "";
+            if (idx === 0) {
+              itemStyle = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
+              subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
+              iconStyle = "text-primary transition-all duration-300";
+            } else if (idx === 1) {
+              itemStyle = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
+              subtitleStyle = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
+              iconStyle = "text-base-content/40 transition-all duration-300";
+            } else if (idx === 2) {
+              itemStyle = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
+              subtitleStyle = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
+              iconStyle = "text-base-content/30 transition-all duration-300";
+            } else {
+              itemStyle = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
+              subtitleStyle = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
+              iconStyle = "text-base-content/25 transition-all duration-300";
+            }
+
+            const badgeOrNumber = idx === 0 
+              ? `<span class="badge badge-primary badge-sm font-bold gap-1 p-3 shrink-0 data-role-badge">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Siguiente
+                 </span>`
+              : `<span class="text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}">
+                  #${idx + 1}
+                 </span>`;
+
+            return `
               <div
-                class="text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1"
-                id="stat-suggested-reason"
+                class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
+                data-op-id="${op.agentId}"
+                data-op-name="${escapeHtml(op.nombre)}"
+                data-op-modalidad="${escapeHtml(op.modalidadHoy)}"
               >
-                Disponible • ${nextSuggestedOp.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
+                <div>
+                  <div class="${itemStyle}">${escapeHtml(op.nombre)}</div>
+                  <div class="${subtitleStyle}">
+                    ${escapeHtml(op.modalidadHoy === "Home Office" ? "Home" : "Presencial")}
+                  </div>
+                </div>
+                ${badgeOrNumber}
               </div>
-            </div>
-          `;
-        } else {
-          suggestedContainer.innerHTML = `
-            <div class="text-xs text-base-content/40 italic" id="stat-suggested-name-empty">
-              No hay disponibles
-            </div>
-          `;
+            `;
+          }).join("");
+        };
+
+        if (queueChanged) {
+          if (lastQueueIds.length > 0 && queueContainer.children.length > 0 && !queueContainer.querySelector("#stat-suggested-name-empty")) {
+            // Animación de desplazamiento
+            const childElements = Array.from(queueContainer.children) as HTMLElement[];
+            const height = childElements[0]?.offsetHeight || 52;
+
+            // 1. Identificar si el primero fue asignado
+            const prevFirstId = lastQueueIds[0];
+            const wasFirstAssigned = !currentQueueIds.includes(prevFirstId);
+
+            // Si el primero fue asignado, cambiar su badge a check verde inmediatamente para el feedback visual
+            if (wasFirstAssigned) {
+              const firstChild = childElements.find((el) => Number(el.getAttribute("data-op-id")) === prevFirstId);
+              if (firstChild) {
+                const badge = firstChild.querySelector(".data-role-badge");
+                if (badge) {
+                  badge.className = "badge badge-success badge-sm font-bold gap-1 p-3 shrink-0 text-white";
+                }
+              }
+            }
+
+            // 2. Preparar nuevos elementos que entran en la cola en la parte inferior
+            sortedQueue.forEach((op, newIdx) => {
+              if (!lastQueueIds.includes(op.agentId)) {
+                // Es un operador nuevo en la cola. Lo creamos y lo agregamos al final temporalmente
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = `
+                  <div
+                    class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
+                    data-op-id="${op.agentId}"
+                    data-op-name="${escapeHtml(op.nombre)}"
+                    data-op-modalidad="${escapeHtml(op.modalidadHoy)}"
+                    style="opacity: 0; transform: translateY(${height}px); position: absolute; left: 0; right: 0; bottom: -${height}px;"
+                  >
+                    <div>
+                      <div class="text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300">${escapeHtml(op.nombre)}</div>
+                      <div class="text-xxs text-base-content/25 mt-0.5 transition-all duration-300">
+                        ${escapeHtml(op.modalidadHoy === "Home Office" ? "Home" : "Presencial")}
+                      </div>
+                    </div>
+                    <span class="text-xxs font-bold opacity-60 px-2 shrink-0 text-base-content/25">
+                      #${newIdx + 1}
+                    </span>
+                  </div>
+                `;
+                const newEl = tempDiv.firstElementChild as HTMLElement;
+                queueContainer.appendChild(newEl);
+                childElements.push(newEl);
+              }
+            });
+
+            // 3. Forzar reflow
+            queueContainer.offsetHeight;
+
+            // 4. Aplicar animaciones de transform y opacity
+            childElements.forEach((el) => {
+              const opId = Number(el.getAttribute("data-op-id"));
+              const oldIdx = lastQueueIds.indexOf(opId);
+              const newIdx = currentQueueIds.indexOf(opId);
+
+              el.style.transition = "all 400ms cubic-bezier(0.4, 0, 0.2, 1)";
+
+              if (newIdx !== -1) {
+                // Sigue en la cola. Calcular la diferencia
+                let deltaY = 0;
+                if (oldIdx !== -1) {
+                  deltaY = (newIdx - oldIdx) * height;
+                } else {
+                  // Elemento nuevo. Se desliza a su posición final
+                  el.style.transform = "translateY(0)";
+                  el.style.opacity = "1";
+                  el.style.position = ""; // quitar position absolute
+                  return;
+                }
+                
+                el.style.transform = `translateY(${deltaY}px)`;
+
+                // Actualizar clases de estilos del texto según su nueva posición
+                const textName = el.querySelector("div > div:first-child");
+                const textSub = el.querySelector("div > div:last-child");
+                if (textName && textSub) {
+                  if (newIdx === 0) {
+                    textName.className = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
+                    textSub.className = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
+                  } else if (newIdx === 1) {
+                    textName.className = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
+                    textSub.className = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
+                  } else if (newIdx === 2) {
+                    textName.className = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
+                    textSub.className = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
+                  } else {
+                    textName.className = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
+                    textSub.className = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
+                  }
+                }
+              } else {
+                // Salió de la cola (asignado)
+                el.style.transform = `translateY(-${height}px)`;
+                el.style.opacity = "0";
+              }
+            });
+
+            // 5. Limpieza final tras terminar la animación (400ms)
+            setTimeout(() => {
+              queueContainer.innerHTML = renderQueueHTML(sortedQueue);
+            }, 400);
+          } else {
+            // Renderizado inicial sin animación
+            queueContainer.innerHTML = renderQueueHTML(sortedQueue);
+          }
+
+          lastQueueIds = currentQueueIds;
         }
       }
+
 
       // 4. Update each table row
       data.forEach((op) => {
