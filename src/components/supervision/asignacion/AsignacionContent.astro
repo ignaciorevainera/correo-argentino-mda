@@ -33,7 +33,7 @@ if (Astro.request.method === "POST" && !isReadOnly) {
     if (action === "assign_manual") {
       const agentId = Number(formData.get("agentId"));
       if (!isNaN(agentId)) {
-        await asignarManual(agentId, user?.name || user?.username || "Sistema");
+        await asignarManual(agentId, user?.username || "Sistema");
 
         const [ag] = await db
           .select({ name: agents.name })
@@ -46,7 +46,7 @@ if (Astro.request.method === "POST" && !isReadOnly) {
         };
       }
     } else if (action === "assign_cyclic") {
-      const res = await asignarSiguienteAutogestion(user?.name || user?.username || "Sistema");
+      const res = await asignarSiguienteAutogestion(user?.username || "Sistema");
       if (res.success && res.agent) {
         flashMessage = {
           type: "success",
@@ -536,12 +536,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                       {op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
                     </div>
                   </div>
-                  {idx === 0 ? (
-                    <span class="badge badge-primary badge-sm font-bold gap-1 p-3 shrink-0">
-                      <Icon name="boxicons:check" size={14} />
-                      Siguiente
-                    </span>
-                  ) : (
+                  {idx > 0 && (
                     <span class={`text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}`}>
                       #{idx + 1}
                     </span>
@@ -985,8 +980,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
       // 3b. Update last assigned card and suggested card
       let maxAssignedTimeForCard = 0;
-      let lastAssignedOp = null;
-      data.forEach((op) => {
+      let lastAssignedOp: any = null;
+      for (const op of data) {
         if (
           op.lastAutogestionAssignedAt &&
           op.lastAutogestionAssignedAt > maxAssignedTimeForCard
@@ -994,7 +989,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           maxAssignedTimeForCard = op.lastAutogestionAssignedAt;
           lastAssignedOp = op;
         }
-      });
+      }
 
       const lastAssignedContainer = document.getElementById("stat-last-assigned-container");
       if (lastAssignedContainer) {
@@ -1066,14 +1061,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               iconStyle = "text-base-content/25 transition-all duration-300";
             }
 
-            const badgeOrNumber = idx === 0 
-              ? `<span class="badge badge-primary badge-sm font-bold gap-1 p-3 shrink-0 data-role-badge">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  Siguiente
-                 </span>`
-              : `<span class="text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}">
+            const badgeOrNumber = idx > 0 
+              ? `<span class="text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}">
                   #${idx + 1}
-                 </span>`;
+                 </span>`
+              : "";
 
             return `
               <div
