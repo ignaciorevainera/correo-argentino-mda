@@ -489,9 +489,12 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     </div>
 
     <!-- Card Cola de Asignación -->
-    <div class="card bg-base-100 border border-base-300 shadow-md overflow-hidden">
-      <div class="card-body p-6">
-        <div class="flex items-center gap-3 mb-3">
+    <div
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden"
+      style="min-height: 210px"
+    >
+      <div class="card-body p-6 flex flex-col h-full">
+        <div class="flex items-center gap-3 mb-3 shrink-0">
           <div class="p-2 bg-primary/10 rounded-lg text-primary">
             <Icon name="boxicons:sparkles" size={20} />
           </div>
@@ -499,56 +502,63 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             Próximos en Cola
           </h3>
         </div>
-        <div id="queue-container" class="space-y-0 overflow-hidden relative">
-          {nextSuggestedOperators.length > 0 ? (
-            nextSuggestedOperators.map((op, idx) => {
-              let itemStyle = "";
-              let subtitleStyle = "";
-              let iconStyle = "";
-              if (idx === 0) {
-                itemStyle = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
-                subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
-                iconStyle = "text-primary transition-all duration-300";
-              } else if (idx === 1) {
-                itemStyle = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
-                subtitleStyle = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
-                iconStyle = "text-base-content/40 transition-all duration-300";
-              } else if (idx === 2) {
-                itemStyle = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
-                subtitleStyle = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
-                iconStyle = "text-base-content/30 transition-all duration-300";
-              } else {
-                itemStyle = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
-                subtitleStyle = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
-                iconStyle = "text-base-content/25 transition-all duration-300";
-              }
-
+        <div id="queue-container" class="relative flex-1 overflow-hidden">
+          {
+            [0, 1, 2, 3].map((idx) => {
+              const op = nextSuggestedOperators[idx];
+              const displayStyle = op ? "" : "display: none;";
+              const topStyle = `top: ${idx * 48}px;`;
               return (
                 <div
-                  class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
-                  data-op-id={op.agentId}
-                  data-op-name={op.nombre}
-                  data-op-modalidad={op.modalidadHoy}
+                  data-queue-pos={idx}
+                  class="absolute inset-x-0 transition-all duration-400 ease-out"
+                  style={`${topStyle} ${displayStyle}`}
                 >
-                  <div>
-                    <div class={itemStyle}>{op.nombre}</div>
-                    <div class={subtitleStyle}>
-                      {op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
-                    </div>
-                  </div>
-                  {idx > 0 && (
-                    <span class={`text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}`}>
-                      #{idx + 1}
-                    </span>
+                  {op ? (
+                    idx === 0 ? (
+                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                        <div class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
+                        <div class="min-w-0">
+                          <div class="text-lg sm:text-xl font-black text-primary tracking-tight truncate">{op.nombre}</div>
+                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/40">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                        </div>
+                      </div>
+                    ) : idx === 1 ? (
+                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="min-w-0">
+                          <div class="text-base font-bold text-base-content/70 truncate">{op.nombre}</div>
+                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                        </div>
+                      </div>
+                    ) : idx === 2 ? (
+                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="min-w-0">
+                          <div class="text-sm font-semibold text-base-content/50 truncate">{op.nombre}</div>
+                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="min-w-0">
+                          <div class="text-xs font-medium text-base-content/35 truncate">{op.nombre}</div>
+                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    idx === 0 ? (
+                      <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+                        No hay operadores disponibles
+                      </div>
+                    ) : null
                   )}
                 </div>
               );
             })
-          ) : (
-            <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
-              No hay operadores disponibles
-            </div>
-          )}
+          }
         </div>
       </div>
     </div>
@@ -856,9 +866,13 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     let secondsSinceSync = 0;
 
-    // Initialize lastQueueIds from the SSR rendered elements
-    const initialQueueElements = document.querySelectorAll("#queue-container [data-op-id]");
-    let lastQueueIds: number[] = Array.from(initialQueueElements).map((el) => Number(el.getAttribute("data-op-id")));
+    // Initialize prevQueueNames from the SSR rendered elements
+    let prevQueueNames: string[] = Array.from(document.querySelectorAll("#queue-container [data-queue-pos]"))
+      .map((el) => {
+        const nameEl = el.querySelector(".truncate");
+        return nameEl ? nameEl.textContent || "" : "";
+      })
+      .filter((name) => name !== "");
 
     const updateIndicatorText = () => {
       if (!syncIndicator) return;
@@ -1027,177 +1041,97 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           return tA - tB;
         }).slice(0, 4);
 
-        const currentQueueIds = sortedQueue.map((op) => op.agentId);
-        const queueChanged = JSON.stringify(currentQueueIds) !== JSON.stringify(lastQueueIds);
+        const newNames = sortedQueue.map((op) => op.nombre);
 
-        const renderQueueHTML = (queue: any[]) => {
-          if (queue.length === 0) {
-            return `
-              <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
-                No hay operadores disponibles
-              </div>
-            `;
+        const renderQueueItem = (op: any, index: number) => {
+          let dotClass = "bg-base-content/30";
+          let itemStyle = "";
+          let subtitleStyle = "";
+
+          if (index === 0) {
+            dotClass = "bg-primary";
+            itemStyle = "text-lg sm:text-xl font-black text-primary tracking-tight truncate";
+            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40";
+          } else if (index === 1) {
+            itemStyle = "text-base font-bold text-base-content/70 truncate";
+            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
+          } else if (index === 2) {
+            itemStyle = "text-sm font-semibold text-base-content/50 truncate";
+            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
+          } else {
+            itemStyle = "text-xs font-medium text-base-content/35 truncate";
+            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
           }
 
-          return queue.map((op, idx) => {
-            let itemStyle = "";
-            let subtitleStyle = "";
-            let iconStyle = "";
-            if (idx === 0) {
-              itemStyle = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
-              subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
-              iconStyle = "text-primary transition-all duration-300";
-            } else if (idx === 1) {
-              itemStyle = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
-              subtitleStyle = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
-              iconStyle = "text-base-content/40 transition-all duration-300";
-            } else if (idx === 2) {
-              itemStyle = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
-              subtitleStyle = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
-              iconStyle = "text-base-content/30 transition-all duration-300";
-            } else {
-              itemStyle = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
-              subtitleStyle = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
-              iconStyle = "text-base-content/25 transition-all duration-300";
-            }
-
-            const badgeOrNumber = idx > 0 
-              ? `<span class="text-xxs font-bold opacity-60 px-2 shrink-0 ${iconStyle}">
-                  #${idx + 1}
-                 </span>`
-              : "";
-
-            return `
-              <div
-                class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
-                data-op-id="${op.agentId}"
-                data-op-name="${escapeHtml(op.nombre)}"
-                data-op-modalidad="${escapeHtml(op.modalidadHoy)}"
-              >
-                <div>
-                  <div class="${itemStyle}">${escapeHtml(op.nombre)}</div>
-                  <div class="${subtitleStyle}">
-                    ${escapeHtml(op.modalidadHoy === "Home Office" ? "Home" : "Presencial")}
-                  </div>
-                </div>
-                ${badgeOrNumber}
+          return `
+            <div class="flex items-center gap-2 py-1.5 transition-all duration-300">
+              <div class="w-1.5 h-1.5 rounded-full ${dotClass} shrink-0"></div>
+              <div class="min-w-0">
+                <div class="${itemStyle}">${escapeHtml(op.nombre)}</div>
+                <div class="${subtitleStyle}">${escapeHtml(op.modalidadHoy === "Home Office" ? "Home" : "Presencial")}</div>
               </div>
-            `;
-          }).join("");
+            </div>
+          `;
         };
 
-        if (queueChanged) {
-          if (lastQueueIds.length > 0 && queueContainer.children.length > 0 && !queueContainer.querySelector("#stat-suggested-name-empty")) {
-            // Animación de desplazamiento
-            const childElements = Array.from(queueContainer.children) as HTMLElement[];
-            const height = childElements[0]?.offsetHeight || 52;
+        // Detect change
+        if (JSON.stringify(newNames) !== JSON.stringify(prevQueueNames)) {
+          const slots = Array.from(queueContainer.querySelectorAll("[data-queue-pos]")) as HTMLElement[];
 
-            // 1. Identificar si el primero fue asignado
-            const prevFirstId = lastQueueIds[0];
-            const wasFirstAssigned = !currentQueueIds.includes(prevFirstId);
+          // Phase 1: capture old positions
+          const oldRects = slots.map((s) => s.getBoundingClientRect());
 
-            // Si el primero fue asignado, cambiar su badge a check verde inmediatamente para el feedback visual
-            if (wasFirstAssigned) {
-              const firstChild = childElements.find((el) => Number(el.getAttribute("data-op-id")) === prevFirstId);
-              if (firstChild) {
-                const badge = firstChild.querySelector(".data-role-badge");
-                if (badge) {
-                  badge.className = "badge badge-success badge-sm font-bold gap-1 p-3 shrink-0 text-white";
-                }
-              }
-            }
-
-            // 2. Preparar nuevos elementos que entran en la cola en la parte inferior
-            sortedQueue.forEach((op, newIdx) => {
-              if (!lastQueueIds.includes(op.agentId)) {
-                // Es un operador nuevo en la cola. Lo creamos y lo agregamos al final temporalmente
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = `
-                  <div
-                    class="py-2.5 border-b border-base-200/50 last:border-b-0 flex items-center justify-between transition-all duration-300"
-                    data-op-id="${op.agentId}"
-                    data-op-name="${escapeHtml(op.nombre)}"
-                    data-op-modalidad="${escapeHtml(op.modalidadHoy)}"
-                    style="opacity: 0; transform: translateY(${height}px); position: absolute; left: 0; right: 0; bottom: -${height}px;"
-                  >
-                    <div>
-                      <div class="text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300">${escapeHtml(op.nombre)}</div>
-                      <div class="text-xxs text-base-content/25 mt-0.5 transition-all duration-300">
-                        ${escapeHtml(op.modalidadHoy === "Home Office" ? "Home" : "Presencial")}
-                      </div>
-                    </div>
-                    <span class="text-xxs font-bold opacity-60 px-2 shrink-0 text-base-content/25">
-                      #${newIdx + 1}
-                    </span>
+          // Phase 2: update DOM (innerHTML of each slot)
+          slots.forEach((slot, i) => {
+            const op = sortedQueue[i];
+            if (op) {
+              slot.innerHTML = renderQueueItem(op, i);
+              slot.style.display = "";
+            } else {
+              if (i === 0) {
+                slot.innerHTML = `
+                  <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+                    No hay operadores disponibles
                   </div>
                 `;
-                const newEl = tempDiv.firstElementChild as HTMLElement;
-                queueContainer.appendChild(newEl);
-                childElements.push(newEl);
-              }
-            });
-
-            // 3. Forzar reflow
-            queueContainer.offsetHeight;
-
-            // 4. Aplicar animaciones de transform y opacity
-            childElements.forEach((el) => {
-              const opId = Number(el.getAttribute("data-op-id"));
-              const oldIdx = lastQueueIds.indexOf(opId);
-              const newIdx = currentQueueIds.indexOf(opId);
-
-              el.style.transition = "all 400ms cubic-bezier(0.4, 0, 0.2, 1)";
-
-              if (newIdx !== -1) {
-                // Sigue en la cola. Calcular la diferencia
-                let deltaY = 0;
-                if (oldIdx !== -1) {
-                  deltaY = (newIdx - oldIdx) * height;
-                } else {
-                  // Elemento nuevo. Se desliza a su posición final
-                  el.style.transform = "translateY(0)";
-                  el.style.opacity = "1";
-                  el.style.position = ""; // quitar position absolute
-                  return;
-                }
-                
-                el.style.transform = `translateY(${deltaY}px)`;
-
-                // Actualizar clases de estilos del texto según su nueva posición
-                const textName = el.querySelector("div > div:first-child");
-                const textSub = el.querySelector("div > div:last-child");
-                if (textName && textSub) {
-                  if (newIdx === 0) {
-                    textName.className = "text-lg sm:text-xl md:text-2xl font-black text-primary tracking-tight break-words whitespace-normal transition-all duration-300";
-                    textSub.className = "text-xxs font-bold uppercase tracking-wider text-base-content/40 mt-1 transition-all duration-300";
-                  } else if (newIdx === 1) {
-                    textName.className = "text-base font-semibold text-base-content/70 tracking-tight transition-all duration-300";
-                    textSub.className = "text-xxs font-medium text-base-content/40 mt-0.5 transition-all duration-300";
-                  } else if (newIdx === 2) {
-                    textName.className = "text-sm font-medium text-base-content/50 tracking-tight transition-all duration-300";
-                    textSub.className = "text-xxs text-base-content/30 mt-0.5 transition-all duration-300";
-                  } else {
-                    textName.className = "text-xs font-normal text-base-content/35 tracking-tight transition-all duration-300";
-                    textSub.className = "text-xxs text-base-content/25 mt-0.5 transition-all duration-300";
-                  }
-                }
+                slot.style.display = "";
               } else {
-                // Salió de la cola (asignado)
-                el.style.transform = `translateY(-${height}px)`;
-                el.style.opacity = "0";
+                slot.innerHTML = "";
+                slot.style.display = "none";
               }
+            }
+            slot.style.top = `${i * 48}px`;
+          });
+
+          // Phase 3: capture new positions
+          const newRects = slots.map((s) => s.getBoundingClientRect());
+
+          // Phase 4: invert
+          slots.forEach((slot, i) => {
+            if (slot.style.display === "none") return;
+            const oldRect = oldRects[i];
+            const newRect = newRects[i];
+            const dy = oldRect ? oldRect.top - newRect.top : 0;
+            
+            slot.style.transform = `translateY(${dy}px)`;
+            slot.style.transition = "none";
+          });
+
+          // Force reflow
+          queueContainer.offsetHeight;
+
+          // Phase 5: play
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              slots.forEach((slot) => {
+                if (slot.style.display === "none") return;
+                slot.style.transition = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-out";
+                slot.style.transform = "translateY(0)";
+              });
             });
+          });
 
-            // 5. Limpieza final tras terminar la animación (400ms)
-            setTimeout(() => {
-              queueContainer.innerHTML = renderQueueHTML(sortedQueue);
-            }, 400);
-          } else {
-            // Renderizado inicial sin animación
-            queueContainer.innerHTML = renderQueueHTML(sortedQueue);
-          }
-
-          lastQueueIds = currentQueueIds;
+          prevQueueNames = newNames;
         }
       }
 
