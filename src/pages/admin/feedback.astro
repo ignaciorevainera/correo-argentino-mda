@@ -423,11 +423,9 @@ const formatDateTime = (date: Date) => {
 
         if (item.type === "sugerencia") {
           if (severityContainer) severityContainer.classList.add("hidden");
-          if (useragentContainer) useragentContainer.classList.add("hidden");
           if (bugStepsContainer) bugStepsContainer.classList.add("hidden");
         } else {
           if (severityContainer) severityContainer.classList.remove("hidden");
-          if (useragentContainer) useragentContainer.classList.remove("hidden");
           if (bugStepsContainer) bugStepsContainer.classList.remove("hidden");
 
           const severityEl = document.getElementById("detail-severity");
@@ -441,63 +439,69 @@ const formatDateTime = (date: Date) => {
                   : "badge bg-base-300 text-base-content badge-sm font-semibold border-none";
           }
 
+          const stepsEl = document.getElementById("detail-steps");
+          if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
+        }
+
+        // Mostrar detalles técnicos (userAgent) si están disponibles para ambos tipos
+        if (item.userAgent) {
+          if (useragentContainer) useragentContainer.classList.remove("hidden");
+
           const techRouteEl = document.getElementById("detail-tech-route");
           const techOsEl = document.getElementById("detail-tech-os");
           const techBrowserEl = document.getElementById("detail-tech-browser");
-          if (item.userAgent) {
-            const rawUA = item.userAgent;
-            let ruta = "No disponible";
-            let rest = rawUA;
-            
-            if (rawUA.startsWith("Ruta: ")) {
-              const parts = rawUA.split(" | ");
-              ruta = parts[0].replace("Ruta: ", "").trim();
-              rest = parts.slice(1).join(" | ");
-            }
-            
-            let os = "Desconocido";
-            const osMatch = rest.match(/\(([^)]+)\)/);
-            if (osMatch && osMatch[1]) {
-              const osParts = osMatch[1].split(";");
-              os = osParts[0].trim();
-              if (osParts[1] && (osParts[1].includes("Android") || osParts[1].includes("Linux") || osParts[1].includes("iPhone"))) {
-                os = osParts[1].trim();
-              }
-            }
-            
-            let browserClean = rest;
-            if (rest.includes("Chrome/") && rest.includes("Safari/")) {
-              const chromeVer = rest.match(/Chrome\/([0-9.]+)/);
-              if (chromeVer) {
-                browserClean = `Chrome ${chromeVer[1]} Safari/537.36`;
-              }
-            } else if (rest.includes("Firefox/")) {
-              const firefoxVer = rest.match(/Firefox\/([0-9.]+)/);
-              if (firefoxVer) {
-                browserClean = `Firefox ${firefoxVer[1]}`;
-              }
-            } else if (rest.includes("Safari/") && !rest.includes("Chrome/")) {
-              const safariVer = rest.match(/Version\/([0-9.]+)/);
-              if (safariVer) {
-                browserClean = `Safari ${safariVer[1]}`;
-              }
-            } else if (rest.includes("Edg/")) {
-              const edgVer = rest.match(/Edg\/([0-9.]+)/);
-              if (edgVer) {
-                browserClean = `Edge ${edgVer[1]}`;
-              }
-            }
-            
-            browserClean = browserClean.replace(/^Mozilla\/[0-9.]+\s*\(.*?\)\s*/, "");
-            browserClean = browserClean.replace(/AppleWebKit\/[0-9.]+\s*\(KHTML,\s*like\s*Gecko\)\s*/i, "");
-            
-            if (techRouteEl) techRouteEl.textContent = ruta;
-            if (techOsEl) techOsEl.textContent = os;
-            if (techBrowserEl) techBrowserEl.textContent = browserClean;
-          }
 
-          const stepsEl = document.getElementById("detail-steps");
-          if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
+          const rawUA = item.userAgent;
+          let ruta = "No disponible";
+          let rest = rawUA;
+          
+          if (rawUA.startsWith("Ruta: ")) {
+            const parts = rawUA.split(" | ");
+            ruta = parts[0].replace("Ruta: ", "").trim();
+            rest = parts.slice(1).join(" | ");
+          }
+          
+          let os = "Desconocido";
+          const osMatch = rest.match(/\(([^)]+)\)/);
+          if (osMatch && osMatch[1]) {
+            const osParts = osMatch[1].split(";");
+            os = osParts[0].trim();
+            if (osParts[1] && (osParts[1].includes("Android") || osParts[1].includes("Linux") || osParts[1].includes("iPhone"))) {
+              os = osParts[1].trim();
+            }
+          }
+          
+          let browserClean = rest;
+          if (rest.includes("Chrome/") && rest.includes("Safari/")) {
+            const chromeVer = rest.match(/Chrome\/([0-9.]+)/);
+            if (chromeVer) {
+              browserClean = `Chrome ${chromeVer[1]} Safari/537.36`;
+            }
+          } else if (rest.includes("Firefox/")) {
+            const firefoxVer = rest.match(/Firefox\/([0-9.]+)/);
+            if (firefoxVer) {
+              browserClean = `Firefox ${firefoxVer[1]}`;
+            }
+          } else if (rest.includes("Safari/") && !rest.includes("Chrome/")) {
+            const safariVer = rest.match(/Version\/([0-9.]+)/);
+            if (safariVer) {
+              browserClean = `Safari ${safariVer[1]}`;
+            }
+          } else if (rest.includes("Edg/")) {
+            const edgVer = rest.match(/Edg\/([0-9.]+)/);
+            if (edgVer) {
+              browserClean = `Edge ${edgVer[1]}`;
+            }
+          }
+          
+          browserClean = browserClean.replace(/^Mozilla\/[0-9.]+\s*\(.*?\)\s*/, "");
+          browserClean = browserClean.replace(/AppleWebKit\/[0-9.]+\s*\(KHTML,\s*like\s*Gecko\)\s*/i, "");
+          
+          if (techRouteEl) techRouteEl.textContent = ruta;
+          if (techOsEl) techOsEl.textContent = os;
+          if (techBrowserEl) techBrowserEl.textContent = browserClean;
+        } else {
+          if (useragentContainer) useragentContainer.classList.add("hidden");
         }
 
         // Rellenar asignación
