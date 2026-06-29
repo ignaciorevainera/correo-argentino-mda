@@ -2,6 +2,8 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
@@ -104,103 +106,16 @@ if (!guide) {
 
       <form method="POST" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="form-control w-full">
-            <label class="label" for="helpDeskName">
-              <span class="label-text font-bold">Mesa de Ayuda <span class="text-error">*</span></span>
-            </label>
-            <input 
-              type="text" 
-              id="helpDeskName"
-              name="helpDeskName" 
-              value={guide.helpDeskName}
-              required 
-              class="input input-bordered w-full focus:input-primary" 
-            />
-          </div>
-
-          <div class="form-control w-full">
-            <label class="label" for="legacyName">
-              <span class="label-text font-bold">Nombre Anterior</span>
-            </label>
-            <input 
-              type="text" 
-              id="legacyName"
-              name="legacyName" 
-              value={guide.legacyName || ""} 
-              class="input input-bordered w-full focus:input-primary" 
-            />
-          </div>
-
-          <div class="form-control w-full">
-            <label class="label" for="invgateName">
-              <span class="label-text font-bold">Nombre Invgate</span>
-            </label>
-            <input 
-              type="text" 
-              id="invgateName"
-              name="invgateName" 
-              value={guide.invgateName || ""} 
-              class="input input-bordered w-full focus:input-primary" 
-            />
-          </div>
-
-          <div class="form-control w-full">
-            <label class="label" for="route">
-              <span class="label-text font-bold">Ruta</span>
-            </label>
-            <input 
-              type="text" 
-              id="route"
-              name="route" 
-              value={guide.route || ""} 
-              class="input input-bordered w-full focus:input-primary" 
-            />
-          </div>
+          <FormField id="helpDeskName" name="helpDeskName" label="Mesa de Ayuda" value={guide.helpDeskName} required />
+          <FormField id="legacyName" name="legacyName" label="Nombre Anterior" value={guide.legacyName || ""} />
+          <FormField id="invgateName" name="invgateName" label="Nombre Invgate" value={guide.invgateName || ""} />
+          <FormField id="route" name="route" label="Ruta" value={guide.route || ""} />
         </div>
 
-        <div class="form-control w-full">
-          <label class="label" for="topics">
-            <span class="label-text font-bold">Tópicos (JSON array o texto separado)</span>
-          </label>
-          <textarea 
-            id="topics"
-            name="topics" 
-            class="textarea textarea-bordered w-full h-24 focus:textarea-primary font-mono text-sm"
-          >{guide.topics || ""}</textarea>
-        </div>
-
-        <div class="form-control w-full">
-          <label class="label" for="contacts">
-            <span class="label-text font-bold">Contactos</span>
-          </label>
-          <textarea 
-            id="contacts"
-            name="contacts" 
-            class="textarea textarea-bordered w-full h-24 focus:textarea-primary"
-          >{guide.contacts || ""}</textarea>
-        </div>
-
-        <div class="form-control w-full">
-          <label class="label" for="referents">
-            <span class="label-text font-bold">Referentes</span>
-          </label>
-          <textarea 
-            id="referents"
-            name="referents" 
-            class="textarea textarea-bordered w-full h-24 focus:textarea-primary"
-          >{guide.referents || ""}</textarea>
-        </div>
-
-        <div class="form-control w-full">
-          <label class="label" for="notes">
-            <span class="label-text font-bold">Notas</span>
-          </label>
-          <textarea 
-            id="notes"
-            name="notes" 
-            class="textarea textarea-bordered w-full h-24 focus:textarea-primary"
-          >{guide.notes || ""}</textarea>
-        </div>
+        <FormTextarea id="topics" name="topics" label="Tópicos (JSON array o texto separado)" textareaClass="font-mono" rows={5} value={guide.topics || ""} />
+        <FormTextarea id="contacts" name="contacts" label="Contactos" rows={5} value={guide.contacts || ""} />
+        <FormTextarea id="referents" name="referents" label="Referentes" rows={5} value={guide.referents || ""} />
+        <FormTextarea id="notes" name="notes" label="Notas" rows={5} value={guide.notes || ""} />
 
         <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-base-200">
           <a href={`${cleanBase}soportes`} class="btn btn-ghost">
