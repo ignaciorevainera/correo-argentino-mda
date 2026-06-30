@@ -68,7 +68,7 @@ export interface InvgateIncidentsResponse {
 export interface InvgateLocation {
   id: number;
   name: string;
-  parent_id: number;
+  parent_id: number | null;
   total: number;
 }
 
