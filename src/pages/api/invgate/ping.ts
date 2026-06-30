@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
-import type { InvgateIncidentsResponse } from "@/types/invgate";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -10,7 +9,7 @@ export const GET: APIRoute = async ({ locals }) => {
 
   try {
     const start = Date.now();
-    const result = await invgateGet<InvgateIncidentsResponse>("incidents?page=1&page_size=1");
+    const result = await invgateGet<{ version: string }>("sd.version");
     const elapsed = Date.now() - start;
 
     if (!result.ok) {
@@ -24,8 +23,7 @@ export const GET: APIRoute = async ({ locals }) => {
     return jsonResponse({
       ok: true,
       elapsed,
-      totalIncidents: result.data.pagination?.total_entries ?? 0,
-      sample: result.data.data?.[0] ?? null,
+      version: result.data.version,
     });
   } catch (error: any) {
     console.error("[InvGate Ping] Error:", error);

@@ -216,7 +216,25 @@ export const provincesRelations = relations(provinces, ({ one, many }) => ({
 
 export const regionsRelations = relations(regions, ({ many }) => ({
   provinces: many(provinces),
+  technologyReferents: many(technologyReferents),
 }));
+
+export const technologyReferents = sqliteTable("technology_referents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  regionId: text("regionId")
+    .notNull()
+    .references(() => regions.id, { onDelete: "cascade" }),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+});
+
+export const technologyReferentsRelations = relations(technologyReferents, ({ one }) => ({
+  region: one(regions, {
+    fields: [technologyReferents.regionId],
+    references: [regions.id],
+  }),
+}));
+
 
 export const cubics = sqliteTable("cubics", {
   id: integer("id").primaryKey({ autoIncrement: true }),
