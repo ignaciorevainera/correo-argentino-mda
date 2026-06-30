@@ -1,0 +1,281 @@
+---
+import { getResolvedSearchParams } from "@lib/navigation";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { Icon } from "astro-icon/components";
+
+const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
+const page = parseInt(searchParams.get("page") ?? "1", 10) || 1;
+const filter = searchParams.get("filter") ?? "all";
+const q = searchParams.get("q") ?? "";
+const sync = searchParams.get("sync") === "true";
+
+// Call API locally
+const cookie = Astro.request.headers.get("cookie") || "";
+const apiUrl = new URL("/api/invgate/locations", Astro.url.origin);
+apiUrl.searchParams.set("page", page.toString());
+apiUrl.searchParams.set("filter", filter);
+apiUrl.searchParams.set("q", q);
+if (sync) {
+  apiUrl.searchParams.set("action", "sync");
+}
+
+let apiData: any = null;
+let apiError = "";
+
+try {
+  const res = await fetch(apiUrl.toString(), {
+    headers: {
+      cookie,
+    },
+  });
+  if (res.ok) {
+    apiData = await res.json();
+  } else {
+    const errorText = await res.text();
+    apiError = `Error ${res.status}: ${errorText}`;
+  }
+} catch (err: any) {
+  apiError = err.message;
+}
+
+const hasRun = apiData && apiData.stats !== null;
+const stats = apiData?.stats;
+const results = apiData?.results || [];
+const pagination = apiData?.pagination || { page: 1, limit: 50, totalPages: 1, totalItems: 0 };
+
+const headerGridClass = "grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] gap-4";
+const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] items-center gap-4";
+---
+
+<PageContainer width="xl">
+  <PageHeader
+    title="Ubicaciones InvGate"
+    description="Comparativa de ubicaciones reportadas por InvGate contra las oficinas registradas en la base de datos de MDA."
+  />
+
+  {apiError && (
+    <div class="alert alert-error my-4 shadow-sm" role="alert">
+      <Icon name="boxicons:error-circle-solid" size={24} aria-hidden="true" />
+      <div>
+        <h3 class="font-bold">Error de sincronización</h3>
+        <p class="text-sm">{apiError}</p>
+      </div>
+    </div>
+  )}
+
+  {!hasRun ? (
+    /* --- EMPTY STATE (NOT SYNCED YET) --- */
+    <div class="flex flex-col items-center justify-center text-center p-12 my-8 bg-base-100 border border-base-200 rounded-2xl shadow-sm">
+      <div class="rounded-full bg-base-200 p-6 mb-4 text-base-content/40">
+        <Icon name="boxicons:map-alt" size={48} aria-hidden="true" />
+      </div>
+      <h2 class="text-xl font-bold mb-2 text-base-content">Sin datos de comparación</h2>
+      <p class="max-w-md text-base-content/70 mb-6 text-sm">
+        Aún no se ha realizado la comparación de ubicaciones entre InvGate y la base de datos de MDA. Sincronice los datos para comenzar.
+      </p>
+      <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-primary btn-md gap-2">
+        <Icon name="boxicons:sync" size={20} aria-hidden="true" />
+        Sincronizar ahora
+      </a>
+    </div>
+  ) : (
+    /* --- COMPARISON RUNS / CACHED CONTENT --- */
+    <div>
+      <!-- Stats Summary cards -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 my-6">
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total InvGate</span>
+          <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalInvgate}</span>
+        </div>
+        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-success">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Matcheados</span>
+          <span class="text-2xl font-bold mt-1 text-success">{stats.matched}</span>
+        </div>
+        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-error">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Sin match</span>
+          <span class="text-2xl font-bold mt-1 text-error">{stats.unmatchedInvgate}</span>
+        </div>
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total MDA</span>
+          <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalMda}</span>
+        </div>
+      </div>
+
+      <!-- Search & Filters Toolbar -->
+      <div class="mb-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+        <!-- Filter buttons -->
+        <div class="join border border-base-200 rounded-lg">
+          <a
+            href={`/admin/invgate/ubicaciones?filter=all&q=${encodeURIComponent(q)}`}
+            class:list={["join-item btn btn-md", filter === "all" ? "btn-active btn-neutral" : "bg-base-100"]}
+          >
+            Todos
+          </a>
+          <a
+            href={`/admin/invgate/ubicaciones?filter=matched&q=${encodeURIComponent(q)}`}
+            class:list={["join-item btn btn-md", filter === "matched" ? "btn-active btn-neutral" : "bg-base-100"]}
+          >
+            Matcheados
+          </a>
+          <a
+            href={`/admin/invgate/ubicaciones?filter=unmatched&q=${encodeURIComponent(q)}`}
+            class:list={["join-item btn btn-md", filter === "unmatched" ? "btn-active btn-neutral" : "bg-base-100"]}
+          >
+            Sin match
+          </a>
+        </div>
+
+        <div class="flex gap-2">
+          <!-- Trigger Sync -->
+          <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-outline btn-md gap-2" title="Volver a sincronizar">
+            <Icon name="boxicons:sync" size={18} aria-hidden="true" />
+            Sincronizar
+          </a>
+
+          <!-- Search Form -->
+          <form method="GET" action="/admin/invgate/ubicaciones" class="relative w-full md:w-80">
+            <input type="hidden" name="filter" value={filter} />
+            <input
+              type="text"
+              name="q"
+              value={q}
+              placeholder="Buscar ubicación, NIS, CP..."
+              class="input input-bordered w-full pr-10"
+            />
+            <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content" aria-label="Buscar">
+              <Icon name="boxicons:search" size={20} aria-hidden="true" />
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      {results.length === 0 ? (
+        <div class="flex flex-col items-center justify-center text-center p-12 bg-base-100 border border-base-200 rounded-xl">
+          <div class="rounded-full bg-base-200 p-4 mb-2 text-base-content/40">
+            <Icon name="boxicons:search" size={32} aria-hidden="true" />
+          </div>
+          <p class="text-base-content/60 text-sm">No se encontraron ubicaciones para la búsqueda o filtro seleccionado.</p>
+        </div>
+      ) : (
+        <div class="space-y-4">
+          <DataTable
+            ariaLabel="Resultados de la comparación de ubicaciones"
+            minWidthClass="min-w-[1000px]"
+            headerGridClass={headerGridClass}
+            rowGridClass={rowGridClass}
+          >
+            <div slot="header"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>Ubicación InvGate</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>NIS</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>CP</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>CC</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>Oficina MDA</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>Código MDA</DataTableHeaderCell></div>
+            <div slot="header"><DataTableHeaderCell>Dirección MDA</DataTableHeaderCell></div>
+
+            {results.map((row: any) => {
+              const { invgateLocation, officeCode, mdaOffice, matched } = row;
+              return (
+                <div class:list={[rowGridClass, "border-b border-base-200 px-4 py-3 last:border-b-0"]}>
+                  <div>
+                    {matched ? (
+                      <span class="badge badge-success text-success-content badge-sm font-medium">Match</span>
+                    ) : (
+                      <span class="badge badge-error text-error-content badge-sm font-medium">Sin match</span>
+                    )}
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-medium text-sm text-base-content truncate" title={invgateLocation.displayName}>
+                      {invgateLocation.displayName}
+                    </span>
+                    <span class="text-xs text-base-content/50 truncate" title={invgateLocation.name}>
+                      {invgateLocation.name}
+                    </span>
+                  </div>
+                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.nis || "—"}</div>
+                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cp || "—"}</div>
+                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cc || "—"}</div>
+                  <div>
+                    {matched ? (
+                      <span class="text-sm text-base-content font-medium">{mdaOffice?.name}</span>
+                    ) : (
+                      <div class="flex items-center gap-2">
+                        <span class="text-base-content/40">—</span>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
+                          title="Copiar detalles de ubicación"
+                          onclick={`copyToClipboard('${invgateLocation.name}')`}
+                          aria-label="Copiar detalles"
+                        >
+                          <Icon name="boxicons:copy" class="size-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div class="text-sm font-mono text-base-content/85">{matched ? officeCode : "—"}</div>
+                  <div class="text-sm text-base-content/80 truncate" title={matched ? mdaOffice?.address : "—"}>
+                    {matched ? mdaOffice?.address : "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </DataTable>
+
+          <!-- Pagination -->
+          {pagination.totalPages > 1 && (
+            <div class="flex justify-center mt-6">
+              <div class="join border border-base-200 rounded-lg">
+                <a
+                  href={`/admin/invgate/ubicaciones?page=${Math.max(1, pagination.page - 1)}&filter=${filter}&q=${encodeURIComponent(q)}`}
+                  class:list={["join-item btn btn-md", pagination.page === 1 && "btn-disabled"]}
+                >
+                  « Anterior
+                </a>
+                <span class="join-item btn btn-md bg-base-100 pointer-events-none text-sm font-medium">
+                  Página {pagination.page} de {pagination.totalPages}
+                </span>
+                <a
+                  href={`/admin/invgate/ubicaciones?page=${Math.min(pagination.totalPages, pagination.page + 1)}&filter=${filter}&q=${encodeURIComponent(q)}`}
+                  class:list={["join-item btn btn-md", pagination.page === pagination.totalPages && "btn-disabled"]}
+                >
+                  Siguiente »
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )}
+</PageContainer>
+
+<script is:inline>
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      // Create a transient toast alert using DaisyUI style classes
+      const toast = document.createElement("div");
+      toast.className = "toast toast-end toast-bottom z-50 p-4";
+      toast.innerHTML = `
+        <div class="alert alert-success shadow-md py-3 px-5 text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 stroke-current" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Copiado al portapapeles</span>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 2000);
+    }).catch(err => {
+      console.error("Fallo al copiar: ", err);
+    });
+  }
+</script>

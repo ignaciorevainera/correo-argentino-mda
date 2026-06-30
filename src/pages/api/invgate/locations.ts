@@ -27,6 +27,19 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const q = url.searchParams.get("q") ?? "";
 
     if (action === "sync" || cachedComparison === null) {
+      if (action !== "sync" && cachedComparison === null) {
+        return jsonResponse({
+          results: [],
+          stats: null,
+          pagination: {
+            page: 1,
+            limit,
+            totalPages: 1,
+            totalItems: 0,
+          },
+        });
+      }
+
       const response = await invgateGet<InvgateLocation[]>("locations");
       if (!response.ok) {
         return jsonResponse({ error: response.message }, response.status || 500);
