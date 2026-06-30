@@ -19,3 +19,9 @@ interface HTMLDialogElement extends HTMLElement {
 interface HTMLInputElement extends HTMLElement {
   value: string;
 }
+
+interface ImportMetaEnv {
+  readonly INVGATE_API_KEY: string;
+  readonly INVGATE_BASE_URL: string;
+  readonly INVGATE_API_USERNAME: string;
+}
