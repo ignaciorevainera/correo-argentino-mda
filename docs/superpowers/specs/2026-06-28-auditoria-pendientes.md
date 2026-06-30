@@ -9,8 +9,8 @@
 
 | Estado | Cantidad |
 |--------|----------|
-| 🔴 Pendientes | 8 items |
-| ✅ Resueltos (sesiones previas + actual) | 16 |
+| 🔴 Pendientes | 7 items |
+| ✅ Resueltos (sesiones previas + actual) | 17 |
 
 ---
 
@@ -72,25 +72,24 @@ Nota: aumentó de 14 a 18 vs auditoría original (se agregaron 4 en `notificatio
 
 ## P2 — Mejora de calidad
 
-### 3.6 / N3.10 🟢 Clases de input/label repetidas
+### 3.6 / N3.10 🟢 Clases de input/label repetidas **[RESUELTO 2026-06-29]**
 
-Patrones repetidos que persisten:
+Patrones repetidos que persistían (resueltos):
 
-| Patrón | Conteo | Archivos |
-|--------|--------|----------|
-| `label-text font-bold text-xs uppercase text-base-content/60` | 17 | cronograma modals, CalidadContent |
-| `label-text font-bold text-xs uppercase text-base-content/40 tracking-wider` | 6 | EditUserModal, AsignacionContent |
-| `label-text font-bold text-xs uppercase tracking-wider text-base-content/70` | 1 | AsignacionContent |
-| `input-bordered input-sm font-bold w-(full\|32) focus:outline-none focus:border-secondary bg-base-100` | 5 | RulesSettings, OperatorForm, CalidadContent |
-| `input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-(primary\|secondary) bg-base-100` | 5 | OperatorForm, NewMonth, CalidadContent |
-| `input input-bordered w-full focus:input-primary` (N3.10) | 8 | soportes create/edit |
-| `textarea textarea-bordered w-full h-24 focus:textarea-primary` (N3.10) | 8 | soportes create/edit |
-| ⚠️ `file-input file-input-bordered w-full` | ~~8~~ **0** ✅ | Resuelto vía FormField |
-| `fieldset-legend` (clase raw) | **0** ✅ | Resuelto vía FormLegend |
+| Patrón | Conteo | Resolución |
+|--------|--------|-----------|
+| `label-text font-bold text-xs uppercase text-base-content/60` | 17 | Reemplazado vía FormField/FormTextarea/SelectField |
+| `label-text font-bold text-xs uppercase text-base-content/40 tracking-wider` | 6 | Reemplazado vía FormField/SelectField |
+| `label-text font-bold text-xs uppercase tracking-wider text-base-content/70` | 1 | Reemplazado vía SelectField |
+| `input-bordered input-sm font-bold w-(full\|32) focus:outline-none focus:border-secondary bg-base-100` | 5 | Reemplazado vía FormField |
+| `input-bordered input-sm font-mono font-bold w-full focus:outline-none focus:border-(primary\|secondary) bg-base-100` | 5 | Reemplazado vía FormField |
+| `input input-bordered w-full focus:input-primary` (N3.10) | 8 | Reemplazado vía FormField |
+| `textarea textarea-bordered w-full h-24 focus:textarea-primary` (N3.10) | 8 | Reemplazado vía FormTextarea |
+| ⚠️ `file-input file-input-bordered w-full` | **0** ✅ | Resuelto vía FormField |
 
-**Fix:** Crear `FormLabel`, `FormInput`, `FormTextarea` y reemplazar. N3.10 (soportes) usa misma solución que 3.6.
-**Esfuerzo:** 2-3 h (parcialmente avanzado con FormField/FormLegend).
-**Impacto:** -300+ líneas.
+**Fix:** Se creó `FormTextarea.astro`, se extendió `FormField.astro` y `SelectField.astro` con prop `size`. Se reemplazaron raw elements en ~18 archivos abarcando soportes CRUD, FeedbackModal, EditUserModal, OfficeForm, admin/aplicativos, admin/contactos, OperatorFormModal, NewMonthModal, RulesSettingsModal, OperatorDrawer, CalidadContent, y AsignacionContent. Quedaron fuera por JS-coupling o custom styling: CronogramaDashboard (select con span hermano), HolidaysModal (inputs sin label), MonthlyDetailModal (table cell inputs con focus/ring custom).
+**Esfuerzo:** ~2 h.
+**Impacto:** ~450-500 líneas eliminadas en total.
 
 ### N3.9 🟡 `text-tiny font-black uppercase tracking-wider` 35 veces
 
@@ -153,7 +152,7 @@ Peso con DaisyUI completo: 264 KB (vs 263 KB original). Estable pero purgable.
 | **P0** | 1.5 | 🔴 `security.checkOrigin: false` | 5 min | Seguridad |
 | **P1** | 3.1 | 🔴 21 diálogos raw sin Modal.astro | 2-4 h | -400+ líneas |
 | **P1** | N3.11 | 🟡 Botones repetidos (18 instancias) | 30 min | -50+ líneas |
-| **P2** | 3.6/N3.10 | 🟢 Clases input/label/textarea repetidas | 2-3 h | -300+ líneas |
+| **P2** | 3.6/N3.10 | 🟢 Clases input/label/textarea repetidas | 2 h | ✅ Resuelto (-450 líneas) |
 | **P2** | N3.9 | 🟡 `text-tiny font-black` 35 veces | 15 min | Mantenibilidad |
 | **P3** | 2.3 | 🟢 CSS bundle 264 KB | 30 min | Rendimiento |
 | **P3** | 4.1 | 🟢 Migrar TitleDrawer + Skeleton a Astro | 1 h | -100+ líneas React |

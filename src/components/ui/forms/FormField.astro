@@ -10,6 +10,7 @@ interface Props extends HTMLAttributes<"input"> {
   helpText?: string;
   inputClass?: string;
   icon?: string;
+  size?: "default" | "sm" | "xs";
 }
 
 const {
@@ -20,9 +21,12 @@ const {
   type = "text",
   inputClass = "",
   icon,
+  size = "default",
   class: className = "",
   ...rest
 } = Astro.props;
+
+const sizeClass = size === "sm" ? "input-sm" : size === "xs" ? "input-xs" : "";
 ---
 
 <fieldset class:list={["fieldset", className]}>
@@ -43,7 +47,7 @@ const {
         />
       </div>
     ) : icon ? (
-      <label class:list={["input input-bordered w-full flex items-center gap-2", inputClass]}>
+      <label class:list={["input input-bordered w-full flex items-center gap-2", sizeClass, inputClass]}>
         <Icon name={icon} size={16} class="opacity-50 shrink-0" />
         <input
           type={type}
@@ -58,7 +62,7 @@ const {
         type={type}
         id={id}
         name={name}
-        class:list={["input input-bordered w-full", inputClass]}
+        class:list={["input input-bordered w-full", sizeClass, inputClass]}
         {...rest}
       />
     )
