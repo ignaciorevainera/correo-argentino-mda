@@ -1,6 +1,8 @@
 import { db } from "@db/index";
-import { agents, schedules } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { agents, schedules, assignmentLock } from "@db/schema";
+import { eq, and } from "drizzle-orm";
+
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos
 
 export interface AgentDisponibilidad {
   agentId: number;
@@ -418,4 +420,108 @@ export async function deshacerAsignacion(): Promise<{ success: boolean; agentNam
     .where(eq(agents.id, target.id));
 
   return { success: true, agentName: target.name };
+}
+
+export function isLockExpired(lastActivityAt: number, releaseRequested: boolean = false): boolean {
+  const timeout = releaseRequested ? 1 * 60 * 1000 : LOCK_TIMEOUT_MS;
+  return Date.now() > lastActivityAt + timeout;
+}
+
+export async function getLockStatus(): Promise<
+  { status: "free" } |
+  { status: "occupied"; user: { userId: number; username: string; acquiredAt: number; lastActivityAt: number; releaseRequested: boolean } } |
+  { status: "expired"; user: { userId: number; username: string; lastActivityAt: number } }
+> {
+  const [current] = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  if (!current) return { status: "free" };
+  const isExpired = isLockExpired(current.lastActivityAt, current.releaseRequested === 1);
+  if (isExpired) {
+    return { status: "expired", user: { userId: current.userId, username: current.username, lastActivityAt: current.lastActivityAt } };
+  }
+  return {
+    status: "occupied",
+    user: {
+      userId: current.userId,
+      username: current.username,
+      acquiredAt: current.acquiredAt,
+      lastActivityAt: current.lastActivityAt,
+      releaseRequested: current.releaseRequested === 1,
+    },
+  };
+}
+
+export async function acquireLock(userId: number, username: string): Promise<{ success: true } | { success: false; reason: "occupied"; holder: string } | { success: false; reason: "race_condition" }> {
+  return db.transaction((tx) => {
+    const currentList = tx.select().from(assignmentLock).where(eq(assignmentLock.id, 1)).all();
+    const current = currentList[0];
+    const now = Date.now();
+    if (current) {
+      const isExpired = isLockExpired(current.lastActivityAt, current.releaseRequested === 1);
+      if (isExpired) {
+        tx.update(assignmentLock).set({
+          userId, username, acquiredAt: now, lastActivityAt: now, releaseRequested: 0
+        }).where(eq(assignmentLock.id, 1)).run();
+        return { success: true };
+      } else if (current.userId !== userId) {
+        return { success: false, reason: "occupied" as const, holder: current.username };
+      } else {
+        tx.update(assignmentLock).set({
+          lastActivityAt: now, releaseRequested: 0
+        }).where(eq(assignmentLock.id, 1)).run();
+        return { success: true };
+      }
+    }
+    try {
+      tx.insert(assignmentLock).values({
+        id: 1, userId, username, acquiredAt: now, lastActivityAt: now, releaseRequested: 0,
+      }).run();
+      return { success: true };
+    } catch {
+      return { success: false, reason: "race_condition" as const };
+    }
+  });
+}
+
+export async function releaseLock(userId: number, isAdmin: boolean = false): Promise<boolean> {
+  if (isAdmin) {
+    await db.delete(assignmentLock).where(eq(assignmentLock.id, 1));
+    return true;
+  }
+  const [current] = await db.select({ userId: assignmentLock.userId }).from(assignmentLock).where(eq(assignmentLock.id, 1));
+  if (!current) return true;
+  if (current.userId !== userId) return false;
+  await db.delete(assignmentLock).where(eq(assignmentLock.id, 1));
+  return true;
+}
+
+export async function heartbeatLock(userId: number): Promise<void> {
+  await db.update(assignmentLock)
+    .set({ lastActivityAt: Date.now() })
+    .where(and(eq(assignmentLock.id, 1), eq(assignmentLock.userId, userId)));
+}
+
+export async function requestRelease(): Promise<void> {
+  await db.update(assignmentLock)
+    .set({ releaseRequested: 1 })
+    .where(eq(assignmentLock.id, 1));
+}
+
+import { jsonError } from "@lib/apiResponse";
+
+export async function ensureHasLock(locals: App.Locals): Promise<{ ok: true } | { ok: false; response: Response }> {
+  const status = await getLockStatus();
+  if (status.status === "free" || status.status === "expired") {
+    return {
+      ok: false,
+      response: jsonError("No tenés el control de asignación. Tomá el control primero.", 423),
+    };
+  }
+  if (status.user.userId !== locals.user?.id) {
+    return {
+      ok: false,
+      response: jsonError(`El control está en manos de ${status.user.username}`, 423),
+    };
+  }
+  await heartbeatLock(locals.user.id);
+  return { ok: true };
 }

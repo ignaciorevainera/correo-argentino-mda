@@ -12,6 +12,7 @@ import {
   getDisponibilidadHoy,
   asignarSiguienteAutogestion,
   asignarManual,
+  getLockStatus,
 } from "@lib/disponibilidad";
 
 import { normalizeRole } from "@lib/rbac";
@@ -21,7 +22,19 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
 const user = Astro.locals.user;
 const role = normalizeRole(user.role);
-const isReadOnly = role === "agent";
+
+const lockStatus = await getLockStatus();
+let hasLock = false;
+let lockHolderName: string | null = null;
+let lockReleaseRequested = false;
+
+if (lockStatus.status === "occupied") {
+  hasLock = lockStatus.user.userId === user?.id;
+  lockHolderName = lockStatus.user.username;
+  lockReleaseRequested = lockStatus.user.releaseRequested;
+}
+
+const isReadOnly = role === "agent" || !hasLock;
 
 let flashMessage: { type: "success" | "error"; text: string } | null = null;
 
@@ -311,6 +324,47 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       </button>
     </div>
   </div>
+
+  <!-- Lock banner -->
+  {
+    role !== "agent" && (
+      <div
+        id="lock-banner"
+        class="mb-6 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 text-sm font-semibold transition-all duration-300"
+        class:list={{
+          "bg-success/10 border-success/30 text-success-content": hasLock,
+          "bg-warning/10 border-warning/30 text-warning-content": !hasLock && lockStatus.status === "free",
+          "bg-error/10 border-error/30 text-error-content": !hasLock && lockStatus.status === "occupied",
+          "bg-neutral/10 border-neutral/30 text-neutral-content": !hasLock && lockStatus.status === "expired",
+        }}
+      >
+        <div class="flex items-center gap-2">
+          {hasLock && (
+            <span>
+              Tenés el control de asignación
+              {lockReleaseRequested && <span class="text-warning ml-2 font-bold">(Solicitaron que liberes el control)</span>}
+            </span>
+          )}
+          {!hasLock && lockStatus.status === "free" && <span>Sin asignador activo</span>}
+          {!hasLock && lockStatus.status === "occupied" && <span><strong>{lockHolderName}</strong> está asignando autogestiones</span>}
+          {!hasLock && lockStatus.status === "expired" && <span>La sesión de <strong>{lockHolderName}</strong> expiró</span>}
+        </div>
+        <div class="flex items-center gap-2">
+          {!hasLock && lockStatus.status !== "occupied" && (
+            <button type="button" id="btn-acquire-lock" class="btn btn-primary btn-sm font-bold uppercase tracking-wider shadow-sm">Tomar control</button>
+          )}
+          {!hasLock && lockStatus.status === "occupied" && (
+            <button type="button" id="btn-request-release" class="btn btn-ghost btn-sm font-bold uppercase tracking-wider" disabled={lockReleaseRequested}>
+              {lockReleaseRequested ? "Solicitud enviada" : "Pedir liberación"}
+            </button>
+          )}
+          {hasLock && (
+            <button type="button" id="btn-release-lock" class="btn btn-ghost btn-sm font-bold uppercase tracking-wider text-error">Liberar control</button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   <div id="alert-container">
     {
@@ -1513,14 +1567,18 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ agentId, tipo, motivo, tiempoExtra }),
               });
+              const resData = await res.json();
+              if (res.status === 423) {
+                modal.close();
+                showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+                setTimeout(() => window.location.reload(), 1500);
+                return;
+              }
               if (res.ok) {
                 modal.close();
                 await fetchDisponibilidad();
               } else {
-                const err = await res.json();
-                alert(
-                  `Error: ${err.error || "No se pudo marcar el estado excepcional"}`,
-                );
+                showAlert("error", resData.error || "No se pudo marcar el estado excepcional");
               }
             } catch (err) {
               console.error(err);
@@ -1546,13 +1604,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ agentId }),
             });
+            const resData = await res.json();
+            if (res.status === 423) {
+              showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+              setTimeout(() => window.location.reload(), 1500);
+              return;
+            }
             if (res.ok) {
               await fetchDisponibilidad();
             } else {
-              const err = await res.json();
-              alert(
-                `Error: ${err.error || "No se pudo levantar la excepción"}`,
-              );
+              showAlert("error", resData.error || "No se pudo levantar la excepción");
             }
           } catch (err) {
             console.error(err);
@@ -1573,6 +1634,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             headers: { "Content-Type": "application/json" }
           });
           const resData = await res.json();
+          if (res.status === 423) {
+            showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+            setTimeout(() => window.location.reload(), 1500);
+            return;
+          }
           if (res.ok && resData.success) {
             showAlert("success", `Asignación de ${resData.agentName} deshecha.`);
             await fetchDisponibilidad();
@@ -1596,6 +1662,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             headers: { "Content-Type": "application/json" }
           });
           const data = await res.json();
+          if (res.status === 423) {
+            showAlert("error", data.error || "Perdiste el control de asignación. Recargando...");
+            setTimeout(() => window.location.reload(), 1500);
+            return;
+          }
           if (res.ok && data.success && data.agent) {
             showAlert("success", `Autogestión asignada cíclicamente a ${data.agent.nombre || data.agent.name}.`);
             await fetchDisponibilidad();
@@ -1624,6 +1695,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               body: JSON.stringify({ agentId }),
             });
             const data = await res.json();
+            if (res.status === 423) {
+              showAlert("error", data.error || "Perdiste el control de asignación. Recargando...");
+              setTimeout(() => window.location.reload(), 1500);
+              return;
+            }
             if (res.ok && data.success) {
               showAlert("success", `Autogestión asignada manualmente a ${data.agentName}.`);
               await fetchDisponibilidad();
@@ -1677,6 +1753,105 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         document.querySelectorAll(".dropdown.dropdown-open").forEach((d) => {
           d.classList.remove("dropdown-open");
         });
+      }
+    });
+
+    // Lock heartbeat cada 2 minutos
+    const LOCK_HEARTBEAT_MS = 2 * 60 * 1000;
+    let heartbeatInterval: any = null;
+
+    const startHeartbeat = () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = setInterval(async () => {
+        try {
+          const res = await fetch("/api/disponibilidad/lock/heartbeat", { method: "POST" });
+          if (!res.ok) {
+            console.warn("Heartbeat failed, lock might have been lost");
+          }
+        } catch (err) {
+          console.error("Heartbeat error:", err);
+        }
+      }, LOCK_HEARTBEAT_MS);
+    };
+
+    // Acquire lock
+    const acquireLockBtn = document.getElementById("btn-acquire-lock");
+    if (acquireLockBtn) {
+      acquireLockBtn.addEventListener("click", async () => {
+        acquireLockBtn.setAttribute("disabled", "true");
+        acquireLockBtn.innerText = "Adquiriendo...";
+        try {
+          const res = await fetch("/api/disponibilidad/lock", { method: "POST" });
+          if (res.ok) {
+            window.location.reload();
+          } else {
+            const data = await res.json();
+            showAlert("error", data.error || "No se pudo adquirir el control");
+            acquireLockBtn.removeAttribute("disabled");
+            acquireLockBtn.innerText = "Tomar control";
+          }
+        } catch (err: any) {
+          showAlert("error", "Error al adquirir el control");
+          acquireLockBtn.removeAttribute("disabled");
+          acquireLockBtn.innerText = "Tomar control";
+        }
+      });
+    }
+
+    // Release lock
+    const releaseLockBtn = document.getElementById("btn-release-lock");
+    if (releaseLockBtn) {
+      releaseLockBtn.addEventListener("click", async () => {
+        releaseLockBtn.setAttribute("disabled", "true");
+        try {
+          const res = await fetch("/api/disponibilidad/lock", { method: "DELETE" });
+          if (res.ok) {
+            window.location.reload();
+          } else {
+            const data = await res.json();
+            showAlert("error", data.error || "No se pudo liberar el control");
+            releaseLockBtn.removeAttribute("disabled");
+          }
+        } catch (err: any) {
+          showAlert("error", "Error al liberar el control");
+          releaseLockBtn.removeAttribute("disabled");
+        }
+      });
+    }
+
+    // Request release
+    const requestReleaseBtn = document.getElementById("btn-request-release");
+    if (requestReleaseBtn) {
+      requestReleaseBtn.addEventListener("click", async () => {
+        requestReleaseBtn.setAttribute("disabled", "true");
+        requestReleaseBtn.innerText = "Enviando...";
+        try {
+          const res = await fetch("/api/disponibilidad/lock/request-release", { method: "POST" });
+          if (res.ok) {
+            requestReleaseBtn.innerText = "Solicitud enviada";
+          } else {
+            showAlert("error", "No se pudo enviar la solicitud");
+            requestReleaseBtn.innerText = "Pedir liberación";
+            requestReleaseBtn.removeAttribute("disabled");
+          }
+        } catch (err: any) {
+          showAlert("error", "Error al solicitar liberación");
+          requestReleaseBtn.removeAttribute("disabled");
+          requestReleaseBtn.innerText = "Pedir liberación";
+        }
+      });
+    }
+
+    // Start heartbeat if we have the lock
+    const banner = document.getElementById("lock-banner");
+    if (banner && banner.classList.contains("bg-success/10")) {
+      startHeartbeat();
+    }
+
+    // Release lock on page unload using fetch with keepalive: true
+    window.addEventListener("beforeunload", () => {
+      if (banner && banner.classList.contains("bg-success/10")) {
+        fetch("/api/disponibilidad/lock", { method: "DELETE", keepalive: true });
       }
     });
 

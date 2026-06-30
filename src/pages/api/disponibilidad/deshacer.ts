@@ -1,22 +1,24 @@
 import type { APIRoute } from "astro";
-import { deshacerAsignacion } from "@lib/disponibilidad";
+import { deshacerAsignacion, ensureHasLock } from "@lib/disponibilidad";
 import { normalizeRole } from "@lib/rbac";
+import { jsonResponse, jsonError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ locals }) => {
-  const user = locals.user;
-  const role = normalizeRole(user?.role);
+  const role = normalizeRole(locals.user?.role);
   if (role === "agent") {
-    return new Response(JSON.stringify({ error: "No autorizado" }), { status: 403 });
+    return jsonError("No autorizado", 403);
   }
+
+  const lockCheck = await ensureHasLock(locals);
+  if (!lockCheck.ok) return lockCheck.response;
 
   try {
     const res = await deshacerAsignacion();
     if (res.success) {
-      return new Response(JSON.stringify({ success: true, agentName: res.agentName }), { status: 200 });
-    } else {
-      return new Response(JSON.stringify({ error: res.error }), { status: 400 });
+      return jsonResponse({ success: true, agentName: res.agentName }, 200);
     }
+    return jsonResponse({ error: res.error }, 400);
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message || "Error al deshacer la asignación" }), { status: 500 });
+    return jsonResponse({ error: e.message || "Error al deshacer la asignación" }, 500);
   }
 };

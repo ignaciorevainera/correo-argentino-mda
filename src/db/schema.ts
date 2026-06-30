@@ -758,3 +758,12 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const assignmentLock = sqliteTable("assignment_lock", {
+  id: integer("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  username: text("username").notNull(),
+  acquiredAt: integer("acquired_at").notNull(),
+  lastActivityAt: integer("last_activity_at").notNull(),
+  releaseRequested: integer("release_requested").notNull().default(0),
+});

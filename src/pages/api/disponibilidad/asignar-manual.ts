@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { asignarManual } from "@lib/disponibilidad";
+import { asignarManual, ensureHasLock } from "@lib/disponibilidad";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -9,6 +9,9 @@ import { jsonResponse } from "@lib/apiResponse";
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "asignacion_ag");
   if (denied) return denied;
+
+  const lockCheck = await ensureHasLock(locals);
+  if (!lockCheck.ok) return lockCheck.response;
 
   try {
     const { agentId } = await request.json();
