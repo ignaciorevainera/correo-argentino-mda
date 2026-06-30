@@ -490,13 +490,18 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card Cola de Asignación -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden"
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-all duration-300"
       style="min-height: 210px"
     >
+      <div
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+      >
+        <Icon name="boxicons:sparkles" size={128} />
+      </div>
       <div class="card-body p-6 flex flex-col h-full">
         <div class="flex items-center gap-3 mb-3 shrink-0">
           <div class="p-2 bg-primary/10 rounded-lg text-primary">
-            <Icon name="boxicons:sparkles" size={20} />
+            <Icon name="boxicons:sparkles" size={24} />
           </div>
           <h3 class="font-bold text-xs uppercase tracking-widest text-base-content/50">
             Próximos en Cola
@@ -504,19 +509,18 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         </div>
         <div id="queue-container" class="relative flex-1 overflow-hidden">
           {
-            [0, 1, 2, 3].map((idx) => {
-              const op = nextSuggestedOperators[idx];
-              const displayStyle = op ? "" : "display: none;";
-              const topStyle = `top: ${idx * 48}px;`;
-              return (
-                <div
-                  data-queue-pos={idx}
-                  class="absolute inset-x-0 transition-all duration-400 ease-out"
-                  style={`${topStyle} ${displayStyle}`}
-                >
-                  {op ? (
-                    idx === 0 ? (
-                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+            nextSuggestedOperators.length > 0 ? (
+              nextSuggestedOperators.map((op, idx) => {
+                const topStyle = `top: ${idx * 48}px;`;
+                return (
+                  <div
+                    data-agent-id={op.agentId}
+                    data-queue-item
+                    class="absolute inset-x-0"
+                    style={topStyle}
+                  >
+                    {idx === 0 ? (
+                      <div class="flex items-center gap-2 py-1.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
                         <div class="min-w-0">
                           <div class="text-lg sm:text-xl font-black text-primary tracking-tight truncate">{op.nombre}</div>
@@ -524,7 +528,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                         </div>
                       </div>
                     ) : idx === 1 ? (
-                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                      <div class="flex items-center gap-2 py-1.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
                         <div class="min-w-0">
                           <div class="text-base font-bold text-base-content/70 truncate">{op.nombre}</div>
@@ -532,7 +536,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                         </div>
                       </div>
                     ) : idx === 2 ? (
-                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                      <div class="flex items-center gap-2 py-1.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
                         <div class="min-w-0">
                           <div class="text-sm font-semibold text-base-content/50 truncate">{op.nombre}</div>
@@ -540,24 +544,22 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                         </div>
                       </div>
                     ) : (
-                      <div class="flex items-center gap-2 py-1.5" style="transform: translateY(0px);">
+                      <div class="flex items-center gap-2 py-1.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
                         <div class="min-w-0">
                           <div class="text-xs font-medium text-base-content/35 truncate">{op.nombre}</div>
                           <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
                         </div>
                       </div>
-                    )
-                  ) : (
-                    idx === 0 ? (
-                      <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
-                        No hay operadores disponibles
-                      </div>
-                    ) : null
-                  )}
-                </div>
-              );
-            })
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+                No hay operadores disponibles
+              </div>
+            )
           }
         </div>
       </div>
@@ -582,7 +584,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       </label>
     </div>
     {!isReadOnly && (
-      <div class="m-0">
+      <div class="m-0 flex items-center gap-2">
+        <button
+          id="btn-undo"
+          type="button"
+          class="btn btn-secondary btn-outline btn-md shadow-sm transition-all duration-300"
+          disabled
+        >
+          <Icon name="boxicons:undo" size={20} aria-hidden="true" />
+          <span id="btn-undo-text">Deshacer</span>
+        </button>
         <button
           id="btn-assign-cyclic"
           type="button"
@@ -866,13 +877,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     let secondsSinceSync = 0;
 
-    // Initialize prevQueueNames from the SSR rendered elements
-    let prevQueueNames: string[] = Array.from(document.querySelectorAll("#queue-container [data-queue-pos]"))
-      .map((el) => {
-        const nameEl = el.querySelector(".truncate");
-        return nameEl ? nameEl.textContent || "" : "";
-      })
-      .filter((name) => name !== "");
+    // Initialize prevQueueIds from the SSR rendered elements
+    let prevQueueIds: number[] = Array.from(document.querySelectorAll("#queue-container [data-agent-id]"))
+      .map((el) => Number(el.getAttribute("data-agent-id")))
+      .filter((id) => !isNaN(id));
 
     const updateIndicatorText = () => {
       if (!syncIndicator) return;
@@ -906,6 +914,20 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     // Dynamic UI Update from API Response
     const updateUI = (data: any[]) => {
+      // Update Undo button state
+      const opWithUndo = data.find(op => op.lastAutogestionUndo !== null && op.lastAutogestionUndo !== undefined);
+      const btnUndo = document.getElementById("btn-undo") as HTMLButtonElement | null;
+      const btnUndoText = document.getElementById("btn-undo-text") as HTMLElement | null;
+      if (btnUndo && btnUndoText) {
+        if (opWithUndo) {
+          btnUndo.disabled = false;
+          btnUndoText.innerText = `Deshacer: ${opWithUndo.nombre}`;
+        } else {
+          btnUndo.disabled = true;
+          btnUndoText.innerText = "Deshacer";
+        }
+      }
+
       // 1. Calculate highlights (the one with the latest assignment)
       let maxAssignedTime = 0;
       let maxAgentId: number | null = null;
@@ -1041,9 +1063,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           return tA - tB;
         }).slice(0, 4);
 
-        const newNames = sortedQueue.map((op) => op.nombre);
+        const newIds = sortedQueue.map((op) => op.agentId);
 
-        const renderQueueItem = (op: any, index: number) => {
+        const renderQueueItemInner = (op: any, index: number) => {
           let dotClass = "bg-base-content/30";
           let itemStyle = "";
           let subtitleStyle = "";
@@ -1064,7 +1086,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           }
 
           return `
-            <div class="flex items-center gap-2 py-1.5 transition-all duration-300">
+            <div class="flex items-center gap-2 py-1.5">
               <div class="w-1.5 h-1.5 rounded-full ${dotClass} shrink-0"></div>
               <div class="min-w-0">
                 <div class="${itemStyle}">${escapeHtml(op.nombre)}</div>
@@ -1074,64 +1096,64 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           `;
         };
 
-        // Detect change
-        if (JSON.stringify(newNames) !== JSON.stringify(prevQueueNames)) {
-          const slots = Array.from(queueContainer.querySelectorAll("[data-queue-pos]")) as HTMLElement[];
-
-          // Phase 1: capture old positions
-          const oldRects = slots.map((s) => s.getBoundingClientRect());
-
-          // Phase 2: update DOM (innerHTML of each slot)
-          slots.forEach((slot, i) => {
-            const op = sortedQueue[i];
-            if (op) {
-              slot.innerHTML = renderQueueItem(op, i);
-              slot.style.display = "";
-            } else {
-              if (i === 0) {
-                slot.innerHTML = `
+        if (JSON.stringify(newIds) !== JSON.stringify(prevQueueIds)) {
+          if (newIds.length === 0) {
+            const currentItems = Array.from(queueContainer.querySelectorAll("[data-agent-id]")) as HTMLElement[];
+            currentItems.forEach((el) => {
+              el.style.top = "-48px";
+              el.style.opacity = "0";
+            });
+            setTimeout(() => {
+              if (prevQueueIds.length === 0) {
+                queueContainer.innerHTML = `
                   <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
                     No hay operadores disponibles
                   </div>
                 `;
-                slot.style.display = "";
-              } else {
-                slot.innerHTML = "";
-                slot.style.display = "none";
               }
+            }, 400);
+          } else {
+            const emptyMsg = document.getElementById("stat-suggested-name-empty");
+            if (emptyMsg) {
+              emptyMsg.remove();
             }
-            slot.style.top = `${i * 48}px`;
-          });
 
-          // Phase 3: capture new positions
-          const newRects = slots.map((s) => s.getBoundingClientRect());
+            const currentItems = Array.from(queueContainer.querySelectorAll("[data-agent-id]")) as HTMLElement[];
 
-          // Phase 4: invert
-          slots.forEach((slot, i) => {
-            if (slot.style.display === "none") return;
-            const oldRect = oldRects[i];
-            const newRect = newRects[i];
-            const dy = oldRect ? oldRect.top - newRect.top : 0;
-            
-            slot.style.transform = `translateY(${dy}px)`;
-            slot.style.transition = "none";
-          });
-
-          // Force reflow
-          queueContainer.offsetHeight;
-
-          // Phase 5: play
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              slots.forEach((slot) => {
-                if (slot.style.display === "none") return;
-                slot.style.transition = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-out";
-                slot.style.transform = "translateY(0)";
-              });
+            // Animate out orphans
+            currentItems.forEach((el) => {
+              const id = Number(el.getAttribute("data-agent-id"));
+              if (!newIds.includes(id)) {
+                el.style.top = "-48px";
+                el.style.opacity = "0";
+                setTimeout(() => el.remove(), 400);
+              }
             });
-          });
 
-          prevQueueNames = newNames;
+            // Update or create items
+            sortedQueue.forEach((op, index) => {
+              let el = queueContainer.querySelector(`[data-agent-id="${op.agentId}"]`) as HTMLElement | null;
+              if (el) {
+                el.innerHTML = renderQueueItemInner(op, index);
+                el.style.top = `${index * 48}px`;
+                el.style.opacity = "1";
+              } else {
+                el = document.createElement("div");
+                el.setAttribute("data-agent-id", op.agentId.toString());
+                el.setAttribute("data-queue-item", "");
+                el.className = "absolute inset-x-0";
+                el.style.top = `${(index + 1) * 48}px`;
+                el.style.opacity = "0";
+                el.innerHTML = renderQueueItemInner(op, index);
+                queueContainer.appendChild(el);
+
+                el.offsetHeight; // Force reflow
+                el.style.top = `${index * 48}px`;
+                el.style.opacity = "1";
+              }
+            });
+          }
+          prevQueueIds = newIds;
         }
       }
 
@@ -1541,6 +1563,29 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         return;
       }
 
+      // 2.5 Deshacer assign
+      const btnUndoEl = target.closest("#btn-undo");
+      if (btnUndoEl && !btnUndoEl.hasAttribute("disabled")) {
+        btnUndoEl.setAttribute("disabled", "true");
+        try {
+          const res = await fetch("/api/disponibilidad/deshacer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+          const resData = await res.json();
+          if (res.ok && resData.success) {
+            showAlert("success", `Asignación de ${resData.agentName} deshecha.`);
+            await fetchDisponibilidad();
+          } else {
+            showAlert("error", resData.error || "No se pudo deshacer la asignación.");
+          }
+        } catch (err: any) {
+          console.error(err);
+          showAlert("error", `Ocurrió un error al deshacer: ${err.message || err}`);
+        }
+        return;
+      }
+
       // 3. Cyclic assign
       const assignCyclicBtn = target.closest("#btn-assign-cyclic");
       if (assignCyclicBtn) {
@@ -1650,3 +1695,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     }, 50);
   }
 </script>
+
+<style is:global>
+  [data-queue-item] {
+    position: absolute;
+    transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out;
+  }
+</style>

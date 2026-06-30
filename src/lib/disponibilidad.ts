@@ -15,6 +15,7 @@ export interface AgentDisponibilidad {
   retornoEstimado?: string;   // "13:00"
   lastAutogestionAssignedAt: number | null;
   lastAutogestionAssignedBy?: string | null;
+  lastAutogestionUndo?: number | null;
   modalidadHoy?: string;      // "Presencial", "Home Office", "Horas Extras", "Franco", etc.
   estadoExcepcional?: string;          // Tipo de excepción activa: "devolucion_supervisor" | "break_extendido" | "problema_tecnico"
   estadoExcepcionalMotivo?: string;    // Comentario del supervisor
@@ -124,6 +125,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       breakFinHoy: breakFin || undefined,
       lastAutogestionAssignedAt: agent.lastAutogestionAssignedAt,
       lastAutogestionAssignedBy: agent.lastAutogestionAssignedBy,
+      lastAutogestionUndo: agent.lastAutogestionUndo,
       modalidadHoy: status,
       estadoExcepcional: agent.estadoExcepcional || undefined,
       estadoExcepcionalMotivo: agent.estadoExcepcionalMotivo || undefined,
@@ -309,17 +311,26 @@ export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"
   const winner = available[0];
   const now = Date.now();
 
+  // Clear any existing undo states
+  await db
+    .update(agents)
+    .set({ lastAutogestionUndo: null });
+
+  const prevValue = winner.lastAutogestionAssignedAt;
+
   // Update in DB
   await db
     .update(agents)
     .set({ 
       lastAutogestionAssignedAt: now,
-      lastAutogestionAssignedBy: assignedBy
+      lastAutogestionAssignedBy: assignedBy,
+      lastAutogestionUndo: prevValue
     })
     .where(eq(agents.id, winner.agentId));
 
   winner.lastAutogestionAssignedAt = now;
   winner.lastAutogestionAssignedBy = assignedBy;
+  winner.lastAutogestionUndo = prevValue;
   
   return {
     success: true,
@@ -328,12 +339,22 @@ export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"
 }
 
 export async function asignarManual(agentId: number, assignedBy: string = "Sistema"): Promise<{ success: boolean; error?: string }> {
+  // Clear any existing undo states
+  await db
+    .update(agents)
+    .set({ lastAutogestionUndo: null });
+
+  // Get current state to preserve
+  const [ag] = await db.select().from(agents).where(eq(agents.id, agentId));
+  const prevValue = ag ? ag.lastAutogestionAssignedAt : null;
+
   // Update lastAutogestionAssignedAt for the manually assigned agent
   await db
     .update(agents)
     .set({ 
       lastAutogestionAssignedAt: Date.now(),
-      lastAutogestionAssignedBy: assignedBy
+      lastAutogestionAssignedBy: assignedBy,
+      lastAutogestionUndo: prevValue
     })
     .where(eq(agents.id, agentId));
   return { success: true };
@@ -378,4 +399,23 @@ export async function limpiarEstadoExcepcional(
   } catch (err: any) {
     return { success: false, error: err?.message || "Error al limpiar estado excepcional" };
   }
+}
+
+export async function deshacerAsignacion(): Promise<{ success: boolean; agentName?: string; error?: string }> {
+  const all = await db.select().from(agents);
+  const target = all.find(a => a.lastAutogestionUndo !== null);
+  if (!target) {
+    return { success: false, error: "No hay ninguna asignación para deshacer." };
+  }
+
+  const restoredTime = target.lastAutogestionUndo;
+  await db
+    .update(agents)
+    .set({
+      lastAutogestionAssignedAt: restoredTime,
+      lastAutogestionUndo: null
+    })
+    .where(eq(agents.id, target.id));
+
+  return { success: true, agentName: target.name };
 }

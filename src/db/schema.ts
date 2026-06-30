@@ -250,6 +250,7 @@ export const agents = sqliteTable("agents", {
   minPWeek: integer("min_p_week"),
   lastAutogestionAssignedAt: integer("last_autogestion_assigned_at"),
   lastAutogestionAssignedBy: text("last_autogestion_assigned_by"),
+  lastAutogestionUndo: integer("last_autogestion_undo"),
   estadoExcepcional: text("estado_excepcional"),
   estadoExcepcionalMotivo: text("estado_excepcional_motivo"),
   estadoExcepcionalAt: integer("estado_excepcional_at"),
