@@ -2,7 +2,7 @@
 import { Icon } from "astro-icon/components";
 ---
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="sync-dashboard">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="sync-dashboard">
   <div
     class="card bg-base-100 border border-base-300 flex flex-row items-center justify-between p-5 md:p-6"
   >
@@ -58,6 +58,44 @@ import { Icon } from "astro-icon/components";
       id="ping-icon-container"
     >
       <Icon name="boxicons:desktop-filled" size={32} />
+    </div>
+  </div>
+
+  <div
+    class="card bg-base-100 border border-base-300 flex flex-row items-center justify-between p-5 md:p-6"
+  >
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2">
+        <div
+          class="text-xs font-semibold uppercase tracking-wider text-base-content/60 truncate"
+        >
+          Integración InvGate
+        </div>
+        <button
+          type="button"
+          id="invgate-refresh-btn"
+          class="btn btn-ghost btn-circle btn-xs text-base-content/50 hover:text-base-content focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          title="Verificar conexión de InvGate"
+          aria-label="Verificar conexión de InvGate"
+        >
+          <Icon name="boxicons:refresh-ccw-filled" size={14} id="invgate-refresh-icon" />
+        </button>
+      </div>
+      <div
+        class="text-lg md:text-xl font-bold mt-0.5 text-base-content"
+        id="invgate-status"
+      >
+        Cargando...
+      </div>
+      <div class="text-xs text-base-content/50 mt-1 truncate" id="invgate-desc">
+        Esperando datos...
+      </div>
+    </div>
+    <div
+      class="bg-base-200/60 text-base-content/40 p-3 rounded-xl shrink-0 ml-4"
+      id="invgate-icon-container"
+    >
+      <Icon name="boxicons:link-filled" size={32} />
     </div>
   </div>
 </div>
@@ -215,7 +253,85 @@ import { Icon } from "astro-icon/components";
     }
   }
 
+  const invgateStatusEl = document.getElementById("invgate-status");
+  const invgateDescEl = document.getElementById("invgate-desc");
+  const invgateIconContainer = document.getElementById("invgate-icon-container");
+  const invgateRefreshBtn = document.getElementById("invgate-refresh-btn");
+  const invgateRefreshIcon = document.getElementById("invgate-refresh-icon");
+
+  async function updateInvgateStatus() {
+    if (!invgateStatusEl) return;
+
+    if (invgateRefreshIcon) {
+      invgateRefreshIcon.classList.add("animate-spin");
+    }
+    if (invgateRefreshBtn) {
+      invgateRefreshBtn.setAttribute("disabled", "true");
+    }
+
+    try {
+      const res = await fetch("/api/admin/invgate-status");
+      if (!res.ok) throw new Error("Error en la respuesta de la API");
+
+      const data = await res.json();
+
+      let statusText = "Desconectado";
+      let statusClass = "text-lg md:text-xl font-bold mt-0.5 text-error";
+      let iconContainerClass = "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
+
+      if (data.ok) {
+        statusText = "Conectado";
+        statusClass = "text-lg md:text-xl font-bold mt-0.5 text-success";
+        iconContainerClass = "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
+      }
+
+      invgateStatusEl.textContent = statusText;
+      invgateStatusEl.className = statusClass;
+
+      if (invgateDescEl) {
+        const descText = data.message || `HTTP ${data.status}`;
+        invgateDescEl.textContent = descText;
+        invgateDescEl.title = descText;
+      }
+
+      if (invgateIconContainer) {
+        invgateIconContainer.className = iconContainerClass;
+      }
+    } catch (err) {
+      console.error("[SyncDashboard] Error al verificar InvGate:", err);
+      invgateStatusEl.textContent = "Error de Conexión";
+      invgateStatusEl.className = "text-lg md:text-xl font-bold mt-0.5 text-warning";
+      if (invgateIconContainer) {
+        invgateIconContainer.className = "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+      }
+    } finally {
+      if (invgateRefreshIcon) {
+        invgateRefreshIcon.classList.remove("animate-spin");
+      }
+      if (invgateRefreshBtn) {
+        invgateRefreshBtn.removeAttribute("disabled");
+      }
+    }
+  }
+
+  function initInvgate() {
+    const btn = document.getElementById("invgate-refresh-btn");
+    if (btn) {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        updateInvgateStatus();
+      };
+    }
+    updateInvgateStatus();
+  }
+
   updateDashboard();
-  document.addEventListener("astro:page-load", updateDashboard);
+  initInvgate();
+
+  document.addEventListener("astro:page-load", () => {
+    updateDashboard();
+    initInvgate();
+  });
+
   setInterval(updateDashboard, 30000);
 </script>

@@ -1,0 +1,43 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import FormLegend from "@components/ui/forms/FormLegend.astro";
+
+interface Props extends HTMLAttributes<"textarea"> {
+  id: string;
+  name: string;
+  label: string;
+  helpText?: string;
+  textareaClass?: string;
+  rows?: number;
+  value?: string;
+}
+
+const {
+  id,
+  name,
+  label,
+  helpText,
+  textareaClass = "",
+  rows = 4,
+  value,
+  class: className = "",
+  ...rest
+} = Astro.props;
+---
+
+<fieldset class:list={["fieldset", className]}>
+  <FormLegend class="font-bold tracking-wider">
+    {label}
+    {rest.required && <span class="text-error">*</span>}
+  </FormLegend>
+  <textarea
+    {id}
+    {name}
+    {rows}
+    class:list={["textarea textarea-bordered w-full", textareaClass]}
+    {...rest}
+  >{value}</textarea>
+  {helpText && (
+    <p class="fieldset-label text-xs text-base-content/50">{helpText}</p>
+  )}
+</fieldset>

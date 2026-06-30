@@ -2,6 +2,7 @@
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import FormField from "@components/ui/forms/FormField.astro";
+import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
@@ -495,19 +496,15 @@ const isExternal = formUploadType
             </div>
 
             <div id="externalUrlGroup" class:list={[!isExternal && "hidden"]}>
-              <fieldset class="fieldset">
-                <FormLegend>
-                  URL externa
-                </FormLegend>
-                <input
-                  type="url"
-                  name="externalUrl"
-                  value={formExternalUrl ||
-                    (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
-                  placeholder="https://ejemplo.com/descarga/archivo.zip"
-                  class="input input-bordered w-full font-mono text-sm"
-                />
-              </fieldset>
+              <FormField
+                id="input-externalUrl"
+                name="externalUrl"
+                label="URL externa"
+                type="url"
+                value={formExternalUrl || (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
+                placeholder="https://ejemplo.com/descarga/archivo.zip"
+                inputClass="font-mono"
+              />
             </div>
 
             {
@@ -625,22 +622,15 @@ const isExternal = formUploadType
               />
             </fieldset>
 
-            <fieldset class="fieldset">
-              <FormLegend>
-                Descripción
-                <span class="text-base-content/40 font-normal normal-case ml-1"
-                  >(Opcional)</span
-                >
-              </FormLegend>
-              <textarea
-                name="description"
-                rows="3"
-                placeholder="Breve descripción del aplicativo y su uso operativo."
-                class="textarea textarea-bordered w-full"
-                maxLength={150}
-                >{app.description}</textarea
-              >
-            </fieldset>
+            <FormTextarea
+              id="input-description"
+              name="description"
+              label="Descripción (Opcional)"
+              value={app.description}
+              placeholder="Breve descripción del aplicativo y su uso operativo."
+              rows={3}
+              maxLength={150}
+            />
 
             <div
               class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
