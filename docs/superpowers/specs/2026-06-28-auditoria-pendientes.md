@@ -1,7 +1,7 @@
 # Auditoría — Hallazgos Pendientes
 
-**Fecha:** 2026-06-28
-**Base:** auditoría 2026-06-24, depurada de hallazgos resueltos (14 corregidos + N3.12)
+**Fecha:** 2026-06-29 (3.ª pasada)
+**Base:** auditoría 2026-06-24, depurada de hallazgos resueltos (14 corregidos + N3.12 + 3.6/N3.10)
 
 ---
 
@@ -9,7 +9,7 @@
 
 | Estado | Cantidad |
 |--------|----------|
-| 🔴 Pendientes | 7 items |
+| 🔴 Pendientes | 9 items |
 | ✅ Resueltos (sesiones previas + actual) | 17 |
 
 ---
@@ -27,33 +27,31 @@ Sigue desactivando la validación CSRF/origen de Astro. Sin cambios.
 
 ## P1 — Alto impacto en mantenibilidad
 
-### 3.1 🔴 21 diálogos `<dialog>` raw sin refactorizar
+### 3.1 🔴 15 diálogos `<dialog>` raw sin refactorizar
 
-`Modal.astro` (`src/components/ui/Modal.astro`) fue creado pero **nunca adoptado** — cero imports en el código. Quedan 21 diálogos raw en 15 archivos:
+De 21 originales, se refactorizaron 9 en Grupos A+B (30 min). Quedan **15 diálogos raw** en 12 archivos:
 
 | Archivo | Diálogos | Nota |
 |---------|----------|------|
-| `BaseLayout.astro` | 2 (command-palette, about-project) | Candidato directo |
-| `SupportGuideRow.astro` | 1 | Candidato directo |
 | `TerminalModal.astro` | 1 | Candidato directo |
-| `EditUserModal.astro` | 1 | Candidato directo |
-| `AsignacionContent.astro` | 1 | Candidato directo |
 | `CalidadContent.astro` | 3 | Custom z-index, evaluar |
-| `AdminUsersContent.astro` | 4 | Candidato directo |
-| `DeleteCategoryModal.astro` | 1 | Creado en 3.5 — refactorizar |
-| `FeedbackModal.astro` | 1 | Candidato directo |
 | `admin/feedback.astro` | 1 | Candidato directo |
 | `CronogramaDashboard.astro` | 1 (inline) | Patrón diferente (shadow-2xl, rounded-3xl) |
 | `HolidaysModal.astro` | 1 | Patrón cronograma |
 | `NewMonthModal.astro` | 1 | Patrón cronograma |
 | `OperatorFormModal.astro` | 1 | Patrón cronograma |
 | `RulesSettingsModal.astro` | 1 | Patrón cronograma |
+| `DirectorioContent.astro` | 1 | Sin evaluar |
+| `UbicacionesContent.astro` | 1 | Nuevo (admin invgate) |
+| `ui/modals/commandPaletteModal.astro` | 1 | Extraído de BaseLayout |
+| `ui/modals/aboutProjectModal.astro` | 1 | Extraído de BaseLayout |
+| `ui/modals/feedbackModal.astro` | 1 | Extraído de FeedbackModal |
 
-**Fix:** Aplicar `Modal.astro` a candidatos directos (~14 diálogos). Evaluar extensión para cronograma.
-**Esfuerzo:** 2-3 h directos + 1-2 h cronograma.
-**Impacto:** -400+ líneas.
+**Fix:** Aplicar `Modal.astro` a candidatos directos. Evaluar extensión para cronograma y calidad.
+**Esfuerzo:** 2-3 h.
+**Impacto:** -300+ líneas.
 
-### N3.11 🟡 Botones repetidos (16 instancias)
+### N3.11 🟡 Botones repetidos (18 instancias)
 
 Botones de acción en cronograma modals y CalidadContent con estructura idéntica:
 
@@ -93,11 +91,37 @@ Patrones repetidos que persistían (resueltos):
 
 ### N3.9 🟡 `text-tiny font-black uppercase tracking-wider` 35 veces
 
-Aparece exclusivamente en `CronogramaDashboard.astro` (33) + `monthly-view.ts` (1) + `weekly-schedule.ts` (1). Aumentó de 32 a 35.
+Aparece exclusivamente en `CronogramaDashboard.astro` (33) + `monthly-view.ts` (1) + `weekly-schedule.ts` (1). Sin cambios vs pasada anterior.
 
 **Fix:** Extraer a clase CSS compartida o componente `SectionHeading`.
 **Esfuerzo:** 15 min.
 **Impacto:** Mantenibilidad.
+
+### 3.7 🟢 `UbicacionesContent.astro` — 7 form elements raw
+
+`src/components/admin/invgate/UbicacionesContent.astro` contiene 5 inputs + 2 selects con clases `input-bordered`/`select-bordered` raw, sin usar FormField/SelectField. Sigue el mismo patrón admin CRUD ya refactorizado en aplicativos, contactos y soportes.
+
+| Elemento | Clase |
+|----------|-------|
+| Filtro búsqueda (input) | `input input-bordered w-full pr-10` |
+| Código (input) | `input input-bordered w-full` |
+| Nombre (input) | `input input-bordered w-full` |
+| Dirección (input) | `input input-bordered w-full` |
+| Centro de costo (input) | `input input-bordered w-full` |
+| Provincia (select) | `select select-bordered w-full` |
+| Tipo (select) | `select select-bordered w-full` |
+
+**Fix:** Reemplazar con FormField/SelectField (mismo patrón que 3.6).
+**Esfuerzo:** 20 min.
+**Impacto:** -60+ líneas.
+
+### 3.8 🟢 `admin/feedback.astro` — 1 select raw + 1 dialog raw
+
+`src/pages/admin/feedback.astro` contiene un `<select>` raw con clase `select select-bordered select-sm rounded-md` usado como filtro de estado, y un `<dialog>` raw para detalle de feedback.
+
+**Fix:** Reemplazar select con SelectField, y dialog con Modal.astro si aplica.
+**Esfuerzo:** 15 min.
+**Impacto:** -20+ líneas.
 
 ---
 
@@ -139,7 +163,7 @@ Peso con DaisyUI completo: 264 KB (vs 263 KB original). Estable pero purgable.
 - `AsignacionContent.astro` — heading custom en content slot
 - `AdminUsersContent.astro` — 4 diálogos reemplazados
 
-**Pendientes:** Los 12 diálogos restantes (Grupos C+D: cronograma, calidad, no-viables) quedan para futura sesión.
+**Pendientes:** Los 15 diálogos restantes (Grupos C+D: cronograma, calidad, no-viables + nuevos hallazgos) quedan para futura sesión.
 **Esfuerzo:** 30 min (Grupos A+B).
 **Impacto:** Modal.astro pasa de 0 a 8 imports. -120 líneas de boilerplate.
 
@@ -150,13 +174,15 @@ Peso con DaisyUI completo: 264 KB (vs 263 KB original). Estable pero purgable.
 | Prioridad | ID | Hallazgo | Esfuerzo | Impacto |
 |-----------|----|----------|----------|---------|
 | **P0** | 1.5 | 🔴 `security.checkOrigin: false` | 5 min | Seguridad |
-| **P1** | 3.1 | 🔴 21 diálogos raw sin Modal.astro | 2-4 h | -400+ líneas |
+| **P1** | 3.1 | 🔴 15 diálogos raw sin Modal.astro | 2-3 h | -300+ líneas |
 | **P1** | N3.11 | 🟡 Botones repetidos (18 instancias) | 30 min | -50+ líneas |
-| **P2** | 3.6/N3.10 | 🟢 Clases input/label/textarea repetidas | 2 h | ✅ Resuelto (-450 líneas) |
 | **P2** | N3.9 | 🟡 `text-tiny font-black` 35 veces | 15 min | Mantenibilidad |
+| **P2** | 3.7 | 🟢 UbicacionesContent — 7 form elements raw | 20 min | -60+ líneas |
+| **P2** | 3.8 | 🟢 admin/feedback — select + dialog raw | 15 min | -20+ líneas |
 | **P3** | 2.3 | 🟢 CSS bundle 264 KB | 30 min | Rendimiento |
 | **P3** | 4.1 | 🟢 Migrar TitleDrawer + Skeleton a Astro | 1 h | -100+ líneas React |
 | **P3** | 4.1 | 🟢 Migración React completa | 3-4 h | Toolchain simplificada |
+| **—** | 3.6/N3.10 | 🟢 Clases input/label repetidas | 2 h | ✅ Resuelto (-450 líneas) |
 | **—** | 4.2 | 🟡 Modal.astro sin adopción (dead code) | 30 min | ✅ Resuelto parcial (A+B) |
 
 ### Leyenda

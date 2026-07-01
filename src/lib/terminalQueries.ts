@@ -334,7 +334,8 @@ export interface ModelBrandEntry {
   brand: string;
 }
 
-function inferBrandFromManufacturer(manufacturer: string): string | null {
+function inferBrandFromManufacturer(manufacturer: string | null): string | null {
+  if (!manufacturer) return null;
   const lower = manufacturer.toLowerCase();
   if (lower.includes("dell")) return "dell";
   if (lower.includes("lenovo")) return "lenovo";

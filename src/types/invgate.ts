@@ -64,3 +64,11 @@ export interface InvgateIncidentsResponse {
   data: InvgateIncident[];
   pagination: InvgatePagination;
 }
+
+export interface InvgateLocation {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  total: number;
+}
+

@@ -3,7 +3,7 @@ import type {
   OfficeDirectoryItem,
   OfficeAssetType,
   OfficeType,
-} from "@types/offices";
+} from "@/types/offices";
 
 export async function getAllOfficesFromDB(): Promise<
   OfficeDirectoryItem[]
@@ -14,6 +14,7 @@ export async function getAllOfficesFromDB(): Promise<
       assets: true,
       contacts: { with: { contact: true } },
       province: { with: { region: true } },
+      terminals: true,
     },
   });
 
@@ -59,6 +60,11 @@ export async function getAllOfficesFromDB(): Promise<
       type: a.type as OfficeAssetType,
       hostname: a.hostname ?? "",
       ip: a.ip ?? "",
+    })),
+    terminals: office.terminals.map((t) => ({
+      hostname: t.hostname,
+      ipAddress: t.ipAddress ?? "",
+      operatingSystem: t.operatingSystem ?? "",
     })),
   }));
 }

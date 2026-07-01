@@ -26,7 +26,9 @@ interface Props {
 const { office, isVisibleByDefault = true } = Astro.props;
 
 const user = Astro.locals.user;
-const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
+const isAllowedAdmin = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
 
 const normalizedType =
   office.type === "SUCURSAL"
@@ -199,24 +201,24 @@ const officeDirectoryRowGridClass = isAllowedAdmin
       </span>
     </div>
 
-    {isAllowedAdmin && (
-      <div class="min-w-0 flex items-center justify-end gap-2">
-        <ActionEditButton
-          href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
-          ariaLabel={`Editar oficina ${office.name}`}
-        />
-        <form
-          method="POST"
-          action={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}/eliminar`}
-          class="inline"
-          onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
-        >
-          <ActionDeleteButton
-            ariaLabel={`Eliminar oficina ${office.name}`}
+    {
+      isAllowedAdmin && (
+        <div class="min-w-0 flex items-center justify-end gap-2">
+          <ActionEditButton
+            href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
+            ariaLabel={`Editar oficina ${office.name}`}
           />
-        </form>
-      </div>
-    )}
+          <form
+            method="POST"
+            action={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}/eliminar`}
+            class="inline"
+            onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
+          >
+            <ActionDeleteButton ariaLabel={`Eliminar oficina ${office.name}`} />
+          </form>
+        </div>
+      )
+    }
   </div>
 
   <div
@@ -344,13 +346,13 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   Equipos ({totalAssets})
                 </h2>
                 <div class="max-h-[320px] overflow-y-auto pr-1">
-                    <div
-                     class:list={[
-                       "grid gap-3 p-1",
-                       hasInfoSection
-                         ? "grid-cols-1 xl:grid-cols-2"
-                         : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
-                     ]}
+                  <div
+                    class:list={[
+                      "grid gap-3 p-1",
+                      hasInfoSection
+                        ? "grid-cols-1 xl:grid-cols-2"
+                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
+                    ]}
                   >
                     {/* Terminales sincronizadas */}
                     {[...office.terminals]

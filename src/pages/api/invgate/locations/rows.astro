@@ -1,0 +1,38 @@
+---
+import UbicacionRow from "@components/admin/invgate/UbicacionRow.astro";
+
+const searchParams = Astro.url.searchParams;
+const page = searchParams.get("page") || "1";
+const filter = searchParams.get("filter") || "all";
+const q = searchParams.get("q") || "";
+
+const cookie = Astro.request.headers.get("cookie") || "";
+const apiUrl = new URL("/api/invgate/locations", Astro.url.origin);
+apiUrl.searchParams.set("page", page);
+apiUrl.searchParams.set("filter", filter);
+apiUrl.searchParams.set("q", q);
+
+let apiData: any = null;
+try {
+  const res = await fetch(apiUrl.toString(), {
+    headers: { cookie },
+  });
+  if (res.ok) {
+    apiData = await res.json();
+  }
+} catch (err) {
+  console.error("Error fetching locations in rows endpoint", err);
+}
+
+const results = apiData?.results || [];
+const pagination = apiData?.pagination || { page: 1, totalPages: 1 };
+const hasMore = pagination.page < pagination.totalPages;
+
+Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
+
+const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] items-center gap-4";
+---
+
+{results.map((row: any) => (
+  <UbicacionRow row={row} rowGridClass={rowGridClass} />
+))}
