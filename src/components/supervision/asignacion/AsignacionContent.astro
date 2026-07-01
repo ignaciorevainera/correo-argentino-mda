@@ -559,12 +559,14 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       )}
 
       <!-- Sync + Refresh -->
-      <span id="sync-indicator" class="text-xs text-base-content/50 font-semibold w-[180px]">
-        Actualizado hace unos instantes
-      </span>
-      <button id="btn-refresh" class="btn btn-xs btn-circle btn-ghost text-base-content/60 hover:text-base-content" title="Actualizar ahora">
-        <Icon name="boxicons:refresh-ccw-filled" size={18} id="refresh-icon" />
-      </button>
+      <div class="flex items-center gap-1">
+        <span id="sync-indicator" class="text-xs text-base-content/50 font-semibold w-[180px]">
+          Actualizado hace unos instantes
+        </span>
+        <button id="btn-refresh" class="btn btn-xs btn-circle btn-ghost text-base-content/60 hover:text-base-content" title="Actualizar ahora">
+          <Icon name="boxicons:refresh-ccw-filled" size={18} id="refresh-icon" />
+        </button>
+      </div>
 
       <div class="w-px h-5 bg-base-300/60"></div>
 
@@ -892,6 +894,13 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
         if (countdownEl) {
           countdownEl.innerText = formatCountdown(remaining);
+          if (remaining < 60000) {
+            countdownEl.classList.remove("bg-base-100/30");
+            countdownEl.classList.add("bg-error/70", "text-error-content");
+          } else {
+            countdownEl.classList.add("bg-base-100/30");
+            countdownEl.classList.remove("bg-error/70", "text-error-content");
+          }
         }
       };
 
@@ -1775,7 +1784,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           
           let rejectBtn = "";
           if (lockReleaseRequested) {
-            rejectBtn = `<button type="button" id="btn-reject-release" class="btn btn-success btn-xs font-bold uppercase tracking-wider">Rechazar</button>`;
+            rejectBtn = `<button type="button" id="btn-reject-release" class="btn btn-success btn-ghost btn-xs font-bold uppercase tracking-wider">Rechazar</button>`;
           }
           buttonsHtml = `
             ${rejectBtn}
@@ -1785,7 +1794,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           dotColor = "bg-warning";
           statusText = `Ocupado: ${escapeHtml(lockHolderName)}`;
           buttonsHtml = `
-            <button type="button" id="btn-request-release" class="btn btn-ghost btn-xs font-bold uppercase tracking-wider text-primary" ${lockReleaseRequested ? 'disabled' : ''}>
+            <button type="button" id="btn-request-release" class="btn btn-ghost btn-xs font-bold uppercase tracking-wider text-warning" ${lockReleaseRequested ? 'disabled' : ''}>
               ${lockReleaseRequested ? 'Solicitado' : 'Pedir liberación'}
             </button>
           `;
@@ -1796,7 +1805,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       if (showTimer) {
         const initialCountdown = timerMs > 0 ? formatCountdown(timerMs) : "0:00";
         const isCritical = timerMs > 0 && timerMs < 60000;
-        const badgeClass = isCritical ? "bg-error/20 text-error-content" : "bg-base-100/30";
+        const badgeClass = isCritical ? "bg-error/70 text-error-content" : "bg-base-100/30";
         timerHtml = `<span id="lock-countdown" class="badge badge-xs tabular-nums font-mono border-0 ${badgeClass}">${initialCountdown}</span>`;
       }
 
