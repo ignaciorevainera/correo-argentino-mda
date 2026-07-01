@@ -299,6 +299,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     role !== "agent" && (
       <div
         id="lock-banner"
+        data-user-id={user?.id}
+        data-user-username={user?.username}
         class="mb-6 rounded-xl border px-4 py-3 flex items-center justify-between gap-3 text-sm font-semibold transition-all duration-300"
         class:list={{
           "bg-success/10 border-success/30 text-success-content": hasLock,
@@ -899,6 +901,48 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     }
 
     let secondsSinceSync = 0;
+    let lockExpiresAt = 0;
+    let lockTimeoutMs = 300000;
+    let countdownInterval: any = null;
+    let currentLockStatus: any = null;
+
+    const formatCountdown = (ms: number): string => {
+      if (ms <= 0) return "0:00";
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    };
+
+    const stopCountdown = () => {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+    };
+
+    const startCountdown = () => {
+      stopCountdown();
+
+      const tick = () => {
+        const remaining = lockExpiresAt - Date.now();
+        const countdownEl = document.getElementById("lock-countdown");
+        if (remaining <= 0) {
+          if (countdownEl) {
+            countdownEl.innerText = "0:00";
+          }
+          stopCountdown();
+          fetchLockStatus().then(updateLockBanner);
+          return;
+        }
+        if (countdownEl) {
+          countdownEl.innerText = formatCountdown(remaining);
+        }
+      };
+
+      tick();
+      countdownInterval = setInterval(tick, 1000);
+    };
 
     // Initialize prevQueueIds from the SSR rendered elements
     let prevQueueIds: number[] = Array.from(document.querySelectorAll("#queue-container [data-agent-id]"))
@@ -1708,13 +1752,125 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       }
     };
 
+    // Fetch lock status
+    const fetchLockStatus = async () => {
+      try {
+        const res = await fetch("/api/disponibilidad/lock");
+        if (!res.ok) throw new Error("Error fetching lock status");
+        return await res.json();
+      } catch (error) {
+        console.error("Failed to fetch lock status:", error);
+        return null;
+      }
+    };
+
+    // Dynamic lock banner UI update
+    const updateLockBanner = (lockStatus: any) => {
+      if (!lockStatus) return;
+      currentLockStatus = lockStatus;
+
+      const banner = document.getElementById("lock-banner");
+      if (!banner) return;
+
+      const currentUserId = Number(banner.getAttribute("data-user-id"));
+
+      let hasLock = false;
+      let lockHolderName = null;
+      let lockReleaseRequested = false;
+
+      if (lockStatus.status === "occupied") {
+        hasLock = lockStatus.user?.userId === currentUserId;
+        lockHolderName = lockStatus.user?.username;
+        lockReleaseRequested = lockStatus.user?.releaseRequested;
+
+        lockTimeoutMs = lockReleaseRequested ? 60000 : 300000;
+        lockExpiresAt = lockStatus.user.lastActivityAt + lockTimeoutMs;
+        startCountdown();
+      } else {
+        stopCountdown();
+      }
+
+      banner.classList.remove(
+        "bg-success/10", "border-success/30", "text-success-content",
+        "bg-warning/10", "border-warning/30", "text-warning-content",
+        "bg-error/10", "border-error/30", "text-error-content",
+        "bg-neutral/10", "border-neutral/30", "text-neutral-content"
+      );
+
+      if (hasLock) {
+        banner.classList.add("bg-success/10", "border-success/30", "text-success-content");
+      } else if (lockStatus.status === "free") {
+        banner.classList.add("bg-warning/10", "border-warning/30", "text-warning-content");
+      } else if (lockStatus.status === "occupied") {
+        banner.classList.add("bg-error/10", "border-error/30", "text-error-content");
+      } else if (lockStatus.status === "expired") {
+        banner.classList.add("bg-neutral/10", "border-neutral/30", "text-neutral-content");
+      }
+
+      let statusTextHtml = "";
+      if (hasLock) {
+        const initialCountdown = lockExpiresAt > 0 ? formatCountdown(lockExpiresAt - Date.now()) : "5:00";
+        statusTextHtml = `
+          <span>
+            Tenés el control de asignación — <span id="lock-countdown" class="tabular-nums font-mono">${initialCountdown}</span>
+            ${lockReleaseRequested ? '<span class="text-warning ml-2 font-bold">(Solicitaron que liberes el control)</span>' : ''}
+          </span>
+        `;
+      } else if (lockStatus.status === "free") {
+        statusTextHtml = `<span>Sin asignador activo</span>`;
+      } else if (lockStatus.status === "occupied") {
+        const initialCountdown = lockExpiresAt > 0 ? formatCountdown(lockExpiresAt - Date.now()) : "0:00";
+        statusTextHtml = `<span><strong>${escapeHtml(lockHolderName)}</strong> está asignando autogestiones — <span id="lock-countdown" class="tabular-nums font-mono">${initialCountdown}</span></span>`;
+      } else if (lockStatus.status === "expired") {
+        statusTextHtml = `<span>La sesión de <strong>${escapeHtml(lockHolderName)}</strong> expiró</span>`;
+      }
+
+      let buttonHtml = "";
+      if (!hasLock && lockStatus.status !== "occupied") {
+        buttonHtml = `<button type="button" id="btn-acquire-lock" class="btn btn-primary btn-sm font-bold uppercase tracking-wider shadow-sm">Tomar control</button>`;
+      } else if (!hasLock && lockStatus.status === "occupied") {
+        buttonHtml = `
+          <button type="button" id="btn-request-release" class="btn btn-ghost btn-sm font-bold uppercase tracking-wider" ${lockReleaseRequested ? 'disabled' : ''}>
+            ${lockReleaseRequested ? 'Solicitud enviada' : 'Pedir liberación'}
+          </button>
+        `;
+      } else if (hasLock) {
+        buttonHtml = `<button type="button" id="btn-release-lock" class="btn btn-ghost btn-sm font-bold uppercase tracking-wider text-error">Liberar control</button>`;
+      }
+
+      banner.innerHTML = `
+        <div class="flex items-center gap-2">
+          ${statusTextHtml}
+        </div>
+        <div class="flex items-center gap-2">
+          ${buttonHtml}
+        </div>
+      `;
+
+      if (hasLock) {
+        startHeartbeat();
+      } else {
+        stopHeartbeat();
+      }
+    };
+
     // Click handler for manual refresh
     if (btnRefresh) {
-      btnRefresh.addEventListener("click", fetchDisponibilidad);
+      btnRefresh.addEventListener("click", async () => {
+        await Promise.all([
+          fetchDisponibilidad(),
+          fetchLockStatus().then(updateLockBanner)
+        ]);
+      });
     }
 
     // Set up 10-second polling interval
-    const polling = setInterval(fetchDisponibilidad, 10000);
+    const polling = setInterval(async () => {
+      await Promise.all([
+        fetchDisponibilidad(),
+        fetchLockStatus().then(updateLockBanner)
+      ]);
+    }, 10000);
 
     // Close dropdowns on Escape key
     document.addEventListener("keydown", (e) => {
@@ -1734,7 +1890,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       heartbeatInterval = setInterval(async () => {
         try {
           const res = await fetch("/api/disponibilidad/lock/heartbeat", { method: "POST" });
-          if (!res.ok) {
+          if (res.ok) {
+            lockExpiresAt = Date.now() + lockTimeoutMs;
+          } else {
             console.warn("Heartbeat failed, lock might have been lost");
           }
         } catch (err) {
@@ -1743,83 +1901,97 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       }, LOCK_HEARTBEAT_MS);
     };
 
-    // Acquire lock
-    const acquireLockBtn = document.getElementById("btn-acquire-lock");
-    if (acquireLockBtn) {
-      acquireLockBtn.addEventListener("click", async () => {
-        acquireLockBtn.setAttribute("disabled", "true");
-        acquireLockBtn.innerText = "Adquiriendo...";
-        try {
-          const res = await fetch("/api/disponibilidad/lock", { method: "POST" });
-          if (res.ok) {
-            window.location.reload();
-          } else {
-            const data = await res.json();
-            showAlert("error", data.error || "No se pudo adquirir el control");
-            acquireLockBtn.removeAttribute("disabled");
-            acquireLockBtn.innerText = "Tomar control";
+    const stopHeartbeat = () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
+    };
+
+    // Event delegation on #lock-banner
+    const bannerEl = document.getElementById("lock-banner");
+    if (bannerEl) {
+      bannerEl.addEventListener("click", async (e) => {
+        const target = e.target as HTMLElement;
+
+        // Acquire lock
+        const acquireLockBtn = target.closest("#btn-acquire-lock") as HTMLButtonElement | null;
+        if (acquireLockBtn) {
+          acquireLockBtn.setAttribute("disabled", "true");
+          acquireLockBtn.innerText = "Adquiriendo...";
+          try {
+            const res = await fetch("/api/disponibilidad/lock", { method: "POST" });
+            if (res.ok) {
+              window.location.reload();
+            } else {
+              const data = await res.json();
+              showAlert("error", data.error || "No se pudo adquirir el control");
+              const lockStatus = await fetchLockStatus();
+              if (lockStatus) updateLockBanner(lockStatus);
+            }
+          } catch (err: any) {
+            showAlert("error", "Error al adquirir el control");
+            const lockStatus = await fetchLockStatus();
+            if (lockStatus) updateLockBanner(lockStatus);
           }
-        } catch (err: any) {
-          showAlert("error", "Error al adquirir el control");
-          acquireLockBtn.removeAttribute("disabled");
-          acquireLockBtn.innerText = "Tomar control";
+          return;
+        }
+
+        // Release lock
+        const releaseLockBtn = target.closest("#btn-release-lock") as HTMLButtonElement | null;
+        if (releaseLockBtn) {
+          releaseLockBtn.setAttribute("disabled", "true");
+          try {
+            const res = await fetch("/api/disponibilidad/lock", { method: "DELETE" });
+            if (res.ok) {
+              window.location.reload();
+            } else {
+              const data = await res.json();
+              showAlert("error", data.error || "No se pudo liberar el control");
+              const lockStatus = await fetchLockStatus();
+              if (lockStatus) updateLockBanner(lockStatus);
+            }
+          } catch (err: any) {
+            showAlert("error", "Error al liberar el control");
+            const lockStatus = await fetchLockStatus();
+            if (lockStatus) updateLockBanner(lockStatus);
+          }
+          return;
+        }
+
+        // Request release
+        const requestReleaseBtn = target.closest("#btn-request-release") as HTMLButtonElement | null;
+        if (requestReleaseBtn) {
+          requestReleaseBtn.setAttribute("disabled", "true");
+          requestReleaseBtn.innerText = "Enviando...";
+          try {
+            const res = await fetch("/api/disponibilidad/lock/request-release", { method: "POST" });
+            if (res.ok) {
+              requestReleaseBtn.innerText = "Solicitud enviada";
+              const lockStatus = await fetchLockStatus();
+              if (lockStatus) updateLockBanner(lockStatus);
+            } else {
+              showAlert("error", "No se pudo enviar la solicitud");
+              const lockStatus = await fetchLockStatus();
+              if (lockStatus) updateLockBanner(lockStatus);
+            }
+          } catch (err: any) {
+            showAlert("error", "Error al solicitar liberación");
+            const lockStatus = await fetchLockStatus();
+            if (lockStatus) updateLockBanner(lockStatus);
+          }
+          return;
         }
       });
     }
 
-    // Release lock
-    const releaseLockBtn = document.getElementById("btn-release-lock");
-    if (releaseLockBtn) {
-      releaseLockBtn.addEventListener("click", async () => {
-        releaseLockBtn.setAttribute("disabled", "true");
-        try {
-          const res = await fetch("/api/disponibilidad/lock", { method: "DELETE" });
-          if (res.ok) {
-            window.location.reload();
-          } else {
-            const data = await res.json();
-            showAlert("error", data.error || "No se pudo liberar el control");
-            releaseLockBtn.removeAttribute("disabled");
-          }
-        } catch (err: any) {
-          showAlert("error", "Error al liberar el control");
-          releaseLockBtn.removeAttribute("disabled");
-        }
-      });
-    }
-
-    // Request release
-    const requestReleaseBtn = document.getElementById("btn-request-release");
-    if (requestReleaseBtn) {
-      requestReleaseBtn.addEventListener("click", async () => {
-        requestReleaseBtn.setAttribute("disabled", "true");
-        requestReleaseBtn.innerText = "Enviando...";
-        try {
-          const res = await fetch("/api/disponibilidad/lock/request-release", { method: "POST" });
-          if (res.ok) {
-            requestReleaseBtn.innerText = "Solicitud enviada";
-          } else {
-            showAlert("error", "No se pudo enviar la solicitud");
-            requestReleaseBtn.innerText = "Pedir liberación";
-            requestReleaseBtn.removeAttribute("disabled");
-          }
-        } catch (err: any) {
-          showAlert("error", "Error al solicitar liberación");
-          requestReleaseBtn.removeAttribute("disabled");
-          requestReleaseBtn.innerText = "Pedir liberación";
-        }
-      });
-    }
-
-    // Start heartbeat if we have the lock
-    const banner = document.getElementById("lock-banner");
-    if (banner && banner.classList.contains("bg-success/10")) {
-      startHeartbeat();
-    }
+    // Initial fetch of lock status immediately
+    fetchLockStatus().then(updateLockBanner);
 
     // Release lock on page unload using fetch with keepalive: true
     window.addEventListener("beforeunload", () => {
-      if (banner && banner.classList.contains("bg-success/10")) {
+      const currentBanner = document.getElementById("lock-banner");
+      if (currentBanner && currentBanner.classList.contains("bg-success/10")) {
         fetch("/api/disponibilidad/lock", { method: "DELETE", keepalive: true });
       }
     });
