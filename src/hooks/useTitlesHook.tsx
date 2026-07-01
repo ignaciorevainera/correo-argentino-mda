@@ -129,7 +129,7 @@ export function useTitles() {
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
 
       alert(`Titulo "${text}" copiado al portapapeles.`)
