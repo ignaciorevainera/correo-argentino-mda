@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { deshacerAsignacion, ensureHasLock } from "@lib/disponibilidad";
+import { deshacerAsignacion, ensureHasLock, resetAssignmentLock } from "@lib/disponibilidad";
 import { normalizeRole } from "@lib/rbac";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 
@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ locals }) => {
   try {
     const res = await deshacerAsignacion();
     if (res.success) {
+      await resetAssignmentLock();
       return jsonResponse({ success: true, agentName: res.agentName }, 200);
     }
     return jsonResponse({ error: res.error }, 400);

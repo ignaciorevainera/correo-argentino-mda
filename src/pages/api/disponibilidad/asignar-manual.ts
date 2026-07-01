@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { asignarManual, ensureHasLock } from "@lib/disponibilidad";
+import { asignarManual, ensureHasLock, resetAssignmentLock } from "@lib/disponibilidad";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -22,6 +22,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const assignedBy = locals.user?.username || "Sistema";
     const result = await asignarManual(agentId, assignedBy);
+    if (result.success) {
+      await resetAssignmentLock();
+    }
     
     let agentName = `ID ${agentId}`;
     try {

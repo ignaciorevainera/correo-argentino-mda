@@ -2,7 +2,7 @@ import { db } from "@db/index";
 import { agents, schedules, assignmentLock } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos
+const LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos
 
 export interface AgentDisponibilidad {
   agentId: number;
@@ -501,8 +501,34 @@ export async function heartbeatLock(userId: number): Promise<void> {
 }
 
 export async function requestRelease(): Promise<void> {
+  const currentList = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  const current = currentList[0];
+  if (!current) return;
+  const now = Date.now();
+  const remaining = (current.lastActivityAt + LOCK_TIMEOUT_MS) - now;
+  if (remaining > 60000) {
+    await db.update(assignmentLock)
+      .set({ releaseRequested: 1, lastActivityAt: now })
+      .where(eq(assignmentLock.id, 1));
+  } else {
+    await db.update(assignmentLock)
+      .set({ releaseRequested: 1 })
+      .where(eq(assignmentLock.id, 1));
+  }
+}
+
+export async function rejectRelease(userId: number): Promise<boolean> {
+  const [current] = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  if (!current || current.userId !== userId) return false;
   await db.update(assignmentLock)
-    .set({ releaseRequested: 1 })
+    .set({ releaseRequested: 0, lastActivityAt: Date.now() })
+    .where(eq(assignmentLock.id, 1));
+  return true;
+}
+
+export async function resetAssignmentLock(): Promise<void> {
+  await db.update(assignmentLock)
+    .set({ lastActivityAt: Date.now(), releaseRequested: 0 })
     .where(eq(assignmentLock.id, 1));
 }
 
