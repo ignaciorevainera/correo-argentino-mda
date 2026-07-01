@@ -38,12 +38,12 @@ if (lockStatus.status === "occupied") {
 
 const isReadOnly = role === "agent" || !hasLock;
 
-let flashMessage: { type: "success" | "error"; text: string } | null = null;
-
 if (Astro.request.method === "POST" && !isReadOnly) {
   try {
     const formData = await Astro.request.formData();
     const action = formData.get("action") as string;
+    let msg = "";
+    let msgType = "success";
 
     if (action === "assign_manual") {
       const agentId = Number(formData.get("agentId"));
@@ -55,32 +55,29 @@ if (Astro.request.method === "POST" && !isReadOnly) {
           .from(agents)
           .where(eq(agents.id, agentId));
 
-        flashMessage = {
-          type: "success",
-          text: `Autogestión asignada manualmente a ${ag?.name ?? `ID ${agentId}`}.`,
-        };
+        msg = `Autogestión asignada manualmente a ${ag?.name ?? `ID ${agentId}`}.`;
       }
     } else if (action === "assign_cyclic") {
       const res = await asignarSiguienteAutogestion(user?.username || "Sistema");
       if (res.success && res.agent) {
-        flashMessage = {
-          type: "success",
-          text: `Autogestión asignada cíclicamente a ${res.agent.nombre}.`,
-        };
+        msg = `Autogestión asignada cíclicamente a ${res.agent.nombre}.`;
       } else {
-        flashMessage = {
-          type: "error",
-          text:
-            res.error ||
-            "No hay operadores disponibles o dentro de horario operativo para asignar.",
-        };
+        msg = res.error || "No hay operadores disponibles o dentro de horario operativo para asignar.";
+        msgType = "error";
       }
     }
+
+    if (msg) {
+      const url = new URL(Astro.request.url);
+      url.searchParams.set("toast_msg", msg);
+      url.searchParams.set("toast_type", msgType);
+      return Astro.redirect(url.pathname + url.search);
+    }
   } catch (e: any) {
-    flashMessage = {
-      type: "error",
-      text: `Ocurrió un error al procesar la acción: ${e.message}`,
-    };
+    const url = new URL(Astro.request.url);
+    url.searchParams.set("toast_msg", `Ocurrió un error al procesar la acción: ${e.message}`);
+    url.searchParams.set("toast_type", "error");
+    return Astro.redirect(url.pathname + url.search);
   }
 }
 
@@ -278,26 +275,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     />
   </div>
 
-  <div id="alert-container">
-    {
-      flashMessage && (
-        <div
-          class={`alert mb-6 shadow-md ${flashMessage.type === "success" ? "alert-success" : "alert-error"}`}
-          role="alert"
-        >
-          <Icon
-            name={
-              flashMessage.type === "success"
-                ? "boxicons:check-circle"
-                : "boxicons:alert-octagon-filled"
-            }
-            size={20}
-          />
-          <span>{flashMessage.text}</span>
-        </div>
-      )
-    }
-  </div>
+
 
   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
     <!-- Card Disponibles -->
@@ -1428,20 +1406,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     };
 
     const showAlert = (type: "success" | "error", message: string) => {
-      const alertContainer = document.getElementById("alert-container");
-      if (!alertContainer) return;
-
-      const alertClass = type === "success" ? "alert-success" : "alert-error";
-      const iconSvg = type === "success"
-        ? `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
-        : `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
-
-      alertContainer.innerHTML = `
-        <div class="alert mb-6 shadow-md ${alertClass}" role="alert">
-          ${iconSvg}
-          <span>${message}</span>
-        </div>
-      `;
+      showToast(message, type === "success" ? "alert-success" : "alert-error");
     };
 
     // Event delegation for exceptional states and assignments
