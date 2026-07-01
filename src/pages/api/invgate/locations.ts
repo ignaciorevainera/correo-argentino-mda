@@ -6,7 +6,7 @@ import { db } from "@db/index";
 import { offices } from "@db/schema";
 import { matchLocations } from "@lib/invgate/locationMatcher";
 import type { LocationComparisonResult } from "@lib/invgate/locationMatcher";
-import type { InvgateLocation } from "@types/invgate";
+import type { InvgateLocation } from "../../../types/invgate";
 
 let cachedComparison: LocationComparisonResult | null = null;
 

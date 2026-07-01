@@ -5,6 +5,12 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
+import UbicacionRow from "./UbicacionRow.astro";
+import { db } from "@db/index";
+import { provinces } from "@db/schema";
+import { officeTypeLabelByType } from "@lib/officeHelpers";
+
+const allProvinces = await db.select().from(provinces).orderBy(provinces.name);
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 const page = parseInt(searchParams.get("page") ?? "1", 10) || 1;
@@ -70,14 +76,14 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     /* --- EMPTY STATE (NOT SYNCED YET) --- */
     <div class="flex flex-col items-center justify-center text-center p-12 my-8 bg-base-100 border border-base-200 rounded-2xl shadow-sm">
       <div class="rounded-full bg-base-200 p-6 mb-4 text-base-content/40">
-        <Icon name="boxicons:map-alt" size={48} aria-hidden="true" />
+        <Icon name="boxicons:map-filled" size={48} aria-hidden="true" />
       </div>
       <h2 class="text-xl font-bold mb-2 text-base-content">Sin datos de comparación</h2>
       <p class="max-w-md text-base-content/70 mb-6 text-sm">
         Aún no se ha realizado la comparación de ubicaciones entre InvGate y la base de datos de MDA. Sincronice los datos para comenzar.
       </p>
       <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-primary btn-md gap-2">
-        <Icon name="boxicons:sync" size={20} aria-hidden="true" />
+        <Icon name="boxicons:refresh-ccw-filled" size={20} aria-hidden="true" />
         Sincronizar ahora
       </a>
     </div>
@@ -131,7 +137,7 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
         <div class="flex gap-2">
           <!-- Trigger Sync -->
           <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-outline btn-md gap-2" title="Volver a sincronizar">
-            <Icon name="boxicons:sync" size={18} aria-hidden="true" />
+            <Icon name="boxicons:refresh-ccw-filled" size={18} aria-hidden="true" />
             Sincronizar
           </a>
 
@@ -176,76 +182,17 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
             <div slot="header"><DataTableHeaderCell>Oficina MDA</DataTableHeaderCell></div>
             <div slot="header"><DataTableHeaderCell>Código MDA</DataTableHeaderCell></div>
             <div slot="header"><DataTableHeaderCell>Dirección MDA</DataTableHeaderCell></div>
-
-            {results.map((row: any) => {
-              const { invgateLocation, officeCode, mdaOffice, matched } = row;
-              return (
-                <div class:list={[rowGridClass, "border-b border-base-200 px-4 py-3 last:border-b-0"]}>
-                  <div>
-                    {matched ? (
-                      <span class="badge badge-success text-success-content badge-sm font-medium">Match</span>
-                    ) : (
-                      <span class="badge badge-error text-error-content badge-sm font-medium">Sin match</span>
-                    )}
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-medium text-sm text-base-content truncate" title={invgateLocation.displayName}>
-                      {invgateLocation.displayName}
-                    </span>
-                    <span class="text-xs text-base-content/50 truncate" title={invgateLocation.name}>
-                      {invgateLocation.name}
-                    </span>
-                  </div>
-                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.nis || "—"}</div>
-                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cp || "—"}</div>
-                  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cc || "—"}</div>
-                  <div>
-                    {matched ? (
-                      <span class="text-sm text-base-content font-medium">{mdaOffice?.name}</span>
-                    ) : (
-                      <div class="flex items-center gap-2">
-                        <span class="text-base-content/40">—</span>
-                        <button
-                          type="button"
-                          class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
-                          title="Copiar detalles de ubicación"
-                          onclick={`copyToClipboard('${invgateLocation.name}')`}
-                          aria-label="Copiar detalles"
-                        >
-                          <Icon name="boxicons:copy" class="size-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div class="text-sm font-mono text-base-content/85">{matched ? officeCode : "—"}</div>
-                  <div class="text-sm text-base-content/80 truncate" title={matched ? mdaOffice?.address : "—"}>
-                    {matched ? mdaOffice?.address : "—"}
-                  </div>
-                </div>
-              );
-            })}
+            <div id="locations-container" class="contents">
+              {results.map((row: any) => (
+                <UbicacionRow row={row} rowGridClass={rowGridClass} />
+              ))}
+            </div>
           </DataTable>
 
-          <!-- Pagination -->
+          <!-- Infinite Scroll Sentinel -->
           {pagination.totalPages > 1 && (
-            <div class="flex justify-center mt-6">
-              <div class="join border border-base-200 rounded-lg">
-                <a
-                  href={`/admin/invgate/ubicaciones?page=${Math.max(1, pagination.page - 1)}&filter=${filter}&q=${encodeURIComponent(q)}`}
-                  class:list={["join-item btn btn-md", pagination.page === 1 && "btn-disabled"]}
-                >
-                  « Anterior
-                </a>
-                <span class="join-item btn btn-md bg-base-100 pointer-events-none text-sm font-medium">
-                  Página {pagination.page} de {pagination.totalPages}
-                </span>
-                <a
-                  href={`/admin/invgate/ubicaciones?page=${Math.min(pagination.totalPages, pagination.page + 1)}&filter=${filter}&q=${encodeURIComponent(q)}`}
-                  class:list={["join-item btn btn-md", pagination.page === pagination.totalPages && "btn-disabled"]}
-                >
-                  Siguiente »
-                </a>
-              </div>
+            <div id="locations-sentinel" class="py-8 flex justify-center">
+              <span class="loading loading-spinner loading-md text-primary" id="locations-spinner"></span>
             </div>
           )}
         </div>
@@ -254,10 +201,55 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
   )}
 </PageContainer>
 
+<dialog id="create_office_modal" class="modal">
+  <div class="modal-box max-w-lg">
+    <h3 class="font-bold text-lg mb-4 text-base-content">Crear nueva oficina</h3>
+    <form id="create_office_form" class="space-y-4">
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Código NIS <span class="text-error">*</span></span></label>
+        <input type="text" name="code" class="input input-bordered w-full" required />
+      </div>
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Nombre <span class="text-error">*</span></span></label>
+        <input type="text" name="name" class="input input-bordered w-full" required />
+      </div>
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Dirección</span></label>
+        <input type="text" name="address" class="input input-bordered w-full" />
+      </div>
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Provincia <span class="text-error">*</span></span></label>
+        <select name="provinceCode" class="select select-bordered w-full" required>
+          <option value="" disabled selected>Seleccioná una provincia</option>
+          {allProvinces.map((prov) => (
+            <option value={prov.code}>{prov.name}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Centro de Costo</span></label>
+        <input type="text" name="cc" class="input input-bordered w-full" />
+      </div>
+      <div>
+        <label class="label"><span class="label-text font-medium text-base-content/80">Tipo <span class="text-error">*</span></span></label>
+        <select name="type" class="select select-bordered w-full" required>
+          <option value="" disabled selected>Seleccioná un tipo</option>
+          {Object.entries(officeTypeLabelByType).map(([key, label]) => (
+            <option value={key}>{label}</option>
+          ))}
+        </select>
+      </div>
+      <div class="modal-action flex justify-end gap-2 mt-6">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('create_office_modal').close()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Crear</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <script is:inline>
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-      // Create a transient toast alert using DaisyUI style classes
       const toast = document.createElement("div");
       toast.className = "toast toast-end toast-bottom z-50 p-4";
       toast.innerHTML = `
@@ -278,4 +270,163 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
       console.error("Fallo al copiar: ", err);
     });
   }
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-create-office-btn]");
+    if (!btn) return;
+
+    const nis = btn.getAttribute("data-nis");
+    const name = btn.getAttribute("data-name");
+    const cc = btn.getAttribute("data-cc");
+    const address = btn.getAttribute("data-address");
+
+    const modal = document.getElementById("create_office_modal");
+    if (!modal) return;
+
+    const form = document.getElementById("create_office_form");
+    if (form) {
+      form.reset();
+      form.querySelector("[name='code']").value = nis || "";
+      form.querySelector("[name='name']").value = name || "";
+      form.querySelector("[name='cc']").value = cc || "";
+      form.querySelector("[name='address']").value = address || "";
+    }
+
+    window.lastTriggeringBtn = btn;
+    modal.showModal();
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("create_office_form");
+    const modal = document.getElementById("create_office_modal");
+
+    if (form && modal) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+          code: formData.get("code"),
+          name: formData.get("name"),
+          address: formData.get("address"),
+          provinceCode: formData.get("provinceCode"),
+          cc: formData.get("cc"),
+          type: formData.get("type"),
+        };
+
+        try {
+          const res = await fetch("/api/admin/offices/create", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await res.json();
+
+          if (res.ok && result.success) {
+            window.showToast?.("Oficina creada con éxito.", "alert-success");
+            modal.close();
+
+            const row = window.lastTriggeringBtn ? window.lastTriggeringBtn.closest("[data-location-row]") : null;
+            if (row) {
+              const badgeDiv = row.querySelector("div:first-child");
+              if (badgeDiv) {
+                badgeDiv.innerHTML = '<span class="badge badge-success text-success-content badge-sm font-medium">Match</span>';
+              }
+
+              const actionDiv = row.querySelector("[data-create-btn-container]");
+              if (actionDiv) {
+                const parent = actionDiv.parentNode;
+                parent.innerHTML = `<span class="text-sm text-base-content font-medium">${data.name}</span>`;
+              }
+
+              const codeDiv = row.querySelector("div:nth-child(7)");
+              if (codeDiv) {
+                codeDiv.textContent = data.code;
+              }
+
+              const addressDiv = row.querySelector("div:nth-child(8)");
+              if (addressDiv) {
+                addressDiv.textContent = data.address || "—";
+                addressDiv.setAttribute("title", data.address || "—");
+              }
+            }
+          } else {
+            window.showToast?.(result.error || "Error al crear la oficina", "alert-error");
+          }
+        } catch (err) {
+          window.showToast?.("Error de conexión al servidor", "alert-error");
+        }
+      });
+    }
+  });
+</script>
+
+<script is:inline define:vars={{
+  initialPage: pagination.page,
+  totalPages: pagination.totalPages,
+  filter,
+  q
+}}>
+  document.addEventListener("DOMContentLoaded", () => {
+    const sentinel = document.getElementById("locations-sentinel");
+    const container = document.getElementById("locations-container");
+    const spinner = document.getElementById("locations-spinner");
+    
+    let currentPage = initialPage;
+    let hasMore = currentPage < totalPages;
+    let isLoading = false;
+
+    if (!sentinel || !container) return;
+
+    if (!hasMore) {
+      sentinel.classList.add("hidden");
+    }
+
+    const fetchNextPage = async () => {
+      if (isLoading || !hasMore) return;
+      isLoading = true;
+      spinner?.classList.remove("hidden");
+
+      try {
+        currentPage++;
+        const params = new URLSearchParams();
+        params.set("page", currentPage.toString());
+        params.set("filter", filter);
+        if (q) params.set("q", q);
+
+        const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
+        if (!response.ok) throw new Error("API call failed");
+
+        const html = await response.text();
+        const newHasMore = response.headers.get("X-Has-More") === "true";
+        
+        hasMore = newHasMore;
+        container.insertAdjacentHTML("beforeend", html);
+
+        if (!hasMore) {
+          sentinel.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("Error fetching locations:", err);
+        // Revert page count on error so the page can be retried on next intersection
+        currentPage--;
+      } finally {
+        isLoading = false;
+        if (!hasMore && spinner) {
+          spinner.classList.add("hidden");
+        }
+      }
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !isLoading && hasMore) {
+        fetchNextPage();
+      }
+    }, { rootMargin: "200px" });
+
+    observer.observe(sentinel);
+  });
 </script>

@@ -9,6 +9,7 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
   assert.equal(parsed.nis, "L6300");
   assert.equal(parsed.cp, "L6309AAD");
   assert.equal(parsed.cc, "71011101");
+  assert.equal(parsed.address, null);
 }
 
 {
@@ -18,6 +19,7 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
   assert.equal(parsed.nis, "L0002");
   assert.equal(parsed.cp, "L1234ABC");
   assert.equal(parsed.cc, null);
+  assert.equal(parsed.address, null);
 }
 
 {
@@ -27,6 +29,7 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
   assert.equal(parsed.nis, "X1111");
   assert.equal(parsed.cp, null);
   assert.equal(parsed.cc, "8888");
+  assert.equal(parsed.address, null);
 }
 
 {
@@ -36,6 +39,7 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
   assert.equal(parsed.nis, null);
   assert.equal(parsed.cp, null);
   assert.equal(parsed.cc, null);
+  assert.equal(parsed.address, null);
 }
 
 {
@@ -45,14 +49,26 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
   assert.equal(parsed.nis, null);
   assert.equal(parsed.cp, null);
   assert.equal(parsed.cc, "71011101");
+  assert.equal(parsed.address, null);
+}
+
+{
+  const input = "ALPACHIRI - SUC POR FAX (L0002 ) 25 De Mayo 200 (L6309AAD) CC_71011101";
+  const parsed = parseInvgateLocationName(input);
+  assert.equal(parsed.displayName, "ALPACHIRI - SUC POR FAX");
+  assert.equal(parsed.nis, "L0002");
+  assert.equal(parsed.cp, "L6309AAD");
+  assert.equal(parsed.cc, "71011101");
+  assert.equal(parsed.address, "25 De Mayo 200");
 }
 
 // Test matchLocations
 {
   const invgateLocations = [
     { id: 1, name: "SUC. SANTA ROSA (L6300) (L6309AAD) CC_71011101", parent_id: null, total: 1 },
-    { id: 2, name: "ALMACEN (L0002)", parent_id: null, total: 2 },
-    { id: 3, name: "SALA DE CONTROL", parent_id: null, total: 0 }
+    { id: 2, name: "ALMACEN (L0002)", parent_id: 4, total: 2 },
+    { id: 3, name: "SALA DE CONTROL", parent_id: 4, total: 0 },
+    { id: 4, name: "Centro NEA", parent_id: null, total: 0 }
   ];
 
   const allOfficeCodes = new Map([

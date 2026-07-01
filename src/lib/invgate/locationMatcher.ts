@@ -7,6 +7,7 @@ export interface ParsedInvgateLocation {
   nis: string | null;
   cp: string | null;
   cc: string | null;
+  address: string | null;
 }
 
 export interface LocationMatch {
@@ -57,6 +58,18 @@ export function parseInvgateLocationName(name: string): Omit<ParsedInvgateLocati
     cc = ccMatch[1];
   }
 
+  let address: string | null = null;
+  const firstCloseParen = name.indexOf(')');
+  if (firstCloseParen !== -1) {
+    const nextOpenParen = name.indexOf('(', firstCloseParen + 1);
+    if (nextOpenParen !== -1) {
+      const sliced = name.slice(firstCloseParen + 1, nextOpenParen).trim();
+      if (sliced.length > 0) {
+        address = sliced;
+      }
+    }
+  }
+
   // Trim displayName in case there was no match or after extraction
   displayName = displayName.trim();
 
@@ -65,6 +78,7 @@ export function parseInvgateLocationName(name: string): Omit<ParsedInvgateLocati
     nis,
     cp,
     cc,
+    address,
   };
 }
 
@@ -75,7 +89,18 @@ export function matchLocations(
   const results: LocationMatch[] = [];
   let matchedCount = 0;
 
+  // Find all locations that have children (parent_id)
+  const parentIds = new Set<number>();
   for (const loc of invgateLocations) {
+    if (loc.parent_id !== null) {
+      parentIds.add(loc.parent_id);
+    }
+  }
+
+  // Filter to keep only leaf locations
+  const leafLocations = invgateLocations.filter(loc => !parentIds.has(loc.id));
+
+  for (const loc of leafLocations) {
     const parsed = parseInvgateLocationName(loc.name);
     const parsedLocation: ParsedInvgateLocation = {
       id: loc.id,
@@ -102,7 +127,7 @@ export function matchLocations(
     });
   }
 
-  const totalInvgate = invgateLocations.length;
+  const totalInvgate = leafLocations.length;
   const totalMda = allOfficeCodes.size;
   const unmatchedInvgate = totalInvgate - matchedCount;
 

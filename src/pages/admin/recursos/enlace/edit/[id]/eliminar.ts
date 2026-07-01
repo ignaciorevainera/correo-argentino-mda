@@ -12,13 +12,20 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
     return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace no proporcionado")}&toast_type=error`);
   }
 
+  const idNum = parseInt(linkId, 10);
+  if (isNaN(idNum)) {
+    const base = import.meta.env.BASE_URL || "/";
+    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace inválido")}&toast_type=error`);
+  }
+
   try {
     const existing = await db.query.resourceLinks.findFirst({
-        where: eq(resourceLinks.id, linkId),
+        where: eq(resourceLinks.id, idNum),
     });
 
     if (existing) {
-        await db.delete(resourceLinks).where(eq(resourceLinks.id, linkId));
+        await db.delete(resourceLinks).where(eq(resourceLinks.id, idNum));
         await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el enlace "${existing.title}"`);
     }
 
