@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useDebounce } from "./useDebounce";
+import {showToast} from "@lib/toastClient"
 
 declare const chrome: any;
 
@@ -81,10 +82,12 @@ export function useTitles() {
   const toggleFavorite = (title: string) => {
     setFavorites((prev) => {
       if (prev.includes(title)) {
+        showToast(`Título "${title}" eliminado de favoritos.`, 'alert-info', 3000);
         return prev.filter(
           (item) => item !== title
         );
       }
+      showToast(`Título "${title}" agregado a favoritos.`, 'alert-success', 3000);
       return [...prev, title];
     });
   };
@@ -132,7 +135,7 @@ export function useTitles() {
       await copyText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
 
-      alert(`Titulo "${text}" copiado al portapapeles.`)
+      showToast(`Titulo "${text}" copiado al portapapeles.`, 'alert-success', 3000);
       if (typeof chrome !== "undefined" && chrome.tabs) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -142,6 +145,7 @@ export function useTitles() {
         });
       }
     } catch (err) {
+      showToast("Error al copiar al portapapeles", 'alert-error', 3000);
       console.error("Error copying to clipboard:", err);
     }
   }, []);
