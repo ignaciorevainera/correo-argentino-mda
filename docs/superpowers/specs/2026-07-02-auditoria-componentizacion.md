@@ -141,16 +141,19 @@ delete modal.
 **Fix:** Crear `src/components/admin/ui/AdminCategorizedList.astro` genérico.
 **Esfuerzo:** 3-4 h. **Impacto:** -1000+ líneas.
 
-### C3.3 🟡 10 archivos `eliminar.ts` con la misma estructura
+### C3.3 ✅ 10 archivos `eliminar.ts` con la misma estructura — **RESUELTO**
 
 Los 10 endpoints de eliminación siguen: auth check → base → validate → delete →
 log action → redirect.
 
-**Fix:** Crear `src/lib/api/deleteHandler.ts`:
-```ts
-export function createDeleteRoute(config: { table; redirectPath; entityName; getLogMessage }): APIRoute
-```
-**Esfuerzo:** 1 h. **Impacto:** -300+ líneas.
+**Fix aplicado:** Se creó `src/lib/api/deleteHandler.ts` con `createDeleteHandler(config)`
+y `src/lib/api/deleteCategory.ts` con `createCategoryDeleteHandler(config)` para los
+3 archivos de categoría con cascade/unassign. Los 10 archivos `eliminar.ts` se
+redujeron a thin wrappers (10-22 líneas c/u) y se eliminó un helper compartido
+`src/lib/api/deleteAppFile.ts` para borrado de archivos físicos de aplicativos.
+
+**Rama:** `fix/c33-delete-handler-factory` (~190 líneas netas eliminadas).
+**Esfuerzo real:** ~2 h. **Impacto real:** -190 líneas netas (3 archivos nuevos, 10 reducidos).
 
 ### C3.4 🟡 22 archivos con POST + redirect con toast
 
@@ -229,7 +232,7 @@ Tres patrones diferentes en 17 archivos:
 | **P1** | C2.3 | 🟡 SortDropdown (4 instancias) | 30 min | -80+ líneas |
 | **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
-| **P2** | C3.3 | 🟡 deleteHandler factory (10 files) | 1 h | -300+ líneas |
+| **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | 🟡 redirectWithToast helper (22 files) | 30 min | DRY |
 | **P2** | C3.5 | 🟡 logAdminFromAstro wrapper (14 files) | 15 min | DRY |
 | **P2** | C3.6 | 🟢 animate-fade-in global | 5 min | DRY |
