@@ -344,7 +344,10 @@ export const schedules = sqliteTable("schedules", {
   breakInicio: text("break_inicio"),
   breakFin: text("break_fin"),
   isOverride: integer("is_override", { mode: "boolean" }).default(false),
-});
+}, (table) => ({
+  agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
+  dateIdx: index("schedules_date_idx").on(table.date),
+}));
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
 export const resourceCategories = sqliteTable("resource_categories", {
@@ -471,7 +474,9 @@ export const qualityAudits = sqliteTable("quality_audits", {
   isCriticalFailure: integer("is_critical_failure", { mode: "boolean" })
     .notNull()
     .default(false),
-});
+}, (table) => ({
+  monthIdx: index("quality_audits_month_idx").on(table.month),
+}));
 
 export const auditParameters = sqliteTable("audit_parameters", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -601,7 +606,9 @@ export const terminals = sqliteTable("terminals", {
   lastContact: text("last_contact"),
   syncedAt: text("synced_at"),
   searchableText: text("searchable_text"),
-});
+}, (table) => ({
+  nisIdx: index("terminals_nis_idx").on(table.nis),
+}));
 
 export const terminalsRelations = relations(terminals, ({ one }) => ({
   office: one(offices, {
@@ -645,7 +652,10 @@ export const operatorAttendance = sqliteTable("operator_attendance", {
   cumplimientoForzado: integer("cumplimiento_forzado", { mode: "boolean" }).default(false),
   motivoLoguin: text("motivo_loguin"),
   detalle: text("detalle"),
-});
+}, (table) => ({
+  agentDateIdx: index("operator_attendance_agent_date_idx").on(table.agentId, table.date),
+  dateIdx: index("operator_attendance_date_idx").on(table.date),
+}));
 
 export const operatorAttendanceRelations = relations(
   operatorAttendance,
