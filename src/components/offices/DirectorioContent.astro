@@ -381,6 +381,7 @@ const mainTabs = [
           minWidthClass="min-w-280"
           headerGridClass={officeDirectoryHeaderGridClass}
           class="bg-base-100"
+          serverSideSort={true}
         >
           <div slot="header">
             <DataTableHeaderCell>
@@ -619,27 +620,7 @@ const mainTabs = [
   let currentSortOrder: "asc" | "desc" | null =
     (urlParams.get("sortOrder") as "asc" | "desc") || null;
 
-  const updateSortIcons = (tableEl: HTMLElement) => {
-    const headerCells = tableEl.querySelectorAll("[data-table-sort-key]");
-    headerCells.forEach((cell) => {
-      const cellKey = (cell as HTMLElement).dataset.tableSortKey;
-      const isActive = cellKey === currentSortBy && currentSortOrder !== null;
-      const direction = isActive
-        ? currentSortOrder === "asc"
-          ? "ascending"
-          : "descending"
-        : "none";
-      (cell as HTMLElement).dataset.tableSortDirection = direction;
-      cell.setAttribute("aria-sort", direction);
-      const icons = cell.querySelectorAll("[data-table-sort-icon]");
-      icons.forEach((icon) => {
-        const shouldShow =
-          (icon as HTMLElement).dataset.tableSortIcon === direction;
-        (icon as HTMLElement).classList.toggle("hidden", !shouldShow);
-        (icon as HTMLElement).classList.toggle("opacity-0", !shouldShow);
-      });
-    });
-  };
+
 
   const syncSortToURL = () => {
     const params = new URLSearchParams(window.location.search);
@@ -720,10 +701,12 @@ const mainTabs = [
     return params.toString();
   };
 
-  const fetchOffices = async (isNewSearch: boolean) => {
+  const fetchOffices = async (isNewSearch: boolean, showLoadingUI = true) => {
     if (isLoading) return;
     isLoading = true;
-    spinner?.classList.remove("hidden");
+    if (showLoadingUI) {
+      spinner?.classList.remove("hidden");
+    }
 
     try {
       const query = getQueryParams(currentPage);
@@ -787,7 +770,9 @@ const mainTabs = [
       console.error("Error fetching offices:", err);
     } finally {
       isLoading = false;
-      spinner?.classList.add("hidden");
+      if (showLoadingUI) {
+        spinner?.classList.add("hidden");
+      }
     }
   };
 
@@ -1149,35 +1134,30 @@ const mainTabs = [
 
   bindRowEvents();
 
-  tableRoot?.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    const btn = target.closest<HTMLButtonElement>(
-      "button[data-table-sort-key]",
-    );
-    if (!btn) return;
-    const key = btn.dataset.tableSortKey;
-    if (!key) return;
-
-    if (currentSortBy === key) {
-      if (currentSortOrder === "asc") {
-        currentSortOrder = "desc";
-      } else {
-        currentSortBy = null;
-        currentSortOrder = null;
-      }
-    } else {
-      currentSortBy = key;
-      currentSortOrder = "asc";
-    }
-
-    if (tableRoot) updateSortIcons(tableRoot);
+  tableRoot?.addEventListener("master-detail-sort-change", (e: any) => {
+    const { sortKey, direction } = e.detail;
+    currentSortBy = direction === "none" ? null : sortKey;
+    currentSortOrder = direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
     currentPage = 1;
-    fetchOffices(true);
+    fetchOffices(true, false); // isNewSearch = true, showLoadingUI = false
     syncSortToURL();
   });
 
   if (currentSortBy && tableRoot) {
-    updateSortIcons(tableRoot);
+    const dir = currentSortOrder === "asc" ? "ascending" : "descending";
+    tableRoot.dataset.masterDetailSortKey = currentSortBy;
+    tableRoot.dataset.masterDetailSortDirection = dir;
+
+    const control = tableRoot.querySelector(`[data-table-sort-key="${currentSortBy}"]`);
+    if (control) {
+      control.setAttribute("data-table-sort-direction", dir);
+      control.setAttribute("aria-sort", dir);
+      control.querySelectorAll("[data-table-sort-icon]").forEach((icon: any) => {
+        const shouldShow = icon.dataset.tableSortIcon === dir;
+        icon.classList.toggle("hidden", !shouldShow);
+        icon.classList.toggle("opacity-0", !shouldShow);
+      });
+    }
   }
 
   const toggleRegionReferents = (regionId: string, toggleBtn: HTMLButtonElement) => {
