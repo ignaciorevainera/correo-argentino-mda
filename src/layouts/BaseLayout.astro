@@ -1,22 +1,25 @@
 ---
 import "@styles/global.css";
-import { Icon } from "astro-icon/components";
-import { Image } from "astro:assets";
-import logo from "@assets/logo.svg";
 import geistLatinWoff2 from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import geistMonoLatinWoff2 from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
-import packageJson from "../../package.json";
+
+// Utils
 import {
   navSections,
   getSectionTitle,
   getResolvedPathname,
   type NavItem,
 } from "@lib/navigation";
-import ToastContainer from "@components/ui/ToastContainer.astro";
-import GithubLink from "@components/ui/GithubLink.astro";
 import { normalizeRole, hasPermission } from "@lib/rbac";
-import { resolveUrl } from "@lib/url";
-import FeedbackModal from "@components/ui/FeedbackModal.astro";
+
+// Components
+import { Navbar, DrawerContent } from "./_components";
+import {
+  AboutProjectModal,
+  FeedbackModal,
+  CommandPaletteModal,
+} from "@/components/ui/modals";
+import ToastContainer from "@components/ui/ToastContainer.astro";
 
 interface Props {
   title?: string;
@@ -34,30 +37,6 @@ const inferredTitle =
   rawTitle !== "Portal"
     ? `Portal MDA | ${rawTitle}`
     : "Portal MDA";
-const globalFontFaceCss = `
-  @font-face {
-    font-family: "Geist Variable";
-    src: url("${geistLatinWoff2}") format("woff2");
-    font-display: swap;
-    font-style: normal;
-    font-weight: 100 900;
-  }
-
-  @font-face {
-    font-family: "Geist Mono Variable";
-    src: url("${geistMonoLatinWoff2}") format("woff2");
-    font-display: swap;
-    font-style: normal;
-    font-weight: 100 900;
-  }
-`;
-const aboutProjectVersion = `v${packageJson.version}`;
-const aboutProjectYear = new Date().getFullYear();
-const aboutProjectOwners: string[] = [
-  "Ignacio Revainera",
-  "Franco Nahuel González",
-  "Darío Altamirano",
-];
 
 const flattenQuickAccessItems = (items: NavItem[]): NavItem[] =>
   items.flatMap((item) => {
@@ -119,38 +98,32 @@ let visibleNavSections = navSections
   }))
   .filter((section) => section.items.length > 0);
 
-const drawerNavItems = visibleNavSections.flatMap((section) =>
-  section.items.map((item) => ({ ...item, children: undefined })),
-);
 const quickAccessItems: NavItem[] = visibleNavSections.flatMap((section) =>
   flattenQuickAccessItems(section.items),
 );
-const userInitials = user.username.slice(0, 2).toUpperCase();
 
-const roleAvatarClasses: Record<string, string> = {
-  admin: "bg-error text-error-content",
-  supervisor: "bg-info text-info-content",
-  team_leader: "bg-accent text-accent-content",
-  referent: "bg-warning text-warning-content",
-  agent: "bg-neutral text-neutral-content",
-};
+const globalFontFaceCss = `
+  @font-face {
+    font-family: "Geist Variable";
+    src: url("${geistLatinWoff2}") format("woff2");
+    font-display: swap;
+    font-style: normal;
+    font-weight: 100 900;
+  }
 
-const roleLabelMap: Record<string, string> = {
-  admin: "Administrador",
-  supervisor: "Supervisor",
-  team_leader: "Team Leader",
-  referent: "Referente",
-  agent: "Agente",
-};
-
-const avatarClass =
-  roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
-const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
+  @font-face {
+    font-family: "Geist Mono Variable";
+    src: url("${geistMonoLatinWoff2}") format("woff2");
+    font-display: swap;
+    font-style: normal;
+    font-weight: 100 900;
+  }
+`;
 ---
 
 <html lang="es">
+  <meta charset="utf-8" />
   <head>
-    <style is:global set:html={globalFontFaceCss}></style>
     <script is:inline>
       (() => {
         const savedTheme = localStorage.getItem("theme");
@@ -158,16 +131,10 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
           savedTheme === "light" || savedTheme === "dark"
             ? savedTheme
             : "light";
-
         document.documentElement.setAttribute("data-theme", theme);
       })();
     </script>
-    <script>
-      import { themeChange } from "theme-change";
-
-      themeChange();
-    </script>
-    <meta charset="utf-8" />
+    <style is:global set:html={globalFontFaceCss}></style>
     <link
       rel="preload"
       href={geistLatinWoff2}
@@ -189,6 +156,7 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
       href={`${cleanBase}favicon-96x96.png`}
       sizes="96x96"
     />
+    
     <link rel="icon" type="image/svg+xml" href={`${cleanBase}favicon.svg`} />
     <link rel="shortcut icon" href={`${cleanBase}favicon.ico`} />
     <link
@@ -196,16 +164,16 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
       sizes="180x180"
       href={`${cleanBase}apple-touch-icon.png`}
     />
-    <meta name="apple-mobile-web-app-title" content="MDA" />
-    <link rel="manifest" href={`${cleanBase}site.webmanifest`} />
 
+    <meta name="apple-mobile-web-app-title" content="MDA" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
+    <link rel="manifest" href={`${cleanBase}site.webmanifest`} />
+
     <title>{inferredTitle}</title>
   </head>
-  <body
-    class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content"
-  >
+
+  <body class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content">
     <div class="drawer lg:drawer-open h-screen overflow-hidden">
       <input
         id="main-drawer"
@@ -213,712 +181,30 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
         class="drawer-toggle"
         aria-label="toggle sidebar"
       />
-      <div
-        class="drawer-content flex h-screen max-w-full flex-col overflow-hidden"
-      >
-        <header
-          class="navbar z-30 min-h-20 border-b border-base-300 bg-base-100/95 p-2 md:p-4 text-sm md:text-base text-base-content backdrop-blur"
-        >
-          <div class="flex items-center gap-2">
-            <label
-              for="main-drawer"
-              aria-label="open sidebar"
-              aria-controls="main-drawer"
-              role="button"
-              tabindex="0"
-              class="btn btn-ghost btn-circle drawer-button lg:hidden"
-            >
-              <Icon name="boxicons:menu-filled" size={24} />
-            </label>
-          </div>
+      <div class="drawer-content flex h-screen max-w-full flex-col overflow-hidden">
+        <!-- Navbar -->
+        <Navbar user={user} normalizedUserRole={normalizedUserRole}/>
 
-          <div class="hidden flex-1 justify-end px-4 md:flex">
-            <button
-              type="button"
-              data-open-command-palette
-              aria-label="Abrir búsqueda maestra"
-              class="btn btn-ghost inline-flex w-full max-w-56 items-center justify-start gap-2 border border-base-300 bg-base-100 px-4 font-normal normal-case"
-            >
-              <Icon name="boxicons:search" size={16} />
-              <span class="text-sm text-base-content/70">Buscar...</span>
-              <div class="ml-auto flex items-center gap-1">
-                <kbd class="kbd kbd-sm">Ctrl</kbd>
-                <kbd class="kbd kbd-sm">K</kbd>
-              </div>
-            </button>
-          </div>
-
-          <div class="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              data-open-command-palette
-              aria-label="Abrir búsqueda maestra"
-              class="btn btn-ghost btn-circle md:hidden"
-            >
-              <Icon name="boxicons:search" size={24} />
-            </button>
-
-            <div class="divider divider-horizontal m-0 md:hidden"></div>
-
-            {
-              user.id !== 0 && (
-                <div
-                  class="tooltip tooltip-bottom"
-                  data-tip="Enviar sugerencia"
-                >
-                  <button
-                    type="button"
-                    data-open-feedback-modal
-                    class="btn btn-ghost btn-circle"
-                    aria-label="Enviar sugerencia o reportar bug"
-                  >
-                    <Icon name="boxicons:mail-open" size={20} />
-                  </button>
-                </div>
-              )
-            }
-
-            <label class="btn btn-ghost btn-circle swap swap-rotate">
-              <input
-                id="theme-toggle"
-                type="checkbox"
-                class="theme-controller"
-                data-toggle-theme="dark,light"
-                data-act-class="ACTIVECLASS"
-                value="dark"
-                aria-label="Activar modo oscuro"
-              />
-
-              <Icon
-                name="boxicons:sun-filled"
-                class="swap-off"
-                size={20}
-                aria-hidden="true"
-              />
-              <Icon
-                name="boxicons:moon-filled"
-                class="swap-on"
-                size={20}
-                aria-hidden="true"
-              />
-            </label>
-
-            <button
-              type="button"
-              data-open-about-project
-              title="Acerca de este proyecto"
-              aria-label="Acerca de este proyecto"
-              class="btn btn-ghost btn-circle"
-            >
-              <Icon name="boxicons:help-circle-filled" size={24} />
-            </button>
-
-            <div class="flex items-center gap-2">
-              <div class="divider divider-horizontal m-0"></div>
-              {
-                user.id === 0 ? (
-                  <a
-                    href={resolveUrl("/login")}
-                    aria-label="Iniciar sesión"
-                    class="btn btn-ghost btn-circle"
-                    title="Iniciar sesión"
-                  >
-                    <Icon
-                      name="boxicons:arrow-out-right-stroke-circle-half-filled"
-                      size={20}
-                    />
-                  </a>
-                ) : (
-                  <div class="dropdown dropdown-end">
-                    <div
-                      tabindex="0"
-                      role="button"
-                      class="btn btn-ghost btn-circle avatar avatar-placeholder"
-                    >
-                      <div
-                        class:list={[
-                          "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm",
-                          avatarClass,
-                        ]}
-                      >
-                        {userInitials}
-                      </div>
-                    </div>
-                    <ul
-                      tabindex="0"
-                      class="dropdown-content menu bg-base-100 border border-base-300 rounded-box z-1 mt-3 w-52 p-2 shadow select-none"
-                    >
-                      <li class="menu-title px-4 py-2 border-b border-base-200 pointer-events-none">
-                        <span class="text-xs font-semibold text-base-content block truncate">
-                          {user.username}
-                        </span>
-                        <span class="text-xxs font-medium uppercase tracking-wider text-base-content/50 block truncate">
-                          {roleLabel}
-                        </span>
-                      </li>
-                      <li>
-                        <a
-                          href={resolveUrl("/profile")}
-                          class="text-xs py-2 gap-2 focus:bg-transparent focus:text-inherit"
-                        >
-                          <Icon name="boxicons:user-filled" size={16} />
-                          Ver perfil
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href={resolveUrl("/logout")}
-                          class="text-xs py-2 gap-2 text-error hover:bg-error/10 focus:bg-transparent"
-                        >
-                          <Icon
-                            name="boxicons:door-open-alt-filled"
-                            size={16}
-                          />
-                          Cerrar sesión
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                )
-              }
-            </div>
-          </div>
-        </header>
-
-        <main
-          class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 [scrollbar-gutter:stable_both-edges]"
-        >
+        <!-- Main content -->
+        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 [scrollbar-gutter:stable_both-edges]">
           <slot />
         </main>
       </div>
 
-      <div class="drawer-side z-60 lg:z-60 lg:overflow-visible">
-        <label
-          for="main-drawer"
-          aria-label="close sidebar"
-          class="drawer-overlay"></label>
-
-        <div
-          class="flex h-full min-h-full w-64 lg:w-fit lg:overflow-visible flex-col items-start bg-secondary transition-all duration-300 ease-in-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          <a
-            href={resolveUrl("/")}
-            aria-label="Ir al dashboard"
-            class="flex min-h-20 w-full items-center gap-2.5 border-b border-secondary-content/10 px-3 lg:justify-center lg:px-2"
-          >
-            <div class="avatar avatar-placeholder">
-              <div
-                class="flex w-8 bg-primary text-primary-content items-center justify-center rounded-xl shadow-sm lg:w-9"
-              >
-                <Image
-                  src={logo}
-                  alt="Logo Correo Argentino"
-                  class="size-4 lg:size-8 bg-primary p-1 rounded-full text-secondary"
-                />
-              </div>
-            </div>
-            <div class="lg:hidden min-w-0">
-              <p
-                class="text-xs uppercase font-black tracking-widest text-primary truncate leading-tight"
-              >
-                Correo Argentino
-              </p>
-              <h1
-                class="text-base font-black text-secondary-content tracking-tighter truncate leading-none"
-              >
-                Mesa de Ayuda
-              </h1>
-            </div>
-          </a>
-
-          <div
-            class="w-full grow overflow-y-auto lg:overflow-visible py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {
-              visibleNavSections.map((section, sectionIndex) => (
-                <>
-                  <ul class="menu w-full gap-1 p-2">
-                    {section.items.map((item) => {
-                      const isActive = isActiveRoute(item.href);
-                      const isLocked = isRouteLocked(item.href);
-                      return (
-                        <>
-                          <li>
-                            <a
-                              href={
-                                isLocked ? undefined : resolveUrl(item.href)
-                              }
-                              aria-label={item.label}
-                              aria-disabled={isLocked ? "true" : undefined}
-                              data-tip={
-                                isLocked
-                                  ? `${item.label} (restringido)`
-                                  : item.label
-                              }
-                              tabindex={isLocked ? -1 : undefined}
-                              class:list={[
-                                "group flex items-center gap-2.5 rounded-lg text-xs p-2.5 font-medium transition",
-                                "lg:justify-center lg:px-2.5",
-                                "tooltip tooltip-right tooltip-neutral",
-                                isLocked
-                                  ? "opacity-40 cursor-not-allowed pointer-events-none grayscale select-none"
-                                  : isActive
-                                    ? "bg-primary text-primary-content shadow-sm"
-                                    : "text-secondary-content/70 hover:bg-white/10 hover:text-white",
-                              ]}
-                            >
-                              <Icon
-                                name={item.icon}
-                                size={24}
-                                class="shrink-0 opacity-80 transition group-hover:opacity-100"
-                              />
-                              <span class="truncate lg:hidden">
-                                {item.label}
-                              </span>
-                              {isLocked && (
-                                <Icon
-                                  name="boxicons:lock"
-                                  size={14}
-                                  class="ml-auto shrink-0 opacity-60 lg:hidden"
-                                  aria-hidden="true"
-                                />
-                              )}
-                            </a>
-                          </li>
-                        </>
-                      );
-                    })}
-                  </ul>
-
-                  {sectionIndex < visibleNavSections.length - 1 && (
-                    <div class="px-4 my-1 lg:px-2">
-                      <div class="h-px bg-secondary-content/10" />
-                    </div>
-                  )}
-                </>
-              ))
-            }
-          </div>
-        </div>
-      </div>
+      <!-- Drawer content -->
+      <DrawerContent
+        visibleNavSections={visibleNavSections}
+        isActiveRoute={isActiveRoute}
+        isRouteLocked={isRouteLocked}
+      />
     </div>
-
-    <dialog id="command-palette" class="modal">
-      <div
-        class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
-      >
-        <div class="border-b border-base-300 p-4">
-          <label for="command-palette-input" class="sr-only"
-            >Filtrar accesos</label
-          >
-
-          <label class="input w-full">
-            <Icon
-              name="boxicons:search"
-              size={20}
-              class="shrink-0 text-base-content/60"
-            />
-            <input
-              type="search"
-              placeholder="Buscar..."
-              id="command-palette-input"
-              class="grow w-full"
-              autocomplete="off"
-            />
-          </label>
-        </div>
-
-        <ul class="menu w-full">
-          {
-            quickAccessItems.map((item) => {
-              const isLocked = isRouteLocked(item.href);
-              return (
-                <li
-                  data-command-item
-                  data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
-                  class:list={[
-                    isLocked &&
-                      "opacity-40 grayscale select-none cursor-not-allowed",
-                  ]}
-                >
-                  <a
-                    href={isLocked ? undefined : resolveUrl(item.href)}
-                    class="justify-between gap-3"
-                    tabindex={isLocked ? -1 : undefined}
-                  >
-                    <span
-                      class:list={[
-                        "flex min-w-0 items-center gap-2",
-                        item.nested && "pl-5",
-                      ]}
-                    >
-                      <Icon name={item.icon} size={14} class="shrink-0" />
-                      <span class="min-w-0">
-                        {item.parentLabel && (
-                          <span class="block text-xs text-base-content/50">
-                            {item.parentLabel}
-                          </span>
-                        )}
-                        <span class="block truncate">{item.label}</span>
-                      </span>
-                    </span>
-                    <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-xs text-base-content/60">
-                        {item.href}
-                      </span>
-                      {isLocked && (
-                        <Icon
-                          name="boxicons:lock"
-                          size={12}
-                          class="opacity-60"
-                        />
-                      )}
-                    </div>
-                  </a>
-                </li>
-              );
-            })
-          }
-        </ul>
-
-        <p
-          id="command-palette-empty"
-          class="hidden px-4 pb-4 text-sm text-base-content/70"
-        >
-          No hay accesos que coincidan.
-        </p>
-      </div>
-
-      <form method="dialog" class="modal-backdrop">
-        <button aria-label="Cerrar búsqueda">close</button>
-      </form>
-    </dialog>
-
-    <dialog id="about-project-dialog" class="modal">
-      <div
-        class="modal-box w-11/12 max-w-md overflow-hidden rounded-lg border-0 bg-base-100 p-0 shadow-md"
-      >
-        <div
-          class="relative flex flex-col items-center justify-center overflow-hidden bg-secondary p-8 text-center"
-        >
-          <div class="pointer-events-none absolute -top-8 -right-8 opacity-10">
-            <Icon
-              name="boxicons:network-chart-filled"
-              size={200}
-              class="text-white"
-              aria-hidden="true"
-            />
-          </div>
-
-          <form method="dialog" class="absolute top-3 right-3 z-20">
-            <button
-              type="submit"
-              class="btn btn-ghost btn-sm btn-circle border-0 text-white hover:bg-white/15"
-              aria-label="Cerrar acerca del proyecto"
-            >
-              <span aria-hidden="true" class="text-base leading-none">X</span>
-            </button>
-          </form>
-
-          <div class="relative z-10 flex flex-col items-center">
-            <div
-              class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-inner"
-            >
-              <Icon
-                name="boxicons:building-house-filled"
-                class="text-white"
-                size={30}
-              />
-            </div>
-
-            <h2
-              class="flex flex-wrap items-center justify-center gap-2 text-2xl font-black tracking-tight text-white"
-            >
-              Mesa de Ayuda
-              <span
-                class="rounded-md bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-primary-content ring-1 ring-white/30 shadow-sm"
-              >
-                {aboutProjectVersion}
-              </span>
-            </h2>
-          </div>
-        </div>
-
-        <div class="space-y-5 bg-base-100 px-6 py-7">
-          <div class="flex items-start gap-4">
-            <div
-              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:code-alt-filled" size={24} />
-            </div>
-            <div>
-              <h4 class="text-sm font-semibold text-base-content">
-                Desarrollo y arquitectura
-              </h4>
-              <p class="mt-1 text-sm leading-relaxed text-base-content/70">
-                Plataforma construida para optimizar la gestión de tickets,
-                visualización de infraestructura y monitoreo técnico.
-              </p>
-            </div>
-          </div>
-
-          <div class="flex items-start gap-4">
-            <div
-              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:group-filled" size={24} />
-            </div>
-            <div class="w-full">
-              <h4 class="mb-3 text-sm font-semibold text-base-content">
-                Responsables del proyecto
-              </h4>
-              <ul class="grid grid-cols-3 gap-2">
-                {
-                  aboutProjectOwners.map((owner) => (
-                    <li class="flex flex-col items-center rounded-xl border border-base-300/50 bg-base-200/50 p-2 text-center transition-colors hover:bg-base-200/80">
-                      <div class="mb-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-content shadow-sm">
-                        <Icon
-                          name="boxicons:user-filled"
-                          size={14}
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <span class="text-xs font-bold leading-tight text-base-content/90">
-                        {owner}
-                      </span>
-                    </li>
-                  ))
-                }
-              </ul>
-            </div>
-          </div>
-
-          <div
-            class="flex justify-center gap-3 pt-4 border-t border-base-300/50 mt-4"
-          >
-            <a
-              href="https://github.com/ignaciorevainera/correo-argentino-mda"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn-outline btn-sm gap-2 border-base-300 hover:bg-base-200"
-              title="Repositorio GitHub"
-              aria-label="Ver Repositorio de GitHub"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="text-base-content/75"
-                ><path
-                  d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.527-10-10-10z"
-                ></path></svg
-              >
-              <span class="text-xs font-semibold">GitHub</span>
-            </a>
-          </div>
-        </div>
-
-        <div class="border-t border-base-300/50 bg-base-200/40 px-6 py-4">
-          <p class="text-center text-xs font-medium text-base-content/70">
-            © {aboutProjectYear} Correo Argentino. Todos los derechos reservados.
-          </p>
-        </div>
-      </div>
-
-      <form method="dialog" class="modal-backdrop">
-        <button aria-label="Cerrar acerca del proyecto">close</button>
-      </form>
-    </dialog>
-
-    {user.id !== 0 && <FeedbackModal />}
-    <ToastContainer />
-
-    <script>
-      import { showToast, type ToastType } from "@lib/toastClient";
-
-      // Exponer a nivel global para llamadas dinámicas desde islas de servidor
-      (window as any).showToast = showToast;
-
-      function checkUrlToasts() {
-        const url = new URL(window.location.href);
-        const msg = url.searchParams.get("toast_msg");
-        const typeParam = url.searchParams.get("toast_type") || "info";
-
-        if (msg) {
-          const typeMap: Record<string, ToastType> = {
-            success: "alert-success",
-            error: "alert-error",
-            warning: "alert-warning",
-            info: "alert-info",
-          };
-          const toastType = typeMap[typeParam] || "alert-info";
-
-          showToast(msg, toastType);
-
-          url.searchParams.delete("toast_msg");
-          url.searchParams.delete("toast_type");
-          window.history.replaceState({}, "", url.pathname + url.search);
-        }
-      }
-
-      checkUrlToasts();
-      document.addEventListener("astro:page-load", checkUrlToasts);
-
-      const commandPalette = document.getElementById(
-        "command-palette",
-      ) as HTMLDialogElement | null;
-      const commandPaletteInput = document.getElementById(
-        "command-palette-input",
-      ) as HTMLInputElement | null;
-      const commandPaletteItems = Array.from(
-        document.querySelectorAll("[data-command-item]"),
-      ) as HTMLLIElement[];
-      const commandPaletteEmpty = document.getElementById(
-        "command-palette-empty",
-      ) as HTMLElement | null;
-      const commandPaletteTriggers = Array.from(
-        document.querySelectorAll("[data-open-command-palette]"),
-      ) as HTMLButtonElement[];
-      const aboutProjectDialog = document.getElementById(
-        "about-project-dialog",
-      ) as HTMLDialogElement | null;
-      const aboutProjectTriggers = Array.from(
-        document.querySelectorAll("[data-open-about-project]"),
-      ) as HTMLButtonElement[];
-
-      const themeToggle = document.getElementById(
-        "theme-toggle",
-      ) as HTMLInputElement | null;
-
-      const updateThemeToggle = (): void => {
-        const isDark =
-          document.documentElement.getAttribute("data-theme") === "dark";
-
-        if (themeToggle) {
-          themeToggle.checked = isDark;
-          themeToggle.setAttribute(
-            "aria-label",
-            isDark ? "Activar modo claro" : "Activar modo oscuro",
-          );
-        }
-      };
-
-      const filterCommandPalette = (): void => {
-        const query = commandPaletteInput?.value.trim().toLowerCase() ?? "";
-        let visibleItems = 0;
-
-        commandPaletteItems.forEach((item: HTMLLIElement) => {
-          const searchText = item.dataset.searchText ?? "";
-          const isVisible = query.length === 0 || searchText.includes(query);
-
-          item.classList.toggle("hidden", !isVisible);
-          if (isVisible) {
-            visibleItems += 1;
-          }
-        });
-
-        commandPaletteEmpty?.classList.toggle("hidden", visibleItems > 0);
-      };
-
-      const openCommandPalette = (): void => {
-        if (!commandPalette) {
-          return;
-        }
-
-        if (!commandPalette.open) {
-          commandPalette.showModal();
-        }
-
-        if (commandPaletteInput) {
-          commandPaletteInput.value = "";
-          filterCommandPalette();
-          commandPaletteInput.focus();
-        }
-      };
-
-      const closeCommandPalette = (): void => {
-        if (commandPalette?.open) {
-          commandPalette.close();
-        }
-      };
-
-      const openAboutProjectDialog = (): void => {
-        if (!aboutProjectDialog) {
-          return;
-        }
-
-        if (!aboutProjectDialog.open) {
-          aboutProjectDialog.showModal();
-        }
-      };
-
-      const closeAboutProjectDialog = (): void => {
-        if (aboutProjectDialog?.open) {
-          aboutProjectDialog.close();
-        }
-      };
-
-      commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
-        trigger.addEventListener("click", () => {
-          openCommandPalette();
-        });
-      });
-      aboutProjectTriggers.forEach((trigger: HTMLButtonElement) => {
-        trigger.addEventListener("click", () => {
-          openAboutProjectDialog();
-        });
-      });
-
-      commandPaletteInput?.addEventListener("input", () => {
-        filterCommandPalette();
-      });
-
-      commandPalette?.addEventListener("click", (event: MouseEvent) => {
-        if (event.target === commandPalette) {
-          closeCommandPalette();
-        }
-      });
-      aboutProjectDialog?.addEventListener("click", (event: MouseEvent) => {
-        if (event.target === aboutProjectDialog) {
-          closeAboutProjectDialog();
-        }
-      });
-
-      document.addEventListener("keydown", (event: KeyboardEvent) => {
-        const isCommandShortcut =
-          (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
-
-        if (isCommandShortcut) {
-          event.preventDefault();
-          openCommandPalette();
-          return;
-        }
-
-        if (event.key === "Escape") {
-          closeCommandPalette();
-          closeAboutProjectDialog();
-        }
-      });
-
-      themeToggle?.addEventListener("change", () => {
-        window.setTimeout(() => {
-          updateThemeToggle();
-        }, 0);
-      });
-
-      const themeObserver = new MutationObserver(() => {
-        updateThemeToggle();
-      });
-
-      themeObserver.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["data-theme"],
-      });
-
-      updateThemeToggle();
-      filterCommandPalette();
-    </script>
   </body>
+
+  <!-- Modals & Toast's container-->
+  <CommandPaletteModal items={quickAccessItems} isRouteLocked={isRouteLocked} />
+  <AboutProjectModal />
+  <FeedbackModal />
+  <ToastContainer />
+
+  <script src="../../scripts/toggle-mode.ts"></script>
 </html>

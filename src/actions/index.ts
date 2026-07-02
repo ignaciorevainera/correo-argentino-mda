@@ -386,7 +386,7 @@ export const server = {
       type: z.enum(["sugerencia", "bug"]),
       subject: z.string().min(3, "El asunto debe tener al menos 3 caracteres"),
       description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
-      category: z.string().optional().nullable(),
+      category: z.string().min(1, "El área o categoría es requerida"),
       severity: z.string().optional().nullable(),
       steps: z.string().optional().nullable(),
       userAgent: z.string().optional().nullable(),

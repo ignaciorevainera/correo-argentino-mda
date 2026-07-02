@@ -10,6 +10,8 @@ import { db } from "../../db/index";
 import { feedback, users } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import Modal from "@components/ui/Modal.astro";
 
 // Verificar autenticación y rol de administrador
 const user = Astro.locals.user;
@@ -34,6 +36,7 @@ const list = await db
     assignedToId: feedback.assignedToId,
     createdAt: feedback.createdAt,
     username: users.username,
+    role: users.role,
     assignedToUsername: assignedTo.username,
   })
   .from(feedback)
@@ -76,13 +79,13 @@ const formatDateTime = (date: Date) => {
           </button>
         </div>
         <div class="w-full md:w-auto flex justify-end md:pr-4">
-          <select class="select select-bordered select-sm rounded-md w-full md:w-48" id="filter-status">
+          <SelectField id="filter-status" name="filter-status" label="Filtrar por estado" size="sm" selectClass="rounded-md w-full md:w-48">
             <option value="all">Cualquier Estado</option>
             <option value="pendiente">Pendiente</option>
             <option value="en_revision">En Revisión</option>
             <option value="resuelto">Resuelto</option>
             <option value="descartado">Descartado</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 
@@ -176,14 +179,10 @@ const formatDateTime = (date: Date) => {
       )}
     </SectionCard>
 
-    {/* Modal de Detalles del Feedback */}
-    <dialog id="modal-details" class="modal" data-current-user-id={user.id}>
-      <div class="modal-box max-w-3xl border border-base-300 p-6 rounded-2xl bg-base-100 relative">
-        <button
-          type="button"
-          class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
-          onclick="document.getElementById('modal-details').close()"
-        >
+    <span id="modal-details-user-id" data-user-id={user.id} class="hidden"></span>
+    <Modal id="modal-details" size="3xl" class="p-6 relative">
+      <Fragment slot="content">
+        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 z-10" onclick="document.getElementById('modal-details').close()">
           <Icon name="boxicons:x" size={20} />
         </button>
 
@@ -202,12 +201,10 @@ const formatDateTime = (date: Date) => {
               <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Asunto</span>
               <p id="detail-subject" class="text-lg font-semibold text-base-content leading-snug"></p>
             </div>
-
             <div class="border-t border-base-200 pt-4">
               <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Descripción / Propuesta</span>
               <p id="detail-description" class="text-sm text-base-content leading-relaxed whitespace-pre-wrap pl-1"></p>
             </div>
-
             <div id="detail-bug-steps-container" class="hidden border-t border-base-200 pt-4">
               <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Pasos para reproducir</span>
               <p id="detail-steps" class="text-sm text-base-content leading-relaxed whitespace-pre-wrap pl-1"></p>
@@ -215,59 +212,80 @@ const formatDateTime = (date: Date) => {
           </div>
 
           <!-- Columna Derecha: Metadatos y Gestión (Ancho 1/3, barra lateral) -->
-          <div class="space-y-5 bg-base-200/40 p-4 rounded-xl border border-base-200">
-            <div>
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Tipo</span>
-              <span id="detail-type-badge" class="badge badge-sm font-bold uppercase tracking-wide"></span>
+          <div class="space-y-6 bg-base-200/40 p-6 rounded-2xl border border-base-200">
+            <!-- Detalles Técnicos -->
+            <div id="detail-useragent-container" class="hidden space-y-2">
+              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">DETALLES TÉCNICOS</span>
+              <div class="bg-base-200/60 p-4 rounded-xl border border-base-300 font-mono text-xxs leading-relaxed space-y-2">
+                <div class="flex items-center gap-1.5">
+                  <Icon name="boxicons:terminal" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
+                  <div><strong>Ruta:</strong> <span id="detail-tech-route" class="font-bold text-base-content"></span></div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <Icon name="boxicons:laptop" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
+                  <div><strong>Sistema Operativo:</strong> <span id="detail-tech-os" class="font-bold text-base-content"></span></div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <Icon name="boxicons:globe" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
+                  <div><strong>Navegador:</strong> <span id="detail-tech-browser" class="font-bold text-base-content"></span></div>
+                </div>
+              </div>
             </div>
 
-            <div id="detail-category-container" class="hidden">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Categoría</span>
-              <span id="detail-category" class="badge badge-outline badge-sm font-semibold"></span>
+            <!-- Metadata Rows -->
+            <div class="border-t border-base-200 pt-4 space-y-3.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">TIPO:</span>
+                <span id="detail-type-badge" class="badge badge-sm font-bold uppercase tracking-wide"></span>
+              </div>
+              <div id="detail-category-container" class="flex items-center justify-between hidden">
+                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">CATEGORÍA:</span>
+                <span id="detail-category" class="badge badge-sm font-semibold"></span>
+              </div>
+              <div id="detail-severity-container" class="flex items-center justify-between hidden">
+                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">GRAVEDAD:</span>
+                <span id="detail-severity" class="badge badge-sm font-semibold uppercase"></span>
+              </div>
             </div>
 
-            <div id="detail-severity-container" class="hidden">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Gravedad</span>
-              <span id="detail-severity" class="badge badge-sm font-semibold uppercase"></span>
+            <!-- Reporte Info -->
+            <div class="border-t border-base-200 pt-4 space-y-2.5">
+              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">REPORTE INFO</span>
+              <div>
+                <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/40 block mb-1">ENVIADO POR:</span>
+                <div class="flex items-center gap-2">
+                  <div id="detail-avatar" class="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center text-[10px] font-bold text-base-content/60 shadow-sm">
+                  </div>
+                  <div class="text-sm font-bold text-base-content" id="detail-username"></div>
+                </div>
+              </div>
             </div>
 
-            <div id="detail-useragent-container" class="hidden">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Navegador (userAgent)</span>
-              <p id="detail-useragent" class="text-xxs font-mono bg-base-200 p-2 rounded break-all leading-normal" title=""></p>
-            </div>
-
-            <div class="border-t border-base-200 pt-4">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Enviado por</span>
-              <div class="text-sm font-bold text-base-content" id="detail-username"></div>
-            </div>
-
-            <div class="border-t border-base-200 pt-4">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Asignación</span>
-              <div class="space-y-2 mt-1">
-                <div id="detail-assigned-to" class="text-xs font-semibold text-base-content">Sin asignar</div>
-                <button type="button" id="btn-assign-self" class="btn btn-xs btn-primary w-full gap-1">
-                  Asignarme Caso
-                </button>
-                <button type="button" id="btn-unassign-self" class="btn btn-xs btn-neutral w-full gap-1 hidden">
-                  Liberar Caso
-                </button>
+            <!-- Asignación -->
+            <div class="border-t border-base-200 pt-4 space-y-2">
+              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">ASIGNACIÓN</span>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <div id="detail-assigned-to" class="text-base font-black text-base-content">Sin asignar</div>
+                <div class="ms-auto shrink-0 flex items-center gap-1">
+                  <button type="button" id="btn-assign-self" class="btn btn-sm btn-warning rounded-lg font-bold shadow-sm px-3">
+                    Asignarme Caso
+                  </button>
+                  <button type="button" id="btn-unassign-self" class="btn btn-sm btn-neutral rounded-lg font-bold hidden shadow-sm px-3">
+                    Liberar Caso
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- Acciones Inferiores (Resolver, En Revisión, Descartar) -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-end gap-2 mt-8 pt-4 border-t border-base-200">
-          <input type="hidden" id="detail-feedback-id" />
-          <button type="button" class="btn btn-sm btn-outline btn-warning font-semibold" data-status-btn="en_revision">En Revisión</button>
-          <button type="button" class="btn btn-sm btn-success text-success-content font-semibold" data-status-btn="resuelto">Resolver</button>
-          <button type="button" class="btn btn-sm btn-outline btn-error font-semibold" data-status-btn="descartado">Descartar</button>
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button>cerrar</button>
-      </form>
-    </dialog>
+      </Fragment>
+      <Fragment slot="actions">
+        <input type="hidden" id="detail-feedback-id" />
+        <button type="button" class="btn btn-sm btn-outline btn-warning font-semibold" data-status-btn="en_revision">En Revisión</button>
+        <button type="button" class="btn btn-sm btn-success text-success-content font-semibold" data-status-btn="resuelto">Resolver</button>
+        <button type="button" class="btn btn-sm btn-outline btn-error font-semibold" data-status-btn="descartado">Descartar</button>
+      </Fragment>
+    </Modal>
   </PageContainer>
 </BaseLayout>
 
@@ -278,6 +296,23 @@ const formatDateTime = (date: Date) => {
   function initFeedbackAdmin() {
     const typeButtons = document.querySelectorAll("[data-filter-type]");
     const statusSelect = document.getElementById("filter-status") as HTMLSelectElement | null;
+    const roleAvatarClasses: Record<string, string> = {
+      admin: "bg-error text-error-content",
+      supervisor: "bg-info text-info-content",
+      team_leader: "bg-accent text-accent-content",
+      referent: "bg-warning text-warning-content",
+      agent: "bg-neutral text-neutral-content",
+    };
+    function setAvatar(username: string, role: string) {
+      const avatar = document.getElementById("detail-avatar");
+      if (!avatar) return;
+      const initials = (username || "?").slice(0, 2).toUpperCase();
+      avatar.textContent = initials;
+      avatar.className =
+        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm " +
+        (roleAvatarClasses[role] ?? roleAvatarClasses.agent);
+    }
+
     const rows = document.querySelectorAll("[data-table-row]");
     const detailsModal = document.getElementById("modal-details") as HTMLDialogElement | null;
 
@@ -337,7 +372,9 @@ const formatDateTime = (date: Date) => {
         const typeBadge = document.getElementById("detail-type-badge");
         if (typeBadge) {
           typeBadge.textContent = item.type === "bug" ? "BUG" : "SUGERENCIA";
-          typeBadge.className = item.type === "bug" ? "badge badge-error badge-sm font-bold" : "badge badge-info badge-sm font-bold";
+          typeBadge.className = item.type === "bug"
+            ? "badge badge-error badge-sm font-bold uppercase"
+            : "badge badge-info badge-sm font-bold uppercase";
         }
 
         // Rellenar campos comunes
@@ -348,7 +385,10 @@ const formatDateTime = (date: Date) => {
         if (descEl) descEl.textContent = item.description;
 
         const userEl = document.getElementById("detail-username");
-        if (userEl) userEl.textContent = item.username;
+        if (userEl) {
+          userEl.textContent = item.username;
+          setAvatar(item.username, item.role);
+        }
 
         const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
         if (feedbackIdEl) feedbackIdEl.value = item.id.toString();
@@ -359,18 +399,22 @@ const formatDateTime = (date: Date) => {
         const useragentContainer = document.getElementById("detail-useragent-container");
         const bugStepsContainer = document.getElementById("detail-bug-steps-container");
 
-        if (item.type === "sugerencia") {
-          if (categoryContainer) categoryContainer.classList.remove("hidden");
-          if (severityContainer) severityContainer.classList.add("hidden");
-          if (useragentContainer) useragentContainer.classList.add("hidden");
-          if (bugStepsContainer) bugStepsContainer.classList.add("hidden");
-
+        // Category/Area is available for both types
+        if (categoryContainer) {
+          categoryContainer.classList.remove("hidden");
           const categoryEl = document.getElementById("detail-category");
-          if (categoryEl) categoryEl.textContent = item.category || "Ninguna";
+          if (categoryEl) {
+            categoryEl.textContent = item.category || "Ninguna";
+            categoryEl.className = "badge badge-neutral badge-sm font-semibold";
+          }
+        }
+
+
+        if (item.type === "sugerencia") {
+          if (severityContainer) severityContainer.classList.add("hidden");
+          if (bugStepsContainer) bugStepsContainer.classList.add("hidden");
         } else {
-          if (categoryContainer) categoryContainer.classList.add("hidden");
           if (severityContainer) severityContainer.classList.remove("hidden");
-          if (useragentContainer) useragentContainer.classList.remove("hidden");
           if (bugStepsContainer) bugStepsContainer.classList.remove("hidden");
 
           const severityEl = document.getElementById("detail-severity");
@@ -380,25 +424,80 @@ const formatDateTime = (date: Date) => {
               item.severity === "critico"
                 ? "badge badge-error badge-sm font-semibold"
                 : item.severity === "moderado"
-                  ? "badge badge-warning badge-sm font-semibold"
-                  : "badge badge-neutral badge-sm font-semibold";
-          }
-
-          const userAgentEl = document.getElementById("detail-useragent");
-          if (userAgentEl) {
-            userAgentEl.textContent = item.userAgent || "No disponible";
-            userAgentEl.setAttribute("title", item.userAgent || "");
+                  ? "badge badge-warning badge-sm font-semibold text-warning-content"
+                  : "badge bg-base-300 text-base-content badge-sm font-semibold border-none";
           }
 
           const stepsEl = document.getElementById("detail-steps");
           if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
         }
 
+        // Mostrar detalles técnicos (userAgent) si están disponibles para ambos tipos
+        if (item.userAgent) {
+          if (useragentContainer) useragentContainer.classList.remove("hidden");
+
+          const techRouteEl = document.getElementById("detail-tech-route");
+          const techOsEl = document.getElementById("detail-tech-os");
+          const techBrowserEl = document.getElementById("detail-tech-browser");
+
+          const rawUA = item.userAgent;
+          let ruta = "No disponible";
+          let rest = rawUA;
+          
+          if (rawUA.startsWith("Ruta: ")) {
+            const parts = rawUA.split(" | ");
+            ruta = parts[0].replace("Ruta: ", "").trim();
+            rest = parts.slice(1).join(" | ");
+          }
+          
+          let os = "Desconocido";
+          const osMatch = rest.match(/\(([^)]+)\)/);
+          if (osMatch && osMatch[1]) {
+            const osParts = osMatch[1].split(";");
+            os = osParts[0].trim();
+            if (osParts[1] && (osParts[1].includes("Android") || osParts[1].includes("Linux") || osParts[1].includes("iPhone"))) {
+              os = osParts[1].trim();
+            }
+          }
+          
+          let browserClean = rest;
+          if (rest.includes("Chrome/") && rest.includes("Safari/")) {
+            const chromeVer = rest.match(/Chrome\/([0-9.]+)/);
+            if (chromeVer) {
+              browserClean = `Chrome ${chromeVer[1]} Safari/537.36`;
+            }
+          } else if (rest.includes("Firefox/")) {
+            const firefoxVer = rest.match(/Firefox\/([0-9.]+)/);
+            if (firefoxVer) {
+              browserClean = `Firefox ${firefoxVer[1]}`;
+            }
+          } else if (rest.includes("Safari/") && !rest.includes("Chrome/")) {
+            const safariVer = rest.match(/Version\/([0-9.]+)/);
+            if (safariVer) {
+              browserClean = `Safari ${safariVer[1]}`;
+            }
+          } else if (rest.includes("Edg/")) {
+            const edgVer = rest.match(/Edg\/([0-9.]+)/);
+            if (edgVer) {
+              browserClean = `Edge ${edgVer[1]}`;
+            }
+          }
+          
+          browserClean = browserClean.replace(/^Mozilla\/[0-9.]+\s*\(.*?\)\s*/, "");
+          browserClean = browserClean.replace(/AppleWebKit\/[0-9.]+\s*\(KHTML,\s*like\s*Gecko\)\s*/i, "");
+          
+          if (techRouteEl) techRouteEl.textContent = ruta;
+          if (techOsEl) techOsEl.textContent = os;
+          if (techBrowserEl) techBrowserEl.textContent = browserClean;
+        } else {
+          if (useragentContainer) useragentContainer.classList.add("hidden");
+        }
+
         // Rellenar asignación
         const assignedToEl = document.getElementById("detail-assigned-to");
         const btnAssign = document.getElementById("btn-assign-self");
         const btnUnassign = document.getElementById("btn-unassign-self");
-        const currentUserId = Number(detailsModal?.getAttribute("data-current-user-id") || 0);
+        const currentUserId = Number(document.getElementById("modal-details-user-id")?.getAttribute("data-user-id") || 0);
 
         if (assignedToEl) {
           assignedToEl.textContent = item.assignedToUsername ? item.assignedToUsername : "Sin asignar";

@@ -1,0 +1,66 @@
+---
+import { Icon } from "astro-icon/components";
+
+export interface Props {
+  row: any;
+  rowGridClass: string;
+}
+
+const { row, rowGridClass } = Astro.props;
+const { invgateLocation, officeCode, mdaOffice, matched } = row;
+---
+
+<div class:list={[rowGridClass, "border-b border-base-200 px-4 py-3 last:border-b-0"]} data-location-row>
+  <div>
+    {matched ? (
+      <span class="badge badge-success text-success-content badge-sm font-medium">Match</span>
+    ) : (
+      <span class="badge badge-error text-error-content badge-sm font-medium">Sin match</span>
+    )}
+  </div>
+  <div class="flex flex-col min-w-0">
+    <span class="font-medium text-sm text-base-content truncate" title={invgateLocation.displayName}>
+      {invgateLocation.displayName}
+    </span>
+    <span class="text-xs text-base-content/50 truncate" title={invgateLocation.name}>
+      {invgateLocation.name}
+    </span>
+  </div>
+  <div class="text-sm font-mono text-base-content/85">{invgateLocation.nis || "—"}</div>
+  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cp || "—"}</div>
+  <div class="text-sm font-mono text-base-content/85">{invgateLocation.cc || "—"}</div>
+  <div>
+    {matched ? (
+      <span class="text-sm text-base-content font-medium">{mdaOffice?.name}</span>
+    ) : (
+      <div class="flex items-center gap-2" data-create-btn-container>
+        <button
+          type="button"
+          class="btn btn-xs btn-primary btn-outline"
+          data-create-office-btn
+          data-nis={invgateLocation.nis || ""}
+          data-name={invgateLocation.displayName || ""}
+          data-cc={invgateLocation.cc || ""}
+          data-address={invgateLocation.address || ""}
+          title="Agregar oficina a DB"
+        >
+          <Icon name="boxicons:plus" class="size-4" />
+          Crear
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs btn-ghost text-base-content/50 hover:text-primary"
+          title="Copiar detalles de ubicación"
+          onclick={`copyToClipboard('${invgateLocation.name}')`}
+          aria-label="Copiar detalles"
+        >
+          <Icon name="boxicons:copy" class="size-4" />
+        </button>
+      </div>
+    )}
+  </div>
+  <div class="text-sm font-mono text-base-content/85">{matched ? officeCode : "—"}</div>
+  <div class="text-sm text-base-content/80 truncate" title={matched ? mdaOffice?.address : "—"}>
+    {matched ? mdaOffice?.address : "—"}
+  </div>
+</div>

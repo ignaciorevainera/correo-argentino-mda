@@ -1,9 +1,15 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { offices, provinces, regions } from "@db/schema";
+import { offices, provinces, regions, technologyReferents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
+import { jsonError } from "@lib/apiResponse";
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
+  const user = locals.user;
+  if (!user || user.id === 0) {
+    return jsonError("No autenticado", 401);
+  }
+
   try {
     const allOffices = await db
       .select({
@@ -48,7 +54,29 @@ export const GET: APIRoute = async () => {
       .from(regions)
       .orderBy(regions.name);
 
-    return new Response(JSON.stringify({ sucursales, provincesByRegion, regions: allRegions }), {
+    const allReferents = await db
+      .select({
+        id: technologyReferents.id,
+        regionId: technologyReferents.regionId,
+        firstName: technologyReferents.firstName,
+        lastName: technologyReferents.lastName,
+      })
+      .from(technologyReferents);
+
+    const regionsWithReferents = allRegions.map((r) => ({
+      id: r.id,
+      name: r.name,
+      color: r.color,
+      referents: allReferents
+        .filter((ref) => ref.regionId === r.id)
+        .map((ref) => ({
+          id: ref.id,
+          firstName: ref.firstName,
+          lastName: ref.lastName,
+        })),
+    }));
+
+    return new Response(JSON.stringify({ sucursales, provincesByRegion, regions: regionsWithReferents }), {
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",

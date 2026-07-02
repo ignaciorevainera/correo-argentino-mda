@@ -1,11 +1,14 @@
 import type { APIRoute } from "astro";
-import { marcarEstadoExcepcional, limpiarEstadoExcepcional } from "@lib/disponibilidad";
+import { marcarEstadoExcepcional, limpiarEstadoExcepcional, ensureHasLock } from "@lib/disponibilidad";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "asignacion_ag");
   if (denied) return denied;
+
+  const lockCheck = await ensureHasLock(locals);
+  if (!lockCheck.ok) return lockCheck.response;
 
   try {
     const { agentId, tipo, motivo, tiempoExtra } = await request.json();
@@ -30,6 +33,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 export const DELETE: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "asignacion_ag");
   if (denied) return denied;
+
+  const lockCheck = await ensureHasLock(locals);
+  if (!lockCheck.ok) return lockCheck.response;
 
   try {
     const { agentId } = await request.json();
