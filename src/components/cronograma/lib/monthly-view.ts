@@ -195,6 +195,9 @@ export function changeMonth(offset: number): void {
 }
 
 export function renderDaily(): void {
+  // Remove container skeleton -- persists only until first render
+  document.getElementById('daily-view-skeleton')?.remove();
+
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   const selectedDateStr = dateInput?.value || formatYMD(new Date());
   const tableBody = document.getElementById('operators-table-body');
@@ -310,7 +313,7 @@ export function renderDaily(): void {
       let breakBadgeHtml = '';
       if (breakStartHourStr && breakEndHourStr) {
         breakBadgeHtml = `
-          <span class="daily-break-badge px-1.5 py-0.5 rounded-full text-tiny font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center gap-1 shadow-sm shrink-0" title="Break: ${breakStartHourStr} - ${breakEndHourStr}">
+          <span class="daily-break-badge px-1.5 py-0.5 rounded-full label-xxs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center gap-1 shadow-sm shrink-0" title="Break: ${breakStartHourStr} - ${breakEndHourStr}">
             <svg class="w-3 h-3 text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
               <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
@@ -576,7 +579,7 @@ export function renderDaily(): void {
                   ${styles.icon}
                </div>
                <div class="flex flex-col gap-1 items-start">
-                 <span class="${styles.badge} whitespace-nowrap text-xxs leading-none">${status}</span>
+                 <span class="${styles.badge} whitespace-nowrap text-xxs">${status}</span>
                  ${breakBadgeHtml ? `<div class="mt-1">${breakBadgeHtml}</div>` : ''}
                </div>
             </div>
@@ -733,7 +736,7 @@ export function renderHourly(dateStr: string): void {
            if (onBreak) {
               tbodyHtml += `<td class="border-r border-base-200/50 p-1 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
                  <div class="hourly-break-cell w-full h-full rounded border border-dashed border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity min-h-7 shadow-sm cursor-help" title="Descanso: ${breakStart} - ${breakEnd}">
-                   <span class="text-xxs leading-none">☕</span>
+                   <span class="text-xxs">☕</span>
                  </div>
               </td>`;
             } else if (working && !isFranco) {
@@ -755,6 +758,9 @@ export function renderHourly(dateStr: string): void {
 }
 
 export function renderMonthly(): void {
+  // Remove container skeleton -- persists only until first render
+  document.getElementById('monthly-view-skeleton')?.remove();
+
   if (state.focusedDateStr) {
     renderHourly(state.focusedDateStr);
     return;
@@ -1158,7 +1164,7 @@ export function renderMonthly(): void {
               ${isRotationCell ? `data-saturday-rotation="true" data-rotation-horario="${escapeHtml(op.saturdayHorario || '07:00 - 13:00')}"` : ''}
               ${tooltipAttrs}
             >
-              <span class="font-black text-xs leading-none tracking-tight">${initials}</span>
+              <span class="font-black text-xs tracking-tight">${initials}</span>
               ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight mt-0.5 scale-90">HE: ${dayOvertime.startTime}</span>` : ''}
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
               ${hasComment ? `<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>` : ''}
@@ -1238,7 +1244,7 @@ export function renderMonthly(): void {
               <div class="bg-secondary w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
            </div>
            `}
-           <div class="flex flex-col items-center leading-none">
+           <div class="flex flex-col items-center">
               <span class="text-xxs font-black ${isLowCoverage ? 'text-error' : 'text-base-content/60'}">${c.pmg + c.ppp + c.ho}</span>
               <span class="text-micro font-black uppercase opacity-30">Activos</span>
            </div>

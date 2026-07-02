@@ -29,4 +29,5 @@ interface ImportMetaEnv {
   readonly INVGATE_API_KEY: string;
   readonly INVGATE_BASE_URL: string;
   readonly INVGATE_API_USERNAME: string;
+  readonly EXTERNAL_STORAGE_DIR: string;
 }

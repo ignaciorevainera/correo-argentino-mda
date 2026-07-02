@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
@@ -16,10 +17,6 @@ import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
 const { id } = Astro.params;
-const isNew = false;
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 let errorMsg = "";
 let link = {
   id: "",
@@ -35,24 +32,27 @@ let link = {
 
 const categories = await db.select().from(resourceCategories);
 
-if (id) {
-  const existingLink = await db.query.resourceLinks.findFirst({
-    where: eq(resourceLinks.id, Number(id)),
-  });
-  if (existingLink) {
-    link = {
-      ...existingLink,
-      id: String(existingLink.id),
-      categoryId: String(existingLink.categoryId),
-      subtitle: existingLink.subtitle || "",
-      iconPath: existingLink.iconPath || "",
-      deprecated: existingLink.deprecated || false,
-      credentialUsername: existingLink.credentialUsername || "",
-      credentialPassword: existingLink.credentialPassword || "",
-    };
-  } else {
-    return Astro.redirect(resolveUrl("/admin/recursos"));
-  }
+if (!id || isNaN(Number(id))) {
+  return Astro.redirect(resolveUrl("/admin/recursos"));
+}
+
+const numericId = Number(id);
+const existingLink = await db.query.resourceLinks.findFirst({
+  where: eq(resourceLinks.id, numericId),
+});
+if (existingLink) {
+  link = {
+    ...existingLink,
+    id: String(existingLink.id),
+    categoryId: String(existingLink.categoryId),
+    subtitle: existingLink.subtitle || "",
+    iconPath: existingLink.iconPath || "",
+    deprecated: existingLink.deprecated || false,
+    credentialUsername: existingLink.credentialUsername || "",
+    credentialPassword: existingLink.credentialPassword || "",
+  };
+} else {
+  return Astro.redirect(resolveUrl("/admin/recursos"));
 }
 
 let formSnapshot = null;
@@ -65,7 +65,8 @@ if (Astro.request.method === "POST") {
 
     const title = formData.get("title")?.toString().trim();
     const url = formData.get("url")?.toString().trim();
-    const categoryId = formData.get("categoryId")?.toString().trim();
+    const categoryIdRaw = formData.get("categoryId")?.toString();
+    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
     const subtitle = formData.get("subtitle")?.toString().trim() || null;
     const deprecated = formData.get("deprecated") === "on";
     const deleteCredentials = formData.get("deleteCredentials") === "on";
@@ -89,7 +90,7 @@ if (Astro.request.method === "POST") {
       iconPath = newIconPath;
     }
 
-    if (!title || !url || !categoryId) {
+    if (!title || !url || categoryId === null) {
       throw new Error("El título, la url y la categoría son obligatorios.");
     }
 
@@ -98,7 +99,7 @@ if (Astro.request.method === "POST") {
       await db
         .update(resourceLinks)
         .set({
-          categoryId: Number(categoryId),
+          categoryId: categoryId,
           title,
           url,
           subtitle,
@@ -107,7 +108,7 @@ if (Astro.request.method === "POST") {
           credentialUsername,
           credentialPassword,
         })
-        .where(eq(resourceLinks.id, Number(id)));
+        .where(eq(resourceLinks.id, numericId));
       if (oldTitle && oldTitle !== title) {
         await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace de "${oldTitle}" a "${title}"`);
       } else {
@@ -140,37 +141,44 @@ if (Astro.request.method === "POST") {
 <BaseLayout title="Editar Enlace">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/recursos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Recursos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Editar enlace</span>
+      </div>
+
+      <PageHeader
+        title="Editar Enlace"
+        description="Configuración del acceso directo para operadores."
+      />
+
+      {
+        errorMsg && (
+          <script is:inline define:vars={{ errorMsg }}>
+            const triggerToast = () => {
+              if (window.showToast) {
+                window.showToast(errorMsg, "alert-error");
+              } else {
+                setTimeout(triggerToast, 100);
+              }
+            };
+            if (document.readyState === "loading") {
+              document.addEventListener("DOMContentLoaded", triggerToast);
+            } else {
+              triggerToast();
+            }
+          </script>
+        )
+      }
+
       <SectionCard>
         <div class="p-6 sm:p-8">
-          <div class="flex items-start justify-between mb-6 border-b border-base-200 pb-4">
-            <div>
-              <h1 class="text-xl font-bold text-base-content">Editar Enlace</h1>
-              <p class="text-sm text-base-content/60 mt-1">Configuración del acceso directo para operadores.</p>
-            </div>
-            <a href={resolveUrl("/admin/recursos")} class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200" title="Cerrar">
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
-
-          {
-            errorMsg && (
-              <script is:inline define:vars={{ errorMsg }}>
-                const showError = () => {
-                  if (typeof window.showToast === 'function') {
-                    window.showToast(errorMsg, "alert-error");
-                  } else {
-                    setTimeout(showError, 50);
-                  }
-                };
-                if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                  showError();
-                } else {
-                  document.addEventListener('DOMContentLoaded', showError);
-                }
-              </script>
-            )
-          }
-
           <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
               <FormField
@@ -188,9 +196,18 @@ if (Astro.request.method === "POST") {
                 label="Categoría"
                 required
                 selectClass="font-medium"
-                options={categories.map(c => ({ value: String(c.id), label: c.title }))}
-                value={link.categoryId}
-              />
+              >
+                {
+                  categories.map((cat) => (
+                    <option
+                      value={cat.id}
+                      selected={link.categoryId ? Number(cat.id) === Number(link.categoryId) : false}
+                    >
+                      {cat.title}
+                    </option>
+                  ))
+                }
+              </SelectField>
 
               <FormField
                 id="input-url"

@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { agents, workLocations, schedules } from "@db/schema";
-import { eq } from "drizzle-orm";
+
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -11,14 +11,8 @@ import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
+import { resolveUrl } from "@lib/url";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
-
-const isNew = true;
-let successMsg = "";
 let errorMsg = "";
 
 const daysOfWeek = [
@@ -133,7 +127,7 @@ if (Astro.request.method === "POST") {
       }).returning({ id: agents.id, name: agents.name });
 
       if (inserted) {
-        await logAdminAction(user?.username || 'Sistema', `Creó el operador "${inserted.name}"`);
+        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el operador "${inserted.name}"`);
       }
 
       const uniqueDates = await db
@@ -168,9 +162,9 @@ if (Astro.request.method === "POST") {
 
       const toastMessage = `Operador "${inserted?.name || name}" creado con éxito.`;
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: `${cleanBase}admin/operadores` }), { status: 200, headers: {"Content-Type": "application/json"} });
+        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/operadores") }), { status: 200, headers: {"Content-Type": "application/json"} });
       }
-      return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`);
+      return Astro.redirect(resolveUrl(`/admin/operadores?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`));
     }
   } catch (e: any) {
     console.error("POST Admin Operator Error:", e);
@@ -190,7 +184,7 @@ const pageTitle = "Nuevo operador";
   <PageContainer>
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/operadores`}
+        href={resolveUrl("/admin/operadores")}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
@@ -208,14 +202,18 @@ const pageTitle = "Nuevo operador";
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
-        </script>
-      )
-    }
-    {
-      successMsg && (
-        <script is:inline define:vars={{ successMsg }}>
-          window.showToast?.(successMsg, "alert-success");
+          const triggerToast = () => {
+            if (window.showToast) {
+              window.showToast(errorMsg, "alert-error");
+            } else {
+              setTimeout(triggerToast, 100);
+            }
+          };
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", triggerToast);
+          } else {
+            triggerToast();
+          }
         </script>
       )
     }
@@ -378,7 +376,7 @@ const pageTitle = "Nuevo operador";
 
       <div class="flex items-center justify-between gap-3 pt-1">
         <a
-          href={`${cleanBase}admin/operadores`}
+          href={resolveUrl("/admin/operadores")}
           class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
         >
           <Icon name="boxicons:arrow-left-filled" size={16} />

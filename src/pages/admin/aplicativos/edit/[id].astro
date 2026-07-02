@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -12,15 +13,13 @@ import { logAdminAction } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encryptData, decryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
+import { getAppsDir, ensureDir, getPdfsDir } from "@lib/storage";
 import { resolveUrl } from "@lib/url";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
 const { id } = Astro.params;
-const isNew = false;
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 let errorMsg = "";
 let app = {
   id: 0,
@@ -60,7 +59,7 @@ if (existing) {
   app = {
     id: existing.id,
     title: existing.title,
-    categoryId: existing.categoryId || "",
+    categoryId: existing.categoryId ? String(existing.categoryId) : "",
     description: existing.description || "",
     version: existing.version || "",
     filePath: existing.filePath || "",
@@ -83,7 +82,8 @@ if (Astro.request.method === "POST") {
     formSnapshot = formData;
 
     const title = formData.get("title")?.toString().trim();
-    const categoryId = formData.get("categoryId")?.toString().trim() || null;
+    const categoryIdRaw = formData.get("categoryId")?.toString().trim();
+    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
     const description = formData.get("description")?.toString().trim() || null;
     const version = formData.get("version")?.toString().trim() || null;
     const uploadType = formData.get("uploadType")?.toString() as
@@ -117,22 +117,8 @@ if (Astro.request.method === "POST") {
         const fs = await import("node:fs");
         const path = await import("node:path");
 
-        const uploadDir = path.resolve(
-          process.env.EXTERNAL_STORAGE_DIR ||
-            (import.meta.env.EXTERNAL_STORAGE_DIR as string) ||
-            "C:/Projects/correo-argentino-mda-programs",
-        );
-
-        try {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        } catch (dirError: any) {
-          if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
-            throw dirError;
-          }
-          console.error(
-            `[aplicativos] No se pudo crear el directorio "${uploadDir}": ${dirError.message}. Asegurate de que exista y tenga permisos de escritura.`,
-          );
-        }
+        const appsDir = getAppsDir();
+        ensureDir(appsDir);
 
         const ext = path.extname(file.name);
         const baseName = path
@@ -143,7 +129,7 @@ if (Astro.request.method === "POST") {
 
         try {
           const buffer = Buffer.from(await file.arrayBuffer());
-          fs.writeFileSync(path.join(uploadDir, safeFileName), buffer);
+          fs.writeFileSync(path.join(appsDir, safeFileName), buffer);
         } catch (writeError: any) {
           console.error(
             `[aplicativos] Error al escribir el archivo "${safeFileName}": ${writeError.message}`,
@@ -161,7 +147,7 @@ if (Astro.request.method === "POST") {
 
           if (oldFileName) {
             try {
-              const oldAbsPath = path.join(uploadDir, oldFileName);
+              const oldAbsPath = path.join(appsDir, oldFileName);
               if (fs.existsSync(oldAbsPath)) {
                 fs.unlinkSync(oldAbsPath);
               }
@@ -207,21 +193,8 @@ if (Astro.request.method === "POST") {
       const fs = await import("node:fs");
       const path = await import("node:path");
 
-      const privateUploadDir = path.resolve(
-        process.env.EXTERNAL_PRIVATE_DIR ||
-          "C:/Projects/correo-argentino-mda-private-pdfs",
-      );
-
-      try {
-        fs.mkdirSync(privateUploadDir, { recursive: true });
-      } catch (dirError: any) {
-        if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
-          throw dirError;
-        }
-        console.error(
-          `[aplicativos] No se pudo crear el directorio privado: ${dirError.message}`,
-        );
-      }
+      const pdfsDir = getPdfsDir();
+      ensureDir(pdfsDir);
 
       const ext = path.extname(instructionPdfFile.name);
       if (ext.toLowerCase() !== ".pdf") {
@@ -236,12 +209,12 @@ if (Astro.request.method === "POST") {
 
       try {
         const buffer = Buffer.from(await instructionPdfFile.arrayBuffer());
-        fs.writeFileSync(path.join(privateUploadDir, safeFileName), buffer);
+        fs.writeFileSync(path.join(pdfsDir, safeFileName), buffer);
 
         // Si existía un archivo viejo, borrarlo
         if (app.instructionPdfPath) {
           const oldAbsPath = path.join(
-            privateUploadDir,
+            pdfsDir,
             app.instructionPdfPath,
           );
           if (fs.existsSync(oldAbsPath)) {
@@ -334,36 +307,44 @@ const isExternal = formUploadType
 <BaseLayout title="Editar aplicativo">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/aplicativos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Aplicativos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Editar aplicativo</span>
+      </div>
+
+      <PageHeader
+        title="Editar aplicativo"
+        description="Modificá los datos del aplicativo seleccionado."
+      />
+
+      {
+        errorMsg && (
+          <script is:inline define:vars={{ errorMsg }}>
+            const triggerToast = () => {
+              if (window.showToast) {
+                window.showToast(errorMsg, "alert-error");
+              } else {
+                setTimeout(triggerToast, 100);
+              }
+            };
+            if (document.readyState === "loading") {
+              document.addEventListener("DOMContentLoaded", triggerToast);
+            } else {
+              triggerToast();
+            }
+          </script>
+        )
+      }
+
       <SectionCard>
         <div class="p-6 sm:p-8">
-          <div
-            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
-          >
-            <div>
-              <h1 class="text-xl font-bold text-base-content">
-                Editar aplicativo
-              </h1>
-              <p class="text-sm text-base-content/60 mt-1">
-                Modificá los datos del aplicativo seleccionado.
-              </p>
-            </div>
-            <a
-              href={resolveUrl("/admin/aplicativos")}
-              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
-              title="Cerrar"
-            >
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
-
-          {
-            errorMsg && (
-              <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
-              </script>
-            )
-          }
-
           <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
               <FormField
@@ -373,7 +354,7 @@ const isExternal = formUploadType
                 required
                 value={app.title}
                 placeholder="Ej: ShareX"
-                maxLength={50}
+                maxlength={50}
               />
 
               <SelectField
@@ -387,7 +368,7 @@ const isExternal = formUploadType
                 </option>
                 {
                   categories.map((cat) => (
-                    <option value={cat.id} selected={cat.id === app.categoryId}>
+                    <option value={cat.id} selected={Number(cat.id) === Number(app.categoryId)}>
                       {cat.title}
                     </option>
                   ))
@@ -629,7 +610,7 @@ const isExternal = formUploadType
               value={app.description}
               placeholder="Breve descripción del aplicativo y su uso operativo."
               rows={3}
-              maxLength={150}
+              maxlength={150}
             />
 
             <div
@@ -648,8 +629,8 @@ const isExternal = formUploadType
       </SectionCard>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
-<AsyncFormScript />
 
 <script>
   const radios = document.querySelectorAll<HTMLInputElement>(
@@ -749,7 +730,7 @@ const isExternal = formUploadType
   }
 
   // Antes del submit del formulario, serializar a JSON
-  form?.addEventListener("submit", (e) => {
+  form?.addEventListener("submit", () => {
     const rows = document.querySelectorAll(".app-meta-row");
     const metaArray: Array<{ label: string; value: string }> = [];
 

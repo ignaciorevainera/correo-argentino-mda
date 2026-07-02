@@ -219,7 +219,7 @@ export function renderRotationTimeline(dateStr: string): void {
           </div>
           <div class="flex flex-col min-w-0">
             <span class="truncate text-small font-bold text-base-content">${escapeHtml(op.nombre)}</span>
-            <span class="text-tiny font-semibold text-base-content/40 leading-tight">${horario}</span>
+            <span class="text-tiny font-semibold text-base-content/40">${horario}</span>
           </div>
         </td>
         ${hourCells}
