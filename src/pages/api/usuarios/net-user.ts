@@ -139,6 +139,11 @@ export const GET: APIRoute = async ({ request }) => {
 
         res.on("searchEntry", (entry) => {
           const flat: Record<string, unknown> = {};
+          console.log("[NetUser] entry.pojo keys:", Object.keys(entry.pojo));
+          console.log("[NetUser] entry.pojo.attributes length:", entry.pojo.attributes?.length);
+          for (const a of entry.pojo.attributes) {
+            console.log(`[NetUser] attr: "${a.type}" type=${typeof a.values[0]} length=${a.values.length} val=`, a.values[0]);
+          }
           for (const attr of entry.pojo.attributes) {
             flat[attr.type] = attr.values.length === 1 ? attr.values[0] : attr.values;
           }
@@ -166,6 +171,12 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     const adUser = entries[0];
+
+    console.log("[NetUser] adUser keys:", Object.keys(adUser));
+    console.log("[NetUser] adUser.sAMAccountName:", adUser.sAMAccountName);
+    console.log("[NetUser] adUser.displayName:", adUser.displayName);
+    console.log("[NetUser] adUser.mail:", adUser.mail);
+    console.log("[NetUser] adUser.title:", adUser.title);
 
     // Resolve manager name if present
     let managerName: string | null = null;
@@ -206,6 +217,8 @@ export const GET: APIRoute = async ({ request }) => {
       lockout_time: convertFiletime(Number(adUser.lockoutTime)),
       groups,
     };
+
+    console.log("[NetUser] data object:", JSON.stringify(data, null, 2));
 
     const output = formatOutput(data);
 
