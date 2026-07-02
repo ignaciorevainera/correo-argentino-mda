@@ -755,6 +755,9 @@ export function renderHourly(dateStr: string): void {
 }
 
 export function renderMonthly(): void {
+  // Remove container skeleton -- persists only until first render
+  document.getElementById('monthly-view-skeleton')?.remove();
+
   if (state.focusedDateStr) {
     renderHourly(state.focusedDateStr);
     return;
