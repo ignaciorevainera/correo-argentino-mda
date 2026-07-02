@@ -1,7 +1,7 @@
 # Auditoría — Hallazgos Pendientes
 
-**Fecha:** 2026-07-01 (7.ª pasada)
-**Base:** Auditoría 2026-06-28, depurada de hallazgos resueltos total (20) + nuevos hallazgos de escaneo integral
+**Fecha:** 2026-07-02 (8.ª pasada)
+**Base:** Auditoría 2026-07-01, depurada de hallazgos resueltos en plan de almacenamiento unificado
 
 ---
 
@@ -10,8 +10,8 @@
 | Estado | Cantidad |
 |--------|----------|
 | 🔴 Pendientes (arrastrados de pasadas anteriores) | 5 items |
-| 🔴 Nuevos en esta pasada | 13 items (2.2 parcialmente resuelto) |
-| ✅ Resueltos (acumulado histórico) | 22 |
+| 🔴 Nuevos en esta pasada | 9 items |
+| ✅ Resueltos (acumulado histórico) | 25 |
 
 ---
 
@@ -36,32 +36,29 @@ Sigue desactivando la validación CSRF/origen de Astro. Sin cambios.
 
 ---
 
-### 1.7 🔴 Rutas absolutas `C:/Projects/...` en 8 archivos (NUEVO)
+### 1.7 ✅ ~~Rutas absolutas `C:/Projects/...` en 8 archivos~~ (RESUELTO 2026-07-02)
 
-Impiden despliegue en Linux o entornos que no sean Windows del desarrollador.
+Se eliminaron las 8 ocurrencias de `C:/Projects/...` y se unificó el almacenamiento bajo un solo `EXTERNAL_STORAGE_DIR` con subcarpetas `apps/`, `icons/`, `pdfs/`.
 
-| Archivo | Línea | Ruta |
-|---------|-------|------|
-| `src/pages/api/download/[filename].ts` | 6 | `C:/Projects/correo-argentino-mda-programs` |
-| `src/pages/api/icons/[filename].ts` | 6 | ídem |
-| `src/pages/api/aplicativos/pdf/[id].ts` | 46 | `C:/Projects/correo-argentino-mda-private-pdfs` |
-| `src/pages/admin/aplicativos/create.astro` | 86, 154 | ambas |
-| `src/pages/admin/aplicativos/edit/[id].astro` | 123, 212 | ambas |
-| `src/pages/admin/aplicativos/edit/[id]/eliminar.ts` | 28 | programs |
-| `src/pages/admin/aplicativos/categorias/edit/[id]/eliminar.ts` | 57 | programs |
-| `src/lib/iconUpload.ts` | 74 | programs |
+| Archivo | Antes | Después |
+|---------|-------|---------|
+| `src/lib/storage.ts` (nuevo) | — | `getAppsDir()`, `getIconsDir()`, `getPdfsDir()` |
+| `src/lib/iconUpload.ts` | `path.resolve("C:/...")` | `getIconsDir()` |
+| `api/icons/[filename].ts` | `STORAGE_DIR = "C:/..."` | `getIconsDir()` |
+| `api/download/[filename].ts` | `STORAGE_DIR = "C:/..."` | `getAppsDir()` |
+| `api/aplicativos/pdf/[id].ts` | `EXTERNAL_PRIVATE_DIR` `"C:/..."` | `getPdfsDir()` |
+| `admin/aplicativos/create.astro` | 2x `C:/...` | `getAppsDir()` + `getPdfsDir()` |
+| `admin/aplicativos/edit/[id].astro` | 2x `C:/...` | `getAppsDir()` + `getPdfsDir()` |
+| `eliminar.ts` + `categorias/eliminar.ts` | `C:/...` | `getAppsDir()` |
 
-**Fix:** Migrar a variables de entorno `EXTERNAL_STORAGE_DIR` / `EXTERNAL_PRIVATE_DIR`.
-**Esfuerzo:** 30 min.
+Además:
+- Se creó `scripts/migrate-storage.ts` para migrar archivos existentes a la nueva estructura.
+- Se creó `.env.example` con todas las variables documentadas.
+- Se declaró `EXTERNAL_STORAGE_DIR` en `env.d.ts`.
+- `EXTERNAL_PRIVATE_DIR` se eliminó (absorbido por `{STORAGE}/pdfs/`).
 
----
-
-### 1.8 🟡 `EXTERNAL_PRIVATE_DIR` no definido en `.env` (NUEVO)
-
-Se usa en `src/pages/api/aplicativos/pdf/[id].ts` y formularios de aplicativos, pero no existe en `.env`. Solo funciona por el hardcodeo de `C:/Projects/...`.
-
-**Fix:** Agregar al `.env` y documentar en `.env.example`.
-**Esfuerzo:** 5 min.
+**Fix aplicado:** Almacenamiento unificado + utilidad centralizada `src/lib/storage.ts`.
+**Esfuerzo real:** ~90 min (13 tareas atómicas, incluyendo revisión).
 
 ---
 
@@ -311,12 +308,14 @@ Se reemplazaron todas las clases con `white`/`black` de la escala de grises por 
 
 ---
 
-### 3.4 🟢 Falta `.env.example` (NUEVO)
+### 3.4 ✅ ~~Falta `.env.example`~~ (RESUELTO 2026-07-02)
 
-No existe archivo `.env.example`. Solo existe `.env` (gitignored) con secrets reales. Nuevos desarrolladores no tienen referencia de vars requeridas.
+Se creó `.env.example` con todas las variables documentadas:
+- `EXTERNAL_STORAGE_DIR` (con subcarpetas `apps/`, `icons/`, `pdfs/`)
+- `SESSION_SECRET`, `ENCRYPTION_KEY`
+- `INVGATE_API_USERNAME`, `INVGATE_BASE_URL`, `INVGATE_API_KEY`
 
-**Fix:** Crear `.env.example` con todas las variables documentadas (incluyendo `EXTERNAL_PRIVATE_DIR` y `API_EXTENSION_URL`).
-**Esfuerzo:** 10 min.
+**Esfuerzo real:** Incluido en el plan de almacenamiento unificado.
 
 ---
 
@@ -326,26 +325,26 @@ No existe archivo `.env.example`. Solo existe `.env` (gitignored) con secrets re
 |-----------|----|----------|----------|---------|
 | **P0** | 1.5 | 🔴 `security.checkOrigin: false` | 5 min | Seguridad |
 | **P0** | 1.6 | 🔴 ENCRYPTION_KEY mismatch — cifrado roto | 10 min | Seguridad |
-| **P0** | 1.7 | 🔴 Rutas absolutas C:/Projects/ (8 archivos) | 30 min | Portabilidad |
-| **P0** | 1.8 | 🟡 EXTERNAL_PRIVATE_DIR faltante en .env | 5 min | Portabilidad |
+| **P0** | 1.7 | ✅ ~~Rutas absolutas C:/Projects/ (8 archivos)~~ | 30 min | Portabilidad |
+| **P0** | 1.8 | ✅ ~~EXTERNAL_PRIVATE_DIR faltante~~ (absorbido por 1.7) | — | — |
 | **P0** | 1.9 | 🟡 URLs http:// hardcodeadas (3) | 10 min | Seguridad/Config |
 | **P1** | 3.1 | 🔴 15 diálogos raw sin Modal.astro | 2-3 h | -300+ líneas |
-| **P1** | 3.2 | 🔴 41 errores TypeScript | 2-3 h | Compilación |
+| **P1** | 3.2 | 🔴 30 errores TypeScript (↓11 resueltos incidentalmente) | 2-3 h | Compilación |
 | **P1** | 3.3 | 🟡 innerHTML masivo (100+ usos) | 4-6 h | XSS prevention |
 | **P1** | 3.4 | 🟡 any types (100+) | 2-4 h | Type safety |
 | **P1** | N3.11 | 🟡 Botones repetidos (18 instancias) | 30 min | -50+ líneas |
 | **P2** | N3.9 | 🟡 text-tiny font-black 35 veces | 15 min | Mantenibilidad |
 | **P2** | 2.1 | ✅ Clases Tailwind v3 deprecadas | 30 min | Compatibilidad |
 | **P2** | 2.2 | 🟡 Colores hardcodeados violan DESIGN.md (✅ white/black → `*-content`, 🟡 resto pendiente) | 30 min (restante) | Consistencia visual |
-| **P2** | 2.3 | 🟢 Variables/imports muertos | 15 min | Limpieza |
+| **P2** | 2.3 | 🟢 Variables/imports muertos (✅ parcial: create/edit aplicativos) | 15 min | Limpieza |
 | **P2** | 2.4 | 🟢 Admin CRUD pattern inconsistente | 1 h | Consistencia |
 | **P3** | 4.1 | 🟢 Migrar 3 componentes React → Astro | 1 h | -100+ React |
 | **P3** | 3.1 | 🟢 Código muerto: copyText | 5 min | Limpieza |
 | **P3** | 3.2 | 🟢 Scoped style duplicado | 5 min | Mantenibilidad |
 | **P3** | 3.3 | 🟢 npm audit: undici HIGH | 5 min | Seguridad |
-| **P3** | 3.4 | 🟢 Falta .env.example | 10 min | Onboarding |
+| **P3** | 3.4 | ✅ ~~Falta .env.example~~ (RESUELTO 2026-07-02) | 10 min | Onboarding |
 
-**Total esfuerzo estimado:** 14-21 h (dependiendo del alcance de refactor de innerHTML y any types).
+**Total esfuerzo estimado:** 12-19 h (↓ por resolución de 1.7+1.8+3.4 y reducción incidental de TS errors).
 
 ### Leyenda
 
