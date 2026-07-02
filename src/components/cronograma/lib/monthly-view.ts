@@ -195,6 +195,9 @@ export function changeMonth(offset: number): void {
 }
 
 export function renderDaily(): void {
+  // Remove container skeleton -- persists only until first render
+  document.getElementById('daily-view-skeleton')?.remove();
+
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   const selectedDateStr = dateInput?.value || formatYMD(new Date());
   const tableBody = document.getElementById('operators-table-body');
