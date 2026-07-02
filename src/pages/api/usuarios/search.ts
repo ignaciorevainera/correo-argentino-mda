@@ -4,11 +4,7 @@ import { employees } from "@db/schema";
 import { like, or } from "drizzle-orm";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 
-export const GET: APIRoute = async ({ request, locals }) => {
-  if (!locals.user || locals.user.id === 0) {
-    return jsonError("No autenticado", 401);
-  }
-
+export const GET: APIRoute = async ({ request }) => {
   try {
     const url = new URL(request.url);
     const q = url.searchParams.get("q")?.trim() || "";

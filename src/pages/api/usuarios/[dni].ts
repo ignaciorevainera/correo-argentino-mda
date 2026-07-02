@@ -5,10 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { logAdminAction } from "@lib/auditLogger";
 
-export const PATCH: APIRoute = async ({ params, request, locals }) => {
-  if (!locals.user || locals.user.id === 0) {
-    return jsonError("No autenticado", 401);
-  }
+export const PATCH: APIRoute = async ({ params, request }) => {
 
   const { dni } = params;
   if (!dni) {
@@ -40,7 +37,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       .where(eq(employees.dni, dni));
 
     await logAdminAction(
-      locals.user.username || "Sistema",
+      "API (público)",
       `Actualizó datos de contacto del empleado ${existing[0].fullname} (${dni})`,
     );
 

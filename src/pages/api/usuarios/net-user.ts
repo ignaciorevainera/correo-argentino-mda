@@ -2,11 +2,11 @@ import type { APIRoute } from "astro";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import ldap from "ldapjs";
 
-const LDAP_SERVER = import.meta.env.LDAP_SERVER || "ldap://correo.local";
-const LDAP_PORT = import.meta.env.LDAP_PORT || 389;
-const LDAP_BASE_DN = import.meta.env.LDAP_BASE_DN || "DC=correo,DC=local";
-const LDAP_USER = import.meta.env.LDAP_USER;
-const LDAP_PASS = import.meta.env.LDAP_PASS;
+const LDAP_SERVER = import.meta.env.LDAP_SERVER || process.env.LDAP_SERVER || "ldap://correo.local";
+const LDAP_PORT = import.meta.env.LDAP_PORT || process.env.LDAP_PORT || 389;
+const LDAP_BASE_DN = import.meta.env.LDAP_BASE_DN || process.env.LDAP_BASE_DN || "DC=correo,DC=local";
+const LDAP_USER = import.meta.env.LDAP_USER || process.env.LDAP_USER;
+const LDAP_PASS = import.meta.env.LDAP_PASS || process.env.LDAP_PASS;
 if (!LDAP_USER || !LDAP_PASS) {
   throw new Error("LDAP_USER and LDAP_PASS must be set in .env");
 }
@@ -54,10 +54,7 @@ function formatOutput(data: {
   return lines.join("\n");
 }
 
-export const GET: APIRoute = async ({ request, locals }) => {
-  if (!locals.user || locals.user.id === 0) {
-    return jsonError("No autenticado", 401);
-  }
+export const GET: APIRoute = async ({ request }) => {
 
   try {
     const url = new URL(request.url);
@@ -74,12 +71,23 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const client = ldap.createClient({
       url: `${LDAP_SERVER}:${LDAP_PORT}`,
       reconnect: false,
+      connectTimeout: 30000,
+      timeout: 60000,
+    });
+
+    client.on("error", (err) => {
+      console.error("[NetUser] LDAP Client Error:", err);
     });
 
     await new Promise<void>((resolve, reject) => {
       client.bind(LDAP_USER, LDAP_PASS, (err) => {
-        if (err) reject(new Error(`Error de autenticación LDAP: ${err.message}`));
-        else resolve();
+        if (err) {
+          console.error("[NetUser] LDAP Bind Error detallado:", err);
+          console.error("[NetUser] LDAP Bind Error código:", err.code || err.name);
+          reject(new Error(`Error de autenticación LDAP: ${err.message || err.code || JSON.stringify(err)}`));
+        } else {
+          resolve();
+        }
       });
     });
 
@@ -130,7 +138,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
         }
 
         res.on("searchEntry", (entry) => {
-          entries.push(entry.pojo);
+          entries.push(entry.pojo as unknown as LdapUserEntry);
         });
 
         res.on("error", (err) => {

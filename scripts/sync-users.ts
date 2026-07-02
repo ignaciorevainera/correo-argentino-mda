@@ -4,6 +4,7 @@ import { db } from "../src/db/index";
 import { employees } from "../src/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { chromium } from "playwright";
+import "dotenv/config";
 
 const MIDPOINT_URL = "https://cdc.correoargentino.com.ar";
 const LOGIN_URL = `${MIDPOINT_URL}/midpoint/login`;
@@ -38,7 +39,7 @@ async function syncUsers(): Promise<void> {
   const processedUsernames = new Set(existingUsers.map((u) => u.username));
   console.log(`[SyncUsers] Usuarios existentes en BD: ${processedUsernames.size}`);
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -100,7 +101,8 @@ async function syncUsers(): Promise<void> {
 
         // Visit user profile page
         const href = await linkEl.getAttribute("href");
-        const profileUrl = href?.startsWith("http") ? href : `${MIDPOINT_URL}${href}`;
+        if (!href) continue;
+        const profileUrl = new URL(href, page.url()).toString();
 
         const profilePage = await context.newPage();
         try {
