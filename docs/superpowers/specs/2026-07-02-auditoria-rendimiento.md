@@ -113,13 +113,12 @@ de hoy.
 **Fix:** `.where(like(schedules.date, \`${currentMonth}-%\`))`.
 **Esfuerzo:** 5 min.
 
-### R2.6 🟡 `getOffices()` fetcha TODOS los officeAssets por request
+### R2.6 🟡 `getOffices()` fetcha TODOS los officeAssets por request — RESUELTO
 
 `src/lib/officeQueries.ts` líneas 175-182: en cada request paginada de oficinas,
 se fetchan TODOS los hostnames de `officeAssets` para un Set de deduplicación.
 
-**Fix:** Cachear el Set (rara vez cambia) o usar subquery/LEFT JOIN.
-**Esfuerzo:** 15 min.
+**Fix:** Cache module-level con TTL de 60s. Se agrega `manualHostnamesCache` + timestamp. La query solo se ejecuta cuando el cache expira.
 
 ### R2.7 🟡 Doble query para `hasMore` en terminals
 
@@ -214,7 +213,7 @@ Candidatos:
 | **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
 | **P1** | R2.5 | 🟡 Filtrar schedules SSR | 5 min | Data size |
-| **P1** | R2.6 | 🟡 Caché officeAssets | 15 min | 1 query/req |
+| **P1** | R2.6 | 🟡 Caché officeAssets | ✅ Resuelto — cache 60s TTL | 1 query/req |
 | **P1** | R2.7 | 🟡 Doble query terminals | 10 min | 2x query cost |
 | **P1** | R2.8 | 🟡 Export endpoints memoria | 30 min | Memory |
 | **P1** | R2.9 | 🟡 Mes sin transacción | 30 min | Atomicity |
