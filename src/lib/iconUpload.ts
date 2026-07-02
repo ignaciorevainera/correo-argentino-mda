@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getIconsDir, ensureDir } from "@lib/storage";
 
 const MAX_ICON_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
@@ -69,15 +70,11 @@ export async function processIconUpload({
   const safeFileName = `${Date.now()}_icon_${baseName}${ext}`;
 
   // Resolve storage directory
-  const uploadDir = path.resolve(
-    process.env.EXTERNAL_STORAGE_DIR ||
-      "C:/Projects/correo-argentino-mda-programs",
-  );
-  const iconsDir = path.join(uploadDir, "icons");
+  const iconsDir = getIconsDir();
 
   // Ensure directory exists
   try {
-    fs.mkdirSync(iconsDir, { recursive: true });
+    ensureDir(iconsDir);
   } catch (dirError: any) {
     if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
       throw dirError;
