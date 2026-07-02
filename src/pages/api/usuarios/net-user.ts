@@ -138,7 +138,11 @@ export const GET: APIRoute = async ({ request }) => {
         }
 
         res.on("searchEntry", (entry) => {
-          entries.push(entry.pojo as unknown as LdapUserEntry);
+          const flat: Record<string, unknown> = {};
+          for (const attr of entry.pojo.attributes) {
+            flat[attr.type] = attr.values.length === 1 ? attr.values[0] : attr.values;
+          }
+          entries.push(flat as LdapUserEntry);
         });
 
         res.on("error", (err) => {
