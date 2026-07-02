@@ -1,8 +1,30 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { employees } from "@db/schema";
-import { like, or } from "drizzle-orm";
+import { or, and, sql } from "drizzle-orm";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
+
+const ACCENT_FOLD: Record<string, string> = {
+  a: "[aAáàâäãåæÁÀÂÄÃÅÆ]",
+  e: "[eEéèêëÉÈÊË]",
+  i: "[iIíìîïÍÌÎÏ]",
+  o: "[oOóòôöõøÓÒÔÖÕØ]",
+  u: "[uUúùûüÚÙÛÜ]",
+  n: "[nNñÑ]",
+  c: "[cCçÇ]",
+};
+
+function buildGlobPattern(word: string): string {
+  const normalized = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const escaped = normalized.replace(/\*/g, "\\*").replace(/\?/g, "\\?").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+  let pattern = "";
+  for (const ch of escaped) {
+    pattern += ACCENT_FOLD[ch] || ACCENT_FOLD[ch.toLowerCase()] || (
+      /^[a-zA-Z]$/.test(ch) ? `[${ch.toLowerCase()}${ch.toUpperCase()}]` : ch
+    );
+  }
+  return `*${pattern}*`;
+}
 
 export const GET: APIRoute = async ({ request }) => {
   try {
@@ -13,20 +35,23 @@ export const GET: APIRoute = async ({ request }) => {
       return jsonResponse({ results: [], total: 0 });
     }
 
-    // Escape SQLite LIKE wildcards
-    const escaped = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
-    const searchPattern = `%${escaped}%`;
+    const words = q.split(/\s+/).filter(Boolean);
+
+    const conditions = words.map((word) => {
+      const pattern = buildGlobPattern(word);
+      return or(
+        sql`${employees.fullname} GLOB ${pattern}`,
+        sql`${employees.username} GLOB ${pattern}`,
+        sql`${employees.dni} GLOB ${pattern}`,
+      );
+    });
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
     const results = await db
       .select()
       .from(employees)
-      .where(
-        or(
-          like(employees.fullname, searchPattern),
-          like(employees.username, searchPattern),
-          like(employees.dni, searchPattern),
-        ),
-      )
+      .where(whereClause)
       .orderBy(employees.fullname)
       .limit(50);
 
