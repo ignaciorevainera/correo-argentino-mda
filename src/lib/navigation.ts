@@ -1,3 +1,5 @@
+import { getCleanBase } from "./baseUrl";
+
 export interface NavItem {
   href: string;
   label: string;
@@ -161,8 +163,7 @@ export function getSectionTitle(pathname: string): string {
   });
 
   // Normalize pathname relative to BASE_URL
-  const base = import.meta.env.BASE_URL || "/";
-  const cleanBase = base.endsWith("/") ? base : base + "/";
+  const cleanBase = getCleanBase();
   let relativePath = pathname;
   if (pathname.startsWith(cleanBase)) {
     relativePath = "/" + pathname.slice(cleanBase.length);

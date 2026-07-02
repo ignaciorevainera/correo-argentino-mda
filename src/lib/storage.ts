@@ -7,7 +7,7 @@ const SUBDIR_PDFS = "pdfs";
 
 function getStorageRoot(): string {
   return path.resolve(
-    process.env.EXTERNAL_STORAGE_DIR || "./data/storage",
+    import.meta.env.EXTERNAL_STORAGE_DIR || "./data/storage",
   );
 }
 

@@ -4,19 +4,18 @@ import { cubics, cubicAssignments } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { isAllowed } from "@lib/rolesMatrix";
+import { getBaseNoSlash } from "@lib/baseUrl";
 
 export const POST: APIRoute = async ({ params, redirect, locals }) => {
   const user = locals.user;
   if (!user || !isAllowed("Administrar Contenido", user.role)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/inventario-terminales?toast_msg=${encodeURIComponent("No autorizado")}&toast_type=error`);
   }
 
   const cubicId = Number(params.id);
   if (!cubicId || isNaN(cubicId)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/inventario-terminales?toast_msg=${encodeURIComponent("ID de cubic no proporcionado")}&toast_type=error`);
   }
 
@@ -35,8 +34,7 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
       );
     }
 
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
 
     if (deleted) {
       return redirect(`${cleanBase}/inventario-terminales?toast_msg=${encodeURIComponent(`Ordenador "${deleted.name}" dado de baja con éxito.`)}&toast_type=success`);
@@ -45,8 +43,7 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
     }
   } catch (error) {
     console.error("Error deleting cubic:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/inventario-terminales?toast_msg=${encodeURIComponent("Error al eliminar el cubic")}&toast_type=error`);
   }
 };

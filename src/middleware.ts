@@ -5,14 +5,14 @@ import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
 import { hasPermission } from "./lib/rbac";
 import { resolveUrl } from "./lib/url";
+import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { cookies, url, redirect, locals } = context;
   const path = url.pathname;
 
-  const base = import.meta.env.BASE_URL || "/";
-  const cleanBase = base.endsWith('/') ? base : base + '/';
+  const cleanBase = getCleanBase();
 
   const getRelativePath = (pathname: string) => {
     if (pathname.startsWith(cleanBase)) {

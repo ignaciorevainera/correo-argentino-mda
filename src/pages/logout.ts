@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { sessions } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "@lib/session";
+import { getCleanBase } from "@lib/baseUrl";
 
 export const ALL: APIRoute = async ({ cookies, redirect }) => {
   const signedSessionId = cookies.get("session_id")?.value;
@@ -15,7 +16,6 @@ export const ALL: APIRoute = async ({ cookies, redirect }) => {
   }
   deleteSessionCookie(cookies);
 
-  const base = import.meta.env.BASE_URL || "/";
-  const cleanBase = base.endsWith('/') ? base : base + '/';
+  const cleanBase = getCleanBase();
   return redirect(`${cleanBase}login?toast_msg=${encodeURIComponent("Sesión cerrada con éxito")}&toast_type=success`);
 };
