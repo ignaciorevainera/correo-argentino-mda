@@ -39,7 +39,7 @@ async function syncUsers(): Promise<void> {
   const processedUsernames = new Set(existingUsers.map((u) => u.username));
   console.log(`[SyncUsers] Usuarios existentes en BD: ${processedUsernames.size}`);
 
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
 
