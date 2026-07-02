@@ -1,54 +1,31 @@
-import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { applications } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
-import { getAppsDir } from "@lib/storage";
-import { getBaseNoSlash, getCleanBase } from "@lib/baseUrl";
+import { createDeleteHandler } from "@lib/api/deleteHandler";
+import { deleteAppPhysicalFile } from "@lib/api/deleteAppFile";
 
-export const POST: APIRoute = async ({ params, redirect, locals }) => {
-  const appId = params.id;
-  if (!appId || isNaN(Number(appId))) {
-    const cleanBase = getBaseNoSlash();
-    return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("ID de aplicativo no proporcionado")}&toast_type=error`);
-  }
-
-  try {
+export const POST = createDeleteHandler({
+  entityName: "aplicativo",
+  redirectPath: "admin/aplicativos",
+  performDelete: async (id) => {
     const [existing] = await db
       .select()
       .from(applications)
-      .where(eq(applications.id, Number(appId)));
+      .where(eq(applications.id, id));
 
-    if (existing?.filePath && !existing.filePath.startsWith("http")) {
-      try {
-        const fs = await import("node:fs");
-        const path = await import("node:path");
-        const appsDir = getAppsDir();
-        const cleanBaseUrl = getCleanBase();
-        const downloadPrefix = `${cleanBaseUrl}api/download/`;
-        const fileName = existing.filePath.startsWith(downloadPrefix)
-          ? existing.filePath.slice(downloadPrefix.length)
-          : path.basename(existing.filePath);
+    if (!existing) return null;
 
-        const absPath = path.join(appsDir, fileName);
-        if (fs.existsSync(absPath)) {
-          fs.unlinkSync(absPath);
-        }
-      } catch (fsError: any) {
-        console.error(
-          `[aplicativos] No se pudo eliminar el archivo físico: ${fsError.message}`,
-        );
-      }
+    if (existing.filePath) {
+      await deleteAppPhysicalFile(existing.filePath);
     }
 
-    await db.delete(applications).where(eq(applications.id, Number(appId)));
-    await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el aplicativo "${existing?.title || appId}"`);
-
-    const cleanBase = getBaseNoSlash();
-    return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo eliminado con éxito.")}&toast_type=success`);
-  } catch (error) {
-    console.error("Error al eliminar aplicativo:", error);
-    const cleanBase = getBaseNoSlash();
-    return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("Error al eliminar el aplicativo.")}&toast_type=error`);
-  }
-};
+    await db.delete(applications).where(eq(applications.id, id));
+    return existing as Record<string, unknown>;
+  },
+  successMessage: (d) => d
+    ? `Aplicativo "${(d as any).title}" eliminado con éxito.`
+    : "Aplicativo eliminado con éxito.",
+  logMessage: (d) => d
+    ? `Eliminó el aplicativo "${(d as any).title}"`
+    : undefined,
+});
