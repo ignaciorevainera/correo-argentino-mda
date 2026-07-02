@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { applications } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { getPdfsDir } from "@lib/storage";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -42,11 +43,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
       });
     }
 
-    const privateDir = path.resolve(
-      process.env.EXTERNAL_PRIVATE_DIR || "C:/Projects/correo-argentino-mda-private-pdfs"
-    );
+    const pdfsDir = getPdfsDir();
 
-    const filePath = path.join(privateDir, app.instructionPdfPath);
+    const filePath = path.join(pdfsDir, app.instructionPdfPath);
 
     // Verificar si el archivo físico existe
     if (!fs.existsSync(filePath)) {
