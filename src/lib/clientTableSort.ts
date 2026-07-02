@@ -167,7 +167,16 @@ const bindTableSortRoot = (root: HTMLElement): void => {
     root.dataset.tableSortKey = nextDirection === "none" ? "" : sortKey;
     root.dataset.tableSortDirection = nextDirection;
 
-    sortRows(body, sortKey, nextDirection);
+    if (root.dataset.serverSideSort === "true") {
+      root.dispatchEvent(
+        new CustomEvent("table-sort-change", {
+          detail: { sortKey, direction: nextDirection },
+          bubbles: true,
+        }),
+      );
+    } else {
+      sortRows(body, sortKey, nextDirection);
+    }
     updateSortControls(root, sortKey, nextDirection);
   });
 };
