@@ -3,13 +3,21 @@ import crypto from "node:crypto";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 
+const MASTER_KEY = import.meta.env.ENCRYPTION_KEY;
+if (!MASTER_KEY) {
+  throw new Error(
+    "[encryption] ENCRYPTION_KEY no está configurada. " +
+    "El cifrado de credenciales no funcionará sin esta variable de entorno."
+  );
+}
+
 /**
  * Cifra texto utilizando AES-256-GCM.
  * Retorna el string con el formato: iv_hex:tag_hex:encrypted_hex
  */
 export function encryptData(text: string): string {
   if (!text) return "";
-  const masterKey = process.env.ENCRYPTION_KEY || "dev_key_must_be_configured_in_env";
+  const masterKey = MASTER_KEY;
   
   // Deriva una clave de 32 bytes usando SHA-256
   const key = crypto.createHash("sha256").update(masterKey).digest();
@@ -43,7 +51,7 @@ export function decryptData(encryptedText: string): string {
   }
   
   try {
-    const masterKey = process.env.ENCRYPTION_KEY || "dev_key_must_be_configured_in_env";
+    const masterKey = MASTER_KEY;
     const key = crypto.createHash("sha256").update(masterKey).digest();
     const iv = Buffer.from(ivHex, "hex");
     const authTag = Buffer.from(tagHex, "hex");
