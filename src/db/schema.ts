@@ -8,13 +8,23 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("agent"),
+});
+
+export const employees = sqliteTable("employees", {
+  dni: text("dni").primaryKey(),
+  username: text("username").notNull(),
+  fullname: text("fullname").notNull(),
+  interno: text("interno"),
+  telefono: text("telefono"),
+  sucursal: text("sucursal"),
+  updatedAt: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const sessions = sqliteTable("sessions", {

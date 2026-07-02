@@ -544,13 +544,8 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
     searchTimeout = window.setTimeout(async () => {
       try {
-        const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-        const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?search=${encodeURIComponent(query)}`;
-        const response = await fetch(url, {
-          headers: {
-            "X-API-Key": token,
-          },
-        });
+        const url = `/api/usuarios/search?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
 
         if (!response.ok) throw new Error("API error");
         const data = await response.json();
@@ -630,22 +625,20 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     saveBtnSpinner.classList.remove("hidden");
 
     try {
-      const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-      const url = `http://mda.correo.local/api_mda_find_extension/get_users.php`;
+      const url = `/api/usuarios/${dni}`;
 
       const response = await fetch(url, {
-        method: "POST",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-API-Key": token,
         },
-        body: JSON.stringify({ dni, interno, telefono }),
+        body: JSON.stringify({ interno, telefono }),
       });
 
       if (!response.ok) throw new Error("Error en la respuesta del servidor.");
       const result = await response.json();
 
-      if (result.status === "success") {
+      if (result.ok) {
         // Actualizar el estado local en la grilla actual
         const idx = currentUsers.findIndex((u) => u.dni === dni);
         if (idx !== -1) {
@@ -749,14 +742,8 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     terminalModal.showModal();
 
     try {
-      const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-      const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?action=net_user&username=${encodeURIComponent(username)}`;
-
-      const response = await fetch(url, {
-        headers: {
-          "X-API-Key": token,
-        },
-      });
+      const url = `/api/usuarios/net-user?username=${encodeURIComponent(username)}`;
+      const response = await fetch(url);
       if (!response.ok)
         throw new Error("Error en la ejecución del comando en el servidor.");
       const result = await response.json();

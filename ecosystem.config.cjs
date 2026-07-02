@@ -25,5 +25,15 @@ module.exports = {
       error_file: "./logs/sync-error.log",
       out_file: "./logs/sync-out.log",
     },
+    {
+      name: "sync-users",
+      script: "node",
+      args: "--import tsx scripts/sync-users.ts",
+      cron_restart: "0 2 * * *",
+      autorestart: false,
+      watch: false,
+      error_file: "./logs/sync-users-error.log",
+      out_file: "./logs/sync-users-out.log",
+    },
   ],
 };
