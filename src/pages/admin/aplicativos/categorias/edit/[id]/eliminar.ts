@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { applicationCategories, applications } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import { getAppsDir } from "@lib/storage";
 
 export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
   const categoryId = parseInt(params.id as string, 10);
@@ -51,11 +52,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
 
       const fs = await import("node:fs");
       const path = await import("node:path");
-      const storageDir = path.resolve(
-        process.env.EXTERNAL_STORAGE_DIR ||
-          (import.meta.env.EXTERNAL_STORAGE_DIR as string) ||
-          "C:/Projects/correo-argentino-mda-programs",
-      );
+      const appsDir = getAppsDir();
 
       const base = import.meta.env.BASE_URL || "/";
       const cleanBase = base.endsWith("/") ? base : base + "/";
@@ -67,7 +64,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
             const fileName = app.filePath.startsWith(downloadPrefix)
               ? app.filePath.slice(downloadPrefix.length)
               : path.basename(app.filePath);
-            const absPath = path.join(storageDir, fileName);
+            const absPath = path.join(appsDir, fileName);
             if (fs.existsSync(absPath)) {
               fs.unlinkSync(absPath);
             }
