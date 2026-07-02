@@ -85,18 +85,16 @@ Para ~30 agentes y 31 días, son ~930 iteraciones cada una haciendo 2 `.find()`.
 Cambia O(N) a O(1).
 **Esfuerzo:** 30 min.
 
-### R2.3 🟡 Sin índices en columnas frecuentemente consultadas
+### R2.3 🟡 Sin índices en columnas frecuentemente consultadas — RESUELTO
 
-| Tabla | Columnas | Uso |
-|-------|----------|-----|
-| `schedules` | `agentName`, `date` | WHERE en cronograma |
-| `operatorAttendance` | `agentId`, `date` | WHERE compound |
-| `terminals` | `nis` | JOIN con offices |
-| `qualityAudits` | `month` | WHERE filter |
-| `qualityAudits` | `agentId` | WHERE filter |
+| Tabla | Índices agregados | Columnas |
+|-------|-------------------|----------|
+| `schedules` | 2 | `agentName`, `date` |
+| `operatorAttendance` | 2 | `(agentId, date)` compound + `date` |
+| `terminals` | 1 | `nis` |
+| `qualityAudits` | 1 | `month` |
 
-**Fix:** Agregar índices compuestos via Drizzle.
-**Esfuerzo:** 10 min.
+**Fix:** Agregados 6 índices vía Drizzle en `src/db/schema.ts`. Aplicados con `npm run db:push`.
 
 ### R2.4 🟡 `getDisponibilidadHoy()` sin caché — cada 10 segundos
 
@@ -213,7 +211,7 @@ Candidatos:
 | **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
 | **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | 30 min | CPU + memoria |
 | **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
-| **P1** | R2.3 | 🟡 Índices DB faltantes | 10 min | Query speed |
+| **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
 | **P1** | R2.5 | 🟡 Filtrar schedules SSR | 5 min | Data size |
 | **P1** | R2.6 | 🟡 Caché officeAssets | 15 min | 1 query/req |
