@@ -1,5 +1,5 @@
 import { QUALITY_CONFIG } from "@config/quality";
-import type { AuditParameter } from "@types/quality";
+import type { AuditParameter } from "@/types/quality";
 
 
 export function calculateAuditScores(

@@ -1,0 +1,198 @@
+---
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@/lib/url";
+
+const roleAvatarClasses: Record<string, string> = {
+    admin: "bg-error text-error-content",
+    supervisor: "bg-info text-info-content",
+    team_leader: "bg-accent text-accent-content",
+    referent: "bg-warning text-warning-content",
+    agent: "bg-neutral text-neutral-content",
+};
+
+const roleLabelMap: Record<string, string> = {
+    admin: "Administrador",
+    supervisor: "Supervisor",
+    team_leader: "Team Leader",
+    referent: "Referente",
+    agent: "Agente",
+};
+
+interface Props {
+    user: any;
+    normalizedUserRole: string;
+}
+const { user, normalizedUserRole } = Astro.props;
+
+const avatarClass =
+    roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
+const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
+const userInitials = user.username.slice(0, 2).toUpperCase();
+---
+
+<header class="z-30 min-h-20 border-b border-base-300 bg-base-100/95">
+    <nav
+        class="navbar flex justify-between items-center h-full w-full text-base-content/95 pr-2 md:pr-8"
+    >
+        <!-- Drawer trigger on mobile -->
+        <div class="flex items-center gap-2">
+            <label
+                for="main-drawer"
+                aria-label="open sidebar"
+                aria-controls="main-drawer"
+                role="button"
+                tabindex="0"
+                class="btn btn-ghost btn-circle drawer-button lg:hidden"
+            >
+                <Icon name="boxicons:menu-filled" size={24} />
+            </label>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Search button -->
+            <button
+                type="button"
+                data-open-command-palette
+                aria-label="Abrir búsqueda maestra"
+                class="btn btn-ghost inline-flex items-center md:w-52 justify-between gap-x-6 border border-base-300 hover:bg-base-200 px-4 font-normal normal-case text-sm text-base-content/70 group"
+            >
+                <div class="flex items-center gap-x-2">
+                    <Icon name="boxicons:search" size={20} />
+                    Buscar...
+                </div>
+                <div class="ml-auto flex items-center gap-1">
+                    <kbd class="kbd kbd-sm">Ctrl</kbd>
+                    <kbd class="kbd kbd-sm">K</kbd>
+                </div>
+            </button>
+
+            <div class="flex items-center gap-1">
+                <!-- About this project's modal trigger -->
+                <button
+                    type="button"
+                    data-open-about-project
+                    title="Acerca de este proyecto"
+                    aria-label="Acerca de este proyecto"
+                    class="btn btn-ghost btn-circle"
+                >
+                    <Icon name="boxicons:help-circle-filled" size={24} />
+                </button>
+
+                <!-- Divider -->
+                <div class="divider divider-horizontal mx-0 hidden md:flex"></div>
+            </div>
+
+            <!-- Toggle dark mode -->
+            <label class="btn btn-ghost btn-circle swap swap-rotate">
+                <input
+                    id="theme-toggle"
+                    type="checkbox"
+                    class="theme-controller"
+                    data-toggle-theme="dark,light"
+                    data-act-class="ACTIVECLASS"
+                    value="dark"
+                    aria-label="Activar modo oscuro"
+                />
+
+                <Icon
+                    name="boxicons:sun-filled"
+                    class="swap-off"
+                    size={20}
+                    aria-hidden="true"
+                />
+                <Icon
+                    name="boxicons:moon-filled"
+                    class="swap-on"
+                    size={20}
+                    aria-hidden="true"
+                />
+            </label>
+
+            <!-- User button -->
+            {
+                user.id === 0 ? (
+                    <a
+                        href={resolveUrl("/login")}
+                        aria-label="Iniciar sesión"
+                        class="btn btn-ghost btn-circle"
+                        title="Iniciar sesión"
+                    >
+                        <Icon
+                            name="boxicons:arrow-out-right-stroke-circle-half-filled"
+                            size={20}
+                        />
+                    </a>
+                ) : (
+                    <div class="dropdown dropdown-end">
+                        <div
+                            tabindex="0"
+                            role="button"
+                            class="btn btn-ghost btn-circle avatar avatar-placeholder"
+                        >
+                            <div
+                                class:list={[
+                                    "flex size-8 items-center justify-center rounded-full text-xs font-bold shadow-sm",
+                                    avatarClass,
+                                ]}
+                            >
+                                {userInitials}
+                            </div>
+                        </div>
+                        <ul
+                            tabindex="0"
+                            class="dropdown-content menu bg-base-100 border border-base-300 rounded-box z-1 mt-3 w-52 p-2 shadow select-none"
+                        >
+                            <li class="menu-title px-4 py-2 mb-2 border-b border-base-200 pointer-events-none">
+                                <span class="text-xs font-semibold text-base-content block truncate">
+                                    {user.username}
+                                </span>
+                                <span class="text-xxs font-medium uppercase tracking-wider text-base-content/50 block truncate">
+                                    {roleLabel}
+                                </span>
+                            </li>
+                            <li>
+                                <a
+                                    href={resolveUrl("/profile")}
+                                    class="text-xs py-2 gap-2 focus:bg-transparent focus:text-inherit"
+                                >
+                                    <Icon
+                                        name="boxicons:user-filled"
+                                        size={16}
+                                    />
+                                    Ver perfil
+                                </a>
+                            </li>
+
+                            <li>
+                                <button
+                                    type="button"
+                                    data-open-feedback-modal
+                                    class="text-xs py-2 gap-2 focus:bg-transparent focus:text-inherit w-full text-left"
+                                >
+                                    <Icon
+                                        name="boxicons:envelope-open-filled"
+                                        size={16}
+                                    />
+                                    Enviar sugerencia
+                                </button>
+                            </li>
+
+                            <li>
+                                <a
+                                    href={resolveUrl("/logout")}
+                                    class="text-xs py-2 gap-2 text-error hover:bg-error/10 focus:bg-transparent"
+                                >
+                                    <Icon
+                                        name="boxicons:door-open-alt-filled"
+                                        size={16}
+                                    />
+                                    Cerrar sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                )
+            }
+        </div>
+    </nav>
+</header>

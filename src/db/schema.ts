@@ -8,13 +8,23 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("agent"),
+});
+
+export const employees = sqliteTable("employees", {
+  dni: text("dni").primaryKey(),
+  username: text("username").notNull(),
+  fullname: text("fullname").notNull(),
+  interno: text("interno"),
+  telefono: text("telefono"),
+  sucursal: text("sucursal"),
+  updatedAt: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const sessions = sqliteTable("sessions", {
@@ -216,7 +226,25 @@ export const provincesRelations = relations(provinces, ({ one, many }) => ({
 
 export const regionsRelations = relations(regions, ({ many }) => ({
   provinces: many(provinces),
+  technologyReferents: many(technologyReferents),
 }));
+
+export const technologyReferents = sqliteTable("technology_referents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  regionId: text("regionId")
+    .notNull()
+    .references(() => regions.id, { onDelete: "cascade" }),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+});
+
+export const technologyReferentsRelations = relations(technologyReferents, ({ one }) => ({
+  region: one(regions, {
+    fields: [technologyReferents.regionId],
+    references: [regions.id],
+  }),
+}));
+
 
 export const cubics = sqliteTable("cubics", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -250,6 +278,7 @@ export const agents = sqliteTable("agents", {
   minPWeek: integer("min_p_week"),
   lastAutogestionAssignedAt: integer("last_autogestion_assigned_at"),
   lastAutogestionAssignedBy: text("last_autogestion_assigned_by"),
+  lastAutogestionUndo: integer("last_autogestion_undo"),
   estadoExcepcional: text("estado_excepcional"),
   estadoExcepcionalMotivo: text("estado_excepcional_motivo"),
   estadoExcepcionalAt: integer("estado_excepcional_at"),
@@ -757,3 +786,12 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const assignmentLock = sqliteTable("assignment_lock", {
+  id: integer("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  username: text("username").notNull(),
+  acquiredAt: integer("acquired_at").notNull(),
+  lastActivityAt: integer("last_activity_at").notNull(),
+  releaseRequested: integer("release_requested").notNull().default(0),
+});

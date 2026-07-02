@@ -7,7 +7,7 @@ export const GET: APIRoute = async ({ locals }) => {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
 
-  const result = await invgateGet<unknown>("incidents?page=1&page_size=1");
+  const result = await invgateGet<unknown>("sd.version");
 
   return jsonResponse({
     ok: result.ok,

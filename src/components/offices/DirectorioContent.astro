@@ -8,6 +8,7 @@ import SearchInput from "@components/ui/SearchInput.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
+import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import { getOffices } from "@lib/officeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
 import {
@@ -467,42 +468,85 @@ const mainTabs = [
         </section>
 
         <!-- Controles del Mapa -->
-        <div id="map-controls" class="flex flex-col gap-6 shrink-0 lg:w-64 w-full">
-          <div class="flex flex-col gap-3">
-            <label class="label cursor-pointer justify-start gap-3 px-0">
+        <div id="map-controls" class="flex flex-col gap-2 shrink-0 lg:w-64 w-full">
+          <div class="rounded-box border border-base-300 bg-base-200/30 p-3 flex flex-col gap-2">
+            <label class="label cursor-pointer justify-start gap-3 p-0">
               <input
                 type="checkbox"
-                class="toggle toggle-primary"
+                class="toggle toggle-primary toggle-sm"
                 checked
                 id="chk-polygons"
               />
-              <span class="label-text font-medium">Regiones</span>
+              <span class="label-text font-medium text-xs">Regiones</span>
             </label>
-            <label class="label cursor-pointer justify-start gap-3 px-0">
+            <label class="label cursor-pointer justify-start gap-3 p-0">
               <input
                 type="checkbox"
-                class="toggle toggle-primary"
+                class="toggle toggle-primary toggle-sm"
                 checked
                 id="chk-labels"
               />
-              <span class="label-text font-medium">Códigos</span>
+              <span class="label-text font-medium text-xs">Códigos</span>
             </label>
           </div>
 
           <div class="divider my-0"></div>
 
-          <div id="map-legend" class="flex flex-col gap-1.5">
+          <div id="map-legend" class="flex flex-col gap-2">
             {
               allRegions.map((r) => (
                 <div
-                  class="legend-item flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-base-200 transition-colors duration-150"
+                  class="legend-item-group border border-base-300 rounded-lg bg-base-100 transition-colors duration-150 overflow-hidden"
                   data-region={r.name}
                 >
-                  <span
-                    class="size-4 rounded-sm shrink-0"
-                    style={`background-color: ${r.color}`}
-                  />
-                  <span class="text-sm font-medium">{r.name}</span>
+                  <div class="legend-item flex items-center justify-between px-3 py-2 gap-2 cursor-pointer hover:bg-base-200/50 transition-colors">
+                    <div class="flex items-center gap-3">
+                      <span
+                        class="size-4 rounded-sm shrink-0"
+                        style={`background-color: ${r.color}`}
+                      />
+                      <span class="text-sm font-semibold">{r.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 btn-toggle-referents shrink-0"
+                      data-region-id={r.id}
+                      data-region-name={r.name}
+                      aria-label="Ver tecnológicos regionales"
+                      aria-expanded="false"
+                    >
+                      <Icon
+                        name="boxicons:chevron-down-filled"
+                        data-chevron-closed
+                        size={16}
+                      />
+                      <Icon
+                        name="boxicons:chevron-up-filled"
+                        data-chevron-open
+                        class="hidden"
+                        size={16}
+                      />
+                    </button>
+                  </div>
+                  <div 
+                    class="referents-collapse-content hidden px-3 pb-3 pt-1.5 border-t border-base-200 bg-base-200/20 text-xs" 
+                    data-region-id={r.id} 
+                  >
+                    <div class="flex items-center justify-between border-b border-base-300 pb-1">
+                      <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Tecnológicos</span>
+                      {isAllowedAdmin && (
+                        <ActionEditButton
+                          class="btn-edit-region"
+                          size="xs"
+                          data-region-id={r.id}
+                          ariaLabel={`Editar tecnológicos de ${r.name}`}
+                        />
+                      )}
+                    </div>
+                    <div class="referents-list-container flex flex-col gap-1.5 mt-2">
+                      <!-- JS will inject the list here -->
+                    </div>
+                  </div>
                 </div>
               ))
             }
@@ -511,6 +555,17 @@ const mainTabs = [
       </div>
     </div>
   </div>
+  <dialog id="region-referents-modal" class="modal modal-bottom sm:modal-middle z-9999">
+    <div class="modal-box bg-base-100 border border-base-300 shadow-xl max-w-md">
+      <form method="dialog">
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar modal">✕</button>
+      </form>
+      <div id="modal-region-content"></div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>Cerrar</button>
+    </form>
+  </dialog>
 </PageContainer>
 
 <!-- Removed SSR injected variables for map -->
@@ -526,6 +581,17 @@ const mainTabs = [
   import { feature } from "topojson-client";
 
   declare const L: any;
+
+  let regionsDataCache: any[] = [];
+
+  const escapeHTML = (str: string) => {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
 
   const mainViewDir = document.getElementById("main-view-directory");
   const mainViewMap = document.getElementById("main-view-map");
@@ -743,6 +809,7 @@ const mainTabs = [
         const json = await res.json();
         dataMap = json.sucursales || [];
         provincesData = json.provincesByRegion || {};
+        regionsDataCache = json.regions || [];
         for (const r of json.regions || []) {
           regionColorMap[r.name] = r.color;
         }
@@ -848,8 +915,8 @@ const mainTabs = [
       html: `
             <div class="relative group cursor-pointer animate-fade-in" style="margin-top: -10px; margin-left: -10px;">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" 
-                   class="w-10 h-10 transition-transform hover:scale-110 text-primary drop-shadow-lg"
-                   style="color: #003B71; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
+                   class="w-10 h-10 transition-transform hover:scale-110 text-secondary drop-shadow-lg"
+                   style="filter: drop-shadow(0 4px 4px rgba(0,0,0,0.4));">
                 <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
               </svg>
             </div>
@@ -916,9 +983,11 @@ const mainTabs = [
             regionLayers[regionName].push(layer);
             const color = getRegionColor(name);
             layer.bindPopup(
-              `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-gray-600'>${regionName}</span></div>`,
+              `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-base-content/60'>${regionName}</span></div>`,
               { className: "custom-popup" },
             );
+
+
             const letter = provinceLetters[name];
             if (letter) {
               const centroid = feature.properties.centroide;
@@ -963,7 +1032,7 @@ const mainTabs = [
           };
 
           legendEl.addEventListener("mouseover", (e) => {
-            const item = (e.target as HTMLElement).closest(".legend-item");
+            const item = (e.target as HTMLElement).closest(".legend-item-group");
             if (!item) return;
             highlightRegion(
               item.getAttribute("data-region") ?? undefined,
@@ -972,7 +1041,7 @@ const mainTabs = [
           });
 
           legendEl.addEventListener("mouseout", (e) => {
-            const item = (e.target as HTMLElement).closest(".legend-item");
+            const item = (e.target as HTMLElement).closest(".legend-item-group");
             if (!item) return;
             highlightRegion(
               item.getAttribute("data-region") ?? undefined,
@@ -981,7 +1050,37 @@ const mainTabs = [
           });
 
           legendEl.addEventListener("click", (e) => {
-            const item = (e.target as HTMLElement).closest(".legend-item");
+            const target = e.target as HTMLElement;
+
+            const toggleBtn = target.closest(".btn-toggle-referents");
+            if (toggleBtn) {
+              e.preventDefault();
+              e.stopPropagation();
+              const regionId = toggleBtn.getAttribute("data-region-id");
+              if (regionId) {
+                toggleRegionReferents(regionId, toggleBtn as HTMLButtonElement);
+              }
+              return;
+            }
+
+            const editBtn = target.closest(".btn-edit-region");
+            if (editBtn) {
+              e.preventDefault();
+              e.stopPropagation();
+              const regionId = editBtn.getAttribute("data-region-id");
+              if (regionId) {
+                renderRegionEditModal(regionId);
+                const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
+                if (modal) modal.showModal();
+              }
+              return;
+            }
+
+            if (target.closest(".referents-collapse-content")) {
+              return;
+            }
+
+            const item = target.closest(".legend-item-group");
             if (!item) return;
             const regionName = item.getAttribute("data-region");
             if (!regionName || !regionLayers[regionName]) return;
@@ -999,7 +1098,7 @@ const mainTabs = [
 
     dataMap.forEach((sucursal: any) => {
       const { lat, lng, nombre, nis, direccion } = sucursal;
-      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-gray-200 pb-2 mb-2"><h3 class="font-bold text-gray-900 text-sm m-0 leading-tight">${nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${nis}</span></div><div class="text-xs text-gray-700 space-y-1.5"><div class="flex flex-col gap-0.5"><span class="font-semibold text-gray-500">Dirección</span><span class="text-gray-800 font-medium">${direccion}</span></div></div></div>`;
+      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-base-300 pb-2 mb-2"><h3 class="font-bold text-base-content text-sm m-0 leading-tight">${nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${nis}</span></div><div class="text-xs text-base-content/85 space-y-1.5"><div class="flex flex-col gap-0.5"><span class="font-semibold text-base-content/60">Dirección</span><span class="text-base-content/90 font-medium">${direccion}</span></div></div></div>`;
       L.marker([lat, lng], { icon: sucursalMarkerIcon })
         .addTo(grupoSucursales)
         .bindPopup(popupContent, { className: "custom-popup" });
@@ -1080,6 +1179,248 @@ const mainTabs = [
   if (currentSortBy && tableRoot) {
     updateSortIcons(tableRoot);
   }
+
+  const toggleRegionReferents = (regionId: string, toggleBtn: HTMLButtonElement) => {
+    const collapseContent = document.querySelector(`.referents-collapse-content[data-region-id="${regionId}"]`) as HTMLElement | null;
+    if (!collapseContent) return;
+
+    const isHidden = collapseContent.classList.contains("hidden");
+
+    if (isHidden) {
+      // close all other accordions first
+      const openCollapses = document.querySelectorAll(".referents-collapse-content:not(.hidden)");
+      openCollapses.forEach((el) => {
+        el.classList.add("hidden");
+        const rId = el.getAttribute("data-region-id");
+        if (rId) {
+          const btn = document.querySelector(`.btn-toggle-referents[data-region-id="${rId}"]`);
+          if (btn) {
+            btn.setAttribute("aria-expanded", "false");
+            const openIcon = btn.querySelector("[data-chevron-open]");
+            const closedIcon = btn.querySelector("[data-chevron-closed]");
+            openIcon?.classList.add("hidden");
+            closedIcon?.classList.remove("hidden");
+          }
+        }
+      });
+
+      collapseContent.classList.remove("hidden");
+      toggleBtn.setAttribute("aria-expanded", "true");
+      const openIcon = toggleBtn.querySelector("[data-chevron-open]");
+      const closedIcon = toggleBtn.querySelector("[data-chevron-closed]");
+      openIcon?.classList.remove("hidden");
+      closedIcon?.classList.add("hidden");
+      renderRegionDetailsInline(regionId);
+    } else {
+      collapseContent.classList.add("hidden");
+      toggleBtn.setAttribute("aria-expanded", "false");
+      const openIcon = toggleBtn.querySelector("[data-chevron-open]");
+      const closedIcon = toggleBtn.querySelector("[data-chevron-closed]");
+      openIcon?.classList.add("hidden");
+      closedIcon?.classList.remove("hidden");
+    }
+  };
+
+  const renderRegionDetailsInline = (regionId: string) => {
+    const collapseContent = document.querySelector(`.referents-collapse-content[data-region-id="${regionId}"]`) as HTMLElement | null;
+    if (!collapseContent) return;
+
+    const listContainer = collapseContent.querySelector(".referents-list-container") as HTMLElement | null;
+    if (!listContainer) return;
+
+    const region = regionsDataCache.find((r) => r.id === regionId);
+    if (!region) return;
+
+    if (!region.referents || region.referents.length === 0) {
+      listContainer.innerHTML = `<p class="text-xs text-base-content/60 italic">Sin referentes asignados</p>`;
+    } else {
+      listContainer.innerHTML = `
+        <ul class="list-disc list-inside space-y-1">
+          ${region.referents
+            .map(
+              (ref: any) => `
+            <li class="text-xs font-medium text-base-content">${escapeHTML(ref.firstName)} ${escapeHTML(ref.lastName)}</li>
+          `
+            )
+            .join("")}
+        </ul>
+      `;
+    }
+  };
+
+  const renderRegionEditModal = (regionId: string) => {
+    const modalContent = document.getElementById("modal-region-content");
+    if (!modalContent) return;
+
+    const region = regionsDataCache.find((r) => r.id === regionId);
+    if (!region) return;
+
+    let localReferents = region.referents ? [...region.referents] : [];
+
+    const renderForm = () => {
+      let rowsHtml = "";
+      if (localReferents.length === 0) {
+        rowsHtml = `<p class="text-xs text-base-content/60 italic my-2">No hay referentes asignados. Podés agregar uno.</p>`;
+      } else {
+        rowsHtml = localReferents
+          .map(
+            (ref: any, idx: number) => `
+          <div class="flex items-center gap-1.5 referent-row" data-index="${idx}">
+            <input type="text" placeholder="Nombre" class="input input-bordered input-sm w-full font-medium input-name" value="${escapeHTML(ref.firstName || "")}" required />
+            <input type="text" placeholder="Apellido" class="input input-bordered input-sm w-full font-medium input-lastname" value="${escapeHTML(ref.lastName || "")}" required />
+            <button type="button" class="btn btn-sm btn-circle btn-ghost text-error btn-remove-referent" data-index="${idx}" title="Eliminar referente">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </button>
+          </div>
+        `
+          )
+          .join("");
+      }
+
+      modalContent.innerHTML = `
+        <div class="flex flex-col gap-4">
+          <div>
+            <h3 class="text-lg font-bold text-base-content">Editar Tecnológicos de ${escapeHTML(region.name)}</h3>
+            <p class="text-xs text-base-content/60">Modificá la lista de tecnológicos para esta región.</p>
+          </div>
+          <form class="flex flex-col gap-3 edit-referents-form">
+            <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Editar Tecnológicos</span>
+            <div class="flex flex-col gap-2 referents-rows-container">
+              ${rowsHtml}
+            </div>
+            <button type="button" class="btn btn-sm btn-outline gap-1 text-xs self-start btn-add-referent">
+              + Agregar Tecnológico
+            </button>
+            <div class="text-xs text-error hidden form-error-msg"></div>
+            <div class="flex items-center justify-end gap-2 mt-4">
+              <button type="button" class="btn btn-sm btn-ghost btn-cancel-edit">Cancelar</button>
+              <button type="submit" class="btn btn-sm btn-primary btn-save-edit">Guardar</button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      const addBtn = modalContent.querySelector(".btn-add-referent");
+      if (addBtn) {
+        addBtn.addEventListener("click", () => {
+          updateLocalReferentsFromDOM();
+          localReferents.push({ firstName: "", lastName: "" });
+          renderForm();
+        });
+      }
+
+      const removeBtns = modalContent.querySelectorAll(".btn-remove-referent");
+      removeBtns.forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const target = e.currentTarget as HTMLElement;
+          const idx = parseInt(target.getAttribute("data-index") || "0", 10);
+          updateLocalReferentsFromDOM();
+          localReferents.splice(idx, 1);
+          renderForm();
+        });
+      });
+
+      const cancelBtn = modalContent.querySelector(".btn-cancel-edit");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => {
+          const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
+          if (modal) modal.close();
+        });
+      }
+
+      const form = modalContent.querySelector(".edit-referents-form") as HTMLFormElement | null;
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          updateLocalReferentsFromDOM();
+
+          const sanitized: { firstName: string; lastName: string }[] = [];
+          for (const ref of localReferents) {
+            const fName = (ref.firstName || "").trim();
+            const lName = (ref.lastName || "").trim();
+            if (!fName || !lName) {
+              const errorMsg = modalContent.querySelector(".form-error-msg") as HTMLElement | null;
+              if (errorMsg) {
+                errorMsg.textContent = "El nombre y apellido no pueden estar vacíos";
+                errorMsg.classList.remove("hidden");
+              }
+              return;
+            }
+            sanitized.push({ firstName: fName, lastName: lName });
+          }
+
+          const saveBtn = modalContent.querySelector(".btn-save-edit") as HTMLButtonElement | null;
+          const cancelBtnEl = modalContent.querySelector(".btn-cancel-edit") as HTMLButtonElement | null;
+          const addBtnEl = modalContent.querySelector(".btn-add-referent") as HTMLButtonElement | null;
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando...';
+          }
+          if (cancelBtnEl) cancelBtnEl.disabled = true;
+          if (addBtnEl) addBtnEl.disabled = true;
+
+          const errorMsg = modalContent.querySelector(".form-error-msg") as HTMLElement | null;
+          if (errorMsg) errorMsg.classList.add("hidden");
+
+          try {
+            const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+            const res = await fetch(`${baseUrl}/api/technology-referents`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                regionId,
+                referents: sanitized,
+              }),
+            });
+
+            if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.error || "Error al guardar los referentes");
+            }
+
+            region.referents = sanitized;
+
+            const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
+            if (modal) modal.close();
+
+            renderRegionDetailsInline(regionId);
+          } catch (err: any) {
+            console.error("Error saving referents:", err);
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.textContent = "Guardar";
+            }
+            if (cancelBtnEl) cancelBtnEl.disabled = false;
+            if (addBtnEl) addBtnEl.disabled = false;
+
+            if (errorMsg) {
+              errorMsg.textContent = err.message || "Error al guardar los referentes";
+              errorMsg.classList.remove("hidden");
+            }
+          }
+        });
+      }
+    };
+
+    const updateLocalReferentsFromDOM = () => {
+      const rows = modalContent.querySelectorAll(".referent-row");
+      rows.forEach((row) => {
+        const idx = parseInt(row.getAttribute("data-index") || "0", 10);
+        const nameInput = row.querySelector(".input-name") as HTMLInputElement | null;
+        const lastnameInput = row.querySelector(".input-lastname") as HTMLInputElement | null;
+        if (localReferents[idx]) {
+          localReferents[idx].firstName = nameInput ? nameInput.value : "";
+          localReferents[idx].lastName = lastnameInput ? lastnameInput.value : "";
+        }
+      });
+    };
+
+    renderForm();
+  };
 </script>
 
 <style is:global>

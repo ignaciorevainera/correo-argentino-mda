@@ -343,6 +343,17 @@ export async function exportAsClipboardImage(
     const res = await fetch(dataUrl);
     const blob = await res.blob();
 
+    // Check if Clipboard API is supported (requires secure context HTTPS)
+    if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === 'undefined') {
+      const link = document.createElement('a');
+      link.download = `tabla_${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      throw new Error("CLIPBOARD_UNAVAILABLE_DOWNLOADED");
+    }
+
     // Write blob to Clipboard
     await navigator.clipboard.write([
       new ClipboardItem({

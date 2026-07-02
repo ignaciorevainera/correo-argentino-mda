@@ -80,6 +80,16 @@ const modulesGroup2: AdminModule[] = [
     active: true,
   },
 ];
+
+const modulesGroupInvgate: AdminModule[] = [
+  {
+    title: "Ubicaciones InvGate",
+    icon: "boxicons:map-filled",
+    iconTone: "text-secondary",
+    href: "/admin/invgate/ubicaciones",
+    active: true,
+  },
+];
 ---
 
 <BaseLayout>
@@ -209,6 +219,74 @@ const modulesGroup2: AdminModule[] = [
                 <span class="badge badge-ghost badge-sm font-medium">
                   Pronto
                 </span>
+              </div>
+            );
+          }
+        })
+      }
+    </div>
+
+    <div
+      class="card bg-base-100 border border-base-300 divide-y divide-base-200 overflow-hidden"
+    >
+      {
+        modulesGroupInvgate.map((mod) => {
+          const isLocked =
+            mod.href === "/admin/invgate/ubicaciones" &&
+            !can(user.role, "admin");
+
+          if (mod.active && mod.href && !isLocked) {
+            return (
+              <a
+                href={resolveUrl(mod.href)}
+                class="flex items-center gap-4 px-6 py-5 hover:bg-base-200 transition-colors duration-150 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                aria-label={`Ir a ${mod.title}`}
+              >
+                <Icon
+                  name={mod.icon}
+                  size={24}
+                  class:list={["shrink-0 transition-colors", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-base md:text-lg font-semibold text-base-content">
+                  {mod.title}
+                </span>
+                <Icon
+                  name="boxicons:arrow-right-stroke-circle-filled"
+                  size={22}
+                  class="text-base-content/30 group-hover:text-base-content/60 transition-colors duration-150"
+                  aria-hidden="true"
+                />
+              </a>
+            );
+          } else {
+            return (
+              <div
+                aria-disabled="true"
+                title={isLocked ? "Acceso restringido por rol" : "Próximamente"}
+                class="flex items-center gap-4 px-6 py-5 opacity-40 cursor-not-allowed select-none"
+              >
+                <Icon
+                  name={mod.icon}
+                  size={24}
+                  class:list={["shrink-0", mod.iconTone]}
+                  aria-hidden="true"
+                />
+                <span class="flex-1 text-base md:text-lg font-semibold text-base-content">
+                  {mod.title}
+                </span>
+                {isLocked ? (
+                  <Icon
+                    name="boxicons:lock"
+                    size={22}
+                    class="text-base-content/60"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span class="badge badge-ghost badge-sm font-medium">
+                    Pronto
+                  </span>
+                )}
               </div>
             );
           }
