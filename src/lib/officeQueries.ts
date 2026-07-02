@@ -8,6 +8,10 @@ import type {
 } from "@/types/offices";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
+let manualHostnamesCache: Set<string> | null = null;
+let manualHostnamesCacheTime = 0;
+const MANUAL_HOSTNAMES_TTL_MS = 60_000;
+
 export type OfficeSortKey = "code" | "name" | "parent-nis" | "address" | "type" | "region";
 export type SortOrder = "asc" | "desc";
 
@@ -171,15 +175,19 @@ export async function getOffices(params: GetOfficesParams) {
     },
   });
 
-  // Fetch all manual hostnames globally to deduplicate terminals
-  const allManualHostnamesRows = await db
-    .select({ hostname: officeAssets.hostname })
-    .from(officeAssets)
-    .where(sql`${officeAssets.hostname} IS NOT NULL AND ${officeAssets.hostname} != ''`);
-  
-  const manualHostnames = new Set(
-    allManualHostnamesRows.map((r) => r.hostname?.toLowerCase())
-  );
+  // Cached: fetch all manual hostnames globally to deduplicate terminals
+  const now = Date.now();
+  if (!manualHostnamesCache || now - manualHostnamesCacheTime > MANUAL_HOSTNAMES_TTL_MS) {
+    const allManualHostnamesRows = await db
+      .select({ hostname: officeAssets.hostname })
+      .from(officeAssets)
+      .where(sql`${officeAssets.hostname} IS NOT NULL AND ${officeAssets.hostname} != ''`);
+    manualHostnamesCache = new Set(
+      allManualHostnamesRows.map((r) => r.hostname?.toLowerCase())
+    );
+    manualHostnamesCacheTime = now;
+  }
+  const manualHostnames = manualHostnamesCache;
 
   const officeDirectoryItems: OfficeDirectoryItem[] = dbOffices.map((office) => {
     let mappedType = office.type;
