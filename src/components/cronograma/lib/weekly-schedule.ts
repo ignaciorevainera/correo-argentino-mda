@@ -94,7 +94,7 @@ export function renderWeeklyDaysList() {
         </div>
         
         <div class="flex items-center gap-4 pl-20 border-t border-dashed border-base-300/40 pt-2.5">
-          <span class="text-tiny font-black uppercase tracking-wider text-base-content/40">Break:</span>
+          <span class="label-xxs text-base-content/40">Break:</span>
           <div class="flex items-center gap-2">
             <span class="text-micro font-black uppercase text-base-content/30">Inicio</span>
             <input 
