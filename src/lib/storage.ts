@@ -24,5 +24,15 @@ export function getPdfsDir(): string {
 }
 
 export function ensureDir(dir: string): void {
-  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (error: any) {
+    if (error.code === "EACCES" || error.code === "EPERM") {
+      console.error(
+        `[storage] No se pudo crear el directorio "${dir}": ${error.message}`,
+      );
+      return;
+    }
+    throw error;
+  }
 }
