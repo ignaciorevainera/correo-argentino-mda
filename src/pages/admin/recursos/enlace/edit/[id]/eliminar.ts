@@ -3,19 +3,18 @@ import { db } from "@db/index";
 import { resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import { getBaseNoSlash } from "@lib/baseUrl";
 
 export const POST: APIRoute = async ({ params, redirect, locals }) => {
   const linkId = params.id;
   if (!linkId) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace no proporcionado")}&toast_type=error`);
   }
 
   const idNum = parseInt(linkId, 10);
   if (isNaN(idNum)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace inválido")}&toast_type=error`);
   }
 
@@ -29,13 +28,11 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
         await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el enlace "${existing.title}"`);
     }
 
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("Enlace eliminado con éxito")}&toast_type=success`);
   } catch (error) {
     console.error("Error al eliminar enlace:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("Error al eliminar el enlace")}&toast_type=error`);
   }
 };

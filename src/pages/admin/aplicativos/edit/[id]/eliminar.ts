@@ -4,12 +4,12 @@ import { applications } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { getAppsDir } from "@lib/storage";
+import { getBaseNoSlash, getCleanBase } from "@lib/baseUrl";
 
 export const POST: APIRoute = async ({ params, redirect, locals }) => {
   const appId = params.id;
   if (!appId || isNaN(Number(appId))) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("ID de aplicativo no proporcionado")}&toast_type=error`);
   }
 
@@ -24,8 +24,7 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
         const fs = await import("node:fs");
         const path = await import("node:path");
         const appsDir = getAppsDir();
-        const base = import.meta.env.BASE_URL || "/";
-        const cleanBaseUrl = base.endsWith("/") ? base : base + "/";
+        const cleanBaseUrl = getCleanBase();
         const downloadPrefix = `${cleanBaseUrl}api/download/`;
         const fileName = existing.filePath.startsWith(downloadPrefix)
           ? existing.filePath.slice(downloadPrefix.length)
@@ -45,13 +44,11 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
     await db.delete(applications).where(eq(applications.id, Number(appId)));
     await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el aplicativo "${existing?.title || appId}"`);
 
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo eliminado con éxito.")}&toast_type=success`);
   } catch (error) {
     console.error("Error al eliminar aplicativo:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/admin/aplicativos?toast_msg=${encodeURIComponent("Error al eliminar el aplicativo.")}&toast_type=error`);
   }
 };

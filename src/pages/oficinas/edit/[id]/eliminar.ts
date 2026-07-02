@@ -4,19 +4,18 @@ import { offices } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { isAllowed } from "@lib/rolesMatrix";
+import { getBaseNoSlash } from "@lib/baseUrl";
 
 export const POST: APIRoute = async ({ params, redirect, locals }) => {
   const user = locals.user;
   if (!user || !isAllowed("Administrar Contenido", user.role)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/oficinas?toast_msg=${encodeURIComponent("No autorizado")}&toast_type=error`);
   }
 
   const officeId = Number(params.id);
   if (!officeId || isNaN(officeId)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/oficinas?toast_msg=${encodeURIComponent("ID de oficina no proporcionado")}&toast_type=error`);
   }
 
@@ -33,8 +32,7 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
       );
     }
 
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
 
     if (deleted) {
       return redirect(`${cleanBase}/oficinas?toast_msg=${encodeURIComponent(`Oficina "${deleted.name}" (${deleted.code}) eliminada con éxito.`)}&toast_type=success`);
@@ -43,8 +41,7 @@ export const POST: APIRoute = async ({ params, redirect, locals }) => {
     }
   } catch (error) {
     console.error("Error deleting office:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const cleanBase = getBaseNoSlash();
     return redirect(`${cleanBase}/oficinas?toast_msg=${encodeURIComponent("Error al eliminar la oficina")}&toast_type=error`);
   }
 };
