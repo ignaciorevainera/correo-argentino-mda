@@ -19,7 +19,7 @@ async function migrate() {
   });
 
   const [rows] = await connection.execute<mysql.RowDataPacket[]>(
-    "SELECT id, dni, fullname, username, interno, telefono, sucursal, updated_at FROM usuarios"
+    "SELECT dni, fullname, username, interno, telefono, sucursal, updated_at FROM usuarios"
   );
   console.log(`[Migrate] Leídos ${rows.length} registros desde MySQL.`);
 
