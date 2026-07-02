@@ -12,19 +12,14 @@ import { getDisponibilidadHoy } from "@lib/disponibilidad";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
+import { resolveUrl } from "@lib/url";
 
 const { id } = Astro.params;
-const isNew = false;
-let successMsg = "";
+
 let errorMsg = "";
 
 if (!id || isNaN(Number(id))) {
-  return Astro.redirect(`${cleanBase}admin/operadores`);
+  return Astro.redirect(resolveUrl("/admin/operadores"));
 }
 
 const daysOfWeek = [
@@ -153,11 +148,11 @@ if (Astro.request.method === "POST") {
         logMessage = `Actualizó el operador de "${original.name}" a "${name}"`;
       }
 
-      await logAdminAction(user?.username || 'Sistema', logMessage);
+      await logAdminAction(Astro.locals.user?.username || 'Sistema', logMessage);
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: `${cleanBase}admin/operadores` }), { status: 200, headers: {"Content-Type": "application/json"} });
+        return new Response(JSON.stringify({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: resolveUrl("/admin/operadores") }), { status: 200, headers: {"Content-Type": "application/json"} });
       }
-      return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`);
+      return Astro.redirect(resolveUrl(`/admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`));
     }
   } catch (e: any) {
     console.error("POST Admin Operator Error:", e);
@@ -185,7 +180,7 @@ let operatorSchedulesData: Record<string, Record<string, any>> = {};
 const agentId = Number(id);
 const [result] = await db.select().from(agents).where(eq(agents.id, agentId));
 
-if (!result) return Astro.redirect(`${cleanBase}admin/operadores`);
+if (!result) return Astro.redirect(resolveUrl("/admin/operadores"));
 
 const availList = await getDisponibilidadHoy();
 const currentAvail = availList.find((a) => a.agentId === agentId);
@@ -235,7 +230,7 @@ const pageTitle = `Editar: ${operator!.name}`;
   <PageContainer>
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/operadores`}
+        href={resolveUrl("/admin/operadores")}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
@@ -253,14 +248,18 @@ const pageTitle = `Editar: ${operator!.name}`;
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
-        </script>
-      )
-    }
-    {
-      successMsg && (
-        <script is:inline define:vars={{ successMsg }}>
-          window.showToast?.(successMsg, "alert-success");
+          const triggerToast = () => {
+            if (window.showToast) {
+              window.showToast(errorMsg, "alert-error");
+            } else {
+              setTimeout(triggerToast, 100);
+            }
+          };
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", triggerToast);
+          } else {
+            triggerToast();
+          }
         </script>
       )
     }
@@ -426,7 +425,7 @@ const pageTitle = `Editar: ${operator!.name}`;
 
       <div class="flex items-center justify-between gap-3 pt-1">
         <a
-          href={`${cleanBase}admin/operadores`}
+          href={resolveUrl("/admin/operadores")}
           class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
         >
           <Icon name="boxicons:arrow-left-filled" size={16} />

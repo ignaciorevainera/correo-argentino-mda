@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
@@ -10,12 +11,8 @@ import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import SectionCard from "@components/ui/SectionCard.astro";
-
 const { id } = Astro.params;
-const isNew = false;
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 let errorMsg = "";
 let category = { id: "", title: "" };
 
@@ -81,30 +78,25 @@ if (Astro.request.method === "POST") {
 <BaseLayout title="Editar categoría de Aplicativos">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-          <div
-            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
-          >
-            <div>
-              <h1 class="text-xl font-bold text-base-content">
-                Editar categoría
-              </h1>
-              <p class="text-sm text-base-content/60 mt-1">
-                Modificá el nombre de la categoría de aplicativos.
-              </p>
-            </div>
-            <a
-              href={resolveUrl("/admin/aplicativos")}
-              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
-              title="Cerrar"
-            >
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/aplicativos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Aplicativos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Editar categoría</span>
+      </div>
 
-          {
-            errorMsg && (
+      <PageHeader
+        title="Editar categoría"
+        description="Modificá el nombre de la categoría de aplicativos."
+      />
+
+      {
+        errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
                 const triggerToast = () => {
                   if (window.showToast) {
@@ -120,7 +112,10 @@ if (Astro.request.method === "POST") {
                 }
               </script>
             )
-          }
+      }
+
+      <SectionCard>
+        <div class="p-6 sm:p-8">
 
           <form method="POST" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 gap-y-5">
@@ -151,5 +146,5 @@ if (Astro.request.method === "POST") {
       </SectionCard>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
-<AsyncFormScript />

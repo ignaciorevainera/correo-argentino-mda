@@ -97,7 +97,7 @@ export function openDrawer(opName: string) {
           
           <div class="bg-base-200/30 hover:bg-base-200/60 border border-base-300/40 rounded-2xl p-3.5 transition-all duration-200 shadow-sm flex items-center justify-between gap-3">
             <span class="text-xs font-bold text-base-content/85">${displayDate}</span>
-            <span class="${styles.badge} text-tiny px-2 py-0.5 leading-none h-auto shrink-0 select-none">${status}</span>
+            <span class="${styles.badge} text-tiny px-2 py-0.5 h-auto shrink-0 select-none">${status}</span>
           </div>
         </div>
       `;

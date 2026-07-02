@@ -9,7 +9,7 @@ const IV_LENGTH = 12;
  */
 export function encryptData(text: string): string {
   if (!text) return "";
-  const masterKey = process.env.ENCRYPTION_MASTER_KEY || "dev_key_must_be_configured_in_env";
+  const masterKey = process.env.ENCRYPTION_KEY || "dev_key_must_be_configured_in_env";
   
   // Deriva una clave de 32 bytes usando SHA-256
   const key = crypto.createHash("sha256").update(masterKey).digest();
@@ -43,7 +43,7 @@ export function decryptData(encryptedText: string): string {
   }
   
   try {
-    const masterKey = process.env.ENCRYPTION_MASTER_KEY || "dev_key_must_be_configured_in_env";
+    const masterKey = process.env.ENCRYPTION_KEY || "dev_key_must_be_configured_in_env";
     const key = crypto.createHash("sha256").update(masterKey).digest();
     const iv = Buffer.from(ivHex, "hex");
     const authTag = Buffer.from(tagHex, "hex");
