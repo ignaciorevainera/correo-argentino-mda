@@ -13,6 +13,8 @@ import { processIconUpload } from "@lib/iconUpload";
 import { encryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import { getAppsDir, ensureDir, getPdfsDir } from "@lib/storage";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
@@ -171,25 +173,13 @@ if (Astro.request.method === "POST") {
     await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el aplicativo "${title}"`);
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Aplicativo creado con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Aplicativo creado con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(
-      resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo creado con éxito.")}&toast_type=success`)
-    );
+    return redirectWithToast("/admin/aplicativos", "Aplicativo creado con éxito.");
   } catch (error: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar el aplicativo." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar el aplicativo." });
     }
     errorMsg = error.message || "Error al guardar el aplicativo.";
     if (formSnapshot) {

@@ -14,6 +14,8 @@ import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 
 const { id } = Astro.params;
 
@@ -108,15 +110,13 @@ if (Astro.request.method === "POST") {
 
       const toastMessage = "Contacto actualizado con éxito.";
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/contactos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return toastResponse({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/contactos") });
       }
-      return Astro.redirect(
-        resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`)
-      );
+      return redirectWithToast("/admin/contactos", toastMessage);
     }
   } catch (e: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: e.message || "Error al guardar el contacto." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: e.message || "Error al guardar el contacto." });
     }
     errorMsg = "Error al guardar el contacto.";
   }

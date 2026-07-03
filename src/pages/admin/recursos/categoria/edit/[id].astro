@@ -11,6 +11,8 @@ import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
@@ -31,11 +33,7 @@ if (existingCategory) {
     existingCategory.title.toLowerCase() === "sin categoría" ||
     existingCategory.title.toLowerCase() === "sin categoria"
   ) {
-    return Astro.redirect(
-      resolveUrl(
-        `/admin/recursos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`,
-      ),
-    );
+    return redirectWithToast("/admin/recursos", "No se puede modificar la categoría por defecto", "warning");
   }
   category = existingCategory as any;
 } else {
@@ -106,17 +104,13 @@ if (Astro.request.method === "POST") {
 
     const successMsg = "Categoría actualizada con éxito.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") });
     }
-    return Astro.redirect(
-      resolveUrl(
-        `/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`,
-      ),
-    );
+    return redirectWithToast("/admin/recursos", successMsg);
   } catch (error: any) {
     errorMsg = error.message || "Error al guardar la categoría.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: errorMsg });
     }
   }
 }

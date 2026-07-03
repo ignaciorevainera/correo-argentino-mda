@@ -13,6 +13,8 @@ import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 
 const { id } = Astro.params;
 
@@ -150,9 +152,9 @@ if (Astro.request.method === "POST") {
 
       await logAdminAction(Astro.locals.user?.username || 'Sistema', logMessage);
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: resolveUrl("/admin/operadores") }), { status: 200, headers: {"Content-Type": "application/json"} });
+        return toastResponse({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: resolveUrl("/admin/operadores") });
       }
-      return Astro.redirect(resolveUrl(`/admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`));
+      return redirectWithToast("/admin/operadores", "Operador y horarios actualizados con éxito.");
     }
   } catch (e: any) {
     console.error("POST Admin Operator Error:", e);
@@ -160,7 +162,7 @@ if (Astro.request.method === "POST") {
       ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+      return toastResponse({ success: false, error: errorMsg });
     }
   }
 }

@@ -10,6 +10,8 @@ import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 const { id } = Astro.params;
 
@@ -22,7 +24,7 @@ const existingCategory = await db.query.applicationCategories.findFirst({
 });
 if (existingCategory) {
   if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
-    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    return redirectWithToast("/admin/aplicativos", "No se puede modificar la categoría por defecto", "warning");
   }
   category = existingCategory as any;
 } else {
@@ -52,23 +54,13 @@ if (Astro.request.method === "POST") {
     }
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Categoría actualizada con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Categoría actualizada con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría actualizada con éxito.")}&toast_type=success`));
+    return redirectWithToast("/admin/aplicativos", "Categoría actualizada con éxito.");
   } catch (error: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }

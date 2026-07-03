@@ -12,6 +12,8 @@ import { processIconUpload } from "@lib/iconUpload";
 import { encrypt } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
@@ -78,13 +80,13 @@ if (Astro.request.method === "POST") {
 
     const successMsg = "Enlace creado con éxito.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") });
     }
-    return Astro.redirect(resolveUrl(`/admin/recursos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+    return redirectWithToast("/admin/recursos", successMsg);
   } catch (error: any) {
     errorMsg = error.message || "Error al guardar el enlace.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: errorMsg });
     }
     if (formSnapshot) {
       link.title = formSnapshot.get("title")?.toString() || "";

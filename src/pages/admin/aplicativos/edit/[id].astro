@@ -15,6 +15,8 @@ import { encryptData, decryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { getAppsDir, ensureDir, getPdfsDir } from "@lib/storage";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
@@ -258,27 +260,13 @@ if (Astro.request.method === "POST") {
     }
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Aplicativo actualizado con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Aplicativo actualizado con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(
-      resolveUrl(
-        `/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo actualizado con éxito.")}&toast_type=success`,
-      ),
-    );
+    return redirectWithToast("/admin/aplicativos", "Aplicativo actualizado con éxito.");
   } catch (error: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar el aplicativo." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar el aplicativo." });
     }
     errorMsg = error.message || "Error al guardar el aplicativo.";
     if (formSnapshot) {

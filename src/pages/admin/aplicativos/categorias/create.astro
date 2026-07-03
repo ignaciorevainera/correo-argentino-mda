@@ -9,6 +9,8 @@ import { applicationCategories } from "@db/schema";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 
 let errorMsg = "";
@@ -33,24 +35,14 @@ if (Astro.request.method === "POST") {
     await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de aplicativos "${title}"`);
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Categoría creada con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Categoría creada con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría creada con éxito.")}&toast_type=success`));
+    return redirectWithToast("/admin/aplicativos", "Categoría creada con éxito.");
   } catch (error: any) {
     console.error("DEBUG ERROR CREATE CATEGORIA APLICATIVOS:", error);
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }

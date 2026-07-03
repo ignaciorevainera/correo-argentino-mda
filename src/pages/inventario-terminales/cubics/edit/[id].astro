@@ -15,6 +15,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
 const cleanBase = getCleanBase();
 
@@ -153,9 +154,7 @@ if (Astro.request.method === "POST") {
           `Actualizó el ordenador "${cubicData.name}"`,
         );
       }
-      return Astro.redirect(
-        `${cleanBase}inventario-terminales?toast_msg=${encodeURIComponent("Cubic actualizado con éxito.")}&toast_type=success`,
-      );
+      return redirectWithToast("/inventario-terminales", "Cubic actualizado con éxito.");
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")

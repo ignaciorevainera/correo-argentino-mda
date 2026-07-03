@@ -15,6 +15,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
@@ -234,7 +235,7 @@ if (Astro.request.method === "POST") {
       } else {
         await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
       }
-      return Astro.redirect(`${cleanBase}oficinas?toast_msg=${encodeURIComponent("Oficina actualizada con éxito.")}&toast_type=success`);
+      return redirectWithToast("/oficinas", "Oficina actualizada con éxito.");
     }
   } catch (e: any) {
     console.error("[EditOffice] Error actualizando la oficina:", e);

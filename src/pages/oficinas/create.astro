@@ -15,6 +15,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
@@ -219,7 +220,7 @@ if (Astro.request.method === "POST") {
       }
 
       await logAdminAction(user?.username || 'Sistema', `Creó la oficina "${officeData.name}" (${officeData.code})`);
-      return Astro.redirect(`${cleanBase}oficinas?toast_msg=${encodeURIComponent("Oficina creada con éxito.")}&toast_type=success`);
+      return redirectWithToast("/oficinas", "Oficina creada con éxito.");
     }
   } catch (e: any) {
     console.error("[CreateOffice] Error guardando la oficina:", e);

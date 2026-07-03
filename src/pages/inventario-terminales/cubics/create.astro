@@ -15,6 +15,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
 const cleanBase = getCleanBase();
 
@@ -140,9 +141,7 @@ if (Astro.request.method === "POST") {
         user?.username || "Sistema",
         `Creó el ordenador "${cubicData.name}"`,
       );
-      return Astro.redirect(
-        `${cleanBase}inventario-terminales?toast_msg=${encodeURIComponent("Cubic creado con éxito.")}&toast_type=success`,
-      );
+      return redirectWithToast("/inventario-terminales", "Cubic creado con éxito.");
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")

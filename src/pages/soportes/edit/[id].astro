@@ -10,6 +10,7 @@ import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 const cleanBase = getCleanBase();
 
 const user = Astro.locals.user;
@@ -64,9 +65,7 @@ if (Astro.request.method === "POST") {
       } else {
         await logAdminAction(user?.username || 'Sistema', `Actualizó el soporte "${helpDeskName}"`);
       }
-      return Astro.redirect(
-        `${cleanBase}soportes?toast_msg=${encodeURIComponent("Soporte actualizado con éxito.")}&toast_type=success`
-      );
+      return redirectWithToast("/soportes", "Soporte actualizado con éxito.");
     }
   } catch (err) {
     console.error("Error updating support guide:", err);

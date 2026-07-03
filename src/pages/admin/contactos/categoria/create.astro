@@ -10,6 +10,8 @@ import { contactCategories } from "@db/schema";
 import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 
@@ -57,13 +59,13 @@ if (Astro.request.method === "POST") {
 
     const successMsg = "Categoría creada con éxito.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/contactos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/contactos") });
     }
-    return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+    return redirectWithToast("/admin/contactos", successMsg);
   } catch (error: any) {
     console.error("DEBUG ERROR CREATE CATEGORIA:", error);
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }

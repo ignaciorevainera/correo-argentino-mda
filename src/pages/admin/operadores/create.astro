@@ -12,6 +12,8 @@ import { logAdminAction } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
 
 let errorMsg = "";
 
@@ -162,9 +164,9 @@ if (Astro.request.method === "POST") {
 
       const toastMessage = `Operador "${inserted?.name || name}" creado con éxito.`;
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/operadores") }), { status: 200, headers: {"Content-Type": "application/json"} });
+        return toastResponse({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/operadores") });
       }
-      return Astro.redirect(resolveUrl(`/admin/operadores?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`));
+      return redirectWithToast("/admin/operadores", toastMessage);
     }
   } catch (e: any) {
     console.error("POST Admin Operator Error:", e);
@@ -172,7 +174,7 @@ if (Astro.request.method === "POST") {
       ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+      return toastResponse({ success: false, error: errorMsg });
     }
   }
 }

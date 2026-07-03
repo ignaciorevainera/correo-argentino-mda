@@ -9,6 +9,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
 import { logAdminAction } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 
 const cleanBase = getCleanBase();
 
@@ -43,9 +44,7 @@ if (Astro.request.method === "POST") {
       });
 
       await logAdminAction(user?.username || 'Sistema', `Creó el soporte "${helpDeskName}"`);
-      return Astro.redirect(
-        `${cleanBase}soportes?toast_msg=${encodeURIComponent("Soporte creado con éxito.")}&toast_type=success`
-      );
+      return redirectWithToast("/soportes", "Soporte creado con éxito.");
     }
   } catch (err) {
     console.error("Error creating support guide:", err);
