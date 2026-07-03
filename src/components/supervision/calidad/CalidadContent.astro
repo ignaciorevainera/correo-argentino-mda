@@ -5,6 +5,7 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
+import Modal from "@components/ui/Modal.astro";
 import { db } from "@db/index";
 import {
   agents,
@@ -1042,13 +1043,8 @@ const cleanBase = getCleanBase();
   }
 </PageContainer>
 
-<dialog id="audit-modal" class="modal modal-bottom sm:modal-middle z-200">
-  <div class="modal-box w-11/12 max-w-3xl bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6">
-    <h3 id="modal-title" class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
-      <Icon name="boxicons:task" class="text-primary" size={22} />
-      Nueva Auditoría de Calidad
-    </h3>
-
+<Modal id="audit-modal" title="Nueva Auditoría de Calidad" icon="boxicons:task" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="w-11/12 max-w-3xl">
+  <Fragment slot="content">
     <form id="audit-form" method="POST" class="space-y-4">
       <input type="hidden" name="id" id="form-audit-id" />
       <input type="hidden" name="agentId" id="form-agent-id" />
@@ -1189,55 +1185,41 @@ const cleanBase = getCleanBase();
           <FormTextarea id="form-notes" name="notes" label="Notas / Observaciones" placeholder="Observaciones de esta llamada..." rows={3} textareaClass="textarea-sm font-bold" />
         </div>
       </div>
-
-      <div class="modal-action mt-6 flex justify-between">
-        <div>
-          <button
-            type="button"
-            id="btn-delete-audit"
-            class="btn btn-sm btn-error btn-outline hidden uppercase text-xs font-black"
-          >
-            Eliminar
-          </button>
-        </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            id="btn-close-modal"
-            class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            class="btn btn-sm btn-secondary text-xs font-black uppercase"
-          >
-            Guardar
-          </button>
-        </div>
-      </div>
     </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+  </Fragment>
+  <Fragment slot="actions">
+    <div class="modal-action mt-6 flex justify-between">
+      <div>
+        <button
+          type="button"
+          id="btn-delete-audit"
+          class="btn btn-sm btn-error btn-outline hidden uppercase text-xs font-black"
+        >
+          Eliminar
+        </button>
+      </div>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          id="btn-close-modal"
+          class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          form="audit-form"
+          class="btn btn-sm btn-secondary text-xs font-black uppercase"
+        >
+          Guardar
+        </button>
+      </div>
+    </div>
+  </Fragment>
+</Modal>
 
-<!-- Dialog Modal for Month Summary -->
-<dialog
-  id="month-summary-modal"
-  class="modal modal-bottom sm:modal-middle z-200"
->
-  <div
-    class="modal-box max-w-lg bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6"
-  >
-    <h3
-      class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2"
-    >
-      <Icon name="boxicons:note" class="text-primary" size={22} />
-      Observaciones del Mes
-    </h3>
-
+<Modal id="month-summary-modal" title="Observaciones del Mes" icon="boxicons:note" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="max-w-lg">
+  <Fragment slot="content">
     <form id="month-summary-form" method="POST" class="space-y-4">
       <input type="hidden" name="agentId" id="summary-agent-id" />
       <input
@@ -1248,37 +1230,30 @@ const cleanBase = getCleanBase();
       />
 
       <FormTextarea id="summary-content" name="summary" label="Resumen general" placeholder="Escriba aquí las observaciones del mes..." rows={5} textareaClass="textarea-sm font-bold" />
-
-      <div class="modal-action mt-6 flex justify-end gap-2">
-        <button
-          type="button"
-          id="btn-close-summary-modal"
-          class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          class="btn btn-sm btn-secondary text-xs font-black uppercase"
-        >
-          Guardar
-        </button>
-      </div>
     </form>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+  </Fragment>
+  <Fragment slot="actions">
+    <div class="modal-action mt-6 flex justify-end gap-2">
+      <button
+        type="button"
+        id="btn-close-summary-modal"
+        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        form="month-summary-form"
+        class="btn btn-sm btn-secondary text-xs font-black uppercase"
+      >
+        Guardar
+      </button>
+    </div>
+  </Fragment>
+</Modal>
 
-<!-- Dialog Modal for Managing Quality Parameters -->
-<dialog id="parameters-modal" class="modal modal-bottom sm:modal-middle z-200">
-  <div class="modal-box max-w-2xl bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 flex flex-col h-[80vh] sm:h-[600px]">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2 shrink-0">
-      <Icon name="boxicons:cog" class="text-primary" size={22} />
-      Configuración de Parámetros de Calidad
-    </h3>
-
+<Modal id="parameters-modal" title="Configuración de Parámetros de Calidad" icon="boxicons:cog" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="max-w-2xl flex flex-col h-[80vh] sm:h-[600px]">
+  <Fragment slot="content">
     <!-- Tabs Header -->
     <div class="tabs tabs-boxed mb-4 shrink-0 bg-base-200/50 p-1 rounded-xl">
       <button type="button" class="tab tab-active flex-1 font-bold text-xs uppercase parameter-tab" data-tab="s1">
@@ -1301,7 +1276,8 @@ const cleanBase = getCleanBase();
         <!-- populated dynamically -->
       </div>
     </div>
-
+  </Fragment>
+  <Fragment slot="actions">
     <!-- Action Buttons -->
     <div class="modal-action mt-6 flex justify-between shrink-0 border-t border-base-200 pt-4">
       <div class="flex gap-2">
@@ -1339,11 +1315,8 @@ const cleanBase = getCleanBase();
         </button>
       </div>
     </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+  </Fragment>
+</Modal>
 
 <style is:global>
   /* RBAC - Vista de calidad para Operador (Solo Lectura) */
