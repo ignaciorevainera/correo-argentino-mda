@@ -5,7 +5,23 @@ import { generateCsv } from "@lib/csv";
 
 export const GET: APIRoute = async () => {
   try {
-    const data = await db.select().from(terminals);
+    const data = await db.select({
+      id: terminals.id,
+      hostname: terminals.hostname,
+      macAddress: terminals.macAddress,
+      ipAddress: terminals.ipAddress,
+      operatingSystem: terminals.operatingSystem,
+      osArchitecture: terminals.osArchitecture,
+      ram: terminals.ram,
+      serialNumber: terminals.serialNumber,
+      manufacturer: terminals.manufacturer,
+      model: terminals.model,
+      nis: terminals.nis,
+      nis2: terminals.nis2,
+      lastContact: terminals.lastContact,
+      syncedAt: terminals.syncedAt,
+      searchableText: terminals.searchableText,
+    }).from(terminals);
 
     const headers = [
       "ID",
