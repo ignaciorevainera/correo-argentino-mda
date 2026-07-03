@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@/db"
 import { titles, titleCategory } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 
 export const GET: APIRoute = async () => {
@@ -18,7 +18,8 @@ export const GET: APIRoute = async () => {
         .leftJoin(
             titleCategory,
             eq(titles.categoryId, titleCategory.id)
-        );
+        )
+        .orderBy(asc(titles.name));
 
     return Response.json(data);
 }

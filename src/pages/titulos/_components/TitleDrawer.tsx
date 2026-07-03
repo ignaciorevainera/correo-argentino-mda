@@ -1,20 +1,15 @@
-import type { TitleData } from "@hooks/useTitlesHook";
-import categoryStyles from "./categories";
+import type { Title } from "@hooks/useTitlesHook";
+import { Icon } from "@iconify/react";
 
 interface Props {
     open: boolean;
-    title: TitleData | null;
+    title: Title | null;
     onClose: () => void;
 }
 
 export default function TitleDrawer({
     open, title, onClose
 }: Props) {
-    const categoryConfig = categoryStyles[
-        title?.service as keyof typeof categoryStyles
-    ] ?? categoryStyles.Otros
-
-    const Icon = categoryConfig.icon;
 
     if (!title) return null;
     return (
@@ -34,16 +29,19 @@ export default function TitleDrawer({
                 `}
             >
                 <header className="flex items-center gap-x-2 mb-4">
-                    <article className={`p-2 rounded-md border-neutral-800/70 text-neutral-800
-                    ${categoryConfig.bg}`}>
-                        <Icon className="size-6" />
+                    <article className={`grid size-12 place-items-center p-2 rounded-md border border-neutral-800/70 text-neutral-800 ${title.tone}`}>
+                        <Icon
+                            icon={`boxicons:${title.icon}`}
+                            style={{ fontSize: 22 }}
+                        />
                     </article>
+
                     <article className="flex flex-col">
                         <h3 className="font-bold">
-                            {title.title}
+                            {title.name}
                         </h3>
                         <p className="text-xs opacity-70">
-                            {title.service}
+                            {title.category}
                         </p>
                     </article>
                 </header>
@@ -54,7 +52,7 @@ export default function TitleDrawer({
                     </svg>
 
                     <h4 className="text-xs">
-                        Ruta {">"} del ticket {">"} en {">"} Invgate
+                        {title.route ? `${title.route}` : "Sin ruta asignada"}
                     </h4>
                 </div>
 

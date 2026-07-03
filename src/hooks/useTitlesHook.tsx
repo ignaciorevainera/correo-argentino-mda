@@ -1,23 +1,22 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useDebounce } from "./useDebounce";
-import {showToast} from "@lib/toastClient"
+import { showToast } from "@lib/toastClient"
 
 declare const chrome: any;
 
-export interface TitleData {
-  title: string;
-  ci: string;
-  service: string;
+export interface Title {
+  id: number;
+  name: string;
+  category: string;
+  icon: string;
+  tone: string;
+  route: string;
+  description: string;
+  articleOnKdb: string | null
 }
 
-const SHEET_ID = "1zVeRuLjQSShxpyXnE8pDJNYe4B_m5edI5gCB-d71xJ4";
-const SHEET_NAME = "Hoja 1";
-
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
-
 export function useTitles() {
-  const [titles, setTitles] = useState<TitleData[]>([]);
-  const [filteredTitles, setFilteredTitles] = useState<TitleData[]>([]);
+  const [titles, setTitles] = useState<Title[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -34,43 +33,23 @@ export function useTitles() {
   // Debounce
   const debouncedSearch = useDebounce(searchQuery, 200);
 
-  // Fetch desde el sheet
-   useEffect(() => {
-    const loadTitles = async () => {
+  useEffect(() => {
+    setLoading(true)
+    const fetchTitles = async () => {
       try {
-        const res = await fetch(SHEET_URL);
-        const text = await res.text();
-
-        const json = JSON.parse(
-          text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1)
-        );
-
-        const parsed: TitleData[] = json.table.rows
-          .map((row: any) => ({
-            title: row.c?.[0]?.v?.trim() ?? "",
-            service: row.c?.[1]?.v?.trim() ?? "",
-            ci: row.c?.[2]?.v?.trim() ?? "",
-          }))
-          .filter((item: { title: any }) => item.title);
-
-        const unique = parsed
-          .filter((t, i, self) =>
-            i === self.findIndex((x) => x.title === t.title)
-          )
-          .sort((a, b) =>
-            a.title.localeCompare(b.title, "es", { sensitivity: "base" })
-          );
-
-        setTitles(unique);
-        setFilteredTitles(unique);
+        const res = await fetch("/api/titulos");
+        if (!res.ok) {
+          throw new Error("Error obteniendo títulos");
+        }
+        const data: Title[] = await res.json();
+        setTitles(data)
       } catch (error) {
         console.error("Error loading titles:", error);
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-
-    loadTitles();
+    }
+    fetchTitles()
   }, []);
 
 
@@ -92,43 +71,59 @@ export function useTitles() {
     });
   };
 
-  // Búsqueda y filtros 
-  useEffect(() => {
+  // Búsqueda y filtros
+  const filteredTitles = useMemo(() => {
     const normalize = (str: string) =>
-      str.normalize("NFD")
+      str
+        .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
         .trim();
 
     const term = normalize(debouncedSearch);
 
-    let result = titles;
+    let result = [...titles];
 
-    // filtro en búsqueda
+    // Filtro de búsqueda
     if (term) {
-      result = result.filter(
-        (t) =>
-          normalize(t.title).includes(term) ||
-          normalize(t.ci).includes(term) ||
-          normalize(t.service).includes(term)
+      result = result.filter((title) =>
+        normalize(title.name).includes(term) ||
+        normalize(title.description ?? "").includes(term) ||
+        normalize(title.route ?? "").includes(term)
       );
     }
-    // filtro por categoría
+
+    // Filtro de favoritos y categorías
     if (activeFilter === "Favoritos") {
-      result = result.filter(
-        (t) => favorites.includes(t.title)
+      result = result.filter((title) =>
+        favorites.includes(title.name)
       );
     }
+
     else if (activeFilter !== "Todos") {
       result = result.filter(
-        (t) =>
-          normalize(t.service) ===
-          normalize(activeFilter)
+        (title) =>
+          normalize(title.category) === normalize(activeFilter)
       );
     }
+   return result;
+  }, [titles, favorites, debouncedSearch, activeFilter])
 
-    setFilteredTitles(result);
-  }, [debouncedSearch, activeFilter, titles, favorites]);
+
+
+  const filters = useMemo(() => {
+    const categories = [
+      ...new Set(
+        titles.map((t) => t.category)
+      ),
+    ].sort();
+
+    return [
+      "Todos",
+      "Favoritos",
+      ...categories,
+    ];
+  }, [titles]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -150,23 +145,19 @@ export function useTitles() {
     }
   }, []);
 
-  const sortedTitles = useMemo(() => {
-    return [...filteredTitles].sort((a, b) =>
-      a.title.localeCompare(b.title, "es")
-    )
-  }, [filteredTitles])
 
   return {
     titles,
+    setTitles,
+    filters,
     filteredTitles,
     loading,
     searchQuery,
     setSearchQuery,
     copyToClipboard,
     copiedIndex,
-    setActiveFilter,
     activeFilter,
-    sortedTitles,
+    setActiveFilter,
     favorites,
     toggleFavorite
   };
