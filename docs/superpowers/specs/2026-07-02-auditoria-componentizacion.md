@@ -12,7 +12,7 @@
 |-----------|----------|
 | 🔴 P0 — DRY utilities | 0 |
 | 🔴 P1 — Componentes UI reutilizables | 5 |
-| 🟡 P2 — Consolidación patrones admin | 7 |
+| 🟡 P2 — Consolidación patrones admin | 6 |
 | 🟢 P3 — Scripts inline a módulos | 2 |
 
 ---
@@ -184,12 +184,14 @@ Se excluyó `login/index.astro` (3 redirects de validación de formulario).
 **Rama:** `fix/c34-redirect-with-toast` (-41 líneas netas).
 **Esfuerzo real:** ~40 min. **Impacto real:** -41 líneas netas (2 helpers nuevos, 21 archivos simplificados).
 
-### C3.5 🟡 `logAdminAction` wrapper en 14 archivos
+### C3.5 ✅ `logAdminAction` wrapper en 14 archivos — **RESUELTO**
 
-`await logAdminAction(Astro.locals.user?.username || 'Sistema', msg)`.
+`await logAdminAction(Astro.locals.user?.username || 'Sistema', msg)` duplicado ~30 veces en 26 archivos.
 
-**Fix:** `logAdminFromAstro(locals, message)`.
-**Esfuerzo:** 15 min.
+**Fix aplicado:** Se creó `logAdminFromAstro(locals, message)` en `src/lib/auditLogger.ts`. Se migraron 26 archivos (Astro pages, API routes, actions, lib helpers) al nuevo wrapper. Se eliminaron 6 líneas `const user = Astro.locals.user` que solo se usaban para loggeo. Se eliminaron ~10 casts `(as any)`. Se eliminó el import muerto de `logAdminAction` en `AdminAplicativosContent.astro`.
+
+**Commit:** `040409a` en `master`.
+**Impacto real:** 32 archivos, +88/-121 líneas.
 
 ### C3.6 ✅ `animate-fade-in` CSS en 3 archivos scoped — **RESUELTO**
 
@@ -262,7 +264,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
-| **P2** | C3.5 | 🟡 logAdminFromAstro wrapper (14 files) | 15 min | DRY |
+| **P2** | C3.5 | ~~🟡 logAdminFromAstro wrapper (14 files)~~ | ✅ **Resuelto** | ✅ `master` (040409a) |
 | **P2** | C3.6 | ~~🟢 animate-fade-in global~~ | ✅ **Resuelto** | ✅ `master` (this commit) |
 | **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
 | **P3** | C4.1 | 🟡 Scripts inline → .ts (10 archivos) | 4-6 h | Separación concerns |
