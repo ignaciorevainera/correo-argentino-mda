@@ -90,7 +90,14 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     // 5. Cargar todos los agentes
-    const dbAgents = await db.select().from(agents);
+    const dbAgents = await db.select({
+      id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+      horarioDefault: agents.horarioDefault,
+      esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+      esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
+      maxConsecutiveHO: agents.maxConsecutiveHO, minPWeek: agents.minPWeek,
+      saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
+    }).from(agents);
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db

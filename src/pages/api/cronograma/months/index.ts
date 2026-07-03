@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // 1. Fetch all agents (operators) from SQLite to get all operators
-    const dbAgents = await db.select().from(agents);
+    const dbAgents = await db.select({ name: agents.name }).from(agents);
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;

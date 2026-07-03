@@ -48,7 +48,19 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
   const dayName = dayNames[now.getDay()];
 
   // 1. Fetch all agents
-  const dbAgents = await db.select().from(agents);
+  const dbAgents = await db.select({
+    id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+    horarioDefault: agents.horarioDefault,
+    esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+    esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
+    lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt,
+    lastAutogestionAssignedBy: agents.lastAutogestionAssignedBy,
+    lastAutogestionUndo: agents.lastAutogestionUndo,
+    estadoExcepcional: agents.estadoExcepcional,
+    estadoExcepcionalMotivo: agents.estadoExcepcionalMotivo,
+    estadoExcepcionalAt: agents.estadoExcepcionalAt,
+    estadoExcepcionalMinutos: agents.estadoExcepcionalMinutos,
+  }).from(agents);
 
   // 2. Fetch today's persistent schedule overrides
   const dbSchedules = await db
