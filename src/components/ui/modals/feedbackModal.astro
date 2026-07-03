@@ -3,12 +3,13 @@ import { Icon } from "astro-icon/components";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
+import Modal from "@components/ui/Modal.astro";
 
 const user = Astro.locals.user || { username: "Invitado" };
 ---
 
-<dialog id="feedback_modal" class="modal modal-bottom sm:modal-middle">
-  <div class="modal-box max-w-lg border border-base-300 bg-base-100 p-6 rounded-2xl shadow-xl relative">
+<Modal id="feedback_modal" class="max-w-lg rounded-2xl">
+  <Fragment slot="content">
     {/* Botón de cerrar (X) en la esquina superior derecha */}
     <button
       type="button"
@@ -84,20 +85,6 @@ const user = Astro.locals.user || { username: "Invitado" };
         rows={6}
         required
       />
-
-      <div class="modal-action flex items-center justify-between mt-6">
-        <div class="text-xxs text-base-content/50">
-          Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
-        </div>
-        <div class="flex gap-2">
-          <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
-            Cancelar
-          </button>
-          <button type="submit" class="btn btn-primary rounded-md">
-            Enviar sugerencia
-          </button>
-        </div>
-      </div>
     </form>
 
     {/* Formulario de Reportar Bug */}
@@ -161,28 +148,27 @@ const user = Astro.locals.user || { username: "Invitado" };
         rows={6}
         required
       />
-
-      <div class="modal-action flex items-center justify-between mt-6">
-        <div class="text-xxs text-base-content/50">
-          Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
-        </div>
-        <div class="flex gap-2">
-          <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
-            Cancelar
-          </button>
-          <button type="submit" class="btn btn-primary rounded-md">
-            Reportar bug
-          </button>
-        </div>
-      </div>
     </form>
-  </div>
-
-  {/* Backdrop para poder cerrar haciendo clic afuera */}
-  <form method="dialog" class="modal-backdrop">
-    <button>Cerrar</button>
-  </form>
-</dialog>
+  </Fragment>
+  <Fragment slot="actions">
+    <div class="modal-action flex items-center justify-between mt-6">
+      <div class="text-xxs text-base-content/50">
+        Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
+          Cancelar
+        </button>
+        <button type="submit" class="btn btn-primary rounded-md" form="suggestion-form">
+          Enviar sugerencia
+        </button>
+        <button type="submit" class="btn btn-primary rounded-md" form="bug-form">
+          Reportar bug
+        </button>
+      </div>
+    </div>
+  </Fragment>
+</Modal>
 
 <script>
   import { actions, isInputError } from "astro:actions";
