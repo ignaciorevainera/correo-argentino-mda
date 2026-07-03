@@ -1,0 +1,52 @@
+---
+export interface FilterOption {
+  value: string;
+  label: string;
+  color?: "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error";
+  dotColor?: string;
+}
+
+interface Props {
+  id: string;
+  options: FilterOption[];
+  prefix: string;
+  allLabel: string;
+  attribute: string;
+  showDots?: boolean;
+}
+
+const { id, options, prefix, allLabel, attribute, showDots = false } = Astro.props;
+
+const sanitize = (v: string) => v.replace(/\s+/g, "-").toLowerCase();
+---
+
+<div class="flex items-center gap-1 flex-wrap">
+  <span class="label-xxs text-base-content/40 px-2 select-none">{prefix}</span>
+
+  <button
+    type="button"
+    id={`${id}-all`}
+    data-filter-value="all"
+    data-filter-attribute={attribute}
+    class="btn btn-xs btn-soft font-bold uppercase tracking-wider text-tiny"
+  >
+    {allLabel}
+  </button>
+
+  {options.map((opt) => (
+    <button
+      type="button"
+      id={`${id}-${sanitize(opt.value)}`}
+      data-filter-value={opt.value}
+      data-filter-attribute={attribute}
+      class="btn btn-xs btn-soft font-bold uppercase tracking-wider text-tiny gap-1.5"
+    >
+      {showDots && opt.dotColor && (
+        <span
+          class:list={["w-1.5 h-1.5 rounded-full", opt.dotColor]}
+        ></span>
+      )}
+      {opt.label}
+    </button>
+  ))}
+</div>
