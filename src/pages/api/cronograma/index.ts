@@ -9,7 +9,7 @@ import {
   agentSaturdayGroups,
 } from "@db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
@@ -336,8 +336,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       if (!edits || !Array.isArray(edits)) {
-        await logAdminAction(
-          (locals as any).user?.username || 'Sistema',
+        await logAdminFromAstro(locals,
           `Actualizó esquemas semanales de ${weeklyCount} operadores`
         );
         return jsonResponse({ success: true, message: "Weekly schedules updated" });
@@ -421,8 +420,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       logMessages.push(`Guardó cambios en el cronograma (${editCount} registros)`);
     }
     if (logMessages.length > 0) {
-      await logAdminAction(
-        (locals as any).user?.username || 'Sistema',
+      await logAdminFromAstro(locals,
         logMessages.join(' y ')
       );
     }

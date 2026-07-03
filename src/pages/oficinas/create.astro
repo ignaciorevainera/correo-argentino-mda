@@ -14,15 +14,13 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 const cleanBase = getCleanBase();
-
-const user = Astro.locals.user;
 
 const isNew = true;
 let successMsg = "";
@@ -219,7 +217,7 @@ if (Astro.request.method === "POST") {
         } catch (e: any) {}
       }
 
-      await logAdminAction(user?.username || 'Sistema', `Creó la oficina "${officeData.name}" (${officeData.code})`);
+      await logAdminFromAstro(Astro.locals, `Creó la oficina "${officeData.name}" (${officeData.code})`);
       return redirectWithToast("/oficinas", "Oficina creada con éxito.");
     }
   } catch (e: any) {

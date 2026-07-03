@@ -14,12 +14,10 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
 const cleanBase = getCleanBase();
-
-const user = Astro.locals.user;
 
 const { id } = Astro.params;
 const isNew = false;
@@ -144,13 +142,11 @@ if (Astro.request.method === "POST") {
       }
 
       if (oldName && oldName !== cubicData.name) {
-        await logAdminAction(
-          user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó el ordenador de "${oldName}" a "${cubicData.name}"`,
         );
       } else {
-        await logAdminAction(
-          user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó el ordenador "${cubicData.name}"`,
         );
       }

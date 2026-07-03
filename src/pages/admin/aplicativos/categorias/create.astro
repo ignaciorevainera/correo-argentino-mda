@@ -6,7 +6,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applicationCategories } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
@@ -32,7 +32,7 @@ if (Astro.request.method === "POST") {
     await db.insert(applicationCategories).values({
       title,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de aplicativos "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó la categoría de aplicativos "${title}"`);
 
     if (isAjax) {
       return toastResponse({ success: true, message: "Categoría creada con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });

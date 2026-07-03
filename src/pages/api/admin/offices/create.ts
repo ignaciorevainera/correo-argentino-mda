@@ -5,7 +5,7 @@ import { db } from "@db/index";
 import { offices } from "@db/schema";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 
 export const POST: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -55,8 +55,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
       searchableText,
     });
 
-    await logAdminAction(
-      locals.user.username || "Sistema",
+    await logAdminFromAstro(locals,
       `Creó la oficina "${parsed.data.name}" (NIS ${parsed.data.code}) desde la sincronización de ubicaciones`
     );
 

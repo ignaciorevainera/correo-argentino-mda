@@ -7,7 +7,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
@@ -48,9 +48,9 @@ if (Astro.request.method === "POST") {
       .where(eq(applicationCategories.id, numericId));
 
     if (oldTitle && oldTitle !== title) {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
+      await logAdminFromAstro(Astro.locals, `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
     } else {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos "${title}"`);
+      await logAdminFromAstro(Astro.locals, `Actualizó la categoría de aplicativos "${title}"`);
     }
 
     if (isAjax) {

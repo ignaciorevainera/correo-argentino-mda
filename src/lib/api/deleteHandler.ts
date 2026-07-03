@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getBaseNoSlash } from "@lib/baseUrl";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { isAllowed } from "@lib/rolesMatrix";
 
 export interface DeleteHandlerConfig {
@@ -57,11 +57,10 @@ export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
         await config.afterDelete({ id, deleted });
       }
 
-      const username = (locals as any).user?.username || "Sistema";
       const logMsg = config.logMessage
         ? config.logMessage(deleted)
         : `Eliminó el ${config.entityName} "${id}"`;
-      await logAdminAction(username, logMsg);
+      await logAdminFromAstro(locals, logMsg);
 
       if (deleted) {
         const successMsg = config.successMessage

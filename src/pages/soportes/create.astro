@@ -8,12 +8,10 @@ import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 
 const cleanBase = getCleanBase();
-
-const user = Astro.locals.user;
 
 let errorMsg = "";
 
@@ -43,7 +41,7 @@ if (Astro.request.method === "POST") {
         notes,
       });
 
-      await logAdminAction(user?.username || 'Sistema', `Creó el soporte "${helpDeskName}"`);
+      await logAdminFromAstro(Astro.locals, `Creó el soporte "${helpDeskName}"`);
       return redirectWithToast("/soportes", "Soporte creado con éxito.");
     }
   } catch (err) {

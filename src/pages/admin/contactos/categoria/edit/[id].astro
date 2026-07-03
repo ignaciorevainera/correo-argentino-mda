@@ -8,7 +8,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { contactCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
@@ -89,13 +89,11 @@ if (Astro.request.method === "POST") {
         })
         .where(eq(contactCategories.id, parsedId));
       if (oldTitle && oldTitle !== title) {
-        await logAdminAction(
-          Astro.locals.user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó la categoría de contactos de "${oldTitle}" a "${title}"`,
         );
       } else {
-        await logAdminAction(
-          Astro.locals.user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó la categoría de contactos "${title}"`,
         );
       }

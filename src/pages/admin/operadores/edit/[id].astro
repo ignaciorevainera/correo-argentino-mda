@@ -9,7 +9,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import { resolveUrl } from "@lib/url";
@@ -150,7 +150,7 @@ if (Astro.request.method === "POST") {
         logMessage = `Actualizó el operador de "${original.name}" a "${name}"`;
       }
 
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', logMessage);
+      await logAdminFromAstro(Astro.locals, logMessage);
       if (isAjax) {
         return toastResponse({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: resolveUrl("/admin/operadores") });
       }

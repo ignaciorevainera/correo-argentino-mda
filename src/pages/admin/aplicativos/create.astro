@@ -8,7 +8,7 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
@@ -170,7 +170,7 @@ if (Astro.request.method === "POST") {
       metadata: metadataEncrypted,
       instructionPdfPath,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el aplicativo "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó el aplicativo "${title}"`);
 
     if (isAjax) {
       return toastResponse({ success: true, message: "Aplicativo creado con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });

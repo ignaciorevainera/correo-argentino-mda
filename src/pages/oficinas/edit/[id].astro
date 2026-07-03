@@ -14,15 +14,13 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 const cleanBase = getCleanBase();
-
-const user = Astro.locals.user;
 
 const { id } = Astro.params;
 const isNew = false;
@@ -231,9 +229,9 @@ if (Astro.request.method === "POST") {
       }
 
       if (oldName && oldName !== officeData.name) {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina NIS ${officeData.code} (de "${oldName}" a "${officeData.name}")`);
+        await logAdminFromAstro(Astro.locals, `Actualizó la oficina NIS ${officeData.code} (de "${oldName}" a "${officeData.name}")`);
       } else {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
+        await logAdminFromAstro(Astro.locals, `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
       }
       return redirectWithToast("/oficinas", "Oficina actualizada con éxito.");
     }

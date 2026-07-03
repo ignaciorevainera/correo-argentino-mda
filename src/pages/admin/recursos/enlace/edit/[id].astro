@@ -8,7 +8,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encrypt } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
@@ -112,9 +112,9 @@ if (Astro.request.method === "POST") {
         })
         .where(eq(resourceLinks.id, numericId));
       if (oldTitle && oldTitle !== title) {
-        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace de "${oldTitle}" a "${title}"`);
+        await logAdminFromAstro(Astro.locals, `Actualizó el enlace de "${oldTitle}" a "${title}"`);
       } else {
-        await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el enlace "${title}"`);
+        await logAdminFromAstro(Astro.locals, `Actualizó el enlace "${title}"`);
       }
     }
 

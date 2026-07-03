@@ -1,6 +1,6 @@
 import { db } from "@db/index";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 
 export async function handleReorder(
@@ -36,7 +36,7 @@ export async function handleReorder(
         ? auditMessage(items.length)
         : auditMessage;
 
-    await logAdminAction(locals.user.username || "Sistema", msg);
+    await logAdminFromAstro(locals, msg);
 
     return jsonResponse({ success: true });
   } catch (err) {

@@ -4,7 +4,7 @@ import { operatorAttendance } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { getAttendanceData, calculateCompliance } from "@lib/attendance";
 import { requireReadAccess, requireWriteAccess } from "@lib/rbac-middleware";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 
 export { calculateCompliance };
@@ -135,8 +135,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     });
 
-    await logAdminAction(
-      (locals as any).user?.username || 'Sistema',
+    await logAdminFromAstro(locals,
       `Guardó asistencias del ${date || edits[0]?.date} (${edits.length} registros)`
     );
 

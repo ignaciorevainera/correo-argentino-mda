@@ -4,7 +4,7 @@ import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
 
@@ -34,8 +34,7 @@ if (Astro.request.method === "POST") {
             role: role as any,
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
-          await logAdminAction(
-            Astro.locals.user?.username || "Sistema",
+          await logAdminFromAstro(Astro.locals,
             `Creó al usuario "${username}" con rol ${role}`,
           );
         } catch (e) {
@@ -66,8 +65,7 @@ if (Astro.request.method === "POST") {
             .set({ password: hashedPassword })
             .where(eq(users.id, userId));
           successMsg = "Contraseña actualizada con éxito.";
-          await logAdminAction(
-            Astro.locals.user?.username || "Sistema",
+          await logAdminFromAstro(Astro.locals,
             `Blanqueó la contraseña de "${targetUsername}"`,
           );
         } catch (e) {
@@ -97,8 +95,7 @@ if (Astro.request.method === "POST") {
           .set({ username: newUsername })
           .where(eq(users.id, userId));
         successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
-        await logAdminAction(
-          Astro.locals.user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Renombró al usuario de "${oldUsername}" a "${newUsername}"`,
         );
       } catch (e) {
@@ -124,8 +121,7 @@ if (Astro.request.method === "POST") {
           .set({ role: newRole as any })
           .where(eq(users.id, userId));
         successMsg = "Rol de usuario actualizado con éxito.";
-        await logAdminAction(
-          Astro.locals.user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}"`,
         );
       } catch (e) {

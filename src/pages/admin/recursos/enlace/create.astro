@@ -7,7 +7,7 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encrypt } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
@@ -76,7 +76,7 @@ if (Astro.request.method === "POST") {
       credentialUsername,
       credentialPassword,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el enlace "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó el enlace "${title}"`);
 
     const successMsg = "Enlace creado con éxito.";
     if (isAjax) {

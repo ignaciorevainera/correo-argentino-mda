@@ -7,7 +7,7 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
@@ -55,7 +55,7 @@ if (Astro.request.method === "POST") {
       iconName,
       tone,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de recursos "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó la categoría de recursos "${title}"`);
 
     const successMsg = "Categoría creada con éxito.";
     if (isAjax) {

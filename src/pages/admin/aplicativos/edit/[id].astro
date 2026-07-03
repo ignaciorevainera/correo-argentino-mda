@@ -9,7 +9,7 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encryptData, decryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
@@ -248,13 +248,11 @@ if (Astro.request.method === "POST") {
       })
       .where(eq(applications.id, app.id));
     if (oldTitle && oldTitle !== title) {
-      await logAdminAction(
-        Astro.locals.user?.username || "Sistema",
+      await logAdminFromAstro(Astro.locals,
         `Actualizó el aplicativo de "${oldTitle}" a "${title}"`,
       );
     } else {
-      await logAdminAction(
-        Astro.locals.user?.username || "Sistema",
+      await logAdminFromAstro(Astro.locals,
         `Actualizó el aplicativo "${title}"`,
       );
     }

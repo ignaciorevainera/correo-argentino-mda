@@ -9,7 +9,7 @@ import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
@@ -102,9 +102,9 @@ if (Astro.request.method === "POST") {
         const oldName = contact ? `${contact.provider} - ${contact.service}` : "";
         const newName = `${provider} - ${service}`;
         if (oldName && oldName !== newName) {
-          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el contacto de "${oldName}" a "${newName}"`);
+          await logAdminFromAstro(Astro.locals, `Actualizó el contacto de "${oldName}" a "${newName}"`);
         } else {
-          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el contacto "${newName}"`);
+          await logAdminFromAstro(Astro.locals, `Actualizó el contacto "${newName}"`);
         }
       }
 

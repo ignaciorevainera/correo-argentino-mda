@@ -8,6 +8,14 @@ import { auditLogs } from "@db/schema";
  * @param username El nombre de usuario que realiza la acción
  * @param action Descripción de la acción realizada
  */
+export async function logAdminFromAstro(
+  locals: App.Locals,
+  message: string
+): Promise<void> {
+  const username = locals.user?.username || "Sistema";
+  await logAdminAction(username, message);
+}
+
 export async function logAdminAction(username: string, action: string): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
