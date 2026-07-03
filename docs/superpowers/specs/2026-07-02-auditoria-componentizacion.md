@@ -10,7 +10,7 @@
 
 | Prioridad | Cantidad |
 |-----------|----------|
-| 🔴 P0 — DRY utilities | 1 pendiente (C1.2) |
+| 🔴 P0 — DRY utilities | 0 |
 | 🔴 P1 — Componentes UI reutilizables | 5 |
 | 🟡 P2 — Consolidación patrones admin | 7 |
 | 🟢 P3 — Scripts inline a módulos | 2 |
@@ -50,18 +50,24 @@ bug latente de naming invertido en `EstadisticasContent.astro`, y actualizado
 **Esfuerzo real:** ~2 h. **Impacto real:** -200+ líneas, eliminación de ~82 duplicados.
 **Branch de trabajo:** `fix/c11-base-cleanbase-clean` (eliminado post-merge).
 
-### C1.2 🟡 `escapeHtml()` definida 5 veces independientemente
+### C1.2 ✅ `escapeHtml()` definida 5 veces independientemente — **RESUELTO**
 
 | Archivo | Línea | Contexto |
 |---------|-------|----------|
-| `src/lib/clientSearch.ts` | 34 | Módulo TS |
-| `src/components/cronograma/lib/utils.ts` | 38 | Módulo TS |
-| `CalidadContent.astro` | 1394 | inline `<script>` |
-| `AsignacionContent.astro` | 794 | inline `<script>` |
-| `ContactosContent.astro` | 425 | inline `<script>` |
+| ~~`src/lib/clientSearch.ts`~~ | ~~34~~ | ~~Módulo TS~~ |
+| ~~`src/components/cronograma/lib/utils.ts`~~ | ~~38~~ | ~~Módulo TS~~ |
+| ~~`CalidadContent.astro`~~ | ~~1394~~ | ~~inline `<script>`~~ |
+| ~~`AsignacionContent.astro`~~ | ~~794~~ | ~~inline `<script>`~~ |
+| ~~`ContactosContent.astro`~~ | ~~425~~ | ~~inline `<script>`~~ |
 
-**Fix:** Consolidar en `src/lib/sanitize.ts` con exportación para SSR y cliente.
-**Esfuerzo:** 15 min.
+**Fix aplicado:** Se creó `src/lib/sanitize.ts` con `escapeHtml()` y `escapeRegExp()`. Se
+eliminó la duplicación en `clientSearch.ts`, `cronograma/lib/utils.ts` y los 3 scripts
+inline de `.astro`. Los consumidores de cronograma ahora importan directamente desde
+`@lib/sanitize`. Además se consolidó `escapeRegExp` (definido en `clientSearch.ts` y en
+`ContactosContent.astro`) en el mismo módulo.
+
+**Commit:** `632cf5b` en `master`.
+**Esfuerzo real:** ~15 min. **Impacto real:** 12 archivos, +27/-52 líneas, 5 defs `escapeHtml` → 1, 2 defs `escapeRegExp` → 1.
 
 ---
 
@@ -247,7 +253,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | Prioridad | ID | Hallazgo | Esfuerzo | Impacto |
 |-----------|-----|----------|----------|---------|
 | **P0** | C1.1 | ~~🔴 base/cleanBase utility (80+ copias)~~ | ✅ **Resuelto** | ✅ `master` (01a3d91) |
-| **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
+| **P0** | C1.2 | ~~🟡 escapeHtml consolidado (5 defs)~~ | ✅ **Resuelto** | ✅ `master` (632cf5b) |
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
 | **P1** | C2.1 | ~~🟡 StatsCard component (10+ usos)~~ | ✅ **Resuelto (6/10)** | ✅ rama `fix/c21-stats-card` |
 | **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
