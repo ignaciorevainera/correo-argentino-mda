@@ -174,13 +174,14 @@ Se excluyó `login/index.astro` (3 redirects de validación de formulario).
 **Fix:** `logAdminFromAstro(locals, message)`.
 **Esfuerzo:** 15 min.
 
-### C3.6 🟢 `animate-fade-in` CSS en 3 archivos scoped
+### C3.6 ✅ `animate-fade-in` CSS en 3 archivos scoped — **RESUELTO**
 
 Mismo `@keyframes fadeIn` en `CalidadContent.astro`, `DirectorioContent.astro`,
 `SoportesPublicContent.astro`.
 
-**Fix:** Mover a `global.css`.
-**Esfuerzo:** 5 min.
+**Fix aplicado:** Movido a `src/styles/global.css` como `@keyframes fade-in` + `.animate-fade-in { animation: fade-in 0.4s ease-out forwards; }`.
+Eliminadas las 3 definiciones scoped (~30 líneas borradas).
+**Esfuerzo real:** 5 min.
 
 ### C3.7 🟢 `formatMonthLabel()` duplicado
 
@@ -245,7 +246,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
 | **P2** | C3.5 | 🟡 logAdminFromAstro wrapper (14 files) | 15 min | DRY |
-| **P2** | C3.6 | 🟢 animate-fade-in global | 5 min | DRY |
+| **P2** | C3.6 | ~~🟢 animate-fade-in global~~ | ✅ **Resuelto** | ✅ `master` (this commit) |
 | **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
 | **P3** | C4.1 | 🟡 Scripts inline → .ts (10 archivos) | 4-6 h | Separación concerns |
 | **P3** | C3.8 | ~~🟢 showToast pattern estandarizado~~ | ✅ **Resuelto** | ✅ rama `fix/c38-showToast-consistency` |
