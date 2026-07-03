@@ -12,7 +12,7 @@
 |-----------|----------|
 | 🔴 P0 — DRY utilities | 0 |
 | 🔴 P1 — Componentes UI reutilizables | 5 |
-| 🟡 P2 — Consolidación patrones admin | 6 |
+| 🟡 P2 — Consolidación patrones admin | 5 |
 | 🟢 P3 — Scripts inline a módulos | 2 |
 
 ---
@@ -202,13 +202,17 @@ Mismo `@keyframes fadeIn` en `CalidadContent.astro`, `DirectorioContent.astro`,
 Eliminadas las 3 definiciones scoped (~30 líneas borradas).
 **Esfuerzo real:** 5 min.
 
-### C3.7 🟢 `formatMonthLabel()` duplicado
+### C3.7 ✅ `formatMonthLabel()` duplicado — **RESUELTO**
 
 Misma función de nombres de meses en SSR (línea 66) y client script (línea 1401)
 de CalidadContent.
 
-**Fix:** `src/lib/monthUtils.ts`.
-**Esfuerzo:** 5 min.
+**Fix aplicado:** Se creó `src/lib/monthUtils.ts` con `MONTH_LABELS` + `formatMonthLabel()`.
+Se eliminaron ambas definiciones inline en `CalidadContent.astro` (frontmatter y client script).
+Ahora SSR y cliente importan desde el mismo módulo.
+
+**Commit:** `f20c1cc` en `master`.
+**Impacto real:** 2 archivos, +21/-40 líneas.
 
 ---
 
@@ -266,7 +270,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
 | **P2** | C3.5 | ~~🟡 logAdminFromAstro wrapper (14 files)~~ | ✅ **Resuelto** | ✅ `master` (040409a) |
 | **P2** | C3.6 | ~~🟢 animate-fade-in global~~ | ✅ **Resuelto** | ✅ `master` (this commit) |
-| **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
+| **P2** | C3.7 | ~~🟢 formatMonthLabel consolidado~~ | ✅ **Resuelto** | ✅ `master` (f20c1cc) |
 | **P3** | C4.1 | 🟡 Scripts inline → .ts (10 archivos) | 4-6 h | Separación concerns |
 | **P3** | C3.8 | ~~🟢 showToast pattern estandarizado~~ | ✅ **Resuelto** | ✅ rama `fix/c38-showToast-consistency` |
 
