@@ -313,21 +313,10 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         {
           (successMsg || errorMsg) && (
             <script is:inline define:vars={{ successMsg, errorMsg }}>
-              (() => {
-                const triggerToast = () => {
-                  if (typeof window.showToast === "function") {
-                    if (successMsg) {
-                      window.showToast(successMsg, "alert-success");
-                    }
-                    if (errorMsg) {
-                      window.showToast(errorMsg, "alert-error");
-                    }
-                  } else {
-                    setTimeout(triggerToast, 50);
-                  }
-                };
-                triggerToast();
-              })();
+              window.addEventListener('load', () => {
+                if (successMsg) window.showToast?.(successMsg, "alert-success");
+                if (errorMsg) window.showToast?.(errorMsg, "alert-error");
+              });
             </script>
           )
         }
