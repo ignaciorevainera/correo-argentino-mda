@@ -213,15 +213,20 @@ de CalidadContent.
 con `lib/dashboard-client.ts`, `lib/monthly-view.ts`, etc.
 **Esfuerzo:** 4-6 h (progresivo).
 
-### C3.8 🟢 Patrón `window.showToast` inconsistente
+### C3.8 ✅ Patrón `window.showToast` inconsistente — **RESUELTO**
 
 Tres patrones diferentes en 17 archivos:
 - Pattern A: `window.showToast?.(msg, "alert-error")` (6 archivos)
 - Pattern B: `if (window.showToast) { ... }` (8 archivos)
 - Pattern C: `import { showToast } from "@/lib/toastClient"` (3 archivos)
 
-**Fix:** Estandarizar en Pattern C (importación desde `@lib/toastClient`).
-**Esfuerzo:** 15 min.
+**Fix aplicado:** Los scripts bundled (`AdminAplicativosContent`) migraron a `import { showToast }`.
+Los scripts `is:inline` (~20 archivos) estandarizaron a `window.addEventListener('load', () => window.showToast?.(msg, type))`,
+eliminando todo el polling (`setTimeout`) y el objeto `window.load` / `DOMContentLoaded` boilerplate.
+Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
+
+**Rama:** `fix/c38-showToast-consistency`.
+**Esfuerzo real:** ~30 min. **Impacto real:** -100+ líneas eliminadas (polling/guard boilerplate).
 
 ---
 
@@ -243,7 +248,7 @@ Tres patrones diferentes en 17 archivos:
 | **P2** | C3.6 | 🟢 animate-fade-in global | 5 min | DRY |
 | **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
 | **P3** | C4.1 | 🟡 Scripts inline → .ts (10 archivos) | 4-6 h | Separación concerns |
-| **P3** | C3.8 | 🟢 showToast pattern estandarizado | 15 min | Consistencia |
+| **P3** | C3.8 | ~~🟢 showToast pattern estandarizado~~ | ✅ **Resuelto** | ✅ rama `fix/c38-showToast-consistency` |
 
 **Total esfuerzo estimado:** ~15-22 h.
 **Impacto estimado:** -2500+ líneas, reducción masiva de duplicación.
