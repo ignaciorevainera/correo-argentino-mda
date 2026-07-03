@@ -55,24 +55,11 @@ exclusión en `global.css`. Verificar que el JIT de Tailwind purga clases no usa
 
 ## P1 — Consultas DB ineficientes
 
-### R2.1 🔴 `SELECT *` en tabla `agents` en 7 archivos
+### R2.1 🔴 `SELECT *` en tabla `agents` en 7 archivos — RESUELTO
 
-La tabla `agents` tiene 28 columnas incluyendo 6 JSON (`esquemaSemanal`,
-`esquemaHorario`, `esquemaBreakInicio`, `esquemaBreakFin`, etc.).
-`db.select().from(agents)` fetcha TODO cada vez.
-
-| Archivo | Línea | Contexto |
-|---------|-------|----------|
-| `src/lib/disponibilidad.ts` | 51 | Polling cada 10s |
-| `src/lib/attendance.ts` | 78 | Attendance data |
-| `src/pages/api/cronograma/index.ts` | 93 | Cronograma API |
-| `src/components/supervision/cronograma/CronogramaContent.astro` | 6 | SSR |
-| `src/components/supervision/calidad/CalidadContent.astro` | 84 | SSR |
-| `src/pages/api/cronograma/months/index.ts` | 25 | Mes creation |
-
-**Fix:** `db.select({ id: agents.id, name: agents.name, ... })` para fetch solo
-columnas necesarias. Priorizar `disponibilidad.ts` (hot path).
-**Esfuerzo:** 30 min.
+`agents` tiene 22 columnas (incluyendo 4 JSON: `esquemaSemanal`, `esquemaHorario`, `esquemaBreakInicio`, `esquemaBreakFin`).
+Se corrigieron los 7 archivos del audit + 11 adicionales encontrados en el escaneo + 2 relaciones Drizzle (`agent: true` → proyección explícita).
+Hot path (`disponibilidad.ts:51`) reducido de 22 a 16 columnas. Homepage (`index.astro:18`) reducido de 22 a 1 (`name`).
 
 ### R2.2 🔴 O(N×M) loops con `.find()` en attendance
 
@@ -208,7 +195,7 @@ Candidatos:
 | **P0** | R1.1 | 🔴 Eliminar React (~180KB) | 2-3 h | ~180KB bundle |
 | **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | 1-2 h | ~60-80KB bundle |
 | **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
-| **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | 30 min | CPU + memoria |
+| **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | ✅ Resuelto — 20 queries proyectadas | CPU + memoria |
 | **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
 | **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
