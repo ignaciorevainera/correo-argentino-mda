@@ -12,6 +12,22 @@ export interface InvgateApiError {
 
 export type InvgateResult<T> = InvgateApiResponse<T> | InvgateApiError;
 
+export interface InvgateUser {
+  id: number;
+  username: string;
+  name: string;
+  lastname: string;
+  email: string;
+  user_type: number;
+  type: number;
+  is_disabled: boolean;
+  is_deleted: boolean;
+  is_external: boolean;
+  role_name: string | null;
+  manager_id: number | null;
+}
+
+
 export interface InvgateIncident {
   id: number;
   title: string;

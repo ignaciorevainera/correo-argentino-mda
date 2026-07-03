@@ -1,6 +1,6 @@
 import type { InvgateResult } from "@/types/invgate";
 
-export async function invgateGet<T>(endpoint: string): Promise<InvgateResult<T>> {
+export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promise<InvgateResult<T>> {
   const apiKey = import.meta.env.INVGATE_API_KEY;
   const baseUrl = import.meta.env.INVGATE_BASE_URL;
   const rawUsername = import.meta.env.INVGATE_API_USERNAME;
@@ -25,10 +25,14 @@ export async function invgateGet<T>(endpoint: string): Promise<InvgateResult<T>>
   const url = `${baseUrl}${endpoint}`;
   let lastStatus = 0;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(url, {
       method: "GET",
       headers,
+      signal: controller.signal,
     });
 
     lastStatus = response.status;
@@ -55,5 +59,7 @@ export async function invgateGet<T>(endpoint: string): Promise<InvgateResult<T>>
       status: lastStatus,
       message: `[InvGate] Error de red: ${message} — ${url}`,
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
