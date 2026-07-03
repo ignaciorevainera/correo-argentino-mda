@@ -1000,22 +1000,28 @@ function setupEventListeners(): void {
   const syncSortDropdowns = (val: string) => {
     const mLabel = document.getElementById('monthly-sort-label');
     const dLabel = document.getElementById('daily-sort-label');
-    const opt = document.querySelector(`.sort-option[data-value="${val}"]`);
+    const opt = document.querySelector(`[data-sort-option][data-value="${val}"]`);
     if (opt) {
-      const txt = opt.querySelector('span')?.textContent?.trim() || opt.textContent?.trim() || '';
+      const txt = opt.querySelector('span:last-child')?.textContent?.trim() || opt.textContent?.trim() || '';
       if (mLabel) mLabel.textContent = `Ordenar: ${txt}`;
       if (dLabel) dLabel.textContent = `Ordenar: ${txt}`;
     }
+    // Highlight active option
+    document.querySelectorAll('[data-sort-option]').forEach(el => el.classList.remove('menu-active'));
+    opt?.classList.add('menu-active');
   };
 
   syncSortDropdowns(state.activeSort);
 
-  document.querySelectorAll('.sort-option').forEach(opt => {
+  document.querySelectorAll('[data-sort-option]').forEach(opt => {
     opt.addEventListener('click', () => {
       const val = opt.getAttribute('data-value') || 'alphabetical';
       state.activeSort = val;
       syncSortDropdowns(val);
       (document.activeElement as HTMLElement)?.blur();
+      // Close the details dropdown
+      const details = opt.closest('details');
+      if (details) details.removeAttribute('open');
       renderMonthly();
       renderDaily();
     });
