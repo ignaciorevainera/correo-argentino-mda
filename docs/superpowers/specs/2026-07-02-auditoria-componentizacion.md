@@ -100,14 +100,15 @@ repetido 6 veces en CalidadContent (líneas 534-653) y 4 en AsignacionContent
 `value`, `subtitle`, `color`, `size`, `accentIcon`.
 **Esfuerzo:** 30 min. **Impacto:** -200+ líneas.
 
-### C2.2 🟡 Patrón FilterButtonBar: 4 instancias
+### C2.2 ✅ Patrón FilterButtonBar: 4 instancias — **RESUELTO**
 
 Misma barra de botones de filtro con dots de color copiada 4 veces en
 CronogramaDashboard (daily status, daily location, monthly status, monthly location).
 
-**Fix:** Crear `src/components/ui/FilterButtonBar.astro` con props: `options[]`,
-`prefix`, `allLabel`.
-**Esfuerzo:** 30 min. **Impacto:** -120+ líneas.
+**Fix aplicado:** Se creó `src/components/ui/FilterButtonBar.astro`, se simplificó `filters.ts` (clases daisyUI nativas, sin border/shadow custom). 4 filter bars migradas + JS actualizado a delegación en `[data-filter-value]`.
+
+**Rama:** `fix/c22-filter-button-bar` (-268 líneas netas).
+**Esfuerzo real:** ~30 min. **Impacto real:** -268 líneas.
 
 ### C2.3 ✅ Patrón SortDropdown: 4 instancias — **RESUELTO**
 
@@ -244,7 +245,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
 | **P1** | C2.1 | 🟡 StatsCard component (10+ usos) | 30 min | -200+ líneas |
-| **P1** | C2.2 | 🟡 FilterButtonBar (4 instancias) | 30 min | -120+ líneas |
+| **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
 | **P1** | C2.3 | ~~🟡 SortDropdown (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c23-sort-dropdown` |
 | **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
