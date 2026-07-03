@@ -67,26 +67,28 @@ bug latente de naming invertido en `EstadisticasContent.astro`, y actualizado
 
 ## P1 — Componentes UI reutilizables
 
-### C3.1 🔴 11 `<dialog>` raw sin usar `Modal.astro`
+### C3.1 ✅ 11 `<dialog>` raw sin usar `Modal.astro` — **RESUELTO**
 
 Ya existe `src/components/ui/Modal.astro` pero 11 modales se construyen manualmente:
 
 | Archivo | Línea | Modal ID |
 |---------|-------|----------|
-| `CalidadContent.astro` | 1047 | `audit-modal` |
-| `CalidadContent.astro` | 1220 | `month-summary-modal` |
-| `CalidadContent.astro` | 1255 | `parameters-modal` |
-| `AsignacionContent.astro` | 201 | `modal-marcar-excepcion` |
-| `DirectorioContent.astro` | 558 | `region-referents-modal` |
-| `TerminalModal.astro` | 5 | `terminal-modal` |
-| `RulesSettingsModal.astro` | 8 | `rules-settings-modal` |
-| `OperatorFormModal.astro` | 27 | `operator-form-modal` |
-| `NewMonthModal.astro` | 10 | `new-month-modal` |
-| `HolidaysModal.astro` | 8 | `holidays-modal` |
-| `feedbackModal.astro` | 10 | `feedback_modal` |
+| ~~`CalidadContent.astro`~~ | ~~1047~~ | ~~`audit-modal`~~ |
+| ~~`CalidadContent.astro`~~ | ~~1220~~ | ~~`month-summary-modal`~~ |
+| ~~`CalidadContent.astro`~~ | ~~1255~~ | ~~`parameters-modal`~~ |
+| *`AsignacionContent.astro`* | *201* | *`modal-marcar-excepcion`* |
+| ~~`DirectorioContent.astro`~~ | ~~558~~ | ~~`region-referents-modal`~~ |
+| ~~`TerminalModal.astro`~~ | ~~5~~ | ~~`terminal-modal`~~ |
+| ~~`RulesSettingsModal.astro`~~ | ~~8~~ | ~~`rules-settings-modal`~~ |
+| ~~`OperatorFormModal.astro`~~ | ~~27~~ | ~~`operator-form-modal`~~ |
+| ~~`NewMonthModal.astro`~~ | ~~10~~ | ~~`new-month-modal`~~ |
+| ~~`HolidaysModal.astro`~~ | ~~8~~ | ~~`holidays-modal`~~ |
+| ~~`feedbackModal.astro`~~ | ~~10~~ | ~~`feedback_modal`~~ |
 
-**Fix:** Aplicar `Modal.astro` (o variante `ModalForm.astro` para forms).
-**Esfuerzo:** 2-3 h. **Impacto:** -300+ líneas.
+**Fix aplicado:** Todos los modales migrados `<dialog>` → `<Modal>`. Se eliminaron clases custom (`border`, `shadow-*`, `rounded-*`, `p-6`) de `Modal.astro` y todos los call sites, dejando defaults DaisyUI. *`AsignacionContent.astro` ya usaba `<Modal>` previamente.*
+
+**Rama:** `fix/c31-modal-consolidation`.
+**Esfuerzo real:** ~1.5 h. **Impacto real:** -300+ líneas.
 
 ### C2.1 🟡 Patrón StatsCard: 10+ instancias
 
@@ -237,7 +239,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 |-----------|-----|----------|----------|---------|
 | **P0** | C1.1 | ~~🔴 base/cleanBase utility (80+ copias)~~ | ✅ **Resuelto** | ✅ `master` (01a3d91) |
 | **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
-| **P1** | C3.1 | 🔴 11 diálogos raw → Modal.astro | 2-3 h | -300+ líneas |
+| **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
 | **P1** | C2.1 | 🟡 StatsCard component (10+ usos) | 30 min | -200+ líneas |
 | **P1** | C2.2 | 🟡 FilterButtonBar (4 instancias) | 30 min | -120+ líneas |
 | **P1** | C2.3 | 🟡 SortDropdown (4 instancias) | 30 min | -80+ líneas |
