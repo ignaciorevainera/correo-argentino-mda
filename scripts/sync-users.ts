@@ -146,6 +146,7 @@ async function syncUsers(): Promise<void> {
                 set: {
                   username,
                   fullname: fullName,
+                  updatedAt: sql`(CURRENT_TIMESTAMP)`,
                 },
               });
 
