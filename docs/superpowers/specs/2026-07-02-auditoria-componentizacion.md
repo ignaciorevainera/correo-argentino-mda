@@ -155,12 +155,17 @@ redujeron a thin wrappers (10-22 líneas c/u) y se eliminó un helper compartido
 **Rama:** `fix/c33-delete-handler-factory` (~190 líneas netas eliminadas).
 **Esfuerzo real:** ~2 h. **Impacto real:** -190 líneas netas (3 archivos nuevos, 10 reducidos).
 
-### C3.4 🟡 22 archivos con POST + redirect con toast
+### C3.4 ✅ 22 archivos con POST + redirect con toast — **RESUELTO**
 
 Mismo patrón try/catch + redirect con query params de toast.
 
-**Fix:** Helper `redirectWithToast(base, path, msg, type)`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Se crearon `src/lib/api/redirectWithToast.ts` y `src/lib/api/toastResponse.ts`.
+Los 21 archivos migraron del patrón inline `Astro.redirect(resolveUrl(\`/?toast_msg=...&toast_type=...\`))`
+a invocaciones de una línea con `redirectWithToast("/path", "msg")` y `toastResponse({...})`.
+Se excluyó `login/index.astro` (3 redirects de validación de formulario).
+
+**Rama:** `fix/c34-redirect-with-toast` (-41 líneas netas).
+**Esfuerzo real:** ~40 min. **Impacto real:** -41 líneas netas (2 helpers nuevos, 21 archivos simplificados).
 
 ### C3.5 🟡 `logAdminAction` wrapper en 14 archivos
 
@@ -233,7 +238,7 @@ Tres patrones diferentes en 17 archivos:
 | **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
-| **P2** | C3.4 | 🟡 redirectWithToast helper (22 files) | 30 min | DRY |
+| **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
 | **P2** | C3.5 | 🟡 logAdminFromAstro wrapper (14 files) | 15 min | DRY |
 | **P2** | C3.6 | 🟢 animate-fade-in global | 5 min | DRY |
 | **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
