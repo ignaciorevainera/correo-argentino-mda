@@ -250,7 +250,12 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     queryBuilder = queryBuilder.orderBy(asc(terminals.hostname));
   }
 
-  const rows = await queryBuilder.limit(limit).offset(offset).all();
+  const rows = await queryBuilder.limit(limit + 1).offset(offset).all();
+  const hasMore = rows.length > limit;
+
+  if (hasMore) {
+    rows.pop();
+  }
 
   // Mapeamos al formato requerido por TerminalRow.astro
   const data: TerminalItem[] = rows.map((row) => {
@@ -290,10 +295,6 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
       isTelegrafia: row.isTelegrafia === 1,
     };
   });
-
-  // Para X-Has-More, verificamos de manera sencilla si la base tiene un elemento más
-  const hasMoreCheck = await queryBuilder.limit(1).offset(offset + limit).all();
-  const hasMore = hasMoreCheck.length > 0;
 
   return {
     data,
