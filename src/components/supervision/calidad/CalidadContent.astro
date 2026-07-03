@@ -1266,6 +1266,7 @@ const cleanBase = getCleanBase();
 <script>
   import { actions } from "astro:actions";
   import { calculateAuditScores } from "@lib/qualityCalculator";
+  import { escapeHtml } from "@lib/sanitize";
   import type {
     QualityCall,
     OperatorQuality,
@@ -1276,13 +1277,6 @@ const cleanBase = getCleanBase();
   const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m16.192 6.344-4.243 4.242-4.242-4.242-1.414 1.414L10.535 12l-4.242 4.242 1.414 1.414 4.242-4.242 4.243 4.242 1.414-1.414L13.364 12l4.242-4.242z"></path></svg>`;
   const ICON_ARROW = `<svg class="size-4 text-warning" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M10.707 17.707 16.414 12l-5.707-5.707-1.414 1.414L13.586 12l-4.293 4.293z"></path></svg>`;
   const ICON_STAR = `<svg class="size-4 text-success" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M21.947 9.179a1.001 1.001 0 0 0-.868-.676l-5.701-.453-2.467-5.461a.998.998 0 0 0-1.822-.001L8.622 8.05l-5.701.453a1 1 0 0 0-.619 1.713l4.214 4.107-1.29 5.71a1.001 1.001 0 0 0 1.451 1.054L12 18.26l5.324 2.827a1.002 1.002 0 0 0 1.45-1.054l-1.29-5.71 4.214-4.107a1 1 0 0 0 .249-1.037z"></path></svg>`;
-
-  function escapeHtml(str: string | null | undefined): string {
-    if (str == null) return "";
-    const div = document.createElement("div");
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
-  }
 
   const formatMonthLabel = (monthStr: string): string => {
     const labels: Record<string, string> = {

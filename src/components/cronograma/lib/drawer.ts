@@ -1,7 +1,7 @@
 import { state } from './state';
 import { saveLocation, saveOperatorRules } from './api';
 import { getStatusStyles } from './styles';
-import { escapeHtml } from './utils';
+import { escapeHtml } from '@lib/sanitize';
 import { setCurrentWeeklyData } from './weekly-schedule';
 import { OperatorStatus } from './types';
 

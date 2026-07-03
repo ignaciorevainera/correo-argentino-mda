@@ -2,7 +2,8 @@ import { state } from './state';
 import { showToast, showConfirm } from './notifications';
 import { formatToDDMMYY } from './rotation-helper';
 import { type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
-import { escapeHtml, timeToMinutes } from './utils';
+import { escapeHtml } from '@lib/sanitize';
+import { timeToMinutes } from './utils';
 import { updateViewSwitcherUI } from './dashboard-client';
 
 export let overtimeConfigs: WeekendOvertimeConfig[] = [];

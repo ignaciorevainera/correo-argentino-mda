@@ -1,6 +1,7 @@
 import { state } from './state';
 import { OperatorStatus, type OperatorData } from './types';
-import { getDaysInMonth, escapeHtml, timeToMinutes } from './utils';
+import { escapeHtml } from '@lib/sanitize';
+import { getDaysInMonth, timeToMinutes } from './utils';
 import { showToast } from './notifications';
 
 export let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;

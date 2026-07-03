@@ -1,11 +1,11 @@
 import { state } from './state';
 import { fetchCronogramaData, fetchCronogramaFullData } from './api';
 import { getStatusStyles } from './styles';
+import { escapeHtml } from '@lib/sanitize';
 import { 
   getDaysInMonth, 
   formatYMD, 
   formatDMY, 
-  escapeHtml, 
   isCurrentlyWorking, 
   timeToMinutes
 } from './utils';

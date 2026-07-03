@@ -1,12 +1,12 @@
 import { state, safeGetItem, safeSetItem } from './state';
 import { fetchCronogramaData, fetchCronogramaFullData, saveEdits, deleteOperator, deleteMonth } from './api';
 import { getStatusStyles } from './styles';
+import { escapeHtml } from '@lib/sanitize';
 import { 
   getGanttPosition, 
   getDaysInMonth, 
   formatYMD, 
   formatDMY, 
-  escapeHtml, 
   isCurrentlyWorking, 
   debounce, 
   timeToMinutes

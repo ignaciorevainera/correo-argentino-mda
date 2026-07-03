@@ -1,3 +1,5 @@
+import { escapeHtml } from "@lib/sanitize";
+
 const HIGHLIGHT_CLASS = "rounded bg-warning/30 px-0.5 text-base-content";
 
 type SearchValue = string | null | undefined;
@@ -27,17 +29,6 @@ export const matchesSearchQuery = (
     normalizeSearchValue(value).includes(normalizedQuery),
   );
 };
-
-export const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-export const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 
 const getNormalizedIndexMap = (
   value: string,
