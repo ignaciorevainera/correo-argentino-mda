@@ -348,17 +348,27 @@ import { Icon } from "astro-icon/components";
     updateInvgateStatus();
   }
 
-  updateDashboard();
-  initInvgate();
+  let syncInterval: any = null;
+
+  function startSync() {
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(updateDashboard, 30000);
+  }
+
+  function stopSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
 
   document.addEventListener("astro:page-load", () => {
     updateDashboard();
     initInvgate();
+    startSync();
   });
 
-  const syncInterval = setInterval(updateDashboard, 30000);
-
   document.addEventListener("astro:before-swap", () => {
-    clearInterval(syncInterval);
+    stopSync();
   });
 </script>

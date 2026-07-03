@@ -790,6 +790,12 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 <script>
   import { showToast } from "@/lib/toastClient";
 
+  let countdownInterval: any = null;
+  let timer: any = null;
+  let polling: any = null;
+  let heartbeatInterval: any = null;
+  let checkReady: any = null;
+
   const init = () => {
     const escapeHtml = (str: string | null | undefined): string => {
       if (str == null) return "";
@@ -838,7 +844,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     let secondsSinceSync = 0;
     let lockExpiresAt = 0;
     let lockTimeoutMs = 300000;
-    let countdownInterval: any = null;
     let currentLockStatus: any = null;
 
     const formatCountdown = (ms: number): string => {
@@ -901,7 +906,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     };
 
     // Increment elapsed seconds since last successful API call
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       secondsSinceSync++;
       updateIndicatorText();
     }, 1000);
@@ -1801,7 +1806,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     }
 
     // Set up 10-second polling interval
-    const polling = setInterval(async () => {
+    polling = setInterval(async () => {
       await Promise.all([
         fetchDisponibilidad(),
         fetchLockStatus().then(updateLockBanner)
@@ -1819,7 +1824,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     // Lock heartbeat cada 2 minutos
     const LOCK_HEARTBEAT_MS = 2 * 60 * 1000;
-    let heartbeatInterval: any = null;
 
     const startHeartbeat = () => {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -1963,7 +1967,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
   // Wait for dynamic server island component initialization
   if (!init()) {
-    const checkReady = setInterval(() => {
+    checkReady = setInterval(() => {
       if (init()) {
         clearInterval(checkReady);
       }
@@ -1971,8 +1975,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
   }
 
   document.addEventListener("astro:before-swap", () => {
-    clearInterval(timer);
-    clearInterval(polling);
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (timer) clearInterval(timer);
+    if (polling) clearInterval(polling);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (checkReady) clearInterval(checkReady);
   });
 </script>
 
