@@ -109,13 +109,16 @@ CronogramaDashboard (daily status, daily location, monthly status, monthly locat
 `prefix`, `allLabel`.
 **Esfuerzo:** 30 min. **Impacto:** -120+ líneas.
 
-### C2.3 🟡 Patrón SortDropdown: 4 instancias
+### C2.3 ✅ Patrón SortDropdown: 4 instancias — **RESUELTO**
 
 Mismo dropdown de ordenamiento (A-Z, Z-A, horario, ubicación) copiado 2 veces
 en CronogramaDashboard + input de búsqueda con icono duplicado.
 
-**Fix:** Crear `src/components/ui/SortDropdown.astro`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Se crearon `src/components/ui/SortDropdown.astro` (daisyUI `<details>`+`<menu>`) y `src/components/ui/SearchInput.astro` (daisyUI `<input class="input input-bordered input-sm">`).
+2× SortDropdown + 2× SearchInput en `CronogramaDashboard.astro` reemplazados. JS en `dashboard-client.ts` actualizado a `[data-sort-option]` y `menu-active`.
+
+**Rama:** `fix/c23-sort-dropdown` (-163 líneas netas).
+**Esfuerzo real:** ~30 min. **Impacto real:** -163 líneas (2 componentes nuevos, 2 archivos migrados).
 
 ### C2.4 🟡 Patrón GroupCard: 4 instancias
 
@@ -242,7 +245,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
 | **P1** | C2.1 | 🟡 StatsCard component (10+ usos) | 30 min | -200+ líneas |
 | **P1** | C2.2 | 🟡 FilterButtonBar (4 instancias) | 30 min | -120+ líneas |
-| **P1** | C2.3 | 🟡 SortDropdown (4 instancias) | 30 min | -80+ líneas |
+| **P1** | C2.3 | ~~🟡 SortDropdown (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c23-sort-dropdown` |
 | **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
