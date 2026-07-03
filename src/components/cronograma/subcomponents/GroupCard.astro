@@ -1,0 +1,58 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  letter: string;
+  color: "success" | "error" | "warning" | "info";
+  count?: number;
+}
+
+const { letter, color, count = 0 } = Astro.props;
+const id = `group-${letter}`;
+---
+
+<div class="card bg-base-200/20 card-border shadow-sm">
+  <div class="card-body p-4 space-y-4">
+    <div class="flex items-center justify-between border-b border-base-300 pb-2">
+      <h3
+        class="font-bold text-sm uppercase tracking-wider text-base-content flex items-center gap-2"
+      >
+        <span
+          class:list={[
+            "w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs",
+            `bg-${color}`,
+            `text-${color}-content`,
+          ]}
+        >
+          {letter}
+        </span>
+        Grupo {letter}
+      </h3>
+      <div class="flex items-center gap-1.5">
+        <span
+          class="badge badge-sm badge-ghost font-mono font-bold tracking-tight text-xxs hidden"
+          id={`${id}-next-date`}
+        ></span>
+        <span class="badge badge-sm badge-neutral font-bold" id={`${id}-count`}
+          >{count} ops</span
+        >
+      </div>
+    </div>
+    <div
+      class="space-y-2 max-h-[350px] overflow-y-auto pr-1"
+      id={`${id}-list`}
+    ></div>
+    <div
+      class="border-t border-base-300 pt-3 flex flex-col gap-1.5 add-member-container"
+    >
+      <label class="label-xxs text-base-content/40">Agregar Operador</label>
+      <select
+        class="select select-xs select-bordered w-full font-bold add-member-select"
+        data-group={letter}
+        id={`add-member-select-${letter}`}
+      >
+        <option value="" disabled selected>Seleccionar...</option>
+      </select>
+    </div>
+  </div>
+</div>
