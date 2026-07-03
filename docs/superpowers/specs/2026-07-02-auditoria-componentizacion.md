@@ -90,15 +90,18 @@ Ya existe `src/components/ui/Modal.astro` pero 11 modales se construyen manualme
 **Rama:** `fix/c31-modal-consolidation`.
 **Esfuerzo real:** ~1.5 h. **Impacto real:** -300+ líneas.
 
-### C2.1 🟡 Patrón StatsCard: 10+ instancias
+### C2.1 ✅ Patrón StatsCard: 6 en CalidadContent — **RESUELTO** (C2.1.b: 4 complejos en AsignacionContent)
 
 Mismo layout de tarjeta de estadísticas (icono + label + número + subtítulo)
 repetido 6 veces en CalidadContent (líneas 534-653) y 4 en AsignacionContent
 (líneas 280-510).
 
-**Fix:** Crear `src/components/ui/StatsCard.astro` con props: `icon`, `label`,
-`value`, `subtitle`, `color`, `size`, `accentIcon`.
-**Esfuerzo:** 30 min. **Impacto:** -200+ líneas.
+**Fix aplicado:** Se creó `src/components/ui/StatsCard.astro` (daisyUI `card`+`stat`).
+6 cards de `CalidadContent.astro` migradas a `<StatsCard>` (7 líneas totales, ~116 eliminadas).
+Los 4 cards complejos de `AsignacionContent.astro` (progress bar, listas, overlays decorativos)
+quedan fuera de este componente y se documentan en ticket **C2.1.b**.
+
+**Rama:** `fix/c21-stats-card` (-116 líneas netas).
 
 ### C2.2 ✅ Patrón FilterButtonBar: 4 instancias — **RESUELTO**
 
@@ -244,7 +247,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P0** | C1.1 | ~~🔴 base/cleanBase utility (80+ copias)~~ | ✅ **Resuelto** | ✅ `master` (01a3d91) |
 | **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
-| **P1** | C2.1 | 🟡 StatsCard component (10+ usos) | 30 min | -200+ líneas |
+| **P1** | C2.1 | ~~🟡 StatsCard component (10+ usos)~~ | ✅ **Resuelto (6/10)** | ✅ rama `fix/c21-stats-card` |
 | **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
 | **P1** | C2.3 | ~~🟡 SortDropdown (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c23-sort-dropdown` |
 | **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
