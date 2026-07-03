@@ -172,7 +172,7 @@ Candidatos:
 
 `src/components/offices/DirectorioContent.astro` línea 575: `unpkg.com/leaflet`.
 
-**Fix:** Instalado `leaflet` como dependencia npm. CSS importado estáticamente en el frontmatter (~13KB). JS cargado con `await import("leaflet")` dentro de `initializeMap()`, solo cuando el usuario cambia a la vista de mapa (~150KB lazy).
+**Fix:** Instalado `leaflet` como dependencia npm. CSS importado estáticamente en el frontmatter (~13KB). JS cargado con `await import("leaflet")` dentro de `initializeMap()`, solo cuando el usuario cambia a la vista de mapa (~150KB lazy). Se eliminaron tags CDN. `@types/leaflet` en devDependencies.
 
 ### R1.5 🟢 `topojson-client` no lazy-loaded — RESUELTO
 
