@@ -55,7 +55,8 @@ export const POST: APIRoute = async ({ locals }) => {
       const chunk: string[] = [];
       for (const user of activeUsers) {
         if (user.username) {
-          chunk.push(user.username);
+          const localPart = user.username.split('@')[0];
+          chunk.push(localPart);
         }
         // Cuando el chunk llega a CHUNK_SIZE, ejecutar update
         if (chunk.length >= CHUNK_SIZE) {
