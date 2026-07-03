@@ -1,0 +1,51 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  id?: string;
+  icon?: string;
+  label?: string;
+  labelId?: string;
+  ariaLabel?: string;
+  title?: string;
+  size?: "xs" | "sm" | "default";
+  color?: string;
+  type?: "button" | "submit";
+  class?: string;
+  [key: string]: any;
+}
+
+const {
+  id,
+  icon,
+  label,
+  labelId,
+  ariaLabel,
+  title,
+  size = "xs",
+  color = "btn-secondary",
+  type = "button",
+  class: className = "",
+  ...attrs
+} = Astro.props;
+
+const sizeMap: Record<string, string> = {
+  xs: "btn-xs",
+  sm: "btn-sm",
+  default: "",
+};
+const sizeClass = sizeMap[size] || "";
+const baseClass = `btn ${sizeClass} btn-soft ${color} gap-1.5 font-bold uppercase tracking-wider text-tiny`;
+---
+
+<button
+  type={type}
+  id={id}
+  title={title}
+  aria-label={ariaLabel}
+  class:list={[baseClass, className]}
+  {...attrs}
+>
+  {icon && <Icon name={icon} size={13} />}
+  {label && <span id={labelId}>{label}</span>}
+</button>
