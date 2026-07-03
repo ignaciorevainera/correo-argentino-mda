@@ -71,6 +71,10 @@ const cleanBase = getCleanBase();
       >
         <span>Listo para buscar.</span>
       </div>
+      <div
+        id="sync-status"
+        class="mt-1 text-xxs sm:text-xs text-base-content/40 flex items-center gap-1.5"
+      ></div>
     </section>
 
     <!-- Banner Extensión -->
@@ -188,6 +192,7 @@ const cleanBase = getCleanBase();
   const emptyState = document.getElementById("empty-state");
   const statusText = document.getElementById("search-status");
   const clearSearchBtn = document.getElementById("clear-search");
+  const syncStatus = document.getElementById("sync-status");
   const resultsSkeleton = document.getElementById("results-skeleton");
   const cardTemplate = document.getElementById(
     "user-card-template",
@@ -352,6 +357,44 @@ const cleanBase = getCleanBase();
     resultsGrid?.classList.add("grid");
     setTimeout(() => resultsGrid?.classList.remove("opacity-0"), 50);
     displayResults([]);
+
+    fetchSyncStatus();
+  }
+
+  async function fetchSyncStatus() {
+    if (!syncStatus) return;
+    try {
+      const res = await fetch("/api/usuarios/status");
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      if (data.lastSync) {
+        const date = new Date(data.lastSync.lastExecution);
+        const formatted = date.toLocaleDateString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const isError = data.lastSync.status === "error";
+        syncStatus.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3 ${isError ? "text-error" : "text-base-content/30"}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Última sinc.: ${formatted}</span>
+          ${isError ? '<span class="text-error font-semibold">(error)</span>' : ""}
+        `;
+      } else {
+        syncStatus.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Sin sincronización previa</span>
+        `;
+      }
+    } catch {
+      syncStatus.innerHTML = "";
+    }
   }
 
   function displayResults(users: any[]) {
