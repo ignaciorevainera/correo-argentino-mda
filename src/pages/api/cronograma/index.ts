@@ -358,7 +358,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
         if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
-          const agentList = tx.select().from(agents).where(eq(agents.name, agentName)).limit(1).all();
+          const agentList = tx.select({ id: agents.id }).from(agents).where(eq(agents.name, agentName)).limit(1).all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(

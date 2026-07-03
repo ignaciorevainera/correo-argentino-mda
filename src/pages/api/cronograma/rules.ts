@@ -20,8 +20,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    const agent = await db
-      .select()
+    const agent = await db.select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
