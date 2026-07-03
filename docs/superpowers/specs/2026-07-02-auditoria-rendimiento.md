@@ -134,26 +134,17 @@ con DELETE + INSERT individual. ~60 queries para ~30 agentes.
 
 ## P2 — Optimización de recursos
 
-### R8.1 🟡 `setInterval` nunca limpiados — memory leaks
+### R8.1 🟡 `setInterval` nunca limpiados — memory leaks — RESUELTO
 
-| Archivo | Línea | Intervalo | Limpieza |
-|---------|-------|-----------|----------|
-| `SyncDashboard.astro` | 359 | cada 30s | ❌ NUNCA |
-| `AsignacionContent.astro` | 904 | cada 1s | ❌ NUNCA |
-| `AsignacionContent.astro` | 1804 | cada 10s | ❌ NUNCA |
+**Fix:** Guardados los IDs de intervalo en el scope correspondiente y se limpian en el evento `astro:before-swap` (tanto en `SyncDashboard.astro` como en `AsignacionContent.astro`) para prevenir leaks al usar transiciones de página.
 
-**Fix:** Guardar IDs y limpiar en `astro:before-swap`.
-**Esfuerzo:** 30 min.
+### R5.2 🟡 0 páginas usan `prerender` — RESUELTO
 
-### R5.2 🟡 0 páginas usan `prerender`
-
-Candidatos:
-- `/login` — form HTML estático (POST handler puede seguir server)
+Prerenderizado activado (`prerender = true`) para páginas puramente estáticas o client-side:
 - `/generador-firmas` — puramente client-side
 - `/titulos` — fetch de Google Sheets client-side
 
-**Fix:** Agregar `export const prerender = true`.
-**Esfuerzo:** 30 min.
+*(Nota: `/login` se mantuvo dinámico por decisión de diseño actual).*
 
 ### R1.4 🟢 Leaflet desde CDN sin tree-shaking — RESUELTO
 
@@ -204,8 +195,8 @@ Candidatos:
 | **P1** | R2.7 | 🟡 Doble query terminals | 10 min | 2x query cost |
 | **P1** | R2.8 | 🟡 Export endpoints memoria | 30 min | Memory |
 | **P1** | R2.9 | 🟡 Mes sin transacción | 30 min | Atomicity |
-| **P2** | R8.1 | 🟡 setInterval leaks | 30 min | Memory |
-| **P2** | R5.2 | 🟡 prerender candidatos | 30 min | Server load |
+| **P2** | R8.1 | 🟡 setInterval leaks | ✅ Resuelto — Limpieza en before-swap | Memory |
+| **P2** | R5.2 | 🟡 prerender candidatos | ✅ Resuelto — Prerender parcial | Server load |
 | **P2** | R1.4 | 🟢 Leaflet CDN → self-host | ✅ Resuelto — import dinámico | Dependency |
 | **P2** | R1.5 | 🟢 topojson lazy load | ✅ Resuelto — import() dinámico | JS |
 | **P2** | R2.10 | 🟢 Middleware select columns | 15 min | Security+perf |
