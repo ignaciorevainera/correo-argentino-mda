@@ -124,13 +124,15 @@ en CronogramaDashboard + input de búsqueda con icono duplicado.
 **Rama:** `fix/c23-sort-dropdown` (-163 líneas netas).
 **Esfuerzo real:** ~30 min. **Impacto real:** -163 líneas (2 componentes nuevos, 2 archivos migrados).
 
-### C2.4 🟡 Patrón GroupCard: 4 instancias
+### C2.4 ✅ Patrón GroupCard: 4 instancias — **RESUELTO**
 
 Cards de grupos A/B/C/D en CronogramaDashboard (líneas 918-1111) con la misma
 estructura repetida 4 veces.
 
-**Fix:** Crear `src/components/cronograma/subcomponents/GroupCard.astro`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Se creó `src/components/cronograma/subcomponents/GroupCard.astro` (daisyUI `card`).
+4 cards migradas (~170 líneas → 4 líneas). IDs preservados, JS no modificado.
+
+**Rama:** `fix/c24-group-card` (-160 líneas netas).
 
 ---
 
@@ -250,7 +252,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P1** | C2.1 | ~~🟡 StatsCard component (10+ usos)~~ | ✅ **Resuelto (6/10)** | ✅ rama `fix/c21-stats-card` |
 | **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
 | **P1** | C2.3 | ~~🟡 SortDropdown (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c23-sort-dropdown` |
-| **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
+| **P1** | C2.4 | ~~🟡 GroupCard (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c24-group-card` |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
