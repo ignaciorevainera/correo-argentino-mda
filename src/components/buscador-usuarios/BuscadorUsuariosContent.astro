@@ -11,6 +11,7 @@ import EditUserModal from "./EditUserModal.astro";
 import TerminalModal from "./TerminalModal.astro";
 import SkeletonCard from "@components/ui/skeletons/SkeletonCard.astro";
 const cleanBase = getCleanBase();
+const userRole = Astro.locals.user?.role || "";
 ---
 
 <PageContainer>
@@ -72,9 +73,19 @@ const cleanBase = getCleanBase();
         <span>Listo para buscar.</span>
       </div>
       <div
+        class="mt-1 text-xxs sm:text-xs text-base-content/40 flex items-center gap-3"
         id="sync-status"
-        class="mt-1 text-xxs sm:text-xs text-base-content/40 flex items-center gap-1.5"
       ></div>
+      <!-- Botón de sincronización InvGate (solo visible para admin) -->
+      <button
+        id="sync-invgate-btn"
+        class="btn btn-ghost btn-xs gap-1.5 hidden"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Sincronizar con InvGate</span>
+      </button>
     </section>
 
     <!-- Banner Extensión -->
@@ -129,6 +140,10 @@ const cleanBase = getCleanBase();
 
 <!-- Modal de Consola Terminal (Grupos AD) -->
 <TerminalModal />
+
+<script is:inline define:vars={{ userRole }}>
+  window.__userRole = userRole;
+</script>
 
 <script>
   let isLoaded = false;
@@ -193,6 +208,10 @@ const cleanBase = getCleanBase();
   const statusText = document.getElementById("search-status");
   const clearSearchBtn = document.getElementById("clear-search");
   const syncStatus = document.getElementById("sync-status");
+  const syncBtn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+  if (syncBtn) {
+    syncBtn.addEventListener("click", handleSyncInvGate);
+  }
   const resultsSkeleton = document.getElementById("results-skeleton");
   const cardTemplate = document.getElementById(
     "user-card-template",
@@ -370,11 +389,8 @@ const cleanBase = getCleanBase();
       if (data.lastSync) {
         const date = new Date(data.lastSync.lastExecution);
         const formatted = date.toLocaleDateString("es-AR", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
         });
         const isError = data.lastSync.status === "error";
         syncStatus.innerHTML = `
@@ -394,6 +410,70 @@ const cleanBase = getCleanBase();
       }
     } catch {
       syncStatus.innerHTML = "";
+    }
+
+    const syncBtn = document.getElementById("sync-invgate-btn");
+    if (syncBtn && (window as any).__userRole === "admin") {
+      syncBtn.classList.remove("hidden");
+    }
+  }
+
+  async function handleSyncInvGate() {
+    const syncBtn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+    const searchStatus = document.getElementById("search-status");
+    if (!syncBtn) return;
+
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Sincronizando...';
+
+    try {
+      const res = await fetch("/api/usuarios/sync-invgate", { method: "POST" });
+      const data = await res.json();
+
+      if (data.ok) {
+        if (searchStatus) {
+          searchStatus.innerHTML = `
+            <span class="text-success font-semibold flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Sincronizado: ${data.totalSynced} usuarios de InvGate
+            </span>
+          `;
+        }
+        // Refrescar resultados si hay una búsqueda activa
+        handleSearch();
+      } else {
+        if (searchStatus) {
+          searchStatus.innerHTML = `
+            <span class="text-error font-semibold flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Error: ${data.error || "Error al sincronizar"}
+            </span>
+          `;
+        }
+      }
+    } catch (err: any) {
+      if (searchStatus) {
+        searchStatus.innerHTML = `
+          <span class="text-error font-semibold flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Error de conexión
+          </span>
+        `;
+      }
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Sincronizar con InvGate</span>
+      `;
     }
   }
 
@@ -514,6 +594,22 @@ const cleanBase = getCleanBase();
         colorClass.split(" ").forEach((cls) => avatarBg.classList.add(cls));
       }
 
+      // Badge de InvGate
+      const invgateBadge = clone.querySelector(
+        "[data-invgate-badge]",
+      ) as HTMLElement | null;
+      if (invgateBadge) {
+        if (user.invgateExists) {
+          invgateBadge.textContent = "En InvGate";
+          invgateBadge.className =
+            "invgate-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none bg-success/10 text-success border border-success/20";
+        } else {
+          invgateBadge.textContent = "No en InvGate";
+          invgateBadge.className =
+            "invgate-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none bg-base-300/50 text-base-content/50 border border-base-300";
+        }
+      }
+
       // Botón de edición
       const editBtn = clone.querySelector(
         "[data-edit-user-btn]",
@@ -601,6 +697,7 @@ const cleanBase = getCleanBase();
           telefono: u.telefono,
           email: u.username ? `${u.username}@correoargentino.com.ar` : null,
           sucursal: u.sucursal,
+          invgateExists: u.invgateExists ?? false,
         }));
 
         currentUsers = mappedResults;
