@@ -1,4 +1,4 @@
-import { showToast as globalShowToast, type ToastType } from '../../../lib/toastClient';
+import { showToast as globalShowToast, type ToastType } from "@lib/toastClient";
 
 export function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void {
   const typeMap: Record<'success' | 'error' | 'warning' | 'info', ToastType> = {
