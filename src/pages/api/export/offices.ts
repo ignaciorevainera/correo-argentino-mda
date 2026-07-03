@@ -1,188 +1,58 @@
 import type { APIRoute } from "astro";
-import { db } from "@db/index";
-import { offices } from "@db/schema";
-import { generateCsv } from "@lib/csv";
+import { streamQuery } from "@lib/dbRaw";
+import { streamCsv } from "@lib/csv";
+
+const SQL_COLUMNS = [
+  "id", "code", "name", "type", "provinceCode", "address", "lat", "lng",
+  "email", "notes", "street", "number", "locality", "county", "zone",
+  "officeType", "categoryClass", "rubric", "parentNis", "phone", "manager",
+  "regionId", "enRed", "paqarAdmision", "paqarEntrega", "payroll",
+  "tax_exempt", "division", "company", "warehouse", "profit_center",
+  "cct_admin_office", "cc_commercial", "cc_commercial_corp", "cc_electoral",
+  "cc_network_mgmt", "cc_operations", "cc_operational", "cc_hr",
+  "cc_security", "cc_admin", "cc_admission", "cc_ctp", "cc_ctt",
+  "cc_transport", "cc_logistics", "pos_auto_auto", "pos_current_account",
+  "pos_manual", "pos_manual_auto", "pos_planta_mg", "pos_virtual",
+  "pos_auto_auto_2", "pos_sap_terminal", "searchable_text",
+];
+
+const HEADERS = [
+  "ID", "Código", "Nombre", "Tipo", "Cód. Provincia", "Dirección", "Latitud",
+  "Longitud", "Correo", "Notas", "Calle", "Número", "Localidad", "Partido",
+  "Zona", "Tipo Oficina", "Clase Categoría", "Rubro", "NIS Padre", "Teléfono",
+  "Gerente", "ID Región", "En Red", "Admisión PaqAr", "Entrega PaqAr",
+  "Payroll", "Exento Impuestos", "División", "Compañía", "Almacén",
+  "Centro de Beneficio", "CCT Oficina Admin", "CC Comercial",
+  "CC Comercial Corp", "CC Electoral", "CC Gestión de Red", "CC Operaciones",
+  "CC Operativo", "CC RRHH", "CC Seguridad", "CC Admin", "CC Admisión",
+  "CC CTP", "CC CTT", "CC Transporte", "CC Logística", "POS Auto-Auto",
+  "POS Cta. Corriente", "POS Manual", "POS Manual-Auto", "POS Planta MG",
+  "POS Virtual", "POS Auto-Auto 2", "POS Terminal SAP", "Texto de Búsqueda",
+];
+
+const BOOL_COLS = new Set([
+  "enRed", "paqarAdmision", "paqarEntrega", "payroll", "tax_exempt",
+]);
+
+function toSqlExpr(col: string): string {
+  return BOOL_COLS.has(col)
+    ? `CASE WHEN ${col} THEN 'Sí' ELSE 'No' END AS ${col}`
+    : col;
+}
+
+const KEY_MAP: Record<number, string> = {};
+SQL_COLUMNS.forEach((col, i) => { KEY_MAP[i] = col; });
+
+const SQL = `SELECT ${SQL_COLUMNS.map(toSqlExpr).join(", ")}
+FROM offices
+ORDER BY substr(code, 1, 1) ASC, CAST(substr(code, 2) AS INTEGER) ASC`;
 
 export const GET: APIRoute = async () => {
   try {
-    const data = await db.select({
-      id: offices.id,
-      code: offices.code,
-      name: offices.name,
-      type: offices.type,
-      provinceCode: offices.provinceCode,
-      address: offices.address,
-      lat: offices.lat,
-      lng: offices.lng,
-      email: offices.email,
-      notes: offices.notes,
-      street: offices.street,
-      number: offices.number,
-      locality: offices.locality,
-      county: offices.county,
-      zone: offices.zone,
-      officeType: offices.officeType,
-      categoryClass: offices.categoryClass,
-      rubric: offices.rubric,
-      parentNis: offices.parentNis,
-      phone: offices.phone,
-      manager: offices.manager,
-      regionId: offices.regionId,
-      enRed: offices.enRed,
-      paqarAdmision: offices.paqarAdmision,
-      paqarEntrega: offices.paqarEntrega,
-      payroll: offices.payroll,
-      taxExempt: offices.taxExempt,
-      division: offices.division,
-      company: offices.company,
-      warehouse: offices.warehouse,
-      profitCenter: offices.profitCenter,
-      cctAdminOffice: offices.cctAdminOffice,
-      ccCommercial: offices.ccCommercial,
-      ccCommercialCorp: offices.ccCommercialCorp,
-      ccElectoral: offices.ccElectoral,
-      ccNetworkMgmt: offices.ccNetworkMgmt,
-      ccOperations: offices.ccOperations,
-      ccOperational: offices.ccOperational,
-      ccHr: offices.ccHr,
-      ccSecurity: offices.ccSecurity,
-      ccAdmin: offices.ccAdmin,
-      ccAdmission: offices.ccAdmission,
-      ccCtp: offices.ccCtp,
-      ccCtt: offices.ccCtt,
-      ccTransport: offices.ccTransport,
-      ccLogistics: offices.ccLogistics,
-      posAutoAuto: offices.posAutoAuto,
-      posCurrentAccount: offices.posCurrentAccount,
-      posManual: offices.posManual,
-      posManualAuto: offices.posManualAuto,
-      posPlantaMg: offices.posPlantaMg,
-      posVirtual: offices.posVirtual,
-      posAutoAuto2: offices.posAutoAuto2,
-      posSapTerminal: offices.posSapTerminal,
-      searchableText: offices.searchableText,
-    }).from(offices);
+    const csvStream = streamCsv(HEADERS, streamQuery(SQL), KEY_MAP);
+    const dateStr = new Date().toISOString().split("T")[0];
 
-    const headers = [
-      "ID",
-      "Código",
-      "Nombre",
-      "Tipo",
-      "Cód. Provincia",
-      "Dirección",
-      "Latitud",
-      "Longitud",
-      "Correo",
-      "Notas",
-      "Calle",
-      "Número",
-      "Localidad",
-      "Partido",
-      "Zona",
-      "Tipo Oficina",
-      "Clase Categoría",
-      "Rubro",
-      "NIS Padre",
-      "Teléfono",
-      "Gerente",
-      "ID Región",
-      "En Red",
-      "Admisión PaqAr",
-      "Entrega PaqAr",
-      "Payroll",
-      "Exento Impuestos",
-      "División",
-      "Compañía",
-      "Almacén",
-      "Centro de Beneficio",
-      "CCT Oficina Admin",
-      "CC Comercial",
-      "CC Comercial Corp",
-      "CC Electoral",
-      "CC Gestión de Red",
-      "CC Operaciones",
-      "CC Operativo",
-      "CC RRHH",
-      "CC Seguridad",
-      "CC Admin",
-      "CC Admisión",
-      "CC CTP",
-      "CC CTT",
-      "CC Transporte",
-      "CC Logística",
-      "POS Auto-Auto",
-      "POS Cta. Corriente",
-      "POS Manual",
-      "POS Manual-Auto",
-      "POS Planta MG",
-      "POS Virtual",
-      "POS Auto-Auto 2",
-      "POS Terminal SAP",
-      "Texto de Búsqueda",
-    ];
-
-    const rows = data.map((office) => [
-      office.id,
-      office.code,
-      office.name,
-      office.type,
-      office.provinceCode,
-      office.address,
-      office.lat,
-      office.lng,
-      office.email,
-      office.notes,
-      office.street,
-      office.number,
-      office.locality,
-      office.county,
-      office.zone,
-      office.officeType,
-      office.categoryClass,
-      office.rubric,
-      office.parentNis,
-      office.phone,
-      office.manager,
-      office.regionId,
-      office.enRed ? "Sí" : "No",
-      office.paqarAdmision ? "Sí" : "No",
-      office.paqarEntrega ? "Sí" : "No",
-      office.payroll ? "Sí" : "No",
-      office.taxExempt ? "Sí" : "No",
-      office.division,
-      office.company,
-      office.warehouse,
-      office.profitCenter,
-      office.cctAdminOffice,
-      office.ccCommercial,
-      office.ccCommercialCorp,
-      office.ccElectoral,
-      office.ccNetworkMgmt,
-      office.ccOperations,
-      office.ccOperational,
-      office.ccHr,
-      office.ccSecurity,
-      office.ccAdmin,
-      office.ccAdmission,
-      office.ccCtp,
-      office.ccCtt,
-      office.ccTransport,
-      office.ccLogistics,
-      office.posAutoAuto,
-      office.posCurrentAccount,
-      office.posManual,
-      office.posManualAuto,
-      office.posPlantaMg,
-      office.posVirtual,
-      office.posAutoAuto2,
-      office.posSapTerminal,
-      office.searchableText,
-    ]);
-
-    const csvStr = generateCsv(headers, rows);
-    const dateStr = new Date().toISOString().split('T')[0];
-
-    return new Response(csvStr, {
+    return new Response(csvStream, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

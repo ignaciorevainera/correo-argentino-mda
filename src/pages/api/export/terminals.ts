@@ -1,68 +1,33 @@
 import type { APIRoute } from "astro";
-import { db } from "@db/index";
-import { terminals } from "@db/schema";
-import { generateCsv } from "@lib/csv";
+import { streamQuery } from "@lib/dbRaw";
+import { streamCsv } from "@lib/csv";
+
+const SQL_COLUMNS = [
+  "id", "hostname", "mac_address", "ip_address", "operating_system",
+  "os_architecture", "ram", "serial_number", "manufacturer", "model",
+  "nis", "nis2", "last_contact", "synced_at", "searchable_text",
+];
+
+const HEADERS = [
+  "ID", "Hostname", "Dirección MAC", "Dirección IP", "Sistema Operativo",
+  "Arquitectura OS", "RAM", "Número de Serie", "Fabricante", "Modelo",
+  "NIS (Oficina)", "NIS Alternativo", "Último Contacto", "Sincronizado El",
+  "Texto de Búsqueda",
+];
+
+const KEY_MAP: Record<number, string> = {};
+SQL_COLUMNS.forEach((col, i) => { KEY_MAP[i] = col; });
+
+const SQL = `SELECT ${SQL_COLUMNS.join(", ")}
+FROM terminals
+ORDER BY hostname ASC`;
 
 export const GET: APIRoute = async () => {
   try {
-    const data = await db.select({
-      id: terminals.id,
-      hostname: terminals.hostname,
-      macAddress: terminals.macAddress,
-      ipAddress: terminals.ipAddress,
-      operatingSystem: terminals.operatingSystem,
-      osArchitecture: terminals.osArchitecture,
-      ram: terminals.ram,
-      serialNumber: terminals.serialNumber,
-      manufacturer: terminals.manufacturer,
-      model: terminals.model,
-      nis: terminals.nis,
-      nis2: terminals.nis2,
-      lastContact: terminals.lastContact,
-      syncedAt: terminals.syncedAt,
-      searchableText: terminals.searchableText,
-    }).from(terminals);
+    const csvStream = streamCsv(HEADERS, streamQuery(SQL), KEY_MAP);
+    const dateStr = new Date().toISOString().split("T")[0];
 
-    const headers = [
-      "ID",
-      "Hostname",
-      "Dirección MAC",
-      "Dirección IP",
-      "Sistema Operativo",
-      "Arquitectura OS",
-      "RAM",
-      "Número de Serie",
-      "Fabricante",
-      "Modelo",
-      "NIS (Oficina)",
-      "NIS Alternativo",
-      "Último Contacto",
-      "Sincronizado El",
-      "Texto de Búsqueda",
-    ];
-
-    const rows = data.map((terminal) => [
-      terminal.id,
-      terminal.hostname,
-      terminal.macAddress,
-      terminal.ipAddress,
-      terminal.operatingSystem,
-      terminal.osArchitecture,
-      terminal.ram,
-      terminal.serialNumber,
-      terminal.manufacturer,
-      terminal.model,
-      terminal.nis,
-      terminal.nis2,
-      terminal.lastContact,
-      terminal.syncedAt,
-      terminal.searchableText,
-    ]);
-
-    const csvStr = generateCsv(headers, rows);
-    const dateStr = new Date().toISOString().split('T')[0];
-
-    return new Response(csvStr, {
+    return new Response(csvStream, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

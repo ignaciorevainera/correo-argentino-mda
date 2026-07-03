@@ -30,7 +30,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 <div class="flex flex-col gap-6 w-full pb-24 animate-in fade-in duration-500">
   <!-- Filters bar -->
   <div
-    class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm"
+    class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm relative z-50"
   >
     <!-- Date Selector -->
     <div class="flex items-center gap-3">
@@ -59,6 +59,46 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
     <!-- Search, Sort and Export Actions -->
     <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+      <!-- Search input -->
+      <div class="relative w-full sm:w-48">
+        <Icon
+          name="boxicons:search"
+          size={18}
+          class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30"
+        />
+        <input
+          type="text"
+          id="operator-search"
+          placeholder="Buscar operador..."
+          class="w-full bg-base-100 border border-base-300 rounded-xl py-2 pl-10 pr-4 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-10"
+        />
+      </div>
+
+      <!-- Sort Dropdown -->
+      <div class="dropdown dropdown-bottom dropdown-end w-full sm:w-auto">
+        <div tabindex="0" role="button" class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-4 flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto font-bold h-10 bg-base-100 shadow-sm">
+          <div class="flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="20" x2="12" y2="10"></line>
+              <line x1="18" y1="20" x2="18" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="16"></line>
+            </svg>
+            <span id="current-sort-label">Ordenar: Alfabético (A-Z)</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 gap-1 text-xs font-semibold normal-case tracking-normal mt-1" id="sort-menu">
+          <li><button type="button" data-sort="alpha-asc" class="active">Alfabético (A-Z)</button></li>
+          <li><button type="button" data-sort="alpha-desc">Alfabético (Z-A)</button></li>
+          <li class="pointer-events-none p-0"><div class="divider my-0 h-1"></div></li>
+          <li><button type="button" data-sort="sede-mg">Sede (MG → PP)</button></li>
+          <li><button type="button" data-sort="sede-pp">Sede (PP → MG)</button></li>
+          <li class="pointer-events-none p-0"><div class="divider my-0 h-1"></div></li>
+          <li><button type="button" data-sort="time-asc">Horario (Más temprano primero)</button></li>
+          <li><button type="button" data-sort="time-desc">Horario (Más tarde primero)</button></li>
+        </ul>
+      </div>
+
       <!-- Estadísticas -->
       <a
         href={`${cleanBase}supervision/asistencia/estadisticas`}
@@ -104,79 +144,23 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         Exportar CSV
       </button>
 
-      <!-- Sort Segmented Control -->
-      <div
-        class="flex items-center gap-1 bg-base-200 p-1 rounded-xl border border-base-300 select-none w-full sm:w-auto justify-center"
+      <!-- Limpiar Filtros -->
+      <button
+        type="button"
+        id="clear-filters-btn"
+        disabled
+        class="btn btn-ghost btn-sm rounded-xl px-3 flex items-center gap-1.5 hidden md:flex font-bold h-10 opacity-50 cursor-not-allowed text-base-content/60"
+        title="Limpiar filtros de cabecera"
       >
-        <button
-          type="button"
-          id="sort-alpha-btn"
-          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-base-100 text-base-content shadow-sm"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="m3 16 4 4 4-4"></path>
-            <path d="M7 20V4"></path>
-            <path d="M15 4h5l-5 6h5"></path>
-            <path d="M15 20h5l-5-6h5"></path>
-          </svg>
-          Alfabético
-        </button>
-        <button
-          type="button"
-          id="sort-sede-btn"
-          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-base-content/60 hover:text-base-content"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect>
-            <path d="M9 22v-4h6v4"></path>
-            <path d="M8 6h.01"></path>
-            <path d="M16 6h.01"></path>
-            <path d="M8 10h.01"></path>
-            <path d="M16 10h.01"></path>
-            <path d="M12 14h.01"></path>
-          </svg>
-          Sede
-        </button>
-      </div>
-
-      <!-- Search input -->
-      <div class="relative w-full sm:w-64">
-        <Icon
-          name="boxicons:search"
-          size={18}
-          class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30"
-        />
-        <input
-          type="text"
-          id="operator-search"
-          placeholder="Buscar operador..."
-          class="w-full bg-base-100 border border-base-300 rounded-xl py-2 pl-10 pr-4 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-10"
-        />
-      </div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        Limpiar Filtros
+      </button>
     </div>
   </div>
 
   <!-- Main attendance table -->
   <div
-    class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden"
+    class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden relative z-0"
   >
     <div class="overflow-x-auto min-h-[300px]">
       <table
@@ -188,19 +172,163 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         >
           <tr>
             <th class="py-3.5 px-4 w-[28%] min-w-[180px]">Operador</th>
-            <th class="py-3.5 px-3 w-[20%] min-w-[230px]">Asistencia Real</th>
-            <th class="py-3.5 px-3 w-[20%] min-w-[180px]"
-              >Ausencia / Eventualidad</th
-            >
-            <th class="py-3.5 px-3 w-[12%] min-w-[100px] text-center"
-              >Horario Estipulado</th
-            >
-            <th class="py-3.5 px-3 w-[10%] min-w-[80px] text-center"
-              >Entrada Real</th
-            >
-            <th class="py-3.5 px-3 w-[10%] min-w-[110px] text-center"
-              >Cumplimiento</th
-            >
+            <th class="py-3.5 px-3 w-[20%] min-w-[230px]">
+              <div class="flex items-center gap-1">
+                Asistencia Real
+                <div class="dropdown dropdown-bottom">
+                  <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  </div>
+                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-64 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal mt-1">
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="all" checked />
+                      <span>Todos</span>
+                    </label>
+                    <div class="divider my-0 h-1"></div>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="HOME OFFICE" />
+                      <span>HOME OFFICE</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="PRESENCIAL MONTE GRANDE" />
+                      <span>PRESENCIAL MONTE GRANDE</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="PRESENCIAL PARQUE PATRICIOS" />
+                      <span>PRESENCIAL PARQUE PATRICIOS</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </th>
+            <th class="py-3.5 px-3 w-[20%] min-w-[180px]">
+              <div class="flex items-center gap-1">
+                Ausencia / Eventualidad
+                <div class="dropdown dropdown-bottom">
+                  <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  </div>
+                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal max-h-64 overflow-y-auto mt-1">
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="all" checked />
+                      <span>Todos</span>
+                    </label>
+                    <div class="divider my-0 h-1"></div>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="SIN EVENTUALIDAD" />
+                      <span>SIN EVENTUALIDAD</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Tramite" />
+                      <span>Tramite</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Demorado" />
+                      <span>Demorado</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Se reporta enfermo" />
+                      <span>Se reporta enfermo</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente Justificado" />
+                      <span>Ausente Justificado</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente con Permiso" />
+                      <span>Ausente con Permiso</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente No Justificado" />
+                      <span>Ausente No Justificado</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausencia sin aviso" />
+                      <span>Ausencia sin aviso</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Estudio" />
+                      <span>Lic. Estudio</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Medica" />
+                      <span>Lic. Medica</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Anual" />
+                      <span>Lic. Anual</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. UI" />
+                      <span>Lic. UI</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Gremial" />
+                      <span>Lic. Gremial</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Paternidad" />
+                      <span>Lic. Paternidad</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Maternidad" />
+                      <span>Lic. Maternidad</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Fallecimiento" />
+                      <span>Lic. Fallecimiento</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="ART" />
+                      <span>ART</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </th>
+            <th class="py-3.5 px-3 w-[12%] min-w-[100px] text-center">Horario Estipulado</th>
+            <th class="py-3.5 px-3 w-[10%] min-w-[80px] text-center">Entrada Real</th>
+            <th class="py-3.5 px-3 w-[10%] min-w-[110px] text-center">
+              <div class="flex items-center justify-center gap-1">
+                Cumplimiento
+                <div class="dropdown dropdown-bottom dropdown-end">
+                  <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  </div>
+                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-52 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal mt-1 text-left">
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="all" checked />
+                      <span>Todos</span>
+                    </label>
+                    <div class="divider my-0 h-1"></div>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Cumplió" />
+                      <span>Cumplió</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Incumplió" />
+                      <span>Incumplió</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Llegada Tarde" />
+                      <span>Llegada Tarde</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Retiro Anticipado" />
+                      <span>Retiro Anticipado</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Tarde y Retiro Anticipado" />
+                      <span>Tarde y R. Antic.</span>
+                    </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Sin Registro" />
+                      <span>Sin Registro</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody id="attendance-table-body" class="divide-y divide-base-200">
@@ -261,9 +389,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   let selectedDate = "";
   let currentSort = (() => {
     try {
-      return localStorage.getItem("asistenciaActiveSort") || "alpha";
+      return localStorage.getItem("asistenciaActiveSort") || "alpha-asc";
     } catch {
-      return "alpha";
+      return "alpha-asc";
     }
   })();
 
@@ -536,15 +664,84 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
   function renderTable() {
     const query = searchInput?.value.toLowerCase().trim() || "";
-    let filtered = attendanceData.filter(
-      (op) =>
-        op.nombre.toLowerCase().includes(query) ||
-        (op.username && op.username.toLowerCase().includes(query)),
-    );
+    
+    const getActiveFilters = (col: string) => {
+      const checkboxes = document.querySelectorAll(`input[data-filter-col="${col}"]:not([value="all"]):checked`);
+      return Array.from(checkboxes).map(cb => (cb as HTMLInputElement).value);
+    };
 
-    if (currentSort === "alpha") {
+    const asisFilters = getActiveFilters('asistencia');
+    const ausFilters = getActiveFilters('ausencia');
+    const cumpFilters = getActiveFilters('cumplimiento');
+
+    const clearBtn = document.getElementById('clear-filters-btn') as HTMLButtonElement | null;
+    if (clearBtn) {
+      const hasFilters = asisFilters.length > 0 || ausFilters.length > 0 || cumpFilters.length > 0;
+      if (hasFilters) {
+        clearBtn.disabled = false;
+        clearBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'text-base-content/60');
+        clearBtn.classList.add('text-error', 'hover:bg-error/15', 'bg-error/5');
+      } else {
+        clearBtn.disabled = true;
+        clearBtn.classList.add('opacity-50', 'cursor-not-allowed', 'text-base-content/60');
+        clearBtn.classList.remove('text-error', 'hover:bg-error/15', 'bg-error/5');
+      }
+    }
+
+    let filtered = attendanceData.filter((op) => {
+      // 1. Buscador global
+      const matchesSearch = op.nombre.toLowerCase().includes(query) || (op.username && op.username.toLowerCase().includes(query));
+      if (!matchesSearch) return false;
+
+      // 2. Extraer valores actuales (con cambios pendientes si los hay)
+      const edit = pendingEdits[op.agentId] || {};
+      const asistencia = edit.asistencia !== undefined ? edit.asistencia : op.asistencia;
+      const ausencia = edit.ausencia !== undefined ? edit.ausencia : op.ausencia;
+      const entradaReal = edit.entradaReal !== undefined ? edit.entradaReal : op.entradaReal;
+      const cumplimientoForzado = edit.cumplimientoForzado !== undefined ? edit.cumplimientoForzado : op.cumplimientoForzado;
+      
+      let cumplimiento = edit.cumplimiento !== undefined ? edit.cumplimiento : op.cumplimiento;
+      if (!cumplimientoForzado) {
+        cumplimiento = calculateCompliance(entradaReal, op.horarioEstipulado);
+      }
+
+      // 3. Filtro de Asistencia
+      if (asisFilters.length > 0) {
+        if (!asisFilters.includes(asistencia)) return false;
+      }
+
+      // 4. Filtro de Ausencia
+      if (ausFilters.length > 0) {
+        const mappedAusencia = ausencia === "" ? "SIN EVENTUALIDAD" : ausencia;
+        if (!ausFilters.includes(mappedAusencia)) return false;
+      }
+
+      // 5. Filtro de Cumplimiento
+      if (cumpFilters.length > 0) {
+        if (!cumpFilters.includes(cumplimiento)) return false;
+      }
+
+      return true;
+    });
+
+    if (currentSort === "alpha-asc" || currentSort === "alpha") {
       filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    } else if (currentSort === "sede") {
+    } else if (currentSort === "alpha-desc") {
+      filtered.sort((a, b) => b.nombre.localeCompare(a.nombre));
+    } else if (currentSort === "sede-mg" || currentSort === "sede") {
+      filtered.sort((a, b) => {
+        const getSedeWeight = (op: any) => {
+          const loc = (op.location || "").toLowerCase();
+          if (loc.includes("monte grande") || loc.includes("mg")) return 1;
+          if (loc.includes("parque patricios") || loc.includes("pp")) return 2;
+          return 3;
+        };
+        const wA = getSedeWeight(a);
+        const wB = getSedeWeight(b);
+        if (wA !== wB) return wA - wB;
+        return a.nombre.localeCompare(b.nombre);
+      });
+    } else if (currentSort === "sede-pp") {
       filtered.sort((a, b) => {
         const getSedeWeight = (op: any) => {
           const loc = (op.location || "").toLowerCase();
@@ -552,10 +749,25 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
           if (loc.includes("monte grande") || loc.includes("mg")) return 2;
           return 3;
         };
-
         const wA = getSedeWeight(a);
         const wB = getSedeWeight(b);
         if (wA !== wB) return wA - wB;
+        return a.nombre.localeCompare(b.nombre);
+      });
+    } else if (currentSort === "time-asc" || currentSort === "time-desc") {
+      filtered.sort((a, b) => {
+        const timeToMinutes = (timeStr: string) => {
+          if (!timeStr || timeStr === "-" || timeStr.toLowerCase() === "franco") return 9999;
+          const match = timeStr.toLowerCase().replace(/\s+/g, "").match(/^(\d{1,2})(?::(\d{2}))?/);
+          if (!match) return 9999;
+          return parseInt(match[1]) * 60 + (match[2] ? parseInt(match[2]) : 0);
+        };
+        const minA = timeToMinutes(a.horarioEstipulado);
+        const minB = timeToMinutes(b.horarioEstipulado);
+        
+        if (minA !== minB) {
+          return currentSort === "time-asc" ? minA - minB : minB - minA;
+        }
         return a.nombre.localeCompare(b.nombre);
       });
     }
@@ -1012,41 +1224,112 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     }
   });
 
+  tableBody?.querySelectorAll(".toggle-row-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const target = e.currentTarget as HTMLButtonElement;
+        const agentId = target.dataset.agentId;
+        const detailsRow = document.getElementById(`details-row-${agentId}`);
+        const icon = target.querySelector("svg");
+
+        if (detailsRow) {
+          detailsRow.classList.toggle("hidden");
+          target.classList.toggle("bg-base-200");
+          if (icon) {
+            if (detailsRow.classList.contains("hidden")) {
+              icon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+            } else {
+              icon.innerHTML =
+                '<polyline points="18 15 12 9 6 15"></polyline>';
+            }
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
+      dropdown.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+    });
+
+  // Set up checkbox filters behavior
+  document.querySelectorAll('input.checkbox[data-filter-col]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const target = e.target as HTMLInputElement;
+      const col = target.getAttribute('data-filter-col');
+      const isAll = target.value === 'all';
+      
+      const allCb = document.querySelector(`input[data-filter-col="${col}"][value="all"]`) as HTMLInputElement;
+      const specificCbs = document.querySelectorAll(`input[data-filter-col="${col}"]:not([value="all"])`);
+
+      if (isAll) {
+        if (target.checked) {
+          specificCbs.forEach(c => (c as HTMLInputElement).checked = false);
+        } else {
+          target.checked = true;
+        }
+      } else {
+        if (target.checked) {
+          if (allCb) allCb.checked = false;
+        } else {
+          const anyChecked = Array.from(specificCbs).some(c => (c as HTMLInputElement).checked);
+          if (!anyChecked && allCb) {
+            allCb.checked = true;
+          }
+        }
+      }
+      
+      renderTable();
+    });
+  });
+
+  const clearFiltersBtn = document.getElementById("clear-filters-btn");
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', () => {
+      document.querySelectorAll('input.checkbox[data-filter-col]').forEach(cb => {
+        const checkbox = cb as HTMLInputElement;
+        if (checkbox.value === 'all') {
+          checkbox.checked = true;
+        } else {
+          checkbox.checked = false;
+        }
+      });
+      renderTable();
+    });
+  }
+
   searchInput?.addEventListener("input", renderTable);
 
   const updateSortUI = () => {
-    if (sortAlphaBtn && sortSedeBtn) {
-      if (currentSort === "alpha") {
-        sortAlphaBtn.className =
-          "px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-base-100 text-base-content shadow-sm";
-        sortSedeBtn.className =
-          "px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-base-content/60 hover:text-base-content";
+    document.querySelectorAll('#sort-menu button').forEach(btn => {
+      const htmlBtn = btn as HTMLButtonElement;
+      if (htmlBtn.dataset.sort === currentSort || 
+         (currentSort === 'alpha' && htmlBtn.dataset.sort === 'alpha-asc') ||
+         (currentSort === 'sede' && htmlBtn.dataset.sort === 'sede-pp')) {
+        htmlBtn.classList.add('active');
+        const label = document.getElementById('current-sort-label');
+        if (label) label.textContent = `Ordenar: ${htmlBtn.textContent}`;
       } else {
-        sortAlphaBtn.className =
-          "px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-base-content/60 hover:text-base-content";
-        sortSedeBtn.className =
-          "px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-base-100 text-base-content shadow-sm";
+        htmlBtn.classList.remove('active');
       }
-    }
+    });
   };
 
-  sortAlphaBtn?.addEventListener("click", () => {
-    currentSort = "alpha";
-    try {
-      localStorage.setItem("asistenciaActiveSort", "alpha");
-    } catch {}
-    updateSortUI();
-    renderTable();
+  document.querySelectorAll('#sort-menu button').forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      const newSort = target.dataset.sort;
+      if (newSort) {
+        currentSort = newSort;
+        localStorage.setItem("asistenciaActiveSort", newSort);
+        updateSortUI();
+        renderTable();
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    });
   });
 
-  sortSedeBtn?.addEventListener("click", () => {
-    currentSort = "sede";
-    try {
-      localStorage.setItem("asistenciaActiveSort", "sede");
-    } catch {}
-    updateSortUI();
-    renderTable();
-  });
+  updateSortUI();
 
   function cleanCsvCell(value: any) {
     if (value === null || value === undefined) return '""';

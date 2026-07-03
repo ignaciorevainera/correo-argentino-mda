@@ -107,20 +107,13 @@ se fetchan TODOS los hostnames de `officeAssets` para un Set de deduplicación.
 
 **Fix:** Cache module-level con TTL de 60s. Se agrega `manualHostnamesCache` + timestamp. La query solo se ejecuta cuando el cache expira.
 
-### R2.7 🟡 Doble query para `hasMore` en terminals
+### R2.7 🟡 Doble query para `hasMore` en terminals — RESUELTO
 
-`src/lib/terminalQueries.ts` líneas 253, 295-296: después de fetchear la página,
-segunda query con `limit(1).offset(offset + limit)` para verificar si hay más.
+`src/lib/terminalQueries.ts` líneas 253, 295-296: el código actual ya usa el patrón `limit + 1` con `rows.length > limit`, evitando la segunda query. No requería cambios.
 
-**Fix:** Fetch `limit + 1` filas y cortar, o usar COUNT como `officeQueries.ts`.
-**Esfuerzo:** 10 min.
+### R2.8 🟡 Export endpoints cargan tablas enteras en memoria — RESUELTO
 
-### R2.8 🟡 Export endpoints cargan tablas enteras en memoria
-
-`src/pages/api/export/offices.ts` (50+ columnas) y `src/pages/api/export/terminals.ts`.
-
-**Fix:** Streaming o mínimo seleccionar solo columnas del CSV.
-**Esfuerzo:** 30 min.
+`src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`: migrados a streaming via `streamCsv()` + `streamQuery()`. Las filas se leen una por una con `better-sqlite3`'s `.iterate()` y se escriben en el `Response` como chunks de ~64KB. Las boolean columns usan SQL CASE para compatibilidad con el CSV anterior. `offices` ordenado por `code` (natural sort: letra + número), `terminals` ordenado por `hostname` ASC.
 
 ### R2.9 🟡 Generación de mes: N queries individuales sin transacción
 
@@ -192,8 +185,8 @@ Prerenderizado activado (`prerender = true`) para páginas puramente estáticas 
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
 | **P1** | R2.5 | 🟡 Filtrar schedules SSR | 5 min | Data size |
 | **P1** | R2.6 | 🟡 Caché officeAssets | ✅ Resuelto — cache 60s TTL | 1 query/req |
-| **P1** | R2.7 | 🟡 Doble query terminals | 10 min | 2x query cost |
-| **P1** | R2.8 | 🟡 Export endpoints memoria | 30 min | Memory |
+| **P1** | R2.7 | 🟡 Doble query terminals | ✅ Resuelto — ya usaba limit+1 | 2x query cost |
+| **P1** | R2.8 | 🟡 Export endpoints memoria | ✅ Resuelto — streaming vía iterate() | Memory |
 | **P1** | R2.9 | 🟡 Mes sin transacción | 30 min | Atomicity |
 | **P2** | R8.1 | 🟡 setInterval leaks | ✅ Resuelto — Limpieza en before-swap | Memory |
 | **P2** | R5.2 | 🟡 prerender candidatos | ✅ Resuelto — Prerender parcial | Server load |

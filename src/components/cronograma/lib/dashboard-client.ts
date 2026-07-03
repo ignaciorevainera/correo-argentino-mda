@@ -56,7 +56,7 @@ import {
   updateMonthDisplay,
   updateNavigationButtons,
   updateGroupsActiveMonthBadge,
-  renderMonthDropdown,
+  renderMonthSelect,
   changeMonth,
   renderDaily,
   renderHourly,
@@ -236,7 +236,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
     renderDaily();
     renderMonthly();
-    renderMonthDropdown();
+    renderMonthSelect();
     updateMonthDisplay();
 
     // Actualizar vista de grupos si está visible
@@ -302,7 +302,7 @@ async function init(): Promise<void> {
 
     renderDaily();
     renderMonthly();
-    renderMonthDropdown();
+    renderMonthSelect();
     setupEventListeners();
   } catch (err: unknown) {
     console.error("Error loading data:", err);
@@ -785,25 +785,30 @@ function updateBrushUI(): void {
 }
 
 function setupEventListeners(): void {
-  // Month Dropdown Event Delegation
-  const handleDropdownClick = (e: Event) => {
-    const target = (e.target as HTMLElement).closest('[data-month-val]');
-    if (!target) return;
-    const val = target.getAttribute('data-month-val');
-    if (val) {
-      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-      if (dateInput) {
-        dateInput.value = val;
-        updateDateInputDisplay();
-        reloadDataForActiveMonth(val.slice(0, 7));
-      }
+  // Month Select Change Handler
+  document.getElementById('month-selector')?.addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const val = select.value;
+    if (!val) return;
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (dateInput) {
+      dateInput.value = val;
+      updateDateInputDisplay();
+      reloadDataForActiveMonth(val.slice(0, 7));
     }
-    // Force close dropdown by blurring active element
-    (document.activeElement as HTMLElement | null)?.blur();
-  };
+  });
 
-  document.getElementById('month-dropdown-list')?.addEventListener('click', handleDropdownClick);
-  document.getElementById('groups-month-dropdown-list')?.addEventListener('click', handleDropdownClick);
+  document.getElementById('groups-month-selector')?.addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const val = select.value;
+    if (!val) return;
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (dateInput) {
+      dateInput.value = val;
+      updateDateInputDisplay();
+      reloadDataForActiveMonth(val.slice(0, 7));
+    }
+  });
 
   // New Operator Modal Handlers
   const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
@@ -1206,7 +1211,7 @@ function setupEventListeners(): void {
 
       updateDateInputDisplay();
       updateMonthDisplay();
-      renderMonthDropdown();
+      renderMonthSelect();
       renderDaily();
       renderMonthly();
       showToast(`El mes de ${monthName} ha sido eliminado correctamente.`, "success");
