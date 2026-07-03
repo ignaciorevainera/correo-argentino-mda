@@ -1,6 +1,7 @@
 ---
 // CronogramaDashboard.astro
 import { Icon } from "astro-icon/components";
+import FilterButtonBar from "@components/ui/FilterButtonBar.astro";
 import SortDropdown from "@components/ui/SortDropdown.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
 
@@ -245,102 +246,32 @@ const { userRole = "agent" } = Astro.props;
           >
             <div class="flex flex-wrap items-center gap-4">
               <!-- Status Filters -->
-              <div
-                class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap"
-              >
-                <span
-                  class="label-xxs text-base-content/40 px-2 select-none"
-                  >Estado:</span
-                >
-
-                <button
-                  type="button"
-                  id="filter-all-btn-daily"
-                  class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-tiny px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
-                >
-                  Todos
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-presencial-mg-btn-daily"
-                  data-filter="Presencial Monte Grande"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div> Presencial
-                  MG
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-presencial-pp-btn-daily"
-                  data-filter="Presencial Parque Patricios"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-500/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Presencial
-                  PP
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-ho-btn-daily"
-                  data-filter="Home Office"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> HO
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-licencia-btn-daily"
-                  data-filter="Licencia"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-vacaciones-btn-daily"
-                  data-filter="Vacaciones"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
-                </button>
-              </div>
+              <FilterButtonBar
+                id="filter-daily-status"
+                options={[
+                  { value: "Presencial Monte Grande", label: "Presencial MG", color: "primary", dotColor: "bg-amber-500" },
+                  { value: "Presencial Parque Patricios", label: "Presencial PP", color: "primary", dotColor: "bg-purple-500" },
+                  { value: "Home Office", label: "HO", color: "secondary", dotColor: "bg-secondary" },
+                  { value: "Licencia", label: "Licencia", color: "error", dotColor: "bg-error" },
+                  { value: "Vacaciones", label: "Vacaciones", color: "success", dotColor: "bg-success" },
+                ]}
+                prefix="Estado:"
+                allLabel="Todos"
+                attribute="data-filter"
+                showDots
+              />
 
               <!-- Location Filters -->
-              <div
-                class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap"
-              >
-                <span
-                  class="label-xxs text-base-content/40 px-2 select-none"
-                  >Sede:</span
-                >
-                <button
-                  type="button"
-                  id="filter-location-all-btn-daily"
-                  class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-tiny px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
-                >
-                  Todas
-                </button>
-                <button
-                  type="button"
-                  id="filter-location-mg-btn-daily"
-                  data-location="Monte Grande"
-                  class="btn btn-xs btn-outline font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  Monte Grande
-                </button>
-                <button
-                  type="button"
-                  id="filter-location-pp-btn-daily"
-                  data-location="Parque Patricios"
-                  class="btn btn-xs btn-outline font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  Parque Patricios
-                </button>
-              </div>
+              <FilterButtonBar
+                id="filter-daily-location"
+                options={[
+                  { value: "Monte Grande", label: "Monte Grande" },
+                  { value: "Parque Patricios", label: "Parque Patricios" },
+                ]}
+                prefix="Sede:"
+                allLabel="Todas"
+                attribute="data-location"
+              />
             </div>
           </div>
         </div>
@@ -501,102 +432,32 @@ const { userRole = "agent" } = Astro.props;
           >
             <div class="flex flex-wrap items-center gap-4">
               <!-- Status Filters Container -->
-              <div
-                class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap"
-              >
-                <span
-                  class="label-xxs text-base-content/40 px-2 select-none"
-                  >Estado:</span
-                >
-
-                <button
-                  type="button"
-                  id="filter-all-btn"
-                  class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-tiny px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
-                >
-                  Todos
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-presencial-mg-btn"
-                  data-filter="Presencial Monte Grande"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 hover:border-primary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div> Presencial
-                  MG
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-presencial-pp-btn"
-                  data-filter="Presencial Parque Patricios"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-500/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Presencial
-                  PP
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-ho-btn"
-                  data-filter="Home Office"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-secondary"></div> HO
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-licencia-btn"
-                  data-filter="Licencia"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-error/10 hover:text-error hover:border-error/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-error"></div> Licencia
-                </button>
-
-                <button
-                  type="button"
-                  id="filter-vacaciones-btn"
-                  data-filter="Vacaciones"
-                  class="btn btn-xs btn-outline gap-1 font-black text-tiny uppercase tracking-wider border-transparent hover:bg-success/10 hover:text-success hover:border-success/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  <div class="w-1.5 h-1.5 rounded-full bg-success"></div> Vacaciones
-                </button>
-              </div>
+              <FilterButtonBar
+                id="filter-monthly-status"
+                options={[
+                  { value: "Presencial Monte Grande", label: "Presencial MG", color: "primary", dotColor: "bg-amber-500" },
+                  { value: "Presencial Parque Patricios", label: "Presencial PP", color: "primary", dotColor: "bg-purple-500" },
+                  { value: "Home Office", label: "HO", color: "secondary", dotColor: "bg-secondary" },
+                  { value: "Licencia", label: "Licencia", color: "error", dotColor: "bg-error" },
+                  { value: "Vacaciones", label: "Vacaciones", color: "success", dotColor: "bg-success" },
+                ]}
+                prefix="Estado:"
+                allLabel="Todos"
+                attribute="data-filter"
+                showDots
+              />
 
               <!-- Location Filters Container -->
-              <div
-                class="flex items-center gap-1 bg-base-100/50 p-0.5 rounded-lg border border-base-300/60 shadow-sm flex-wrap"
-              >
-                <span
-                  class="label-xxs text-base-content/40 px-2 select-none"
-                  >Sede:</span
-                >
-                <button
-                  type="button"
-                  id="filter-location-all-btn"
-                  class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-tiny px-2.5 h-6 rounded-md shadow-sm shadow-secondary/15 transition-all duration-200"
-                >
-                  Todas
-                </button>
-                <button
-                  type="button"
-                  id="filter-location-mg-btn"
-                  data-location="Monte Grande"
-                  class="btn btn-xs btn-outline font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  Monte Grande
-                </button>
-                <button
-                  type="button"
-                  id="filter-location-pp-btn"
-                  data-location="Parque Patricios"
-                  class="btn btn-xs btn-outline font-black text-tiny uppercase tracking-wider border-transparent hover:bg-secondary/10 hover:text-secondary hover:border-secondary/20 text-base-content/60 px-2.5 h-6 rounded-md transition-all duration-200"
-                >
-                  Parque Patricios
-                </button>
-              </div>
+              <FilterButtonBar
+                id="filter-monthly-location"
+                options={[
+                  { value: "Monte Grande", label: "Monte Grande" },
+                  { value: "Parque Patricios", label: "Parque Patricios" },
+                ]}
+                prefix="Sede:"
+                allLabel="Todas"
+                attribute="data-location"
+              />
             </div>
             <div
               class="flex flex-wrap gap-2 justify-start xl:justify-end shrink-0"

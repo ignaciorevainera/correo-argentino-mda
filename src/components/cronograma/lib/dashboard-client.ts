@@ -695,19 +695,19 @@ export async function renderGroupsView(): Promise<void> {
 }
 
 function updateFilterActiveStates(): void {
-  const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
-  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
-  const filterHoBtn = document.getElementById('filter-ho-btn');
-  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
-  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+  const filterAllBtn = document.getElementById('filter-monthly-status-all');
+  const filterPresencialMgBtn = document.getElementById('filter-monthly-status-presencial-monte-grande');
+  const filterPresencialPpBtn = document.getElementById('filter-monthly-status-presencial-parque-patricios');
+  const filterHoBtn = document.getElementById('filter-monthly-status-home-office');
+  const filterLicenciaBtn = document.getElementById('filter-monthly-status-licencia');
+  const filterVacacionesBtn = document.getElementById('filter-monthly-status-vacaciones');
 
-  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
-  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
-  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
-  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
-  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
+  const filterAllBtnDaily = document.getElementById('filter-daily-status-all');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-daily-status-presencial-monte-grande');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-daily-status-presencial-parque-patricios');
+  const filterHoBtnDaily = document.getElementById('filter-daily-status-home-office');
+  const filterLicenciaBtnDaily = document.getElementById('filter-daily-status-licencia');
+  const filterVacacionesBtnDaily = document.getElementById('filter-daily-status-vacaciones');
 
   const monthlyButtons = [
     { el: filterAllBtn, value: 'all' },
@@ -732,13 +732,13 @@ function updateFilterActiveStates(): void {
 }
 
 function updateLocationFilterActiveStates(): void {
-  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
-  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
-  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
+  const filterLocationAllBtn = document.getElementById('filter-monthly-location-all');
+  const filterLocationMgBtn = document.getElementById('filter-monthly-location-monte-grande');
+  const filterLocationPpBtn = document.getElementById('filter-monthly-location-parque-patricios');
 
-  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
-  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
-  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
+  const filterLocationAllBtnDaily = document.getElementById('filter-daily-location-all');
+  const filterLocationMgBtnDaily = document.getElementById('filter-daily-location-monte-grande');
+  const filterLocationPpBtnDaily = document.getElementById('filter-daily-location-parque-patricios');
 
   const monthlyButtons = [
     { el: filterLocationAllBtn, value: 'all' },
@@ -1027,69 +1027,21 @@ function setupEventListeners(): void {
     });
   });
 
-  // Wire up filter buttons
-  const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
-  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
-  const filterHoBtn = document.getElementById('filter-ho-btn');
-  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
-  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-
-  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
-  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
-  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
-  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
-  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-
-  const filterBtns = [
-    { btn: filterAllBtn, value: 'all' },
-    { btn: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
-    { btn: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
-    { btn: filterHoBtn, value: 'Home Office' },
-    { btn: filterLicenciaBtn, value: 'Licencia' },
-    { btn: filterVacacionesBtn, value: 'Vacaciones' },
-    { btn: filterAllBtnDaily, value: 'all' },
-    { btn: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
-    { btn: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
-    { btn: filterHoBtnDaily, value: 'Home Office' },
-    { btn: filterLicenciaBtnDaily, value: 'Licencia' },
-    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' }
-  ];
-
-  filterBtns.forEach(item => {
-    item.btn?.addEventListener('click', () => {
-      state.activeFilter = item.value;
+  // Wire up filter buttons via delegation
+  document.getElementById('cronograma-app-container')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-filter-value]');
+    if (!btn) return;
+    const val = btn.getAttribute('data-filter-value') || 'all';
+    const attr = btn.getAttribute('data-filter-attribute');
+    if (attr === 'data-filter') {
+      state.activeFilter = val;
       updateFilterActiveStates();
-      renderMonthly();
-      renderDaily();
-    });
-  });
-
-  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
-  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
-  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
-
-  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
-  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
-  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
-
-  const locationFilterBtns = [
-    { btn: filterLocationAllBtn, value: 'all' },
-    { btn: filterLocationMgBtn, value: 'Monte Grande' },
-    { btn: filterLocationPpBtn, value: 'Parque Patricios' },
-    { btn: filterLocationAllBtnDaily, value: 'all' },
-    { btn: filterLocationMgBtnDaily, value: 'Monte Grande' },
-    { btn: filterLocationPpBtnDaily, value: 'Parque Patricios' }
-  ];
-
-  locationFilterBtns.forEach(item => {
-    item.btn?.addEventListener('click', () => {
-      state.activeLocationFilter = item.value;
+    } else if (attr === 'data-location') {
+      state.activeLocationFilter = val;
       updateLocationFilterActiveStates();
-      renderMonthly();
-      renderDaily();
-    });
+    }
+    renderMonthly();
+    renderDaily();
   });
 
   // Initialize filter button states
