@@ -97,66 +97,46 @@ export function updateNavigationButtons(): void {
 
 export function updateGroupsActiveMonthBadge(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-  const textEl = document.getElementById('groups-active-month-text');
-  if (textEl && dateInput && dateInput.value) {
-    const currentYM = dateInput.value.slice(0, 7);
-    const [yearStr, monthStr] = currentYM.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10) - 1;
-    const dateObj = new Date(year, month, 15);
-    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-    textEl.innerText = `Mes: ${formatter.format(dateObj)}`;
+  const groupsSelect = document.getElementById('groups-month-selector') as HTMLSelectElement | null;
+  if (groupsSelect && dateInput && dateInput.value) {
+    groupsSelect.value = dateInput.value;
   }
 }
 
 export function updateMonthDisplay(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-  const display = document.getElementById('current-month-display');
-  if (!dateInput || !display) return;
+  const mainSelect = document.getElementById('month-selector') as HTMLSelectElement | null;
+  if (!dateInput || !mainSelect) return;
 
   const value = dateInput.value;
   if (!value || !value.includes('-')) {
-    display.innerText = "-";
+    mainSelect.value = "";
     return;
   }
 
-  const [yearStr, monthStr] = value.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1;
-
-  const dateObj = new Date(year, month, 15);
-  const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-  display.innerText = formatter.format(dateObj);
+  mainSelect.value = value;
 
   updateNavigationButtons();
   updateGroupsActiveMonthBadge();
 }
 
-export function renderMonthDropdown(): void {
-  const list = document.getElementById('month-dropdown-list');
-  const groupsList = document.getElementById('groups-month-dropdown-list');
-  if (!list && !groupsList) return;
+export function renderMonthSelect(): void {
+  const mainSelect = document.getElementById('month-selector') as HTMLSelectElement | null;
+  const groupsSelect = document.getElementById('groups-month-selector') as HTMLSelectElement | null;
+  if (!mainSelect && !groupsSelect) return;
 
-  let html = '';
-  state.uniqueMonths.forEach(ymStr => {
+  const html = state.uniqueMonths.map(ymStr => {
     const [yearStr, monthStr] = ymStr.split('-');
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10) - 1;
     const dateObj = new Date(year, month, 15);
     const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
     const label = formatter.format(dateObj).toUpperCase();
+    return `<option value="${ymStr}-01">${label}</option>`;
+  }).join('');
 
-    html += `
-      <li>
-        <a class="text-xxs font-bold py-1.5 px-3 rounded-lg hover:bg-secondary/10 hover:text-secondary focus:bg-secondary/20 transition-all cursor-pointer flex items-center justify-between" data-month-val="${ymStr}-01">
-          <span>${label}</span>
-        </a>
-      </li>
-    `;
-  });
-
-  if (list) list.innerHTML = html;
-  if (groupsList) groupsList.innerHTML = html;
+  if (mainSelect) mainSelect.innerHTML = html;
+  if (groupsSelect) groupsSelect.innerHTML = html;
 }
 
 export function changeMonth(offset: number): void {
