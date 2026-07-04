@@ -284,7 +284,7 @@ export async function getAttendanceData(startDate: string, endDate: string) {
         modalidadPlanificada = "Franco";
       }
 
-      if (modalidadPlanificada === "Franco") {
+      if (modalidadPlanificada === "Franco" || modalidadPlanificada === "Vacaciones" || modalidadPlanificada === "Licencia") {
         horarioEstipulado = "";
       } else if (!horarioEstipulado || horarioEstipulado.trim() === "" || horarioEstipulado.trim() === "-") {
         horarioEstipulado = agent.horarioDefault || "";
