@@ -2,15 +2,15 @@ import { store, type AttendanceRecord } from "./store";
 import { complianceClasses, complianceLabels, attendanceClasses, ausenciaClasses } from "./utils";
 
 export const dom = {
-  isRowBeingEdited(agentId: number): boolean {
+  isRowBeingEdited(rowId: string): boolean {
     const active = document.activeElement;
     if (!active) return false;
-    const row = active.closest(`tr[data-agent-id="${agentId}"]`);
+    const row = active.closest(`tr[data-row-id="${rowId}"]`);
     return row !== null;
   },
 
-  updateRow(agentId: number, record: AttendanceRecord) {
-    const row = document.querySelector(`tr[data-agent-id="${agentId}"]`) as HTMLElement;
+  updateRow(rowId: string, record: AttendanceRecord) {
+    const row = document.querySelector(`tr[data-row-id="${rowId}"]`) as HTMLElement;
     if (!row) return;
 
     // 1. Asistencia Real Select
@@ -34,7 +34,7 @@ export const dom = {
     }
 
     // 4. Cumplimiento Badge and Select
-    const badge = document.getElementById(`badge-cump-${agentId}`);
+    const badge = document.getElementById(`badge-cump-${rowId}`);
     if (badge) {
       const finalCump = record.cumplimiento;
       badge.textContent = complianceLabels[finalCump] || finalCump;
@@ -50,7 +50,7 @@ export const dom = {
     }
 
     // 5. Details Row elements (Motivo Login & Detalle)
-    const detailsRow = document.getElementById(`details-row-${agentId}`);
+    const detailsRow = document.getElementById(`details-row-${rowId}`);
     if (detailsRow) {
       const inputMotivo = detailsRow.querySelector('[data-field="motivoLoguin"]') as HTMLInputElement;
       if (inputMotivo && inputMotivo.value !== record.motivoLoguin) {
@@ -106,7 +106,7 @@ export const dom = {
         iconHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="24" stroke-dashoffset="0" d="M5 13l4 4L19 7" /></svg>`;
         barColor = "border-success/40 shadow-[0_4px_20px_rgba(34,197,94,0.1)]";
         setTimeout(() => {
-          if (store.dirtyAgents.size === 0) {
+          if (store.dirtyKeys.size === 0) {
             this.hideSyncStatus();
           }
         }, 3000);

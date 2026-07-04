@@ -37,6 +37,7 @@ export const attendanceClasses: Record<string, string[]> = {
   "HOME OFFICE": ["text-secondary", "border-secondary/40"],
   "PRESENCIAL MONTE GRANDE": ["text-amber-600", "dark:text-amber-400", "border-primary/40"],
   "PRESENCIAL PARQUE PATRICIOS": ["text-purple-600", "dark:text-purple-400", "border-purple-500/40"],
+  "HORAS EXTRAS": ["text-blue-500", "dark:text-blue-400", "border-blue-500/40"],
 };
 
 export const ausenciaClasses: Record<string, string[]> = {
