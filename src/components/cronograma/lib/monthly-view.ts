@@ -9,7 +9,6 @@ import {
   isCurrentlyWorking, 
   timeToMinutes
 } from './utils';
-import { exportCSV, exportAsImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData, type WeekendOvertimeShift } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
