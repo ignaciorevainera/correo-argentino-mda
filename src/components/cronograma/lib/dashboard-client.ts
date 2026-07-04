@@ -31,22 +31,6 @@ import {
   setupRotationEventListeners
 } from './rotation-helper';
 
-import {
-  showOvertimeView,
-  renderOvertimeView,
-  refreshOvertimeForWeekend,
-  setupOvertimeEventListeners
-} from './overtime-view';
-
-import {
-  hasPasivaChanges,
-  updatePasivaToolbarUI,
-  savePasivaChanges,
-  discardPasivaChanges,
-  showPasivaView,
-  renderPasivaView,
-  setupPasivaEventListeners
-} from './pasiva-view';
 
 import {
   updateMonthDisplay,
@@ -246,6 +230,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const pasivaView = document.getElementById('pasiva-view');
     const isPasivaVisible = pasivaView && !pasivaView.classList.contains('hidden');
     if (isPasivaVisible) {
+      const { renderPasivaView } = await import('./pasiva-view');
       await renderPasivaView();
     }
 
@@ -253,6 +238,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const overtimeView = document.getElementById('overtime-view');
     const isOvertimeVisible = overtimeView && !overtimeView.classList.contains('hidden');
     if (isOvertimeVisible) {
+      const { renderOvertimeView } = await import('./overtime-view');
       renderOvertimeView();
     }
   } catch (err) {
@@ -1854,8 +1840,27 @@ function setupEventListeners(): void {
 
   // Call submodule event listeners setup
   setupRotationEventListeners();
-  setupOvertimeEventListeners();
-  setupPasivaEventListeners();
+  // Lazy-load overtime-view on first tab click
+  let overtimeSetupDone = false;
+  document.getElementById('switch-to-overtime-btn')?.addEventListener('click', async () => {
+    const { showOvertimeView, setupOvertimeEventListeners } = await import('./overtime-view');
+    if (!overtimeSetupDone) {
+      setupOvertimeEventListeners();
+      overtimeSetupDone = true;
+    }
+    showOvertimeView();
+  });
+
+  // Lazy-load pasiva-view on first tab click
+  let pasivaSetupDone = false;
+  document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', async () => {
+    const { showPasivaView, setupPasivaEventListeners } = await import('./pasiva-view');
+    if (!pasivaSetupDone) {
+      setupPasivaEventListeners();
+      pasivaSetupDone = true;
+    }
+    showPasivaView();
+  });
 }
 
 // --- Global Event Listeners ---
