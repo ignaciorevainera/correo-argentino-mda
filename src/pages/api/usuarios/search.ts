@@ -63,6 +63,7 @@ export const GET: APIRoute = async ({ request }) => {
         interno: e.interno,
         telefono: e.telefono,
         sucursal: e.sucursal,
+        invgateExists: e.invgateExists ?? false,
       })),
       total: results.length,
     });
