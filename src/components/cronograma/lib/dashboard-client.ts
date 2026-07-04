@@ -32,10 +32,6 @@ import {
 } from './rotation-helper';
 
 import {
-  overtimeConfigs,
-  setOvertimeConfigs,
-  overtimeSelectedWeekend,
-  setOvertimeSelectedWeekend,
   showOvertimeView,
   renderOvertimeView,
   refreshOvertimeForWeekend,
@@ -229,7 +225,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
     const payload = await fetchCronogramaFullData(monthToLoad);
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
     await loadRotationConfig(monthToLoad);
@@ -273,7 +269,7 @@ async function init(): Promise<void> {
 
     const payload = await fetchCronogramaFullData(initialMonth);
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
     try {

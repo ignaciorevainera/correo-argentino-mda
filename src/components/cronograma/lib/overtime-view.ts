@@ -6,16 +6,6 @@ import { escapeHtml } from '@lib/sanitize';
 import { timeToMinutes } from './utils';
 import { updateViewSwitcherUI } from './dashboard-client';
 
-export let overtimeConfigs: WeekendOvertimeConfig[] = [];
-export function setOvertimeConfigs(val: WeekendOvertimeConfig[]) {
-  overtimeConfigs = val;
-}
-
-export let overtimeSelectedWeekend: string | null = null;
-export function setOvertimeSelectedWeekend(val: string | null) {
-  overtimeSelectedWeekend = val;
-}
-
 export function showOvertimeView(): void {
   const dailyView = document.getElementById('daily-view');
   const monthlyView = document.getElementById('monthly-view');
@@ -74,15 +64,15 @@ export function renderOvertimeView(): void {
     if (currentVal) shiftAgentSelect.value = currentVal;
   }
 
-  if (overtimeSelectedWeekend) {
-    refreshOvertimeForWeekend(overtimeSelectedWeekend);
+  if (state.overtimeSelectedWeekend) {
+    refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
   }
 }
 
 export async function refreshOvertimeForWeekend(weekendDate: string): Promise<void> {
-  overtimeSelectedWeekend = weekendDate;
+  state.overtimeSelectedWeekend = weekendDate;
 
-  const existingConfig = overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
+  const existingConfig = state.overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
   const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
   if (referenteSelect) {
     referenteSelect.value = existingConfig ? existingConfig.referente : '';
@@ -305,14 +295,14 @@ export function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOve
   container.querySelectorAll('.overtime-delete-shift-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const shiftId = (e.currentTarget as HTMLElement).dataset.shiftId;
-      if (!shiftId || !overtimeSelectedWeekend) return;
+      if (!shiftId || !state.overtimeSelectedWeekend) return;
       const confirmed = await showConfirm('¿Eliminar este turno de hora extra?');
       if (!confirmed) return;
       try {
         const res = await fetch(`/api/cronograma/overtime/shifts?id=${shiftId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Error al eliminar');
         showToast('Turno eliminado', 'success');
-        await refreshOvertimeForWeekend(overtimeSelectedWeekend);
+        await refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
       } catch {
         showToast('Error al eliminar turno', 'error');
       }
@@ -348,7 +338,7 @@ export function setupOvertimeEventListeners(): void {
   }
 
   document.getElementById('save-overtime-referente-btn')?.addEventListener('click', async () => {
-    if (!overtimeSelectedWeekend) {
+    if (!state.overtimeSelectedWeekend) {
       showToast('Seleccioná un fin de semana primero', 'error');
       return;
     }
@@ -358,13 +348,13 @@ export function setupOvertimeEventListeners(): void {
       const res = await fetch('/api/cronograma/overtime/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekendStartDate: overtimeSelectedWeekend, referente }),
+        body: JSON.stringify({ weekendStartDate: state.overtimeSelectedWeekend, referente }),
       });
       if (!res.ok) throw new Error('Error al guardar');
       const saved: WeekendOvertimeConfig = await res.json();
-      const idx = overtimeConfigs.findIndex(c => c.weekendStartDate === saved.weekendStartDate);
-      if (idx >= 0) overtimeConfigs[idx] = saved;
-      else overtimeConfigs.push(saved);
+      const idx = state.overtimeConfigs.findIndex(c => c.weekendStartDate === saved.weekendStartDate);
+      if (idx >= 0) state.overtimeConfigs[idx] = saved;
+      else state.overtimeConfigs.push(saved);
       showToast('Configuración guardada', 'success');
     } catch {
       showToast('Error al guardar la configuración', 'error');
@@ -375,7 +365,7 @@ export function setupOvertimeEventListeners(): void {
   if (overtimeShiftForm) {
     overtimeShiftForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!overtimeSelectedWeekend) {
+      if (!state.overtimeSelectedWeekend) {
         showToast('Seleccioná un fin de semana primero', 'error');
         return;
       }
@@ -390,10 +380,10 @@ export function setupOvertimeEventListeners(): void {
         return;
       }
 
-      const sundayDateObj = new Date(overtimeSelectedWeekend + 'T12:00:00');
+      const sundayDateObj = new Date(state.overtimeSelectedWeekend + 'T12:00:00');
       sundayDateObj.setDate(sundayDateObj.getDate() + 1);
       const sundayDate = `${sundayDateObj.getFullYear()}-${String(sundayDateObj.getMonth()+1).padStart(2,'0')}-${String(sundayDateObj.getDate()).padStart(2,'0')}`;
-      const shiftDate = dayVal === 'saturday' ? overtimeSelectedWeekend : sundayDate;
+      const shiftDate = dayVal === 'saturday' ? state.overtimeSelectedWeekend : sundayDate;
 
       if (dayVal === 'saturday' && startTime < '13:00') {
         showToast('Los turnos del sábado deben iniciar desde las 13:00 hs', 'error');
@@ -406,7 +396,7 @@ export function setupOvertimeEventListeners(): void {
 
       try {
         const body: Record<string, unknown> = {
-          weekendStartDate: overtimeSelectedWeekend,
+          weekendStartDate: state.overtimeSelectedWeekend,
           agentId: parseInt(agentIdVal, 10),
           date: shiftDate,
           startTime,
@@ -425,7 +415,7 @@ export function setupOvertimeEventListeners(): void {
         overtimeShiftForm.reset();
         (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
         document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
-        await refreshOvertimeForWeekend(overtimeSelectedWeekend);
+        await refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
       } catch {
         showToast('Error al guardar el turno', 'error');
       } finally {

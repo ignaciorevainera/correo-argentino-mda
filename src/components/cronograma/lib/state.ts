@@ -1,4 +1,4 @@
-import type { OperatorData } from './types';
+import type { OperatorData, WeekendOvertimeConfig } from './types';
 import { OperatorStatus } from './types';
 import feriadosJson from './feriados.json';
 
@@ -68,6 +68,10 @@ class CronogramaState {
       }
     >,
   };
+
+  // Overtime state (moved from overtime-view.ts for lazy-loading)
+  overtimeConfigs: WeekendOvertimeConfig[] = [];
+  overtimeSelectedWeekend: string | null = null;
 
   // Rule settings
   get minCoveragePercent(): number {
