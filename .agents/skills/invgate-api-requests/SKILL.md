@@ -1,6 +1,6 @@
 ---
 name: invgate-api-requests
-description: Use when choosing InvGate Service Management API endpoints for GET requests, interpreting 4xx errors (428, 405), or deciding between offset and keyset pagination for querying incidents, users, helpdesks, or categories.
+description: Use when choosing InvGate Service Management API endpoints for GET requests, interpreting 4xx errors (428, 405), or deciding between offset and keyset pagination for querying incidents, users, helpdesks, or categories. Also when `/users` pagination loops infinitely (always returns all users ignoring page/page_size).
 ---
 
 # InvGate API Requests
@@ -59,7 +59,7 @@ digraph invgate_query {
 | Last hour | `incidents.last.hour` | — | `{data[], next_page_key}` |
 | Categories | `categories` | — | Array — offset page |
 | Single user | `user` | `id` | Object |
-| Users list | `users` | — | Array |
+| Users list | `users` | — | Array (full list siempre; `page`/`page_size` ignorados) |
 | Users search | `users.by` | any search field | `{data: {id: object}, next_page_key}` |
 | KB articles | `kb.articles` | — | `{status, data[]}` — offset page |
 | Incident comments | `incident.comment` | `request_id` (not `id`) | Array |
@@ -78,6 +78,8 @@ See `endpoints-reference.md` for full parameter and response details.
 Used by: `categories`, `incidents.by.status`, `incidents.by.view`, `kb.articles`
 
 `page` starts at 1. `page_size` defaults vary (usually 20, max 500). Response includes `limit`, `offset`, `total`.
+
+⚠ `/users` **acepta** `page`/`page_size` pero los **ignora** — siempre devuelve la lista completa de usuarios en un solo array. No intentes paginarlo; procesá la respuesta completa directamente.
 
 ### Keyset-based (`limit` / `page_key` / `next_page_key`)
 Used by: `incidents.by.agent`, `incidents.by.customer`, `incidents.by.helpdesk`, `incidents.last.hour`, `incidents.details.by.view`, `users.by`
@@ -194,5 +196,7 @@ interface InvgateUser {
 | `internalnotes` with `?request_id=` | 428 | Use `?id=X` instead (same pattern as `/incident?id=X`) |
 | Calling `/incident` without `?id=` | Error | `?id` is required |
 | Using `page`/`page_size` on keyset endpoints | May error or be ignored | Use `limit` + `page_key` instead |
+| Using `page`/`page_size` on `/users` | Ignored — returns ALL users every time, causing infinite loop | Single fetch, no pagination loop. Safety limit (max N pages) como defense-in-depth |
+| Loop paginating `/users` expecting `users.length < pageSize` to break | Infinite loop (always gets all 5000+ users ≥ pageSize) | Procesar el array completo en una sola respuesta |
 | `users.by` expecting a flat array | Gets `{data: {}, next_page_key}` — `data` is an object keyed by ID | Access `result.data[id]` not `result[0]` |
 | `incidents.last.hour` expecting flat array | Gets `{data: [], next_page_key}` | Access `result.data` not root |
