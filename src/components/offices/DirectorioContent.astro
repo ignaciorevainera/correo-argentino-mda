@@ -22,6 +22,7 @@ import { provinces, regions, offices } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
+import "leaflet/dist/leaflet.css";
 
 const user = Astro.locals.user;
 const isAllowedAdmin = user
@@ -190,15 +191,7 @@ const mainTabs = [
 ];
 ---
 
-<!-- Hoja de estilos de Leaflet (requerida por la librería) -->
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin=""
-/>
 
-<PageContainer width="xxl">
   <PageHeader
     description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
   />
@@ -567,19 +560,8 @@ const mainTabs = [
   </Modal>
 </PageContainer>
 
-<!-- Removed SSR injected variables for map -->
-
-<script
-  is:inline
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-  crossorigin=""></script>
-
 <script>
   import { highlightSearchTargets } from "@lib/clientSearch";
-  import { feature } from "topojson-client";
-
-  declare const L: any;
 
   let regionsDataCache: any[] = [];
 
@@ -777,6 +759,9 @@ const mainTabs = [
   let map: any = null;
   const initializeMap = async () => {
     if (map) return;
+
+    const L = (await import("leaflet")).default;
+    const { feature } = await import("topojson-client");
 
     const mapLoading = document.getElementById("map-loading");
     if (mapLoading) mapLoading.style.display = "flex";

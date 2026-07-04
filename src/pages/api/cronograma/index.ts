@@ -90,7 +90,14 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     // 5. Cargar todos los agentes
-    const dbAgents = await db.select().from(agents);
+    const dbAgents = await db.select({
+      id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+      horarioDefault: agents.horarioDefault,
+      esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+      esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
+      maxConsecutiveHO: agents.maxConsecutiveHO, minPWeek: agents.minPWeek,
+      saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
+    }).from(agents);
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db
@@ -351,7 +358,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
         if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
-          const agentList = tx.select().from(agents).where(eq(agents.name, agentName)).limit(1).all();
+          const agentList = tx.select({ id: agents.id }).from(agents).where(eq(agents.name, agentName)).limit(1).all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(

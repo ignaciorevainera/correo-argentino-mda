@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       // Validar si ya existe otro agente con el nuevo nombre
       if (name.toLowerCase() !== originalName.toLowerCase()) {
         const check = await db
-          .select()
+          .select({ id: agents.id })
           .from(agents)
           .where(eq(agents.name, name))
           .limit(1);
@@ -79,7 +79,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       const check = await db
-        .select()
+        .select({ id: agents.id })
         .from(agents)
         .where(eq(agents.name, name))
         .limit(1);

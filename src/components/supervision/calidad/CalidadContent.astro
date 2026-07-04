@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import StatsCard from "@components/ui/StatsCard.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchInput from "@components/ui/SearchInput.astro";
@@ -81,7 +82,8 @@ if (!selectorMonthsList.includes(selectedMonth)) {
 }
 
 // Fetch all agents (small table, ~30 rows)
-const allAgents = await db.select().from(agents).orderBy(agents.name);
+const allAgents = await db.select({ id: agents.id, name: agents.name, username: agents.username })
+  .from(agents).orderBy(agents.name);
 
 // Fetch all parameters (small table, ~20 rows)
 const allParameters = await db.select().from(auditParameters);
@@ -529,127 +531,17 @@ const cleanBase = getCleanBase();
             </div>
           </div>
 
-          <!-- Evaluados -->
-          <div
-            class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:group" size={18} /> Evaluados
-            </h3>
-            <div>
-              <div
-                class="text-4xl font-black text-base-content tracking-tight"
-              >
-                {totalOperators}
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Operadores activos
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="group" label="Evaluados" value={totalOperators} subtitle="Operadores activos" />
 
-          <!-- Llamadas Auditadas -->
-          <div
-            class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:phone-ring" size={18} /> Auditorías
-            </h3>
-            <div>
-              <div
-                class="text-4xl font-black text-base-content tracking-tight"
-              >
-                {totalCalls}
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Llamadas aleatorias
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="phone-ring" label="Auditorías" value={totalCalls} subtitle="Llamadas aleatorias" />
 
-          <!-- Excelente -->
-          <div
-            class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:star" size={18} /> Excelencia
-            </h3>
-            <div>
-              <div class="text-4xl font-black text-success tracking-tight">
-                {excellentOperators}
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Operadores &gt; 90%
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="star" label="Excelencia" value={excellentOperators} subtitle="Operadores > 90%" color="success" />
 
-          <!-- Bajo Rendimiento -->
-          <div
-            class="col-span-1 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:alert-circle" size={18} /> Alerta
-            </h3>
-            <div>
-              <div class="text-4xl font-black text-error tracking-tight">
-                {needsImprovement}
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Operadores &lt; 80%
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="alert-circle" label="Alerta" value={needsImprovement} subtitle="Operadores < 80%" color="error" />
 
-          <!-- Promedio Interacción -->
-          <div
-            class="col-span-2 lg:col-span-2 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:discussion" size={18} /> Interacción
-            </h3>
-            <div>
-              <div
-                class="text-4xl font-black text-base-content tracking-tight"
-              >
-                {avgSection1}%
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Trato al usuario y habilidades blandas
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="discussion" label="Interacción" value={`${avgSection1}%`} subtitle="Trato al usuario y habilidades blandas" class="col-span-2" />
 
-          <!-- Promedio Gestión -->
-          <div
-            class="col-span-2 lg:col-span-2 rounded-3xl bg-base-100 border border-base-200 p-6 shadow-md flex flex-col justify-between"
-          >
-            <h3
-              class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-4 flex items-center gap-1.5"
-            >
-              <Icon name="boxicons:task" size={18} /> Gestión
-            </h3>
-            <div>
-              <div
-                class="text-4xl font-black text-base-content tracking-tight"
-              >
-                {avgSection2}%
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1">
-                Eficiencia técnica y resolución de tickets
-              </div>
-            </div>
-          </div>
+          <StatsCard icon="task" label="Gestión" value={`${avgSection2}%`} subtitle="Eficiencia técnica y resolución de tickets" class="col-span-2" />
         </div>
 
         <!-- Empty State CTA -->

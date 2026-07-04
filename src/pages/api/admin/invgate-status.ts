@@ -7,7 +7,16 @@ export const GET: APIRoute = async ({ locals }) => {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
 
+  console.log("[invgate-status] Starting InvGate check...");
+  console.log("[invgate-status] env vars:", {
+    keyDefined: !!import.meta.env.INVGATE_API_KEY,
+    baseUrl: import.meta.env.INVGATE_BASE_URL,
+    username: import.meta.env.INVGATE_API_USERNAME,
+  });
+
   const result = await invgateGet<unknown>("sd.version");
+
+  console.log("[invgate-status] Result:", JSON.stringify(result));
 
   return jsonResponse({
     ok: result.ok,

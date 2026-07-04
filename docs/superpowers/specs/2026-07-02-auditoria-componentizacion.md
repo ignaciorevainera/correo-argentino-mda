@@ -90,40 +90,49 @@ Ya existe `src/components/ui/Modal.astro` pero 11 modales se construyen manualme
 **Rama:** `fix/c31-modal-consolidation`.
 **Esfuerzo real:** ~1.5 h. **Impacto real:** -300+ líneas.
 
-### C2.1 🟡 Patrón StatsCard: 10+ instancias
+### C2.1 ✅ Patrón StatsCard: 6 en CalidadContent — **RESUELTO** (C2.1.b: 4 complejos en AsignacionContent)
 
 Mismo layout de tarjeta de estadísticas (icono + label + número + subtítulo)
 repetido 6 veces en CalidadContent (líneas 534-653) y 4 en AsignacionContent
 (líneas 280-510).
 
-**Fix:** Crear `src/components/ui/StatsCard.astro` con props: `icon`, `label`,
-`value`, `subtitle`, `color`, `size`, `accentIcon`.
-**Esfuerzo:** 30 min. **Impacto:** -200+ líneas.
+**Fix aplicado:** Se creó `src/components/ui/StatsCard.astro` (daisyUI `card`+`stat`).
+6 cards de `CalidadContent.astro` migradas a `<StatsCard>` (7 líneas totales, ~116 eliminadas).
+Los 4 cards complejos de `AsignacionContent.astro` (progress bar, listas, overlays decorativos)
+quedan fuera de este componente y se documentan en ticket **C2.1.b**.
 
-### C2.2 🟡 Patrón FilterButtonBar: 4 instancias
+**Rama:** `fix/c21-stats-card` (-116 líneas netas).
+
+### C2.2 ✅ Patrón FilterButtonBar: 4 instancias — **RESUELTO**
 
 Misma barra de botones de filtro con dots de color copiada 4 veces en
 CronogramaDashboard (daily status, daily location, monthly status, monthly location).
 
-**Fix:** Crear `src/components/ui/FilterButtonBar.astro` con props: `options[]`,
-`prefix`, `allLabel`.
-**Esfuerzo:** 30 min. **Impacto:** -120+ líneas.
+**Fix aplicado:** Se creó `src/components/ui/FilterButtonBar.astro`, se simplificó `filters.ts` (clases daisyUI nativas, sin border/shadow custom). 4 filter bars migradas + JS actualizado a delegación en `[data-filter-value]`.
 
-### C2.3 🟡 Patrón SortDropdown: 4 instancias
+**Rama:** `fix/c22-filter-button-bar` (-268 líneas netas).
+**Esfuerzo real:** ~30 min. **Impacto real:** -268 líneas.
+
+### C2.3 ✅ Patrón SortDropdown: 4 instancias — **RESUELTO**
 
 Mismo dropdown de ordenamiento (A-Z, Z-A, horario, ubicación) copiado 2 veces
 en CronogramaDashboard + input de búsqueda con icono duplicado.
 
-**Fix:** Crear `src/components/ui/SortDropdown.astro`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Se crearon `src/components/ui/SortDropdown.astro` (daisyUI `<details>`+`<menu>`) y `src/components/ui/SearchInput.astro` (daisyUI `<input class="input input-bordered input-sm">`).
+2× SortDropdown + 2× SearchInput en `CronogramaDashboard.astro` reemplazados. JS en `dashboard-client.ts` actualizado a `[data-sort-option]` y `menu-active`.
 
-### C2.4 🟡 Patrón GroupCard: 4 instancias
+**Rama:** `fix/c23-sort-dropdown` (-163 líneas netas).
+**Esfuerzo real:** ~30 min. **Impacto real:** -163 líneas (2 componentes nuevos, 2 archivos migrados).
+
+### C2.4 ✅ Patrón GroupCard: 4 instancias — **RESUELTO**
 
 Cards de grupos A/B/C/D en CronogramaDashboard (líneas 918-1111) con la misma
 estructura repetida 4 veces.
 
-**Fix:** Crear `src/components/cronograma/subcomponents/GroupCard.astro`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Se creó `src/components/cronograma/subcomponents/GroupCard.astro` (daisyUI `card`).
+4 cards migradas (~170 líneas → 4 líneas). IDs preservados, JS no modificado.
+
+**Rama:** `fix/c24-group-card` (-160 líneas netas).
 
 ---
 
@@ -240,10 +249,10 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P0** | C1.1 | ~~🔴 base/cleanBase utility (80+ copias)~~ | ✅ **Resuelto** | ✅ `master` (01a3d91) |
 | **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
-| **P1** | C2.1 | 🟡 StatsCard component (10+ usos) | 30 min | -200+ líneas |
-| **P1** | C2.2 | 🟡 FilterButtonBar (4 instancias) | 30 min | -120+ líneas |
-| **P1** | C2.3 | 🟡 SortDropdown (4 instancias) | 30 min | -80+ líneas |
-| **P1** | C2.4 | 🟡 GroupCard (4 instancias) | 30 min | -100+ líneas |
+| **P1** | C2.1 | ~~🟡 StatsCard component (10+ usos)~~ | ✅ **Resuelto (6/10)** | ✅ rama `fix/c21-stats-card` |
+| **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
+| **P1** | C2.3 | ~~🟡 SortDropdown (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c23-sort-dropdown` |
+| **P1** | C2.4 | ~~🟡 GroupCard (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c24-group-card` |
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |

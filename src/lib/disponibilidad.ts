@@ -48,7 +48,19 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
   const dayName = dayNames[now.getDay()];
 
   // 1. Fetch all agents
-  const dbAgents = await db.select().from(agents);
+  const dbAgents = await db.select({
+    id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+    horarioDefault: agents.horarioDefault,
+    esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+    esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
+    lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt,
+    lastAutogestionAssignedBy: agents.lastAutogestionAssignedBy,
+    lastAutogestionUndo: agents.lastAutogestionUndo,
+    estadoExcepcional: agents.estadoExcepcional,
+    estadoExcepcionalMotivo: agents.estadoExcepcionalMotivo,
+    estadoExcepcionalAt: agents.estadoExcepcionalAt,
+    estadoExcepcionalMinutos: agents.estadoExcepcionalMinutos,
+  }).from(agents);
 
   // 2. Fetch today's persistent schedule overrides
   const dbSchedules = await db
@@ -347,7 +359,7 @@ export async function asignarManual(agentId: number, assignedBy: string = "Siste
     .set({ lastAutogestionUndo: null });
 
   // Get current state to preserve
-  const [ag] = await db.select().from(agents).where(eq(agents.id, agentId));
+  const [ag] = await db.select({ lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt }).from(agents).where(eq(agents.id, agentId));
   const prevValue = ag ? ag.lastAutogestionAssignedAt : null;
 
   // Update lastAutogestionAssignedAt for the manually assigned agent
@@ -404,7 +416,7 @@ export async function limpiarEstadoExcepcional(
 }
 
 export async function deshacerAsignacion(): Promise<{ success: boolean; agentName?: string; error?: string }> {
-  const all = await db.select().from(agents);
+  const all = await db.select({ id: agents.id, name: agents.name, lastAutogestionUndo: agents.lastAutogestionUndo }).from(agents);
   const target = all.find(a => a.lastAutogestionUndo !== null);
   if (!target) {
     return { success: false, error: "No hay ninguna asignación para deshacer." };

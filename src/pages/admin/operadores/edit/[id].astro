@@ -180,7 +180,11 @@ let operator: OperatorRecord | null = null;
 let operatorSchedulesData: Record<string, Record<string, any>> = {};
 
 const agentId = Number(id);
-const [result] = await db.select().from(agents).where(eq(agents.id, agentId));
+const [result] = await db.select({
+  id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+  esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+  esquemaBreakInicio: agents.esquemaBreakInicio,
+}).from(agents).where(eq(agents.id, agentId));
 
 if (!result) return Astro.redirect(resolveUrl("/admin/operadores"));
 

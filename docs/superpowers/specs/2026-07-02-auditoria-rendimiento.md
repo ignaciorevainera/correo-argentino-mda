@@ -55,24 +55,11 @@ exclusión en `global.css`. Verificar que el JIT de Tailwind purga clases no usa
 
 ## P1 — Consultas DB ineficientes
 
-### R2.1 🔴 `SELECT *` en tabla `agents` en 7 archivos
+### R2.1 🔴 `SELECT *` en tabla `agents` en 7 archivos — RESUELTO
 
-La tabla `agents` tiene 28 columnas incluyendo 6 JSON (`esquemaSemanal`,
-`esquemaHorario`, `esquemaBreakInicio`, `esquemaBreakFin`, etc.).
-`db.select().from(agents)` fetcha TODO cada vez.
-
-| Archivo | Línea | Contexto |
-|---------|-------|----------|
-| `src/lib/disponibilidad.ts` | 51 | Polling cada 10s |
-| `src/lib/attendance.ts` | 78 | Attendance data |
-| `src/pages/api/cronograma/index.ts` | 93 | Cronograma API |
-| `src/components/supervision/cronograma/CronogramaContent.astro` | 6 | SSR |
-| `src/components/supervision/calidad/CalidadContent.astro` | 84 | SSR |
-| `src/pages/api/cronograma/months/index.ts` | 25 | Mes creation |
-
-**Fix:** `db.select({ id: agents.id, name: agents.name, ... })` para fetch solo
-columnas necesarias. Priorizar `disponibilidad.ts` (hot path).
-**Esfuerzo:** 30 min.
+`agents` tiene 22 columnas (incluyendo 4 JSON: `esquemaSemanal`, `esquemaHorario`, `esquemaBreakInicio`, `esquemaBreakFin`).
+Se corrigieron los 7 archivos del audit + 11 adicionales encontrados en el escaneo + 2 relaciones Drizzle (`agent: true` → proyección explícita).
+Hot path (`disponibilidad.ts:51`) reducido de 22 a 16 columnas. Homepage (`index.astro:18`) reducido de 22 a 1 (`name`).
 
 ### R2.2 🔴 O(N×M) loops con `.find()` en attendance
 
@@ -120,20 +107,13 @@ se fetchan TODOS los hostnames de `officeAssets` para un Set de deduplicación.
 
 **Fix:** Cache module-level con TTL de 60s. Se agrega `manualHostnamesCache` + timestamp. La query solo se ejecuta cuando el cache expira.
 
-### R2.7 🟡 Doble query para `hasMore` en terminals
+### R2.7 🟡 Doble query para `hasMore` en terminals — RESUELTO
 
-`src/lib/terminalQueries.ts` líneas 253, 295-296: después de fetchear la página,
-segunda query con `limit(1).offset(offset + limit)` para verificar si hay más.
+`src/lib/terminalQueries.ts` líneas 253, 295-296: el código actual ya usa el patrón `limit + 1` con `rows.length > limit`, evitando la segunda query. No requería cambios.
 
-**Fix:** Fetch `limit + 1` filas y cortar, o usar COUNT como `officeQueries.ts`.
-**Esfuerzo:** 10 min.
+### R2.8 🟡 Export endpoints cargan tablas enteras en memoria — RESUELTO
 
-### R2.8 🟡 Export endpoints cargan tablas enteras en memoria
-
-`src/pages/api/export/offices.ts` (50+ columnas) y `src/pages/api/export/terminals.ts`.
-
-**Fix:** Streaming o mínimo seleccionar solo columnas del CSV.
-**Esfuerzo:** 30 min.
+`src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`: migrados a streaming via `streamCsv()` + `streamQuery()`. Las filas se leen una por una con `better-sqlite3`'s `.iterate()` y se escriben en el `Response` como chunks de ~64KB. Las boolean columns usan SQL CASE para compatibilidad con el CSV anterior. `offices` ordenado por `code` (natural sort: letra + número), `terminals` ordenado por `hostname` ASC.
 
 ### R2.9 🟡 Generación de mes: N queries individuales sin transacción
 
@@ -147,32 +127,23 @@ con DELETE + INSERT individual. ~60 queries para ~30 agentes.
 
 ## P2 — Optimización de recursos
 
-### R8.1 🟡 `setInterval` nunca limpiados — memory leaks
+### R8.1 🟡 `setInterval` nunca limpiados — memory leaks — RESUELTO
 
-| Archivo | Línea | Intervalo | Limpieza |
-|---------|-------|-----------|----------|
-| `SyncDashboard.astro` | 359 | cada 30s | ❌ NUNCA |
-| `AsignacionContent.astro` | 904 | cada 1s | ❌ NUNCA |
-| `AsignacionContent.astro` | 1804 | cada 10s | ❌ NUNCA |
+**Fix:** Guardados los IDs de intervalo en el scope correspondiente y se limpian en el evento `astro:before-swap` (tanto en `SyncDashboard.astro` como en `AsignacionContent.astro`) para prevenir leaks al usar transiciones de página.
 
-**Fix:** Guardar IDs y limpiar en `astro:before-swap`.
-**Esfuerzo:** 30 min.
+### R5.2 🟡 0 páginas usan `prerender` — RESUELTO
 
-### R5.2 🟡 0 páginas usan `prerender`
-
-Candidatos:
-- `/login` — form HTML estático (POST handler puede seguir server)
+Prerenderizado activado (`prerender = true`) para páginas puramente estáticas o client-side:
 - `/generador-firmas` — puramente client-side
 - `/titulos` — fetch de Google Sheets client-side
 
-**Fix:** Agregar `export const prerender = true`.
-**Esfuerzo:** 30 min.
+*(Nota: `/login` se mantuvo dinámico por decisión de diseño actual).*
 
 ### R1.4 🟢 Leaflet desde CDN sin tree-shaking — RESUELTO
 
 `src/components/offices/DirectorioContent.astro` línea 575: `unpkg.com/leaflet`.
 
-**Fix:** Instalado `leaflet` como dependencia npm. CSS importado estáticamente en el frontmatter (~13KB). JS cargado con `await import("leaflet")` dentro de `initializeMap()`, solo cuando el usuario cambia a la vista de mapa (~150KB lazy).
+**Fix:** Instalado `leaflet` como dependencia npm. CSS importado estáticamente en el frontmatter (~13KB). JS cargado con `await import("leaflet")` dentro de `initializeMap()`, solo cuando el usuario cambia a la vista de mapa (~150KB lazy). Se eliminaron tags CDN. `@types/leaflet` en devDependencies.
 
 ### R1.5 🟢 `topojson-client` no lazy-loaded — RESUELTO
 
@@ -208,17 +179,17 @@ Candidatos:
 | **P0** | R1.1 | 🔴 Eliminar React (~180KB) | 2-3 h | ~180KB bundle |
 | **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | 1-2 h | ~60-80KB bundle |
 | **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
-| **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | 30 min | CPU + memoria |
+| **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | ✅ Resuelto — 20 queries proyectadas | CPU + memoria |
 | **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
 | **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
 | **P1** | R2.5 | 🟡 Filtrar schedules SSR | 5 min | Data size |
 | **P1** | R2.6 | 🟡 Caché officeAssets | ✅ Resuelto — cache 60s TTL | 1 query/req |
-| **P1** | R2.7 | 🟡 Doble query terminals | 10 min | 2x query cost |
-| **P1** | R2.8 | 🟡 Export endpoints memoria | 30 min | Memory |
+| **P1** | R2.7 | 🟡 Doble query terminals | ✅ Resuelto — ya usaba limit+1 | 2x query cost |
+| **P1** | R2.8 | 🟡 Export endpoints memoria | ✅ Resuelto — streaming vía iterate() | Memory |
 | **P1** | R2.9 | 🟡 Mes sin transacción | 30 min | Atomicity |
-| **P2** | R8.1 | 🟡 setInterval leaks | 30 min | Memory |
-| **P2** | R5.2 | 🟡 prerender candidatos | 30 min | Server load |
+| **P2** | R8.1 | 🟡 setInterval leaks | ✅ Resuelto — Limpieza en before-swap | Memory |
+| **P2** | R5.2 | 🟡 prerender candidatos | ✅ Resuelto — Prerender parcial | Server load |
 | **P2** | R1.4 | 🟢 Leaflet CDN → self-host | ✅ Resuelto — import dinámico | Dependency |
 | **P2** | R1.5 | 🟢 topojson lazy load | ✅ Resuelto — import() dinámico | JS |
 | **P2** | R2.10 | 🟢 Middleware select columns | 15 min | Security+perf |

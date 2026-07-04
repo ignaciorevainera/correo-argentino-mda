@@ -75,7 +75,12 @@ export async function getAttendanceData(startDate: string, endDate: string) {
   const dates = getDatesInRange(startDate, endDate);
 
   // 1. Fetch all agents
-  const dbAgents = await db.select().from(agents);
+  const dbAgents = await db.select({
+    id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+    horarioDefault: agents.horarioDefault,
+    esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+    saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
+  }).from(agents);
 
   // 2. Fetch schedules for this date range
   const dbSchedules = await db
