@@ -31,7 +31,7 @@ esto en todas las demás páginas).
 **Ahorro:** ~180+ KB del bundle de cliente.
 **Esfuerzo:** 2-3 h.
 
-### R1.2 🟡 CronogramaDashboard script: 111.8KB en un solo chunk
+### R1.2 🟡 CronogramaDashboard script: 111.8KB en un solo chunk — RESUELTO
 
 `CronogramaDashboard.astro_astro_type_script_index_0_lang.DTsz_0D7.js` es el
 chunk JS más grande. Contiene monthly view, weekly view, overtime view, pasiva
@@ -41,6 +41,7 @@ view, drawer logic, exporters, notifications — todo en un solo bundle.
 pasiva-view) solo cuando el usuario navega a esas pestañas.
 **Ahorro:** ~60-80KB en carga inicial.
 **Esfuerzo:** 1-2 h.
+**Resolución:** Main chunk 85.9KB (−25.9KB, 23%). 3 chunks lazy-loaded: overtime-view (12.7KB), pasiva-view (7.4KB), exporters (5.5KB). Estado de overtime movido a state.ts. Build OK.
 
 ### R1.3 🟡 BaseLayout CSS: 250.5KB en todas las páginas
 
@@ -180,7 +181,7 @@ Prerenderizado activado (`prerender = true`) para páginas puramente estáticas 
 | Prioridad | ID | Hallazgo | Esfuerzo | Ahorro/Impacto |
 |-----------|-----|----------|----------|----------------|
 | **P0** | R1.1 | 🔴 Eliminar React (~180KB) | 2-3 h | ~180KB bundle |
-| **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | 1-2 h | ~60-80KB bundle |
+| **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | ✅ Resuelto — dynamic import() | 85.9KB (−25.9KB) |
 | **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
 | **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | ✅ Resuelto — 20 queries proyectadas | CPU + memoria |
 | **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
