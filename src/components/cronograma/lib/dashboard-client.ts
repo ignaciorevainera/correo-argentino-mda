@@ -12,7 +12,6 @@ import {
   timeToMinutes
 } from './utils';
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
-import { exportCSV, exportAsImage, exportAsClipboardImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
@@ -1310,7 +1309,7 @@ function setupEventListeners(): void {
   }
 
   // --- Premium Exporters ---
-  function handleExportCSV() {
+  async function handleExportCSV() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     let monthName = 'reporte';
     if (dateInput && dateInput.value) {
@@ -1318,6 +1317,7 @@ function setupEventListeners(): void {
       monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
     }
     const dates = getDatesArrayForCurrentMonth();
+    const { exportCSV } = await import('./exporters');
     exportCSV(state.cronoData, dates, {
       minCoveragePercent: state.minCoveragePercent,
       maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
@@ -1341,6 +1341,7 @@ function setupEventListeners(): void {
     }
 
     try {
+      const { exportAsImage } = await import('./exporters');
       await exportAsImage(
         tableContainer,
         monthName,
@@ -1382,6 +1383,7 @@ function setupEventListeners(): void {
 
       saturdayCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(saturdayCard);
 
       copyBtn.classList.remove('btn-secondary');
@@ -1432,6 +1434,7 @@ function setupEventListeners(): void {
 
       overtimeCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(overtimeCard);
 
       copyBtn.classList.remove('btn-outline');
