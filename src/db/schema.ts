@@ -653,8 +653,9 @@ export const operatorAttendance = sqliteTable("operator_attendance", {
   cumplimientoForzado: integer("cumplimiento_forzado", { mode: "boolean" }).default(false),
   motivoLoguin: text("motivo_loguin"),
   detalle: text("detalle"),
+  shiftType: text("shift_type").notNull().default("normal"),
 }, (table) => ({
-  agentDateIdx: index("operator_attendance_agent_date_idx").on(table.agentId, table.date),
+  agentDateIdx: index("operator_attendance_agent_date_idx").on(table.agentId, table.date, table.shiftType),
   dateIdx: index("operator_attendance_date_idx").on(table.date),
 }));
 

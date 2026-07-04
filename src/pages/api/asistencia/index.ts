@@ -78,6 +78,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       for (const edit of edits) {
         const {
           agentId,
+          shiftType,
           asistencia,
           ausencia,
           entradaReal,
@@ -89,6 +90,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
         const editDate = edit.date || date;
         if (!agentId) continue;
+        const finalShiftType = shiftType || "normal";
 
         const existing = tx
           .select()
@@ -96,7 +98,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .where(
             and(
               eq(operatorAttendance.agentId, agentId),
-              eq(operatorAttendance.date, editDate)
+              eq(operatorAttendance.date, editDate),
+              eq(operatorAttendance.shiftType, finalShiftType)
             )
           )
           .limit(1)
@@ -123,6 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           tx.insert(operatorAttendance).values({
             agentId,
             date: editDate,
+            shiftType: finalShiftType,
             asistencia: asistencia || "",
             ausencia: ausencia || "",
             entradaReal: entradaReal || "",

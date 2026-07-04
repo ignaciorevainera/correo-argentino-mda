@@ -185,6 +185,10 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
                       <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="PRESENCIAL PARQUE PATRICIOS" />
                       <span>PRESENCIAL PARQUE PATRICIOS</span>
                     </label>
+                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
+                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="HORAS EXTRAS" />
+                      <span>HORAS EXTRAS</span>
+                    </label>
                   </div>
                 </details>
               </div>
@@ -386,6 +390,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     "HOME OFFICE",
     "PRESENCIAL MONTE GRANDE",
     "PRESENCIAL PARQUE PATRICIOS",
+    "HORAS EXTRAS",
   ];
 
   const ausenciaOptions = [
@@ -515,9 +520,17 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     });
 
     if (currentSort === "alpha-asc" || currentSort === "alpha") {
-      filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      filtered.sort((a, b) => {
+        const cmp = a.nombre.localeCompare(b.nombre);
+        if (cmp !== 0) return cmp;
+        return a.shiftType === "normal" ? -1 : 1;
+      });
     } else if (currentSort === "alpha-desc") {
-      filtered.sort((a, b) => b.nombre.localeCompare(a.nombre));
+      filtered.sort((a, b) => {
+        const cmp = b.nombre.localeCompare(a.nombre);
+        if (cmp !== 0) return cmp;
+        return a.shiftType === "normal" ? -1 : 1;
+      });
     } else if (currentSort === "sede-mg" || currentSort === "sede") {
       filtered.sort((a, b) => {
         const getSedeWeight = (op: any) => {
@@ -529,7 +542,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         const wA = getSedeWeight(a);
         const wB = getSedeWeight(b);
         if (wA !== wB) return wA - wB;
-        return a.nombre.localeCompare(b.nombre);
+        const cmp = a.nombre.localeCompare(b.nombre);
+        if (cmp !== 0) return cmp;
+        return a.shiftType === "normal" ? -1 : 1;
       });
     } else if (currentSort === "sede-pp") {
       filtered.sort((a, b) => {
@@ -542,7 +557,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         const wA = getSedeWeight(a);
         const wB = getSedeWeight(b);
         if (wA !== wB) return wA - wB;
-        return a.nombre.localeCompare(b.nombre);
+        const cmp = a.nombre.localeCompare(b.nombre);
+        if (cmp !== 0) return cmp;
+        return a.shiftType === "normal" ? -1 : 1;
       });
     } else if (currentSort === "time-asc" || currentSort === "time-desc") {
       filtered.sort((a, b) => {
@@ -558,7 +575,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         if (minA !== minB) {
           return currentSort === "time-asc" ? minA - minB : minB - minA;
         }
-        return a.nombre.localeCompare(b.nombre);
+        const cmp = a.nombre.localeCompare(b.nombre);
+        if (cmp !== 0) return cmp;
+        return a.shiftType === "normal" ? -1 : 1;
       });
     }
 
@@ -634,11 +653,16 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             rowBgClass = "bg-base-200/30 text-base-content/55 opacity-75";
           }
 
+          const isOvertime = op.shiftType === "overtime";
+          const selectAsisOpts = isOvertime ? ["HORAS EXTRAS"] : asistenciaOptions;
+          const asisVal = isOvertime ? "HORAS EXTRAS" : asistencia;
+          const isAsisSelectDisabled = isLocked || isOvertime ? "disabled" : "";
+
           return `
-          <tr class="main-attendance-row transition-colors ${rowBgClass}" data-agent-id="${op.agentId}">
+          <tr class="main-attendance-row transition-colors ${rowBgClass}" data-row-id="${op.rowId}">
             <td class="py-3 px-4 font-medium operator-cell">
               <div class="flex items-center gap-3 select-none">
-                <button type="button" class="btn btn-ghost btn-xs btn-circle toggle-row-btn text-base-content/50 hover:text-base-content" data-agent-id="${op.agentId}">
+                <button type="button" class="btn btn-ghost btn-xs btn-circle toggle-row-btn text-base-content/50 hover:text-base-content" data-row-id="${op.rowId}">
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -678,11 +702,11 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             </td>
 
             <td class="py-3 px-3">
-              <select class="select select-bordered h-9 py-1 rounded-xl w-full max-w-[220px] bg-base-100 font-semibold focus:outline-none focus:border-secondary pr-9 text-small ${getAsistenciaClass(asistencia)}" data-field="asistencia" ${disabledAttr}>
-                ${asistenciaOptions
+              <select class="select select-bordered h-9 py-1 rounded-xl w-full max-w-[220px] bg-base-100 font-semibold focus:outline-none focus:border-secondary pr-9 text-small ${getAsistenciaClass(asisVal)}" data-field="asistencia" ${isAsisSelectDisabled}>
+                ${selectAsisOpts
                   .map(
                     (opt) => `
-                  <option value="${opt}" class="text-base-content bg-base-100 text-small font-normal" ${asistencia === opt ? "selected" : ""}>${opt}</option>
+                  <option value="${opt}" class="text-base-content bg-base-100 text-small font-normal" ${asisVal === opt ? "selected" : ""}>${opt}</option>
                 `,
                   )
                   .join("")}
@@ -721,7 +745,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
             <td class="py-3 px-3 text-center">
               <div class="flex flex-col gap-1 items-center justify-center">
-                <span class="badge badge-sm py-2 px-3 rounded-lg text-tiny whitespace-nowrap ${complianceClasses[cumplimiento] || "badge-ghost"}" id="badge-cump-${op.agentId}">
+                <span class="badge badge-sm py-2 px-3 rounded-lg text-tiny whitespace-nowrap ${complianceClasses[cumplimiento] || "badge-ghost"}" id="badge-cump-${op.rowId}">
                   ${complianceLabels[cumplimiento] || cumplimiento}
                 </span>
                 <select class="select select-bordered h-8 py-0.5 rounded-lg bg-base-100 text-tiny font-bold text-base-content uppercase w-[120px] text-center focus:outline-none focus:border-secondary" data-field="cumplimiento" ${disabledAttr}>
@@ -736,13 +760,14 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             </td>
           </tr>
 
-          <tr class="hidden" id="details-row-${op.agentId}">
+          <tr class="hidden" id="details-row-${op.rowId}">
             <td colspan="6" class="px-6 py-4 border-t border-base-200 border-b-2 border-base-300 ${detailsCellBgClass}">
               <div class="max-w-4xl w-full details-row-animate">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div class="flex flex-col gap-1.5 md:col-span-1">
                     <label class="text-xxs font-bold text-base-content/60 uppercase tracking-wider flex items-center gap-1.5 select-none">
-                      🔑 Motivo Login
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" class="text-base-content/50"><path fill="currentColor" d="M15.7 2h-.18c-2.19 0-4.26 1.21-5.53 3.25c-.81 1.3-1.12 2.62-.93 4.03L2.9 15.37c-.57.56-.89 1.34-.89 2.13V19c0 1.65 1.35 3 3 3H6.6c.8 0 1.55-.31 2.12-.88l.56-.56c.26-.26.46-.58.58-.92c.34-.12.65-.32.92-.58l.5-.5c.26-.26.46-.58.58-.92c.34-.12.65-.32.92-.58l.5-.5c.29-.29.51-.65.62-1.03c.35-.11.66-.31.93-.57c.23.03.45.04.68.04c1.14 0 2.25-.35 3.3-1.03c2.13-1.38 3.32-3.56 3.18-5.85c-.2-3.38-2.9-6.02-6.29-6.12m2.02 10.29c-.8.52-1.54.71-2.22.71c-.49 0-.95-.1-1.39-.24l-.68.76c-.08.09-.19.13-.31.13c-.15 0-.31-.06-.48-.19L12 13v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0l-.65-.65v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0L8 16.98v1.79c0 .13-.05.26-.15.35l-.56.56a1 1 0 0 1-.71.29H4.99c-.55 0-1-.45-1-1v-1.5a1 1 0 0 1 .3-.71l6.95-6.88c-.35-1.06-.43-2.24.43-3.61c.85-1.35 2.25-2.31 3.84-2.31h.12c2.33.07 4.22 1.92 4.35 4.23c.1 1.66-.88 3.15-2.28 4.05Z"/><path fill="currentColor" d="M14 6.69L17.31 10c.92-.92.92-2.4 0-3.31s-2.4-.91-3.31 0"/></svg>
+                      Motivo Login
                     </label>
                     <input 
                       type="text" 
@@ -756,7 +781,8 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
                   <div class="flex flex-col gap-1.5 md:col-span-2">
                     <label class="text-xxs font-bold text-base-content/60 uppercase tracking-wider flex items-center gap-1.5 select-none">
-                      📝 Detalle / Comentario (RRHH o Supervisor)
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" class="text-base-content/50"><path fill="currentColor" d="M7 9h10v2H7zm0 4h7v2H7z"/><path fill="currentColor" d="M12 2C6.49 2 2 6.49 2 12c0 2.12.68 4.19 1.93 5.9l-1.75 2.53c-.21.31-.24.7-.06 1.03c.17.33.51.54.89.54h9c5.51 0 10-4.49 10-10S17.51 2 12 2m0 18H4.91L6 18.43c.26-.37.23-.88-.06-1.22A7.98 7.98 0 0 1 4.01 12c0-4.41 3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8Z"/></svg>
+                      Detalle / Comentario (RRHH o Supervisor)
                     </label>
                     <textarea 
                       class="textarea textarea-bordered rounded-xl w-full h-11 min-h-[44px] max-h-[160px] bg-base-100 py-1.5 px-3 text-xs focus:outline-none focus:border-secondary" 
@@ -774,13 +800,13 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         .join("");
     }
 
-    tableBody?.querySelectorAll("tr[data-agent-id]").forEach((row) => {
+    tableBody?.querySelectorAll("tr[data-row-id]").forEach((row) => {
       const htmlRow = row as HTMLElement;
-      const agentId = parseInt(htmlRow.dataset.agentId || "0");
-      const op = store.getRecord(agentId);
+      const rowId = htmlRow.dataset.rowId || "";
+      const op = store.getRecord(rowId);
       if (!op) return;
 
-      const detailsRow = document.getElementById(`details-row-${agentId}`) as HTMLElement;
+      const detailsRow = document.getElementById(`details-row-${rowId}`) as HTMLElement;
       const toggleRowBtn = htmlRow.querySelector(".toggle-row-btn") as HTMLElement;
 
       const selectAsistencia = htmlRow.querySelector('[data-field="asistencia"]') as HTMLSelectElement;
@@ -821,9 +847,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
       });
 
       const handleEdit = (field: string, value: any) => {
-        const updated = store.updateField(agentId, field as any, value);
+        const updated = store.updateField(rowId, field as any, value);
         if (updated) {
-          dom.updateRow(agentId, updated);
+          dom.updateRow(rowId, updated);
         }
         triggerAutoSave(selectedDate);
       };
@@ -899,8 +925,8 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   tableBody?.querySelectorAll(".toggle-row-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         const target = e.currentTarget as HTMLButtonElement;
-        const agentId = target.dataset.agentId;
-        const detailsRow = document.getElementById(`details-row-${agentId}`);
+        const rowId = target.dataset.rowId;
+        const detailsRow = document.getElementById(`details-row-${rowId}`);
         const icon = target.querySelector("svg");
 
         if (detailsRow) {
@@ -1019,6 +1045,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
     const headers = [
       "Fecha",
+      "Tipo Turno",
       "Operador",
       "Sede",
       "Asistencia Real",
@@ -1036,6 +1063,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     renderedData.forEach((op) => {
       const row = [
         op.date,
+        op.shiftType === "normal" ? "Normal" : "Horas Extras",
         op.nombre,
         op.location,
         op.asistencia,

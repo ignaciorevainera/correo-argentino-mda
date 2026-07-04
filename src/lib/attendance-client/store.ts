@@ -2,6 +2,8 @@ import { calculateCompliance } from "./utils";
 
 export interface AttendanceRecord {
   agentId: number;
+  rowId: string;
+  shiftType: string;
   date: string;
   nombre: string;
   username: string;
@@ -20,19 +22,19 @@ export interface AttendanceRecord {
 
 class AttendanceStore {
   private data: AttendanceRecord[] = [];
-  public dirtyAgents = new Set<number>();
-  private localEdits = new Map<number, Partial<AttendanceRecord>>();
+  public dirtyKeys = new Set<string>();
+  private localEdits = new Map<string, Partial<AttendanceRecord>>();
 
   public init(initialData: AttendanceRecord[]) {
     this.data = JSON.parse(JSON.stringify(initialData));
-    this.dirtyAgents.clear();
+    this.dirtyKeys.clear();
     this.localEdits.clear();
   }
 
   public getData(): AttendanceRecord[] {
     // Return data merged with local edits
     return this.data.map(record => {
-      const edit = this.localEdits.get(record.agentId);
+      const edit = this.localEdits.get(record.rowId);
       if (edit) {
         return { ...record, ...edit } as AttendanceRecord;
       }
@@ -40,24 +42,24 @@ class AttendanceStore {
     });
   }
 
-  public getRecord(agentId: number): AttendanceRecord | undefined {
-    const base = this.data.find(r => r.agentId === agentId);
+  public getRecord(rowId: string): AttendanceRecord | undefined {
+    const base = this.data.find(r => r.rowId === rowId);
     if (!base) return undefined;
-    const edit = this.localEdits.get(agentId);
+    const edit = this.localEdits.get(rowId);
     if (edit) {
       return { ...base, ...edit } as AttendanceRecord;
     }
     return base;
   }
 
-  public updateField(agentId: number, field: keyof AttendanceRecord, value: any) {
-    const record = this.data.find(r => r.agentId === agentId);
+  public updateField(rowId: string, field: keyof AttendanceRecord, value: any) {
+    const record = this.data.find(r => r.rowId === rowId);
     if (!record) return null;
 
-    let edit = this.localEdits.get(agentId);
+    let edit = this.localEdits.get(rowId);
     if (!edit) {
       edit = {};
-      this.localEdits.set(agentId, edit);
+      this.localEdits.set(rowId, edit);
     }
 
     (edit as any)[field] = value;
@@ -102,22 +104,25 @@ class AttendanceStore {
     }
 
     if (hasChanged) {
-      this.dirtyAgents.add(agentId);
+      this.dirtyKeys.add(rowId);
     } else {
-      this.dirtyAgents.delete(agentId);
-      this.localEdits.delete(agentId);
+      this.dirtyKeys.delete(rowId);
+      this.localEdits.delete(rowId);
     }
 
-    return this.getRecord(agentId);
+    return this.getRecord(rowId);
   }
 
   public getDirtyRecords(): Partial<AttendanceRecord>[] {
     const records: Partial<AttendanceRecord>[] = [];
-    this.dirtyAgents.forEach(agentId => {
-      const edit = this.localEdits.get(agentId);
+    this.dirtyKeys.forEach(rowId => {
+      const edit = this.localEdits.get(rowId);
       if (edit) {
+        const record = this.data.find(r => r.rowId === rowId);
         records.push({
-          agentId,
+          agentId: record ? record.agentId : parseInt(rowId.split('_')[0]),
+          shiftType: record ? record.shiftType : rowId.split('_')[1],
+          rowId,
           ...edit
         });
       }
@@ -125,13 +130,13 @@ class AttendanceStore {
     return records;
   }
 
-  public markClean(agentIds: number[]) {
-    agentIds.forEach(id => {
-      this.dirtyAgents.delete(id);
+  public markClean(rowIds: string[]) {
+    rowIds.forEach(id => {
+      this.dirtyKeys.delete(id);
       const edit = this.localEdits.get(id);
       if (edit) {
         // Merge the edits into the canonical data
-        const idx = this.data.findIndex(r => r.agentId === id);
+        const idx = this.data.findIndex(r => r.rowId === id);
         if (idx !== -1) {
           this.data[idx] = { ...this.data[idx], ...edit } as AttendanceRecord;
         }
@@ -143,7 +148,7 @@ class AttendanceStore {
   public updateCanonicalData(newData: AttendanceRecord[]) {
     // Update canonical data while keeping local edits that are still dirty
     this.data = newData.map(newRec => {
-      const existing = this.data.find(r => r.agentId === newRec.agentId);
+      const existing = this.data.find(r => r.rowId === newRec.rowId);
       if (existing) {
         // If there's an active local edit, keep it, but update the underlying canonical record
         return newRec;

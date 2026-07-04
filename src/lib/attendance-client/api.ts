@@ -37,9 +37,9 @@ export function triggerAutoSave(date: string) {
     }
 
     try {
-      const agentIds = edits.map(e => e.agentId as number);
+      const rowIds = edits.map(e => e.rowId as string);
       await saveEdits(date, edits);
-      store.markClean(agentIds);
+      store.markClean(rowIds);
       dom.showSyncStatus("saved");
     } catch (err: any) {
       console.error("Auto-save error:", err);

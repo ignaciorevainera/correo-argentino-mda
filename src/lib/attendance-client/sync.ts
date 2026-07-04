@@ -13,11 +13,11 @@ export function startSync(date: string, intervalMs = 5000) {
       let changed = false;
 
       newData.forEach((newRec: AttendanceRecord) => {
-        const localRec = store.getRecord(newRec.agentId);
+        const localRec = store.getRecord(newRec.rowId);
         if (!localRec) return;
 
         // Skip if there are unsaved local changes or the user is currently editing the row
-        if (store.dirtyAgents.has(newRec.agentId) || dom.isRowBeingEdited(newRec.agentId)) {
+        if (store.dirtyKeys.has(newRec.rowId) || dom.isRowBeingEdited(newRec.rowId)) {
           return;
         }
 
@@ -41,7 +41,7 @@ export function startSync(date: string, intervalMs = 5000) {
         }
 
         if (hasDiff) {
-          dom.updateRow(newRec.agentId, newRec);
+          dom.updateRow(newRec.rowId, newRec);
           changed = true;
         }
       });
