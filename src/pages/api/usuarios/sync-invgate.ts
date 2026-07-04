@@ -18,75 +18,63 @@ export const POST: APIRoute = async ({ locals }) => {
     return jsonResponse({ error: "Prohibido" }, 403);
   }
 
+  const startTime = Date.now();
+
   try {
     // Fase 1: resetear todos los empleados a false
     await db.update(employees).set({ invgateExists: false });
 
-    // Fase 2: paginar sobre todos los usuarios activos de InvGate
-    let page = 1;
+    // Fase 2: obtener todos los usuarios de InvGate (API no soporta paginación real)
+    const result = await invgateGet<any>("users");
+
+    if (!result.ok) {
+      return jsonResponse(
+        { error: `Error InvGate: ${result.message}` },
+        result.status
+      );
+    }
+
+    // Soportar array plano o respuesta envuelta en { data: [...] }
+    const users: InvgateUser[] = Array.isArray(result.data)
+      ? result.data
+      : (result.data && Array.isArray(result.data.data) ? result.data.data : []);
+
+    // Filtrar solo usuarios activos (no deshabilitados, no eliminados)
+    const activeUsers = users.filter(
+      (u) => !u.is_disabled && !u.is_deleted
+    );
+
+    // Extraer usernames y marcar en BD por chunks de CHUNK_SIZE
     let totalSynced = 0;
-    const pageSize = 500;
-
-    while (true) {
-      const result = await invgateGet<any>(
-        `users?page=${page}&page_size=${pageSize}`
-      );
-
-      if (!result.ok) {
-        return jsonResponse(
-          { error: `Error InvGate (página ${page}): ${result.message}` },
-          result.status
-        );
+    const chunk: string[] = [];
+    for (const user of activeUsers) {
+      if (user.username) {
+        const localPart = user.username.split('@')[0];
+        chunk.push(localPart);
       }
-
-      // Soportar array plano o respuesta envuelta en { data: [...] }
-      const users: InvgateUser[] = Array.isArray(result.data)
-        ? result.data
-        : (result.data && Array.isArray(result.data.data) ? result.data.data : []);
-
-      if (users.length === 0) break;
-
-      // Filtrar solo usuarios activos (no deshabilitados, no eliminados)
-      const activeUsers = users.filter(
-        (u) => !u.is_disabled && !u.is_deleted
-      );
-
-      // Extraer usernames y marcar en BD por chunks
-      const chunk: string[] = [];
-      for (const user of activeUsers) {
-        if (user.username) {
-          const localPart = user.username.split('@')[0];
-          chunk.push(localPart);
-        }
-        // Cuando el chunk llega a CHUNK_SIZE, ejecutar update
-        if (chunk.length >= CHUNK_SIZE) {
-          await db
-            .update(employees)
-            .set({ invgateExists: true })
-            .where(inArray(employees.username, chunk));
-          totalSynced += chunk.length;
-          chunk.length = 0;
-        }
-      }
-      // Chunk residual
-      if (chunk.length > 0) {
+      if (chunk.length >= CHUNK_SIZE) {
         await db
           .update(employees)
           .set({ invgateExists: true })
           .where(inArray(employees.username, chunk));
         totalSynced += chunk.length;
+        chunk.length = 0;
       }
-
-      // Verificar si hay más páginas
-      // Si la cantidad de registros devueltos es menor que pageSize, es la última
-      if (users.length < pageSize) break;
-      page++;
     }
+    if (chunk.length > 0) {
+      await db
+        .update(employees)
+        .set({ invgateExists: true })
+        .where(inArray(employees.username, chunk));
+      totalSynced += chunk.length;
+    }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[SyncInvGate] Completo: ${totalSynced} usuarios activos en ${elapsed}ms`);
 
     return jsonResponse({
       ok: true,
       totalSynced,
-      pagesProcessed: page,
     });
   } catch (error: any) {
     console.error("[SyncInvGate] Error:", error);
