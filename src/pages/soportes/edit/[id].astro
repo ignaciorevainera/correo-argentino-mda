@@ -9,11 +9,9 @@ import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 const cleanBase = getCleanBase();
-
-const user = Astro.locals.user;
 
 const { id } = Astro.params;
 
@@ -61,9 +59,9 @@ if (Astro.request.method === "POST") {
         .where(eq(supportGuides.id, numericId));
 
       if (oldName !== helpDeskName) {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó el soporte de "${oldName}" a "${helpDeskName}"`);
+        await logAdminFromAstro(Astro.locals, `Actualizó el soporte de "${oldName}" a "${helpDeskName}"`);
       } else {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó el soporte "${helpDeskName}"`);
+        await logAdminFromAstro(Astro.locals, `Actualizó el soporte "${helpDeskName}"`);
       }
       return redirectWithToast("/soportes", "Soporte actualizado con éxito.");
     }

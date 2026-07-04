@@ -1,0 +1,57 @@
+---
+import { Icon } from "astro-icon/components";
+
+export interface Props {
+  id: string;
+  placeholder?: string;
+  ariaLabel?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  clearable?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  placeholder = "Buscar...",
+  ariaLabel,
+  size = "md",
+  clearable = false,
+  class: wrapperClass = "",
+} = Astro.props;
+
+const sizeClass = size !== "md" ? `input-${size}` : "";
+const iconSize = size === "xs" ? 14 : size === "lg" || size === "xl" ? 20 : 16;
+---
+
+<label
+  class:list={[
+    "input input-bordered flex items-center gap-2 w-full",
+    sizeClass,
+    wrapperClass,
+  ]}
+  for={id}
+>
+  <Icon
+    name="boxicons:search"
+    size={iconSize}
+    class="text-base-content/50 shrink-0"
+  />
+  <input
+    type="search"
+    {id}
+    {placeholder}
+    aria-label={ariaLabel}
+    class="grow"
+    autocomplete="off"
+  />
+  {clearable && (
+    <button
+      type="button"
+      id={`clear-${id}`}
+      class="text-base-content/50 hover:text-base-content transition-colors hidden cursor-pointer text-sm shrink-0"
+      aria-label="Limpiar búsqueda"
+    >
+      &times;
+    </button>
+  )}
+</label>

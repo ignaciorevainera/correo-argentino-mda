@@ -1,18 +1,17 @@
 import { state, safeGetItem, safeSetItem } from './state';
 import { fetchCronogramaData, fetchCronogramaFullData, saveEdits, deleteOperator, deleteMonth } from './api';
 import { getStatusStyles } from './styles';
+import { escapeHtml } from '@lib/sanitize';
 import { 
   getGanttPosition, 
   getDaysInMonth, 
   formatYMD, 
   formatDMY, 
-  escapeHtml, 
   isCurrentlyWorking, 
   debounce, 
   timeToMinutes
 } from './utils';
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
-import { exportCSV, exportAsImage, exportAsClipboardImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
@@ -31,26 +30,6 @@ import {
   setupRotationEventListeners
 } from './rotation-helper';
 
-import {
-  overtimeConfigs,
-  setOvertimeConfigs,
-  overtimeSelectedWeekend,
-  setOvertimeSelectedWeekend,
-  showOvertimeView,
-  renderOvertimeView,
-  refreshOvertimeForWeekend,
-  setupOvertimeEventListeners
-} from './overtime-view';
-
-import {
-  hasPasivaChanges,
-  updatePasivaToolbarUI,
-  savePasivaChanges,
-  discardPasivaChanges,
-  showPasivaView,
-  renderPasivaView,
-  setupPasivaEventListeners
-} from './pasiva-view';
 
 import {
   updateMonthDisplay,
@@ -229,7 +208,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
     const payload = await fetchCronogramaFullData(monthToLoad);
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
     await loadRotationConfig(monthToLoad);
@@ -250,6 +229,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const pasivaView = document.getElementById('pasiva-view');
     const isPasivaVisible = pasivaView && !pasivaView.classList.contains('hidden');
     if (isPasivaVisible) {
+      const { renderPasivaView } = await import('./pasiva-view');
       await renderPasivaView();
     }
 
@@ -257,6 +237,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const overtimeView = document.getElementById('overtime-view');
     const isOvertimeVisible = overtimeView && !overtimeView.classList.contains('hidden');
     if (isOvertimeVisible) {
+      const { renderOvertimeView } = await import('./overtime-view');
       renderOvertimeView();
     }
   } catch (err) {
@@ -273,7 +254,7 @@ async function init(): Promise<void> {
 
     const payload = await fetchCronogramaFullData(initialMonth);
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
     try {
@@ -1328,7 +1309,7 @@ function setupEventListeners(): void {
   }
 
   // --- Premium Exporters ---
-  function handleExportCSV() {
+  async function handleExportCSV() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     let monthName = 'reporte';
     if (dateInput && dateInput.value) {
@@ -1336,6 +1317,7 @@ function setupEventListeners(): void {
       monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
     }
     const dates = getDatesArrayForCurrentMonth();
+    const { exportCSV } = await import('./exporters');
     exportCSV(state.cronoData, dates, {
       minCoveragePercent: state.minCoveragePercent,
       maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
@@ -1359,6 +1341,7 @@ function setupEventListeners(): void {
     }
 
     try {
+      const { exportAsImage } = await import('./exporters');
       await exportAsImage(
         tableContainer,
         monthName,
@@ -1400,6 +1383,7 @@ function setupEventListeners(): void {
 
       saturdayCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(saturdayCard);
 
       copyBtn.classList.remove('btn-secondary');
@@ -1450,6 +1434,7 @@ function setupEventListeners(): void {
 
       overtimeCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(overtimeCard);
 
       copyBtn.classList.remove('btn-outline');
@@ -1858,8 +1843,27 @@ function setupEventListeners(): void {
 
   // Call submodule event listeners setup
   setupRotationEventListeners();
-  setupOvertimeEventListeners();
-  setupPasivaEventListeners();
+  // Lazy-load overtime-view on first tab click
+  let overtimeSetupDone = false;
+  document.getElementById('switch-to-overtime-btn')?.addEventListener('click', async () => {
+    const { showOvertimeView, setupOvertimeEventListeners } = await import('./overtime-view');
+    if (!overtimeSetupDone) {
+      setupOvertimeEventListeners();
+      overtimeSetupDone = true;
+    }
+    showOvertimeView();
+  });
+
+  // Lazy-load pasiva-view on first tab click
+  let pasivaSetupDone = false;
+  document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', async () => {
+    const { showPasivaView, setupPasivaEventListeners } = await import('./pasiva-view');
+    if (!pasivaSetupDone) {
+      setupPasivaEventListeners();
+      pasivaSetupDone = true;
+    }
+    showPasivaView();
+  });
 }
 
 // --- Global Event Listeners ---

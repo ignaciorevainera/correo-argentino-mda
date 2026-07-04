@@ -1,26 +1,49 @@
 ---
+import { Icon } from "astro-icon/components";
+
 interface Props {
+  href?: string;
   label: string;
-  size?: "xs" | "default";
+  size?: "xs" | "sm" | "default";
+  color?: string;
   type?: "button" | "submit";
+  icon?: string;
   class?: string;
   id?: string;
   [key: string]: any;
 }
 
-const { label, size = "default", type = "button", class: className = "", id, ...attrs } = Astro.props;
+const {
+  href,
+  label,
+  size = "default",
+  color = "btn-secondary",
+  type = "submit",
+  icon,
+  class: className = "",
+  id,
+  ...attrs
+} = Astro.props;
 
-const isXs = size === "xs";
-const btnClasses = isXs
-  ? "btn btn-xs btn-soft btn-secondary gap-2"
-  : "btn btn-sm md:btn-md btn-soft btn-secondary gap-2";
+const sizeClasses = {
+  xs: "btn-xs",
+  sm: "btn-sm",
+  default: "btn-sm md:btn-md",
+};
+const sizeClass = sizeClasses[size] || sizeClasses.default;
+const btnClasses = `btn ${sizeClass} ${color} gap-2`;
 ---
 
-<button
-  type={type}
-  id={id}
-  class:list={[btnClasses, className]}
-  {...attrs}
->
-  {label}
-</button>
+{
+  href ? (
+    <a id={id} href={href} class:list={[btnClasses, className]} {...attrs}>
+      {icon && <Icon name={icon} size={16} />}
+      {label}
+    </a>
+  ) : (
+    <button type={type} id={id} class:list={[btnClasses, className]} {...attrs}>
+      {icon && <Icon name={icon} size={16} />}
+      {label}
+    </button>
+  )
+}

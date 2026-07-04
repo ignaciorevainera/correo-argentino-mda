@@ -3,7 +3,7 @@ import { db } from "@db/index";
 import { technologyReferents, regions } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { isAllowed } from "@lib/rolesMatrix";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 
 const handler: APIRoute = async ({ request, locals }) => {
@@ -66,8 +66,7 @@ const handler: APIRoute = async ({ request, locals }) => {
       }
     });
 
-    await logAdminAction(
-      user.username || "Sistema",
+    await logAdminFromAstro(locals,
       `Actualizó los referentes tecnológicos de la región ${regionId}`
     );
 

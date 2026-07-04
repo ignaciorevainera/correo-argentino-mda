@@ -10,9 +10,9 @@
 
 | Prioridad | Cantidad |
 |-----------|----------|
-| 🔴 P0 — DRY utilities | 1 pendiente (C1.2) |
+| 🔴 P0 — DRY utilities | 0 |
 | 🔴 P1 — Componentes UI reutilizables | 5 |
-| 🟡 P2 — Consolidación patrones admin | 7 |
+| 🟡 P2 — Consolidación patrones admin | 5 |
 | 🟢 P3 — Scripts inline a módulos | 2 |
 
 ---
@@ -50,18 +50,24 @@ bug latente de naming invertido en `EstadisticasContent.astro`, y actualizado
 **Esfuerzo real:** ~2 h. **Impacto real:** -200+ líneas, eliminación de ~82 duplicados.
 **Branch de trabajo:** `fix/c11-base-cleanbase-clean` (eliminado post-merge).
 
-### C1.2 🟡 `escapeHtml()` definida 5 veces independientemente
+### C1.2 ✅ `escapeHtml()` definida 5 veces independientemente — **RESUELTO**
 
 | Archivo | Línea | Contexto |
 |---------|-------|----------|
-| `src/lib/clientSearch.ts` | 34 | Módulo TS |
-| `src/components/cronograma/lib/utils.ts` | 38 | Módulo TS |
-| `CalidadContent.astro` | 1394 | inline `<script>` |
-| `AsignacionContent.astro` | 794 | inline `<script>` |
-| `ContactosContent.astro` | 425 | inline `<script>` |
+| ~~`src/lib/clientSearch.ts`~~ | ~~34~~ | ~~Módulo TS~~ |
+| ~~`src/components/cronograma/lib/utils.ts`~~ | ~~38~~ | ~~Módulo TS~~ |
+| ~~`CalidadContent.astro`~~ | ~~1394~~ | ~~inline `<script>`~~ |
+| ~~`AsignacionContent.astro`~~ | ~~794~~ | ~~inline `<script>`~~ |
+| ~~`ContactosContent.astro`~~ | ~~425~~ | ~~inline `<script>`~~ |
 
-**Fix:** Consolidar en `src/lib/sanitize.ts` con exportación para SSR y cliente.
-**Esfuerzo:** 15 min.
+**Fix aplicado:** Se creó `src/lib/sanitize.ts` con `escapeHtml()` y `escapeRegExp()`. Se
+eliminó la duplicación en `clientSearch.ts`, `cronograma/lib/utils.ts` y los 3 scripts
+inline de `.astro`. Los consumidores de cronograma ahora importan directamente desde
+`@lib/sanitize`. Además se consolidó `escapeRegExp` (definido en `clientSearch.ts` y en
+`ContactosContent.astro`) en el mismo módulo.
+
+**Commit:** `632cf5b` en `master`.
+**Esfuerzo real:** ~15 min. **Impacto real:** 12 archivos, +27/-52 líneas, 5 defs `escapeHtml` → 1, 2 defs `escapeRegExp` → 1.
 
 ---
 
@@ -178,12 +184,14 @@ Se excluyó `login/index.astro` (3 redirects de validación de formulario).
 **Rama:** `fix/c34-redirect-with-toast` (-41 líneas netas).
 **Esfuerzo real:** ~40 min. **Impacto real:** -41 líneas netas (2 helpers nuevos, 21 archivos simplificados).
 
-### C3.5 🟡 `logAdminAction` wrapper en 14 archivos
+### C3.5 ✅ `logAdminAction` wrapper en 14 archivos — **RESUELTO**
 
-`await logAdminAction(Astro.locals.user?.username || 'Sistema', msg)`.
+`await logAdminAction(Astro.locals.user?.username || 'Sistema', msg)` duplicado ~30 veces en 26 archivos.
 
-**Fix:** `logAdminFromAstro(locals, message)`.
-**Esfuerzo:** 15 min.
+**Fix aplicado:** Se creó `logAdminFromAstro(locals, message)` en `src/lib/auditLogger.ts`. Se migraron 26 archivos (Astro pages, API routes, actions, lib helpers) al nuevo wrapper. Se eliminaron 6 líneas `const user = Astro.locals.user` que solo se usaban para loggeo. Se eliminaron ~10 casts `(as any)`. Se eliminó el import muerto de `logAdminAction` en `AdminAplicativosContent.astro`.
+
+**Commit:** `040409a` en `master`.
+**Impacto real:** 32 archivos, +88/-121 líneas.
 
 ### C3.6 ✅ `animate-fade-in` CSS en 3 archivos scoped — **RESUELTO**
 
@@ -194,13 +202,17 @@ Mismo `@keyframes fadeIn` en `CalidadContent.astro`, `DirectorioContent.astro`,
 Eliminadas las 3 definiciones scoped (~30 líneas borradas).
 **Esfuerzo real:** 5 min.
 
-### C3.7 🟢 `formatMonthLabel()` duplicado
+### C3.7 ✅ `formatMonthLabel()` duplicado — **RESUELTO**
 
 Misma función de nombres de meses en SSR (línea 66) y client script (línea 1401)
 de CalidadContent.
 
-**Fix:** `src/lib/monthUtils.ts`.
-**Esfuerzo:** 5 min.
+**Fix aplicado:** Se creó `src/lib/monthUtils.ts` con `MONTH_LABELS` + `formatMonthLabel()`.
+Se eliminaron ambas definiciones inline en `CalidadContent.astro` (frontmatter y client script).
+Ahora SSR y cliente importan desde el mismo módulo.
+
+**Commit:** `f20c1cc` en `master`.
+**Impacto real:** 2 archivos, +21/-40 líneas.
 
 ---
 
@@ -247,7 +259,7 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | Prioridad | ID | Hallazgo | Esfuerzo | Impacto |
 |-----------|-----|----------|----------|---------|
 | **P0** | C1.1 | ~~🔴 base/cleanBase utility (80+ copias)~~ | ✅ **Resuelto** | ✅ `master` (01a3d91) |
-| **P0** | C1.2 | 🟡 escapeHtml consolidado (5 defs) | 15 min | DRY |
+| **P0** | C1.2 | ~~🟡 escapeHtml consolidado (5 defs)~~ | ✅ **Resuelto** | ✅ `master` (632cf5b) |
 | **P1** | C3.1 | ~~🔴 11 diálogos raw → Modal.astro~~ | ✅ **Resuelto** | ✅ rama `fix/c31-modal-consolidation` |
 | **P1** | C2.1 | ~~🟡 StatsCard component (10+ usos)~~ | ✅ **Resuelto (6/10)** | ✅ rama `fix/c21-stats-card` |
 | **P1** | C2.2 | ~~🟡 FilterButtonBar (4 instancias)~~ | ✅ **Resuelto** | ✅ rama `fix/c22-filter-button-bar` |
@@ -256,9 +268,9 @@ Normalizado el import path de `notifications.ts` a `@lib/toastClient`.
 | **P2** | C3.2 | 🟡 Admin CRUD consolidation (3 files) | 3-4 h | -1000+ líneas |
 | **P2** | C3.3 | ~~🟡 deleteHandler factory (10 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c33-delete-handler-factory` |
 | **P2** | C3.4 | ~~🟡 redirectWithToast helper (22 files)~~ | ✅ **Resuelto** | ✅ rama `fix/c34-redirect-with-toast` |
-| **P2** | C3.5 | 🟡 logAdminFromAstro wrapper (14 files) | 15 min | DRY |
+| **P2** | C3.5 | ~~🟡 logAdminFromAstro wrapper (14 files)~~ | ✅ **Resuelto** | ✅ `master` (040409a) |
 | **P2** | C3.6 | ~~🟢 animate-fade-in global~~ | ✅ **Resuelto** | ✅ `master` (this commit) |
-| **P2** | C3.7 | 🟢 formatMonthLabel consolidado | 5 min | DRY |
+| **P2** | C3.7 | ~~🟢 formatMonthLabel consolidado~~ | ✅ **Resuelto** | ✅ `master` (f20c1cc) |
 | **P3** | C4.1 | 🟡 Scripts inline → .ts (10 archivos) | 4-6 h | Separación concerns |
 | **P3** | C3.8 | ~~🟢 showToast pattern estandarizado~~ | ✅ **Resuelto** | ✅ rama `fix/c38-showToast-consistency` |
 

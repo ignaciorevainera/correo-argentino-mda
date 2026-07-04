@@ -35,16 +35,6 @@ export function formatDetailDate(dateStr: string): string {
   }).format(new Date(dateStr + 'T12:00:00'));
 }
 
-export function escapeHtml(value: string | undefined | null): string {
-  if (!value) return '';
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 export function isCurrentlyWorking(
   horario: string,
   breakInicio?: string,

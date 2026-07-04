@@ -1,6 +1,7 @@
 ---
 import { getCleanBase } from "@lib/baseUrl";
 import { Icon } from "astro-icon/components";
+import SearchBar from "@components/ui/SearchBar.astro";
 import { getAttendanceData } from "@lib/attendance";
 
 const cleanBase = getCleanBase();
@@ -59,24 +60,11 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
     <!-- Search, Sort and Export Actions -->
     <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-      <!-- Search input -->
-      <div class="relative w-full sm:w-48">
-        <Icon
-          name="boxicons:search"
-          size={18}
-          class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30"
-        />
-        <input
-          type="text"
-          id="operator-search"
-          placeholder="Buscar operador..."
-          class="w-full bg-base-100 border border-base-300 rounded-xl py-2 pl-10 pr-4 text-xs focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all outline-none h-10"
-        />
-      </div>
+      <SearchBar id="operator-search" placeholder="Buscar operador..." class="w-full sm:w-48" />
 
       <!-- Sort Dropdown -->
-      <div class="dropdown dropdown-bottom dropdown-end w-full sm:w-auto">
-        <div tabindex="0" role="button" class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-4 flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto font-bold h-10 bg-base-100 shadow-sm">
+      <details class="dropdown dropdown-bottom dropdown-end w-full sm:w-auto">
+        <summary class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-4 flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto font-bold h-10 bg-base-100 shadow-sm list-none">
           <div class="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="20" x2="12" y2="10"></line>
@@ -86,8 +74,8 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             <span id="current-sort-label">Ordenar: Alfabético (A-Z)</span>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 gap-1 text-xs font-semibold normal-case tracking-normal mt-1" id="sort-menu">
+        </summary>
+        <ul class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 gap-1 text-xs font-semibold normal-case tracking-normal mt-1" id="sort-menu">
           <li><button type="button" data-sort="alpha-asc" class="active">Alfabético (A-Z)</button></li>
           <li><button type="button" data-sort="alpha-desc">Alfabético (Z-A)</button></li>
           <li class="pointer-events-none p-0"><div class="divider my-0 h-1"></div></li>
@@ -97,7 +85,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
           <li><button type="button" data-sort="time-asc">Horario (Más temprano primero)</button></li>
           <li><button type="button" data-sort="time-desc">Horario (Más tarde primero)</button></li>
         </ul>
-      </div>
+      </details>
 
       <!-- Estadísticas -->
       <a
@@ -1112,4 +1100,20 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     updateSortUI();
     fetchAttendance(selectedDate);
   }
+  // Close details dropdowns when clicking outside
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest("details.dropdown")) {
+      document.querySelectorAll("details.dropdown[open]").forEach((dropdown) => {
+        dropdown.removeAttribute("open");
+      });
+    } else {
+      const currentDropdown = target.closest("details.dropdown");
+      document.querySelectorAll("details.dropdown[open]").forEach((dropdown) => {
+        if (dropdown !== currentDropdown) {
+          dropdown.removeAttribute("open");
+        }
+      });
+    }
+  });
 </script>

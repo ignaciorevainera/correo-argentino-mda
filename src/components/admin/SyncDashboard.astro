@@ -366,11 +366,18 @@ import { Icon } from "astro-icon/components";
     }
   }
 
-  document.addEventListener("astro:page-load", () => {
+  function initDashboard() {
     updateDashboard();
     initInvgate();
     startSync();
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboard);
+  } else {
+    initDashboard();
+  }
+  document.addEventListener("astro:page-load", initDashboard);
 
   document.addEventListener("astro:before-swap", () => {
     stopSync();

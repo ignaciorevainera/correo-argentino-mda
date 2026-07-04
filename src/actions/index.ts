@@ -5,7 +5,7 @@ import { db } from "@db/index";
 import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries, feedback } from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { calculateAuditScores } from "@lib/qualityCalculator";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 
 export const server = {
   saveParameters: defineAction({
@@ -138,8 +138,7 @@ export const server = {
           }
         });
         
-        await logAdminAction(
-          (context.locals as any).user?.username || 'Sistema',
+        await logAdminFromAstro(context.locals,
           `Actualizó la configuración de parámetros de calidad`
         );
 
@@ -254,8 +253,7 @@ export const server = {
               ).run();
             }
           });
-          await logAdminAction(
-            (context.locals as any).user?.username || 'Sistema',
+          await logAdminFromAstro(context.locals,
             `Actualizó auditoría de calidad para "${agentName}" (call ${input.callId})`
           );
           return { success: true, id: input.id };
@@ -276,8 +274,7 @@ export const server = {
               ).run();
             }
           });
-          await logAdminAction(
-            (context.locals as any).user?.username || 'Sistema',
+          await logAdminFromAstro(context.locals,
             `Guardó auditoría de calidad para "${agentName}" (call ${input.callId})`
           );
           return { success: true, id: insertedId! };
@@ -321,8 +318,7 @@ export const server = {
 
         await db.delete(qualityAudits).where(eq(qualityAudits.id, input.id));
 
-        await logAdminAction(
-          (context.locals as any).user?.username || 'Sistema',
+        await logAdminFromAstro(context.locals,
           `Eliminó auditoría de calidad de "${agentName}" (call ${auditToDelete?.callId || input.id})`
         );
 
@@ -369,8 +365,7 @@ export const server = {
             set: { summary: input.summary }
           });
 
-        await logAdminAction(
-          (context.locals as any).user?.username || 'Sistema',
+        await logAdminFromAstro(context.locals,
           `Guardó observaciones de calidad de "${agentName}" (${input.month})`
         );
 
@@ -442,8 +437,7 @@ export const server = {
           .where(eq(feedback.id, input.feedbackId))
           .run();
 
-        await logAdminAction(
-          user.username,
+        await logAdminFromAstro(context.locals,
           `Actualizó el estado del reporte/sugerencia #${input.feedbackId} a "${input.newStatus}"`
         );
 
@@ -480,7 +474,7 @@ export const server = {
           ? `Se asignó el reporte/sugerencia #${input.feedbackId} a sí mismo`
           : `Liberó la asignación del reporte/sugerencia #${input.feedbackId}`;
 
-        await logAdminAction(user.username, logMessage);
+        await logAdminFromAstro(context.locals, logMessage);
 
         return { success: true };
       } catch (error: any) {

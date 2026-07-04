@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { eq } from "drizzle-orm";
 import { getBaseNoSlash } from "@lib/baseUrl";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 
 export interface DeleteCategoryConfig {
   categoryTable: any;
@@ -81,8 +81,7 @@ export function createCategoryDeleteHandler(config: DeleteCategoryConfig): APIRo
       await db
         .delete(config.categoryTable)
         .where(eq(config.categoryIdColumn, categoryId));
-      await logAdminAction(
-        (locals as any).user?.username || "Sistema",
+      await logAdminFromAstro(locals,
         `Eliminó ${config.entityName} "${categoryTitle}"`
       );
 

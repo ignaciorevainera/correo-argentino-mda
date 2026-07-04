@@ -4,16 +4,17 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import SearchInput from "@components/ui/SearchInput.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
 import DeleteCategoryModal from "@components/ui/DeleteCategoryModal.astro";
 import { resolveUrl } from "@lib/url";
+import AddCategoryButton from "@components/ui/AddCategoryButton.astro";
+import AddEntityButton from "@components/ui/AddEntityButton.astro";
 
 const cleanBase = getCleanBase();
 
@@ -115,18 +116,12 @@ const truncatePath = (filePath: string | null) => {
       description="Gestión de los aplicativos disponibles para descarga y distribución interna."
     />
     <div class="flex gap-2 shrink-0">
-      <a href={resolveUrl("/admin/aplicativos/categorias/create")} class="btn btn-outline btn-sm gap-2">
-        <Icon name="boxicons:folder-plus" size={16} />
-        Nueva categoría
-      </a>
-      <a
+      <AddCategoryButton href={resolveUrl("/admin/aplicativos/categorias/create")} />
+      <AddEntityButton
         id="btn-add-app"
         href={resolveUrl("/admin/aplicativos/create")}
-        class="btn btn-primary btn-sm gap-2"
-      >
-        <Icon name="boxicons:plus" size={16} />
-        Nuevo aplicativo
-      </a>
+        label="Nuevo aplicativo"
+      />
     </div>
   </div>
 
@@ -272,7 +267,7 @@ const truncatePath = (filePath: string | null) => {
             </div>
           </div>
           <div class="w-full sm:max-w-xs shrink-0">
-            <SearchInput
+            <SearchBar
               id="aplicativos-search"
               label="Buscar aplicativo"
               placeholder="Buscar por nombre o archivo..."

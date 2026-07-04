@@ -31,7 +31,7 @@ esto en todas las demás páginas).
 **Ahorro:** ~180+ KB del bundle de cliente.
 **Esfuerzo:** 2-3 h.
 
-### R1.2 🟡 CronogramaDashboard script: 111.8KB en un solo chunk
+### R1.2 🟡 CronogramaDashboard script: 111.8KB en un solo chunk — RESUELTO
 
 `CronogramaDashboard.astro_astro_type_script_index_0_lang.DTsz_0D7.js` es el
 chunk JS más grande. Contiene monthly view, weekly view, overtime view, pasiva
@@ -41,6 +41,7 @@ view, drawer logic, exporters, notifications — todo en un solo bundle.
 pasiva-view) solo cuando el usuario navega a esas pestañas.
 **Ahorro:** ~60-80KB en carga inicial.
 **Esfuerzo:** 1-2 h.
+**Resolución:** Main chunk 85.9KB (−25.9KB, 23%). 3 chunks lazy-loaded: overtime-view (12.7KB), pasiva-view (7.4KB), exporters (5.5KB). Estado de overtime movido a state.ts. Build OK.
 
 ### R1.3 🟡 BaseLayout CSS: 250.5KB en todas las páginas
 
@@ -92,13 +93,14 @@ de hoy.
 **Fix:** Caché en memoria con TTL de 5-10 segundos (variable de módulo con timestamp).
 **Esfuerzo:** 15 min.
 
-### R2.5 🟡 CronogramaContent carga TODOS los schedules sin filtro
+### R2.5 🟡 CronogramaContent carga TODOS los schedules sin filtro — RESUELTO
 
 `src/components/supervision/cronograma/CronogramaContent.astro` línea 23:
 `db.select().from(schedules)` — fetcha TODOS los registros históricos.
 
 **Fix:** `.where(like(schedules.date, \`${currentMonth}-%\`))`.
 **Esfuerzo:** 5 min.
+**Resolución:** Agregado filtro por mes actual + import de `like`. Build OK.
 
 ### R2.6 🟡 `getOffices()` fetcha TODOS los officeAssets por request — RESUELTO
 
@@ -115,13 +117,14 @@ se fetchan TODOS los hostnames de `officeAssets` para un Set de deduplicación.
 
 `src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`: migrados a streaming via `streamCsv()` + `streamQuery()`. Las filas se leen una por una con `better-sqlite3`'s `.iterate()` y se escriben en el `Response` como chunks de ~64KB. Las boolean columns usan SQL CASE para compatibilidad con el CSV anterior. `offices` ordenado por `code` (natural sort: letra + número), `terminals` ordenado por `hostname` ASC.
 
-### R2.9 🟡 Generación de mes: N queries individuales sin transacción
+### R2.9 🟡 Generación de mes: N queries individuales sin transacción — RESUELTO
 
 `src/pages/api/cronograma/months/index.ts` líneas 25-66: loop por cada agente
 con DELETE + INSERT individual. ~60 queries para ~30 agentes.
 
 **Fix:** Wrap en `db.transaction()`. Batch deletes con `inArray()`.
 **Esfuerzo:** 30 min.
+**Resolución:** Transacción + batch delete con `inArray` + batch inserts chunked (100 filas/chunk). Build OK.
 
 ---
 
@@ -151,12 +154,13 @@ Prerenderizado activado (`prerender = true`) para páginas puramente estáticas 
 
 **Fix:** Se movió a `await import("topojson-client")` dentro de `initializeMap()`, solo se carga cuando el usuario cambia a la vista de mapa.
 
-### R2.10 🟢 Middleware fetcha password hash en cada request
+### R2.10 🟢 Middleware fetcha password hash en cada request — RESUELTO
 
 `src/middleware.ts` líneas 43-53: `select()` de users trae TODAS las columnas.
 
 **Fix:** `db.select({ id: users.id, username: users.username, role: users.role })`.
 **Esfuerzo:** 15 min.
+**Resolución:** Proyectadas ambas queries (sessions + users). Solo columnas necesarias.
 
 ### R6.3 🟢 `theme-change` — VERIFICADO: en uso
 
@@ -177,22 +181,22 @@ Prerenderizado activado (`prerender = true`) para páginas puramente estáticas 
 | Prioridad | ID | Hallazgo | Esfuerzo | Ahorro/Impacto |
 |-----------|-----|----------|----------|----------------|
 | **P0** | R1.1 | 🔴 Eliminar React (~180KB) | 2-3 h | ~180KB bundle |
-| **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | 1-2 h | ~60-80KB bundle |
+| **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | ✅ Resuelto — dynamic import() | 85.9KB (−25.9KB) |
 | **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
 | **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | ✅ Resuelto — 20 queries proyectadas | CPU + memoria |
 | **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
 | **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
 | **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
-| **P1** | R2.5 | 🟡 Filtrar schedules SSR | 5 min | Data size |
+| **P1** | R2.5 | 🟡 Filtrar schedules SSR | ✅ Resuelto — filtro por mes actual | Data size |
 | **P1** | R2.6 | 🟡 Caché officeAssets | ✅ Resuelto — cache 60s TTL | 1 query/req |
 | **P1** | R2.7 | 🟡 Doble query terminals | ✅ Resuelto — ya usaba limit+1 | 2x query cost |
 | **P1** | R2.8 | 🟡 Export endpoints memoria | ✅ Resuelto — streaming vía iterate() | Memory |
-| **P1** | R2.9 | 🟡 Mes sin transacción | 30 min | Atomicity |
+| **P1** | R2.9 | 🟡 Mes sin transacción | ✅ Resuelto — transacción + batch delete/insert | Atomicity |
 | **P2** | R8.1 | 🟡 setInterval leaks | ✅ Resuelto — Limpieza en before-swap | Memory |
 | **P2** | R5.2 | 🟡 prerender candidatos | ✅ Resuelto — Prerender parcial | Server load |
 | **P2** | R1.4 | 🟢 Leaflet CDN → self-host | ✅ Resuelto — import dinámico | Dependency |
 | **P2** | R1.5 | 🟢 topojson lazy load | ✅ Resuelto — import() dinámico | JS |
-| **P2** | R2.10 | 🟢 Middleware select columns | 15 min | Security+perf |
+| **P2** | R2.10 | 🟢 Middleware select columns | ✅ Resuelto — proyección ambas queries | Security+perf |
 | **P2** | R6.3 | 🟢 theme-change sin uso | ✅ Resuelto — en uso | Dependency |
 | **P2** | R6.4 | 🟢 @astrojs/check duplicado | ✅ Resuelto — movido a devDeps | Dependency |
 

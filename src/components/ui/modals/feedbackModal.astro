@@ -4,11 +4,13 @@ import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import Modal from "@components/ui/Modal.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 
 const user = Astro.locals.user || { username: "Invitado" };
 ---
 
-<Modal id="feedback_modal" class="max-w-lg rounded-2xl">
+<Modal id="feedback_modal">
   <Fragment slot="content">
     {/* Botón de cerrar (X) en la esquina superior derecha */}
     <button
@@ -20,13 +22,17 @@ const user = Astro.locals.user || { username: "Invitado" };
       <Icon name="boxicons:x" size={20} />
     </button>
 
-    <h3 class="text-lg font-bold text-base-content mb-4 flex items-center gap-2">
+    <h3
+      class="text-lg font-bold text-base-content mb-4 flex items-center gap-2"
+    >
       <Icon name="boxicons:mail-open" size={24} class="text-primary" />
       <span>Enviar Comentarios o Reportes</span>
     </h3>
 
     {/* Pestañas de Navegación del Modal */}
-    <div class="tabs tabs-boxed grid grid-cols-2 bg-base-200 mb-6 rounded-md p-1">
+    <div
+      class="tabs tabs-boxed grid grid-cols-2 bg-base-200 mb-6 rounded-md p-1"
+    >
       <button
         type="button"
         id="tab-sugerencia"
@@ -82,7 +88,7 @@ const user = Astro.locals.user || { username: "Invitado" };
         name="sug-mensaje"
         label="Tu Propuesta"
         placeholder="Describe detalladamente tu propuesta o idea..."
-        rows={6}
+        rows={4}
         required
       />
     </form>
@@ -90,7 +96,10 @@ const user = Astro.locals.user || { username: "Invitado" };
     {/* Formulario de Reportar Bug */}
     <form id="bug-form" class="space-y-4 hidden">
       <div class="form-control w-full">
-        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Asunto</label>
+        <label
+          class="label py-1 text-xxs font-semibold uppercase text-base-content/60"
+          >Asunto</label
+        >
         <input
           type="text"
           id="bug-asunto"
@@ -101,8 +110,15 @@ const user = Astro.locals.user || { username: "Invitado" };
       </div>
 
       <div class="form-control w-full">
-        <label class="label py-1 text-xxs font-semibold uppercase text-base-content/60">Área o Categoría</label>
-        <select id="bug-categoria" class="select select-bordered w-full rounded-md text-sm" required>
+        <label
+          class="label py-1 text-xxs font-semibold uppercase text-base-content/60"
+          >Área o Categoría</label
+        >
+        <select
+          id="bug-categoria"
+          class="select select-bordered w-full rounded-md text-sm"
+          required
+        >
           <option value="" disabled selected>Selecciona una opción</option>
           <option value="cronograma">Cronograma</option>
           <option value="asistencia">Asistencia</option>
@@ -127,7 +143,9 @@ const user = Astro.locals.user || { username: "Invitado" };
       >
         <option value="" disabled selected>Selecciona una opción</option>
         <option value="leve">Leve (Visual / Estético)</option>
-        <option value="moderado">Moderado (Funcionalidad con alternativa)</option>
+        <option value="moderado"
+          >Moderado (Funcionalidad con alternativa)</option
+        >
         <option value="critico">Crítico (Fallo bloqueante)</option>
       </SelectField>
 
@@ -136,7 +154,7 @@ const user = Astro.locals.user || { username: "Invitado" };
         name="bug-descripcion"
         label="Descripción del Fallo"
         placeholder="Describe detalladamente qué ocurrió..."
-        rows={4}
+        rows={3}
         required
       />
 
@@ -145,7 +163,7 @@ const user = Astro.locals.user || { username: "Invitado" };
         name="bug-pasos"
         label="Pasos para Reproducir"
         placeholder="1. Ingresar a /mapa-sucursales&#10;2. Cambiar a vista móvil&#10;3. Observar que..."
-        rows={6}
+        rows={4}
         required
       />
     </form>
@@ -153,18 +171,33 @@ const user = Astro.locals.user || { username: "Invitado" };
   <Fragment slot="actions">
     <div class="modal-action flex items-center justify-between mt-6">
       <div class="text-xxs text-base-content/50">
-        Enviando como: <span class="font-semibold text-base-content">{user.username}</span>
+        Enviando como: <span class="font-semibold text-base-content"
+          >{user.username}</span
+        >
       </div>
       <div class="flex gap-2">
-        <button type="button" class="btn btn-ghost rounded-md" data-close-feedback-modal>
-          Cancelar
-        </button>
-        <button type="submit" class="btn btn-primary rounded-md" form="suggestion-form">
-          Enviar sugerencia
-        </button>
-        <button type="submit" class="btn btn-primary rounded-md" form="bug-form">
-          Reportar bug
-        </button>
+        <ActionCancelButton
+          type="button"
+          class="rounded-md"
+          label="Cancelar"
+          data-close-feedback-modal
+        />
+        <ActionConfirmButton
+          type="submit"
+          id="btn-submit-sugerencia"
+          color="btn-primary"
+          class="rounded-md"
+          form="suggestion-form"
+          label="Enviar sugerencia"
+        />
+        <ActionConfirmButton
+          type="submit"
+          id="btn-submit-bug"
+          color="btn-primary"
+          class="rounded-md hidden"
+          form="bug-form"
+          label="Reportar bug"
+        />
       </div>
     </div>
   </Fragment>
@@ -182,6 +215,8 @@ const user = Astro.locals.user || { username: "Invitado" };
   const formBug = document.getElementById("bug-form") as HTMLFormElement;
   const closeButtons = document.querySelectorAll("[data-close-feedback-modal]");
   const openButtons = document.querySelectorAll("[data-open-feedback-modal]");
+  const btnSubmitSugerencia = document.getElementById("btn-submit-sugerencia");
+  const btnSubmitBug = document.getElementById("btn-submit-bug");
 
   let activeType: "sugerencia" | "bug" = "sugerencia";
 
@@ -194,6 +229,14 @@ const user = Astro.locals.user || { username: "Invitado" };
     showForm.classList.remove("hidden");
     hideForm.classList.add("hidden");
     activeType = type;
+
+    if (type === "sugerencia") {
+      btnSubmitSugerencia?.classList.remove("hidden");
+      btnSubmitBug?.classList.add("hidden");
+    } else {
+      btnSubmitSugerencia?.classList.add("hidden");
+      btnSubmitBug?.classList.remove("hidden");
+    }
   }
 
   tabSugerencia?.addEventListener("click", () => {
@@ -211,35 +254,51 @@ const user = Astro.locals.user || { username: "Invitado" };
   // Función de mapeo para preseleccionar la categoría según la ruta activa
   function getCategoryFromPath(path: string): string {
     const normalized = path.toLowerCase().replace(/\/$/, "");
-    
+
     if (normalized.includes("/supervision/cronograma")) return "cronograma";
     if (normalized.includes("/supervision/asistencia")) return "asistencia";
     if (normalized.includes("/supervision/calidad")) return "calidad";
     if (normalized.includes("/supervision/asignacion")) return "autogesitones";
     if (normalized.includes("/supervision")) return "cronograma"; // default fallback
-    
+
     if (normalized.includes("/titulos")) return "titulos";
     if (normalized.includes("/soportes")) return "soportes";
     if (normalized.includes("/usuarios")) return "usuarios";
     if (normalized.includes("/contactos")) return "contactos";
-    if (normalized.includes("/enlaces-recursos") || normalized.includes("/recursos")) return "enlaces";
-    if (normalized.includes("/directorio-oficinas") || normalized.includes("/oficinas")) return "oficinas";
-    if (normalized.includes("/inventario-equipos") || normalized.includes("/inventario-terminales")) return "inventario";
-    
+    if (
+      normalized.includes("/enlaces-recursos") ||
+      normalized.includes("/recursos")
+    )
+      return "enlaces";
+    if (
+      normalized.includes("/directorio-oficinas") ||
+      normalized.includes("/oficinas")
+    )
+      return "oficinas";
+    if (
+      normalized.includes("/inventario-equipos") ||
+      normalized.includes("/inventario-terminales")
+    )
+      return "inventario";
+
     return "otros";
   }
 
   function autoSelectCategory() {
     const category = getCategoryFromPath(window.location.pathname);
-    const sugSelect = document.getElementById("sug-categoria") as HTMLSelectElement | null;
-    const bugSelect = document.getElementById("bug-categoria") as HTMLSelectElement | null;
-    
+    const sugSelect = document.getElementById(
+      "sug-categoria",
+    ) as HTMLSelectElement | null;
+    const bugSelect = document.getElementById(
+      "bug-categoria",
+    ) as HTMLSelectElement | null;
+
     if (sugSelect) sugSelect.value = category;
     if (bugSelect) bugSelect.value = category;
   }
 
   // 2. Controladores de abrir y cerrar
-  openButtons.forEach(btn => {
+  openButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       if (modal) {
         autoSelectCategory();
@@ -248,7 +307,7 @@ const user = Astro.locals.user || { username: "Invitado" };
     });
   });
 
-  closeButtons.forEach(btn => {
+  closeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       if (modal) {
         modal.close();
@@ -257,9 +316,15 @@ const user = Astro.locals.user || { username: "Invitado" };
   });
 
   // 3. Manejo de envío asíncrono
-  async function handleFormSubmit(e: SubmitEvent, type: "sugerencia" | "bug", form: HTMLFormElement) {
+  async function handleFormSubmit(
+    e: SubmitEvent,
+    type: "sugerencia" | "bug",
+    form: HTMLFormElement,
+  ) {
     e.preventDefault();
-    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const submitBtn = form.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.classList.add("loading");
@@ -273,32 +338,48 @@ const user = Astro.locals.user || { username: "Invitado" };
       };
 
       if (type === "sugerencia") {
-        payload.subject = (document.getElementById("sug-asunto") as HTMLInputElement).value;
-        payload.category = (document.getElementById("sug-categoria") as HTMLSelectElement).value;
-        payload.description = (document.getElementById("sug-mensaje") as HTMLTextAreaElement).value;
+        payload.subject = (
+          document.getElementById("sug-asunto") as HTMLInputElement
+        ).value;
+        payload.category = (
+          document.getElementById("sug-categoria") as HTMLSelectElement
+        ).value;
+        payload.description = (
+          document.getElementById("sug-mensaje") as HTMLTextAreaElement
+        ).value;
       } else {
-        payload.subject = (document.getElementById("bug-asunto") as HTMLInputElement).value;
-        payload.category = (document.getElementById("bug-categoria") as HTMLSelectElement).value;
-        payload.severity = (document.getElementById("bug-gravedad") as HTMLSelectElement).value;
-        payload.description = (document.getElementById("bug-descripcion") as HTMLTextAreaElement).value;
-        payload.steps = (document.getElementById("bug-pasos") as HTMLTextAreaElement).value;
+        payload.subject = (
+          document.getElementById("bug-asunto") as HTMLInputElement
+        ).value;
+        payload.category = (
+          document.getElementById("bug-categoria") as HTMLSelectElement
+        ).value;
+        payload.severity = (
+          document.getElementById("bug-gravedad") as HTMLSelectElement
+        ).value;
+        payload.description = (
+          document.getElementById("bug-descripcion") as HTMLTextAreaElement
+        ).value;
+        payload.steps = (
+          document.getElementById("bug-pasos") as HTMLTextAreaElement
+        ).value;
       }
 
       const { data, error } = await actions.submitFeedback(payload);
 
       if (error) {
         if (isInputError(error)) {
-          const messages = Object.values(error.fields)
-            .flat()
-            .join(". ");
+          const messages = Object.values(error.fields).flat().join(". ");
           showToast(`Error de validación: ${messages}`, "alert-error");
         } else {
           showToast(`Error al enviar: ${error.message}`, "alert-error");
         }
       } else if (data?.success) {
         showToast(
-          type === "sugerencia" ? "¡Sugerencia enviada correctamente!" : "¡Reporte de bug enviado con éxito!",
-          "alert-success"
+          type === "sugerencia"
+            ? "¡Sugerencia enviada correctamente!"
+            : "¡Reporte de bug enviado con éxito!",
+          "alert-success",
         );
         form.reset();
         modal.close();
@@ -313,6 +394,10 @@ const user = Astro.locals.user || { username: "Invitado" };
     }
   }
 
-  formSugerencia?.addEventListener("submit", (e) => handleFormSubmit(e, "sugerencia", formSugerencia));
-  formBug?.addEventListener("submit", (e) => handleFormSubmit(e, "bug", formBug));
+  formSugerencia?.addEventListener("submit", (e) =>
+    handleFormSubmit(e, "sugerencia", formSugerencia),
+  );
+  formBug?.addEventListener("submit", (e) =>
+    handleFormSubmit(e, "bug", formBug),
+  );
 </script>

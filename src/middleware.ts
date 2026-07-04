@@ -41,13 +41,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (sessionId) {
     const [session] = await db
-      .select()
+      .select({ id: sessions.id, userId: sessions.userId, expiresAt: sessions.expiresAt })
       .from(sessions)
       .where(eq(sessions.id, sessionId));
 
     if (session && session.expiresAt > Date.now()) {
       const [dbUser] = await db
-        .select()
+        .select({ id: users.id, username: users.username, role: users.role })
         .from(users)
         .where(eq(users.id, session.userId));
 
