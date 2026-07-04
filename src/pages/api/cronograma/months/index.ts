@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { agents, schedules } from "@db/schema";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, inArray } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 
@@ -27,43 +27,42 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-    // 2. Generate and write schedules for all operators
-    for (const op of dbAgents) {
-      const agentName = op.name;
-      
-      // Delete existing DB schedules for this agent and month to avoid duplicates
-      await db.delete(schedules).where(
+    // 2. Generate and write schedules for all operators (single transaction)
+    await db.transaction(async (tx) => {
+      // Batch delete: remove all existing schedules for this month across all agents
+      await tx.delete(schedules).where(
         and(
-          eq(schedules.agentName, agentName),
+          inArray(schedules.agentName, dbAgents.map(a => a.name)),
           like(schedules.date, `${monthPrefix}-%`)
         )
       );
 
-      // Generate day schedules
-      const inserts = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-        // Initialize empty/blank (Franco modality, empty schedule)
-        inserts.push({
-          agentName,
-          date: dateStr,
-          status: "Franco",
-          comment: "",
-          horario: "",
-          entradaReal: "",
-          salidaReal: "",
-          breakInicio: "",
-          breakFin: "",
-          isOverride: false,
-        });
+      // Batch insert: generate all day schedules for all agents
+      const allInserts = [];
+      for (const op of dbAgents) {
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          allInserts.push({
+            agentName: op.name,
+            date: dateStr,
+            status: "Franco",
+            comment: "",
+            horario: "",
+            entradaReal: "",
+            salidaReal: "",
+            breakInicio: "",
+            breakFin: "",
+            isOverride: false,
+          });
+        }
       }
 
-      // Insert all generated schedules for this operator
-      if (inserts.length > 0) {
-        await db.insert(schedules).values(inserts);
+      // Chunk inserts to avoid SQLite parameter limit (~999 variables)
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < allInserts.length; i += CHUNK_SIZE) {
+        await tx.insert(schedules).values(allInserts.slice(i, i + CHUNK_SIZE));
       }
-    }
+    });
 
     await logAdminFromAstro(locals,
       `Generó el cronograma del mes ${MONTH_LABELS[month] || month} ${year}`
