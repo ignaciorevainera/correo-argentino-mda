@@ -125,6 +125,17 @@ const invgateWebBase = invgateApiBase
         <ul id="command-palette-hd-results" class="menu w-full"></ul>
       </div>
 
+      <div id="command-palette-grp-section" class="hidden">
+        <div id="command-palette-grp-section-header" class="px-4 pt-3 pb-1">
+          <span
+            class="text-xs font-semibold text-base-content/60 uppercase tracking-wide"
+          >
+            Grupos
+          </span>
+        </div>
+        <ul id="command-palette-grp-results" class="menu w-full"></ul>
+      </div>
+
       <p
         id="command-palette-empty"
         class="hidden p-4 text-sm text-base-content/70"
@@ -184,6 +195,15 @@ const invgateWebBase = invgateApiBase
   const hdSectionHeader = document.getElementById(
     "command-palette-hd-section-header",
   ) as HTMLDivElement | null;
+  const grpSection = document.getElementById(
+    "command-palette-grp-section",
+  ) as HTMLDivElement | null;
+  const grpResultsContainer = document.getElementById(
+    "command-palette-grp-results",
+  ) as HTMLUListElement | null;
+  const grpSectionHeader = document.getElementById(
+    "command-palette-grp-section-header",
+  ) as HTMLDivElement | null;
 
   const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
 
@@ -196,12 +216,16 @@ const invgateWebBase = invgateApiBase
     );
     const hasKb = kbSection && !kbSection.classList.contains("hidden");
     const hasHd = hdSection && !hdSection.classList.contains("hidden");
+    const hasGrp = grpSection && !grpSection.classList.contains("hidden");
 
     if (kbSectionHeader) {
-      kbSectionHeader.style.paddingTop = hasShortcuts || hasHd ? "" : "0";
+      kbSectionHeader.style.paddingTop = hasShortcuts || hasHd || hasGrp ? "" : "0";
     }
     if (hdSectionHeader) {
-      hdSectionHeader.style.paddingTop = hasShortcuts || hasKb ? "" : "0";
+      hdSectionHeader.style.paddingTop = hasShortcuts || hasKb || hasGrp ? "" : "0";
+    }
+    if (grpSectionHeader) {
+      grpSectionHeader.style.paddingTop = hasShortcuts || hasKb || hasHd ? "" : "0";
     }
   };
 
@@ -212,8 +236,9 @@ const invgateWebBase = invgateApiBase
     ).length;
     const hasKb = kbSection && !kbSection.classList.contains("hidden");
     const hasHd = hdSection && !hdSection.classList.contains("hidden");
+    const hasGrp = grpSection && !grpSection.classList.contains("hidden");
     const showEmpty =
-      rawQuery.length > 0 && visibleShortcuts === 0 && !hasKb && !hasHd;
+      rawQuery.length > 0 && visibleShortcuts === 0 && !hasKb && !hasHd && !hasGrp;
     commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
   };
 
@@ -353,6 +378,82 @@ const invgateWebBase = invgateApiBase
     return data.helpdesks ?? [];
   };
 
+  const searchGrp = async (
+    query: string,
+    signal: AbortSignal,
+  ): Promise<
+    Array<{
+      id: number;
+      name: string;
+      totalMembers: number;
+    }>
+  > => {
+    const response = await fetch(
+      `/api/invgate/group-search?q=${encodeURIComponent(query)}`,
+      { signal, credentials: "same-origin" },
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.groups ?? [];
+  };
+
+  const buildGroupElement = (g: {
+    id: number;
+    name: string;
+    totalMembers: number;
+  }): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.grpItem = "";
+    li.dataset.searchText = `${g.name} ${g.id}`.toLowerCase();
+
+    const a = document.createElement("a");
+    a.href = `${invgateWebBase}/group/profile/index/id/${g.id}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "justify-between gap-3";
+
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "flex min-w-0 items-center gap-2";
+
+    const iconSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    iconSvg.setAttribute("viewBox", "0 0 24 24");
+    iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+    iconSvg.setAttribute("fill", "none");
+    iconSvg.setAttribute("stroke", "currentColor");
+    iconSvg.setAttribute("stroke-width", "1.5");
+    const iconPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    iconPath.setAttribute("stroke-linecap", "round");
+    iconPath.setAttribute("stroke-linejoin", "round");
+    iconPath.setAttribute(
+      "d",
+      "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+    );
+    iconSvg.appendChild(iconPath);
+    leftSpan.appendChild(iconSvg);
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "block truncate";
+    titleSpan.dataset.highlightTarget = "";
+    titleSpan.textContent = g.name;
+    leftSpan.appendChild(titleSpan);
+
+    const memberBadge = document.createElement("span");
+    memberBadge.className = "badge badge-sm badge-ghost shrink-0";
+    memberBadge.textContent = `${g.totalMembers} miembros`;
+
+    a.appendChild(leftSpan);
+    a.appendChild(memberBadge);
+    li.appendChild(a);
+
+    return li;
+  };
+
   const buildHelpdeskElement = (hd: {
     id: number;
     name: string;
@@ -427,19 +528,24 @@ const invgateWebBase = invgateApiBase
       !kbSection ||
       !hdResultsContainer ||
       !hdSection ||
+      !grpResultsContainer ||
+      !grpSection ||
       !kbLoadingEl
     ) {
       if (kbSection) kbSection.classList.add("hidden");
       if (hdSection) hdSection.classList.add("hidden");
+      if (grpSection) grpSection.classList.add("hidden");
       if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
       if (kbResultsContainer) kbResultsContainer.innerHTML = "";
       if (hdResultsContainer) hdResultsContainer.innerHTML = "";
+      if (grpResultsContainer) grpResultsContainer.innerHTML = "";
       updateEmptyState();
       return;
     }
 
     if (kbSection) kbSection.classList.add("hidden");
     if (hdSection) hdSection.classList.add("hidden");
+    if (grpSection) grpSection.classList.add("hidden");
     if (commandPaletteEmpty) commandPaletteEmpty.classList.add("hidden");
     applySectionSpacing();
     kbLoadingEl.classList.remove("hidden");
@@ -448,13 +554,15 @@ const invgateWebBase = invgateApiBase
       searchAbortController = new AbortController();
       const signal = searchAbortController.signal;
 
-      const [kbResult, hdResult] = await Promise.allSettled([
+      const [kbResult, hdResult, grpResult] = await Promise.allSettled([
         searchKb(query, signal),
         searchHd(query, signal),
+        searchGrp(query, signal),
       ]);
 
       const articles = kbResult.status === "fulfilled" ? kbResult.value : [];
       const helpdesks = hdResult.status === "fulfilled" ? hdResult.value : [];
+      const groups = grpResult.status === "fulfilled" ? grpResult.value : [];
 
       if (kbResultsContainer) {
         kbResultsContainer.innerHTML = "";
@@ -478,12 +586,24 @@ const invgateWebBase = invgateApiBase
           hdSection.classList.toggle("hidden", helpdesks.length === 0);
       }
 
+      if (grpResultsContainer) {
+        grpResultsContainer.innerHTML = "";
+        if (groups.length > 0) {
+          for (const g of groups) {
+            grpResultsContainer.appendChild(buildGroupElement(g));
+          }
+        }
+        if (grpSection)
+          grpSection.classList.toggle("hidden", groups.length === 0);
+      }
+
       if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
 
       applySectionSpacing();
 
       if (kbResultsContainer) highlightSearchTargets(kbResultsContainer, query);
       if (hdResultsContainer) highlightSearchTargets(hdResultsContainer, query);
+      if (grpResultsContainer) highlightSearchTargets(grpResultsContainer, query);
 
       updateEmptyState();
     }, 300);
@@ -501,6 +621,8 @@ const invgateWebBase = invgateApiBase
     if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
     if (hdResultsContainer) hdResultsContainer.innerHTML = "";
     if (hdSection) hdSection.classList.add("hidden");
+    if (grpResultsContainer) grpResultsContainer.innerHTML = "";
+    if (grpSection) grpSection.classList.add("hidden");
 
     if (searchAbortController) {
       searchAbortController.abort();

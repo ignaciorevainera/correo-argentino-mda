@@ -103,6 +103,12 @@ export interface InvgateKbCategory {
   parent_id?: number | null;
 }
 
+export interface InvgateGroup {
+  id: number;
+  name: string;
+  total: number;
+}
+
 export interface InvgateHelpdesk {
   id: number;
   name: string;
