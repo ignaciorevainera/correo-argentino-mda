@@ -12,7 +12,7 @@
 |-----------|----------|-----------|
 | 🔴 CRITICAL | 4 | 2 |
 | 🟡 HIGH | 5 | 4 |
-| 🟢 MEDIUM | 5 | 1 |
+| 🟢 MEDIUM | 5 | 3 |
 
 ---
 
@@ -166,21 +166,20 @@ Serve: `Content-Disposition: attachment` en `src/pages/api/icons/[filename].ts` 
 `<img>` tags existentes renderizan normal.
 **Esfuerzo:** 10 min.
 
-### S4.2 🟡 Error messages filtran detalles internos
+### ~~S4.2 🟡 Error messages filtran detalles internos~~ ✅ Resuelto
 
-Múltiples endpoints retornan `error.message` al cliente:
+~~Múltiples endpoints retornan `error.message` al cliente:~~
 
-| Endpoint | Línea | Filtra |
+~~| Endpoint | Línea | Filtra |
 |----------|-------|--------|
 | `invgate/incidents.ts` | 43 | URLs internas de InvGate |
 | `invgate/ping.ts` | 30 | Ídem |
 | `cronograma/import.ts` | 290 | File paths del servidor |
 | `offices/create.ts` | 65-69 | Detalles de UNIQUE constraint |
 | `asistencia/index.ts` | 28, 146 | Errores crudos |
-| `admin/sync-status.ts` | 40 | Errores de DB |
+| `admin/sync-status.ts` | 40 | Errores de DB |~~
 
-**Fix:** En producción, retornar mensajes genéricos ("Error interno del servidor").
-Loggear errores detallados solo server-side.
+**Fix aplicado:** Helper `sanitizeError()` en `src/lib/apiResponse.ts` que retorna genérico en prod, detalle en dev. URLs internas de InvGate removidas de `invgateClient.ts`. 30 endpoints API migrados a `sanitizeError()`. Build pasa.
 **Esfuerzo:** 30 min.
 
 ### S4.3 🟡 innerHTML masivo (100+ usos) — vector XSS
@@ -207,15 +206,14 @@ cifrados a la UI.
 **Fix:** Retornar string vacío o lanzar error en caso de fallo.
 **Esfuerzo:** 5 min.
 
-### S4.5 🟢 Session secret fallback en desarrollo
+### ~~S4.5 🟢 Session secret fallback en desarrollo~~ ✅ Resuelto
 
-`src/lib/session.ts` línea 12:
+~~`src/lib/session.ts` línea 12:
 ```ts
 const SECRET_KEY = SECRET || "fallback-secret-do-not-use-in-prod";
-```
+```~~
 
-**Fix:** Eliminar fallback y siempre requerir la variable de entorno,
-o restringir a `import.meta.env.DEV`.
+**Fix aplicado:** Fallback reemplazado por `randomBytes(32).toString("hex")` — genera clave aleatoria por reinicio en dev. Prod sigue lanzando error si falta `SESSION_SECRET`.
 **Esfuerzo:** 5 min.
 
 ---
@@ -234,10 +232,10 @@ o restringir a `import.meta.env.DEV`.
 | **P1** | S3.4 | ~~🟡 Export endpoints sin auth~~ ✅ | ~~10 min~~ | ~~Data exposure~~ |
 | **P1** | S3.5 | ~~🟡 Upload sin validación de tipo~~ ✅ | ~~30 min~~ | ~~Arbitrary upload~~ |
 | **P2** | S4.1 | ~~🟡 SVG upload XSS risk~~ ✅ | ~~30 min~~ | ~~XSS~~ |
-| **P2** | S4.2 | 🟡 Error messages filtran detalles | 30 min | Info leak |
+| **P2** | ~~S4.2~~ | ~~🟡 Error messages filtran detalles~~ ✅ | ~~30 min~~ | ~~Info leak~~ |
 | **P2** | S4.3 | 🟡 innerHTML masivo (100+) | 4-6 h | XSS |
 | **P2** | S4.4 | 🟢 Decryption fallback ciphertext | 5 min | Data leak |
-| **P2** | S4.5 | 🟢 Session secret fallback | 5 min | Weak crypto |
+| **P2** | ~~S4.5~~ | ~~🟢 Session secret fallback~~ ✅ | ~~5 min~~ | ~~Weak crypto~~ |
 
 **Total esfuerzo estimado:** ~9-14 h.
 **Impacto:** Eliminación de 4 vulnerabilidades críticas + hardening general.
