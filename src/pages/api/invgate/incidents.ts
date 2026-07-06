@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateIncident, InvgateByStatusResponse } from "@/types/invgate";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ url, locals }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -40,6 +40,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
     return jsonResponse({ error: "Se requiere ?id= o ?status_id=" }, 400);
   } catch (error: any) {
     console.error("[InvGate Incidents] Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

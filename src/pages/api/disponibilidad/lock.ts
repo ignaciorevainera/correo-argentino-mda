@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
 import { getLockStatus, acquireLock, releaseLock } from "@lib/disponibilidad";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async () => {
   try { return jsonResponse(await getLockStatus()); }
-  catch (error: any) { return jsonResponse({ error: error.message }, 500); }
+  catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
 };
 
 export const POST: APIRoute = async ({ locals }) => {
@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ locals }) => {
       return jsonResponse({ error: "Error al adquirir el lock" }, 409);
     }
     return jsonResponse({ success: true });
-  } catch (error: any) { return jsonResponse({ error: error.message }, 500); }
+  } catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
 };
 
 export const DELETE: APIRoute = async ({ locals }) => {
@@ -29,5 +29,5 @@ export const DELETE: APIRoute = async ({ locals }) => {
     const ok = await releaseLock(user.id, user.role === "admin");
     if (!ok) return jsonResponse({ error: "No podés liberar un lock que no te pertenece" }, 403);
     return jsonResponse({ success: true });
-  } catch (error: any) { return jsonResponse({ error: error.message }, 500); }
+  } catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
 };

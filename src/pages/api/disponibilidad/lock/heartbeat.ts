@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getLockStatus, heartbeatLock } from "@lib/disponibilidad";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ locals }) => {
   const user = locals.user;
@@ -14,5 +14,5 @@ export const POST: APIRoute = async ({ locals }) => {
       await heartbeatLock(user.id);
     }
     return jsonResponse({ success: true });
-  } catch (error: any) { return jsonResponse({ error: error.message }, 500); }
+  } catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
 };

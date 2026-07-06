@@ -136,6 +136,17 @@ const invgateWebBase = invgateApiBase
         <ul id="command-palette-grp-results" class="menu w-full"></ul>
       </div>
 
+      <div id="command-palette-loc-section" class="hidden">
+        <div id="command-palette-loc-section-header" class="px-4 pt-3 pb-1">
+          <span
+            class="text-xs font-semibold text-base-content/60 uppercase tracking-wide"
+          >
+            Ubicaciones
+          </span>
+        </div>
+        <ul id="command-palette-loc-results" class="menu w-full"></ul>
+      </div>
+
       <p
         id="command-palette-empty"
         class="hidden p-4 text-sm text-base-content/70"
@@ -204,6 +215,15 @@ const invgateWebBase = invgateApiBase
   const grpSectionHeader = document.getElementById(
     "command-palette-grp-section-header",
   ) as HTMLDivElement | null;
+  const locSection = document.getElementById(
+    "command-palette-loc-section",
+  ) as HTMLDivElement | null;
+  const locResultsContainer = document.getElementById(
+    "command-palette-loc-results",
+  ) as HTMLUListElement | null;
+  const locSectionHeader = document.getElementById(
+    "command-palette-loc-section-header",
+  ) as HTMLDivElement | null;
 
   const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
 
@@ -217,16 +237,7 @@ const invgateWebBase = invgateApiBase
     const hasKb = kbSection && !kbSection.classList.contains("hidden");
     const hasHd = hdSection && !hdSection.classList.contains("hidden");
     const hasGrp = grpSection && !grpSection.classList.contains("hidden");
-
-    if (kbSectionHeader) {
-      kbSectionHeader.style.paddingTop = hasShortcuts || hasHd || hasGrp ? "" : "0";
-    }
-    if (hdSectionHeader) {
-      hdSectionHeader.style.paddingTop = hasShortcuts || hasKb || hasGrp ? "" : "0";
-    }
-    if (grpSectionHeader) {
-      grpSectionHeader.style.paddingTop = hasShortcuts || hasKb || hasHd ? "" : "0";
-    }
+    const hasLoc = locSection && !locSection.classList.contains("hidden");
   };
 
   const updateEmptyState = (): void => {
@@ -237,8 +248,14 @@ const invgateWebBase = invgateApiBase
     const hasKb = kbSection && !kbSection.classList.contains("hidden");
     const hasHd = hdSection && !hdSection.classList.contains("hidden");
     const hasGrp = grpSection && !grpSection.classList.contains("hidden");
+    const hasLoc = locSection && !locSection.classList.contains("hidden");
     const showEmpty =
-      rawQuery.length > 0 && visibleShortcuts === 0 && !hasKb && !hasHd && !hasGrp;
+      rawQuery.length > 0 &&
+      visibleShortcuts === 0 &&
+      !hasKb &&
+      !hasHd &&
+      !hasGrp &&
+      !hasLoc;
     commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
   };
 
@@ -454,6 +471,82 @@ const invgateWebBase = invgateApiBase
     return li;
   };
 
+  const searchLoc = async (
+    query: string,
+    signal: AbortSignal,
+  ): Promise<
+    Array<{
+      id: number;
+      name: string;
+      totalUsers: number;
+    }>
+  > => {
+    const response = await fetch(
+      `/api/invgate/location-search?q=${encodeURIComponent(query)}`,
+      { signal, credentials: "same-origin" },
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.locations ?? [];
+  };
+
+  const buildLocationElement = (loc: {
+    id: number;
+    name: string;
+    totalUsers: number;
+  }): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.locItem = "";
+    li.dataset.searchText = `${loc.name} ${loc.id}`.toLowerCase();
+
+    const a = document.createElement("a");
+    a.href = `${invgateWebBase}/group/profile/index/id/${loc.id}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "justify-between gap-3";
+
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "flex min-w-0 items-center gap-2";
+
+    const iconSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    iconSvg.setAttribute("viewBox", "0 0 24 24");
+    iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+    iconSvg.setAttribute("fill", "none");
+    iconSvg.setAttribute("stroke", "currentColor");
+    iconSvg.setAttribute("stroke-width", "1.5");
+    const iconPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    iconPath.setAttribute("stroke-linecap", "round");
+    iconPath.setAttribute("stroke-linejoin", "round");
+    iconPath.setAttribute(
+      "d",
+      "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z",
+    );
+    iconSvg.appendChild(iconPath);
+    leftSpan.appendChild(iconSvg);
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "block truncate";
+    titleSpan.dataset.highlightTarget = "";
+    titleSpan.textContent = loc.name;
+    leftSpan.appendChild(titleSpan);
+
+    const memberBadge = document.createElement("span");
+    memberBadge.className = "badge badge-sm badge-ghost shrink-0";
+    memberBadge.textContent = `${loc.totalUsers} usuarios`;
+
+    a.appendChild(leftSpan);
+    a.appendChild(memberBadge);
+    li.appendChild(a);
+
+    return li;
+  };
+
   const buildHelpdeskElement = (hd: {
     id: number;
     name: string;
@@ -530,15 +623,19 @@ const invgateWebBase = invgateApiBase
       !hdSection ||
       !grpResultsContainer ||
       !grpSection ||
+      !locResultsContainer ||
+      !locSection ||
       !kbLoadingEl
     ) {
       if (kbSection) kbSection.classList.add("hidden");
       if (hdSection) hdSection.classList.add("hidden");
       if (grpSection) grpSection.classList.add("hidden");
+      if (locSection) locSection.classList.add("hidden");
       if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
       if (kbResultsContainer) kbResultsContainer.innerHTML = "";
       if (hdResultsContainer) hdResultsContainer.innerHTML = "";
       if (grpResultsContainer) grpResultsContainer.innerHTML = "";
+      if (locResultsContainer) locResultsContainer.innerHTML = "";
       updateEmptyState();
       return;
     }
@@ -546,6 +643,7 @@ const invgateWebBase = invgateApiBase
     if (kbSection) kbSection.classList.add("hidden");
     if (hdSection) hdSection.classList.add("hidden");
     if (grpSection) grpSection.classList.add("hidden");
+    if (locSection) locSection.classList.add("hidden");
     if (commandPaletteEmpty) commandPaletteEmpty.classList.add("hidden");
     applySectionSpacing();
     kbLoadingEl.classList.remove("hidden");
@@ -554,15 +652,18 @@ const invgateWebBase = invgateApiBase
       searchAbortController = new AbortController();
       const signal = searchAbortController.signal;
 
-      const [kbResult, hdResult, grpResult] = await Promise.allSettled([
-        searchKb(query, signal),
-        searchHd(query, signal),
-        searchGrp(query, signal),
-      ]);
+      const [kbResult, hdResult, grpResult, locResult] =
+        await Promise.allSettled([
+          searchKb(query, signal),
+          searchHd(query, signal),
+          searchGrp(query, signal),
+          searchLoc(query, signal),
+        ]);
 
       const articles = kbResult.status === "fulfilled" ? kbResult.value : [];
       const helpdesks = hdResult.status === "fulfilled" ? hdResult.value : [];
       const groups = grpResult.status === "fulfilled" ? grpResult.value : [];
+      const locations = locResult.status === "fulfilled" ? locResult.value : [];
 
       if (kbResultsContainer) {
         kbResultsContainer.innerHTML = "";
@@ -597,13 +698,27 @@ const invgateWebBase = invgateApiBase
           grpSection.classList.toggle("hidden", groups.length === 0);
       }
 
+      if (locResultsContainer) {
+        locResultsContainer.innerHTML = "";
+        if (locations.length > 0) {
+          for (const loc of locations) {
+            locResultsContainer.appendChild(buildLocationElement(loc));
+          }
+        }
+        if (locSection)
+          locSection.classList.toggle("hidden", locations.length === 0);
+      }
+
       if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
 
       applySectionSpacing();
 
       if (kbResultsContainer) highlightSearchTargets(kbResultsContainer, query);
       if (hdResultsContainer) highlightSearchTargets(hdResultsContainer, query);
-      if (grpResultsContainer) highlightSearchTargets(grpResultsContainer, query);
+      if (grpResultsContainer)
+        highlightSearchTargets(grpResultsContainer, query);
+      if (locResultsContainer)
+        highlightSearchTargets(locResultsContainer, query);
 
       updateEmptyState();
     }, 300);
@@ -623,6 +738,8 @@ const invgateWebBase = invgateApiBase
     if (hdSection) hdSection.classList.add("hidden");
     if (grpResultsContainer) grpResultsContainer.innerHTML = "";
     if (grpSection) grpSection.classList.add("hidden");
+    if (locResultsContainer) locResultsContainer.innerHTML = "";
+    if (locSection) locSection.classList.add("hidden");
 
     if (searchAbortController) {
       searchAbortController.abort();

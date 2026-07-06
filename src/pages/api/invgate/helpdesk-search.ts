@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import type { InvgateHelpdesk } from "@/types/invgate";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
@@ -37,6 +37,6 @@ export const GET: APIRoute = async ({ url }) => {
     );
   } catch (error: any) {
     console.error("[InvGate Helpdesk Search] Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

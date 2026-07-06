@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { weekendOvertimeShifts } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -23,7 +24,7 @@ export const GET: APIRoute = async ({ url }) => {
   } catch (error: any) {
     console.error("GET overtime shifts API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -60,7 +61,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   } catch (error: any) {
     console.error("POST overtime shifts API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -98,7 +99,7 @@ export const DELETE: APIRoute = async ({ url, request, locals }) => {
   } catch (error: any) {
     console.error("DELETE overtime shifts API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -128,7 +129,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
   } catch (error: any) {
     console.error("PUT overtime shifts API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

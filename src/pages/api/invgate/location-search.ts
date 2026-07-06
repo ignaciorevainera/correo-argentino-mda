@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse, sanitizeError } from "@lib/apiResponse";
-import type { InvgateGroup } from "@/types/invgate";
+import { jsonResponse } from "@lib/apiResponse";
+import type { InvgateLocation } from "@/types/invgate";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 export const GET: APIRoute = async ({ url }) => {
@@ -12,31 +12,31 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   try {
-    const result = await invgateGet<InvgateGroup[]>("groups");
+    const result = await invgateGet<InvgateLocation[]>("locations");
 
     if (!result.ok) {
       return jsonResponse({ error: result.message }, result.status);
     }
 
-    const groups = Array.isArray(result.data) ? result.data : [];
+    const locations = Array.isArray(result.data) ? result.data : [];
     const normalizedQuery = normalizeSearchValue(q);
 
-    const filtered = groups
-      .filter((g) => normalizeSearchValue(g.name).includes(normalizedQuery))
+    const filtered = locations
+      .filter((loc) => normalizeSearchValue(loc.name).includes(normalizedQuery))
       .slice(0, 10)
-      .map((g) => ({
-        id: g.id,
-        name: g.name,
-        totalMembers: g.total,
+      .map((loc) => ({
+        id: loc.id,
+        name: loc.name,
+        totalUsers: loc.total,
       }));
 
     return jsonResponse(
-      { groups: filtered },
+      { locations: filtered },
       200,
       "private, max-age=60",
     );
   } catch (error: any) {
-    console.error("[InvGate Group Search] Error:", error);
-    return jsonResponse({ error: sanitizeError(error) }, 500);
+    console.error("[InvGate Location Search] Error:", error);
+    return jsonResponse({ error: error.message }, 500);
   }
 };

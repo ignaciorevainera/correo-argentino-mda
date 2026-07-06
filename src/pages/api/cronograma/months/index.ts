@@ -3,7 +3,7 @@ import { db } from "@db/index";
 import { agents, schedules } from "@db/schema";
 import { and, eq, like, inArray } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 const MONTH_LABELS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -71,7 +71,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Months API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };
 
@@ -101,6 +101,6 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("DELETE Months API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

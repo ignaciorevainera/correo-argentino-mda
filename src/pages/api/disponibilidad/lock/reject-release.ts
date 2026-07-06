@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { rejectRelease } from "@lib/disponibilidad";
-import { jsonResponse, jsonError } from "@lib/apiResponse";
+import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ locals }) => {
   if (!locals.user) {
@@ -14,6 +14,6 @@ export const POST: APIRoute = async ({ locals }) => {
     }
     return jsonResponse({ success: true });
   } catch (error: any) {
-    return jsonError(error.message || "Error al rechazar liberación", 500);
+    return jsonError(sanitizeError(error) || "Error al rechazar liberación", 500);
   }
 };
