@@ -5,6 +5,7 @@ import { employees } from "../src/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { chromium } from "playwright";
 import "dotenv/config";
+import { syncInvgateLocations } from "../src/lib/invgate/locationSync";
 
 const MIDPOINT_URL = "https://cdc.correoargentino.com.ar";
 const LOGIN_URL = `${MIDPOINT_URL}/midpoint/login`;
@@ -189,9 +190,12 @@ async function syncUsers(): Promise<void> {
 
     const elapsed = ((Date.now() - startTime.getTime()) / 1000).toFixed(2);
     console.log(
-      `[SyncUsers] Sincronización finalizada en ${elapsed}s. ` +
+      `[SyncUsers] Sincronización de MidPoint finalizada en ${elapsed}s. ` +
       `Procesados: ${totalProcessed}, Eliminados: ${totalDeleted}`
     );
+
+    // Sincronizar ubicaciones desde InvGate utilizando el servicio compartido
+    await syncInvgateLocations();
 
     await writeSyncStatus("success");
   } catch (error) {

@@ -6,6 +6,7 @@ import { db } from "@db/index";
 import { employees } from "@db/schema";
 import { inArray } from "drizzle-orm";
 import type { InvgateUser } from "@/types/invgate";
+import { syncInvgateLocations } from "@lib/invgate/locationSync";
 
 const CHUNK_SIZE = 500;
 
@@ -69,8 +70,11 @@ export const POST: APIRoute = async ({ locals }) => {
       totalSynced += chunk.length;
     }
 
+    // Fase 3: Sincronizar ubicaciones (sucursales)
+    await syncInvgateLocations();
+
     const elapsed = Date.now() - startTime;
-    console.log(`[SyncInvGate] Completo: ${totalSynced} usuarios activos en ${elapsed}ms`);
+    console.log(`[SyncInvGate] Completo: ${totalSynced} usuarios activos y ubicaciones sincronizadas en ${elapsed}ms`);
 
     return jsonResponse({
       ok: true,
