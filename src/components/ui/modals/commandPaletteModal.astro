@@ -4,16 +4,16 @@ import SearchBar from "@components/ui/SearchBar.astro";
 import { resolveUrl } from "@/lib/url";
 
 interface CommandPaletteItem {
-    label: string;
-    href: string;
-    icon: string;
-    parentLabel?: string;
-    nested?: boolean;
+  label: string;
+  href: string;
+  icon: string;
+  parentLabel?: string;
+  nested?: boolean;
 }
 
 interface Props {
-    items: CommandPaletteItem[];
-    isRouteLocked: (href: string) => boolean;
+  items: CommandPaletteItem[];
+  isRouteLocked: (href: string) => boolean;
 }
 
 const { items, isRouteLocked } = Astro.props;
@@ -24,600 +24,545 @@ const invgateWebBase = invgateApiBase
   : "";
 ---
 
-<dialog id="command-palette" class="modal" data-invgate-web-base={invgateWebBase}>
-    <div
-        class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
-    >
-        <div class="border-b border-base-300 p-4">
-            <label for="command-palette-input" class="sr-only"
-                >Filtrar accesos</label
-            >
+<dialog
+  id="command-palette"
+  class="modal"
+  data-invgate-web-base={invgateWebBase}
+>
+  <div
+    class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
+  >
+    <div class="border-b border-base-300 p-4">
+      <label for="command-palette-input" class="sr-only">Filtrar accesos</label>
 
-            <SearchBar id="command-palette-input" placeholder="Buscar accesos..." size="md" />
-        </div>
-
-        <div class="max-h-[70vh] overflow-y-auto">
-            <ul id="command-palette-shortcuts" class="menu w-full">
-                {
-                    items.map((item) => {
-                        const isLocked = isRouteLocked(item.href);
-                        return (
-                            <li
-                                data-command-item
-                                data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
-                                class:list={[
-                                    isLocked &&
-                                        "opacity-40 grayscale select-none cursor-not-allowed",
-                                ]}
-                            >
-                                <a
-                                    href={
-                                        isLocked ? undefined : resolveUrl(item.href)
-                                    }
-                                    class="justify-between gap-3"
-                                    tabindex={isLocked ? -1 : undefined}
-                                >
-                                    <span
-                                        class:list={[
-                                            "flex min-w-0 items-center gap-2",
-                                            item.nested && "pl-5",
-                                        ]}
-                                    >
-                                        <Icon
-                                            name={item.icon}
-                                            size={14}
-                                            class="shrink-0"
-                                        />
-                                        <span class="min-w-0">
-                                            {item.parentLabel && (
-                                                <span class="block text-xs text-base-content/50">
-                                                    {item.parentLabel}
-                                                </span>
-                                            )}
-                                            <span class="block truncate" data-highlight-target>
-                                                {item.label}
-                                            </span>
-                                        </span>
-                                    </span>
-                                    <div class="flex items-center gap-2 shrink-0">
-                                        <span class="text-xs text-base-content/60">
-                                            {item.href}
-                                        </span>
-                                        {isLocked && (
-                                            <Icon
-                                                name="boxicons:lock"
-                                                size={12}
-                                                class="opacity-60"
-                                            />
-                                        )}
-                                    </div>
-                                </a>
-                            </li>
-                        );
-                    })
-                }
-            </ul>
-
-            <div id="command-palette-kb-loading" class="hidden items-center gap-2 px-4 py-3">
-                <span class="loading loading-dots loading-xs text-base-content/40"></span>
-                <span class="text-xs text-base-content/60">Buscando...</span>
-            </div>
-
-            <div id="command-palette-kb-section" class="hidden">
-                <div id="command-palette-kb-section-header" class="px-4 pt-3 pb-1">
-                    <span class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-                        Artículos de InvGate
-                    </span>
-                </div>
-                <ul id="command-palette-kb-results" class="menu w-full"></ul>
-            </div>
-
-            <div id="command-palette-hd-section" class="hidden">
-                <div id="command-palette-hd-section-header" class="px-4 pt-3 pb-1">
-                    <span class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
-                        Mesas de ayuda
-                    </span>
-                </div>
-                <ul id="command-palette-hd-results" class="menu w-full"></ul>
-            </div>
-
-            <p
-                id="command-palette-empty"
-                class="hidden px-4 pb-4 text-sm text-base-content/70"
-            >
-                No se encontraron resultados.
-            </p>
-        </div>
+      <SearchBar
+        id="command-palette-input"
+        placeholder="Buscar accesos..."
+        size="md"
+      />
     </div>
 
-    <form method="dialog" class="modal-backdrop">
-        <button aria-label="Cerrar búsqueda">close</button>
-    </form>
+    <div class="max-h-[70vh] overflow-y-auto">
+      <ul id="command-palette-shortcuts" class="menu w-full">
+        {
+          items.map((item) => {
+            const isLocked = isRouteLocked(item.href);
+            return (
+              <li
+                data-command-item
+                data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
+                class:list={[
+                  isLocked &&
+                    "opacity-40 grayscale select-none cursor-not-allowed",
+                ]}
+              >
+                <a
+                  href={isLocked ? undefined : resolveUrl(item.href)}
+                  class="justify-between gap-3"
+                  tabindex={isLocked ? -1 : undefined}
+                >
+                  <span
+                    class:list={[
+                      "flex min-w-0 items-center gap-2",
+                      item.nested && "pl-5",
+                    ]}
+                  >
+                    <Icon name={item.icon} size={14} class="shrink-0" />
+                    <span class="min-w-0">
+                      {item.parentLabel && (
+                        <span class="block text-xs text-base-content/50">
+                          {item.parentLabel}
+                        </span>
+                      )}
+                      <span class="block truncate" data-highlight-target>
+                        {item.label}
+                      </span>
+                    </span>
+                  </span>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-xs text-base-content/60">
+                      {item.href}
+                    </span>
+                    {isLocked && (
+                      <Icon name="boxicons:lock" size={12} class="opacity-60" />
+                    )}
+                  </div>
+                </a>
+              </li>
+            );
+          })
+        }
+      </ul>
+
+      <div
+        id="command-palette-kb-loading"
+        class="hidden items-center gap-2 p-4"
+      >
+        <span class="loading loading-dots loading-xs text-base-content/40"
+        ></span>
+        <span class="text-xs text-base-content/60">Buscando...</span>
+      </div>
+
+      <div id="command-palette-kb-section" class="hidden">
+        <div id="command-palette-kb-section-header" class="px-4 pt-3 pb-1">
+          <span
+            class="text-xs font-semibold text-base-content/60 uppercase tracking-wide"
+          >
+            Artículos de InvGate
+          </span>
+        </div>
+        <ul id="command-palette-kb-results" class="menu w-full"></ul>
+      </div>
+
+      <div id="command-palette-hd-section" class="hidden">
+        <div id="command-palette-hd-section-header" class="px-4 pt-3 pb-1">
+          <span
+            class="text-xs font-semibold text-base-content/60 uppercase tracking-wide"
+          >
+            Mesas de ayuda
+          </span>
+        </div>
+        <ul id="command-palette-hd-results" class="menu w-full"></ul>
+      </div>
+
+      <p
+        id="command-palette-empty"
+        class="hidden p-4 text-sm text-base-content/70"
+      >
+        No se encontraron resultados.
+      </p>
+    </div>
+  </div>
+
+  <form method="dialog" class="modal-backdrop">
+    <button aria-label="Cerrar búsqueda">close</button>
+  </form>
 </dialog>
 
 <script>
-    import { highlightSearchTargets, normalizeSearchValue } from "@lib/clientSearch";
-
-    const commandPalette = document.getElementById(
-        "command-palette",
-    ) as HTMLDialogElement | null;
-    const commandPaletteInput = document.getElementById(
-        "command-palette-input",
-    ) as HTMLInputElement | null;
-    const commandPaletteItems = Array.from(
-        document.querySelectorAll("[data-command-item]"),
-    ) as HTMLLIElement[];
-    const commandPaletteEmpty = document.getElementById(
-        "command-palette-empty",
-    ) as HTMLElement | null;
-    const commandPaletteTriggers = Array.from(
-        document.querySelectorAll("[data-open-command-palette]"),
-    ) as HTMLButtonElement[];
-    const commandPaletteShortcuts = document.getElementById(
-        "command-palette-shortcuts",
-    ) as HTMLUListElement | null;
-    const kbSection = document.getElementById(
-        "command-palette-kb-section",
-    ) as HTMLDivElement | null;
-    const kbResultsContainer = document.getElementById(
-        "command-palette-kb-results",
-    ) as HTMLUListElement | null;
-    const kbLoadingEl = document.getElementById(
-        "command-palette-kb-loading",
-    ) as HTMLDivElement | null;
-    const kbSectionHeader = document.getElementById(
-        "command-palette-kb-section-header",
-    ) as HTMLDivElement | null;
-    const hdSection = document.getElementById(
-        "command-palette-hd-section",
-    ) as HTMLDivElement | null;
-    const hdResultsContainer = document.getElementById(
-        "command-palette-hd-results",
-    ) as HTMLUListElement | null;
-    const hdSectionHeader = document.getElementById(
-        "command-palette-hd-section-header",
-    ) as HTMLDivElement | null;
-
-    const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
-
-    let kbAbortController: AbortController | null = null;
-    let hdAbortController: AbortController | null = null;
-    let kbDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let hdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let pendingFetches = 0;
-
-    const applySectionSpacing = (): void => {
-        const hasShortcuts = commandPaletteItems.some(
-            (item) => !item.classList.contains("hidden"),
-        );
-        const hasKb = kbSection && !kbSection.classList.contains("hidden");
-        const hasHd = hdSection && !hdSection.classList.contains("hidden");
-
-        if (kbLoadingEl) {
-            kbLoadingEl.classList.toggle("border-t", hasShortcuts);
-            kbLoadingEl.classList.toggle("border-base-300", hasShortcuts);
-            kbLoadingEl.style.paddingTop = hasShortcuts ? "" : "0";
-        }
-        if (kbSection) {
-            const showBorder = hasShortcuts || hasHd;
-            kbSection.classList.toggle("border-t", showBorder);
-            kbSection.classList.toggle("border-base-300", showBorder);
-        }
-        if (kbSectionHeader) {
-            kbSectionHeader.style.paddingTop = hasShortcuts || hasHd ? "" : "0";
-        }
-        if (hdSection) {
-            const showBorder = hasShortcuts || hasKb;
-            hdSection.classList.toggle("border-t", showBorder);
-            hdSection.classList.toggle("border-base-300", showBorder);
-        }
-        if (hdSectionHeader) {
-            hdSectionHeader.style.paddingTop = hasShortcuts || hasKb ? "" : "0";
-        }
-    };
-
-    const updateEmptyState = (): void => {
-        const rawQuery = commandPaletteInput?.value ?? "";
-        const visibleShortcuts = commandPaletteItems.filter(
-            (item) => !item.classList.contains("hidden"),
-        ).length;
-        const hasKb = kbSection && !kbSection.classList.contains("hidden");
-        const hasHd = hdSection && !hdSection.classList.contains("hidden");
-        const showEmpty = rawQuery.length > 0
-            && visibleShortcuts === 0
-            && !hasKb
-            && !hasHd
-            && pendingFetches === 0;
-        commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
-    };
-
-    const filterCommandPalette = (): void => {
-        const rawQuery = commandPaletteInput?.value ?? "";
-        const normalizedQuery = rawQuery.length > 0
-            ? normalizeSearchValue(rawQuery)
-            : "";
-        let visibleItems = 0;
-
-        commandPaletteItems.forEach((item: HTMLLIElement) => {
-            const searchText = item.dataset.searchText ?? "";
-            const isVisible =
-                normalizedQuery.length === 0 ||
-                normalizeSearchValue(searchText).includes(normalizedQuery);
-
-            item.classList.toggle("hidden", !isVisible);
-            if (isVisible) visibleItems += 1;
-        });
-
-        if (commandPaletteShortcuts) {
-            highlightSearchTargets(commandPaletteShortcuts, rawQuery);
-        }
-
-        applySectionSpacing();
-
-        if (rawQuery.length === 0) {
-            updateEmptyState();
-        }
-    };
-
-    const buildKbArticleElement = (article: {
-        id: number;
-        title: string;
-        category: string | null;
-    }): HTMLLIElement => {
-        const li = document.createElement("li");
-        li.dataset.kbItem = "";
-        li.dataset.searchText = `${article.id} ${article.title} ${article.category ?? ""}`.toLowerCase();
-
-        const a = document.createElement("a");
-        a.href = `${invgateWebBase}/knowledgebase_articles/show/index/article_id/${article.id}`;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.className = "justify-between gap-3";
-
-        const leftSpan = document.createElement("span");
-        leftSpan.className = "flex min-w-0 items-center gap-2";
-
-        const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        iconSvg.setAttribute("viewBox", "0 0 24 24");
-        iconSvg.setAttribute("class", "shrink-0 size-[14px]");
-        iconSvg.setAttribute("fill", "none");
-        iconSvg.setAttribute("stroke", "currentColor");
-        iconSvg.setAttribute("stroke-width", "1.5");
-        const iconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        iconPath.setAttribute("stroke-linecap", "round");
-        iconPath.setAttribute("stroke-linejoin", "round");
-        iconPath.setAttribute(
-            "d",
-            "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
-        );
-        iconSvg.appendChild(iconPath);
-        leftSpan.appendChild(iconSvg);
-
-        const textContainer = document.createElement("span");
-        textContainer.className = "min-w-0";
-
-        if (article.category) {
-            const catSpan = document.createElement("span");
-            catSpan.className = "block text-xs text-base-content/50";
-            catSpan.textContent = article.category;
-            textContainer.appendChild(catSpan);
-        }
-
-        const titleSpan = document.createElement("span");
-        titleSpan.className = "block truncate";
-        titleSpan.dataset.highlightTarget = "";
-        titleSpan.textContent = article.title;
-        textContainer.appendChild(titleSpan);
-
-        leftSpan.appendChild(textContainer);
-
-        const idBadge = document.createElement("span");
-        idBadge.className = "badge badge-sm badge-ghost shrink-0";
-        idBadge.textContent = `#${article.id}`;
-
-        a.appendChild(leftSpan);
-        a.appendChild(idBadge);
-        li.appendChild(a);
-
-        return li;
-    };
-
-    const fetchKbArticles = (query: string): void => {
-        if (kbDebounceTimer !== null) {
-            clearTimeout(kbDebounceTimer);
-            kbDebounceTimer = null;
-        }
-
-        if (kbAbortController) {
-            kbAbortController.abort();
-            kbAbortController = null;
-        }
-
-        if (query.length < 2 || !kbResultsContainer || !kbSection || !kbLoadingEl) {
-            if (kbSection) kbSection.classList.add("hidden");
-            if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
-            if (kbResultsContainer) kbResultsContainer.innerHTML = "";
-            updateEmptyState();
-            return;
-        }
-
-        if (kbSection) kbSection.classList.add("hidden");
-        applySectionSpacing();
-        kbLoadingEl.classList.remove("hidden");
-
-        kbDebounceTimer = setTimeout(async () => {
-            kbAbortController = new AbortController();
-            const signal = kbAbortController.signal;
-
-            pendingFetches++;
-
-            try {
-                const response = await fetch(
-                    `/api/invgate/kb-search?q=${encodeURIComponent(query)}`,
-                    { signal, credentials: "same-origin" },
-                );
-
-                if (!response.ok) {
-                    pendingFetches--;
-                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                    updateEmptyState();
-                    return;
-                }
-
-                const data = await response.json();
-                const articles: Array<{
-                    id: number;
-                    title: string;
-                    category: string | null;
-                }> = data.articles ?? [];
-
-                kbResultsContainer.innerHTML = "";
-
-                if (articles.length === 0) {
-                    pendingFetches--;
-                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                    updateEmptyState();
-                    return;
-                }
-
-                for (const article of articles) {
-                    const li = buildKbArticleElement(article);
-                    kbResultsContainer.appendChild(li);
-                }
-
-                pendingFetches--;
-                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                applySectionSpacing();
-                kbSection.classList.remove("hidden");
-                highlightSearchTargets(kbResultsContainer, query);
-                updateEmptyState();
-            } catch (err) {
-                pendingFetches--;
-                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                updateEmptyState();
-                if (err instanceof DOMException && err.name === "AbortError") return;
-                console.error("[KB Search]", err);
-            }
-        }, 300);
-    };
-
-    const buildHelpdeskElement = (hd: {
-        id: number;
-        name: string;
-        totalMembers: number;
-    }): HTMLLIElement => {
-        const li = document.createElement("li");
-        li.dataset.hdItem = "";
-        li.dataset.searchText = `${hd.name} ${hd.id}`.toLowerCase();
-
-        const a = document.createElement("a");
-        a.href = `${invgateWebBase}/group/profile/index/id/${hd.id}`;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.className = "justify-between gap-3";
-
-        const leftSpan = document.createElement("span");
-        leftSpan.className = "flex min-w-0 items-center gap-2";
-
-        const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        iconSvg.setAttribute("viewBox", "0 0 24 24");
-        iconSvg.setAttribute("class", "shrink-0 size-[14px]");
-        iconSvg.setAttribute("fill", "none");
-        iconSvg.setAttribute("stroke", "currentColor");
-        iconSvg.setAttribute("stroke-width", "1.5");
-        const iconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        iconPath.setAttribute("stroke-linecap", "round");
-        iconPath.setAttribute("stroke-linejoin", "round");
-        iconPath.setAttribute(
-            "d",
-            "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-        );
-        iconSvg.appendChild(iconPath);
-        leftSpan.appendChild(iconSvg);
-
-        const titleSpan = document.createElement("span");
-        titleSpan.className = "block truncate";
-        titleSpan.dataset.highlightTarget = "";
-        titleSpan.textContent = hd.name;
-        leftSpan.appendChild(titleSpan);
-
-        const memberBadge = document.createElement("span");
-        memberBadge.className = "badge badge-sm badge-ghost shrink-0";
-        memberBadge.textContent = `${hd.totalMembers} miembros`;
-
-        a.appendChild(leftSpan);
-        a.appendChild(memberBadge);
-        li.appendChild(a);
-
-        return li;
-    };
-
-    const fetchHelpdesks = (query: string): void => {
-        if (hdDebounceTimer !== null) {
-            clearTimeout(hdDebounceTimer);
-            hdDebounceTimer = null;
-        }
-
-        if (hdAbortController) {
-            hdAbortController.abort();
-            hdAbortController = null;
-        }
-
-        if (query.length < 2 || !hdResultsContainer || !hdSection) {
-            if (hdSection) hdSection.classList.add("hidden");
-            if (hdResultsContainer) hdResultsContainer.innerHTML = "";
-            updateEmptyState();
-            return;
-        }
-
-        if (hdSection) hdSection.classList.add("hidden");
-
-        hdDebounceTimer = setTimeout(async () => {
-            hdAbortController = new AbortController();
-            const signal = hdAbortController.signal;
-
-            pendingFetches++;
-
-            try {
-                const response = await fetch(
-                    `/api/invgate/helpdesk-search?q=${encodeURIComponent(query)}`,
-                    { signal, credentials: "same-origin" },
-                );
-
-                if (!response.ok) {
-                    pendingFetches--;
-                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                    updateEmptyState();
-                    return;
-                }
-
-                const data = await response.json();
-                const helpdesks: Array<{
-                    id: number;
-                    name: string;
-                    totalMembers: number;
-                }> = data.helpdesks ?? [];
-
-                hdResultsContainer.innerHTML = "";
-
-                if (helpdesks.length === 0) {
-                    pendingFetches--;
-                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                    updateEmptyState();
-                    return;
-                }
-
-                for (const hd of helpdesks) {
-                    const li = buildHelpdeskElement(hd);
-                    hdResultsContainer.appendChild(li);
-                }
-
-                pendingFetches--;
-                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                applySectionSpacing();
-                hdSection.classList.remove("hidden");
-                highlightSearchTargets(hdResultsContainer, query);
-                updateEmptyState();
-            } catch (err) {
-                pendingFetches--;
-                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
-                updateEmptyState();
-                if (err instanceof DOMException && err.name === "AbortError") return;
-                console.error("[Helpdesk Search]", err);
-            }
-        }, 300);
-    };
-
-    const openCommandPalette = (): void => {
-        if (!commandPalette) return;
-
-        if (!commandPalette.open) {
-            commandPalette.showModal();
-        }
-
-        if (kbResultsContainer) kbResultsContainer.innerHTML = "";
-        if (kbSection) kbSection.classList.add("hidden");
-        if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
-        if (hdResultsContainer) hdResultsContainer.innerHTML = "";
-        if (hdSection) hdSection.classList.add("hidden");
-
-        if (kbAbortController) {
-            kbAbortController.abort();
-            kbAbortController = null;
-        }
-        if (hdAbortController) {
-            hdAbortController.abort();
-            hdAbortController = null;
-        }
-
-        pendingFetches = 0;
-
-        if (commandPaletteInput) {
-            commandPaletteInput.value = "";
-            filterCommandPalette();
-            commandPaletteInput.focus();
-        }
-    };
-
-    const closeCommandPalette = (): void => {
-        if (kbAbortController) {
-            kbAbortController.abort();
-            kbAbortController = null;
-        }
-        if (hdAbortController) {
-            hdAbortController.abort();
-            hdAbortController = null;
-        }
-
-        if (kbDebounceTimer !== null) {
-            clearTimeout(kbDebounceTimer);
-            kbDebounceTimer = null;
-        }
-        if (hdDebounceTimer !== null) {
-            clearTimeout(hdDebounceTimer);
-            hdDebounceTimer = null;
-        }
-
-        pendingFetches = 0;
-        if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
-
-        if (commandPalette?.open) {
-            commandPalette.close();
-        }
-    };
-
-    commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
-        trigger.addEventListener("click", () => {
-            openCommandPalette();
-        });
+  import {
+    highlightSearchTargets,
+    normalizeSearchValue,
+  } from "@lib/clientSearch";
+
+  const commandPalette = document.getElementById(
+    "command-palette",
+  ) as HTMLDialogElement | null;
+  const commandPaletteInput = document.getElementById(
+    "command-palette-input",
+  ) as HTMLInputElement | null;
+  const commandPaletteItems = Array.from(
+    document.querySelectorAll("[data-command-item]"),
+  ) as HTMLLIElement[];
+  const commandPaletteEmpty = document.getElementById(
+    "command-palette-empty",
+  ) as HTMLElement | null;
+  const commandPaletteTriggers = Array.from(
+    document.querySelectorAll("[data-open-command-palette]"),
+  ) as HTMLButtonElement[];
+  const commandPaletteShortcuts = document.getElementById(
+    "command-palette-shortcuts",
+  ) as HTMLUListElement | null;
+  const kbSection = document.getElementById(
+    "command-palette-kb-section",
+  ) as HTMLDivElement | null;
+  const kbResultsContainer = document.getElementById(
+    "command-palette-kb-results",
+  ) as HTMLUListElement | null;
+  const kbLoadingEl = document.getElementById(
+    "command-palette-kb-loading",
+  ) as HTMLDivElement | null;
+  const kbSectionHeader = document.getElementById(
+    "command-palette-kb-section-header",
+  ) as HTMLDivElement | null;
+  const hdSection = document.getElementById(
+    "command-palette-hd-section",
+  ) as HTMLDivElement | null;
+  const hdResultsContainer = document.getElementById(
+    "command-palette-hd-results",
+  ) as HTMLUListElement | null;
+  const hdSectionHeader = document.getElementById(
+    "command-palette-hd-section-header",
+  ) as HTMLDivElement | null;
+
+  const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
+
+  let searchAbortController: AbortController | null = null;
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const applySectionSpacing = (): void => {
+    const hasShortcuts = commandPaletteItems.some(
+      (item) => !item.classList.contains("hidden"),
+    );
+    const hasKb = kbSection && !kbSection.classList.contains("hidden");
+    const hasHd = hdSection && !hdSection.classList.contains("hidden");
+
+    if (kbSectionHeader) {
+      kbSectionHeader.style.paddingTop = hasShortcuts || hasHd ? "" : "0";
+    }
+    if (hdSectionHeader) {
+      hdSectionHeader.style.paddingTop = hasShortcuts || hasKb ? "" : "0";
+    }
+  };
+
+  const updateEmptyState = (): void => {
+    const rawQuery = commandPaletteInput?.value ?? "";
+    const visibleShortcuts = commandPaletteItems.filter(
+      (item) => !item.classList.contains("hidden"),
+    ).length;
+    const hasKb = kbSection && !kbSection.classList.contains("hidden");
+    const hasHd = hdSection && !hdSection.classList.contains("hidden");
+    const showEmpty =
+      rawQuery.length > 0 && visibleShortcuts === 0 && !hasKb && !hasHd;
+    commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
+  };
+
+  const filterCommandPalette = (): void => {
+    const rawQuery = commandPaletteInput?.value ?? "";
+    const normalizedQuery =
+      rawQuery.length > 0 ? normalizeSearchValue(rawQuery) : "";
+    let visibleItems = 0;
+
+    commandPaletteItems.forEach((item: HTMLLIElement) => {
+      const searchText = item.dataset.searchText ?? "";
+      const isVisible =
+        normalizedQuery.length === 0 ||
+        normalizeSearchValue(searchText).includes(normalizedQuery);
+
+      item.classList.toggle("hidden", !isVisible);
+      if (isVisible) visibleItems += 1;
     });
 
-    commandPaletteInput?.addEventListener("input", () => {
-        filterCommandPalette();
-        fetchKbArticles(commandPaletteInput.value);
-        fetchHelpdesks(commandPaletteInput.value);
-    });
+    if (commandPaletteShortcuts) {
+      commandPaletteShortcuts.classList.toggle("hidden", visibleItems === 0);
+      highlightSearchTargets(commandPaletteShortcuts, rawQuery);
+    }
 
-    commandPalette?.addEventListener("click", (event: MouseEvent) => {
-        if (event.target === commandPalette) {
-            closeCommandPalette();
+    applySectionSpacing();
+
+    if (rawQuery.length === 0) {
+      updateEmptyState();
+    }
+  };
+
+  const buildKbArticleElement = (article: {
+    id: number;
+    title: string;
+    category: string | null;
+  }): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.kbItem = "";
+    li.dataset.searchText =
+      `${article.id} ${article.title} ${article.category ?? ""}`.toLowerCase();
+
+    const a = document.createElement("a");
+    a.href = `${invgateWebBase}/knowledgebase_articles/show/index/article_id/${article.id}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "justify-between gap-3";
+
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "flex min-w-0 items-center gap-2";
+
+    const iconSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    iconSvg.setAttribute("viewBox", "0 0 24 24");
+    iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+    iconSvg.setAttribute("fill", "none");
+    iconSvg.setAttribute("stroke", "currentColor");
+    iconSvg.setAttribute("stroke-width", "1.5");
+    const iconPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    iconPath.setAttribute("stroke-linecap", "round");
+    iconPath.setAttribute("stroke-linejoin", "round");
+    iconPath.setAttribute(
+      "d",
+      "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+    );
+    iconSvg.appendChild(iconPath);
+    leftSpan.appendChild(iconSvg);
+
+    const textContainer = document.createElement("span");
+    textContainer.className = "min-w-0";
+
+    if (article.category) {
+      const catSpan = document.createElement("span");
+      catSpan.className = "block text-xs text-base-content/50";
+      catSpan.textContent = article.category;
+      textContainer.appendChild(catSpan);
+    }
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "block truncate";
+    titleSpan.dataset.highlightTarget = "";
+    titleSpan.textContent = article.title;
+    textContainer.appendChild(titleSpan);
+
+    leftSpan.appendChild(textContainer);
+
+    const idBadge = document.createElement("span");
+    idBadge.className = "badge badge-sm badge-ghost shrink-0";
+    idBadge.textContent = `#${article.id}`;
+
+    a.appendChild(leftSpan);
+    a.appendChild(idBadge);
+    li.appendChild(a);
+
+    return li;
+  };
+
+  const searchKb = async (
+    query: string,
+    signal: AbortSignal,
+  ): Promise<
+    Array<{
+      id: number;
+      title: string;
+      category: string | null;
+    }>
+  > => {
+    const response = await fetch(
+      `/api/invgate/kb-search?q=${encodeURIComponent(query)}`,
+      { signal, credentials: "same-origin" },
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.articles ?? [];
+  };
+
+  const searchHd = async (
+    query: string,
+    signal: AbortSignal,
+  ): Promise<
+    Array<{
+      id: number;
+      name: string;
+      totalMembers: number;
+    }>
+  > => {
+    const response = await fetch(
+      `/api/invgate/helpdesk-search?q=${encodeURIComponent(query)}`,
+      { signal, credentials: "same-origin" },
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.helpdesks ?? [];
+  };
+
+  const buildHelpdeskElement = (hd: {
+    id: number;
+    name: string;
+    totalMembers: number;
+  }): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.hdItem = "";
+    li.dataset.searchText = `${hd.name} ${hd.id}`.toLowerCase();
+
+    const a = document.createElement("a");
+    a.href = `${invgateWebBase}/group/profile/index/id/${hd.id}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "justify-between gap-3";
+
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "flex min-w-0 items-center gap-2";
+
+    const iconSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    iconSvg.setAttribute("viewBox", "0 0 24 24");
+    iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+    iconSvg.setAttribute("fill", "none");
+    iconSvg.setAttribute("stroke", "currentColor");
+    iconSvg.setAttribute("stroke-width", "1.5");
+    const iconPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    iconPath.setAttribute("stroke-linecap", "round");
+    iconPath.setAttribute("stroke-linejoin", "round");
+    iconPath.setAttribute(
+      "d",
+      "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+    );
+    iconSvg.appendChild(iconPath);
+    leftSpan.appendChild(iconSvg);
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "block truncate";
+    titleSpan.dataset.highlightTarget = "";
+    titleSpan.textContent = hd.name;
+    leftSpan.appendChild(titleSpan);
+
+    const memberBadge = document.createElement("span");
+    memberBadge.className = "badge badge-sm badge-ghost shrink-0";
+    memberBadge.textContent = `${hd.totalMembers} miembros`;
+
+    a.appendChild(leftSpan);
+    a.appendChild(memberBadge);
+    li.appendChild(a);
+
+    return li;
+  };
+
+  const fetchExternalResults = (query: string): void => {
+    if (searchDebounceTimer !== null) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
+
+    if (searchAbortController) {
+      searchAbortController.abort();
+      searchAbortController = null;
+    }
+
+    if (
+      query.length < 2 ||
+      !kbResultsContainer ||
+      !kbSection ||
+      !hdResultsContainer ||
+      !hdSection ||
+      !kbLoadingEl
+    ) {
+      if (kbSection) kbSection.classList.add("hidden");
+      if (hdSection) hdSection.classList.add("hidden");
+      if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+      if (kbResultsContainer) kbResultsContainer.innerHTML = "";
+      if (hdResultsContainer) hdResultsContainer.innerHTML = "";
+      updateEmptyState();
+      return;
+    }
+
+    if (kbSection) kbSection.classList.add("hidden");
+    if (hdSection) hdSection.classList.add("hidden");
+    if (commandPaletteEmpty) commandPaletteEmpty.classList.add("hidden");
+    applySectionSpacing();
+    kbLoadingEl.classList.remove("hidden");
+
+    searchDebounceTimer = setTimeout(async () => {
+      searchAbortController = new AbortController();
+      const signal = searchAbortController.signal;
+
+      const [kbResult, hdResult] = await Promise.allSettled([
+        searchKb(query, signal),
+        searchHd(query, signal),
+      ]);
+
+      const articles = kbResult.status === "fulfilled" ? kbResult.value : [];
+      const helpdesks = hdResult.status === "fulfilled" ? hdResult.value : [];
+
+      if (kbResultsContainer) {
+        kbResultsContainer.innerHTML = "";
+        if (articles.length > 0) {
+          for (const article of articles) {
+            kbResultsContainer.appendChild(buildKbArticleElement(article));
+          }
         }
-    });
+        if (kbSection)
+          kbSection.classList.toggle("hidden", articles.length === 0);
+      }
 
-    document.addEventListener("keydown", (event: KeyboardEvent) => {
-        const isCommandShortcut =
-            (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
-
-        if (isCommandShortcut) {
-            event.preventDefault();
-            openCommandPalette();
-            return;
+      if (hdResultsContainer) {
+        hdResultsContainer.innerHTML = "";
+        if (helpdesks.length > 0) {
+          for (const hd of helpdesks) {
+            hdResultsContainer.appendChild(buildHelpdeskElement(hd));
+          }
         }
+        if (hdSection)
+          hdSection.classList.toggle("hidden", helpdesks.length === 0);
+      }
 
-        if (event.key === "Escape") {
-            closeCommandPalette();
-        }
+      if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+
+      applySectionSpacing();
+
+      if (kbResultsContainer) highlightSearchTargets(kbResultsContainer, query);
+      if (hdResultsContainer) highlightSearchTargets(hdResultsContainer, query);
+
+      updateEmptyState();
+    }, 300);
+  };
+
+  const openCommandPalette = (): void => {
+    if (!commandPalette) return;
+
+    if (!commandPalette.open) {
+      commandPalette.showModal();
+    }
+
+    if (kbResultsContainer) kbResultsContainer.innerHTML = "";
+    if (kbSection) kbSection.classList.add("hidden");
+    if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+    if (hdResultsContainer) hdResultsContainer.innerHTML = "";
+    if (hdSection) hdSection.classList.add("hidden");
+
+    if (searchAbortController) {
+      searchAbortController.abort();
+      searchAbortController = null;
+    }
+
+    if (commandPaletteInput) {
+      commandPaletteInput.value = "";
+      filterCommandPalette();
+      commandPaletteInput.focus();
+    }
+  };
+
+  const closeCommandPalette = (): void => {
+    if (searchAbortController) {
+      searchAbortController.abort();
+      searchAbortController = null;
+    }
+
+    if (searchDebounceTimer !== null) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
+
+    if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+
+    if (commandPalette?.open) {
+      commandPalette.close();
+    }
+  };
+
+  commandPaletteTriggers.forEach((trigger: HTMLButtonElement) => {
+    trigger.addEventListener("click", () => {
+      openCommandPalette();
     });
+  });
 
+  commandPaletteInput?.addEventListener("input", () => {
     filterCommandPalette();
+    fetchExternalResults(commandPaletteInput.value);
+  });
+
+  commandPalette?.addEventListener("click", (event: MouseEvent) => {
+    if (event.target === commandPalette) {
+      closeCommandPalette();
+    }
+  });
+
+  document.addEventListener("keydown", (event: KeyboardEvent) => {
+    const isCommandShortcut =
+      (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+
+    if (isCommandShortcut) {
+      event.preventDefault();
+      openCommandPalette();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      closeCommandPalette();
+    }
+  });
+
+  filterCommandPalette();
 </script>
