@@ -103,6 +103,15 @@ export interface InvgateKbCategory {
   parent_id?: number | null;
 }
 
+export interface InvgateHelpdesk {
+  id: number;
+  name: string;
+  parent_id: number;
+  status_id: number;
+  engine_id: number;
+  total_members: number;
+}
+
 export interface InvgateKbSearchResponse {
   status: string;
   data: InvgateKbArticle[];
