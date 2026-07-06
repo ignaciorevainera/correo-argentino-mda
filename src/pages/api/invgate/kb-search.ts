@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import type {
   InvgateKbCategory,
   InvgateKbSearchResponse,
@@ -56,6 +56,6 @@ export const GET: APIRoute = async ({ url }) => {
     );
   } catch (error: any) {
     console.error("[InvGate KB Search] Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

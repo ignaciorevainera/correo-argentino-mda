@@ -30,6 +30,11 @@ export default defineConfig({
         },
       },
     },
+    build: {
+      rollupOptions: {
+        external: ["ldapjs"],
+      },
+    },
   },
 
   output: "server",

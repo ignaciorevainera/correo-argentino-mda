@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { db } from "@db/index";
 import { offices } from "@db/schema";
 import { officeFormSchema } from "@lib/validations";
@@ -65,6 +65,6 @@ export const POST: APIRoute = async ({ locals, request }) => {
     if (errorMsg.includes("UNIQUE constraint failed") || errorMsg.includes("UNIQUE")) {
       return jsonResponse({ error: "El NIS o Código ya existe en la base de datos" }, 400);
     }
-    return jsonResponse({ error: errorMsg || "Error interno del servidor" }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

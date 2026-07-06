@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { db } from "@db/index";
 import { offices } from "@db/schema";
 import { matchLocations } from "@lib/invgate/locationMatcher";
@@ -102,6 +102,6 @@ export const GET: APIRoute = async ({ locals, request }) => {
     });
   } catch (error: any) {
     console.error("[Locations API] Error:", error);
-    return jsonResponse({ error: error.message || "Error interno del servidor" }, 500);
+    return jsonResponse({ error: sanitizeError(error) || "Error interno del servidor" }, 500);
   }
 };

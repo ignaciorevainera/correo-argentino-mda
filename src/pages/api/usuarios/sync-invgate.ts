@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse, jsonError } from "@lib/apiResponse";
+import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 import { db } from "@db/index";
 import { employees } from "@db/schema";
 import { inArray } from "drizzle-orm";
@@ -78,6 +78,6 @@ export const POST: APIRoute = async ({ locals }) => {
     });
   } catch (error: any) {
     console.error("[SyncInvGate] Error:", error);
-    return jsonError(error.message || "Error al sincronizar con InvGate", 500);
+    return jsonError(sanitizeError(error) || "Error al sincronizar con InvGate", 500);
   }
 };

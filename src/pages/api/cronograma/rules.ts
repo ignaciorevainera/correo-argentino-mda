@@ -4,6 +4,7 @@ import { agents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 
 import { requireWriteAccess } from "@lib/rbac-middleware";
+import { sanitizeError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -53,7 +54,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   } catch (error: any) {
     console.error("POST Rules API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

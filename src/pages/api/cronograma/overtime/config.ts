@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { weekendOvertimeConfig } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -24,7 +25,7 @@ export const GET: APIRoute = async ({ url }) => {
   } catch (error: any) {
     console.error("GET overtime config API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -66,7 +67,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   } catch (error: any) {
     console.error("POST overtime config API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
