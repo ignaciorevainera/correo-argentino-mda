@@ -112,6 +112,15 @@ const invgateWebBase = invgateApiBase
                 <ul id="command-palette-kb-results" class="menu w-full"></ul>
             </div>
 
+            <div id="command-palette-hd-section" class="hidden">
+                <div id="command-palette-hd-section-header" class="px-4 pt-3 pb-1">
+                    <span class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
+                        Mesas de ayuda
+                    </span>
+                </div>
+                <ul id="command-palette-hd-results" class="menu w-full"></ul>
+            </div>
+
             <p
                 id="command-palette-empty"
                 class="hidden px-4 pb-4 text-sm text-base-content/70"
@@ -159,29 +168,51 @@ const invgateWebBase = invgateApiBase
     const kbSectionHeader = document.getElementById(
         "command-palette-kb-section-header",
     ) as HTMLDivElement | null;
+    const hdSection = document.getElementById(
+        "command-palette-hd-section",
+    ) as HTMLDivElement | null;
+    const hdResultsContainer = document.getElementById(
+        "command-palette-hd-results",
+    ) as HTMLUListElement | null;
+    const hdSectionHeader = document.getElementById(
+        "command-palette-hd-section-header",
+    ) as HTMLDivElement | null;
 
     const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
 
     let kbAbortController: AbortController | null = null;
+    let hdAbortController: AbortController | null = null;
     let kbDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let kbFetchActive = false;
+    let hdDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingFetches = 0;
 
     const applySectionSpacing = (): void => {
-        const hasVisibleShortcuts = commandPaletteItems.some(
+        const hasShortcuts = commandPaletteItems.some(
             (item) => !item.classList.contains("hidden"),
         );
+        const hasKb = kbSection && !kbSection.classList.contains("hidden");
+        const hasHd = hdSection && !hdSection.classList.contains("hidden");
 
         if (kbLoadingEl) {
-            kbLoadingEl.classList.toggle("border-t", hasVisibleShortcuts);
-            kbLoadingEl.classList.toggle("border-base-300", hasVisibleShortcuts);
-            kbLoadingEl.style.paddingTop = hasVisibleShortcuts ? "" : "0";
+            kbLoadingEl.classList.toggle("border-t", hasShortcuts);
+            kbLoadingEl.classList.toggle("border-base-300", hasShortcuts);
+            kbLoadingEl.style.paddingTop = hasShortcuts ? "" : "0";
         }
         if (kbSection) {
-            kbSection.classList.toggle("border-t", hasVisibleShortcuts);
-            kbSection.classList.toggle("border-base-300", hasVisibleShortcuts);
+            const showBorder = hasShortcuts || hasHd;
+            kbSection.classList.toggle("border-t", showBorder);
+            kbSection.classList.toggle("border-base-300", showBorder);
         }
         if (kbSectionHeader) {
-            kbSectionHeader.style.paddingTop = hasVisibleShortcuts ? "" : "0";
+            kbSectionHeader.style.paddingTop = hasShortcuts || hasHd ? "" : "0";
+        }
+        if (hdSection) {
+            const showBorder = hasShortcuts || hasKb;
+            hdSection.classList.toggle("border-t", showBorder);
+            hdSection.classList.toggle("border-base-300", showBorder);
+        }
+        if (hdSectionHeader) {
+            hdSectionHeader.style.paddingTop = hasShortcuts || hasKb ? "" : "0";
         }
     };
 
@@ -190,13 +221,13 @@ const invgateWebBase = invgateApiBase
         const visibleShortcuts = commandPaletteItems.filter(
             (item) => !item.classList.contains("hidden"),
         ).length;
-        const hasKbSection = kbSection
-            ? !kbSection.classList.contains("hidden")
-            : false;
+        const hasKb = kbSection && !kbSection.classList.contains("hidden");
+        const hasHd = hdSection && !hdSection.classList.contains("hidden");
         const showEmpty = rawQuery.length > 0
             && visibleShortcuts === 0
-            && !hasKbSection
-            && !kbFetchActive;
+            && !hasKb
+            && !hasHd
+            && pendingFetches === 0;
         commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
     };
 
@@ -311,7 +342,6 @@ const invgateWebBase = invgateApiBase
         }
 
         if (kbSection) kbSection.classList.add("hidden");
-        kbFetchActive = false;
         applySectionSpacing();
         kbLoadingEl.classList.remove("hidden");
 
@@ -319,7 +349,7 @@ const invgateWebBase = invgateApiBase
             kbAbortController = new AbortController();
             const signal = kbAbortController.signal;
 
-            kbFetchActive = true;
+            pendingFetches++;
 
             try {
                 const response = await fetch(
@@ -328,8 +358,8 @@ const invgateWebBase = invgateApiBase
                 );
 
                 if (!response.ok) {
-                    kbLoadingEl.classList.add("hidden");
-                    kbFetchActive = false;
+                    pendingFetches--;
+                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
                     updateEmptyState();
                     return;
                 }
@@ -342,10 +372,10 @@ const invgateWebBase = invgateApiBase
                 }> = data.articles ?? [];
 
                 kbResultsContainer.innerHTML = "";
-                kbLoadingEl.classList.add("hidden");
 
                 if (articles.length === 0) {
-                    kbFetchActive = false;
+                    pendingFetches--;
+                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
                     updateEmptyState();
                     return;
                 }
@@ -355,17 +385,145 @@ const invgateWebBase = invgateApiBase
                     kbResultsContainer.appendChild(li);
                 }
 
-                kbFetchActive = false;
+                pendingFetches--;
+                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
                 applySectionSpacing();
                 kbSection.classList.remove("hidden");
                 highlightSearchTargets(kbResultsContainer, query);
                 updateEmptyState();
             } catch (err) {
-                kbFetchActive = false;
-                if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                pendingFetches--;
+                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
                 updateEmptyState();
                 if (err instanceof DOMException && err.name === "AbortError") return;
                 console.error("[KB Search]", err);
+            }
+        }, 300);
+    };
+
+    const buildHelpdeskElement = (hd: {
+        id: number;
+        name: string;
+        totalMembers: number;
+    }): HTMLLIElement => {
+        const li = document.createElement("li");
+        li.dataset.hdItem = "";
+        li.dataset.searchText = `${hd.name} ${hd.id}`.toLowerCase();
+
+        const a = document.createElement("a");
+        a.href = `${invgateWebBase}/group/profile/index/id/${hd.id}`;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "justify-between gap-3";
+
+        const leftSpan = document.createElement("span");
+        leftSpan.className = "flex min-w-0 items-center gap-2";
+
+        const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        iconSvg.setAttribute("viewBox", "0 0 24 24");
+        iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+        iconSvg.setAttribute("fill", "none");
+        iconSvg.setAttribute("stroke", "currentColor");
+        iconSvg.setAttribute("stroke-width", "1.5");
+        const iconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        iconPath.setAttribute("stroke-linecap", "round");
+        iconPath.setAttribute("stroke-linejoin", "round");
+        iconPath.setAttribute(
+            "d",
+            "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+        );
+        iconSvg.appendChild(iconPath);
+        leftSpan.appendChild(iconSvg);
+
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "block truncate";
+        titleSpan.dataset.highlightTarget = "";
+        titleSpan.textContent = hd.name;
+        leftSpan.appendChild(titleSpan);
+
+        const memberBadge = document.createElement("span");
+        memberBadge.className = "badge badge-sm badge-ghost shrink-0";
+        memberBadge.textContent = `${hd.totalMembers} miembros`;
+
+        a.appendChild(leftSpan);
+        a.appendChild(memberBadge);
+        li.appendChild(a);
+
+        return li;
+    };
+
+    const fetchHelpdesks = (query: string): void => {
+        if (hdDebounceTimer !== null) {
+            clearTimeout(hdDebounceTimer);
+            hdDebounceTimer = null;
+        }
+
+        if (hdAbortController) {
+            hdAbortController.abort();
+            hdAbortController = null;
+        }
+
+        if (query.length < 2 || !hdResultsContainer || !hdSection) {
+            if (hdSection) hdSection.classList.add("hidden");
+            if (hdResultsContainer) hdResultsContainer.innerHTML = "";
+            updateEmptyState();
+            return;
+        }
+
+        if (hdSection) hdSection.classList.add("hidden");
+
+        hdDebounceTimer = setTimeout(async () => {
+            hdAbortController = new AbortController();
+            const signal = hdAbortController.signal;
+
+            pendingFetches++;
+
+            try {
+                const response = await fetch(
+                    `/api/invgate/helpdesk-search?q=${encodeURIComponent(query)}`,
+                    { signal, credentials: "same-origin" },
+                );
+
+                if (!response.ok) {
+                    pendingFetches--;
+                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                    updateEmptyState();
+                    return;
+                }
+
+                const data = await response.json();
+                const helpdesks: Array<{
+                    id: number;
+                    name: string;
+                    totalMembers: number;
+                }> = data.helpdesks ?? [];
+
+                hdResultsContainer.innerHTML = "";
+
+                if (helpdesks.length === 0) {
+                    pendingFetches--;
+                    if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                    updateEmptyState();
+                    return;
+                }
+
+                for (const hd of helpdesks) {
+                    const li = buildHelpdeskElement(hd);
+                    hdResultsContainer.appendChild(li);
+                }
+
+                pendingFetches--;
+                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                applySectionSpacing();
+                hdSection.classList.remove("hidden");
+                highlightSearchTargets(hdResultsContainer, query);
+                updateEmptyState();
+            } catch (err) {
+                pendingFetches--;
+                if (pendingFetches === 0 && kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                updateEmptyState();
+                if (err instanceof DOMException && err.name === "AbortError") return;
+                console.error("[Helpdesk Search]", err);
             }
         }, 300);
     };
@@ -380,11 +538,19 @@ const invgateWebBase = invgateApiBase
         if (kbResultsContainer) kbResultsContainer.innerHTML = "";
         if (kbSection) kbSection.classList.add("hidden");
         if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+        if (hdResultsContainer) hdResultsContainer.innerHTML = "";
+        if (hdSection) hdSection.classList.add("hidden");
 
         if (kbAbortController) {
             kbAbortController.abort();
             kbAbortController = null;
         }
+        if (hdAbortController) {
+            hdAbortController.abort();
+            hdAbortController = null;
+        }
+
+        pendingFetches = 0;
 
         if (commandPaletteInput) {
             commandPaletteInput.value = "";
@@ -398,13 +564,21 @@ const invgateWebBase = invgateApiBase
             kbAbortController.abort();
             kbAbortController = null;
         }
+        if (hdAbortController) {
+            hdAbortController.abort();
+            hdAbortController = null;
+        }
 
         if (kbDebounceTimer !== null) {
             clearTimeout(kbDebounceTimer);
             kbDebounceTimer = null;
         }
+        if (hdDebounceTimer !== null) {
+            clearTimeout(hdDebounceTimer);
+            hdDebounceTimer = null;
+        }
 
-        kbFetchActive = false;
+        pendingFetches = 0;
         if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
 
         if (commandPalette?.open) {
@@ -421,6 +595,7 @@ const invgateWebBase = invgateApiBase
     commandPaletteInput?.addEventListener("input", () => {
         filterCommandPalette();
         fetchKbArticles(commandPaletteInput.value);
+        fetchHelpdesks(commandPaletteInput.value);
     });
 
     commandPalette?.addEventListener("click", (event: MouseEvent) => {
