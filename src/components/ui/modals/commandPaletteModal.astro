@@ -17,9 +17,14 @@ interface Props {
 }
 
 const { items, isRouteLocked } = Astro.props;
+
+const invgateApiBase = import.meta.env.INVGATE_BASE_URL;
+const invgateWebBase = invgateApiBase
+  ? invgateApiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "")
+  : "";
 ---
 
-<dialog id="command-palette" class="modal">
+<dialog id="command-palette" class="modal" data-invgate-web-base={invgateWebBase}>
     <div
         class="modal-box w-11/12 max-w-xl border border-base-300 bg-base-100 p-0"
     >
@@ -31,81 +36,99 @@ const { items, isRouteLocked } = Astro.props;
             <SearchBar id="command-palette-input" placeholder="Buscar accesos..." size="md" />
         </div>
 
-        <ul class="menu w-full">
-            {
-                items.map((item) => {
-                    const isLocked = isRouteLocked(item.href);
-                    return (
-                        <li
-                            data-command-item
-                            data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
-                            class:list={[
-                                isLocked &&
-                                    "opacity-40 grayscale select-none cursor-not-allowed",
-                            ]}
-                        >
-                            <a
-                                href={
-                                    isLocked ? undefined : resolveUrl(item.href)
-                                }
-                                class="justify-between gap-3"
-                                tabindex={isLocked ? -1 : undefined}
+        <div class="max-h-[70vh] overflow-y-auto">
+            <ul id="command-palette-shortcuts" class="menu w-full">
+                {
+                    items.map((item) => {
+                        const isLocked = isRouteLocked(item.href);
+                        return (
+                            <li
+                                data-command-item
+                                data-search-text={`${item.label} ${item.href} ${item.parentLabel ?? ""}`.toLowerCase()}
+                                class:list={[
+                                    isLocked &&
+                                        "opacity-40 grayscale select-none cursor-not-allowed",
+                                ]}
                             >
-                                <span
-                                    class:list={[
-                                        "flex min-w-0 items-center gap-2",
-                                        item.nested && "pl-5",
-                                    ]}
+                                <a
+                                    href={
+                                        isLocked ? undefined : resolveUrl(item.href)
+                                    }
+                                    class="justify-between gap-3"
+                                    tabindex={isLocked ? -1 : undefined}
                                 >
-                                    <Icon
-                                        name={item.icon}
-                                        size={14}
-                                        class="shrink-0"
-                                    />
-                                    <span class="min-w-0">
-                                        {item.parentLabel && (
-                                            <span class="block text-xs text-base-content/50">
-                                                {item.parentLabel}
+                                    <span
+                                        class:list={[
+                                            "flex min-w-0 items-center gap-2",
+                                            item.nested && "pl-5",
+                                        ]}
+                                    >
+                                        <Icon
+                                            name={item.icon}
+                                            size={14}
+                                            class="shrink-0"
+                                        />
+                                        <span class="min-w-0">
+                                            {item.parentLabel && (
+                                                <span class="block text-xs text-base-content/50">
+                                                    {item.parentLabel}
+                                                </span>
+                                            )}
+                                            <span class="block truncate" data-highlight-target>
+                                                {item.label}
                                             </span>
-                                        )}
-                                        <span class="block truncate">
-                                            {item.label}
                                         </span>
                                     </span>
-                                </span>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <span class="text-xs text-base-content/60">
-                                        {item.href}
-                                    </span>
-                                    {isLocked && (
-                                        <Icon
-                                            name="boxicons:lock"
-                                            size={12}
-                                            class="opacity-60"
-                                        />
-                                    )}
-                                </div>
-                            </a>
-                        </li>
-                    );
-                })
-            }
-        </ul>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-xs text-base-content/60">
+                                            {item.href}
+                                        </span>
+                                        {isLocked && (
+                                            <Icon
+                                                name="boxicons:lock"
+                                                size={12}
+                                                class="opacity-60"
+                                            />
+                                        )}
+                                    </div>
+                                </a>
+                            </li>
+                        );
+                    })
+                }
+            </ul>
 
-        <p
-            id="command-palette-empty"
-            class="hidden px-4 pb-4 text-sm text-base-content/70"
-        >
-            No hay accesos que coincidan.
-        </p>
+            <div id="command-palette-kb-loading" class="hidden items-center gap-2 px-4 py-3">
+                <span class="loading loading-dots loading-xs text-base-content/40"></span>
+                <span class="text-xs text-base-content/60">Buscando...</span>
+            </div>
+
+            <div id="command-palette-kb-section" class="hidden">
+                <div id="command-palette-kb-section-header" class="px-4 pt-3 pb-1">
+                    <span class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
+                        Artículos de InvGate
+                    </span>
+                </div>
+                <ul id="command-palette-kb-results" class="menu w-full"></ul>
+            </div>
+
+            <p
+                id="command-palette-empty"
+                class="hidden px-4 pb-4 text-sm text-base-content/70"
+            >
+                No se encontraron resultados.
+            </p>
+        </div>
     </div>
 
     <form method="dialog" class="modal-backdrop">
-        <button aria-label="Cerrar b�squeda">close</button>
+        <button aria-label="Cerrar búsqueda">close</button>
     </form>
 </dialog>
 
 <script>
+    import { highlightSearchTargets, normalizeSearchValue } from "@lib/clientSearch";
+
     const commandPalette = document.getElementById(
         "command-palette",
     ) as HTMLDialogElement | null;
@@ -121,31 +144,246 @@ const { items, isRouteLocked } = Astro.props;
     const commandPaletteTriggers = Array.from(
         document.querySelectorAll("[data-open-command-palette]"),
     ) as HTMLButtonElement[];
+    const commandPaletteShortcuts = document.getElementById(
+        "command-palette-shortcuts",
+    ) as HTMLUListElement | null;
+    const kbSection = document.getElementById(
+        "command-palette-kb-section",
+    ) as HTMLDivElement | null;
+    const kbResultsContainer = document.getElementById(
+        "command-palette-kb-results",
+    ) as HTMLUListElement | null;
+    const kbLoadingEl = document.getElementById(
+        "command-palette-kb-loading",
+    ) as HTMLDivElement | null;
+    const kbSectionHeader = document.getElementById(
+        "command-palette-kb-section-header",
+    ) as HTMLDivElement | null;
+
+    const invgateWebBase = commandPalette?.dataset.invgateWebBase ?? "";
+
+    let kbAbortController: AbortController | null = null;
+    let kbDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let kbFetchActive = false;
+
+    const applySectionSpacing = (): void => {
+        const hasVisibleShortcuts = commandPaletteItems.some(
+            (item) => !item.classList.contains("hidden"),
+        );
+
+        if (kbLoadingEl) {
+            kbLoadingEl.classList.toggle("border-t", hasVisibleShortcuts);
+            kbLoadingEl.classList.toggle("border-base-300", hasVisibleShortcuts);
+            kbLoadingEl.style.paddingTop = hasVisibleShortcuts ? "" : "0";
+        }
+        if (kbSection) {
+            kbSection.classList.toggle("border-t", hasVisibleShortcuts);
+            kbSection.classList.toggle("border-base-300", hasVisibleShortcuts);
+        }
+        if (kbSectionHeader) {
+            kbSectionHeader.style.paddingTop = hasVisibleShortcuts ? "" : "0";
+        }
+    };
+
+    const updateEmptyState = (): void => {
+        const rawQuery = commandPaletteInput?.value ?? "";
+        const visibleShortcuts = commandPaletteItems.filter(
+            (item) => !item.classList.contains("hidden"),
+        ).length;
+        const hasKbSection = kbSection
+            ? !kbSection.classList.contains("hidden")
+            : false;
+        const showEmpty = rawQuery.length > 0
+            && visibleShortcuts === 0
+            && !hasKbSection
+            && !kbFetchActive;
+        commandPaletteEmpty?.classList.toggle("hidden", !showEmpty);
+    };
 
     const filterCommandPalette = (): void => {
-        const query = commandPaletteInput?.value.trim().toLowerCase() ?? "";
+        const rawQuery = commandPaletteInput?.value ?? "";
+        const normalizedQuery = rawQuery.length > 0
+            ? normalizeSearchValue(rawQuery)
+            : "";
         let visibleItems = 0;
 
         commandPaletteItems.forEach((item: HTMLLIElement) => {
             const searchText = item.dataset.searchText ?? "";
-            const isVisible = query.length === 0 || searchText.includes(query);
+            const isVisible =
+                normalizedQuery.length === 0 ||
+                normalizeSearchValue(searchText).includes(normalizedQuery);
 
             item.classList.toggle("hidden", !isVisible);
-            if (isVisible) {
-                visibleItems += 1;
-            }
+            if (isVisible) visibleItems += 1;
         });
 
-        commandPaletteEmpty?.classList.toggle("hidden", visibleItems > 0);
+        if (commandPaletteShortcuts) {
+            highlightSearchTargets(commandPaletteShortcuts, rawQuery);
+        }
+
+        applySectionSpacing();
+
+        if (rawQuery.length === 0) {
+            updateEmptyState();
+        }
     };
 
-    const openCommandPalette = (): void => {
-        if (!commandPalette) {
+    const buildKbArticleElement = (article: {
+        id: number;
+        title: string;
+        category: string | null;
+    }): HTMLLIElement => {
+        const li = document.createElement("li");
+        li.dataset.kbItem = "";
+        li.dataset.searchText = `${article.id} ${article.title} ${article.category ?? ""}`.toLowerCase();
+
+        const a = document.createElement("a");
+        a.href = `${invgateWebBase}/knowledgebase_articles/show/index/article_id/${article.id}`;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "justify-between gap-3";
+
+        const leftSpan = document.createElement("span");
+        leftSpan.className = "flex min-w-0 items-center gap-2";
+
+        const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        iconSvg.setAttribute("viewBox", "0 0 24 24");
+        iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+        iconSvg.setAttribute("fill", "none");
+        iconSvg.setAttribute("stroke", "currentColor");
+        iconSvg.setAttribute("stroke-width", "1.5");
+        const iconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        iconPath.setAttribute("stroke-linecap", "round");
+        iconPath.setAttribute("stroke-linejoin", "round");
+        iconPath.setAttribute(
+            "d",
+            "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+        );
+        iconSvg.appendChild(iconPath);
+        leftSpan.appendChild(iconSvg);
+
+        const textContainer = document.createElement("span");
+        textContainer.className = "min-w-0";
+
+        if (article.category) {
+            const catSpan = document.createElement("span");
+            catSpan.className = "block text-xs text-base-content/50";
+            catSpan.textContent = article.category;
+            textContainer.appendChild(catSpan);
+        }
+
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "block truncate";
+        titleSpan.dataset.highlightTarget = "";
+        titleSpan.textContent = article.title;
+        textContainer.appendChild(titleSpan);
+
+        leftSpan.appendChild(textContainer);
+
+        const idBadge = document.createElement("span");
+        idBadge.className = "badge badge-sm badge-ghost shrink-0";
+        idBadge.textContent = `#${article.id}`;
+
+        a.appendChild(leftSpan);
+        a.appendChild(idBadge);
+        li.appendChild(a);
+
+        return li;
+    };
+
+    const fetchKbArticles = (query: string): void => {
+        if (kbDebounceTimer !== null) {
+            clearTimeout(kbDebounceTimer);
+            kbDebounceTimer = null;
+        }
+
+        if (kbAbortController) {
+            kbAbortController.abort();
+            kbAbortController = null;
+        }
+
+        if (query.length < 2 || !kbResultsContainer || !kbSection || !kbLoadingEl) {
+            if (kbSection) kbSection.classList.add("hidden");
+            if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+            if (kbResultsContainer) kbResultsContainer.innerHTML = "";
+            updateEmptyState();
             return;
         }
 
+        if (kbSection) kbSection.classList.add("hidden");
+        kbFetchActive = false;
+        applySectionSpacing();
+        kbLoadingEl.classList.remove("hidden");
+
+        kbDebounceTimer = setTimeout(async () => {
+            kbAbortController = new AbortController();
+            const signal = kbAbortController.signal;
+
+            kbFetchActive = true;
+
+            try {
+                const response = await fetch(
+                    `/api/invgate/kb-search?q=${encodeURIComponent(query)}`,
+                    { signal, credentials: "same-origin" },
+                );
+
+                if (!response.ok) {
+                    kbLoadingEl.classList.add("hidden");
+                    kbFetchActive = false;
+                    updateEmptyState();
+                    return;
+                }
+
+                const data = await response.json();
+                const articles: Array<{
+                    id: number;
+                    title: string;
+                    category: string | null;
+                }> = data.articles ?? [];
+
+                kbResultsContainer.innerHTML = "";
+                kbLoadingEl.classList.add("hidden");
+
+                if (articles.length === 0) {
+                    kbFetchActive = false;
+                    updateEmptyState();
+                    return;
+                }
+
+                for (const article of articles) {
+                    const li = buildKbArticleElement(article);
+                    kbResultsContainer.appendChild(li);
+                }
+
+                kbFetchActive = false;
+                applySectionSpacing();
+                kbSection.classList.remove("hidden");
+                highlightSearchTargets(kbResultsContainer, query);
+                updateEmptyState();
+            } catch (err) {
+                kbFetchActive = false;
+                if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+                updateEmptyState();
+                if (err instanceof DOMException && err.name === "AbortError") return;
+                console.error("[KB Search]", err);
+            }
+        }, 300);
+    };
+
+    const openCommandPalette = (): void => {
+        if (!commandPalette) return;
+
         if (!commandPalette.open) {
             commandPalette.showModal();
+        }
+
+        if (kbResultsContainer) kbResultsContainer.innerHTML = "";
+        if (kbSection) kbSection.classList.add("hidden");
+        if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+
+        if (kbAbortController) {
+            kbAbortController.abort();
+            kbAbortController = null;
         }
 
         if (commandPaletteInput) {
@@ -156,6 +394,19 @@ const { items, isRouteLocked } = Astro.props;
     };
 
     const closeCommandPalette = (): void => {
+        if (kbAbortController) {
+            kbAbortController.abort();
+            kbAbortController = null;
+        }
+
+        if (kbDebounceTimer !== null) {
+            clearTimeout(kbDebounceTimer);
+            kbDebounceTimer = null;
+        }
+
+        kbFetchActive = false;
+        if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
+
         if (commandPalette?.open) {
             commandPalette.close();
         }
@@ -169,6 +420,7 @@ const { items, isRouteLocked } = Astro.props;
 
     commandPaletteInput?.addEventListener("input", () => {
         filterCommandPalette();
+        fetchKbArticles(commandPaletteInput.value);
     });
 
     commandPalette?.addEventListener("click", (event: MouseEvent) => {
@@ -191,5 +443,6 @@ const { items, isRouteLocked } = Astro.props;
             closeCommandPalette();
         }
     });
+
     filterCommandPalette();
 </script>
