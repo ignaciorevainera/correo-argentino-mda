@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { employees } from "@db/schema";
-import { or, and, sql } from "drizzle-orm";
+import { employees, offices } from "@db/schema";
+import { or, and, eq, sql, getTableColumns } from "drizzle-orm";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 
 const ACCENT_FOLD: Record<string, string> = {
@@ -49,8 +49,12 @@ export const GET: APIRoute = async ({ request }) => {
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
     const results = await db
-      .select()
+      .select({
+        ...getTableColumns(employees),
+        officeName: offices.name,
+      })
       .from(employees)
+      .leftJoin(offices, eq(employees.sucursal, offices.code))
       .where(whereClause)
       .orderBy(employees.fullname)
       .limit(50);
@@ -63,6 +67,7 @@ export const GET: APIRoute = async ({ request }) => {
         interno: e.interno,
         telefono: e.telefono,
         sucursal: e.sucursal,
+        sucursalNombre: e.officeName || null,
         invgateExists: e.invgateExists ?? false,
       })),
       total: results.length,

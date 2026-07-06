@@ -601,6 +601,20 @@ const userRole = Astro.locals.user?.role || "";
       updateCardCopyButton(".user-card-telefono-btn", user.telefono);
       updateCardCopyButton(".user-card-email-btn", user.email, query);
 
+      // Ubicación
+      const sucursal = user.sucursal;
+      if (sucursal) {
+        const sucursalNombre = user.sucursalNombre;
+        const valorCompleto = sucursalNombre
+          ? `${sucursal} — ${sucursalNombre}`
+          : sucursal;
+        updateCardCopyButton(".user-card-sucursal-btn", valorCompleto);
+      } else {
+        const sucursalBtn = clone.querySelector(".user-card-sucursal-btn");
+        const parentRow = sucursalBtn?.closest(".flex.flex-col");
+        if (parentRow) parentRow.classList.add("hidden");
+      }
+
       const safeNombre = user.nombre || "U";
       const initials = safeNombre
         .split(" ")
@@ -722,6 +736,7 @@ const userRole = Astro.locals.user?.role || "";
           telefono: u.telefono,
           email: u.username ? `${u.username}@correoargentino.com.ar` : null,
           sucursal: u.sucursal,
+          sucursalNombre: u.sucursalNombre,
           invgateExists: u.invgateExists ?? false,
         }));
 
