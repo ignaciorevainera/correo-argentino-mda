@@ -7,6 +7,94 @@ import { hasPermission } from "./lib/rbac";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
+import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
+
+const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function isWriteMethod(method: string): boolean {
+  return !READ_METHODS.has(method);
+}
+
+function tooManyRequests(message: string, retryAfter: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 429,
+    headers: {
+      "Content-Type": "application/json",
+      "Retry-After": String(retryAfter),
+    },
+  });
+}
+
+function applyRateLimit(
+  context: {
+    request: Request;
+    redirect: (path: string) => Response;
+    locals: { user: { id: number } };
+    clientAddress?: string;
+  },
+  relativePath: string,
+): Response | null {
+  const { request, redirect, locals, clientAddress } = context;
+  const method = request.method.toUpperCase();
+
+  if (relativePath === "/login" && method === "POST") {
+    const key = `login:ip:${clientAddress ?? "unknown"}`;
+    const result = checkRateLimit(key, RATE_LIMITS.login);
+    if (!result.ok) {
+      return redirect(
+        resolveUrl(`/login?toast_msg=${encodeURIComponent("Demasiados intentos. Probá en unos minutos.")}&toast_type=error`),
+      );
+    }
+    return null;
+  }
+
+  if (relativePath.startsWith("/api/")) {
+    const isWrite = isWriteMethod(method);
+    const identifier = locals.user.id > 0 ? `u:${locals.user.id}` : `ip:${clientAddress ?? "unknown"}`;
+
+    if (isWrite && relativePath === "/api/cronograma/import") {
+      const uploadKey = `upload:${identifier}:${relativePath}`;
+      const uploadResult = checkRateLimit(uploadKey, RATE_LIMITS.upload);
+      if (!uploadResult.ok) {
+        return tooManyRequests("Demasiadas importaciones. Probá más tarde.", uploadResult.retryAfter);
+      }
+    }
+
+    const key = `${isWrite ? "api-write" : "api-read"}:${identifier}:${relativePath}`;
+    const profile = isWrite ? RATE_LIMITS.apiWrite : RATE_LIMITS.apiRead;
+    const result = checkRateLimit(key, profile);
+    if (!result.ok) {
+      return tooManyRequests("Demasiadas solicitudes. Probá más tarde.", result.retryAfter);
+    }
+  }
+
+  return null;
+}
+
+function setSecurityHeaders(response: Response): Response {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload"
+  );
+  response.headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://wms.ign.gob.ar",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+  );
+  return response;
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { cookies, url, redirect, locals } = context;
@@ -72,6 +160,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   locals.user = currentUser;
 
+  const rateLimited = applyRateLimit(context, relativePath);
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   const lowerPath = relativePath.toLowerCase();
 
   // Proteger endpoints de API para usuarios no autenticados
@@ -80,7 +173,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     lowerPath.startsWith("/api/disponibilidad") ||
     lowerPath.startsWith("/api/asistencia") ||
     lowerPath.startsWith("/api/calidad") ||
-    lowerPath.startsWith("/api/admin")
+    lowerPath.startsWith("/api/admin") ||
+    lowerPath.startsWith("/api/export")
   ) {
     if (currentUser.id === 0) {
       return jsonError("Sesión no iniciada", 401);
@@ -98,7 +192,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (relativePath === "/login") {
-    return next();
+    const response = await next();
+    return setSecurityHeaders(response);
   }
 
   const role = (currentUser.role || "").toLowerCase().trim();
@@ -110,5 +205,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return redirect(resolveUrl("/login"));
   }
 
-  return next();
+  const response = await next();
+  return setSecurityHeaders(response);
 });
