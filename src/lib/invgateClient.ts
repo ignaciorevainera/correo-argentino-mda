@@ -41,7 +41,7 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
       return {
         ok: false,
         status: response.status,
-        message: `[InvGate] HTTP ${response.status}: ${response.statusText} — ${url}`,
+        message: `[InvGate] HTTP ${response.status}: ${response.statusText}`,
       };
     }
 
@@ -57,7 +57,7 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
     return {
       ok: false,
       status: lastStatus,
-      message: `[InvGate] Error de red: ${message} — ${url}`,
+      message: `[InvGate] Error de red: ${message}`,
     };
   } finally {
     clearTimeout(timeout);
