@@ -6,9 +6,8 @@ const SUBDIR_ICONS = "icons";
 const SUBDIR_PDFS = "pdfs";
 
 function getStorageRoot(): string {
-  return path.resolve(
-    import.meta.env.EXTERNAL_STORAGE_DIR || "./data/storage",
-  );
+  const envDir = import.meta.env?.EXTERNAL_STORAGE_DIR || process.env.EXTERNAL_STORAGE_DIR;
+  return path.resolve(envDir || "./data/storage");
 }
 
 export function getAppsDir(): string {
