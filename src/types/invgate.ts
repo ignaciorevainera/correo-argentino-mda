@@ -88,3 +88,28 @@ export interface InvgateLocation {
   total: number;
 }
 
+export interface InvgateKbArticle {
+  id: number;
+  title: string;
+  content?: string;
+  category_id: number | null;
+  author_id?: number;
+  status_id?: number;
+}
+
+export interface InvgateKbCategory {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+}
+
+export interface InvgateKbSearchResponse {
+  status: string;
+  data: InvgateKbArticle[];
+}
+
+export interface InvgateKbCategoriesResponse {
+  status: string;
+  data: InvgateKbCategory[];
+}
+
