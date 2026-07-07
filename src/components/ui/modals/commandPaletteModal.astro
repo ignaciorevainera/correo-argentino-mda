@@ -103,6 +103,17 @@ const invgateWebBase = invgateApiBase
         <span class="text-xs text-base-content/60">Buscando...</span>
       </div>
 
+      <div id="command-palette-ticket-section" class="hidden">
+        <div id="command-palette-ticket-section-header" class="px-4 pt-3 pb-1">
+          <span
+            class="text-xs font-semibold text-base-content/60 uppercase tracking-wide"
+          >
+            Incidentes / Solicitudes
+          </span>
+        </div>
+        <ul id="command-palette-ticket-results" class="menu w-full"></ul>
+      </div>
+
       <div id="command-palette-kb-section" class="hidden">
         <div id="command-palette-kb-section-header" class="px-4 pt-3 pb-1">
           <span
@@ -185,6 +196,16 @@ const invgateWebBase = invgateApiBase
   const commandPaletteShortcuts = document.getElementById(
     "command-palette-shortcuts",
   ) as HTMLUListElement | null;
+  const ticketSection = document.getElementById(
+    "command-palette-ticket-section",
+  ) as HTMLDivElement | null;
+  const ticketResultsContainer = document.getElementById(
+    "command-palette-ticket-results",
+  ) as HTMLUListElement | null;
+  const ticketSectionHeader = document.getElementById(
+    "command-palette-ticket-section-header",
+  ) as HTMLDivElement | null;
+
   const kbSection = document.getElementById(
     "command-palette-kb-section",
   ) as HTMLDivElement | null;
@@ -245,6 +266,7 @@ const invgateWebBase = invgateApiBase
     const visibleShortcuts = commandPaletteItems.filter(
       (item) => !item.classList.contains("hidden"),
     ).length;
+    const hasTicket = ticketSection && !ticketSection.classList.contains("hidden");
     const hasKb = kbSection && !kbSection.classList.contains("hidden");
     const hasHd = hdSection && !hdSection.classList.contains("hidden");
     const hasGrp = grpSection && !grpSection.classList.contains("hidden");
@@ -252,6 +274,7 @@ const invgateWebBase = invgateApiBase
     const showEmpty =
       rawQuery.length > 0 &&
       visibleShortcuts === 0 &&
+      !hasTicket &&
       !hasKb &&
       !hasHd &&
       !hasGrp &&
@@ -285,6 +308,78 @@ const invgateWebBase = invgateApiBase
     if (rawQuery.length === 0) {
       updateEmptyState();
     }
+  };
+
+  const buildTicketElement = (ticket: {
+    id: number;
+    title: string;
+    customer: string | null;
+  }): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.ticketItem = "";
+    li.dataset.searchText =
+      `${ticket.id} ${ticket.title} ${ticket.customer ?? ""}`.toLowerCase();
+
+    const a = document.createElement("a");
+    a.href = `${invgateWebBase}/requests/show/index/id/${ticket.id}`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "justify-between gap-3";
+
+    const leftSpan = document.createElement("span");
+    leftSpan.className = "flex min-w-0 items-center gap-2";
+
+    const iconSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
+    iconSvg.setAttribute("viewBox", "0 0 24 24");
+    iconSvg.setAttribute("class", "shrink-0 size-[14px]");
+    iconSvg.setAttribute("fill", "none");
+    iconSvg.setAttribute("stroke", "currentColor");
+    iconSvg.setAttribute("stroke-width", "1.5");
+    const iconPath = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "path",
+    );
+    iconPath.setAttribute("stroke-linecap", "round");
+    iconPath.setAttribute("stroke-linejoin", "round");
+    iconPath.setAttribute(
+      "d",
+      "M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-12h9c.621 0 1.125.504 1.125 1.125V18c0 .621-.504 1.125-1.125 1.125h-9A1.125 1.125 0 016 18V7.125D1.125 1.125 0 017.125 6z",
+    );
+    iconSvg.appendChild(iconPath);
+    leftSpan.appendChild(iconSvg);
+
+    const textContainer = document.createElement("span");
+    textContainer.className = "min-w-0";
+
+    if (ticket.customer) {
+      const customerSpan = document.createElement("span");
+      customerSpan.className = "block text-xs text-base-content/50";
+      customerSpan.dataset.highlightTarget = "";
+      customerSpan.textContent = ticket.customer;
+      textContainer.appendChild(customerSpan);
+    }
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "block truncate";
+    titleSpan.dataset.highlightTarget = "";
+    titleSpan.textContent = ticket.title;
+    textContainer.appendChild(titleSpan);
+
+    leftSpan.appendChild(textContainer);
+
+    const idBadge = document.createElement("span");
+    idBadge.className = "badge badge-sm badge-ghost shrink-0";
+    idBadge.dataset.highlightTarget = "";
+    idBadge.textContent = `#${ticket.id}`;
+
+    a.appendChild(leftSpan);
+    a.appendChild(idBadge);
+    li.appendChild(a);
+
+    return li;
   };
 
   const buildKbArticleElement = (article: {
@@ -348,6 +443,7 @@ const invgateWebBase = invgateApiBase
 
     const idBadge = document.createElement("span");
     idBadge.className = "badge badge-sm badge-ghost shrink-0";
+    idBadge.dataset.highlightTarget = "";
     idBadge.textContent = `#${article.id}`;
 
     a.appendChild(leftSpan);
@@ -355,6 +451,25 @@ const invgateWebBase = invgateApiBase
     li.appendChild(a);
 
     return li;
+  };
+
+  const searchTicket = async (
+    query: string,
+    signal: AbortSignal,
+  ): Promise<
+    Array<{
+      id: number;
+      title: string;
+      customer: string | null;
+    }>
+  > => {
+    const response = await fetch(
+      `/api/invgate/ticket-search?q=${encodeURIComponent(query)}`,
+      { signal, credentials: "same-origin" },
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.tickets ?? [];
   };
 
   const searchKb = async (
@@ -625,17 +740,21 @@ const invgateWebBase = invgateApiBase
       !grpSection ||
       !locResultsContainer ||
       !locSection ||
+      !ticketResultsContainer ||
+      !ticketSection ||
       !kbLoadingEl
     ) {
       if (kbSection) kbSection.classList.add("hidden");
       if (hdSection) hdSection.classList.add("hidden");
       if (grpSection) grpSection.classList.add("hidden");
       if (locSection) locSection.classList.add("hidden");
+      if (ticketSection) ticketSection.classList.add("hidden");
       if (kbLoadingEl) kbLoadingEl.classList.add("hidden");
       if (kbResultsContainer) kbResultsContainer.innerHTML = "";
       if (hdResultsContainer) hdResultsContainer.innerHTML = "";
       if (grpResultsContainer) grpResultsContainer.innerHTML = "";
       if (locResultsContainer) locResultsContainer.innerHTML = "";
+      if (ticketResultsContainer) ticketResultsContainer.innerHTML = "";
       updateEmptyState();
       return;
     }
@@ -644,6 +763,7 @@ const invgateWebBase = invgateApiBase
     if (hdSection) hdSection.classList.add("hidden");
     if (grpSection) grpSection.classList.add("hidden");
     if (locSection) locSection.classList.add("hidden");
+    if (ticketSection) ticketSection.classList.add("hidden");
     if (commandPaletteEmpty) commandPaletteEmpty.classList.add("hidden");
     applySectionSpacing();
     kbLoadingEl.classList.remove("hidden");
@@ -652,18 +772,31 @@ const invgateWebBase = invgateApiBase
       searchAbortController = new AbortController();
       const signal = searchAbortController.signal;
 
-      const [kbResult, hdResult, grpResult, locResult] =
+      const [kbResult, hdResult, grpResult, locResult, ticketResult] =
         await Promise.allSettled([
           searchKb(query, signal),
           searchHd(query, signal),
           searchGrp(query, signal),
           searchLoc(query, signal),
+          searchTicket(query, signal),
         ]);
 
       const articles = kbResult.status === "fulfilled" ? kbResult.value : [];
       const helpdesks = hdResult.status === "fulfilled" ? hdResult.value : [];
       const groups = grpResult.status === "fulfilled" ? grpResult.value : [];
       const locations = locResult.status === "fulfilled" ? locResult.value : [];
+      const tickets = ticketResult.status === "fulfilled" ? ticketResult.value : [];
+
+      if (ticketResultsContainer) {
+        ticketResultsContainer.innerHTML = "";
+        if (tickets.length > 0) {
+          for (const ticket of tickets) {
+            ticketResultsContainer.appendChild(buildTicketElement(ticket));
+          }
+        }
+        if (ticketSection)
+          ticketSection.classList.toggle("hidden", tickets.length === 0);
+      }
 
       if (kbResultsContainer) {
         kbResultsContainer.innerHTML = "";
@@ -713,6 +846,7 @@ const invgateWebBase = invgateApiBase
 
       applySectionSpacing();
 
+      if (ticketResultsContainer) highlightSearchTargets(ticketResultsContainer, query);
       if (kbResultsContainer) highlightSearchTargets(kbResultsContainer, query);
       if (hdResultsContainer) highlightSearchTargets(hdResultsContainer, query);
       if (grpResultsContainer)
@@ -731,6 +865,8 @@ const invgateWebBase = invgateApiBase
       commandPalette.showModal();
     }
 
+    if (ticketResultsContainer) ticketResultsContainer.innerHTML = "";
+    if (ticketSection) ticketSection.classList.add("hidden");
     if (kbResultsContainer) kbResultsContainer.innerHTML = "";
     if (kbSection) kbSection.classList.add("hidden");
     if (kbLoadingEl) kbLoadingEl.classList.add("hidden");

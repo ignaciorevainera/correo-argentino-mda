@@ -6,6 +6,13 @@ import type {
   InvgateKbSearchResponse,
 } from "@/types/invgate";
 
+function extractArticleId(query: string): number | null {
+  const match = query.match(/^#?(\d+)$/);
+  if (!match) return null;
+  const id = parseInt(match[1], 10);
+  return id > 0 ? id : null;
+}
+
 export const GET: APIRoute = async ({ url }) => {
   const q = url.searchParams.get("q")?.trim();
 
@@ -14,12 +21,25 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   try {
-    const [articlesResult, categoriesResult] = await Promise.all([
+    const articleId = extractArticleId(q);
+
+    const promises: [
+      Promise<any>,
+      Promise<any>,
+      Promise<any> | Promise<null>,
+    ] = [
       invgateGet<InvgateKbSearchResponse>(
         `kb.articles.by.keywords?keywords=${encodeURIComponent(q)}&page_size=10`,
       ),
       invgateGet<InvgateKbCategory[]>("kb.categories"),
-    ]);
+      articleId
+        ? invgateGet<InvgateKbSearchResponse>(
+            `kb.articles.by.ids?ids[]=${articleId}`,
+          )
+        : Promise.resolve(null),
+    ];
+
+    const [articlesResult, categoriesResult, idResult] = await Promise.all(promises);
 
     if (!articlesResult.ok) {
       return jsonResponse({ error: articlesResult.message }, articlesResult.status);
@@ -39,11 +59,33 @@ export const GET: APIRoute = async ({ url }) => {
       }
     }
 
-    const articles = Array.isArray(articlesResult.data.data)
+    const keywordArticles = Array.isArray(articlesResult.data.data)
       ? articlesResult.data.data
       : [];
 
-    const results = articles.map((article) => ({
+    const idArticles =
+      idResult?.ok && Array.isArray(idResult.data?.data)
+        ? idResult.data.data
+        : [];
+
+    const seenIds = new Set<number>();
+    const combined = [];
+
+    for (const article of idArticles) {
+      if (!seenIds.has(article.id)) {
+        seenIds.add(article.id);
+        combined.push(article);
+      }
+    }
+
+    for (const article of keywordArticles) {
+      if (!seenIds.has(article.id)) {
+        seenIds.add(article.id);
+        combined.push(article);
+      }
+    }
+
+    const results = combined.slice(0, 10).map((article) => ({
       id: article.id,
       title: article.title,
       category: article.category_id != null ? categoryMap.get(article.category_id) ?? null : null,
