@@ -16,12 +16,8 @@ export const auditDictionary = {
       `${username} ha eliminado al usuario ${targetUser}.`,
   },
   soportes: {
-    create: (username: string, helpDeskName: string) =>
-      `${username} ha creado la mesa de ayuda ${helpDeskName}.`,
     update: (username: string, helpDeskName: string) =>
       `${username} ha modificado los datos de la mesa de ayuda ${helpDeskName}.`,
-    delete: (username: string, helpDeskName: string) =>
-      `${username} ha eliminado la mesa de ayuda ${helpDeskName}.`,
   },
   cubics: {
     create: (username: string, hostname: string) =>

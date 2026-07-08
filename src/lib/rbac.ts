@@ -32,7 +32,6 @@ export const routePermissions: RoutePermission[] = [
   { path: "/supervision/calidad-operadores", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
   { path: "/supervision/asignacion-autogestiones", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
   { path: "/supervision", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
-  { path: "/soportes/create", roles: ["admin", "supervisor"] },
   { path: "/soportes/edit", roles: ["admin", "supervisor"] },
   { path: "/oficinas/create", roles: ["admin", "supervisor"] },
   { path: "/oficinas/edit", roles: ["admin", "supervisor"] },
