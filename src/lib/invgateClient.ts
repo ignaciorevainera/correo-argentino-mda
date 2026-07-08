@@ -2,7 +2,9 @@ import type { InvgateResult } from "@/types/invgate";
 
 function getEnv(key: string): string {
   if (typeof import.meta !== "undefined" && import.meta.env) {
-    return (import.meta.env as any)[key] || "";
+    //return (import.meta.env as any)[key] || "";
+    const val = (import.meta.env as any)[key];
+    if (val && typeof val === "string") return val;
   }
   return process.env[key] || "";
 }
