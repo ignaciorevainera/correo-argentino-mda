@@ -1,5 +1,5 @@
 import { db } from "@db/index";
-import { provinces, regions, offices, officeAssets } from "@db/schema";
+import { provinces, regions, offices, officeAssets, officeInvgateLinks } from "@db/schema";
 import { eq, or, and, sql, inArray, asc, desc, like } from "drizzle-orm";
 import type {
   OfficeDirectoryItem,
@@ -190,6 +190,7 @@ export async function getOffices(params: GetOfficesParams) {
       terminals: true,
       contacts: { with: { contact: true } },
       province: { with: { region: true } },
+      invgateLink: true,
     },
   });
 
@@ -258,6 +259,8 @@ export async function getOffices(params: GetOfficesParams) {
         hostname: a.hostname ?? "",
         ip: a.ip ?? "",
       })),
+      invgateLinked: !!office.invgateLink,
+      invgateDisplayName: office.invgateLink?.invgateDisplayName ?? null,
       terminals: (office.terminals ?? [])
         .filter((t) => {
           if (!t.hostname) return true;

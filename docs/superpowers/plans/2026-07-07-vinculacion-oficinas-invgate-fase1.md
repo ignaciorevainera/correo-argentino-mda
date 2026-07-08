@@ -687,9 +687,9 @@ const syncAlertClass = !lastSyncDate
     : "alert-info";
 
 const syncAlertIcon = !lastSyncDate
-  ? "boxicons:time"
+  ? "boxicons:clock"
   : syncAgeDays !== null && syncAgeDays > 7
-    ? "boxicons:time"
+    ? "boxicons:clock"
     : "boxicons:refresh";
 
 const syncMessage = !lastSyncDate

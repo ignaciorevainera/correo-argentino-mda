@@ -18,7 +18,7 @@ import {
   formatTypeLabel,
 } from "@lib/officeHelpers";
 import { db } from "@db/index";
-import { provinces, regions, offices } from "@db/schema";
+import { provinces, regions, offices, officeInvgateLinks } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
@@ -28,6 +28,36 @@ const user = Astro.locals.user;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
+
+const [lastSyncRow] = await db
+  .select({ lastSync: officeInvgateLinks.lastSyncedAt })
+  .from(officeInvgateLinks)
+  .orderBy(sql`${officeInvgateLinks.lastSyncedAt} DESC`)
+  .limit(1);
+
+const lastSyncDate = lastSyncRow?.lastSync ?? null;
+
+const syncAgeDays = lastSyncDate
+  ? Math.floor((Date.now() - new Date(lastSyncDate + "Z").getTime()) / (1000 * 60 * 60 * 24))
+  : null;
+
+const syncAlertClass = !lastSyncDate
+  ? "alert-info"
+  : syncAgeDays !== null && syncAgeDays > 7
+    ? "alert-warning"
+    : "alert-info";
+
+const syncAlertIcon = !lastSyncDate
+  ? "boxicons:clock"
+  : syncAgeDays !== null && syncAgeDays > 7
+    ? "boxicons:clock"
+    : "boxicons:refresh";
+
+const syncMessage = !lastSyncDate
+  ? "InvGate: sin datos de sincronización"
+  : syncAgeDays !== null && syncAgeDays > 7
+    ? `InvGate sin sincronizar desde hace ${syncAgeDays} días. Los datos pueden estar desactualizados.`
+    : `InvGate sincronizado: hace ${syncAgeDays === 0 ? "menos de 1" : syncAgeDays} día${syncAgeDays !== 1 ? "s" : ""}`;
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -182,8 +212,8 @@ const uniqueZones = allZonesRaw
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
 const officeDirectoryHeaderGridClass = isAllowedAdmin
-  ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
-  : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
+  ? "grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px_120px] gap-4"
+  : "grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px] gap-4";
 
 const mainTabs = [
   { label: "Directorio de Oficinas", value: "directory" },
@@ -205,6 +235,22 @@ const mainTabs = [
     class="w-full grid grid-cols-2"
     containerClass="w-full"
   />
+
+  <!-- InvGate sync freshness indicator -->
+  <div class={`alert ${syncAlertClass} shadow-sm mt-6`}>
+    <Icon name={syncAlertIcon} size={20} />
+    <span class="text-sm">{syncMessage}</span>
+    {
+      isAllowedAdmin && (
+        <form method="POST" action={import.meta.env.BASE_URL + "api/admin/invgate/locations/sync"} class="ml-auto">
+          <button type="submit" class="btn btn-sm btn-outline">
+            <Icon name="boxicons:refresh" size={16} />
+            Sincronizar ahora
+          </button>
+        </form>
+      )
+    }
+  </div>
 
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6 mt-6">
@@ -384,6 +430,11 @@ const mainTabs = [
           </div>
           <div slot="header">
             <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell>
+              <span class="sr-only">InvGate</span>
+            </DataTableHeaderCell>
           </div>
           <div slot="header">
             <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
