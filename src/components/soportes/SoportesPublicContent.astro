@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 import { invgateGet } from "@lib/invgateClient";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
@@ -93,7 +94,18 @@ const parentForDropdown = visibleHelpdesks
     isAdmin={isAdminUser}
   />
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+  <div class="flex flex-wrap items-center gap-4 mt-6">
+    <SearchBar
+      id="soportes-search"
+      name="search"
+      label="Buscar mesa de ayuda..."
+      placeholder="Buscar por nombre SM, Invgate, topico..."
+      class="w-full md:w-80"
+    />
+    <span class="badge badge-neutral badge-sm font-mono hidden" id="search-count-badge"></span>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
     {
       visibleHelpdesks.map((hd) => {
         const records = groupedRecords.get(hd.id) || [];
@@ -131,3 +143,50 @@ const parentForDropdown = visibleHelpdesks
     }
   </div>
 </PageContainer>
+
+<script>
+  import {
+    matchesSearchQuery,
+    highlightSearchTargets,
+  } from "@lib/clientSearch";
+
+  const searchInput = document.querySelector<HTMLInputElement>("#soportes-search");
+  const cards = document.querySelectorAll<HTMLElement>("[data-card-for]");
+  const countBadge = document.querySelector<HTMLElement>("#search-count-badge");
+
+  function applySearch() {
+    const query = searchInput?.value.trim() || "";
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const searchText = card.dataset.searchText || "";
+      const isVisible = matchesSearchQuery(query, [searchText]);
+
+      card.classList.toggle("hidden", !isVisible);
+
+      if (isVisible) {
+        visibleCount++;
+        highlightSearchTargets(card, query);
+      }
+    });
+
+    if (countBadge) {
+      if (query) {
+        countBadge.classList.remove("hidden");
+        countBadge.textContent = `${visibleCount} de ${cards.length}`;
+      } else {
+        countBadge.classList.add("hidden");
+      }
+    }
+  }
+
+  searchInput?.addEventListener("input", applySearch);
+
+  // Re-apply on members load (JS may change card heights, not visibility)
+  let membersLoaded = false;
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+      if (searchInput?.value) applySearch();
+    }, 2000);
+  });
+</script>

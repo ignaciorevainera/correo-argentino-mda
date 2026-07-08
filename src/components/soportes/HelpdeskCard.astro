@@ -57,9 +57,26 @@ if (first?.categories) {
 const sortedSubLevels = [...subLevels].sort(
   (a, b) => (a.level_order || 0) - (b.level_order || 0),
 );
+
+const searchableText = [
+  hdName,
+  ...legacyNames,
+  first?.route,
+  topicsList.join(" "),
+  first?.contacts,
+  first?.notes,
+  ...sortedSubLevels.map((sl) => sl.name),
+]
+  .filter(Boolean)
+  .join(" ")
+  .toLowerCase();
 ---
 
-<div class="card bg-base-100 shadow-sm border border-base-300 h-full">
+<div
+  class="card bg-base-100 shadow-sm border border-base-300 h-full"
+  data-card-for={helpdesk.id}
+  data-search-text={searchableText}
+>
   <div class="card-body p-5 gap-0 flex flex-col h-full">
     <div class="flex-1 space-y-3">
       <div class="flex items-start justify-between gap-2">
@@ -70,7 +87,7 @@ const sortedSubLevels = [...subLevels].sort(
               size={20}
               class="text-secondary shrink-0"
             />
-            <span class="truncate">{hdName}</span>
+            <span class="truncate" data-highlight-target>{hdName}</span>
           </h3>
           <div class="flex flex-wrap items-center gap-2 mt-1">
             <span class="badge badge-sm gap-1 font-mono">
@@ -116,7 +133,7 @@ const sortedSubLevels = [...subLevels].sort(
         legacyNames.length > 0 && (
           <div class="space-y-1">
             {legacyNames.map((name) => (
-              <p class="text-sm font-semibold text-base-content">
+              <p class="text-sm font-semibold text-base-content" data-highlight-target>
                 <span class="text-base-content/50 text-xs font-normal">SM:</span>{" "}
                 {name}
               </p>
@@ -126,14 +143,15 @@ const sortedSubLevels = [...subLevels].sort(
       }
 
       {
-        first?.route && (
-          <p
-            class="text-xs font-mono text-base-content/60 truncate"
-            title={first.route}
-          >
-            {first.route}
-          </p>
-        )
+      first?.route && (
+        <p
+          class="text-xs font-mono text-base-content/60 truncate"
+          title={first.route}
+          data-highlight-target
+        >
+          {first.route}
+        </p>
+      )
       }
 
       {
@@ -151,7 +169,7 @@ const sortedSubLevels = [...subLevels].sort(
         topicsList.length > 0 && (
           <div class="flex flex-wrap gap-1">
             {topicsList.map((t) => (
-              <span class="badge badge-sm badge-secondary">{t}</span>
+              <span class="badge badge-sm badge-secondary" data-highlight-target>{t}</span>
             ))}
           </div>
         )
@@ -164,7 +182,7 @@ const sortedSubLevels = [...subLevels].sort(
               <Icon name="boxicons:phone" size={12} />
               Contactos
             </p>
-            <p class="text-xs whitespace-pre-wrap text-base-content/80">
+            <p class="text-xs whitespace-pre-wrap text-base-content/80" data-highlight-target>
               {first.contacts}
             </p>
           </div>
@@ -178,7 +196,7 @@ const sortedSubLevels = [...subLevels].sort(
               <Icon name="boxicons:note" size={12} />
               Notas
             </p>
-            <p class="text-xs whitespace-pre-wrap text-base-content/80">
+            <p class="text-xs whitespace-pre-wrap text-base-content/80" data-highlight-target>
               {first.notes}
             </p>
           </div>
