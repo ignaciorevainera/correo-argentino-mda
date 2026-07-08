@@ -23,7 +23,8 @@ export const GET: APIRoute = async ({ url }) => {
     
     const d = new Date();
     const currentMonthDefault = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const activeMonth = url.searchParams.get("month") || (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault);
+    const pastOrCurrentMonths = availableMonths.filter(m => m <= currentMonthDefault);
+    const activeMonth = url.searchParams.get("month") || (pastOrCurrentMonths.length > 0 ? pastOrCurrentMonths[pastOrCurrentMonths.length - 1] : (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault));
 
     // 2. Cargar configuración de rotación para este mes
     let configList = await db

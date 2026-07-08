@@ -28,14 +28,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
     // 2. Generate and write schedules for all operators (single transaction)
-    await db.transaction(async (tx) => {
+    await db.transaction((tx) => {
       // Batch delete: remove all existing schedules for this month across all agents
-      await tx.delete(schedules).where(
+      tx.delete(schedules).where(
         and(
           inArray(schedules.agentName, dbAgents.map(a => a.name)),
           like(schedules.date, `${monthPrefix}-%`)
         )
-      );
+      ).run();
 
       // Batch insert: generate all day schedules for all agents
       const allInserts = [];
@@ -60,7 +60,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       // Chunk inserts to avoid SQLite parameter limit (~999 variables)
       const CHUNK_SIZE = 100;
       for (let i = 0; i < allInserts.length; i += CHUNK_SIZE) {
-        await tx.insert(schedules).values(allInserts.slice(i, i + CHUNK_SIZE));
+        tx.insert(schedules).values(allInserts.slice(i, i + CHUNK_SIZE)).run();
       }
     });
 
