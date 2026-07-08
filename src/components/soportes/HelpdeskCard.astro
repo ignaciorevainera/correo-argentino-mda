@@ -8,14 +8,35 @@ interface Props {
   records: any[];
   isAdmin: boolean;
   parentName?: string;
-  hasNoRecords: boolean;
 }
 
-const { helpdesk, records, isAdmin, parentName, hasNoRecords } = Astro.props;
+const { helpdesk, records, isAdmin, parentName } = Astro.props;
 const cleanBase = getCleanBase();
 const isActive = helpdesk.status_id === 1;
 const statusBadge = isActive ? "badge-success" : "badge-ghost";
 const statusLabel = isActive ? "Activo" : "Inactivo";
+const hasRecords = records.length > 0;
+
+const legacyNames: string[] = [];
+records.forEach((r) => {
+  if (r.legacyName) legacyNames.push(r.legacyName);
+});
+
+const first = records[0];
+let topicsList: string[] = [];
+if (first?.topics) {
+  try {
+    const parsed = JSON.parse(first.topics);
+    topicsList = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    topicsList = first.topics.split(",").map((t: string) => t.trim()).filter(Boolean);
+  }
+}
+
+let categoryIds: number[] = [];
+if (first?.categories) {
+  try { categoryIds = JSON.parse(first.categories); } catch {}
+}
 ---
 
 <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -44,110 +65,77 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
 
     <div class="border-t border-base-200"></div>
 
-    {!hasNoRecords && records.length > 0 && (
-      <div class="space-y-3">
-        {records.map((guide) => {
-          let topicsList: string[] = [];
-          if (guide.topics) {
-            try {
-              const parsed = JSON.parse(guide.topics);
-              topicsList = Array.isArray(parsed) ? parsed : [];
-            } catch {
-              topicsList = guide.topics.split(",").map((t: string) => t.trim()).filter(Boolean);
-            }
-          }
+    {legacyNames.length > 0 && (
+      <div class="space-y-1">
+        {legacyNames.map((name) => (
+          <p class="text-sm font-semibold text-base-content">
+            <span class="text-base-content/50 text-xs font-normal">SM:</span> {name}
+          </p>
+        ))}
+      </div>
+    )}
 
-          let categoryIds: number[] = [];
-          if (guide.categories) {
-            try { categoryIds = JSON.parse(guide.categories); } catch {}
-          }
+    {first?.route && (
+      <p class="text-xs font-mono text-base-content/60 truncate" title={first.route}>
+        {first.route}
+      </p>
+    )}
 
-          return (
-            <div class="bg-base-200/40 rounded-lg p-3 border border-base-300 space-y-2">
-              {guide.legacyName && (
-                <p class="text-sm font-semibold text-base-content">
-                  SM: {guide.legacyName}
-                </p>
-              )}
+    {categoryIds.length > 0 && (
+      <div class="flex flex-wrap gap-1">
+        <span class="text-xs text-base-content/50">Categorias:</span>
+        {categoryIds.map((cid) => (
+          <span class="badge badge-xs badge-outline">ID:{cid}</span>
+        ))}
+      </div>
+    )}
 
-              {guide.route && (
-                <p class="text-xs font-mono text-base-content/60 truncate" title={guide.route}>
-                  {guide.route}
-                </p>
-              )}
+    {topicsList.length > 0 && (
+      <div class="flex flex-wrap gap-1">
+        {topicsList.map((t) => (
+          <span class="badge badge-sm badge-secondary">{t}</span>
+        ))}
+      </div>
+    )}
 
-              {categoryIds.length > 0 && (
-                <div class="flex flex-wrap gap-1">
-                  <span class="text-xs text-base-content/50">Categorias:</span>
-                  {categoryIds.map((cid) => (
-                    <span class="badge badge-xs badge-outline">ID:{cid}</span>
-                  ))}
-                </div>
-              )}
+    {first?.contacts && (
+      <div>
+        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+          <Icon name="boxicons:phone" size={12} />
+          Contactos
+        </p>
+        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.contacts}</p>
+      </div>
+    )}
 
-              {topicsList.length > 0 && (
-                <div class="flex flex-wrap gap-1">
-                  {topicsList.map((t) => (
-                    <span class="badge badge-sm badge-secondary">{t}</span>
-                  ))}
-                </div>
-              )}
+    {first?.referents && (
+      <div>
+        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+          <Icon name="boxicons:user-filled" size={12} />
+          Referentes
+        </p>
+        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.referents}</p>
+      </div>
+    )}
 
-              {guide.contacts && (
-                <div>
-                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-                    <Icon name="boxicons:phone" size={12} />
-                    Contactos
-                  </p>
-                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.contacts}</p>
-                </div>
-              )}
-
-              {guide.referents && (
-                <div>
-                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-                    <Icon name="boxicons:user-filled" size={12} />
-                    Referentes
-                  </p>
-                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.referents}</p>
-                </div>
-              )}
-
-              {guide.notes && (
-                <div>
-                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-                    <Icon name="boxicons:note" size={12} />
-                    Notas
-                  </p>
-                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.notes}</p>
-                </div>
-              )}
-
-              {isAdmin && (
-                <div class="pt-2 border-t border-base-200 flex justify-end">
-                  <a
-                    href={`${cleanBase}soportes/edit/${guide.id}`}
-                    class="btn btn-xs btn-ghost text-secondary"
-                  >
-                    <Icon name="boxicons:edit" size={14} />
-                    Editar registro
-                  </a>
-                </div>
-              )}
-            </div>
-          );
-        })}
+    {first?.notes && (
+      <div>
+        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+          <Icon name="boxicons:note" size={12} />
+          Notas
+        </p>
+        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.notes}</p>
       </div>
     )}
 
     <div class="card-actions justify-end mt-1">
       {isAdmin && (
         <a
-          href={`${cleanBase}soportes/edit/new?invgate_id=${helpdesk.id}`}
+          href={`${cleanBase}soportes/edit?invgate_id=${helpdesk.id}`}
           class="btn btn-sm btn-secondary btn-soft"
         >
           <Icon name="boxicons:edit" size={16} />
-          Agregar info
+          {hasRecords ? "Editar" : "Agregar info"}
         </a>
       )}
     </div>

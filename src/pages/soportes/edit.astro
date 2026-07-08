@@ -1,0 +1,199 @@
+---
+import { getCleanBase } from "@lib/baseUrl";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import FormTextarea from "@components/ui/forms/FormTextarea.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { invgateGet } from "@lib/invgateClient";
+import type { InvgateHelpdesk } from "@/types/invgate";
+
+const cleanBase = getCleanBase();
+const invgateIdRaw = Astro.url.searchParams.get("invgate_id");
+const invgateId = invgateIdRaw ? Number(invgateIdRaw) : NaN;
+
+if (!invgateIdRaw || isNaN(invgateId)) {
+  return Astro.redirect(`${cleanBase}soportes`);
+}
+
+let errorMsg = "";
+
+const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
+const invgateHelpdesks: InvgateHelpdesk[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+const linkedHd = invgateHelpdesks.find((h) => h.id === invgateId);
+
+const linkedRecords = await db.query.supportGuides.findMany({
+  where: eq(supportGuides.invgate_id, invgateId),
+});
+
+const legacyNames = linkedRecords
+  .map((r) => r.legacyName)
+  .filter(Boolean) as string[];
+
+const first = linkedRecords[0];
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+    const categories = data.get("categories")?.toString() || null;
+    const route = data.get("route")?.toString() || null;
+    const topics = data.get("topics")?.toString() || null;
+    const contacts = data.get("contacts")?.toString() || null;
+    const referents = data.get("referents")?.toString() || null;
+    const notes = data.get("notes")?.toString() || null;
+
+    if (linkedRecords.length > 0) {
+      for (const record of linkedRecords) {
+        await db
+          .update(supportGuides)
+          .set({
+            categories,
+            route,
+            topics,
+            contacts,
+            referents,
+            notes,
+          })
+          .where(eq(supportGuides.id, record.id));
+      }
+    } else {
+      const invgateName = linkedHd?.name || null;
+      const helpDeskName = invgateName || "Sin nombre InvGate";
+
+      await db.insert(supportGuides).values({
+        helpDeskName,
+        invgateName,
+        invgate_id: invgateId,
+        categories,
+        route,
+        topics,
+        contacts,
+        referents,
+        notes,
+      });
+    }
+
+    const label = linkedHd?.name || `ID ${invgateId}`;
+    await logAdminFromAstro(Astro.locals, `Actualizo los datos de la mesa de ayuda "${label}"`);
+    return redirectWithToast("/soportes", "Mesa de ayuda actualizada con exito.");
+  } catch (err) {
+    console.error("Error saving helpdesk metadata:", err);
+    errorMsg = "Ocurrio un error al guardar los datos.";
+  }
+}
+
+const hdName = linkedHd?.name || `Helpdesk #${invgateId}`;
+const pageTitle = `Editar: ${hdName}`;
+---
+
+<BaseLayout>
+  <PageContainer>
+    <div class="mb-6">
+      <a href={`${cleanBase}soportes`} class="btn btn-ghost btn-sm gap-2">
+        <Icon name="boxicons:arrow-left" size={16} />
+        Volver al listado
+      </a>
+    </div>
+
+    <PageHeader title={pageTitle} description="Modifica la metadata local vinculada a esta mesa de ayuda de InvGate." />
+
+    <div class="mt-8 bg-base-100 p-6 md:p-8 rounded-2xl shadow-sm border border-base-200">
+      {errorMsg && (
+        <script is:inline define:vars={{ errorMsg }}>
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
+        </script>
+      )}
+
+      <form method="POST" class="flex flex-col gap-6">
+        {linkedHd && (
+          <div class="alert alert-soft text-sm">
+            <Icon name="boxicons:buoy-filled" size={18} />
+            <span>Mesa de ayuda InvGate: <strong>{linkedHd.name}</strong> ({linkedHd.total_members} miembros)</span>
+          </div>
+        )}
+
+        {legacyNames.length > 0 && (
+          <div class="bg-base-200/50 rounded-lg p-4 border border-base-300">
+            <p class="text-sm font-bold text-base-content/70 mb-2">Nombres anteriores (Service Manager):</p>
+            <ul class="space-y-1">
+              {legacyNames.map((name) => (
+                <li class="text-sm font-semibold">{name}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            id="route"
+            name="route"
+            label="Ruta de Derivacion"
+            value={first?.route || ""}
+            placeholder="Ej: N1 -> Redes -> Infraestructura"
+          />
+        </div>
+
+        <FormTextarea
+          id="categories"
+          name="categories"
+          label="Categorias InvGate (JSON array de IDs)"
+          textareaClass="font-mono"
+          rows={3}
+          value={first?.categories || ""}
+          placeholder='[5, 12, 23]'
+        />
+
+        <FormTextarea
+          id="topics"
+          name="topics"
+          label="Topicos (JSON array)"
+          textareaClass="font-mono"
+          rows={4}
+          value={first?.topics || ""}
+          placeholder='["VPN", "Correo", "Hardware"]'
+        />
+
+        <FormTextarea
+          id="contacts"
+          name="contacts"
+          label="Contactos"
+          rows={4}
+          value={first?.contacts || ""}
+        />
+
+        <FormTextarea
+          id="referents"
+          name="referents"
+          label="Referentes"
+          rows={4}
+          value={first?.referents || ""}
+        />
+
+        <FormTextarea
+          id="notes"
+          name="notes"
+          label="Notas"
+          rows={4}
+          value={first?.notes || ""}
+        />
+
+        <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-base-200">
+          <a href={`${cleanBase}soportes`} class="btn btn-ghost">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <Icon name="boxicons:save" size={20} />
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </PageContainer>
+</BaseLayout>
