@@ -673,6 +673,42 @@ const userRole = Astro.locals.user?.role || "";
         netUserBtn.classList.add("hidden");
       }
 
+      const invgateBtn = clone.querySelector(
+        "[data-invgate-copy-btn]",
+      ) as HTMLElement | null;
+      if (invgateBtn && user.usuario && !user.invgateExists) {
+        invgateBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const ticketBody = `Se solicita asignar al usuario en el grupo InvGate Service Management | Usuarios y grupos.
+
+Usuario de red: ${user.usuario}
+Nombre completo: ${user.nombre}
+DNI: ${user.dni}
+Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
+          copyText(ticketBody).then((ok) => {
+            if (!ok) return;
+            const tooltip = (invgateBtn as Element).closest(
+              ".tooltip",
+            ) as HTMLElement | null;
+            const originalTip = tooltip?.getAttribute("data-tip");
+            if (tooltip) {
+              tooltip.setAttribute("data-tip", "Descripción del ticket copiada");
+              tooltip.classList.replace("tooltip-neutral", "tooltip-success");
+              tooltip.classList.add("tooltip-open");
+            }
+            setTimeout(() => {
+              if (tooltip) {
+                tooltip.setAttribute("data-tip", originalTip || "");
+                tooltip.classList.replace("tooltip-success", "tooltip-neutral");
+                tooltip.classList.remove("tooltip-open");
+              }
+            }, 2000);
+          });
+        });
+      } else if (invgateBtn) {
+        invgateBtn.closest(".tooltip")?.classList.add("hidden");
+      }
+
       fragment.appendChild(clone);
     });
     resultsGrid.appendChild(fragment);
