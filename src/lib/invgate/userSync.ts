@@ -19,8 +19,8 @@ export async function fullInvgateSync(): Promise<SyncResult> {
   // Fase 1: resetear todos los empleados a false
   await db.update(employees).set({ invgateExists: false });
 
-  // Fase 2: obtener todos los usuarios de InvGate
-  const result = await invgateGet<any>("users");
+  // Fase 2: obtener todos los usuarios de InvGate (timeout 120s por la cantidad de datos)
+  const result = await invgateGet<any>("users", 120000);
 
   if (!result.ok) {
     console.error(`[SyncInvGate] Error al obtener usuarios de InvGate: ${result.message}`);
