@@ -10,19 +10,26 @@ import { isAllowed } from "@lib/rolesMatrix";
 import HelpdeskCard from "./HelpdeskCard.astro";
 import UnassignedRecords from "./UnassignedRecords.astro";
 import type { InvgateHelpdesk } from "@/types/invgate";
+import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 
 const user = Astro.locals.user;
-const isAdminUser = user ? isAllowed("Administrar Contenido", user.role) : false;
+const isAdminUser = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
 
 const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
 const invgateHelpdesks: InvgateHelpdesk[] =
   hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
 const invgateError = !hdResult.ok;
 
+const visibleHelpdesks = invgateHelpdesks
+  .filter((hd) => !HIDDEN_HELPDESK_IDS.includes(hd.id))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 const helpdeskMap = new Map<number, InvgateHelpdesk>();
-invgateHelpdesks.forEach((hd) => helpdeskMap.set(hd.id, hd));
+visibleHelpdesks.forEach((hd) => helpdeskMap.set(hd.id, hd));
 const parentNameMap = new Map<number, string>();
-invgateHelpdesks.forEach((hd) => {
+visibleHelpdesks.forEach((hd) => {
   if (hd.parent_id && helpdeskMap.has(hd.parent_id)) {
     parentNameMap.set(hd.id, helpdeskMap.get(hd.parent_id)!.name);
   }
@@ -52,41 +59,58 @@ guides.forEach((g) => {
     class="max-w-2xl"
   />
 
-  {invgateError && (
-    <div role="alert" class="alert alert-warning mt-4">
-      <Icon name="boxicons:error-circle" size={20} />
-      <span>No se pudo conectar con InvGate. Mostrando datos locales disponibles.</span>
-    </div>
-  )}
+  {
+    invgateError && (
+      <div role="alert" class="alert alert-warning mt-4">
+        <Icon name="boxicons:x-circle-filled" size={20} />
+        <span>
+          No se pudo conectar con InvGate. Mostrando datos locales disponibles.
+        </span>
+      </div>
+    )
+  }
 
   <UnassignedRecords
     records={unassignedRecords}
-    helpdesks={invgateHelpdesks}
+    helpdesks={[...invgateHelpdesks].sort((a, b) => a.name.localeCompare(b.name))}
     isAdmin={isAdminUser}
   />
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-    {invgateHelpdesks.map((hd) => {
-      const records = groupedRecords.get(hd.id) || [];
-      const parentName = parentNameMap.get(hd.id);
-      return (
-        <HelpdeskCard
-          helpdesk={hd}
-          records={records}
-          isAdmin={isAdminUser}
-          parentName={parentName}
-        />
-      );
-    })}
+    {
+      visibleHelpdesks.map((hd) => {
+        const records = groupedRecords.get(hd.id) || [];
+        const parentName = parentNameMap.get(hd.id);
+        const hasNoRecords = records.length === 0;
+        return (
+          <HelpdeskCard
+            helpdesk={hd}
+            records={records}
+            isAdmin={isAdminUser}
+            parentName={parentName}
+            hasNoRecords={hasNoRecords}
+          />
+        );
+      })
+    }
 
-    {invgateHelpdesks.length === 0 && guides.length === 0 && (
-      <div class="col-span-full flex flex-col items-center gap-3 py-16 text-base-content/50">
-        <div class="rounded-full bg-base-200 p-4">
-          <Icon name="boxicons:buoy-filled" size={32} class="opacity-30" aria-hidden="true" />
+    {
+      visibleHelpdesks.length === 0 && guides.length === 0 && (
+        <div class="col-span-full flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon
+              name="boxicons:buoy-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <p class="text-sm font-semibold">No hay mesas de ayuda disponibles</p>
+          <p class="text-xs">
+            Verifica la conexion con InvGate o registra soportes manualmente.
+          </p>
         </div>
-        <p class="text-sm font-semibold">No hay mesas de ayuda disponibles</p>
-        <p class="text-xs">Verifica la conexion con InvGate o registra soportes manualmente.</p>
-      </div>
-    )}
+      )
+    }
   </div>
 </PageContainer>

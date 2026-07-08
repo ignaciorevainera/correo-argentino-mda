@@ -1,7 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
 import { getCleanBase } from "@lib/baseUrl";
-import HelpdeskDetailModal from "./HelpdeskDetailModal.astro";
 import type { InvgateHelpdesk } from "@/types/invgate";
 
 interface Props {
@@ -9,11 +8,11 @@ interface Props {
   records: any[];
   isAdmin: boolean;
   parentName?: string;
+  hasNoRecords: boolean;
 }
 
-const { helpdesk, records, isAdmin, parentName } = Astro.props;
+const { helpdesk, records, isAdmin, parentName, hasNoRecords } = Astro.props;
 const cleanBase = getCleanBase();
-const modalId = `modal_hd_${helpdesk.id}`;
 const isActive = helpdesk.status_id === 1;
 const statusBadge = isActive ? "badge-success" : "badge-ghost";
 const statusLabel = isActive ? "Activo" : "Inactivo";
@@ -21,7 +20,6 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
 
 <div class="card bg-base-100 shadow-sm border border-base-300">
   <div class="card-body p-5 gap-3">
-    <!-- Header: InvGate data -->
     <div class="flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
         <h3 class="card-title text-base flex items-center gap-2 truncate">
@@ -44,13 +42,9 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
       </div>
     </div>
 
-    <!-- Divider -->
     <div class="border-t border-base-200"></div>
 
-    <!-- Local records -->
-    {records.length === 0 ? (
-      <p class="text-sm text-base-content/50 italic py-2">Sin informacion complementaria</p>
-    ) : (
+    {!hasNoRecords && records.length > 0 && (
       <div class="space-y-3">
         {records.map((guide) => {
           let topicsList: string[] = [];
@@ -69,21 +63,21 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
           }
 
           return (
-            <div class="bg-base-200/40 rounded-lg p-3 border border-base-300">
+            <div class="bg-base-200/40 rounded-lg p-3 border border-base-300 space-y-2">
               {guide.legacyName && (
-                <p class="text-sm font-semibold text-base-content mb-1.5">
+                <p class="text-sm font-semibold text-base-content">
                   SM: {guide.legacyName}
                 </p>
               )}
 
               {guide.route && (
-                <p class="text-xs font-mono text-base-content/60 mb-1.5 truncate" title={guide.route}>
+                <p class="text-xs font-mono text-base-content/60 truncate" title={guide.route}>
                   {guide.route}
                 </p>
               )}
 
               {categoryIds.length > 0 && (
-                <div class="flex flex-wrap gap-1 mb-1.5">
+                <div class="flex flex-wrap gap-1">
                   <span class="text-xs text-base-content/50">Categorias:</span>
                   {categoryIds.map((cid) => (
                     <span class="badge badge-xs badge-outline">ID:{cid}</span>
@@ -99,8 +93,38 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
                 </div>
               )}
 
+              {guide.contacts && (
+                <div>
+                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+                    <Icon name="boxicons:phone" size={12} />
+                    Contactos
+                  </p>
+                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.contacts}</p>
+                </div>
+              )}
+
+              {guide.referents && (
+                <div>
+                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+                    <Icon name="boxicons:user-filled" size={12} />
+                    Referentes
+                  </p>
+                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.referents}</p>
+                </div>
+              )}
+
+              {guide.notes && (
+                <div>
+                  <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+                    <Icon name="boxicons:note" size={12} />
+                    Notas
+                  </p>
+                  <p class="text-xs whitespace-pre-wrap text-base-content/80">{guide.notes}</p>
+                </div>
+              )}
+
               {isAdmin && (
-                <div class="mt-2 pt-2 border-t border-base-200 flex justify-end">
+                <div class="pt-2 border-t border-base-200 flex justify-end">
                   <a
                     href={`${cleanBase}soportes/edit/${guide.id}`}
                     class="btn btn-xs btn-ghost text-secondary"
@@ -116,15 +140,7 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
       </div>
     )}
 
-    <!-- Card actions -->
     <div class="card-actions justify-end mt-1">
-      <button
-        class="btn btn-sm btn-ghost"
-        onclick={`document.getElementById('${modalId}').showModal()`}
-      >
-        <Icon name="boxicons:info-circle" size={16} />
-        Ver mas
-      </button>
       {isAdmin && (
         <a
           href={`${cleanBase}soportes/edit/new?invgate_id=${helpdesk.id}`}
@@ -137,10 +153,3 @@ const statusLabel = isActive ? "Activo" : "Inactivo";
     </div>
   </div>
 </div>
-
-<HelpdeskDetailModal
-  modalId={modalId}
-  helpdesk={helpdesk}
-  records={records}
-  parentName={parentName}
-/>
