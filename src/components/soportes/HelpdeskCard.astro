@@ -60,6 +60,7 @@ const sortedSubLevels = [...subLevels].sort(
 
 const searchableText = [
   hdName,
+  parentName,
   ...legacyNames,
   first?.route,
   topicsList.join(" "),
@@ -263,8 +264,17 @@ const searchableText = [
       .then((data) => {
         if (data.members && data.members.length > 0) {
           list.innerHTML = data.members
-            .map((m: string) => `<li>${m}</li>`)
+            .map((m: string) => `<li data-highlight-target>${m}</li>`)
             .join("");
+          const cardEl = el.closest<HTMLElement>("[data-card-for]");
+          if (cardEl) {
+            const existing = cardEl.dataset.searchText || "";
+            const membersText = data.members.join(" ").toLowerCase();
+            if (!existing.includes(membersText)) {
+              cardEl.dataset.searchText = existing + " " + membersText;
+            }
+            cardEl.dispatchEvent(new Event("members-loaded"));
+          }
         } else {
           list.innerHTML =
             '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
