@@ -17,7 +17,7 @@ export function showConfirm(message: string): Promise<boolean> {
       return;
     }
 
-    const dialog = document.createElement('dialog');
+    const dialog = document.createElement('div');
     dialog.className = 'modal modal-bottom sm:modal-middle z-[250] modal-open';
     dialog.innerHTML = `
       <div class="modal-box max-w-sm bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
@@ -28,6 +28,7 @@ export function showConfirm(message: string): Promise<boolean> {
           <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-ok-btn" type="button">Confirmar</button>
         </div>
       </div>
+      <form method="dialog" class="modal-backdrop"><button type="button">close</button></form>
     `;
     document.body.appendChild(dialog);
 
@@ -42,7 +43,6 @@ export function showConfirm(message: string): Promise<boolean> {
 
     cancelBtn?.addEventListener('click', () => cleanUp(false));
     okBtn?.addEventListener('click', () => cleanUp(true));
-    dialog.addEventListener('close', () => cleanUp(false));
   });
 }
 
@@ -53,7 +53,7 @@ export function showPrompt(message: string, defaultValue: string = ''): Promise<
       return;
     }
 
-    const dialog = document.createElement('dialog');
+    const dialog = document.createElement('div');
     dialog.className = 'modal modal-bottom sm:modal-middle z-[250] modal-open';
     dialog.innerHTML = `
       <div class="modal-box max-w-sm bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
@@ -65,6 +65,7 @@ export function showPrompt(message: string, defaultValue: string = ''): Promise<
           <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="prompt-ok-btn" type="button">Aceptar</button>
         </div>
       </div>
+      <form method="dialog" class="modal-backdrop"><button type="button">close</button></form>
     `;
     document.body.appendChild(dialog);
 
@@ -100,8 +101,6 @@ export function showPrompt(message: string, defaultValue: string = ''): Promise<
         cleanUp(val);
       }
     });
-
-    dialog.addEventListener('close', () => cleanUp(null));
   });
 }
 
