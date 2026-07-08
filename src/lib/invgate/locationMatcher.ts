@@ -141,3 +141,26 @@ export function matchLocations(
     },
   };
 }
+
+/**
+ * Scans InvGate locations for duplicate NIS values.
+ * Returns a Map of nis → count (only includes nis with count > 1).
+ */
+export function findDuplicateNis(
+  invgateLocations: InvgateLocation[]
+): Map<string, number> {
+  const nisCount = new Map<string, number>();
+  for (const loc of invgateLocations) {
+    const parsed = parseInvgateLocationName(loc.name);
+    if (parsed.nis) {
+      nisCount.set(parsed.nis, (nisCount.get(parsed.nis) || 0) + 1);
+    }
+  }
+  const duplicates = new Map<string, number>();
+  for (const [nis, count] of nisCount) {
+    if (count > 1) {
+      duplicates.set(nis, count);
+    }
+  }
+  return duplicates;
+}
