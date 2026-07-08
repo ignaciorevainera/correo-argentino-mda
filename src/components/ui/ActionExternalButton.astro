@@ -1,0 +1,44 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  href?: string;
+  ariaLabel: string;
+  class?: string;
+  size?: "xs" | "default";
+  [key: string]: any;
+}
+
+const { href, ariaLabel, class: className = "", size = "default", ...attrs } = Astro.props;
+
+const isXs = size === "xs";
+const btnClasses = isXs
+  ? "btn btn-xs btn-soft btn-accent gap-2"
+  : "btn btn-sm md:btn-md btn-soft btn-accent gap-2";
+const iconName = "boxicons:link-filled";
+const iconSize = isXs ? 14 : 18;
+---
+
+{
+  href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      class:list={[btnClasses, className]}
+      aria-label={ariaLabel}
+      {...attrs}
+    >
+      <Icon name={iconName} size={iconSize} />
+    </a>
+  ) : (
+    <button
+      type="button"
+      class:list={[btnClasses, className]}
+      aria-label={ariaLabel}
+      {...attrs}
+    >
+      <Icon name={iconName} size={iconSize} />
+    </button>
+  )
+}
