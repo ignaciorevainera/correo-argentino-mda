@@ -33,15 +33,19 @@ const linkedRecords = await db.query.supportGuides.findMany({
   where: eq(supportGuides.invgate_id, invgateId),
 });
 
-const legacyNames = linkedRecords
-  .map((r) => r.legacyName)
-  .filter(Boolean) as string[];
-
 const first = linkedRecords[0];
 
 const unassignedRecords = await db.query.supportGuides.findMany({
   where: isNull(supportGuides.invgate_id),
 });
+
+const unassignedJson = JSON.stringify(
+  unassignedRecords.map((r) => ({
+    id: r.id,
+    helpDeskName: r.helpDeskName,
+    legacyName: r.legacyName,
+  })),
+);
 
 if (Astro.request.method === "POST") {
   try {
@@ -120,16 +124,47 @@ const pageTitle = `Editar: ${hdName}`;
           </div>
         )}
 
-        {legacyNames.length > 0 && (
-          <div class="bg-base-200/50 rounded-lg p-4 border border-base-300">
-            <p class="text-sm font-bold text-base-content/70 mb-2">Nombres anteriores (Service Manager):</p>
-            <ul class="space-y-1">
-              {legacyNames.map((name) => (
-                <li class="text-sm font-semibold">{name}</li>
+        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300">
+          <p class="text-sm font-bold text-base-content/70 mb-2 flex items-center gap-1">
+            <Icon name="boxicons:git-merge" size={16} />
+            Mesas SM vinculadas
+          </p>
+
+          {linkedRecords.length > 0 ? (
+            <div id="linked-sm-list" class="space-y-1 mb-3">
+              {linkedRecords.map((rec) => (
+                <p class="text-sm">
+                  <span class="font-semibold">{rec.helpDeskName}</span>
+                  {rec.legacyName && <span class="text-base-content/50 text-xs ml-1">(SM: {rec.legacyName})</span>}
+                </p>
               ))}
-            </ul>
+            </div>
+          ) : (
+            <p class="text-sm italic text-base-content/40 mb-3">Sin mesas SM vinculadas a esta helpdesk.</p>
+          )}
+
+          <div id="assign-chain" data-invgate-id={invgateId} data-unassigned={unassignedJson}>
+            {unassignedRecords.length > 0 && (
+              <div class="assign-row flex items-center gap-2">
+                <select class="select select-sm select-bordered flex-1 assign-select">
+                  <option value="">Seleccionar mesa SM...</option>
+                  {unassignedRecords.map((rec) => (
+                    <option value={rec.id}>
+                      {rec.helpDeskName}{rec.legacyName ? ` (SM: ${rec.legacyName})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" class="btn btn-xs btn-primary assign-btn">
+                  Vincular
+                </button>
+              </div>
+            )}
           </div>
-        )}
+          <p class="text-xs text-base-content/40 mt-2 flex items-center gap-1">
+            <Icon name="boxicons:info-circle" size={12} />
+            Selecciona una mesa SM y haz clic en Vincular para asignarla. Se agregara automaticamente otra fila.
+          </p>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
@@ -187,35 +222,6 @@ const pageTitle = `Editar: ${hdName}`;
           </button>
         </div>
       </form>
-
-      {unassignedRecords.length > 0 && (
-        <div class="mt-8 border-t border-base-200 pt-6">
-          <h3 class="text-sm font-bold text-base-content/70 mb-3 flex items-center gap-2">
-            <Icon name="boxicons:git-merge" size={16} />
-            Vincular mas registros SM ({unassignedRecords.length})
-          </h3>
-          <div class="space-y-2">
-            {unassignedRecords.map((rec) => (
-              <div class="flex items-center justify-between bg-base-200/40 rounded-lg p-3 border border-base-300">
-                <div>
-                  <span class="text-sm font-semibold">{rec.helpDeskName}</span>
-                  {rec.legacyName && (
-                    <span class="text-xs text-base-content/50 ml-2">SM: {rec.legacyName}</span>
-                  )}
-                </div>
-                <button
-                  class="btn btn-xs btn-primary"
-                  data-assign-inline
-                  data-record-id={rec.id}
-                  data-invgate-id={invgateId}
-                >
-                  Vincular a esta mesa
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   </PageContainer>
 </BaseLayout>
@@ -226,33 +232,89 @@ const pageTitle = `Editar: ${hdName}`;
     return b.endsWith("/") ? b : b + "/";
   })();
 
-  document.querySelectorAll<HTMLButtonElement>("[data-assign-inline]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const recordId = Number(btn.dataset.recordId);
-      const invgateId = Number(btn.dataset.invgateId);
+  const chain = document.getElementById("assign-chain");
+  if (!chain) throw new Error("assign-chain not found");
 
-      btn.disabled = true;
-      btn.textContent = "Vinculando...";
+  const invgateId = Number(chain.dataset.invgateId);
+  let unassigned: { id: number; helpDeskName: string; legacyName: string | null }[] = [];
+  try { unassigned = JSON.parse(chain.dataset.unassigned || "[]"); } catch {}
 
-      try {
-        const res = await fetch(`${cleanBase}api/support-guides/assign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recordId, invgate_id: invgateId }),
-        });
+  function renderOptions(excludeIds: Set<number>): string {
+    return unassigned
+      .filter((r) => !excludeIds.has(r.id))
+      .map(
+        (r) =>
+          `<option value="${r.id}">${r.helpDeskName}${r.legacyName ? ` (SM: ${r.legacyName})` : ""}</option>`,
+      )
+      .join("");
+  }
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Error desconocido");
+  function getExcludedIds(): Set<number> {
+    const ids = new Set<number>();
+    chain.querySelectorAll<HTMLSelectElement>(".assign-select").forEach((sel) => {
+      const v = Number(sel.value);
+      if (v) ids.add(v);
+    });
+    return ids;
+  }
+
+  function consumeAndAddRow() {
+    const excludeIds = getExcludedIds();
+    const available = unassigned.filter((r) => !excludeIds.has(r.id));
+    if (available.length === 0) return;
+
+    const row = document.createElement("div");
+    row.className = "assign-row flex items-center gap-2";
+    row.innerHTML = `
+      <select class="select select-sm select-bordered flex-1 assign-select">
+        <option value="">Seleccionar mesa SM...</option>
+        ${renderOptions(excludeIds)}
+      </select>
+      <button type="button" class="btn btn-xs btn-primary assign-btn">Vincular</button>
+    `;
+    chain.appendChild(row);
+    row.querySelector(".assign-btn")?.addEventListener("click", () => handleAssign(row));
+  }
+
+  function handleAssign(row: HTMLElement) {
+    const sel = row.querySelector<HTMLSelectElement>(".assign-select");
+    const btn = row.querySelector<HTMLButtonElement>(".assign-btn");
+    const recordId = Number(sel?.value);
+    if (!recordId || !btn) return;
+
+    btn.disabled = true;
+    btn.textContent = "...";
+
+    fetch(`${cleanBase}api/support-guides/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId, invgate_id: invgateId }),
+    })
+      .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.error)))))
+      .then(() => {
+        const list = document.getElementById("linked-sm-list");
+        const assigned = unassigned.find((r) => r.id === recordId);
+        if (list && assigned) {
+          const p = document.createElement("p");
+          p.className = "text-sm";
+          p.innerHTML = `<span class="font-semibold">${assigned.helpDeskName}</span>${assigned.legacyName ? `<span class="text-base-content/50 text-xs ml-1">(SM: ${assigned.legacyName})</span>` : ""}`;
+          list.appendChild(p);
         }
 
-        (window as any).showToast?.("Registro vinculado correctamente", "alert-success");
-        setTimeout(() => location.reload(), 600);
-      } catch (err: any) {
-        (window as any).showToast?.(err.message, "alert-error");
+        row.remove();
+        consumeAndAddRow();
+
+        (window as any).showToast?.("Mesa SM vinculada correctamente", "alert-success");
+      })
+      .catch((err: any) => {
+        (window as any).showToast?.(err.message || "Error al vincular", "alert-error");
         btn.disabled = false;
-        btn.textContent = "Vincular a esta mesa";
-      }
-    });
+        btn.textContent = "Vincular";
+      });
+  }
+
+  chain.querySelectorAll<HTMLElement>(".assign-row").forEach((row) => {
+    const btn = row.querySelector<HTMLButtonElement>(".assign-btn");
+    if (btn) btn.addEventListener("click", () => handleAssign(row));
   });
 </script>
