@@ -881,7 +881,7 @@ function setupEventListeners(): void {
     if (trigger) applyBrushToCell(trigger);
   });
 
-  document.addEventListener('mouseup', () => { isDragging = false; });
+  document.addEventListener('mouseup', () => { isDragging = false; }); // [PERF] minimal — single assignment
   
   monthlyBody?.addEventListener('click', async (event) => {
     // Click on edit operator button
@@ -1208,9 +1208,9 @@ function setupEventListeners(): void {
     }
   });
 
-  const newMonthModal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void } | null;
+  const newMonthModal = document.getElementById('new-month-modal') as HTMLElement | null;
   document.getElementById('add-month-btn')?.addEventListener('click', () => {
-    newMonthModal?.showModal();
+    newMonthModal?.classList.add('modal-open');
   });
 
   // --- Import Handler ---
