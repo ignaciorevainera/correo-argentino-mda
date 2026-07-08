@@ -98,7 +98,7 @@ export function updateGroupsActiveMonthBadge(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   const groupsSelect = document.getElementById('groups-month-selector') as HTMLSelectElement | null;
   if (groupsSelect && dateInput && dateInput.value) {
-    groupsSelect.value = dateInput.value;
+    groupsSelect.value = dateInput.value.slice(0, 7) + "-01";
   }
 }
 
@@ -113,11 +113,14 @@ export function updateMonthDisplay(): void {
     return;
   }
 
-  mainSelect.value = value;
+  mainSelect.value = value.slice(0, 7) + "-01";
 
   updateNavigationButtons();
   updateGroupsActiveMonthBadge();
 }
+
+const MESES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const T_MONTH = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
 export function renderMonthSelect(): void {
   const mainSelect = document.getElementById('month-selector') as HTMLSelectElement | null;
@@ -125,12 +128,11 @@ export function renderMonthSelect(): void {
   if (!mainSelect && !groupsSelect) return;
 
   const html = state.uniqueMonths.map(ymStr => {
-    const [yearStr, monthStr] = ymStr.split('-');
-    const year = parseInt(yearStr, 10);
+    const [, monthStr] = ymStr.split('-');
     const month = parseInt(monthStr, 10) - 1;
-    const dateObj = new Date(year, month, 15);
-    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-    const label = formatter.format(dateObj).toUpperCase();
+    const year = ymStr.slice(0, 4);
+    const isCurrent = ymStr === T_MONTH;
+    const label = isCurrent ? `${MESES_ES[month]} ${year} (mes actual)` : `${MESES_ES[month]} ${year}`;
     return `<option value="${ymStr}-01">${label}</option>`;
   }).join('');
 

@@ -250,12 +250,13 @@ async function init(): Promise<void> {
   try {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
-    let initialMonth = dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7);
 
-    const payload = await fetchCronogramaFullData(initialMonth);
+    const payload = await fetchCronogramaFullData();
     state.cronoData = payload.operators;
     state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
+
+    const activeMonth = payload.activeMonth || (dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7));
 
     try {
       const feriadosRes = await fetch('/api/cronograma/feriados');
@@ -266,15 +267,14 @@ async function init(): Promise<void> {
       console.warn("Failed to load holidays:", err);
     }
 
-    await loadRotationConfig(initialMonth);
+    await loadRotationConfig(activeMonth);
 
-    const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
-    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || todayStr);
+    const hasDataForToday = activeMonth === todayStr.slice(0, 7) && state.cronoData.some(op => op.asistencia[todayStr]);
+    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || `${activeMonth}-01`);
 
     if (dateInput) {
       dateInput.value = initialDate;
       updateDateInputDisplay();
-      updateMonthDisplay();
       if (state.uniqueDates.length > 0) {
         dateInput.min = state.uniqueDates[0];
         dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
@@ -284,6 +284,7 @@ async function init(): Promise<void> {
     renderDaily();
     renderMonthly();
     renderMonthSelect();
+    updateMonthDisplay();
     setupEventListeners();
   } catch (err: unknown) {
     console.error("Error loading data:", err);

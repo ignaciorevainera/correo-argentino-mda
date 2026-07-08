@@ -21,6 +21,7 @@ export interface CronogramaPayload {
   operators: OperatorData[];
   weekendOvertimeConfigs: WeekendOvertimeConfig[];
   availableMonths?: string[];
+  activeMonth?: string;
 }
 
 
