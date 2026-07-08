@@ -142,16 +142,6 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
       </div>
     )}
 
-    {first?.referents && (
-      <div>
-        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-          <Icon name="boxicons:group" size={12} />
-          Miembros
-        </p>
-        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.referents}</p>
-      </div>
-    )}
-
     {first?.notes && (
       <div>
         <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
@@ -159,6 +149,20 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
           Notas
         </p>
         <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.notes}</p>
+      </div>
+    )}
+
+    {helpdesk.total_members > 0 && (
+      <div data-members-for={helpdesk.id}>
+        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+          <Icon name="boxicons:group" size={12} />
+          Miembros
+        </p>
+        <ul class="list-disc list-inside text-xs text-base-content/80 space-y-0.5" data-members-list>
+          <li class="italic text-base-content/50">
+            <span class="loading loading-dots loading-xs"></span>
+          </li>
+        </ul>
       </div>
     )}
 
@@ -175,3 +179,29 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
     </div>
   </div>
 </div>
+
+<script>
+  const cleanBase = (() => {
+    const b = import.meta.env.BASE_URL || "/";
+    return b.endsWith("/") ? b : b + "/";
+  })();
+
+  document.querySelectorAll<HTMLElement>("[data-members-for]").forEach((el) => {
+    const invgateId = el.dataset.membersFor;
+    const list = el.querySelector<HTMLElement>("[data-members-list]");
+    if (!invgateId || !list) return;
+
+    fetch(`${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.members && data.members.length > 0) {
+          list.innerHTML = data.members.map((m: string) => `<li>${m}</li>`).join("");
+        } else {
+          list.innerHTML = '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
+        }
+      })
+      .catch(() => {
+        list.innerHTML = '<li class="italic text-error/60">Error al cargar miembros</li>';
+      });
+  });
+</script>
