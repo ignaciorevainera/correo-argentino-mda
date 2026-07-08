@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { agents, schedules } from "@db/schema";
-import { and, eq, like, inArray } from "drizzle-orm";
+import { agents, schedules, agentSaturdayGroups, saturdayRotationConfig } from "@db/schema";
+import { and, eq, like, inArray, desc, lt } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
@@ -21,15 +21,68 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonResponse({ error: "Year and month are required" }, 400);
     }
 
-    // 1. Fetch all agents (operators) from SQLite to get all operators
-    const dbAgents = await db.select({ name: agents.name }).from(agents);
+    // 1. Fetch all agents with legacy saturday fields
+    const dbAgents = await db.select({
+      id: agents.id,
+      name: agents.name,
+      saturdayGroup: agents.saturdayGroup,
+      saturdayHorario: agents.saturdayHorario
+    }).from(agents);
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-    // 2. Generate and write schedules for all operators (single transaction)
+    // 2. Load all historical agentSaturdayGroups records to find each operator's most recent non-null group
+    const allPrevRecords = await db
+      .select()
+      .from(agentSaturdayGroups)
+      .where(lt(agentSaturdayGroups.month, monthPrefix))
+      .orderBy(desc(agentSaturdayGroups.month));
+
+    const effectivePrevGroups = new Map<number, typeof agentSaturdayGroups.$inferSelect>();
+    for (const record of allPrevRecords) {
+      if (!effectivePrevGroups.has(record.agentId) && record.saturdayGroup) {
+        effectivePrevGroups.set(record.agentId, record);
+      }
+    }
+
+    // 4. Build insert records for each agent (only if they have a non-empty Saturday group)
+    const agentSaturdayGroupInserts = dbAgents
+      .map(agent => {
+        const prevConfig = effectivePrevGroups.get(agent.id);
+        const sg = prevConfig?.saturdayGroup || agent.saturdayGroup;
+        const sh = prevConfig?.saturdayHorario || agent.saturdayHorario;
+        return sg
+          ? { agentId: agent.id, month: monthPrefix, saturdayGroup: sg, saturdayHorario: sh || null }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Handle saturdayRotationConfig copy
+    const targetRotationConfig = await db.select().from(saturdayRotationConfig).where(eq(saturdayRotationConfig.month, monthPrefix)).limit(1);
+    let rotationConfigInsert = null;
+    if (targetRotationConfig.length === 0) {
+      const prevRotationConfigResult = await db
+        .select()
+        .from(saturdayRotationConfig)
+        .where(lt(saturdayRotationConfig.month, monthPrefix))
+        .orderBy(desc(saturdayRotationConfig.month))
+        .limit(1);
+      
+      const prevRotationConfig = prevRotationConfigResult[0];
+      if (prevRotationConfig) {
+        rotationConfigInsert = {
+          month: monthPrefix,
+          rotationOrder: prevRotationConfig.rotationOrder,
+          startDate: prevRotationConfig.startDate,
+          startGroup: prevRotationConfig.startGroup,
+        };
+      }
+    }
+
+    // 5. Transaction: Delete existing, insert schedules, insert agentSaturdayGroups, upsert saturdayRotationConfig
     await db.transaction((tx) => {
-      // Batch delete: remove all existing schedules for this month across all agents
+      // 5.1 Batch delete schedules
       tx.delete(schedules).where(
         and(
           inArray(schedules.agentName, dbAgents.map(a => a.name)),
@@ -37,7 +90,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         )
       ).run();
 
-      // Batch insert: generate all day schedules for all agents
+      // 5.2 Chunk-insert schedules
       const allInserts = [];
       for (const op of dbAgents) {
         for (let d = 1; d <= daysInMonth; d++) {
@@ -57,10 +110,24 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
       }
 
-      // Chunk inserts to avoid SQLite parameter limit (~999 variables)
       const CHUNK_SIZE = 100;
       for (let i = 0; i < allInserts.length; i += CHUNK_SIZE) {
         tx.insert(schedules).values(allInserts.slice(i, i + CHUNK_SIZE)).run();
+      }
+
+      // 5.3 Delete existing agentSaturdayGroups for target month
+      tx.delete(agentSaturdayGroups).where(eq(agentSaturdayGroups.month, monthPrefix)).run();
+
+      // 5.4 Chunk-insert new agentSaturdayGroups records
+      if (agentSaturdayGroupInserts.length > 0) {
+        for (let i = 0; i < agentSaturdayGroupInserts.length; i += CHUNK_SIZE) {
+          tx.insert(agentSaturdayGroups).values(agentSaturdayGroupInserts.slice(i, i + CHUNK_SIZE)).run();
+        }
+      }
+
+      // 5.5 Upsert saturdayRotationConfig
+      if (rotationConfigInsert) {
+        tx.insert(saturdayRotationConfig).values(rotationConfigInsert).run();
       }
     });
 
@@ -89,10 +156,16 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
 
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-    // 1. Delete from database schedules for this month
-    await db.delete(schedules).where(
-      like(schedules.date, `${monthPrefix}-%`)
-    );
+    // Transaction for atomic delete
+    await db.transaction((tx) => {
+      tx.delete(schedules).where(
+        like(schedules.date, `${monthPrefix}-%`)
+      ).run();
+
+      tx.delete(agentSaturdayGroups).where(
+        eq(agentSaturdayGroups.month, monthPrefix)
+      ).run();
+    });
 
     await logAdminFromAstro(locals,
       `Eliminó el cronograma del mes de ${MONTH_LABELS[month] || month} ${year}`

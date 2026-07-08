@@ -62,14 +62,14 @@ export function renderWeeklyDaysList() {
       else if (opt === 'Licencia') label = 'L';
       else if (opt === 'Franco') label = 'F';
       
-      let btnClass = "weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+      let btnClass = "weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
       if (currentVal === opt) {
-        if (opt === 'Presencial Monte Grande') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-amber-500 text-white shadow-md';
-        else if (opt === 'Presencial Parque Patricios') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-purple-500 text-white shadow-md';
-        else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-secondary text-secondary-content shadow-md';
-        else if (opt === 'Vacaciones') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-success text-white shadow-md';
-        else if (opt === 'Licencia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-error text-white shadow-md';
-        else if (opt === 'Franco') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-300 text-base-content shadow-md';
+        if (opt === 'Presencial Monte Grande') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-amber-500 text-white shadow-md';
+        else if (opt === 'Presencial Parque Patricios') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-purple-500 text-white shadow-md';
+        else if (opt === 'Home Office') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-secondary text-secondary-content shadow-md';
+        else if (opt === 'Vacaciones') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-success text-white shadow-md';
+        else if (opt === 'Licencia') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-error text-white shadow-md';
+        else if (opt === 'Franco') btnClass = 'weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-base-300 text-base-content shadow-md';
       }
       
       return `<button type="button" class="${btnClass}" data-weekly-option="${opt}">${label}</button>`;
@@ -284,7 +284,7 @@ export function handleWeeklyDayOptionClick(btn: HTMLButtonElement) {
   
   if (btn.parentElement) {
     btn.parentElement.querySelectorAll('[data-weekly-option]').forEach(other => {
-      other.className = "weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
+      other.className = "weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 bg-base-100 hover:bg-base-200 text-base-content/60 border border-base-300/40";
     });
   }
   
@@ -296,7 +296,7 @@ export function handleWeeklyDayOptionClick(btn: HTMLButtonElement) {
   else if (option === 'Licencia') activeClass = 'bg-error text-white shadow-md';
   else if (option === 'Franco') activeClass = 'bg-base-300 text-base-content shadow-md';
   
-  btn.className = `weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-all duration-200 ${activeClass}`;
+  btn.className = `weekly-day-opt-btn btn btn-xs font-black text-tiny uppercase px-3 py-1.5 h-auto rounded-lg transition-colors duration-200 ${activeClass}`;
 }
 
 export function clearWeeklySchedule() {
