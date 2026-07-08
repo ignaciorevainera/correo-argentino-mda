@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useDebounce } from "./useDebounce";
 import { showToast } from "@lib/toastClient"
+import type { ModulePermission } from "@/lib/rbac";
 
 declare const chrome: any;
 
@@ -30,7 +31,11 @@ export interface TitleCategory {
   icon: string;
   tone: string;
 }
-export function useTitles() {
+
+interface Props {
+  permissions: ModulePermission
+}
+export function useTitles({ permissions }: Props) {
   const [titles, setTitles] = useState<Title[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Todos");
@@ -122,6 +127,16 @@ export function useTitles() {
   const createTitle = async (title: TitleFormData) => {
     try {
 
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
+
       const res = await fetch("/api/titulos", {
         method: "POST",
         headers: {
@@ -149,7 +164,6 @@ export function useTitles() {
         "alert-error",
         3000
       );
-
       return false;
     }
   }
@@ -159,6 +173,16 @@ export function useTitles() {
     title: TitleFormData
   ) => {
     try {
+
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
       const res = await fetch(`/api/titulos/${id}`, {
         method: "PUT",
         headers: {
@@ -197,6 +221,16 @@ export function useTitles() {
   ) => {
 
     try {
+
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
 
       const res = await fetch(`/api/titulos/${id}`, {
 

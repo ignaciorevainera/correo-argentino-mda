@@ -11,12 +11,19 @@ import { TitleCardSkeleton } from "./TitleCardSkeleton";
 
 import { MagnifyingGlassIcon, PlusCircleIcon } from "@heroicons/react/24/outline"
 
-export default function TitlesContainer() {
+import type { ModulePermission } from "@/lib/rbac";
+
+interface Props {
+  permissions: ModulePermission;
+}
+
+
+export default function TitlesContainer({ permissions }: Props) {
   const {
     loading, filters, filteredTitles, searchQuery, activeFilter, favorites,
     setSearchQuery, setActiveFilter, toggleFavorite, copyToClipboard,
     createTitle, updateTitle, deleteTitle, categories
-  } = useTitles();
+  } = useTitles({permissions});
 
   const [selectedTitle, setSelectedTitle] = useState<Title | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -108,10 +115,14 @@ export default function TitlesContainer() {
           </div>
 
         </article>
-        <button className="btn btn-sm shadow-none btn-primary ml-auto" onClick={handleCreate}>
-          <PlusCircleIcon className="size-5" />
-          Nuevo título
-        </button>
+        {
+          permissions.canWrite && (
+            <button className="btn btn-sm shadow-none btn-primary ml-auto" onClick={handleCreate}>
+              <PlusCircleIcon className="size-5" />
+              Nuevo título
+            </button>
+          )
+        }
 
       </header >
       <section className="min-h-128 pb-4 ">
@@ -152,6 +163,7 @@ export default function TitlesContainer() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCopy={copyToClipboard}
+        permissions={permissions}
       />
       <TitleModal
         open={createModalOpen}

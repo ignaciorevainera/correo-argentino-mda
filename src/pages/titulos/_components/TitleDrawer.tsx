@@ -1,6 +1,8 @@
 import type { Title } from "@hooks/useTitlesHook";
 import { Icon } from "@iconify/react";
 
+import type { ModulePermission } from "@/lib/rbac";
+
 interface Props {
     open: boolean;
     title: Title | null;
@@ -8,10 +10,12 @@ interface Props {
     onEdit: () => void;
     onDelete: (title: Title) => void;
     onCopy: (title: string) => void;
+    permissions: ModulePermission;
 }
 
 export default function TitleDrawer({
-    open, title, onClose, onEdit, onDelete, onCopy
+    open, title, onClose, onEdit, onDelete, onCopy,
+    permissions
 }: Props) {
 
     if (!title) return null;
@@ -113,32 +117,33 @@ export default function TitleDrawer({
                             Copiar título
                         </button>
 
-                        <div className="flex">
-                            <div className="tooltip" data-tip="Editar">
-                                <button
-                                    className="btn btn-ghost shadow-none"
-                                    onClick={onEdit}
-                                >
-                                    <Icon
-                                        icon="boxicons:edit"
-                                        style={{ fontSize: 22 }}
-                                    />
-                                </button>
-                            </div>
 
-
-                            <div className="tooltip" data-tip="Eliminar">
-                                <button
-                                    className="btn btn-ghost shadow-none"
-                                    onClick={() => onDelete(title)}
-                                >
-                                    <Icon
-                                        icon="boxicons:trash"
-                                        style={{ fontSize: 22 }}
-                                    />
-                                </button>
+                        {permissions.canWrite && (
+                            <div className="flex">
+                                <div className="tooltip" data-tip="Editar">
+                                    <button
+                                        className="btn btn-ghost shadow-none"
+                                        onClick={onEdit}
+                                    >
+                                        <Icon
+                                            icon="boxicons:edit"
+                                            style={{ fontSize: 22 }}
+                                        />
+                                    </button>
+                                </div>
+                                <div className="tooltip" data-tip="Eliminar">
+                                    <button
+                                        className="btn btn-ghost shadow-none"
+                                        onClick={() => onDelete(title)}
+                                    >
+                                        <Icon
+                                            icon="boxicons:trash"
+                                            style={{ fontSize: 22 }}
+                                        />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                     </div>
                 </section>
