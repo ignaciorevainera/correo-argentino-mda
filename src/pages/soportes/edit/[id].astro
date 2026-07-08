@@ -11,88 +11,115 @@ import { supportGuides } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
-const cleanBase = getCleanBase();
+import { invgateGet } from "@lib/invgateClient";
+import type { InvgateHelpdesk } from "@/types/invgate";
 
+const cleanBase = getCleanBase();
 const { id } = Astro.params;
 
-if (!id || isNaN(Number(id))) {
+if (!id || (id !== "new" && isNaN(Number(id)))) {
   return Astro.redirect(`${cleanBase}soportes`);
 }
 
-const numericId = Number(id);
+const isNew = id === "new";
+const numericId = isNew ? 0 : Number(id);
 
 let errorMsg = "";
+
+const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
+const invgateHelpdesks: InvgateHelpdesk[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+
+let guide: typeof supportGuides.$inferSelect | null = null;
+
+if (!isNew) {
+  guide = await db.query.supportGuides.findFirst({
+    where: eq(supportGuides.id, numericId),
+  });
+  if (!guide) {
+    return Astro.redirect(`${cleanBase}soportes`);
+  }
+}
+
+const preselectedInvgateId = isNew
+  ? Number(Astro.url.searchParams.get("invgate_id") || "0") || null
+  : null;
 
 if (Astro.request.method === "POST") {
   try {
     const data = await Astro.request.formData();
-    const helpDeskName = data.get("helpDeskName")?.toString() || "";
     const legacyName = data.get("legacyName")?.toString() || null;
-    const invgateName = data.get("invgateName")?.toString() || null;
+    const categories = data.get("categories")?.toString() || null;
     const route = data.get("route")?.toString() || null;
     const topics = data.get("topics")?.toString() || null;
     const contacts = data.get("contacts")?.toString() || null;
     const referents = data.get("referents")?.toString() || null;
     const notes = data.get("notes")?.toString() || null;
+    const invgateIdRaw = data.get("invgate_id")?.toString();
+    const invgateId = invgateIdRaw ? Number(invgateIdRaw) || null : null;
 
-    if (!helpDeskName.trim()) {
-      errorMsg = "El campo Mesa de Ayuda es obligatorio.";
+    if (isNew) {
+      const invgateName = invgateId
+        ? invgateHelpdesks.find((h) => h.id === invgateId)?.name || null
+        : null;
+      const helpDeskName = invgateName || "Sin nombre InvGate";
+
+      await db.insert(supportGuides).values({
+        helpDeskName,
+        legacyName,
+        invgateName,
+        invgate_id: invgateId,
+        categories,
+        route,
+        topics,
+        contacts,
+        referents,
+        notes,
+      });
+
+      await logAdminFromAstro(Astro.locals, `Creo informacion complementaria para la mesa de ayuda "${helpDeskName}"`);
+      return redirectWithToast("/soportes", "Informacion agregada con exito.");
     } else {
-      const [existing] = await db
-        .select({ helpDeskName: supportGuides.helpDeskName })
-        .from(supportGuides)
-        .where(eq(supportGuides.id, numericId));
-      const oldName = existing?.helpDeskName || "desconocido";
-
       await db
         .update(supportGuides)
         .set({
-          helpDeskName,
           legacyName,
-          invgateName,
+          categories,
           route,
           topics,
           contacts,
           referents,
           notes,
+          invgate_id: invgateId ?? undefined,
         })
         .where(eq(supportGuides.id, numericId));
 
-      if (oldName !== helpDeskName) {
-        await logAdminFromAstro(Astro.locals, `Actualizó el soporte de "${oldName}" a "${helpDeskName}"`);
-      } else {
-        await logAdminFromAstro(Astro.locals, `Actualizó el soporte "${helpDeskName}"`);
-      }
-      return redirectWithToast("/soportes", "Soporte actualizado con éxito.");
+      const label = guide?.helpDeskName || `#${numericId}`;
+      await logAdminFromAstro(Astro.locals, `Actualizo los datos de la mesa de ayuda "${label}"`);
+      return redirectWithToast("/soportes", "Soporte actualizado con exito.");
     }
   } catch (err) {
-    console.error("Error updating support guide:", err);
-    errorMsg = "Ocurrió un error al actualizar el registro.";
+    console.error("Error saving support guide:", err);
+    errorMsg = "Ocurrio un error al guardar el registro.";
   }
 }
 
-const guide = await db.query.supportGuides.findFirst({
-  where: eq(supportGuides.id, numericId),
-});
-
-if (!guide) {
-  return Astro.redirect(`${cleanBase}soportes`);
-}
+const pageTitle = isNew ? "Nueva Informacion Complementaria" : `Editar: ${guide?.helpDeskName || ""}`;
+const pageDesc = isNew
+  ? "Agrega metadata local a una mesa de ayuda de InvGate."
+  : "Modifica los campos de metadata local del soporte seleccionado.";
 ---
 
 <BaseLayout>
   <PageContainer>
     <div class="mb-6">
       <a href={`${cleanBase}soportes`} class="btn btn-ghost btn-sm gap-2">
-        <Icon name="boxicons:arrow-left" class="size-4" />
+        <Icon name="boxicons:arrow-left" size={16} />
         Volver al listado
       </a>
     </div>
 
-    <PageHeader 
-      title={`Editar Soporte: ${guide.helpDeskName}`} 
-      description="Modifica los campos del soporte seleccionado."
-    />
+    <PageHeader title={pageTitle} description={pageDesc} />
 
     <div class="mt-8 bg-base-100 p-6 md:p-8 rounded-2xl shadow-sm border border-base-200">
       {errorMsg && (
@@ -102,25 +129,108 @@ if (!guide) {
       )}
 
       <form method="POST" class="flex flex-col gap-6">
+        {!isNew && guide?.invgate_id && (() => {
+          const hd = invgateHelpdesks.find((h) => h.id === guide!.invgate_id);
+          return hd ? (
+            <div class="alert alert-soft text-sm">
+              <Icon name="boxicons:buoy-filled" size={18} />
+              <span>Mesa de ayuda InvGate vinculada: <strong>{hd.name}</strong> ({hd.total_members} miembros)</span>
+            </div>
+          ) : null;
+        })()}
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField id="helpDeskName" name="helpDeskName" label="Mesa de Ayuda" value={guide.helpDeskName} required />
-          <FormField id="legacyName" name="legacyName" label="Nombre Anterior" value={guide.legacyName || ""} />
-          <FormField id="invgateName" name="invgateName" label="Nombre Invgate" value={guide.invgateName || ""} />
-          <FormField id="route" name="route" label="Ruta" value={guide.route || ""} />
+          <FormField
+            id="legacyName"
+            name="legacyName"
+            label="Nombre Anterior (Service Manager)"
+            value={guide?.legacyName || ""}
+            placeholder="Ej: Soporte Tecnico N1"
+          />
+
+          <div class="form-control">
+            <label class="label" for="invgate_id">
+              <span class="label-text">Mesa de Ayuda InvGate</span>
+            </label>
+            <select
+              id="invgate_id"
+              name="invgate_id"
+              class="select select-bordered w-full"
+            >
+              <option value="">Sin vincular</option>
+              {invgateHelpdesks.map((hd) => {
+                const selected = isNew
+                  ? hd.id === preselectedInvgateId
+                  : hd.id === guide?.invgate_id;
+                return (
+                  <option value={hd.id} selected={selected || undefined}>
+                    {hd.name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <FormField
+            id="route"
+            name="route"
+            label="Ruta de Derivacion"
+            value={guide?.route || ""}
+            placeholder="Ej: N1 -> Redes -> Infraestructura"
+          />
         </div>
 
-        <FormTextarea id="topics" name="topics" label="Tópicos (JSON array o texto separado)" textareaClass="font-mono" rows={5} value={guide.topics || ""} />
-        <FormTextarea id="contacts" name="contacts" label="Contactos" rows={5} value={guide.contacts || ""} />
-        <FormTextarea id="referents" name="referents" label="Referentes" rows={5} value={guide.referents || ""} />
-        <FormTextarea id="notes" name="notes" label="Notas" rows={5} value={guide.notes || ""} />
+        <FormTextarea
+          id="categories"
+          name="categories"
+          label="Categorias InvGate (JSON array de IDs)"
+          textareaClass="font-mono"
+          rows={3}
+          value={guide?.categories || ""}
+          placeholder='[5, 12, 23]'
+        />
+
+        <FormTextarea
+          id="topics"
+          name="topics"
+          label="Topicos (JSON array)"
+          textareaClass="font-mono"
+          rows={4}
+          value={guide?.topics || ""}
+          placeholder='["VPN", "Correo", "Hardware"]'
+        />
+
+        <FormTextarea
+          id="contacts"
+          name="contacts"
+          label="Contactos"
+          rows={4}
+          value={guide?.contacts || ""}
+        />
+
+        <FormTextarea
+          id="referents"
+          name="referents"
+          label="Referentes"
+          rows={4}
+          value={guide?.referents || ""}
+        />
+
+        <FormTextarea
+          id="notes"
+          name="notes"
+          label="Notas"
+          rows={4}
+          value={guide?.notes || ""}
+        />
 
         <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-base-200">
           <a href={`${cleanBase}soportes`} class="btn btn-ghost">
             Cancelar
           </a>
           <button type="submit" class="btn btn-primary">
-            <Icon name="boxicons:save" class="size-5" />
-            Guardar Cambios
+            <Icon name="boxicons:save" size={20} />
+            {isNew ? "Agregar Informacion" : "Guardar Cambios"}
           </button>
         </div>
       </form>
