@@ -39,16 +39,23 @@ if (first?.topics) {
     const parsed = JSON.parse(first.topics);
     topicsList = Array.isArray(parsed) ? parsed : [];
   } catch {
-    topicsList = first.topics.split(",").map((t: string) => t.trim()).filter(Boolean);
+    topicsList = first.topics
+      .split(",")
+      .map((t: string) => t.trim())
+      .filter(Boolean);
   }
 }
 
 let categoryIds: number[] = [];
 if (first?.categories) {
-  try { categoryIds = JSON.parse(first.categories); } catch {}
+  try {
+    categoryIds = JSON.parse(first.categories);
+  } catch {}
 }
 
-const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.level_order || 0));
+const sortedSubLevels = [...subLevels].sort(
+  (a, b) => (a.level_order || 0) - (b.level_order || 0),
+);
 ---
 
 <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -56,7 +63,11 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
     <div class="flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
         <h3 class="card-title text-base flex items-center gap-2 truncate">
-          <Icon name="boxicons:buoy-filled" size={20} class="text-secondary shrink-0" />
+          <Icon
+            name="boxicons:buoy-filled"
+            size={20}
+            class="text-secondary shrink-0"
+          />
           <span class="truncate">{hdName}</span>
         </h3>
         <div class="flex flex-wrap items-center gap-2 mt-1">
@@ -64,118 +75,158 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
             <Icon name="boxicons:group" size={12} />
             {helpdesk.total_members}
           </span>
-          <span class:list={["badge badge-sm", statusBadge]}>{statusLabel}</span>
-          {parentName && (
-            <span class="badge badge-sm badge-ghost" title={`Helpdesk padre: ${parentName}`}>
-              <Icon name="boxicons:git-branch" size={12} class="mr-0.5" />
-              {parentName}
-            </span>
-          )}
-          {invgateProfileUrl && (
-            <a
-              href={invgateProfileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn-xs btn-ghost ml-auto"
-              title="Abrir en InvGate"
-            >
-              <Icon name="boxicons:external-link" size={12} />
-            </a>
-          )}
+          <span class:list={["badge badge-sm", statusBadge]}>{statusLabel}</span
+          >
+          {
+            parentName && (
+              <span
+                class="badge badge-sm badge-ghost"
+                title={`Helpdesk padre: ${parentName}`}
+              >
+                <Icon name="boxicons:git-branch" size={12} class="mr-0.5" />
+                {parentName}
+              </span>
+            )
+          }
         </div>
       </div>
     </div>
 
     <div class="border-t border-base-200"></div>
 
-    {sortedSubLevels.length > 0 && (
-      <div class="flex flex-wrap gap-1">
-        {sortedSubLevels.map((sl) => (
-          <span class="badge badge-xs badge-outline" title={`${sl.total_members} miembros`}>
-            {sl.name || `Nivel ${sl.level_order}`}
-            <span class="ml-0.5 opacity-50">{sl.total_members}</span>
-          </span>
-        ))}
-      </div>
-    )}
+    {
+      sortedSubLevels.length > 0 && (
+        <div class="flex flex-wrap gap-1">
+          {sortedSubLevels.map((sl) => (
+            <span
+              class="badge badge-sm badge-accent badge-soft"
+              title={`${sl.total_members} miembros`}
+            >
+              {sl.name || `Nivel ${sl.level_order}`}
+              <span class="ml-0.5 opacity-50">{sl.total_members}</span>
+            </span>
+          ))}
+        </div>
+      )
+    }
 
-    {legacyNames.length > 0 && (
-      <div class="space-y-1">
-        {legacyNames.map((name) => (
-          <p class="text-sm font-semibold text-base-content">
-            <span class="text-base-content/50 text-xs font-normal">SM:</span> {name}
+    {
+      legacyNames.length > 0 && (
+        <div class="space-y-1">
+          {legacyNames.map((name) => (
+            <p class="text-sm font-semibold text-base-content">
+              <span class="text-base-content/50 text-xs font-normal">SM:</span>{" "}
+              {name}
+            </p>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      first?.route && (
+        <p
+          class="text-xs font-mono text-base-content/60 truncate"
+          title={first.route}
+        >
+          {first.route}
+        </p>
+      )
+    }
+
+    {
+      categoryIds.length > 0 && (
+        <div class="flex flex-wrap gap-1">
+          <span class="text-xs text-base-content/50">Categorias:</span>
+          {categoryIds.map((cid) => (
+            <span class="badge badge-xs badge-outline">ID:{cid}</span>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      topicsList.length > 0 && (
+        <div class="flex flex-wrap gap-1">
+          {topicsList.map((t) => (
+            <span class="badge badge-sm badge-secondary">{t}</span>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      first?.contacts && (
+        <div>
+          <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:phone" size={12} />
+            Contactos
           </p>
-        ))}
-      </div>
-    )}
+          <p class="text-xs whitespace-pre-wrap text-base-content/80">
+            {first.contacts}
+          </p>
+        </div>
+      )
+    }
 
-    {first?.route && (
-      <p class="text-xs font-mono text-base-content/60 truncate" title={first.route}>
-        {first.route}
-      </p>
-    )}
+    {
+      first?.notes && (
+        <div>
+          <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:note" size={12} />
+            Notas
+          </p>
+          <p class="text-xs whitespace-pre-wrap text-base-content/80">
+            {first.notes}
+          </p>
+        </div>
+      )
+    }
 
-    {categoryIds.length > 0 && (
-      <div class="flex flex-wrap gap-1">
-        <span class="text-xs text-base-content/50">Categorias:</span>
-        {categoryIds.map((cid) => (
-          <span class="badge badge-xs badge-outline">ID:{cid}</span>
-        ))}
-      </div>
-    )}
-
-    {topicsList.length > 0 && (
-      <div class="flex flex-wrap gap-1">
-        {topicsList.map((t) => (
-          <span class="badge badge-sm badge-secondary">{t}</span>
-        ))}
-      </div>
-    )}
-
-    {first?.contacts && (
-      <div>
-        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-          <Icon name="boxicons:phone" size={12} />
-          Contactos
-        </p>
-        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.contacts}</p>
-      </div>
-    )}
-
-    {first?.notes && (
-      <div>
-        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-          <Icon name="boxicons:note" size={12} />
-          Notas
-        </p>
-        <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.notes}</p>
-      </div>
-    )}
-
-    {helpdesk.total_members > 0 && (
-      <div data-members-for={helpdesk.id}>
-        <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-          <Icon name="boxicons:group" size={12} />
-          Miembros
-        </p>
-        <ul class="list-disc list-inside text-xs text-base-content/80 space-y-0.5" data-members-list>
-          <li class="italic text-base-content/50">
-            <span class="loading loading-dots loading-xs"></span>
-          </li>
-        </ul>
-      </div>
-    )}
+    {
+      helpdesk.total_members > 0 && (
+        <div data-members-for={helpdesk.id}>
+          <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:group" size={12} />
+            Miembros
+          </p>
+          <ul
+            class="list-disc list-inside text-xs text-base-content/80 space-y-0.5"
+            data-members-list
+          >
+            <li class="italic text-base-content/50">
+              <span class="loading loading-dots loading-xs" />
+            </li>
+          </ul>
+        </div>
+      )
+    }
 
     <div class="card-actions justify-end mt-1">
-      {isAdmin && (
-        <a
-          href={`${cleanBase}soportes/edit?invgate_id=${helpdesk.id}`}
-          class="btn btn-sm btn-secondary btn-soft"
-        >
-          <Icon name="boxicons:edit" size={16} />
-          {hasRecords ? "Editar" : "Agregar info"}
-        </a>
-      )}
+      {
+        invgateProfileUrl && (
+          <a
+            href={invgateProfileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm btn-ghost gap-2"
+            title="Abrir en InvGate"
+          >
+            <Icon name="boxicons:link-filled" size={16} />
+          </a>
+        )
+      }
+      {
+        isAdmin && (
+          <a
+            href={`${cleanBase}soportes/edit?invgate_id=${helpdesk.id}`}
+            class="btn btn-sm md:btn-md btn-soft btn-secondary gap-2"
+          >
+            <Icon name="boxicons:pencil-filled" size={18} />
+            {hasRecords ? "Editar" : "Agregar info"}
+          </a>
+        )
+      }
     </div>
   </div>
 </div>
@@ -195,13 +246,17 @@ const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.
       .then((res) => res.json())
       .then((data) => {
         if (data.members && data.members.length > 0) {
-          list.innerHTML = data.members.map((m: string) => `<li>${m}</li>`).join("");
+          list.innerHTML = data.members
+            .map((m: string) => `<li>${m}</li>`)
+            .join("");
         } else {
-          list.innerHTML = '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
+          list.innerHTML =
+            '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
         }
       })
       .catch(() => {
-        list.innerHTML = '<li class="italic text-error/60">Error al cargar miembros</li>';
+        list.innerHTML =
+          '<li class="italic text-error/60">Error al cargar miembros</li>';
       });
   });
 </script>
