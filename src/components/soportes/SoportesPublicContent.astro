@@ -2,294 +2,91 @@
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import SearchBar from "@components/ui/SearchBar.astro";
-import DataTable from "@components/ui/DataTable.astro";
-import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
-import { getSupportGuides } from "@lib/supportGuidesQueries";
-import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
+import { invgateGet } from "@lib/invgateClient";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { asc } from "drizzle-orm";
 import { isAllowed } from "@lib/rolesMatrix";
+import HelpdeskCard from "./HelpdeskCard.astro";
+import UnassignedRecords from "./UnassignedRecords.astro";
+import type { InvgateHelpdesk } from "@/types/invgate";
 
 const user = Astro.locals.user;
-const isAllowedAdmin = user
-  ? isAllowed("Administrar Contenido", user.role)
-  : false;
+const isAdminUser = user ? isAllowed("Administrar Contenido", user.role) : false;
 
-const searchParams = Astro.url.searchParams;
-const searchFilter = searchParams.get("search") || "";
+const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
+const invgateHelpdesks: InvgateHelpdesk[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+const invgateError = !hdResult.ok;
 
-const { data: guides, hasMore } = await getSupportGuides({
-  page: 1,
-  limit: 100,
-  search: searchFilter,
+const helpdeskMap = new Map<number, InvgateHelpdesk>();
+invgateHelpdesks.forEach((hd) => helpdeskMap.set(hd.id, hd));
+const parentNameMap = new Map<number, string>();
+invgateHelpdesks.forEach((hd) => {
+  if (hd.parent_id && helpdeskMap.has(hd.parent_id)) {
+    parentNameMap.set(hd.id, helpdeskMap.get(hd.parent_id)!.name);
+  }
 });
 
-const headerGridClass = "grid-cols-[1fr_1.1fr_2.2fr_1.2fr_150px] gap-4";
+const guides = await db.query.supportGuides.findMany({
+  orderBy: [asc(supportGuides.helpDeskName)],
+});
+
+const groupedRecords = new Map<number, typeof guides>();
+const unassignedRecords: typeof guides = [];
+
+guides.forEach((g) => {
+  if (g.invgate_id !== null) {
+    const existing = groupedRecords.get(g.invgate_id) || [];
+    existing.push(g);
+    groupedRecords.set(g.invgate_id, existing);
+  } else {
+    unassignedRecords.push(g);
+  }
+});
 ---
 
 <PageContainer width="xxl">
-  <!-- Page Header -->
-  <section class="space-y-4">
-    <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
-    >
-      <PageHeader
-        description="Matriz unificada de equivalencias y derivación técnica de la Mesa de Ayuda."
-        class="max-w-2xl"
-      />
+  <PageHeader
+    description="Matriz unificada de equivalencias y derivacion tecnica de la Mesa de Ayuda."
+    class="max-w-2xl"
+  />
 
-      <div
-        class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto"
-      >
-        <form
-          method="GET"
-          class="flex gap-2 w-full md:w-auto"
-          id="search-form"
-          aria-label="Filtros de guías de soporte"
-        >
-          <SearchBar
-            id="global-search"
-            name="search"
-            value={searchFilter}
-            label="Buscar grupo SM, Invgate, temas o ruta..."
-            placeholder="Buscar por grupo SM, Invgate..."
-            class="w-full md:w-80"
-          />
-          {
-            searchFilter !== "" && (
-              <a
-                href="/soportes"
-                class="btn btn-soft text-base-content/70 hover:text-base-content"
-                aria-label="Limpiar filtros"
-                title="Limpiar búsqueda"
-              >
-                Limpiar
-              </a>
-            )
-          }
-        </form>
-        {
-          isAllowedAdmin && (
-            <a
-              href={`${import.meta.env.BASE_URL}soportes/create`}
-              class="btn btn-secondary font-semibold shadow-sm gap-2 shrink-0"
-              aria-label="Registrar nuevo soporte"
-            >
-              <Icon name="boxicons:plus" class="size-4" />
-              <span class="hidden sm:inline">Registrar soporte</span>
-              <span class="sm:hidden">Registrar</span>
-            </a>
-          )
-        }
-      </div>
+  {invgateError && (
+    <div role="alert" class="alert alert-warning mt-4">
+      <Icon name="boxicons:error-circle" size={20} />
+      <span>No se pudo conectar con InvGate. Mostrando datos locales disponibles.</span>
     </div>
-  </section>
+  )}
 
-  <!-- Unified Table View -->
-  <div class="space-y-8" id="main-view-directory">
-    <section
-      class="bg-base-100 rounded-xl shadow-md overflow-hidden border border-base-content/10"
-      id="guides-table-wrapper"
-    >
-      <div
-        id="guides-table-container"
-        class:list={[guides.length === 0 && "hidden"]}
-      >
-        <DataTable
-          ariaLabel="Guía de soportes"
-          minWidthClass="min-w-240"
-          headerGridClass={headerGridClass}
-          rowGridClass={headerGridClass}
-          id="table-guia-root"
-        >
-          <div slot="header">
-            <DataTableHeaderCell sortKey="legacy"
-              >Nombre Anterior</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="invgate">Invgate</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Ruta de búsqueda</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Tópicos</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
-          </div>
+  <UnassignedRecords
+    records={unassignedRecords}
+    helpdesks={invgateHelpdesks}
+    isAdmin={isAdminUser}
+  />
 
-          {guides.map((guide) => <SupportGuideRow guide={guide} />)}
-        </DataTable>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+    {invgateHelpdesks.map((hd) => {
+      const records = groupedRecords.get(hd.id) || [];
+      const parentName = parentNameMap.get(hd.id);
+      return (
+        <HelpdeskCard
+          helpdesk={hd}
+          records={records}
+          isAdmin={isAdminUser}
+          parentName={parentName}
+        />
+      );
+    })}
+
+    {invgateHelpdesks.length === 0 && guides.length === 0 && (
+      <div class="col-span-full flex flex-col items-center gap-3 py-16 text-base-content/50">
+        <div class="rounded-full bg-base-200 p-4">
+          <Icon name="boxicons:buoy-filled" size={32} class="opacity-30" aria-hidden="true" />
+        </div>
+        <p class="text-sm font-semibold">No hay mesas de ayuda disponibles</p>
+        <p class="text-xs">Verifica la conexion con InvGate o registra soportes manualmente.</p>
       </div>
-
-      <SearchEmptyState
-        id="no-results-state"
-        class={guides.length > 0 ? "hidden" : "flex"}
-        title="No hay coincidencias"
-        description="No hemos podido encontrar guías que coincidan con la búsqueda. Probá modificando los criterios o restableciendo la búsqueda para explorar el directorio completo."
-        showClearButton={true}
-        clearButtonHref={import.meta.env.BASE_URL + "soportes"}
-        clearButtonText="Restablecer búsqueda"
-      />
-
-      <div
-        id="scroll-sentinel"
-        class:list={[
-          "py-8 text-center flex justify-center",
-          !hasMore && "hidden",
-        ]}
-        data-has-more={hasMore ? "true" : "false"}
-      >
-        <span
-          class="loading loading-spinner loading-md text-primary hidden"
-          id="loading-spinner"></span>
-      </div>
-    </section>
+    )}
   </div>
 </PageContainer>
-
-<script>
-  import { highlightSearchTargets } from "@lib/clientSearch";
-
-  const container = document.querySelector<HTMLElement>(
-    "[data-table-sort-body]",
-  );
-  const sentinel = document.getElementById("scroll-sentinel");
-  const spinner = document.getElementById("loading-spinner");
-  const noResultsState = document.getElementById("no-results-state");
-  const searchInput =
-    document.querySelector<HTMLInputElement>("#global-search");
-  const form = document.getElementById("search-form") as HTMLFormElement;
-
-  let currentPage = 1;
-  let currentSearch = searchInput?.value.trim() || "";
-  let isLoading = false;
-  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
-  let searchTimeout: ReturnType<typeof setTimeout>;
-
-  const getQueryParams = (pageNumber: number) => {
-    const params = new URLSearchParams();
-    params.set("page", pageNumber.toString());
-    params.set("limit", "100");
-    if (currentSearch) {
-      params.set("search", currentSearch);
-    }
-    return params.toString();
-  };
-
-  const fetchGuides = async (isNewSearch: boolean) => {
-    if (isLoading) return;
-    isLoading = true;
-    spinner?.classList.remove("hidden");
-
-    try {
-      const query = getQueryParams(currentPage);
-      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const response = await fetch(`${baseUrl}/api/support-guides?${query}`);
-      if (!response.ok) throw new Error("API call failed");
-
-      const html = await response.text();
-      const newHasMore = response.headers.get("X-Has-More") === "true";
-      const totalCount = parseInt(
-        response.headers.get("X-Total-Count") || "0",
-        10,
-      );
-
-      hasMore = newHasMore;
-
-      if (container) {
-        if (isNewSearch) {
-          container.innerHTML = html;
-        } else {
-          container.insertAdjacentHTML("beforeend", html);
-        }
-      }
-
-      const tableContainer = document.getElementById("guides-table-container");
-      if (noResultsState && tableContainer) {
-        if (totalCount === 0) {
-          noResultsState.classList.remove("hidden");
-          noResultsState.classList.add("flex");
-          tableContainer.classList.add("hidden");
-        } else {
-          noResultsState.classList.add("hidden");
-          noResultsState.classList.remove("flex");
-          tableContainer.classList.remove("hidden");
-        }
-      }
-
-      if (currentSearch && container) {
-        const newArticles = Array.from(
-          container.querySelectorAll<HTMLElement>(
-            "[data-master-detail-sort-item]",
-          ),
-        );
-        newArticles.forEach((item) => {
-          highlightSearchTargets(item, currentSearch);
-        });
-      }
-
-      if (!hasMore) {
-        sentinel?.classList.add("hidden");
-      } else {
-        sentinel?.classList.remove("hidden");
-      }
-    } catch (err) {
-      console.error("Error fetching guides:", err);
-    } finally {
-      isLoading = false;
-      spinner?.classList.add("hidden");
-    }
-  };
-
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    currentSearch = searchInput?.value.trim() || "";
-    currentPage = 1;
-    hasMore = true;
-    fetchGuides(true);
-  });
-
-  searchInput?.addEventListener("input", (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      currentSearch = (e.target as HTMLInputElement).value.trim();
-      currentPage = 1;
-      hasMore = true;
-      fetchGuides(true);
-    }, 300);
-  });
-
-  if (sentinel) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && hasMore && !isLoading) {
-          currentPage += 1;
-          fetchGuides(false);
-        }
-      },
-      {
-        rootMargin: "200px",
-      },
-    );
-    observer.observe(sentinel);
-  }
-
-  // Highlight initial results if there's a search on page load
-  if (currentSearch && container) {
-    const initialArticles = Array.from(
-      container.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"),
-    );
-    initialArticles.forEach((item) => {
-      highlightSearchTargets(item, currentSearch);
-    });
-  }
-
-
-</script>
-
-<style>
-</style>
