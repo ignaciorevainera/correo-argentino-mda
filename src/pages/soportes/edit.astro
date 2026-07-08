@@ -8,11 +8,11 @@ import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { invgateGet } from "@lib/invgateClient";
-import type { InvgateHelpdesk } from "@/types/invgate";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 
 const cleanBase = getCleanBase();
 const invgateIdRaw = Astro.url.searchParams.get("invgate_id");
@@ -24,10 +24,10 @@ if (!invgateIdRaw || isNaN(invgateId)) {
 
 let errorMsg = "";
 
-const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
-const invgateHelpdesks: InvgateHelpdesk[] =
+const hdResult = await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
   hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
-const linkedHd = invgateHelpdesks.find((h) => h.id === invgateId);
+const linkedHd = allItems.find((h) => h.id === invgateId && !h.level_order);
 
 const linkedRecords = await db.query.supportGuides.findMany({
   where: eq(supportGuides.invgate_id, invgateId),
@@ -38,6 +38,10 @@ const legacyNames = linkedRecords
   .filter(Boolean) as string[];
 
 const first = linkedRecords[0];
+
+const unassignedRecords = await db.query.supportGuides.findMany({
+  where: isNull(supportGuides.invgate_id),
+});
 
 if (Astro.request.method === "POST") {
   try {
@@ -168,13 +172,26 @@ const pageTitle = `Editar: ${hdName}`;
           value={first?.contacts || ""}
         />
 
-        <FormTextarea
-          id="referents"
-          name="referents"
-          label="Referentes"
-          rows={4}
-          value={first?.referents || ""}
-        />
+        <fieldset class="fieldset">
+          <div class="flex items-center justify-between">
+            <legend class="fieldset-legend font-bold tracking-wider">Miembros</legend>
+            <button
+              type="button"
+              class="btn btn-xs btn-ghost"
+              id="load-members-btn"
+              data-invgate-id={invgateId}
+            >
+              <Icon name="boxicons:cloud-download" size={14} />
+              Cargar desde InvGate
+            </button>
+          </div>
+          <textarea
+            id="referents"
+            name="referents"
+            rows={6}
+            class="textarea textarea-bordered w-full"
+          >{first?.referents || ""}</textarea>
+        </fieldset>
 
         <FormTextarea
           id="notes"
@@ -194,6 +211,98 @@ const pageTitle = `Editar: ${hdName}`;
           </button>
         </div>
       </form>
+
+      {unassignedRecords.length > 0 && (
+        <div class="mt-8 border-t border-base-200 pt-6">
+          <h3 class="text-sm font-bold text-base-content/70 mb-3 flex items-center gap-2">
+            <Icon name="boxicons:git-merge" size={16} />
+            Vincular mas registros SM ({unassignedRecords.length})
+          </h3>
+          <div class="space-y-2">
+            {unassignedRecords.map((rec) => (
+              <div class="flex items-center justify-between bg-base-200/40 rounded-lg p-3 border border-base-300">
+                <div>
+                  <span class="text-sm font-semibold">{rec.helpDeskName}</span>
+                  {rec.legacyName && (
+                    <span class="text-xs text-base-content/50 ml-2">SM: {rec.legacyName}</span>
+                  )}
+                </div>
+                <button
+                  class="btn btn-xs btn-primary"
+                  data-assign-inline
+                  data-record-id={rec.id}
+                  data-invgate-id={invgateId}
+                >
+                  Vincular a esta mesa
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   </PageContainer>
 </BaseLayout>
+
+<script>
+  const cleanBase = (() => {
+    const b = import.meta.env.BASE_URL || "/";
+    return b.endsWith("/") ? b : b + "/";
+  })();
+
+  document.getElementById("load-members-btn")?.addEventListener("click", async function () {
+    const btn = this as HTMLButtonElement;
+    const invgateId = btn.dataset.invgateId;
+    const textarea = document.getElementById("referents") as HTMLTextAreaElement;
+
+    btn.disabled = true;
+    btn.textContent = "Cargando...";
+
+    try {
+      const res = await fetch(`${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`);
+      const data = await res.json();
+
+      if (data.members && data.members.length > 0) {
+        textarea.value = data.members.join("\n");
+        (window as any).showToast?.("Miembros cargados desde InvGate", "alert-success");
+      } else {
+        (window as any).showToast?.("No se encontraron miembros para esta mesa de ayuda", "alert-warning");
+      }
+    } catch (err: any) {
+      (window as any).showToast?.("Error al cargar miembros", "alert-error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Cargar desde InvGate";
+    }
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-assign-inline]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const recordId = Number(btn.dataset.recordId);
+      const invgateId = Number(btn.dataset.invgateId);
+
+      btn.disabled = true;
+      btn.textContent = "Vinculando...";
+
+      try {
+        const res = await fetch(`${cleanBase}api/support-guides/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recordId, invgate_id: invgateId }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Error desconocido");
+        }
+
+        (window as any).showToast?.("Registro vinculado correctamente", "alert-success");
+        setTimeout(() => location.reload(), 600);
+      } catch (err: any) {
+        (window as any).showToast?.(err.message, "alert-error");
+        btn.disabled = false;
+        btn.textContent = "Vincular a esta mesa";
+      }
+    });
+  });
+</script>

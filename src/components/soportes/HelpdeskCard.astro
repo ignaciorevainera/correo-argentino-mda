@@ -1,21 +1,31 @@
 ---
 import { Icon } from "astro-icon/components";
 import { getCleanBase } from "@lib/baseUrl";
-import type { InvgateHelpdesk } from "@/types/invgate";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 
 interface Props {
-  helpdesk: InvgateHelpdesk;
+  helpdesk: InvgateHelpdeskAndLevel;
   records: any[];
   isAdmin: boolean;
   parentName?: string;
+  subLevels: InvgateHelpdeskAndLevel[];
 }
 
-const { helpdesk, records, isAdmin, parentName } = Astro.props;
+const { helpdesk, records, isAdmin, parentName, subLevels } = Astro.props;
 const cleanBase = getCleanBase();
+const hdName = helpdesk.name || `Helpdesk #${helpdesk.id}`;
 const isActive = helpdesk.status_id === 1;
 const statusBadge = isActive ? "badge-success" : "badge-ghost";
 const statusLabel = isActive ? "Activo" : "Inactivo";
 const hasRecords = records.length > 0;
+
+const invgateApiBase = import.meta.env.INVGATE_BASE_URL || "";
+const invgateWebBase = invgateApiBase
+  ? invgateApiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "")
+  : "";
+const invgateProfileUrl = invgateWebBase
+  ? `${invgateWebBase}/group/profile/index/id/${helpdesk.id}`
+  : null;
 
 const legacyNames: string[] = [];
 records.forEach((r) => {
@@ -37,6 +47,8 @@ let categoryIds: number[] = [];
 if (first?.categories) {
   try { categoryIds = JSON.parse(first.categories); } catch {}
 }
+
+const sortedSubLevels = [...subLevels].sort((a, b) => (a.level_order || 0) - (b.level_order || 0));
 ---
 
 <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -45,7 +57,7 @@ if (first?.categories) {
       <div class="flex-1 min-w-0">
         <h3 class="card-title text-base flex items-center gap-2 truncate">
           <Icon name="boxicons:buoy-filled" size={20} class="text-secondary shrink-0" />
-          <span class="truncate">{helpdesk.name}</span>
+          <span class="truncate">{hdName}</span>
         </h3>
         <div class="flex flex-wrap items-center gap-2 mt-1">
           <span class="badge badge-sm gap-1 font-mono">
@@ -59,11 +71,33 @@ if (first?.categories) {
               {parentName}
             </span>
           )}
+          {invgateProfileUrl && (
+            <a
+              href={invgateProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-xs btn-ghost ml-auto"
+              title="Abrir en InvGate"
+            >
+              <Icon name="boxicons:external-link" size={12} />
+            </a>
+          )}
         </div>
       </div>
     </div>
 
     <div class="border-t border-base-200"></div>
+
+    {sortedSubLevels.length > 0 && (
+      <div class="flex flex-wrap gap-1">
+        {sortedSubLevels.map((sl) => (
+          <span class="badge badge-xs badge-outline" title={`${sl.total_members} miembros`}>
+            {sl.name || `Nivel ${sl.level_order}`}
+            <span class="ml-0.5 opacity-50">{sl.total_members}</span>
+          </span>
+        ))}
+      </div>
+    )}
 
     {legacyNames.length > 0 && (
       <div class="space-y-1">
@@ -111,8 +145,8 @@ if (first?.categories) {
     {first?.referents && (
       <div>
         <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-          <Icon name="boxicons:user-filled" size={12} />
-          Referentes
+          <Icon name="boxicons:group" size={12} />
+          Miembros
         </p>
         <p class="text-xs whitespace-pre-wrap text-base-content/80">{first.referents}</p>
       </div>

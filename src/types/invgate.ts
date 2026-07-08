@@ -118,6 +118,17 @@ export interface InvgateHelpdesk {
   total_members: number;
 }
 
+export interface InvgateHelpdeskAndLevel {
+  id: number;
+  name?: string;
+  parent_id: number | null;
+  members_ids: number[];
+  level_order?: number;
+  total_members: number;
+  status_id: number;
+  engine_id: number;
+}
+
 export interface InvgateKbSearchResponse {
   status: string;
   data: InvgateKbArticle[];

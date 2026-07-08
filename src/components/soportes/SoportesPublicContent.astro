@@ -9,7 +9,7 @@ import { asc } from "drizzle-orm";
 import { isAllowed } from "@lib/rolesMatrix";
 import HelpdeskCard from "./HelpdeskCard.astro";
 import UnassignedRecords from "./UnassignedRecords.astro";
-import type { InvgateHelpdesk } from "@/types/invgate";
+import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 
 const user = Astro.locals.user;
@@ -17,21 +17,34 @@ const isAdminUser = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
 
-const hdResult = await invgateGet<InvgateHelpdesk[]>("helpdesks");
-const invgateHelpdesks: InvgateHelpdesk[] =
+const hdResult = await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
   hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
 const invgateError = !hdResult.ok;
 
-const visibleHelpdesks = invgateHelpdesks
-  .filter((hd) => !HIDDEN_HELPDESK_IDS.includes(hd.id))
-  .sort((a, b) => a.name.localeCompare(b.name));
+const parentHelpdesks = allItems.filter((item) => item.level_order === undefined);
 
-const helpdeskMap = new Map<number, InvgateHelpdesk>();
-visibleHelpdesks.forEach((hd) => helpdeskMap.set(hd.id, hd));
+const parentMap = new Map<number, InvgateHelpdeskAndLevel>();
+parentHelpdesks.forEach((h) => parentMap.set(h.id, h));
+
+const subLevelsByParent = new Map<number, InvgateHelpdeskAndLevel[]>();
+allItems
+  .filter((item) => item.level_order !== undefined && item.parent_id !== null)
+  .forEach((level) => {
+    const pid = level.parent_id as number;
+    const list = subLevelsByParent.get(pid) || [];
+    list.push(level);
+    subLevelsByParent.set(pid, list);
+  });
+
+const visibleHelpdesks = parentHelpdesks
+  .filter((hd) => !HIDDEN_HELPDESK_IDS.includes(hd.id))
+  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
 const parentNameMap = new Map<number, string>();
 visibleHelpdesks.forEach((hd) => {
-  if (hd.parent_id && helpdeskMap.has(hd.parent_id)) {
-    parentNameMap.set(hd.id, helpdeskMap.get(hd.parent_id)!.name);
+  if (hd.parent_id && parentMap.has(hd.parent_id)) {
+    parentNameMap.set(hd.id, parentMap.get(hd.parent_id)!.name || "");
   }
 });
 
@@ -51,6 +64,10 @@ guides.forEach((g) => {
     unassignedRecords.push(g);
   }
 });
+
+const parentForDropdown = visibleHelpdesks
+  .map((hd) => ({ id: hd.id, name: hd.name || `Helpdesk #${hd.id}`, total_members: hd.total_members }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 ---
 
 <PageContainer width="xxl">
@@ -72,7 +89,7 @@ guides.forEach((g) => {
 
   <UnassignedRecords
     records={unassignedRecords}
-    helpdesks={[...invgateHelpdesks].sort((a, b) => a.name.localeCompare(b.name))}
+    helpdesks={parentForDropdown}
     isAdmin={isAdminUser}
   />
 
@@ -81,12 +98,14 @@ guides.forEach((g) => {
       visibleHelpdesks.map((hd) => {
         const records = groupedRecords.get(hd.id) || [];
         const parentName = parentNameMap.get(hd.id);
+        const subLevels = subLevelsByParent.get(hd.id) || [];
         return (
           <HelpdeskCard
             helpdesk={hd}
             records={records}
             isAdmin={isAdminUser}
             parentName={parentName}
+            subLevels={subLevels}
           />
         );
       })
