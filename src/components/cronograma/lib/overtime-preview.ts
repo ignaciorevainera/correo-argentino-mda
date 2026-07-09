@@ -110,7 +110,7 @@ export function renderError(): string {
   `;
 }
 
-function renderCard(weekend: WeekendGroup, currentUserId: number): string {
+function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeekend: string | null): string {
   const { saturdayDate, sundayDate, totalHours, operatorCount, currentUserHasShift, shifts } = weekend;
   const dateLabel = formatDateLabel(saturdayDate, sundayDate);
   const cardId = `overtime-card-${saturdayDate}`;
@@ -142,7 +142,7 @@ function renderCard(weekend: WeekendGroup, currentUserId: number): string {
     const companionsList = Array.from(companions.values()).join(', ');
 
     return `
-      <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2">
+      <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2${totalHours === 0 ? ' opacity-40' : ''}${saturdayDate === selectedWeekend ? ' ring-2 ring-warning' : ''}">
         ${donutHtml}
         <span class="text-xxs font-black uppercase tracking-wider text-base-content/70">${escapeHtml(dateLabel)}</span>
         <span class="badge badge-sm badge-success gap-1 text-xxs font-black">✅ ESTÁS ASIGNADO</span>
@@ -155,7 +155,7 @@ function renderCard(weekend: WeekendGroup, currentUserId: number): string {
   }
 
   return `
-    <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2">
+    <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2${totalHours === 0 ? ' opacity-40' : ''}${saturdayDate === selectedWeekend ? ' ring-2 ring-warning' : ''}">
       ${donutHtml}
       <span class="text-xxs font-black uppercase tracking-wider text-base-content/70">${escapeHtml(dateLabel)}</span>
       <span class="badge badge-sm badge-ghost text-xxs font-black text-base-content/50">FIN DE SEMANA LIBRE</span>
@@ -180,7 +180,7 @@ export function renderPreview(data: PreviewResponse): void {
         <p class="text-xs font-bold uppercase tracking-wider">Sin fines de semana con horas extras</p>
       </div>`;
   } else {
-    cardsHtml = data.weekends.map(w => renderCard(w, data.currentUserId)).join('');
+    cardsHtml = data.weekends.map(w => renderCard(w, data.currentUserId, state.overtimeSelectedWeekend)).join('');
   }
 
   content.innerHTML = `
