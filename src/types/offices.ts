@@ -42,4 +42,9 @@ export interface OfficeDirectoryItem {
   terminals: OfficeTerminal[];
   invgateLinked?: boolean;
   invgateDisplayName?: string | null;
+  invgateCp?: string | null;
+  invgateCc?: string | null;
+  invgateAddress?: string | null;
+  invgateParentName?: string | null;
+  invgateDuplicateCount?: number;
 }
