@@ -303,7 +303,7 @@ export function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOve
     return `
       <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-base-100/50 border border-base-300/40 group hover:bg-base-100 transition-all cursor-pointer overtime-shift-card" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}">
         <div class="w-5 h-5 rounded-full bg-base-300/60 flex items-center justify-center text-tiny font-black shrink-0">${initials}</div>
-        <span class="text-xs font-semibold text-base-content truncate flex-1">${escapeHtml(op?.nombre?.split(' ')[0] || '#' + s.agentId)}</span>
+        <span class="text-xs font-semibold text-base-content truncate flex-1">${escapeHtml(op?.nombre || '#' + s.agentId)}</span>
         <span class="font-mono text-xxs font-bold text-base-content/40 shrink-0">${s.startTime}–${s.endTime}</span>
         <span class="text-xxs font-bold text-warning shrink-0">${dur}h</span>
         <button type="button" class="btn btn-xs btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity overtime-delete-shift-btn p-1 min-h-0 h-auto" data-shift-id="${s.id}" aria-label="Eliminar">

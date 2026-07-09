@@ -1385,7 +1385,8 @@ function setupEventListeners(): void {
       saturdayCard.classList.add('exporting-image');
 
       const { exportAsClipboardImage } = await import('./exporters');
-      await exportAsClipboardImage(saturdayCard);
+      const targetEl = document.getElementById('rotation-timeline-wrapper') || saturdayCard;
+      await exportAsClipboardImage(targetEl);
 
       copyBtn.classList.remove('btn-secondary');
       copyBtn.classList.add('btn-success');
@@ -1436,10 +1437,10 @@ function setupEventListeners(): void {
       overtimeCard.classList.add('exporting-image');
 
       const { exportAsClipboardImage } = await import('./exporters');
-      await exportAsClipboardImage(overtimeCard);
+      const targetEl = document.getElementById('overtime-timeline-wrapper') || overtimeCard;
+      await exportAsClipboardImage(targetEl);
 
-      copyBtn.classList.remove('btn-outline');
-      copyBtn.classList.remove('btn-warning');
+      copyBtn.classList.remove('btn-ghost');
       copyBtn.classList.add('btn-success');
       copyBtn.innerHTML = `
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1451,8 +1452,7 @@ function setupEventListeners(): void {
 
       setTimeout(() => {
         copyBtn.classList.remove('btn-success');
-        copyBtn.classList.add('btn-outline');
-        copyBtn.classList.add('btn-warning');
+        copyBtn.classList.add('btn-ghost');
         copyBtn.disabled = false;
         copyBtn.innerHTML = originalBtnText;
       }, 2500);
