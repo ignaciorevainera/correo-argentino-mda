@@ -33,10 +33,25 @@ const userRole = Astro.locals.user?.role || "";
           class="btn btn-accent btn-outline btn-sm gap-2 hidden shrink-0 mt-1 w-[185px]"
         >
           <span id="sync-invgate-icon" class="inline-flex items-center">
-            <Icon name="boxicons:refresh-ccw" class="size-4" id="sync-icon-idle" />
-            <Icon name="boxicons:check" class="size-4 hidden" id="sync-icon-success" />
-            <Icon name="boxicons:x" class="size-4 hidden" id="sync-icon-error" />
-            <span id="sync-icon-spinner" class="loading loading-spinner loading-xs text-current hidden"></span>
+            <Icon
+              name="boxicons:refresh-ccw"
+              class="size-4"
+              id="sync-icon-idle"
+            />
+            <Icon
+              name="boxicons:check"
+              class="size-4 hidden"
+              id="sync-icon-success"
+            />
+            <Icon
+              name="boxicons:x"
+              class="size-4 hidden"
+              id="sync-icon-error"
+            />
+            <span
+              id="sync-icon-spinner"
+              class="loading loading-spinner loading-xs text-current hidden"
+            ></span>
           </span>
           <span id="sync-invgate-text">Sincronizar InvGate</span>
         </button>
@@ -48,24 +63,22 @@ const userRole = Astro.locals.user?.role || "";
         ariaLabel="Buscar usuarios por nombre, apellido o DNI"
       />
 
-      <div
-        class="mt-4 flex items-center gap-2 text-xs sm:text-sm text-base-content/50"
-        id="search-status"
-      >
-        <span>Listo para buscar.</span>
+      <div class="flex flex-col gap-2 mt-6">
+        <div
+          class="flex items-center gap-2 text-xs sm:text-sm text-base-content/50"
+          id="search-status"
+        >
+          <span>Listo para buscar.</span>
+        </div>
+        <div
+          class="text-xxs sm:text-xs text-base-content/40 flex items-center gap-1"
+          id="sync-status"
+        >
+        </div>
       </div>
-      <div
-        class="mt-1 text-xxs sm:text-xs text-base-content/40 flex items-center gap-3"
-        id="sync-status"
-      ></div>
       <!-- Botón de sincronización InvGate (solo visible para admin) -->
-      <button
-        id="sync-invgate-btn"
-        class="btn btn-ghost btn-xs gap-1.5 hidden"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
+      <button id="sync-invgate-btn" class="btn btn-ghost btn-xs gap-1.5 hidden">
+        <Icon name="boxicons:refresh-ccw" class="size-3.5" />
         <span>Sincronizar con InvGate</span>
       </button>
     </section>
@@ -88,10 +101,7 @@ const userRole = Astro.locals.user?.role || "";
       </div>
     </div>
 
-    <div
-      id="results-skeleton"
-      class="grid grid-cols-1 md:grid-cols-2 gap-6"
-    >
+    <div id="results-skeleton" class="grid grid-cols-1 md:grid-cols-2 gap-6">
       {[1, 2, 3, 4, 5, 6].map(() => <SkeletonCard type="user" />)}
     </div>
 
@@ -113,6 +123,11 @@ const userRole = Astro.locals.user?.role || "";
       clearButtonId="clear-search"
     />
   </section>
+  <div id="icon-store" class="hidden" aria-hidden="true">
+    <span data-icon="clock"><Icon name="boxicons:clock-filled" /></span>
+    <span data-icon="check-success"><Icon name="boxicons:check" /></span>
+    <span data-icon="x-error"><Icon name="boxicons:x" /></span>
+  </div>
 </PageContainer>
 
 <UserCard />
@@ -190,7 +205,9 @@ const userRole = Astro.locals.user?.role || "";
   const statusText = document.getElementById("search-status");
   const clearSearchBtn = document.getElementById("clear-search");
   const syncStatus = document.getElementById("sync-status");
-  const syncBtn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+  const syncBtn = document.getElementById(
+    "sync-invgate-btn",
+  ) as HTMLButtonElement | null;
   if (syncBtn) {
     syncBtn.addEventListener("click", handleSyncInvGate);
   }
@@ -261,7 +278,9 @@ const userRole = Astro.locals.user?.role || "";
   const btnCopyUsername = document.getElementById("btn-copy-username");
   const btnCopyFullname = document.getElementById("btn-copy-fullname");
   const btnCopyTitle = document.getElementById("btn-copy-title");
-  const btnCopyEmployeeNumber = document.getElementById("btn-copy-employeenumber");
+  const btnCopyEmployeeNumber = document.getElementById(
+    "btn-copy-employeenumber",
+  );
   const btnCopyOffice = document.getElementById("btn-copy-office");
   const btnCopyManager = document.getElementById("btn-copy-manager");
   const btnCopyPwdLastSet = document.getElementById("btn-copy-pwdlastset");
@@ -362,6 +381,16 @@ const userRole = Astro.locals.user?.role || "";
     fetchSyncStatus();
   }
 
+  function svgIcon(name: string, extraClass = ""): string {
+    const icon = document.querySelector(
+      `#icon-store [data-icon="${name}"] > svg`,
+    );
+    if (!icon) return "";
+    const clone = icon.cloneNode(true) as SVGElement;
+    if (extraClass) clone.setAttribute("class", extraClass);
+    return clone.outerHTML;
+  }
+
   async function fetchSyncStatus() {
     if (!syncStatus) return;
     try {
@@ -371,22 +400,21 @@ const userRole = Astro.locals.user?.role || "";
       if (data.lastSync) {
         const date = new Date(data.lastSync.lastExecution);
         const formatted = date.toLocaleDateString("es-AR", {
-          day: "2-digit", month: "2-digit", year: "numeric",
-          hour: "2-digit", minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
         const isError = data.lastSync.status === "error";
         syncStatus.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="size-3 ${isError ? "text-error" : "text-base-content/30"}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          ${svgIcon("clock", `size-4 ${isError ? "text-error" : "text-base-content/30"}`)}
           <span>Última sinc.: ${formatted}</span>
           ${isError ? '<span class="text-error font-semibold">(error)</span>' : ""}
         `;
       } else {
         syncStatus.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          ${svgIcon("clock", "size-4 text-base-content/30")}
           <span>Sin sincronización previa</span>
         `;
       }
@@ -401,19 +429,29 @@ const userRole = Astro.locals.user?.role || "";
   }
 
   function setSyncIcon(id: string) {
-    ["sync-icon-idle", "sync-icon-success", "sync-icon-error", "sync-icon-spinner"].forEach((name) => {
+    [
+      "sync-icon-idle",
+      "sync-icon-success",
+      "sync-icon-error",
+      "sync-icon-spinner",
+    ].forEach((name) => {
       const el = document.getElementById(name);
       if (el) el.classList.toggle("hidden", el.id !== id);
     });
   }
 
   async function handleSyncInvGate() {
-    const syncBtn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
-    const syncText = document.getElementById("sync-invgate-text") as HTMLElement | null;
+    const syncBtn = document.getElementById(
+      "sync-invgate-btn",
+    ) as HTMLButtonElement | null;
+    const syncText = document.getElementById(
+      "sync-invgate-text",
+    ) as HTMLElement | null;
     const searchStatus = document.getElementById("search-status");
     if (!syncBtn || !syncText) return;
 
-    const originalClass = "btn btn-accent btn-outline btn-sm gap-2 shrink-0 mt-1 w-[185px]";
+    const originalClass =
+      "btn btn-accent btn-outline btn-sm gap-2 shrink-0 mt-1 w-[185px]";
     const originalText = "Sincronizar InvGate";
 
     syncBtn.disabled = true;
@@ -432,16 +470,17 @@ const userRole = Astro.locals.user?.role || "";
       const data = await res.json();
 
       if (data.ok) {
-        syncBtn.className = originalClass.replace("btn-accent btn-outline", "btn-success");
+        syncBtn.className = originalClass.replace(
+          "btn-accent btn-outline",
+          "btn-success",
+        );
         setSyncIcon("sync-icon-success");
         syncText.textContent = `Sincronizado (${data.totalSynced})`;
 
         if (searchStatus) {
           searchStatus.innerHTML = `
             <span class="text-success font-semibold flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              ${svgIcon("check-success")}
               Sincronizado: ${data.totalSynced} usuarios de InvGate
             </span>
           `;
@@ -454,16 +493,17 @@ const userRole = Astro.locals.user?.role || "";
           syncText.textContent = originalText;
         }, 4000);
       } else {
-        syncBtn.className = originalClass.replace("btn-accent btn-outline", "btn-error");
+        syncBtn.className = originalClass.replace(
+          "btn-accent btn-outline",
+          "btn-error",
+        );
         setSyncIcon("sync-icon-error");
         syncText.textContent = "Error";
 
         if (searchStatus) {
           searchStatus.innerHTML = `
             <span class="text-error font-semibold flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              ${svgIcon("x-error")}
               Error: ${data.error || "Error al sincronizar"}
             </span>
           `;
@@ -476,19 +516,20 @@ const userRole = Astro.locals.user?.role || "";
         }, 4000);
       }
     } catch (err: any) {
-      syncBtn.className = originalClass.replace("btn-accent btn-outline", "btn-error");
+      syncBtn.className = originalClass.replace(
+        "btn-accent btn-outline",
+        "btn-error",
+      );
       setSyncIcon("sync-icon-error");
       syncText.textContent = "Error conexión";
 
       if (searchStatus) {
         searchStatus.innerHTML = `
-          <span class="text-error font-semibold flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Error de conexión
-          </span>
-        `;
+            <span class="text-error font-semibold flex items-center gap-1">
+              ${svgIcon("x-error")}
+              Error de conexión
+            </span>
+          `;
       }
 
       setTimeout(() => {
@@ -576,15 +617,21 @@ const userRole = Astro.locals.user?.role || "";
       }
 
       // Función auxiliar para actualizar los CopyButton del template de la tarjeta
-      const updateCardCopyButton = (btnSelector: string, value: string, highlightQuery: string = "") => {
+      const updateCardCopyButton = (
+        btnSelector: string,
+        value: string,
+        highlightQuery: string = "",
+      ) => {
         const btn = clone.querySelector(btnSelector) as HTMLElement | null;
         if (btn) {
           const val = value || "";
           btn.setAttribute("data-copy-value", val);
           btn.setAttribute("data-copy-label-default", val || "-");
           btn.setAttribute("aria-label", `Copiar: ${val || "-"}`);
-          
-          const labelSpan = btn.querySelector("[data-copy-label]") as HTMLElement | null;
+
+          const labelSpan = btn.querySelector(
+            "[data-copy-label]",
+          ) as HTMLElement | null;
           if (labelSpan) {
             if (highlightQuery && val) {
               labelSpan.innerHTML = highlightText(val, highlightQuery);
@@ -641,11 +688,11 @@ const userRole = Astro.locals.user?.role || "";
         if (user.invgateExists) {
           invgateBadge.textContent = "En InvGate";
           invgateBadge.className =
-            "invgate-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none bg-success/10 text-success border border-success/20";
+            "badge badge-sm badge-soft bg-success/10 text-success font-semibold";
         } else {
           invgateBadge.textContent = "No en InvGate";
           invgateBadge.className =
-            "invgate-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold leading-none bg-base-300/50 text-base-content/50 border border-base-300";
+            "badge badge-sm badge-soft bg-base-300/50 text-base-content/50 font-semibold";
         }
       }
 
@@ -671,6 +718,45 @@ const userRole = Astro.locals.user?.role || "";
         });
       } else if (netUserBtn) {
         netUserBtn.classList.add("hidden");
+      }
+
+      const invgateBtn = clone.querySelector(
+        "[data-invgate-copy-btn]",
+      ) as HTMLElement | null;
+      if (invgateBtn && user.usuario && !user.invgateExists) {
+        invgateBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const ticketBody = `Se solicita asignar al usuario en el grupo InvGate Service Management | Usuarios y grupos.
+
+Usuario de red: ${user.usuario}
+Nombre completo: ${user.nombre}
+DNI: ${user.dni}
+Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
+          copyText(ticketBody).then((ok) => {
+            if (!ok) return;
+            const tooltip = (invgateBtn as Element).closest(
+              ".tooltip",
+            ) as HTMLElement | null;
+            const originalTip = tooltip?.getAttribute("data-tip");
+            if (tooltip) {
+              tooltip.setAttribute(
+                "data-tip",
+                "Descripción del ticket copiada",
+              );
+              tooltip.classList.replace("tooltip-neutral", "tooltip-success");
+              tooltip.classList.add("tooltip-open");
+            }
+            setTimeout(() => {
+              if (tooltip) {
+                tooltip.setAttribute("data-tip", originalTip || "");
+                tooltip.classList.replace("tooltip-success", "tooltip-neutral");
+                tooltip.classList.remove("tooltip-open");
+              }
+            }, 2000);
+          });
+        });
+      } else if (invgateBtn) {
+        invgateBtn.closest(".tooltip")?.classList.add("hidden");
       }
 
       fragment.appendChild(clone);
@@ -894,24 +980,28 @@ const userRole = Astro.locals.user?.role || "";
 
     // Resetear campos del panel organizado y sus botones de copia
     if (termInfoUsername) termInfoUsername.textContent = username;
-    if (btnCopyUsername) btnCopyUsername.setAttribute("data-copy-value", username);
+    if (btnCopyUsername)
+      btnCopyUsername.setAttribute("data-copy-value", username);
     if (termInfoFullname) termInfoFullname.textContent = "-";
     if (btnCopyFullname) btnCopyFullname.setAttribute("data-copy-value", "");
     if (termInfoTitle) termInfoTitle.textContent = "-";
     if (btnCopyTitle) btnCopyTitle.setAttribute("data-copy-value", "");
     if (termInfoEmployeeNumber) termInfoEmployeeNumber.textContent = "-";
-    if (btnCopyEmployeeNumber) btnCopyEmployeeNumber.setAttribute("data-copy-value", "");
+    if (btnCopyEmployeeNumber)
+      btnCopyEmployeeNumber.setAttribute("data-copy-value", "");
     if (termInfoOffice) termInfoOffice.textContent = "-";
     if (btnCopyOffice) btnCopyOffice.setAttribute("data-copy-value", "");
     if (termInfoManager) termInfoManager.textContent = "-";
     if (btnCopyManager) btnCopyManager.setAttribute("data-copy-value", "");
     if (btnSearchManager) btnSearchManager.classList.add("hidden");
     if (termInfoPwdLastSet) termInfoPwdLastSet.textContent = "-";
-    if (btnCopyPwdLastSet) btnCopyPwdLastSet.setAttribute("data-copy-value", "");
+    if (btnCopyPwdLastSet)
+      btnCopyPwdLastSet.setAttribute("data-copy-value", "");
     if (termInfoLastLogon) termInfoLastLogon.textContent = "-";
     if (btnCopyLastLogon) btnCopyLastLogon.setAttribute("data-copy-value", "");
     if (termInfoWhenCreated) termInfoWhenCreated.textContent = "-";
-    if (btnCopyWhenCreated) btnCopyWhenCreated.setAttribute("data-copy-value", "");
+    if (btnCopyWhenCreated)
+      btnCopyWhenCreated.setAttribute("data-copy-value", "");
     if (termInfoExpires) termInfoExpires.textContent = "-";
     if (btnCopyExpires) btnCopyExpires.setAttribute("data-copy-value", "");
     if (terminalGroupsCount) terminalGroupsCount.textContent = "0 grupos";
@@ -935,7 +1025,10 @@ const userRole = Astro.locals.user?.role || "";
         if (termInfoFullname)
           termInfoFullname.textContent = result.fullname || "No especificado";
         if (btnCopyFullname)
-          btnCopyFullname.setAttribute("data-copy-value", result.fullname || "");
+          btnCopyFullname.setAttribute(
+            "data-copy-value",
+            result.fullname || "",
+          );
         if (termInfoTitle)
           termInfoTitle.textContent = result.title || "No especificado";
         if (btnCopyTitle)
@@ -944,17 +1037,26 @@ const userRole = Astro.locals.user?.role || "";
           termInfoEmployeeNumber.textContent =
             result.employee_number || "No especificado";
         if (btnCopyEmployeeNumber)
-          btnCopyEmployeeNumber.setAttribute("data-copy-value", result.employee_number || "");
+          btnCopyEmployeeNumber.setAttribute(
+            "data-copy-value",
+            result.employee_number || "",
+          );
         if (termInfoOffice)
           termInfoOffice.textContent =
             result.physical_office || "No especificado";
         if (btnCopyOffice)
-          btnCopyOffice.setAttribute("data-copy-value", result.physical_office || "");
+          btnCopyOffice.setAttribute(
+            "data-copy-value",
+            result.physical_office || "",
+          );
         if (termInfoManager)
           termInfoManager.textContent =
             result.manager_name || "No especificado";
         if (btnCopyManager)
-          btnCopyManager.setAttribute("data-copy-value", result.manager_name || "");
+          btnCopyManager.setAttribute(
+            "data-copy-value",
+            result.manager_name || "",
+          );
         if (btnSearchManager) {
           if (
             result.manager_name &&
@@ -969,23 +1071,35 @@ const userRole = Astro.locals.user?.role || "";
           termInfoLastLogon.textContent =
             result.last_logon || "No especificado";
         if (btnCopyLastLogon)
-          btnCopyLastLogon.setAttribute("data-copy-value", result.last_logon || "");
+          btnCopyLastLogon.setAttribute(
+            "data-copy-value",
+            result.last_logon || "",
+          );
         if (termInfoWhenCreated)
           termInfoWhenCreated.textContent =
             result.when_created || "No especificado";
         if (btnCopyWhenCreated)
-          btnCopyWhenCreated.setAttribute("data-copy-value", result.when_created || "");
+          btnCopyWhenCreated.setAttribute(
+            "data-copy-value",
+            result.when_created || "",
+          );
 
         // Poblar diagnósticos de seguridad
         if (termInfoPwdLastSet)
           termInfoPwdLastSet.textContent =
             result.pwd_last_set || "No especificado";
         if (btnCopyPwdLastSet)
-          btnCopyPwdLastSet.setAttribute("data-copy-value", result.pwd_last_set || "");
+          btnCopyPwdLastSet.setAttribute(
+            "data-copy-value",
+            result.pwd_last_set || "",
+          );
         if (termInfoExpires)
           termInfoExpires.textContent = result.account_expires || "Nunca";
         if (btnCopyExpires)
-          btnCopyExpires.setAttribute("data-copy-value", result.account_expires || "Nunca");
+          btnCopyExpires.setAttribute(
+            "data-copy-value",
+            result.account_expires || "Nunca",
+          );
 
         currentLdapGroups = result.groups || [];
         if (terminalGroupsCount) {
