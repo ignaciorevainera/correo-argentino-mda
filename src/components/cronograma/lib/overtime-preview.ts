@@ -163,18 +163,15 @@ function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeeken
     </div>`;
 }
 
-function generateMonthOptions(currentYear: number, currentMonth: number): string {
-  const options: string[] = [];
-  // De 2 años atrás a 1 año adelante
+function generateMonthItems(currentYear: number, currentMonth: number): string {
+  let html = '';
   for (let y = currentYear - 2; y <= currentYear + 1; y++) {
     for (let m = 1; m <= 12; m++) {
       const selected = y === currentYear && m === currentMonth;
-      options.push(
-        `<option value="${y}-${String(m).padStart(2, '0')}"${selected ? ' selected' : ''}>${MONTH_NAMES[m - 1]} ${y}</option>`
-      );
+      html += `<li><a class="${selected ? 'active font-black' : ''}" data-month="${y}-${String(m).padStart(2, '0')}">${MONTH_NAMES[m - 1]} ${y}</a></li>`;
     }
   }
-  return options.join('');
+  return html;
 }
 
 export function renderPreview(data: PreviewResponse): void {
@@ -201,9 +198,15 @@ export function renderPreview(data: PreviewResponse): void {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
         <button type="button" id="preview-prev-month" class="btn btn-xs btn-ghost">‹</button>
-        <select id="preview-month-select" class="select select-ghost text-sm font-black uppercase tracking-wider text-base-content px-0 py-0 h-auto min-h-0">
-          ${generateMonthOptions(year, monthNum)}
-        </select>
+        <div class="dropdown dropdown-bottom">
+          <div tabindex="0" role="button" id="preview-month-trigger" class="text-sm font-black uppercase tracking-wider text-base-content cursor-pointer select-none flex items-center gap-1">
+            ${escapeHtml(monthName)} ${year}
+            <svg class="w-3.5 h-3.5 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <ul tabindex="0" id="preview-month-menu" class="dropdown-content menu menu-xs bg-base-100 rounded-xl border border-base-300 shadow-xl z-[1] w-48 max-h-64 overflow-y-auto mt-1 p-1">
+            ${generateMonthItems(year, monthNum)}
+          </ul>
+        </div>
         <button type="button" id="preview-next-month" class="btn btn-xs btn-ghost">›</button>
       </div>
       <div class="flex items-center gap-2">
@@ -218,9 +221,11 @@ export function renderPreview(data: PreviewResponse): void {
 
   document.getElementById('preview-prev-month')?.addEventListener('click', () => navigateMonth(-1));
   document.getElementById('preview-next-month')?.addEventListener('click', () => navigateMonth(1));
-  document.getElementById('preview-month-select')?.addEventListener('change', (e) => {
-    const val = (e.target as HTMLSelectElement).value;
-    if (val) openOvertimePreview(val);
+  document.getElementById('preview-month-menu')?.addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest('a');
+    if (!a || !a.dataset.month) return;
+    (a.closest('.dropdown')?.querySelector('[tabindex="0"]') as HTMLElement)?.focus();
+    openOvertimePreview(a.dataset.month);
   });
   document.getElementById('preview-close-btn')?.addEventListener('click', closeModal);
 
