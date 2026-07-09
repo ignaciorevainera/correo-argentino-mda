@@ -54,6 +54,15 @@ export const GET: APIRoute = async ({ url, locals }) => {
       );
     }
 
+    const currentUserId = locals.user!.id;
+    const currentUser = await db
+      .select({ id: agents.id })
+      .from(agents)
+      .where(eq(agents.username, locals.user!.username))
+      .limit(1);
+    const currentAgentId = currentUser[0]?.id ?? null;
+    const respondedUserId = currentAgentId ?? currentUserId;
+
     const [yearStr, monthStr] = month.split("-");
     const year = parseInt(yearStr, 10);
     const monthNum = parseInt(monthStr, 10);
@@ -62,12 +71,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     if (saturdays.length === 0) {
       return new Response(
-        JSON.stringify({ weekends: [], currentUserId: locals.user!.id, month }),
+        JSON.stringify({ weekends: [], currentUserId: respondedUserId, month }),
         { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" } }
       );
     }
-
-    const currentUserId = locals.user!.id;
 
     const rows = await db
       .select({
@@ -126,7 +133,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
       group.totalHours = Math.round((group.totalHours + hours) * 10) / 10;
 
-      if (row.agentId === currentUserId) {
+      if (currentAgentId !== null && row.agentId === currentAgentId) {
         group.currentUserHasShift = true;
       }
     }
@@ -141,7 +148,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     );
 
     return new Response(
-      JSON.stringify({ weekends, currentUserId, month }),
+      JSON.stringify({ weekends, currentUserId: respondedUserId, month }),
       {
         status: 200,
         headers: {
