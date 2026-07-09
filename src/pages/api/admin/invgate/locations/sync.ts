@@ -2,26 +2,12 @@ import type { APIRoute } from "astro";
 import { jsonResponse } from "@/lib/apiResponse";
 import { syncOfficeInvgateLinks } from "@/lib/invgate/officeLinkSync";
 
-function getEnv(key: string): string {
-  if (typeof import.meta !== "undefined" && import.meta.env) {
-    return (import.meta.env as any)[key] || "";
-  }
-  return process.env[key] || "";
-}
-
 function isAdmin(locals: App.Locals): boolean {
   return locals.user?.role === "admin";
 }
 
-function hasInternalKey(request: Request): boolean {
-  const internalKey = getEnv("SYNC_INTERNAL_KEY");
-  if (!internalKey) return false;
-  const headerKey = request.headers.get("X-Internal-Key");
-  return headerKey === internalKey;
-}
-
-export const GET: APIRoute = async ({ request, locals }) => {
-  if (!isAdmin(locals) && !hasInternalKey(request)) {
+export const GET: APIRoute = async ({ locals }) => {
+  if (!isAdmin(locals)) {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
 
@@ -31,7 +17,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
   return jsonResponse(result, result.ok ? 200 : 500);
 };
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ locals }) => {
   if (!isAdmin(locals)) {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
