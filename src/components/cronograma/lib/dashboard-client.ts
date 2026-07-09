@@ -1855,6 +1855,12 @@ function setupEventListeners(): void {
     showOvertimeView();
   });
 
+  // Lazy-load overtime-preview on "Ver Mes" click
+  document.getElementById('preview-month-btn')?.addEventListener('click', async () => {
+    const { openOvertimePreview } = await import('./overtime-preview');
+    openOvertimePreview();
+  });
+
   // Lazy-load pasiva-view on first tab click
   let pasivaSetupDone = false;
   document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', async () => {
