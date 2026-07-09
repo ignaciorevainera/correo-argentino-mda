@@ -40,13 +40,13 @@ const normalizedType =
 const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""} ${office.costCenter}`;
 const hasContacts = office.contacts && office.contacts.length > 0;
 const hasInfo = Boolean(office.email || office.notes);
-const hasInfoSection = hasContacts || hasInfo;
+const hasInvgateDetail: boolean = office.invgateLinked === true;
+const hasInfoSection = hasContacts || hasInfo || hasInvgateDetail;
 
 const totalAssets =
   (office.assets?.length || 0) + (office.terminals?.length || 0);
 const hasAssetsSection = totalAssets > 0;
-
-const hasDetails = hasInfoSection || hasAssetsSection;
+const hasDetails = hasInfoSection || hasAssetsSection || hasInvgateDetail;
 
 const activeSectionsCount =
   (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
@@ -330,6 +330,60 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                           />
                           <span>{office.notes}</span>
                         </p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {hasInvgateDetail && (
+                  <section class="space-y-3">
+                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                      <Icon
+                        name="boxicons:database-alt"
+                        size={16}
+                        class="text-secondary"
+                        aria-hidden="true"
+                      />
+                      Datos InvGate
+                    </h2>
+                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
+                      {office.invgateCp && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CP</span>
+                          <span class="font-mono text-sm text-base-content/90">{office.invgateCp}</span>
+                        </p>
+                      )}
+                      {office.invgateCc && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CC</span>
+                          <span class="font-mono text-sm text-base-content/90">{office.invgateCc}</span>
+                        </p>
+                      )}
+                      {office.invgateAddress && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Dirección</span>
+                          <span class="text-sm text-base-content/90">{office.invgateAddress}</span>
+                        </p>
+                      )}
+                      {office.invgateDisplayName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Nombre</span>
+                          <span class="text-sm text-base-content/90">{office.invgateDisplayName}</span>
+                        </p>
+                      )}
+                      {office.invgateParentName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Parent InvGate</span>
+                          <span class="text-sm text-base-content/90">{office.invgateParentName}</span>
+                        </p>
+                      )}
+                      {office.invgateDuplicateCount && office.invgateDuplicateCount > 0 && (
+                        <p class="mt-2 flex items-start gap-2 text-xs text-warning">
+                          <span>En InvGate se encontraron {office.invgateDuplicateCount} registros con el mismo NIS. Se vinculó el primero.</span>
+                        </p>
+                      )}
+                      {!office.invgateCp && !office.invgateCc && !office.invgateAddress && !office.invgateDisplayName && !office.invgateParentName && (
+                        <p class="text-xs text-base-content/50 italic">Sin datos adicionales de InvGate</p>
                       )}
                     </div>
                   </section>

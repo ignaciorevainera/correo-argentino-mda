@@ -204,7 +204,7 @@ In the template, find the `{hasInfo && (` block (around line 298). After the clo
                   <section class="space-y-3">
                     <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
                       <Icon
-                        name="boxicons:data"
+                        name="boxicons:database-alt"
                         size={16}
                         class="text-secondary"
                         aria-hidden="true"
