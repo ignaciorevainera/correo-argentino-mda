@@ -368,6 +368,44 @@ const mainTabs = [
       </div>
     </form>
 
+    {
+      isAllowedAdmin && (
+        <div id="invgate-stats-bar" class="my-4 p-4 bg-base-100 border border-base-200 rounded-box shadow-sm">
+          <div id="stats-skeleton" class="flex flex-wrap items-center gap-4">
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+          </div>
+          <div id="stats-cards" class="hidden flex flex-wrap items-center gap-4">
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-base-content/60">Total MDA</span>
+              <span id="stat-totalMda" class="text-xl font-bold mt-0.5 text-base-content">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px] border-l-4 border-l-success">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-base-content/60">Matcheadas</span>
+              <span id="stat-matched" class="text-xl font-bold mt-0.5 text-success">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px] border-l-4 border-l-warning">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
+              <span id="stat-unmatchedMda" class="text-xl font-bold mt-0.5 text-warning">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px] border-l-4 border-l-error">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
+              <span id="stat-unmatchedInvgate" class="text-xl font-bold mt-0.5 text-error">—</span>
+            </div>
+            <a
+              href={`${import.meta.env.BASE_URL}admin/invgate/ubicaciones?sync=true`}
+              class="btn btn-primary btn-sm gap-1.5 ml-auto shrink-0"
+            >
+              <Icon name="boxicons:pie-chart-filled" size={16} />
+              Ver comparativa
+            </a>
+          </div>
+        </div>
+      )
+    }
+
     <div id="office-table-wrapper">
       <div
         id="office-table-container"
@@ -1423,6 +1461,33 @@ const mainTabs = [
   };
 
   document.getElementById("sync-invgate-btn")?.addEventListener("click", handleInvgateSync);
+
+  // Load InvGate comparison stats
+  const statsSkeleton = document.getElementById("stats-skeleton");
+  const statsCards = document.getElementById("stats-cards");
+  if (statsSkeleton && statsCards) {
+    (async () => {
+      try {
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const res = await fetch(`${baseUrl}/api/invgate/stats`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const stats = await res.json();
+        const setStat = (id: string, val: number | undefined | null) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val != null ? String(val) : "—";
+        };
+        setStat("stat-totalMda", stats.totalMda);
+        setStat("stat-matched", stats.matched);
+        setStat("stat-unmatchedMda", stats.unmatchedMda);
+        setStat("stat-unmatchedInvgate", stats.unmatchedInvgate);
+        statsSkeleton.classList.add("hidden");
+        statsCards.classList.remove("hidden");
+      } catch (err) {
+        console.error("Error loading InvGate stats:", err);
+        statsSkeleton.innerHTML = `<p class="text-xs text-base-content/60 italic">No se pudieron cargar las estadísticas de InvGate.</p>`;
+      }
+    })();
+  }
 </script>
 
 <style is:global>
