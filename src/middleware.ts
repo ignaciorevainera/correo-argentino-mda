@@ -87,7 +87,7 @@ function setSecurityHeaders(response: Response): Response {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://wms.ign.gob.ar",
       "font-src 'self'",
-      "connect-src 'self' https://docs.google.com https://cdn.jsdelivr.net",
+      "connect-src 'self' data: https://docs.google.com https://cdn.jsdelivr.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
