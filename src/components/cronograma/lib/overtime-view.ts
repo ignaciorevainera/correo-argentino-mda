@@ -84,7 +84,11 @@ export async function refreshOvertimeForWeekend(weekendDate: string): Promise<vo
       if (res.ok) {
         const remote = await res.json();
         if (remote && remote.referente) {
-          existingConfig = { weekendStartDate: weekendDate, referente: remote.referente };
+          existingConfig = {
+            id: remote.id || 0,
+            weekendStartDate: weekendDate,
+            referente: remote.referente
+          };
           state.overtimeConfigs.push(existingConfig);
         }
       }
