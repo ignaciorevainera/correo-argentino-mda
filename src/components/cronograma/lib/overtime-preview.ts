@@ -165,7 +165,7 @@ function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeeken
 
 function generateMonthItems(currentYear: number, currentMonth: number): string {
   let html = '';
-  for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+  for (let y = currentYear - 1; y <= currentYear; y++) {
     for (let m = 1; m <= 12; m++) {
       const selected = y === currentYear && m === currentMonth;
       html += `<li><a class="${selected ? 'active font-black' : ''}" data-month="${y}-${String(m).padStart(2, '0')}">${MONTH_NAMES[m - 1]} ${y}</a></li>`;
