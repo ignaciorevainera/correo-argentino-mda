@@ -185,6 +185,7 @@ export const officeInvgateLinks = sqliteTable("office_invgate_links", {
     .references(() => offices.id, { onDelete: "cascade" }),
   invgateLocationId: integer("invgate_location_id").notNull(),
   invgateParentId: integer("invgate_parent_id"),
+  invgateParentName: text("invgate_parent_name"),
   invgateDisplayName: text("invgate_display_name"),
   invgateCp: text("invgate_cp"),
   invgateCc: text("invgate_cc"),
