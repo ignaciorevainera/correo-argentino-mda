@@ -101,15 +101,15 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total InvGate</span>
           <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalInvgate}</span>
         </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-success">
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Matcheados</span>
           <span class="text-2xl font-bold mt-1 text-success">{stats.matched}</span>
         </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-warning">
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
           <span class="text-2xl font-bold mt-1 text-warning">{stats.unmatchedMda}</span>
         </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-error">
+        <div class="card bg-base-100 shadow border border-base-200 p-4 ">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
           <span class="text-2xl font-bold mt-1 text-error">{stats.unmatchedInvgate}</span>
         </div>
@@ -150,11 +150,10 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
             Sincronizar
           </a>
 
-          <!-- Search Form -->
-          <form method="GET" action="/admin/invgate/ubicaciones" class="w-full md:w-80">
-            <input type="hidden" name="filter" value={filter} />
+          <!-- Search Bar -->
+          <div class="w-full md:w-80">
             <SearchBar id="ubicaciones-search" placeholder="Buscar ubicación, NIS, CP..." size="md" />
-          </form>
+          </div>
         </div>
       </div>
 
@@ -190,11 +189,9 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
           </DataTable>
 
           <!-- Infinite Scroll Sentinel -->
-          {pagination.totalPages > 1 && (
-            <div id="locations-sentinel" class="py-8 flex justify-center">
-              <span class="loading loading-spinner loading-md text-primary" id="locations-spinner"></span>
-            </div>
-          )}
+          <div id="locations-sentinel" class="py-8 text-center flex justify-center {pagination.totalPages > 1 ? '' : 'hidden'}" data-has-more={pagination.totalPages > 1 ? "true" : "false"} data-initial-page={pagination.page}>
+            <span class="loading loading-spinner loading-md text-primary hidden" id="locations-spinner"></span>
+          </div>
         </div>
       )}
     </div>
@@ -363,69 +360,101 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
   })();
 </script>
 
-<script is:inline define:vars={{
-  initialPage: pagination.page,
-  totalPages: pagination.totalPages,
-  filter,
-  q
-}}>
-  document.addEventListener("DOMContentLoaded", () => {
-    const sentinel = document.getElementById("locations-sentinel");
-    const container = document.getElementById("locations-container");
-    const spinner = document.getElementById("locations-spinner");
-    
-    let currentPage = initialPage;
-    let hasMore = currentPage < totalPages;
-    let isLoading = false;
+<script>
+  import { highlightSearchTargets } from "@lib/clientSearch";
 
-    if (!sentinel || !container) return;
+  const sentinel = document.getElementById("locations-sentinel");
+  const container = document.getElementById("locations-container");
+  const spinner = document.getElementById("locations-spinner");
+  const searchInput = document.getElementById("ubicaciones-search");
 
-    if (!hasMore) {
-      sentinel.classList.add("hidden");
-    }
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentFilter = urlParams.get("filter") ?? "unmatched";
+  let currentSearch = urlParams.get("q") ?? "";
+  let currentPage = parseInt(sentinel?.getAttribute("data-initial-page") || "1", 10);
+  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
+  let isLoading = false;
+  let debounceTimeout;
 
-    const fetchNextPage = async () => {
-      if (isLoading || !hasMore) return;
-      isLoading = true;
-      spinner?.classList.remove("hidden");
+  // Initial highlight if there's a search query
+  if (currentSearch && container) {
+    highlightSearchTargets(container, currentSearch);
+  }
 
-      try {
-        currentPage++;
-        const params = new URLSearchParams();
-        params.set("page", currentPage.toString());
-        params.set("filter", filter);
-        if (q) params.set("q", q);
+  const fetchLocations = async (query, filter, page, isNewSearch) => {
+    if (isLoading) return;
+    isLoading = true;
+    spinner?.classList.remove("hidden");
 
-        const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
-        if (!response.ok) throw new Error("API call failed");
+    try {
+      const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("filter", filter);
+      if (query) params.set("q", query);
 
-        const html = await response.text();
-        const newHasMore = response.headers.get("X-Has-More") === "true";
-        
-        hasMore = newHasMore;
+      const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      hasMore = newHasMore;
+
+      if (isNewSearch && container) {
+        container.innerHTML = html;
+      } else if (container) {
         container.insertAdjacentHTML("beforeend", html);
-
-        if (!hasMore) {
-          sentinel.classList.add("hidden");
-        }
-      } catch (err) {
-        console.error("Error fetching locations:", err);
-        // Revert page count on error so the page can be retried on next intersection
-        currentPage--;
-      } finally {
-        isLoading = false;
-        if (!hasMore && spinner) {
-          spinner.classList.add("hidden");
-        }
       }
-    };
 
+      if (container && query) {
+        highlightSearchTargets(container, query);
+      }
+
+      if (hasMore) {
+        sentinel?.classList.remove("hidden");
+      } else {
+        sentinel?.classList.add("hidden");
+      }
+    } catch (err) {
+      console.error("Error fetching locations:", err);
+      if (isNewSearch) currentPage--;
+    } finally {
+      isLoading = false;
+      spinner?.classList.add("hidden");
+    }
+  };
+
+  // Debounced search
+  searchInput?.addEventListener("input", () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = window.setTimeout(() => {
+      currentSearch = searchInput.value.trim();
+      currentPage = 1;
+      hasMore = true;
+
+      const params = new URLSearchParams(window.location.search);
+      if (currentSearch) {
+        params.set("q", currentSearch);
+      } else {
+        params.delete("q");
+      }
+      params.set("page", "1");
+      params.set("filter", currentFilter);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, "", newUrl);
+
+      fetchLocations(currentSearch, currentFilter, 1, true);
+    }, 300);
+  });
+
+  // Infinite scroll
+  if (sentinel && container) {
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !isLoading && hasMore) {
-        fetchNextPage();
+        currentPage++;
+        fetchLocations(currentSearch, currentFilter, currentPage, false);
       }
     }, { rootMargin: "200px" });
 
     observer.observe(sentinel);
-  });
+  }
 </script>
