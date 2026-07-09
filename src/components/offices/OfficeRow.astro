@@ -247,50 +247,59 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   hasAssetsSection ? "lg:w-2/5" : "w-full",
                 ]}
               >
-                {hasContacts && (
-                  <section class="min-w-0 space-y-3">
+                {hasInvgateDetail && (
+                  <section class="space-y-3">
                     <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
                       <Icon
-                        name="boxicons:user-filled"
+                        name="boxicons:database-alt"
                         size={16}
                         class="text-secondary"
                         aria-hidden="true"
                       />
-                      Contactos
+                      Datos InvGate
                     </h2>
-
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
-                      {office.contacts.map((contact) => (
-                        <article class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
-                          <h3 class="truncate text-sm font-semibold text-base-content">
-                            {contact.name}
-                          </h3>
-                          <div class="mt-3 space-y-2 text-xs text-base-content/70">
-                            {contact.timeSlot && (
-                              <p class="flex items-center gap-2">
-                                <Icon
-                                  name="boxicons:clock-filled"
-                                  size={14}
-                                  class="shrink-0 text-base-content/50"
-                                  aria-hidden="true"
-                                />
-                                <span>{contact.timeSlot}</span>
-                              </p>
-                            )}
-                            {contact.phone && (
-                              <p class="flex items-center gap-2">
-                                <Icon
-                                  name="boxicons:phone-filled"
-                                  size={14}
-                                  class="shrink-0 text-base-content/50"
-                                  aria-hidden="true"
-                                />
-                                <span class="font-mono">{contact.phone}</span>
-                              </p>
-                            )}
-                          </div>
-                        </article>
-                      ))}
+                    <div class:list={[
+                      "rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm",
+                      !hasAssetsSection ? "grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3" : "space-y-2",
+                    ]}>
+                      {office.invgateDisplayName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Nombre</span>
+                          <span class="text-sm text-base-content/90">{office.invgateDisplayName}</span>
+                        </p>
+                      )}
+                      {office.invgateAddress && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Dirección</span>
+                          <span class="text-sm text-base-content/90">{office.invgateAddress}</span>
+                        </p>
+                      )}
+                      {office.invgateCp && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CP</span>
+                          <span class="font-mono text-sm text-base-content/90">{office.invgateCp}</span>
+                        </p>
+                      )}
+                      {office.invgateCc && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CC</span>
+                          <span class="font-mono text-sm text-base-content/90">{office.invgateCc}</span>
+                        </p>
+                      )}
+                      {office.invgateParentName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Parent InvGate</span>
+                          <span class="text-sm text-base-content/90">{office.invgateParentName}</span>
+                        </p>
+                      )}
+                      {office.invgateDuplicateCount && office.invgateDuplicateCount > 0 && (
+                        <p class="flex items-start gap-2 text-xs text-warning">
+                          <span>En InvGate se encontraron {office.invgateDuplicateCount} registros con el mismo NIS. Se vinculó el primero.</span>
+                        </p>
+                      )}
+                      {!office.invgateCp && !office.invgateCc && !office.invgateAddress && !office.invgateDisplayName && !office.invgateParentName && (
+                        <p class="text-xs text-base-content/50 italic">Sin datos adicionales de InvGate</p>
+                      )}
                     </div>
                   </section>
                 )}
@@ -335,56 +344,50 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   </section>
                 )}
 
-                {hasInvgateDetail && (
-                  <section class="space-y-3">
+                {hasContacts && (
+                  <section class="min-w-0 space-y-3">
                     <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
                       <Icon
-                        name="boxicons:database-alt"
+                        name="boxicons:user-filled"
                         size={16}
                         class="text-secondary"
                         aria-hidden="true"
                       />
-                      Datos InvGate
+                      Contactos
                     </h2>
-                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
-                      {office.invgateCp && (
-                        <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CP</span>
-                          <span class="font-mono text-sm text-base-content/90">{office.invgateCp}</span>
-                        </p>
-                      )}
-                      {office.invgateCc && (
-                        <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">CC</span>
-                          <span class="font-mono text-sm text-base-content/90">{office.invgateCc}</span>
-                        </p>
-                      )}
-                      {office.invgateAddress && (
-                        <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Dirección</span>
-                          <span class="text-sm text-base-content/90">{office.invgateAddress}</span>
-                        </p>
-                      )}
-                      {office.invgateDisplayName && (
-                        <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Nombre</span>
-                          <span class="text-sm text-base-content/90">{office.invgateDisplayName}</span>
-                        </p>
-                      )}
-                      {office.invgateParentName && (
-                        <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block w-[100px] shrink-0 text-xs font-semibold text-base-content/60">Parent InvGate</span>
-                          <span class="text-sm text-base-content/90">{office.invgateParentName}</span>
-                        </p>
-                      )}
-                      {office.invgateDuplicateCount && office.invgateDuplicateCount > 0 && (
-                        <p class="mt-2 flex items-start gap-2 text-xs text-warning">
-                          <span>En InvGate se encontraron {office.invgateDuplicateCount} registros con el mismo NIS. Se vinculó el primero.</span>
-                        </p>
-                      )}
-                      {!office.invgateCp && !office.invgateCc && !office.invgateAddress && !office.invgateDisplayName && !office.invgateParentName && (
-                        <p class="text-xs text-base-content/50 italic">Sin datos adicionales de InvGate</p>
-                      )}
+
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
+                      {office.contacts.map((contact) => (
+                        <article class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
+                          <h3 class="truncate text-sm font-semibold text-base-content">
+                            {contact.name}
+                          </h3>
+                          <div class="mt-3 space-y-2 text-xs text-base-content/70">
+                            {contact.timeSlot && (
+                              <p class="flex items-center gap-2">
+                                <Icon
+                                  name="boxicons:clock-filled"
+                                  size={14}
+                                  class="shrink-0 text-base-content/50"
+                                  aria-hidden="true"
+                                />
+                                <span>{contact.timeSlot}</span>
+                              </p>
+                            )}
+                            {contact.phone && (
+                              <p class="flex items-center gap-2">
+                                <Icon
+                                  name="boxicons:phone-filled"
+                                  size={14}
+                                  class="shrink-0 text-base-content/50"
+                                  aria-hidden="true"
+                                />
+                                <span class="font-mono">{contact.phone}</span>
+                              </p>
+                            )}
+                          </div>
+                        </article>
+                      ))}
                     </div>
                   </section>
                 )}

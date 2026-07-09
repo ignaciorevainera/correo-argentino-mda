@@ -18,7 +18,7 @@ import {
   formatTypeLabel,
 } from "@lib/officeHelpers";
 import { db } from "@db/index";
-import { provinces, regions, offices, officeInvgateLinks } from "@db/schema";
+import { provinces, regions, offices } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
@@ -28,36 +28,6 @@ const user = Astro.locals.user;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
-
-const [lastSyncRow] = await db
-  .select({ lastSync: officeInvgateLinks.lastSyncedAt })
-  .from(officeInvgateLinks)
-  .orderBy(sql`${officeInvgateLinks.lastSyncedAt} DESC`)
-  .limit(1);
-
-const lastSyncDate = lastSyncRow?.lastSync ?? null;
-
-const syncAgeDays = lastSyncDate
-  ? Math.floor((Date.now() - new Date(lastSyncDate.endsWith("Z") ? lastSyncDate : lastSyncDate + "Z").getTime()) / (1000 * 60 * 60 * 24))
-  : null;
-
-const syncAlertClass = !lastSyncDate
-  ? "alert-info"
-  : syncAgeDays !== null && syncAgeDays > 7
-    ? "alert-warning"
-    : "alert-info";
-
-const syncAlertIcon = !lastSyncDate
-  ? "boxicons:clock"
-  : syncAgeDays !== null && syncAgeDays > 7
-    ? "boxicons:clock"
-    : "boxicons:refresh-cw-alt-filled";
-
-const syncMessage = !lastSyncDate
-  ? "InvGate: sin datos de sincronización"
-  : syncAgeDays !== null && syncAgeDays > 7
-    ? `InvGate sin sincronizar desde hace ${syncAgeDays} días. Los datos pueden estar desactualizados.`
-    : `InvGate sincronizado: hace ${syncAgeDays === 0 ? "menos de 1" : syncAgeDays} día${syncAgeDays !== 1 ? "s" : ""}`;
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -237,19 +207,6 @@ const mainTabs = [
   />
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6 mt-6">
-    <!-- InvGate sync freshness indicator -->
-    <div class={`alert ${syncAlertClass} shadow-sm`}>
-      <Icon name={syncAlertIcon} size={20} />
-      <span class="text-sm">{syncMessage}</span>
-      {
-        isAllowedAdmin && (
-          <button id="sync-invgate-btn" type="button" class="btn btn-sm btn-neutral btn-soft gap-2 ml-auto">
-            <span id="sync-btn-text">Sincronizar ahora</span>
-            <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
-          </button>
-        )
-      }
-    </div>
     <form
       method="GET"
       class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
@@ -402,6 +359,10 @@ const mainTabs = [
               <span class="hidden sm:inline">Registrar oficina</span>
               <span class="sm:hidden">Registrar</span>
             </a>
+            <button id="sync-invgate-btn" type="button" class="btn btn-sm btn-neutral btn-soft gap-2">
+              <span id="sync-btn-text">Sincronizar ahora</span>
+              <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
+            </button>
           )
         }
       </div>
