@@ -145,7 +145,7 @@ function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeeken
       <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2${totalHours === 0 ? ' opacity-40' : ''}${saturdayDate === selectedWeekend ? ' ring-2 ring-warning' : ''}">
         ${donutHtml}
         <span class="text-xxs font-black uppercase tracking-wider text-base-content/70">${escapeHtml(dateLabel)}</span>
-        <span class="badge badge-sm badge-success gap-1 text-xxs font-black">✅ ESTÁS ASIGNADO</span>
+        <span class="badge badge-sm badge-success gap-1 text-xxs font-black">ESTÁS ASIGNADO <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
         <div class="text-xxs text-base-content/70 text-center leading-tight">${escapeHtml(userShiftDetails)}</div>
         ${companionsList ? `<div class="text-xxs text-base-content/50 text-center">Compañeros: ${escapeHtml(companionsList)}</div>` : ''}
         <div class="w-full flex justify-end">
