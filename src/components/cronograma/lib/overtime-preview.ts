@@ -203,7 +203,7 @@ export function renderPreview(data: PreviewResponse): void {
             ${escapeHtml(monthName)} ${year}
             <svg class="w-3.5 h-3.5 text-base-content/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-          <ul tabindex="0" id="preview-month-menu" class="dropdown-content menu menu-xs bg-base-100 rounded-xl border border-base-300 shadow-xl z-[1] w-48 max-h-64 overflow-y-auto mt-1 p-1">
+          <ul tabindex="0" id="preview-month-menu" class="dropdown-content menu menu-xs flex-nowrap bg-base-100 rounded-xl border border-base-300 shadow-xl z-[1] w-48 max-h-64 overflow-y-auto mt-1 p-1">
             ${generateMonthItems(year, monthNum)}
           </ul>
         </div>
