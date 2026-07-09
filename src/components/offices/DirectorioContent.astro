@@ -1428,13 +1428,17 @@ const mainTabs = [
     renderForm();
   };
 
+  let isInvgateSyncing = false;
+
   const handleInvgateSync = async () => {
+    if (isInvgateSyncing) return;
+    isInvgateSyncing = true;
+
     const btn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
     const text = document.getElementById("sync-btn-text");
     const spinner = document.getElementById("sync-btn-spinner");
-    if (!btn || !text || !spinner) return;
+    if (!btn || !text || !spinner) { isInvgateSyncing = false; return; }
 
-    btn.disabled = true;
     text.textContent = "Sincronizando...";
     spinner.classList.remove("hidden");
 
@@ -1451,7 +1455,7 @@ const mainTabs = [
     } catch {
       showToast("Error de red al sincronizar", "alert-error");
     } finally {
-      btn.disabled = false;
+      isInvgateSyncing = false;
       text.textContent = "Sincronizar ahora";
       spinner.classList.add("hidden");
     }
