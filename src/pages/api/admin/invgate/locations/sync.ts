@@ -25,14 +25,5 @@ export const POST: APIRoute = async ({ locals }) => {
   console.log("[invgate-sync] Iniciando sincronización manual (POST)...");
   const result = await syncOfficeInvgateLinks();
 
-  if (result.ok) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${import.meta.env.BASE_URL || "/"}oficinas?toast_msg=Sincronizaci%C3%B3n+completada+${result.matched}+oficinas+vinculadas&toast_type=success`,
-      },
-    });
-  }
-
-  return jsonResponse(result, 500);
+  return jsonResponse(result, result.ok ? 200 : 500);
 };

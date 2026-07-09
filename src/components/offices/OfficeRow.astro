@@ -52,8 +52,8 @@ const activeSectionsCount =
   (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
 
 const officeDirectoryRowGridClass = isAllowedAdmin
-  ? "grid grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px_120px] items-center gap-4"
-  : "grid grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px] items-center gap-4";
+  ? "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] items-center gap-4"
+  : "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] items-center gap-4";
 ---
 
 <article
@@ -107,7 +107,24 @@ const officeDirectoryRowGridClass = isAllowedAdmin
       }
     </div>
 
-    <div>
+    <div class="indicator">
+      {
+        office.invgateLinked ? (
+          <span
+            class:list={[
+              "indicator-item status status-xs",
+              office.invgateDisplayName && office.invgateDisplayName !== office.name
+                ? "status-warning"
+                : "status-info",
+            ]}
+            title={office.invgateDisplayName && office.invgateDisplayName !== office.name
+              ? "Nombre difiere de InvGate. Ver detalle expandible."
+              : "Presente en InvGate"}
+          ></span>
+        ) : (
+          <span class="indicator-item status status-xs status-neutral" title="No registrada en InvGate"></span>
+        )
+      }
       <CopyButton
         value={office.code}
         variant="value"
@@ -120,38 +137,6 @@ const officeDirectoryRowGridClass = isAllowedAdmin
         class={`font-semibold ${officeTypeChipClassByType[normalizedType] || "office-type-chip bg-base-300 text-base-content"}`}
       />
     </div>
-
-    <!-- InvGate badge -->
-    {
-      office.invgateLinked ? (
-        <div class="flex items-center">
-          <span
-            class:list={[
-              "badge badge-sm gap-1",
-              office.invgateDisplayName && office.invgateDisplayName !== office.name
-                ? "badge-warning"
-                : "badge-success",
-            ]}
-            title={office.invgateDisplayName && office.invgateDisplayName !== office.name
-              ? "Nombre difiere de InvGate. Ver detalle expandible."
-              : "Presente en InvGate"}
-          >
-            <Icon name="boxicons:link" size={14} />
-            En InvGate
-          </span>
-        </div>
-      ) : (
-        <div class="flex items-center">
-          <span
-            class="badge badge-ghost badge-sm gap-1"
-            title="No registrada en InvGate"
-          >
-            <Icon name="boxicons:link" size={14} />
-            Sin InvGate
-          </span>
-        </div>
-      )
-    }
 
     <div class="min-w-0">
       <div class="min-w-0">

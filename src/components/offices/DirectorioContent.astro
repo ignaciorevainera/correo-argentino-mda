@@ -212,8 +212,8 @@ const uniqueZones = allZonesRaw
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
 const officeDirectoryHeaderGridClass = isAllowedAdmin
-  ? "grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px_120px] gap-4"
-  : "grid-cols-[48px_80px_auto_1.2fr_90px_1.8fr_110px] gap-4";
+  ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
+  : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
 
 const mainTabs = [
   { label: "Directorio de Oficinas", value: "directory" },
@@ -235,25 +235,21 @@ const mainTabs = [
     class="w-full grid grid-cols-2"
     containerClass="w-full"
   />
-
-  <!-- InvGate sync freshness indicator -->
-  <div class={`alert ${syncAlertClass} shadow-sm mt-6`}>
-    <Icon name={syncAlertIcon} size={20} />
-    <span class="text-sm">{syncMessage}</span>
-    {
-      isAllowedAdmin && (
-        <form method="POST" action={import.meta.env.BASE_URL + "api/admin/invgate/locations/sync"} class="ml-auto">
-          <button type="submit" class="btn btn-sm btn-outline">
-            <Icon name="boxicons:refresh-cw-alt-filled" size={16} />
-            Sincronizar ahora
-          </button>
-        </form>
-      )
-    }
-  </div>
-
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6 mt-6">
+    <!-- InvGate sync freshness indicator -->
+    <div class={`alert ${syncAlertClass} shadow-sm`}>
+      <Icon name={syncAlertIcon} size={20} />
+      <span class="text-sm">{syncMessage}</span>
+      {
+        isAllowedAdmin && (
+          <button id="sync-invgate-btn" type="button" class="btn btn-sm btn-outline gap-2 ml-auto" onclick="handleInvgateSync()">
+            <span id="sync-btn-text">Sincronizar ahora</span>
+            <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
+          </button>
+        )
+      }
+    </div>
     <form
       method="GET"
       class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
@@ -432,11 +428,6 @@ const mainTabs = [
             <DataTableHeaderCell sortKey="code"> Código </DataTableHeaderCell>
           </div>
           <div slot="header">
-            <DataTableHeaderCell>
-              <span class="sr-only">InvGate</span>
-            </DataTableHeaderCell>
-          </div>
-          <div slot="header">
             <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
           </div>
           <div slot="header">
@@ -613,6 +604,7 @@ const mainTabs = [
 
 <script>
   import { highlightSearchTargets } from "@lib/clientSearch";
+  import { showToast } from "@lib/toastClient";
 
   let regionsDataCache: any[] = [];
 
@@ -1434,6 +1426,35 @@ const mainTabs = [
     };
 
     renderForm();
+  };
+
+  const handleInvgateSync = async () => {
+    const btn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+    const text = document.getElementById("sync-btn-text");
+    const spinner = document.getElementById("sync-btn-spinner");
+    if (!btn || !text || !spinner) return;
+
+    btn.disabled = true;
+    text.textContent = "Sincronizando...";
+    spinner.classList.remove("hidden");
+
+    try {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${baseUrl}/api/admin/invgate/locations/sync`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(`Sincronización completada: ${data.matched} oficinas vinculadas`, "alert-success");
+        window.location.reload();
+      } else {
+        showToast(data.error || "Error al sincronizar", "alert-error");
+      }
+    } catch {
+      showToast("Error de red al sincronizar", "alert-error");
+    } finally {
+      btn.disabled = false;
+      text.textContent = "Sincronizar ahora";
+      spinner.classList.add("hidden");
+    }
   };
 </script>
 
