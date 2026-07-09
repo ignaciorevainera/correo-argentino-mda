@@ -122,6 +122,7 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
         .set({
           invgateLocationId: invgateLoc.id,
           invgateParentId: parentId,
+          invgateParentName: parentName,
           invgateDisplayName: invgateLoc.displayName,
           invgateCp: invgateLoc.cp,
           invgateCc: invgateLoc.cc,
@@ -135,6 +136,7 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
         officeId: officeDbId,
         invgateLocationId: invgateLoc.id,
         invgateParentId: parentId,
+        invgateParentName: parentName,
         invgateDisplayName: invgateLoc.displayName,
         invgateCp: invgateLoc.cp,
         invgateCc: invgateLoc.cc,
