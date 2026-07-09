@@ -255,15 +255,11 @@ export function navigateMonth(delta: 1 | -1): void {
   openOvertimePreview(currentMonth);
 }
 
-export function selectWeekendFromCard(saturday: string): void {
+export async function selectWeekendFromCard(saturday: string): Promise<void> {
   closeModal();
   state.overtimeSelectedWeekend = saturday;
-  const input = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
-  if (!input) return;
-  input.value = saturday;
-  const displayEl = document.getElementById('overtime-weekend-date-display');
-  if (displayEl) displayEl.textContent = formatToDDMMYY(saturday);
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+  const { refreshOvertimeForWeekend } = await import('./overtime-view');
+  refreshOvertimeForWeekend(saturday);
 }
 
 export async function openOvertimePreview(month?: string): Promise<void> {
@@ -273,9 +269,8 @@ export async function openOvertimePreview(month?: string): Promise<void> {
   if (month) {
     currentMonth = month;
   } else {
-    const input = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
-    if (input && input.value) {
-      currentMonth = input.value.slice(0, 7);
+    if (state.overtimeSelectedWeekend) {
+      currentMonth = state.overtimeSelectedWeekend.slice(0, 7);
     } else {
       currentMonth = new Date().toISOString().slice(0, 7);
     }

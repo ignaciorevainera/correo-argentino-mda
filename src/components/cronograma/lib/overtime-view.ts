@@ -72,6 +72,11 @@ export function renderOvertimeView(): void {
 export async function refreshOvertimeForWeekend(weekendDate: string): Promise<void> {
   state.overtimeSelectedWeekend = weekendDate;
 
+  const displayEl = document.getElementById('overtime-weekend-date-display');
+  if (displayEl) {
+    displayEl.textContent = formatToDDMMYY(weekendDate);
+  }
+
   const existingConfig = state.overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
   const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
   if (referenteSelect) {
@@ -234,6 +239,7 @@ export function loadShiftIntoForm(shift: { id: number; agentId: number; date: st
   const editIdInput = document.getElementById('overtime-shift-edit-id') as HTMLInputElement | null;
   const submitBtn = document.getElementById('overtime-shift-submit-btn');
   const cancelBtn = document.getElementById('overtime-shift-cancel-btn');
+  const deleteBtn = document.getElementById('overtime-shift-delete-btn');
 
   if (agentSelect) agentSelect.value = String(shift.agentId);
   if (daySelect) daySelect.value = shift.date === weekendDate ? 'saturday' : 'sunday';
@@ -243,6 +249,17 @@ export function loadShiftIntoForm(shift: { id: number; agentId: number; date: st
 
   if (submitBtn) submitBtn.textContent = 'Actualizar Turno';
   if (cancelBtn) cancelBtn.classList.remove('hidden');
+  if (deleteBtn) {
+    deleteBtn.classList.remove('hidden');
+    deleteBtn.dataset.shiftId = String(shift.id);
+  }
+}
+function calcDuration(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins < 0) mins += 1440;
+  return Math.round((mins / 60) * 10) / 10;
 }
 
 export function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOvertimeShift[]): void {
@@ -250,45 +267,56 @@ export function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOve
   if (!container) return;
 
   if (shifts.length === 0) {
-    container.innerHTML = `<div class="text-xs text-base-content/30 text-center py-6 font-bold uppercase tracking-wider">No hay turnos guardados para este fin de semana</div>`;
+    container.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-10 text-base-content/20 gap-2">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/></svg>
+        <p class="text-xs font-bold uppercase tracking-wider">No hay turnos guardados</p>
+      </div>`;
     return;
   }
 
-  const sortedShifts = [...shifts].sort((a, b) => {
-    if (a.date !== b.date) {
-      return a.date.localeCompare(b.date);
-    }
-    const startCompare = a.startTime.localeCompare(b.startTime);
-    if (startCompare !== 0) return startCompare;
-    return a.endTime.localeCompare(b.endTime);
+  const sorted = [...shifts].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    const sc = a.startTime.localeCompare(b.startTime);
+    return sc !== 0 ? sc : a.endTime.localeCompare(b.endTime);
   });
 
-  container.innerHTML = sortedShifts.map(s => {
+  const sats = sorted.filter(s => s.date === weekendDate);
+  const suns = sorted.filter(s => s.date !== weekendDate);
+
+  function renderRow(s: WeekendOvertimeShift): string {
     const op = state.cronoData.find(o => o.id === s.agentId);
-    const dayLabel = s.date === weekendDate ? 'Sábado' : 'Domingo';
-    const dayBadgeClass = s.date === weekendDate ? 'badge-warning' : 'badge-info';
+    const initials = op?.nombre?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '??';
+    const dur = calcDuration(s.startTime, s.endTime);
     return `
-      <div class="flex items-center gap-3 p-3 bg-base-200/40 rounded-xl border border-base-300/60 group hover:bg-base-200/70 transition-all cursor-pointer overtime-shift-card" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}">
-        <span class="badge badge-sm ${dayBadgeClass} font-black shrink-0">${dayLabel}</span>
-        <span class="font-bold text-xs text-base-content flex-1 truncate">${escapeHtml(op?.nombre || 'Operador #' + s.agentId)}</span>
-        <span class="font-mono text-xs text-base-content/70 shrink-0">${s.startTime} – ${s.endTime}</span>
-        <button type="button" class="btn btn-xs btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity overtime-delete-shift-btn" data-shift-id="${s.id}" aria-label="Eliminar turno">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-base-100/50 border border-base-300/40 group hover:bg-base-100 transition-all cursor-pointer overtime-shift-card" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}">
+        <div class="w-5 h-5 rounded-full bg-base-300/60 flex items-center justify-center text-tiny font-black shrink-0">${initials}</div>
+        <span class="text-xs font-semibold text-base-content truncate flex-1">${escapeHtml(op?.nombre?.split(' ')[0] || '#' + s.agentId)}</span>
+        <span class="font-mono text-xxs font-bold text-base-content/40 shrink-0">${s.startTime}–${s.endTime}</span>
+        <span class="text-xxs font-bold text-warning shrink-0">${dur}h</span>
+        <button type="button" class="btn btn-xs btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity overtime-delete-shift-btn p-1 min-h-0 h-auto" data-shift-id="${s.id}" aria-label="Eliminar">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </div>`;
-  }).join('');
+  }
+
+  container.innerHTML = `
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="space-y-2">
+        <p class="text-xxs font-black uppercase tracking-wider text-warning pb-1.5 border-b border-warning/30">Sábado</p>
+        ${sats.length ? sats.map(renderRow).join('') : '<p class="text-xxs text-base-content/30 text-center py-4">Sin turnos</p>'}
+      </div>
+      <div class="space-y-2">
+        <p class="text-xxs font-black uppercase tracking-wider text-info pb-1.5 border-b border-info/30">Domingo</p>
+        ${suns.length ? suns.map(renderRow).join('') : '<p class="text-xxs text-base-content/30 text-center py-4">Sin turnos</p>'}
+      </div>
+    </div>`;
 
   container.querySelectorAll('.overtime-shift-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.overtime-delete-shift-btn')) return;
-      const dataset = (e.currentTarget as HTMLElement).dataset;
-      loadShiftIntoForm({
-        id: Number(dataset.shiftId),
-        agentId: Number(dataset.agentId),
-        date: String(dataset.date),
-        startTime: String(dataset.start),
-        endTime: String(dataset.end)
-      }, weekendDate);
+      const ds = (e.currentTarget as HTMLElement).dataset;
+      loadShiftIntoForm({ id: Number(ds.shiftId), agentId: Number(ds.agentId), date: String(ds.date), startTime: String(ds.start), endTime: String(ds.end) }, weekendDate);
     });
   });
 
@@ -296,16 +324,20 @@ export function renderOvertimeShiftsList(weekendDate: string, shifts: WeekendOve
     btn.addEventListener('click', async (e) => {
       const shiftId = (e.currentTarget as HTMLElement).dataset.shiftId;
       if (!shiftId || !state.overtimeSelectedWeekend) return;
-      const confirmed = await showConfirm('¿Eliminar este turno de hora extra?');
-      if (!confirmed) return;
+      if (!await showConfirm('¿Eliminar este turno de hora extra?')) return;
       try {
         const res = await fetch(`/api/cronograma/overtime/shifts?id=${shiftId}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Error al eliminar');
+        if (!res.ok) throw new Error();
         showToast('Turno eliminado', 'success');
+        const form = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
+        if (form) form.reset();
+        (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
+        document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+        document.getElementById('overtime-shift-delete-btn')?.classList.add('hidden');
+        const submitBtn = document.getElementById('overtime-shift-submit-btn');
+        if (submitBtn) submitBtn.textContent = 'Agregar Turno';
         await refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
-      } catch {
-        showToast('Error al eliminar turno', 'error');
-      }
+      } catch { showToast('Error al eliminar turno', 'error'); }
     });
   });
 }
@@ -315,27 +347,7 @@ export function setupOvertimeEventListeners(): void {
     showOvertimeView();
   });
 
-  const overtimeWeekendWrapper = document.getElementById('overtime-weekend-date-wrapper');
-  const overtimeWeekendInput = document.getElementById('overtime-weekend-date') as HTMLInputElement | null;
-  if (overtimeWeekendWrapper && overtimeWeekendInput) {
-    overtimeWeekendWrapper.addEventListener('click', () => {
-      overtimeWeekendInput.showPicker();
-    });
-    overtimeWeekendInput.addEventListener('change', async (e) => {
-      e.stopPropagation();
-      const val = overtimeWeekendInput.value;
-      if (!val) return;
-      const dateObj = new Date(val + 'T12:00:00');
-      if (dateObj.getDay() !== 6) {
-        showToast('Por favor seleccioná un sábado', 'error');
-        overtimeWeekendInput.value = '';
-        return;
-      }
-      const displayEl = document.getElementById('overtime-weekend-date-display');
-      if (displayEl) displayEl.textContent = formatToDDMMYY(val);
-      await refreshOvertimeForWeekend(val);
-    });
-  }
+
 
   document.getElementById('save-overtime-referente-btn')?.addEventListener('click', async () => {
     if (!state.overtimeSelectedWeekend) {
@@ -415,6 +427,7 @@ export function setupOvertimeEventListeners(): void {
         overtimeShiftForm.reset();
         (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
         document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+        document.getElementById('overtime-shift-delete-btn')?.classList.add('hidden');
         await refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
       } catch {
         showToast('Error al guardar el turno', 'error');
@@ -429,7 +442,30 @@ export function setupOvertimeEventListeners(): void {
     if (form) form.reset();
     (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
     document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+    document.getElementById('overtime-shift-delete-btn')?.classList.add('hidden');
     const submitBtn = document.getElementById('overtime-shift-submit-btn');
     if (submitBtn) submitBtn.textContent = 'Agregar Turno';
+  });
+
+  document.getElementById('overtime-shift-delete-btn')?.addEventListener('click', async () => {
+    const shiftId = (document.getElementById('overtime-shift-delete-btn') as HTMLElement).dataset.shiftId;
+    if (!shiftId || !state.overtimeSelectedWeekend) return;
+    const confirmed = await showConfirm('¿Eliminar este turno de hora extra?');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/cronograma/overtime/shifts?id=${shiftId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
+      showToast('Turno eliminado', 'success');
+      const form = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
+      if (form) form.reset();
+      (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
+      document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
+      document.getElementById('overtime-shift-delete-btn')?.classList.add('hidden');
+      const submitBtn = document.getElementById('overtime-shift-submit-btn');
+      if (submitBtn) submitBtn.textContent = 'Agregar Turno';
+      await refreshOvertimeForWeekend(state.overtimeSelectedWeekend);
+    } catch {
+      showToast('Error al eliminar turno', 'error');
+    }
   });
 }
