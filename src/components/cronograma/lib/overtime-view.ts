@@ -77,7 +77,19 @@ export async function refreshOvertimeForWeekend(weekendDate: string): Promise<vo
     displayEl.textContent = formatToDDMMYY(weekendDate);
   }
 
-  const existingConfig = state.overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
+  let existingConfig = state.overtimeConfigs.find(c => c.weekendStartDate === weekendDate);
+  if (!existingConfig) {
+    try {
+      const res = await fetch(`/api/cronograma/overtime/config?weekendStartDate=${weekendDate}`);
+      if (res.ok) {
+        const remote = await res.json();
+        if (remote && remote.referente) {
+          existingConfig = { weekendStartDate: weekendDate, referente: remote.referente };
+          state.overtimeConfigs.push(existingConfig);
+        }
+      }
+    } catch { /* ignore */ }
+  }
   const referenteSelect = document.getElementById('overtime-referente-select') as HTMLSelectElement | null;
   if (referenteSelect) {
     referenteSelect.value = existingConfig ? existingConfig.referente : '';
@@ -367,6 +379,7 @@ export function setupOvertimeEventListeners(): void {
       const idx = state.overtimeConfigs.findIndex(c => c.weekendStartDate === saved.weekendStartDate);
       if (idx >= 0) state.overtimeConfigs[idx] = saved;
       else state.overtimeConfigs.push(saved);
+      if (referenteSelect) referenteSelect.value = saved.referente;
       showToast('Configuración guardada', 'success');
     } catch {
       showToast('Error al guardar la configuración', 'error');
