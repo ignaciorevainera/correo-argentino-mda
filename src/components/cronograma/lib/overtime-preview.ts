@@ -145,7 +145,7 @@ function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeeken
       <div id="${cardId}" class="cursor-pointer bg-base-100 rounded-xl border border-base-300/60 shadow-sm hover:shadow-md hover:border-warning/30 transition-all p-4 flex flex-col items-center gap-2${totalHours === 0 ? ' opacity-40' : ''}${saturdayDate === selectedWeekend ? ' ring-2 ring-warning' : ''}">
         ${donutHtml}
         <span class="text-xxs font-black uppercase tracking-wider text-base-content/70">${escapeHtml(dateLabel)}</span>
-        <span class="badge badge-sm badge-success gap-1 text-xxs font-black">ESTÁS ASIGNADO <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="badge badge-sm badge-success gap-1 text-xxs font-black"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>ESTÁS ASIGNADO</span>
         <div class="text-xxs text-base-content/70 text-center leading-tight">${escapeHtml(userShiftDetails)}</div>
         ${companionsList ? `<div class="text-xxs text-base-content/50 text-center">Compañeros: ${escapeHtml(companionsList)}</div>` : ''}
         <div class="w-full flex justify-end">
@@ -161,6 +161,20 @@ function renderCard(weekend: WeekendGroup, currentUserId: number, selectedWeeken
       <span class="badge badge-sm badge-ghost text-xxs font-black text-base-content/50">FIN DE SEMANA LIBRE</span>
       <span class="text-tiny font-semibold text-base-content/60">${operatorCount} operador${operatorCount !== 1 ? 'es' : ''}</span>
     </div>`;
+}
+
+function generateMonthOptions(currentYear: number, currentMonth: number): string {
+  const options: string[] = [];
+  // De 2 años atrás a 1 año adelante
+  for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+    for (let m = 1; m <= 12; m++) {
+      const selected = y === currentYear && m === currentMonth;
+      options.push(
+        `<option value="${y}-${String(m).padStart(2, '0')}"${selected ? ' selected' : ''}>${MONTH_NAMES[m - 1]} ${y}</option>`
+      );
+    }
+  }
+  return options.join('');
 }
 
 export function renderPreview(data: PreviewResponse): void {
@@ -187,7 +201,9 @@ export function renderPreview(data: PreviewResponse): void {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
         <button type="button" id="preview-prev-month" class="btn btn-xs btn-ghost">‹</button>
-        <h3 class="text-sm font-black uppercase tracking-wider text-base-content">${escapeHtml(monthName)} ${year}</h3>
+        <select id="preview-month-select" class="select select-ghost text-sm font-black uppercase tracking-wider text-base-content px-0 py-0 h-auto min-h-0">
+          ${generateMonthOptions(year, monthNum)}
+        </select>
         <button type="button" id="preview-next-month" class="btn btn-xs btn-ghost">›</button>
       </div>
       <div class="flex items-center gap-2">
@@ -202,6 +218,10 @@ export function renderPreview(data: PreviewResponse): void {
 
   document.getElementById('preview-prev-month')?.addEventListener('click', () => navigateMonth(-1));
   document.getElementById('preview-next-month')?.addEventListener('click', () => navigateMonth(1));
+  document.getElementById('preview-month-select')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLSelectElement).value;
+    if (val) openOvertimePreview(val);
+  });
   document.getElementById('preview-close-btn')?.addEventListener('click', closeModal);
 
   data.weekends.forEach(w => {
