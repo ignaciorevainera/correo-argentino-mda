@@ -261,10 +261,7 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     });
   }
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-create-office-btn]");
-    if (!btn) return;
-
+  window.openCreateOfficeModal = function(btn) {
     const nis = btn.getAttribute("data-nis");
     const name = btn.getAttribute("data-name");
     const cc = btn.getAttribute("data-cc");
@@ -272,7 +269,7 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     const invgateId = btn.getAttribute("data-invgate-id");
     const invgateDisplayName = btn.getAttribute("data-invgate-display-name");
     const invgateCp = btn.getAttribute("data-invgate-cp");
-    const invgateInvgateAddress = btn.getAttribute("data-invgate-invgate-address");
+    const invgateAddress = btn.getAttribute("data-invgate-address");
 
     const modal = document.getElementById("create_office_modal");
     if (!modal) return;
@@ -291,10 +288,10 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
       invgateLocationId: parseInt(invgateId, 10),
       invgateDisplayName: invgateDisplayName || "",
       invgateCp: invgateCp || "",
-      invgateAddress: invgateInvgateAddress || "",
+      invgateAddress: invgateAddress || "",
     } : null;
     modal.showModal();
-  });
+  };
 
   (function setupCreateForm() {
     const form = document.getElementById("create_office_form");
@@ -305,7 +302,7 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
       e.preventDefault();
 
         const formData = new FormData(form);
-        const data: any = {
+        const data = {
           code: formData.get("code"),
           name: formData.get("name"),
           address: (formData.get("address") || "").toUpperCase() || null,
