@@ -2,10 +2,11 @@ import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { db } from "@db/index";
-import { offices } from "@db/schema";
+import { offices, officeInvgateLinks } from "@db/schema";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { clearCache } from "@lib/invgate/locationCache";
 
 export const POST: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -17,7 +18,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   try {
     const body = await request.json();
-    const { code, name, type, officeType, provinceCode, address, cc } = body;
+    const { code, name, type, officeType, provinceCode, address, cc, invgateLink } = body;
 
     let finalType = type;
     let finalOfficeType = officeType || null;
@@ -50,10 +51,33 @@ export const POST: APIRoute = async ({ locals, request }) => {
         .join(" ")
     );
 
-    await db.insert(offices).values({
+    const insertValues = {
       ...parsed.data,
       searchableText,
-    });
+    };
+    if (insertValues.address) {
+      insertValues.address = insertValues.address.toUpperCase();
+    }
+
+    const result = await db.insert(offices).values(insertValues);
+    const officeId = Number(result.lastInsertRowid);
+
+    if (invgateLink && typeof invgateLink === "object" && officeId > 0) {
+      const { invgateLocationId, invgateDisplayName, invgateCp, invgateAddress } = invgateLink;
+      if (invgateLocationId) {
+        const syncedAt = new Date().toISOString();
+        await db.insert(officeInvgateLinks).values({
+          officeId,
+          invgateLocationId,
+          invgateDisplayName: invgateDisplayName || null,
+          invgateCp: invgateCp || null,
+          invgateAddress: invgateAddress || null,
+          lastSyncedAt: syncedAt,
+        });
+      }
+    }
+
+    clearCache();
 
     await logAdminFromAstro(locals,
       `Creó la oficina "${parsed.data.name}" (NIS ${parsed.data.code}) desde la sincronización de ubicaciones`

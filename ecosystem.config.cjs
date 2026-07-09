@@ -35,5 +35,15 @@ module.exports = {
       error_file: "./logs/sync-users-error.log",
       out_file: "./logs/sync-users-out.log",
     },
+    {
+      name: "sync-office-links",
+      script: "node",
+      args: "--import tsx scripts/sync-office-links.ts",
+      cron_restart: "0 3 * * *",
+      autorestart: false,
+      watch: false,
+      error_file: "./logs/sync-office-links-error.log",
+      out_file: "./logs/sync-office-links-out.log",
+    },
   ],
 };

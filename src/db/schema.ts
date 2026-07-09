@@ -171,7 +171,29 @@ export const officesRelations = relations(offices, ({ one, many }) => ({
   contacts: many(officeContacts),
   assets: many(officeAssets),
   terminals: many(terminals),
+  invgateLink: one(officeInvgateLinks, {
+    fields: [offices.id],
+    references: [officeInvgateLinks.officeId],
+  }),
 }));
+
+export const officeInvgateLinks = sqliteTable("office_invgate_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  officeId: integer("office_id")
+    .notNull()
+    .unique()
+    .references(() => offices.id, { onDelete: "cascade" }),
+  invgateLocationId: integer("invgate_location_id").notNull(),
+  invgateParentId: integer("invgate_parent_id"),
+  invgateParentName: text("invgate_parent_name"),
+  invgateDisplayName: text("invgate_display_name"),
+  invgateCp: text("invgate_cp"),
+  invgateCc: text("invgate_cc"),
+  invgateAddress: text("invgate_address"),
+  invgateDuplicateCount: integer("invgate_duplicate_count").default(0),
+  lastSyncedAt: text("last_synced_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
 
 export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   office: one(offices, {
