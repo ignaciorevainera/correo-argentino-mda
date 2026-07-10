@@ -47,7 +47,7 @@ const levelColors = [
 const linkedJson = JSON.stringify(
   linkedRecords.map((r) => ({
     id: r.id,
-    helpDeskName: r.helpDeskName,
+    helpDeskName: r.legacyName || `Registro #${r.id}`,
     legacyName: r.legacyName,
   })),
 );
@@ -61,7 +61,7 @@ const unassignedRecords = await db.query.supportGuides.findMany({
 const unassignedJson = JSON.stringify(
   unassignedRecords.map((r) => ({
     id: r.id,
-    helpDeskName: r.helpDeskName,
+    helpDeskName: r.legacyName || `Registro #${r.id}`,
     legacyName: r.legacyName,
   })),
 );
@@ -89,12 +89,7 @@ if (Astro.request.method === "POST") {
           .where(eq(supportGuides.id, record.id));
       }
     } else {
-      const invgateName = linkedHd?.name || null;
-      const helpDeskName = invgateName || "Sin nombre InvGate";
-
       await db.insert(supportGuides).values({
-        helpDeskName,
-        invgateName,
         invgate_id: invgateId,
         categories,
         route,
@@ -178,7 +173,7 @@ const pageTitle = `Editar: ${hdName}`;
 
           <div>
             <h4 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
-              <Icon name="boxicons:group" size={16} />
+              <Icon name="boxicons:group-filled" size={16} />
               Lista de miembros
             </h4>
             <div id="members-loader" class="flex items-center gap-2 text-sm text-base-content/50 py-2">
@@ -201,11 +196,11 @@ const pageTitle = `Editar: ${hdName}`;
           </p>
 
           <div id="linked-sm-list" class="flex flex-wrap gap-2 mb-3">
-            {linkedRecords.length > 0 ? (
+             {linkedRecords.length > 0 ? (
               linkedRecords.map((rec) => (
-                <div class="badge badge-neutral gap-2 p-3 pr-2" data-linked-id={rec.id}>
-                  <span>{rec.helpDeskName}{rec.legacyName ? ` — ${rec.legacyName}` : ""}</span>
-                  <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id={rec.id}>✕</button>
+                <div class="badge badge-neutral gap-2 pl-3 pr-2 py-4" data-linked-id={rec.id}>
+                  <span>{rec.legacyName || `Registro #${rec.id}`}</span>
+                  <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id={rec.id}><Icon name="boxicons:x" size={16} /></button>
                 </div>
               ))
             ) : (
@@ -216,15 +211,15 @@ const pageTitle = `Editar: ${hdName}`;
           <div id="assign-chain" data-invgate-id={invgateId} data-unassigned={unassignedJson} data-linked={linkedJson}>
             {unassignedRecords.length > 0 && (
               <div class="assign-row flex items-center gap-2">
-                <select class="select select-sm select-bordered flex-1 assign-select">
+                <select class="select select-bordered flex-1 assign-select">
                   <option value="">Seleccionar mesa SM...</option>
                   {unassignedRecords.map((rec) => (
                     <option value={rec.id}>
-                      {rec.helpDeskName}{rec.legacyName ? `${rec.legacyName}` : ""}
+                      {rec.legacyName || `Registro #${rec.id}`}
                     </option>
                   ))}
                 </select>
-                <button type="button" class="btn btn-xs btn-primary assign-btn">
+                <button type="button" class="btn btn-primary assign-btn">
                   Vincular
                 </button>
               </div>
@@ -287,6 +282,10 @@ const pageTitle = `Editar: ${hdName}`;
     </div>
   </PageContainer>
 </BaseLayout>
+
+<template id="x-icon-template">
+  <Icon name="boxicons:x" size={16} />
+</template>
 
 <script>
   import { getCleanBase } from "@lib/baseUrl";
@@ -361,7 +360,7 @@ const pageTitle = `Editar: ${hdName}`;
         ${unassigned
           .map(
             (r) =>
-              `<option value="${r.id}">${r.helpDeskName}${r.legacyName ? ` — ${r.legacyName}` : ""}</option>`
+              `<option value="${r.id}">${r.legacyName || "Registro #" + r.id}</option>`
           )
           .join("")}
       `;
@@ -397,18 +396,21 @@ const pageTitle = `Editar: ${hdName}`;
           }
 
           if (list) {
+            const xIconSvg = document.getElementById("x-icon-template")?.innerHTML || "✕";
             const chip = document.createElement("div");
-            chip.className = "badge badge-neutral gap-2 p-3 pr-2";
+            chip.className = "badge badge-neutral gap-2 pl-3 pr-2 py-4";
             chip.setAttribute("data-linked-id", item.id.toString());
             chip.innerHTML = `
-              <span>${item.helpDeskName}${item.legacyName ? ` — ${item.legacyName}` : ""}</span>
-              <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id="${item.id}">✕</button>
+              <span>${item.legacyName || "Registro #" + item.id}</span>
+              <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id="${item.id}">${xIconSvg}</button>
             `;
             list.appendChild(chip);
           }
         }
 
         updateAssignChainUI();
+        btn.disabled = false;
+        btn.textContent = originalText;
         (window as any).showToast?.("Mesa SM vinculada correctamente", "alert-success");
       })
       .catch((err: any) => {
