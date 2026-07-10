@@ -10,6 +10,8 @@ import { asc } from "drizzle-orm";
 import { isAllowed } from "@lib/rolesMatrix";
 import HelpdeskCard from "./HelpdeskCard.astro";
 import UnassignedRecords from "./UnassignedRecords.astro";
+import SoportesStats from "./SoportesStats.astro";
+import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
 import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 
@@ -68,6 +70,18 @@ guides.forEach((g) => {
     unassignedRecords.push(g);
   }
 });
+
+const uniqueParentNames = [
+  ...new Set(
+    visibleHelpdesks.map((hd) => parentNameMap.get(hd.id)).filter(Boolean),
+  ),
+].sort((a, b) => a!.localeCompare(b!)) as string[];
+
+const activeCount = visibleHelpdesks.filter((hd) => hd.status_id === 1).length;
+const totalMembers = visibleHelpdesks.reduce(
+  (acc, hd) => acc + (hd.total_members || 0),
+  0,
+);
 ---
 
 <PageContainer width="xxl">
@@ -89,18 +103,69 @@ guides.forEach((g) => {
 
   <UnassignedRecords count={unassignedRecords.length} isAdmin={isAdminUser} />
 
-  <div class="flex flex-wrap items-center gap-4">
-    <SearchBar
-      id="soportes-search"
-      placeholder="Buscar por nombre SM, Invgate, topico..."
-      class="w-full md:w-80"
+  <SoportesStats
+    total={visibleHelpdesks.length}
+    active={activeCount}
+    totalMembers={totalMembers}
+  />
+
+  <div class="flex flex-nowrap items-center gap-2 md:gap-3 w-full">
+    <div class="flex-1 min-w-0">
+      <SearchBar
+        id="soportes-search"
+        placeholder="Buscar por nombre SM, Invgate, topico..."
+        class="w-full"
+      />
+    </div>
+
+    <select
+      id="filter-status"
+      class="select select-bordered shrink-0 select-sm md:select-md"
+    >
+      <option value="all">Todos los estados</option>
+      <option value="active">Activos</option>
+      <option value="inactive">Inactivos</option>
+    </select>
+
+    {
+      uniqueParentNames.length > 0 && (
+        <select
+          id="filter-parent"
+          class="select select-bordered shrink-0 select-sm md:select-md"
+        >
+          <option value="all">Todas las mesas padre</option>
+          {uniqueParentNames.map((name) => (
+            <option value={name}>{name}</option>
+          ))}
+        </select>
+      )
+    }
+
+    <select
+      id="sort-by"
+      class="select select-bordered shrink-0 select-sm md:select-md"
+    >
+      <option value="name-asc">Nombre A-Z</option>
+      <option value="name-desc">Nombre Z-A</option>
+      <option value="members-desc">Más miembros</option>
+      <option value="members-asc">Menos miembros</option>
+      <option value="topics-desc">Más tópicos</option>
+      <option value="topics-asc">Menos tópicos</option>
+    </select>
+
+    <ExportCsvButton
+      id="export-csv"
+      title="Exportar como CSV"
+      label="CSV"
+      shortLabel="CSV"
+      iconSize={16}
     />
-    <span
-      class="badge badge-neutral badge-sm font-mono hidden"
-      id="search-count-badge"></span>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div
+    id="soportes-grid"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+  >
     {
       visibleHelpdesks.map((hd) => {
         const records = groupedRecords.get(hd.id) || [];
@@ -147,41 +212,155 @@ guides.forEach((g) => {
 
   const searchInput =
     document.querySelector<HTMLInputElement>("#soportes-search");
+  const filterStatus =
+    document.querySelector<HTMLSelectElement>("#filter-status");
+  const filterParent =
+    document.querySelector<HTMLSelectElement>("#filter-parent");
+  const sortBy = document.querySelector<HTMLSelectElement>("#sort-by");
+  const grid = document.querySelector<HTMLElement>("#soportes-grid");
   const cards = document.querySelectorAll<HTMLElement>("[data-card-for]");
-  const countBadge = document.querySelector<HTMLElement>("#search-count-badge");
 
-  function applySearch() {
+  function applyFiltersAndSort() {
     const query = searchInput?.value.trim() || "";
-    let visibleCount = 0;
+    const statusFilter = filterStatus?.value || "all";
+    const parentFilter = filterParent?.value || "all";
+    const sortValue = sortBy?.value || "name-asc";
+
+    const visible: HTMLElement[] = [];
 
     cards.forEach((card) => {
       const searchText = card.dataset.searchText || "";
-      const isVisible = matchesSearchQuery(query, [searchText]);
+      const cardStatus = card.dataset.status || "";
+      const cardParent = card.dataset.parentName || "";
 
+      const matchesSearch = matchesSearchQuery(query, [searchText]);
+      const matchesStatus =
+        statusFilter === "all" || cardStatus === statusFilter;
+      const matchesParent =
+        parentFilter === "all" || cardParent === parentFilter;
+
+      const isVisible = matchesSearch && matchesStatus && matchesParent;
       card.classList.toggle("hidden", !isVisible);
 
       if (isVisible) {
-        visibleCount++;
+        visible.push(card);
         highlightSearchTargets(card, query);
       }
     });
 
-    if (countBadge) {
-      if (query) {
-        countBadge.classList.remove("hidden");
-        countBadge.textContent = `${visibleCount} de ${cards.length}`;
-      } else {
-        countBadge.classList.add("hidden");
+    visible.sort((a, b) => {
+      const getName = (el: HTMLElement) =>
+        (el.dataset.name || "").toLowerCase();
+      const getMembers = (el: HTMLElement) =>
+        parseInt(el.dataset.memberCount || "0", 10);
+      const getTopics = (el: HTMLElement) =>
+        parseInt(el.dataset.topicCount || "0", 10);
+
+      switch (sortValue) {
+        case "name-desc":
+          return getName(b).localeCompare(getName(a));
+        case "members-desc":
+          return getMembers(b) - getMembers(a);
+        case "members-asc":
+          return getMembers(a) - getMembers(b);
+        case "topics-desc":
+          return getTopics(b) - getTopics(a);
+        case "topics-asc":
+          return getTopics(a) - getTopics(b);
+        default:
+          return getName(a).localeCompare(getName(b));
       }
+    });
+
+    if (grid) {
+      visible.forEach((card) => grid.appendChild(card));
     }
   }
 
-  searchInput?.addEventListener("input", applySearch);
+  searchInput?.addEventListener("input", applyFiltersAndSort);
+  filterStatus?.addEventListener("change", applyFiltersAndSort);
+  filterParent?.addEventListener("change", applyFiltersAndSort);
+  sortBy?.addEventListener("change", applyFiltersAndSort);
 
-  // Re-apply search when async members load completes
   cards.forEach((card) => {
     card.addEventListener("members-loaded", () => {
-      if (searchInput?.value) applySearch();
+      if (searchInput?.value) applyFiltersAndSort();
     });
   });
+
+  const exportCsvBtn = document.querySelector<HTMLButtonElement>("#export-csv");
+  const exportPdfBtn = document.querySelector<HTMLButtonElement>("#export-pdf");
+
+  exportCsvBtn?.addEventListener("click", () => {
+    const visibleCards = Array.from(cards).filter(
+      (c) => !c.classList.contains("hidden"),
+    );
+
+    let csvContent = "\uFEFF";
+    csvContent += "Nombre,Estado,Mesa Padre,Miembros,Tópicos,Nombres Legacy\n";
+
+    visibleCards.forEach((card) => {
+      const name = (card.dataset.name || "").replace(/"/g, '""');
+      const status = card.dataset.status === "active" ? "Activo" : "Inactivo";
+      const parentName = (card.dataset.parentName || "").replace(/"/g, '""');
+      const members = card.dataset.memberCount || "0";
+
+      const topics = Array.from(card.querySelectorAll(".badge-secondary"))
+        .map((el) => el.textContent?.trim() || "")
+        .join(", ")
+        .replace(/"/g, '""');
+
+      const legacy = Array.from(card.querySelectorAll(".badge-ghost"))
+        .filter((el) => !el.querySelector(".line-clamp-2"))
+        .map((el) => el.textContent?.trim() || "")
+        .filter(Boolean)
+        .join(", ")
+        .replace(/"/g, '""');
+
+      csvContent += `"${name}","${status}","${parentName}",${members},"${topics}","${legacy}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "soportes-helpdesks.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  exportPdfBtn?.addEventListener("click", () => {
+    window.print();
+  });
 </script>
+
+<style>
+  @media print {
+    :global(header),
+    :global(footer),
+    :global(aside),
+    :global(nav),
+    #soportes-search,
+    #filter-status,
+    #filter-parent,
+    #sort-by,
+    #export-csv,
+    #export-pdf,
+    :global(.card-actions),
+    :global(.alert) {
+      display: none !important;
+    }
+    #soportes-grid {
+      display: grid !important;
+      grid-template-cols: repeat(2, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+    }
+    :global(.card) {
+      break-inside: avoid;
+      box-shadow: none !important;
+      border: 1px solid #e5e7eb !important;
+    }
+  }
+</style>
