@@ -12,6 +12,7 @@ import HelpdeskCard from "./HelpdeskCard.astro";
 import UnassignedRecords from "./UnassignedRecords.astro";
 import SoportesStats from "./SoportesStats.astro";
 import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 
@@ -153,6 +154,15 @@ const totalMembers = visibleHelpdesks.reduce(
       <option value="topics-asc">Menos tópicos</option>
     </select>
 
+    <button
+      id="clear-filters"
+      class="btn btn-outline btn-error font-semibold gap-2 shrink-0 btn-sm md:btn-md"
+      aria-label="Limpiar todos los filtros"
+      title="Limpiar todos los filtros"
+    >
+      <Icon name="boxicons:trash" class="size-4" aria-hidden="true" />
+      <span class="hidden lg:inline">Limpiar filtros</span>
+    </button>
     <ExportCsvButton
       id="export-csv"
       title="Exportar como CSV"
@@ -201,6 +211,16 @@ const totalMembers = visibleHelpdesks.reduce(
         </div>
       )
     }
+
+    <SearchEmptyState
+      id="no-results-state-soportes"
+      class="hidden col-span-full"
+      title="Sin resultados"
+      description="No se encontraron mesas de ayuda o áreas que coincidan con los filtros aplicados."
+      showClearButton={true}
+      clearButtonId="btn-clear-empty-soportes"
+      clearButtonText="Limpiar filtros"
+    />
   </div>
 </PageContainer>
 
@@ -248,6 +268,17 @@ const totalMembers = visibleHelpdesks.reduce(
       }
     });
 
+    const noResultsState = document.getElementById("no-results-state-soportes");
+    if (noResultsState) {
+      if (visible.length === 0) {
+        noResultsState.classList.remove("hidden");
+        noResultsState.classList.add("flex");
+      } else {
+        noResultsState.classList.add("hidden");
+        noResultsState.classList.remove("flex");
+      }
+    }
+
     visible.sort((a, b) => {
       const getName = (el: HTMLElement) =>
         (el.dataset.name || "").toLowerCase();
@@ -287,6 +318,23 @@ const totalMembers = visibleHelpdesks.reduce(
       if (searchInput?.value) applyFiltersAndSort();
     });
   });
+
+  const clearFiltersBtn =
+    document.querySelector<HTMLButtonElement>("#clear-filters");
+  const clearEmptyBtn = document.querySelector<HTMLButtonElement>(
+    "#btn-clear-empty-soportes",
+  );
+
+  const resetFilters = () => {
+    if (searchInput) searchInput.value = "";
+    if (filterStatus) filterStatus.value = "all";
+    if (filterParent) filterParent.value = "all";
+    if (sortBy) sortBy.value = "name-asc";
+    applyFiltersAndSort();
+  };
+
+  clearFiltersBtn?.addEventListener("click", resetFilters);
+  clearEmptyBtn?.addEventListener("click", resetFilters);
 
   const exportCsvBtn = document.querySelector<HTMLButtonElement>("#export-csv");
   const exportPdfBtn = document.querySelector<HTMLButtonElement>("#export-pdf");
@@ -346,6 +394,7 @@ const totalMembers = visibleHelpdesks.reduce(
     #filter-status,
     #filter-parent,
     #sort-by,
+    #clear-filters,
     #export-csv,
     #export-pdf,
     :global(.card-actions),
@@ -354,7 +403,7 @@ const totalMembers = visibleHelpdesks.reduce(
     }
     #soportes-grid {
       display: grid !important;
-      grid-template-cols: repeat(2, minmax(0, 1fr)) !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
       gap: 12px !important;
     }
     :global(.card) {
