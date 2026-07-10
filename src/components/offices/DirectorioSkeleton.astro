@@ -1,86 +1,123 @@
 ---
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import { isAllowed } from "@lib/rolesMatrix";
 
-const officeDirectoryHeaderGridClass = "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
+const user = Astro.locals.user;
+const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
+const officeDirectoryHeaderGridClass = isAllowedAdmin
+  ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
+  : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
 ---
 
 <PageContainer width="xxl">
-  <PageHeader
-    description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
-  />
+  <div class="skeleton-debounced flex flex-col gap-6">
+    <PageHeader
+      description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
+    />
 
-  <!-- ViewSwitcher Skeleton -->
-  <div class="w-full">
-    <div class="h-12 w-full skeleton rounded-lg"></div>
-  </div>
-
-  <!-- Contenedor de Directorio Skeleton -->
-  <div class="space-y-6 mt-6">
-    <!-- Form/Filtros Skeleton -->
-    <div class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
-      <!-- FilterTabsBox Skeleton -->
+    <!-- ViewSwitcher Skeleton -->
+    <div class="w-full">
       <div class="h-12 w-full skeleton rounded-lg"></div>
-      
-      <!-- Selects and Button Skeleton -->
-      <div class="flex flex-wrap items-center gap-3 w-full">
-        <div class="h-12 w-32 skeleton grow rounded-lg"></div>
-        <div class="h-12 w-32 skeleton grow rounded-lg"></div>
-        <div class="h-12 w-32 skeleton grow rounded-lg"></div>
-        <div class="h-12 w-32 skeleton grow rounded-lg"></div>
-        <div class="h-12 w-32 skeleton rounded-lg"></div>
-      </div>
-
-      <!-- Search Skeleton -->
-      <div class="w-full">
-        <div class="h-14 w-full skeleton rounded-lg"></div>
-      </div>
     </div>
 
-    <!-- Table Skeleton (MasterDetailTable layout) -->
-    <div class="border border-base-300 rounded-xl overflow-hidden bg-base-100 shadow-sm">
-      <!-- Header Skeleton -->
-      <div class={`grid ${officeDirectoryHeaderGridClass} border-b border-base-300 px-4 py-3 bg-base-200/50`}>
-        <div></div>
-        <div><div class="h-5 w-12 skeleton rounded"></div></div>
-        <div><div class="h-5 w-24 skeleton rounded"></div></div>
-        <div><div class="h-5 w-20 skeleton rounded"></div></div>
-        <div><div class="h-5 w-32 skeleton rounded"></div></div>
-        <div><div class="h-5 w-16 skeleton rounded"></div></div>
+    <!-- Contenedor de Directorio Skeleton -->
+    <div class="space-y-6 mt-6">
+      <!-- Form/Filtros Skeleton -->
+      <div class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
+        <!-- FilterTabsBox Skeleton -->
+        <div class="p-2 bg-base-200/50 rounded-box">
+          <div class="flex flex-wrap gap-1.5">
+            <div class="h-10 w-28 skeleton rounded-lg"></div>
+            <div class="h-10 w-36 skeleton rounded-lg"></div>
+            <div class="h-10 w-32 skeleton rounded-lg"></div>
+            <div class="h-10 w-28 skeleton rounded-lg"></div>
+            <div class="h-10 w-24 skeleton rounded-lg"></div>
+            <div class="h-10 w-32 skeleton rounded-lg"></div>
+            <div class="h-10 w-20 skeleton rounded-lg"></div>
+          </div>
+        </div>
+        
+        <!-- Selects and Button Skeleton -->
+        <div class="flex flex-wrap items-center gap-3 w-full">
+          <div class="h-12 w-32 skeleton grow rounded-lg"></div>
+          <div class="h-12 w-32 skeleton grow rounded-lg"></div>
+          <div class="h-12 w-32 skeleton grow rounded-lg"></div>
+          <div class="h-12 w-32 skeleton grow rounded-lg"></div>
+          <div class="h-12 w-32 skeleton rounded-lg"></div>
+        </div>
+
+        <!-- Search + Buttons Skeleton -->
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+          <div class="w-full">
+            <div class="h-14 w-full skeleton rounded-lg"></div>
+          </div>
+          <div class="h-10 w-36 skeleton rounded-lg shrink-0"></div>
+          {
+            isAllowedAdmin && (
+              <div class="h-10 w-36 skeleton rounded-lg shrink-0"></div>
+            )
+          }
+        </div>
       </div>
 
-      <!-- Rows Skeleton (10 rows) -->
-      <div class="divide-y divide-base-300">
-        {Array.from({ length: 10 }).map(() => (
-          <div class={`grid ${officeDirectoryHeaderGridClass} items-center px-4 py-4`}>
-            <!-- Chevron placeholder -->
-            <div class="flex justify-center">
-              <div class="size-5 rounded skeleton"></div>
+      <!-- Table Skeleton (MasterDetailTable layout) -->
+      <div class="border border-base-300 rounded-xl overflow-hidden bg-base-100 shadow-sm">
+        <!-- Header Skeleton -->
+        <div class={`grid ${officeDirectoryHeaderGridClass} border-b border-base-300 px-4 py-3 bg-base-200/50`}>
+          <div></div>
+          <div><div class="h-5 w-12 skeleton rounded"></div></div>
+          <div><div class="h-5 w-24 skeleton rounded"></div></div>
+          <div><div class="h-5 w-20 skeleton rounded"></div></div>
+          <div><div class="h-5 w-32 skeleton rounded"></div></div>
+          <div><div class="h-5 w-16 skeleton rounded"></div></div>
+          {
+            isAllowedAdmin && (
+              <div><div class="h-5 w-16 skeleton rounded"></div></div>
+            )
+          }
+        </div>
+
+        <!-- Rows Skeleton (10 rows) -->
+        <div class="divide-y divide-base-300">
+          {Array.from({ length: 10 }).map(() => (
+            <div class={`grid ${officeDirectoryHeaderGridClass} items-center px-4 py-4`}>
+              <!-- Chevron placeholder -->
+              <div class="flex justify-center">
+                <div class="size-5 rounded skeleton"></div>
+              </div>
+              <!-- Code -->
+              <div>
+                <div class="h-4 w-12 skeleton rounded font-mono"></div>
+              </div>
+              <!-- Name / Details -->
+              <div class="flex flex-col gap-1.5">
+                <div class="h-4 w-40 skeleton rounded"></div>
+                <div class="h-3 w-24 skeleton rounded"></div>
+              </div>
+              <!-- Dependency / NIS -->
+              <div>
+                <div class="h-4 w-14 skeleton rounded"></div>
+              </div>
+              <!-- Address -->
+              <div class="flex flex-col gap-1.5">
+                <div class="h-4 w-52 skeleton rounded"></div>
+                <div class="h-3 w-28 skeleton rounded"></div>
+              </div>
+              <!-- Cost Center -->
+              <div>
+                <div class="h-4 w-16 skeleton rounded"></div>
+              </div>
+              {
+                isAllowedAdmin && (
+                  <div class="flex justify-end gap-2">
+                    <div class="h-8 w-14 skeleton rounded-lg"></div>
+                  </div>
+                )
+              }
             </div>
-            <!-- Code -->
-            <div>
-              <div class="h-4 w-12 skeleton rounded font-mono"></div>
-            </div>
-            <!-- Name / Details -->
-            <div class="flex flex-col gap-1.5">
-              <div class="h-4 w-40 skeleton rounded"></div>
-              <div class="h-3 w-24 skeleton rounded"></div>
-            </div>
-            <!-- Dependency / NIS -->
-            <div>
-              <div class="h-4 w-14 skeleton rounded"></div>
-            </div>
-            <!-- Address -->
-            <div class="flex flex-col gap-1.5">
-              <div class="h-4 w-52 skeleton rounded"></div>
-              <div class="h-3 w-28 skeleton rounded"></div>
-            </div>
-            <!-- Cost Center -->
-            <div>
-              <div class="h-4 w-16 skeleton rounded"></div>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   </div>

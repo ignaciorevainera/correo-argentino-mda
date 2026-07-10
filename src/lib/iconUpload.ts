@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getIconsDir, ensureDir } from "@lib/storage";
+import { sanitizeSvgContent } from "@lib/svgSanitize";
 
 const MAX_ICON_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
@@ -69,15 +71,11 @@ export async function processIconUpload({
   const safeFileName = `${Date.now()}_icon_${baseName}${ext}`;
 
   // Resolve storage directory
-  const uploadDir = path.resolve(
-    process.env.EXTERNAL_STORAGE_DIR ||
-      "C:/Projects/correo-argentino-mda-programs",
-  );
-  const iconsDir = path.join(uploadDir, "icons");
+  const iconsDir = getIconsDir();
 
   // Ensure directory exists
   try {
-    fs.mkdirSync(iconsDir, { recursive: true });
+    ensureDir(iconsDir);
   } catch (dirError: any) {
     if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
       throw dirError;
@@ -87,17 +85,32 @@ export async function processIconUpload({
     );
   }
 
-  // 5. Write file with I/O error handling (500 — Internal Server Error)
-  try {
-    const buffer = Buffer.from(await iconFile.arrayBuffer());
-    fs.writeFileSync(path.join(iconsDir, safeFileName), buffer);
-  } catch (writeError: any) {
-    console.error(
-      `[iconUpload] Error al escribir "${safeFileName}": ${writeError.message}`,
-    );
-    throw new Error(
-      "No se pudo guardar el ícono en el servidor. Verificá los permisos de la carpeta de almacenamiento.",
-    );
+  // 5. SVG sanitization (XSS prevention)
+  if (ext === ".svg") {
+    const raw = Buffer.from(await iconFile.arrayBuffer()).toString("utf-8");
+    const clean = sanitizeSvgContent(raw);
+    try {
+      fs.writeFileSync(path.join(iconsDir, safeFileName), clean, "utf-8");
+    } catch (writeError: any) {
+      console.error(
+        `[iconUpload] Error al escribir "${safeFileName}": ${writeError.message}`,
+      );
+      throw new Error(
+        "No se pudo guardar el ícono en el servidor. Verificá los permisos de la carpeta de almacenamiento.",
+      );
+    }
+  } else {
+    try {
+      const buffer = Buffer.from(await iconFile.arrayBuffer());
+      fs.writeFileSync(path.join(iconsDir, safeFileName), buffer);
+    } catch (writeError: any) {
+      console.error(
+        `[iconUpload] Error al escribir "${safeFileName}": ${writeError.message}`,
+      );
+      throw new Error(
+        "No se pudo guardar el ícono en el servidor. Verificá los permisos de la carpeta de almacenamiento.",
+      );
+    }
   }
 
   // 6. Cleanup old icon file

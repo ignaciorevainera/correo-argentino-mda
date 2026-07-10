@@ -1,0 +1,57 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  href?: string;
+  label?: string;
+  size?: "xs" | "sm" | "default";
+  type?: "button" | "submit";
+  icon?: string;
+  class?: string;
+  id?: string;
+  [key: string]: any;
+}
+
+const {
+  href,
+  label = "Cancelar",
+  size = "default",
+  type = "button",
+  icon,
+  class: className = "",
+  id,
+  ...attrs
+} = Astro.props;
+
+const sizeClasses = {
+  xs: "btn-xs",
+  sm: "btn-sm",
+  default: "btn-sm md:btn-md"
+};
+const sizeClass = sizeClasses[size] || sizeClasses.default;
+const btnClasses = `btn ${sizeClass} btn-soft btn-ghost gap-2`;
+---
+
+{
+  href ? (
+    <a
+      id={id}
+      href={href}
+      class:list={[btnClasses, className]}
+      {...attrs}
+    >
+      {icon && <Icon name={icon} size={16} />}
+      {label}
+    </a>
+  ) : (
+    <button
+      type={type}
+      id={id}
+      class:list={[btnClasses, className]}
+      {...attrs}
+    >
+      {icon && <Icon name={icon} size={16} />}
+      {label}
+    </button>
+  )
+}

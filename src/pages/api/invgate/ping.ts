@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ locals }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -27,6 +27,6 @@ export const GET: APIRoute = async ({ locals }) => {
     });
   } catch (error: any) {
     console.error("[InvGate Ping] Error:", error);
-    return jsonResponse({ ok: false, error: error.message }, 500);
+    return jsonResponse({ ok: false, error: sanitizeError(error) }, 500);
   }
 };

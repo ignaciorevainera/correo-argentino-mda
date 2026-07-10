@@ -4,7 +4,7 @@ interface Props {
 
 export const TitleCardSkeleton = ({ count = 8 }: Props) => {
     return (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
+        <section className="skeleton-debounced grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
             {Array.from({ length: count }).map((_, index) => (
                 <article key={index} className="card bg-base-200/30 card-compact border border-base-300 h-32">
                     <header className="card-header flex items-center gap-x-2 p-3">

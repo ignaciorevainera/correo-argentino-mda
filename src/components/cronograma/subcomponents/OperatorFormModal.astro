@@ -1,6 +1,6 @@
 ---
 // OperatorFormModal.astro
-import { Icon } from "astro-icon/components";
+import Modal from "@components/ui/Modal.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 
@@ -22,15 +22,9 @@ const locationSelectId = isEdit ? "edit-op-location" : "new-op-location";
 const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
 ---
 
-<dialog id={dialogId} class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
-    <h3 class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
-      <Icon name={titleIcon} class="text-secondary" size={22} />
-      {titleText}
-    </h3>
-    
+<Modal id={dialogId} title={titleText} icon={titleIcon} titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-[200]" class="max-w-md">
+  <Fragment slot="content">
     {isEdit && <input type="hidden" id="edit-op-original-name" />}
-
     <div class="space-y-4">
       <FormField id={nameInputId} name={nameInputId} label="Nombre Completo" placeholder="Ej: Juan Pérez" size="sm" />
       <FormField id={usernameInputId} name={usernameInputId} label="Nombre de Usuario (Red)" placeholder="Ej: jperez" size="sm" inputClass="font-mono" />
@@ -39,18 +33,16 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
         <option value="Parque Patricios">Parque Patricios</option>
       </SelectField>
     </div>
-    
+  </Fragment>
+  <Fragment slot="actions">
     <div class="modal-action mt-6 flex justify-end gap-2">
       <form method="dialog" class="flex gap-2">
         <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id={cancelBtnId} type="button">Cancelar</button>
         <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id={confirmBtnId} type="button">{confirmBtnText}</button>
       </form>
     </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+  </Fragment>
+</Modal>
 
 <script>
   import { createOperator, editOperator } from "../lib/api";

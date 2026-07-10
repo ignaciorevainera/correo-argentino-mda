@@ -1,0 +1,42 @@
+import type { APIRoute } from "astro";
+import { invgateGet } from "@lib/invgateClient";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import type { InvgateHelpdesk } from "@/types/invgate";
+import { normalizeSearchValue } from "@lib/clientSearch";
+
+export const GET: APIRoute = async ({ url }) => {
+  const q = url.searchParams.get("q")?.trim();
+
+  if (!q || q.length < 2) {
+    return jsonResponse({ error: "?q= requiere al menos 2 caracteres" }, 400);
+  }
+
+  try {
+    const result = await invgateGet<InvgateHelpdesk[]>("helpdesks");
+
+    if (!result.ok) {
+      return jsonResponse({ error: result.message }, result.status);
+    }
+
+    const helpdesks = Array.isArray(result.data) ? result.data : [];
+    const normalizedQuery = normalizeSearchValue(q);
+
+    const filtered = helpdesks
+      .filter((hd) => normalizeSearchValue(hd.name).includes(normalizedQuery))
+      .slice(0, 10)
+      .map((hd) => ({
+        id: hd.id,
+        name: hd.name,
+        totalMembers: hd.total_members,
+      }));
+
+    return jsonResponse(
+      { helpdesks: filtered },
+      200,
+      "private, max-age=60",
+    );
+  } catch (error: any) {
+    console.error("[InvGate Helpdesk Search] Error:", error);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
+  }
+};

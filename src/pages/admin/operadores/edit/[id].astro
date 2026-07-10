@@ -9,22 +9,21 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
+import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 
 const { id } = Astro.params;
-const isNew = false;
-let successMsg = "";
+
 let errorMsg = "";
 
 if (!id || isNaN(Number(id))) {
-  return Astro.redirect(`${cleanBase}admin/operadores`);
+  return Astro.redirect(resolveUrl("/admin/operadores"));
 }
 
 const daysOfWeek = [
@@ -153,11 +152,11 @@ if (Astro.request.method === "POST") {
         logMessage = `Actualizó el operador de "${original.name}" a "${name}"`;
       }
 
-      await logAdminAction(user?.username || 'Sistema', logMessage);
+      await logAdminFromAstro(Astro.locals, logMessage);
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: `${cleanBase}admin/operadores` }), { status: 200, headers: {"Content-Type": "application/json"} });
+        return toastResponse({ success: true, message: "Operador y horarios actualizados con éxito.", redirectUrl: resolveUrl("/admin/operadores") });
       }
-      return Astro.redirect(`${cleanBase}admin/operadores?toast_msg=${encodeURIComponent("Operador y horarios actualizados con éxito.")}&toast_type=success`);
+      return redirectWithToast("/admin/operadores", "Operador y horarios actualizados con éxito.");
     }
   } catch (e: any) {
     console.error("POST Admin Operator Error:", e);
@@ -165,7 +164,7 @@ if (Astro.request.method === "POST") {
       ? "Ya existe un operador con ese nombre o ID de usuario."
       : "Error al guardar el operador.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+      return toastResponse({ success: false, error: errorMsg });
     }
   }
 }
@@ -183,9 +182,13 @@ let operator: OperatorRecord | null = null;
 let operatorSchedulesData: Record<string, Record<string, any>> = {};
 
 const agentId = Number(id);
-const [result] = await db.select().from(agents).where(eq(agents.id, agentId));
+const [result] = await db.select({
+  id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+  esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+  esquemaBreakInicio: agents.esquemaBreakInicio,
+}).from(agents).where(eq(agents.id, agentId));
 
-if (!result) return Astro.redirect(`${cleanBase}admin/operadores`);
+if (!result) return Astro.redirect(resolveUrl("/admin/operadores"));
 
 const availList = await getDisponibilidadHoy();
 const currentAvail = availList.find((a) => a.agentId === agentId);
@@ -235,7 +238,7 @@ const pageTitle = `Editar: ${operator!.name}`;
   <PageContainer>
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/operadores`}
+        href={resolveUrl("/admin/operadores")}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
@@ -253,14 +256,7 @@ const pageTitle = `Editar: ${operator!.name}`;
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
-        </script>
-      )
-    }
-    {
-      successMsg && (
-        <script is:inline define:vars={{ successMsg }}>
-          window.showToast?.(successMsg, "alert-success");
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
         </script>
       )
     }
@@ -425,17 +421,17 @@ const pageTitle = `Editar: ${operator!.name}`;
       </SectionCard>
 
       <div class="flex items-center justify-between gap-3 pt-1">
-        <a
-          href={`${cleanBase}admin/operadores`}
-          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
-        >
-          <Icon name="boxicons:arrow-left-filled" size={16} />
-          Volver al listado
-        </a>
-        <button type="submit" class="btn btn-primary btn-sm gap-2">
-          <Icon name="boxicons:save-filled" size={16} />
-          Guardar cambios
-        </button>
+        <ActionCancelButton
+          href={resolveUrl("/admin/operadores")}
+          label="Volver al listado"
+          icon="boxicons:arrow-left-filled"
+        />
+        <ActionConfirmButton
+          type="submit"
+          color="btn-primary"
+          label="Guardar cambios"
+          icon="boxicons:save-filled"
+        />
       </div>
     </form>
   </PageContainer>

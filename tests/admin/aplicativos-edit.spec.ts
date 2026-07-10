@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { test, expect } from '@playwright/test';
 import { db } from '../../src/db/index';
 import { users, sessions, applications, applicationCategories } from '../../src/db/schema';

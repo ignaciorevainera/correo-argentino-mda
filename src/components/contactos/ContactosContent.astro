@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import SearchBar from "@components/ui/SearchBar.astro";
 import CopyButton from "@components/ui/CopyButton.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
@@ -131,22 +132,11 @@ const contactRowGridClass =
   />
 
   <div class="w-full max-w-xl">
-    <label class="input input-bordered w-full" for="contacts-search">
-      <Icon
-        name="boxicons:search"
-        size={20}
-        class="text-base-content/50"
-        aria-hidden="true"
-      />
-      <input
-        id="contacts-search"
-        type="search"
-        class="grow"
-        placeholder="Buscar por proveedor, servicio, teléfono, email o link"
-        autocomplete="off"
-        aria-label="Buscar contacto por proveedor, servicio, teléfono, email o link"
-      />
-    </label>
+    <SearchBar
+      id="contacts-search"
+      placeholder="Buscar por proveedor, servicio, teléfono, email o link"
+      ariaLabel="Buscar contacto por proveedor, servicio, teléfono, email o link"
+    />
   </div>
 
   <SearchEmptyState
@@ -258,7 +248,7 @@ const contactRowGridClass =
                   >
                     <div class="min-w-0">
                       <p
-                        class="text-sm font-medium leading-snug text-base-content"
+                        class="text-sm font-medium text-base-content"
                         data-highlight-target
                       >
                         {contact.service}
@@ -413,22 +403,13 @@ const contactRowGridClass =
 </PageContainer>
 
 <script>
+  import { escapeHtml, escapeRegExp } from "@lib/sanitize";
+
   const normalizeValue = (value: string): string =>
     value
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
-
-  const escapeRegExp = (value: string): string =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  const escapeHtml = (value: string): string =>
-    value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
 
   const highlightText = (element: HTMLElement, query: string): void => {
     const originalText =

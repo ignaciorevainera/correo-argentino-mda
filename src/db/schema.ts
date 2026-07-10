@@ -8,13 +8,24 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("agent"),
+});
+
+export const employees = sqliteTable("employees", {
+  dni: text("dni").primaryKey(),
+  username: text("username").notNull(),
+  fullname: text("fullname").notNull(),
+  interno: text("interno"),
+  telefono: text("telefono"),
+  sucursal: text("sucursal"),
+  invgateExists: integer("invgate_exists", { mode: "boolean" }).default(false),
+  updatedAt: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const sessions = sqliteTable("sessions", {
@@ -160,7 +171,29 @@ export const officesRelations = relations(offices, ({ one, many }) => ({
   contacts: many(officeContacts),
   assets: many(officeAssets),
   terminals: many(terminals),
+  invgateLink: one(officeInvgateLinks, {
+    fields: [offices.id],
+    references: [officeInvgateLinks.officeId],
+  }),
 }));
+
+export const officeInvgateLinks = sqliteTable("office_invgate_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  officeId: integer("office_id")
+    .notNull()
+    .unique()
+    .references(() => offices.id, { onDelete: "cascade" }),
+  invgateLocationId: integer("invgate_location_id").notNull(),
+  invgateParentId: integer("invgate_parent_id"),
+  invgateParentName: text("invgate_parent_name"),
+  invgateDisplayName: text("invgate_display_name"),
+  invgateCp: text("invgate_cp"),
+  invgateCc: text("invgate_cc"),
+  invgateAddress: text("invgate_address"),
+  invgateDuplicateCount: integer("invgate_duplicate_count").default(0),
+  lastSyncedAt: text("last_synced_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
 
 export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   office: one(offices, {
@@ -334,7 +367,10 @@ export const schedules = sqliteTable("schedules", {
   breakInicio: text("break_inicio"),
   breakFin: text("break_fin"),
   isOverride: integer("is_override", { mode: "boolean" }).default(false),
-});
+}, (table) => ({
+  agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
+  dateIdx: index("schedules_date_idx").on(table.date),
+}));
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
 export const resourceCategories = sqliteTable("resource_categories", {
@@ -461,7 +497,9 @@ export const qualityAudits = sqliteTable("quality_audits", {
   isCriticalFailure: integer("is_critical_failure", { mode: "boolean" })
     .notNull()
     .default(false),
-});
+}, (table) => ({
+  monthIdx: index("quality_audits_month_idx").on(table.month),
+}));
 
 export const auditParameters = sqliteTable("audit_parameters", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -591,7 +629,9 @@ export const terminals = sqliteTable("terminals", {
   lastContact: text("last_contact"),
   syncedAt: text("synced_at"),
   searchableText: text("searchable_text"),
-});
+}, (table) => ({
+  nisIdx: index("terminals_nis_idx").on(table.nis),
+}));
 
 export const terminalsRelations = relations(terminals, ({ one }) => ({
   office: one(offices, {
@@ -635,7 +675,11 @@ export const operatorAttendance = sqliteTable("operator_attendance", {
   cumplimientoForzado: integer("cumplimiento_forzado", { mode: "boolean" }).default(false),
   motivoLoguin: text("motivo_loguin"),
   detalle: text("detalle"),
-});
+  shiftType: text("shift_type").notNull().default("normal"),
+}, (table) => ({
+  agentDateIdx: index("operator_attendance_agent_date_idx").on(table.agentId, table.date, table.shiftType),
+  dateIdx: index("operator_attendance_date_idx").on(table.date),
+}));
 
 export const operatorAttendanceRelations = relations(
   operatorAttendance,

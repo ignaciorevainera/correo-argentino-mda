@@ -1,4 +1,5 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -19,8 +20,7 @@ import {
 
 import { normalizeRole } from "@lib/rbac";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
+const cleanBase = getCleanBase();
 
 const user = Astro.locals.user;
 const role = normalizeRole(user.role);
@@ -38,12 +38,12 @@ if (lockStatus.status === "occupied") {
 
 const isReadOnly = role === "agent" || !hasLock;
 
-let flashMessage: { type: "success" | "error"; text: string } | null = null;
-
 if (Astro.request.method === "POST" && !isReadOnly) {
   try {
     const formData = await Astro.request.formData();
     const action = formData.get("action") as string;
+    let msg = "";
+    let msgType = "success";
 
     if (action === "assign_manual") {
       const agentId = Number(formData.get("agentId"));
@@ -55,32 +55,29 @@ if (Astro.request.method === "POST" && !isReadOnly) {
           .from(agents)
           .where(eq(agents.id, agentId));
 
-        flashMessage = {
-          type: "success",
-          text: `Autogestión asignada manualmente a ${ag?.name ?? `ID ${agentId}`}.`,
-        };
+        msg = `Autogestión asignada manualmente a ${ag?.name ?? `ID ${agentId}`}.`;
       }
     } else if (action === "assign_cyclic") {
       const res = await asignarSiguienteAutogestion(user?.username || "Sistema");
       if (res.success && res.agent) {
-        flashMessage = {
-          type: "success",
-          text: `Autogestión asignada cíclicamente a ${res.agent.nombre}.`,
-        };
+        msg = `Autogestión asignada cíclicamente a ${res.agent.nombre}.`;
       } else {
-        flashMessage = {
-          type: "error",
-          text:
-            res.error ||
-            "No hay operadores disponibles o dentro de horario operativo para asignar.",
-        };
+        msg = res.error || "No hay operadores disponibles o dentro de horario operativo para asignar.";
+        msgType = "error";
       }
     }
+
+    if (msg) {
+      const url = new URL(Astro.request.url);
+      url.searchParams.set("toast_msg", msg);
+      url.searchParams.set("toast_type", msgType);
+      return Astro.redirect(url.pathname + url.search);
+    }
   } catch (e: any) {
-    flashMessage = {
-      type: "error",
-      text: `Ocurrió un error al procesar la acción: ${e.message}`,
-    };
+    const url = new URL(Astro.request.url);
+    url.searchParams.set("toast_msg", `Ocurrió un error al procesar la acción: ${e.message}`);
+    url.searchParams.set("toast_type", "error");
+    return Astro.redirect(url.pathname + url.search);
   }
 }
 
@@ -148,7 +145,7 @@ noDisponiblesList.forEach((op) => {
 });
 
 const getBadgeColor = (status: string, disponible: boolean): string => {
-  if (disponible) return "badge-success text-white shadow-sm shadow-success/20";
+  if (disponible) return "badge-success text-success-content shadow-sm shadow-success/20";
   switch (status) {
     case "En break":
       return "badge-warning text-warning-content shadow-sm shadow-warning/20";
@@ -278,34 +275,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     />
   </div>
 
-  <div id="alert-container">
-    {
-      flashMessage && (
-        <div
-          class={`alert mb-6 shadow-md ${flashMessage.type === "success" ? "alert-success" : "alert-error"}`}
-          role="alert"
-        >
-          <Icon
-            name={
-              flashMessage.type === "success"
-                ? "boxicons:check-circle"
-                : "boxicons:alert-octagon-filled"
-            }
-            size={20}
-          />
-          <span>{flashMessage.text}</span>
-        </div>
-      )
-    }
-  </div>
+
 
   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
     <!-- Card Disponibles -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-success/30 transition-all duration-300"
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-success/30 transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
       >
         <Icon name="boxicons:user-check" size={128} />
       </div>
@@ -354,10 +332,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card No Disponibles -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-all duration-300"
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
       >
         <Icon name="boxicons:user-x" size={128} />
       </div>
@@ -387,7 +365,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           {
             Object.entries(breakdown).map(([estado, count]) => (
               <div
-                class="flex items-center justify-between p-2 rounded-lg bg-base-200/50 border border-transparent hover:border-base-300 transition-all duration-200 data-[count='0']:opacity-40"
+                class="flex items-center justify-between p-2 rounded-lg bg-base-200/50 border border-transparent hover:border-base-300 transition-colors duration-200 data-[count='0']:opacity-40"
                 data-breakdown-container
                 data-count={count}
               >
@@ -414,10 +392,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card Última Asignación -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-all duration-300"
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
       >
         <Icon name="boxicons:history" size={128} />
       </div>
@@ -456,11 +434,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card Cola de Asignación -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-all duration-300"
+      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
       style="min-height: 210px"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500 pointer-events-none"
+        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
       >
         <Icon name="boxicons:sparkles" size={128} />
       </div>
@@ -604,7 +582,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         const isExceptional = !!op.estadoExcepcional;
 
         let rowClasses =
-          "group border-b border-base-300 px-4 py-2.5 transition-all duration-300 hover:bg-base-200/50";
+          "group border-b border-base-300 px-4 py-2.5 transition-colors duration-300 hover:bg-base-200/50";
         if (isExceptional) {
           rowClasses += " bg-secondary/10 border-l-4 border-l-secondary";
         } else if (isHighlighted) {
@@ -632,7 +610,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               <span class="truncate text-xs font-bold text-base-content">
                 {op.nombre}
               </span>
-              <span class="font-mono text-tiny text-base-content/40 font-semibold leading-normal">
+              <span class="font-mono text-tiny text-base-content/40 font-semibold">
                 ID: {op.agentId} {op.username ? `(${op.username})` : ""}
               </span>
               <div data-op-last-assigned-container>
@@ -722,7 +700,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                   class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} gap-1.5 badge-xs font-semibold uppercase text-tiny tracking-wider py-2`}
                 >
                   {op.disponible && (
-                    <span class="size-1.5 rounded-full bg-white animate-ping" />
+                    <span class="size-1.5 rounded-full bg-success-content animate-ping" />
                   )}
                   {!op.disponible && op.motivo === "En break" && (
                     <span class="size-1.5 rounded-full bg-warning-content/75 animate-pulse" />
@@ -737,7 +715,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               {op.estadoExcepcional && op.estadoExcepcionalMotivo && (
                 <div
                   data-op-exception-comment={op.agentId}
-                  class="text-small text-base-content/50 italic font-medium leading-none max-w-[150px] truncate mt-0.5"
+                  class="text-small text-base-content/50 italic font-medium max-w-[150px] truncate mt-0.5"
                   title={op.estadoExcepcionalMotivo}
                 >
                   "{op.estadoExcepcionalMotivo}"
@@ -811,15 +789,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
 <script>
   import { showToast } from "@/lib/toastClient";
+  import { escapeHtml } from "@lib/sanitize";
+
+  let countdownInterval: any = null;
+  let timer: any = null;
+  let polling: any = null;
+  let heartbeatInterval: any = null;
+  let checkReady: any = null;
 
   const init = () => {
-    const escapeHtml = (str: string | null | undefined): string => {
-      if (str == null) return "";
-      const div = document.createElement("div");
-      div.appendChild(document.createTextNode(str));
-      return div.innerHTML;
-    };
-
     const toggle = document.getElementById(
       "toggle-disponibles",
     ) as HTMLInputElement | null;
@@ -860,7 +838,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     let secondsSinceSync = 0;
     let lockExpiresAt = 0;
     let lockTimeoutMs = 300000;
-    let countdownInterval: any = null;
     let currentLockStatus: any = null;
 
     const formatCountdown = (ms: number): string => {
@@ -923,7 +900,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     };
 
     // Increment elapsed seconds since last successful API call
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       secondsSinceSync++;
       updateIndicatorText();
     }, 1000);
@@ -1315,7 +1292,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             `;
             if (op.estadoExcepcionalMotivo) {
               commentHtml = `
-                <div data-op-exception-comment="${op.agentId}" class="text-small text-base-content/50 italic font-medium leading-none max-w-[150px] truncate mt-0.5" title="${op.estadoExcepcionalMotivo}">
+                <div data-op-exception-comment="${op.agentId}" class="text-small text-base-content/50 italic font-medium max-w-[150px] truncate mt-0.5" title="${op.estadoExcepcionalMotivo}">
                   "${op.estadoExcepcionalMotivo}"
                 </div>
               `;
@@ -1327,9 +1304,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
             if (op.disponible) {
               badgeClass =
-                "badge-success text-white shadow-sm shadow-success/20";
+                "badge-success text-success-content shadow-sm shadow-success/20";
               badgeText = "Disponible";
-              dotHtml = `<span class="size-1.5 rounded-full bg-white animate-ping"></span>`;
+              dotHtml = `<span class="size-1.5 rounded-full bg-success-content animate-ping"></span>`;
             } else if (op.motivo === "En break") {
               badgeClass =
                 "badge-warning text-warning-content shadow-sm shadow-warning/20";
@@ -1339,9 +1316,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               badgeClass = "badge-neutral text-neutral-content/75 opacity-70";
               badgeText = "Fuera de horario";
             } else if (op.motivo === "Licencia") {
-              badgeClass = "badge-error text-white shadow-sm shadow-error/20";
+              badgeClass = "badge-error text-error-content shadow-sm shadow-error/20";
             } else if (op.motivo === "Vacaciones") {
-              badgeClass = "badge-info text-white shadow-sm shadow-info/20";
+              badgeClass = "badge-info text-info-content shadow-sm shadow-info/20";
             } else if (op.motivo === "Franco") {
               badgeClass = "badge-neutral text-neutral-content/50";
             }
@@ -1428,20 +1405,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     };
 
     const showAlert = (type: "success" | "error", message: string) => {
-      const alertContainer = document.getElementById("alert-container");
-      if (!alertContainer) return;
-
-      const alertClass = type === "success" ? "alert-success" : "alert-error";
-      const iconSvg = type === "success"
-        ? `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
-        : `<svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
-
-      alertContainer.innerHTML = `
-        <div class="alert mb-6 shadow-md ${alertClass}" role="alert">
-          ${iconSvg}
-          <span>${message}</span>
-        </div>
-      `;
+      showToast(message, type === "success" ? "alert-success" : "alert-error");
     };
 
     // Event delegation for exceptional states and assignments
@@ -1836,7 +1800,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     }
 
     // Set up 10-second polling interval
-    const polling = setInterval(async () => {
+    polling = setInterval(async () => {
       await Promise.all([
         fetchDisponibilidad(),
         fetchLockStatus().then(updateLockBanner)
@@ -1854,7 +1818,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     // Lock heartbeat cada 2 minutos
     const LOCK_HEARTBEAT_MS = 2 * 60 * 1000;
-    let heartbeatInterval: any = null;
 
     const startHeartbeat = () => {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -1998,12 +1961,20 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
   // Wait for dynamic server island component initialization
   if (!init()) {
-    const checkReady = setInterval(() => {
+    checkReady = setInterval(() => {
       if (init()) {
         clearInterval(checkReady);
       }
     }, 50);
   }
+
+  document.addEventListener("astro:before-swap", () => {
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (timer) clearInterval(timer);
+    if (polling) clearInterval(polling);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (checkReady) clearInterval(checkReady);
+  });
 </script>
 
 <style is:global>

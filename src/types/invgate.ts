@@ -12,6 +12,22 @@ export interface InvgateApiError {
 
 export type InvgateResult<T> = InvgateApiResponse<T> | InvgateApiError;
 
+export interface InvgateUser {
+  id: number;
+  username: string;
+  name: string;
+  lastname: string;
+  email: string;
+  user_type: number;
+  type: number;
+  is_disabled: boolean;
+  is_deleted: boolean;
+  is_external: boolean;
+  role_name: string | null;
+  manager_id: number | null;
+}
+
+
 export interface InvgateIncident {
   id: number;
   title: string;
@@ -70,5 +86,45 @@ export interface InvgateLocation {
   name: string;
   parent_id: number | null;
   total: number;
+}
+
+export interface InvgateKbArticle {
+  id: number;
+  title: string;
+  content?: string;
+  category_id: number | null;
+  author_id?: number;
+  status_id?: number;
+}
+
+export interface InvgateKbCategory {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+}
+
+export interface InvgateGroup {
+  id: number;
+  name: string;
+  total: number;
+}
+
+export interface InvgateHelpdesk {
+  id: number;
+  name: string;
+  parent_id: number;
+  status_id: number;
+  engine_id: number;
+  total_members: number;
+}
+
+export interface InvgateKbSearchResponse {
+  status: string;
+  data: InvgateKbArticle[];
+}
+
+export interface InvgateKbCategoriesResponse {
+  status: string;
+  data: InvgateKbCategory[];
 }
 

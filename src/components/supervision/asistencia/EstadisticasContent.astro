@@ -2,15 +2,11 @@
 import { Icon } from "astro-icon/components";
 import { getAttendanceData } from "@lib/attendance";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const today = new Date();
-const y = today.getFullYear();
-const m = String(today.getMonth() + 1).padStart(2, "0");
+const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+const [y, m] = todayStr.split("-");
 const defaultMonth = `${y}-${m}`;
 
-const totalDays = new Date(y, parseInt(m), 0).getDate();
+const totalDays = new Date(parseInt(y), parseInt(m), 0).getDate();
 const startDate = `${y}-${m}-01`;
 const endDate = `${y}-${m}-${String(totalDays).padStart(2, "0")}`;
 
@@ -158,6 +154,8 @@ const initialData = await getAttendanceData(startDate, endDate);
 </div>
 
 <script>
+  import { getCleanBase } from "@lib/baseUrl";
+
   let rawLogs: any[] = [];
   let doughnutChartInstance: any = null;
   let barChartInstance: any = null;
@@ -249,7 +247,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          onClick: (event, elements, chart) => {
+          onClick: (event: any, elements: any[], chart: any) => {
             if (elements.length > 0) {
               const elementIndex = elements[0].index;
               const label = chart.data.labels[elementIndex];
@@ -257,7 +255,7 @@ const initialData = await getAttendanceData(startDate, endDate);
               showEventualityDetail(label, color, elementIndex);
             }
           },
-          onHover: (event, chartElement) => {
+          onHover: (event: any, chartElement: any[]) => {
             if (event && event.native && event.native.target) {
               (event.native.target as HTMLElement).style.cursor = chartElement.length ? 'pointer' : 'default';
             }
@@ -343,10 +341,10 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   function showEventualityDetail(label: string, color: string, index: number) {
     if (doughnutChartInstance) {
-      const activeBorderColors = doughnutChartInstance.data.datasets[0].data.map((_, i) => 
+      const activeBorderColors = doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) => 
         i === index ? color.replace('0.65', '1') : 'rgba(150, 150, 150, 0.1)'
       );
-      const activeBorderWidths = doughnutChartInstance.data.datasets[0].data.map((_, i) => 
+      const activeBorderWidths = doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) => 
         i === index ? 4 : 1.5
       );
       doughnutChartInstance.data.datasets[0].borderColor = activeBorderColors;
@@ -375,7 +373,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         contentEl.innerHTML = matchingLogs.map(log => {
           const parts = log.date.split('-');
           const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-          const initials = log.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+          const initials = log.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
           const hasComment = !!log.detalle;
           const cardClass = `eventuality-detail-card ${hasComment ? 'cursor-pointer active:scale-[0.99] hover:bg-base-200/40 dark:hover:bg-base-200/80' : ''} flex flex-col p-3.5 bg-base-100 dark:bg-base-200/50 rounded-xl border border-base-300/40 shadow-sm transition-all duration-200`;
           return `
@@ -400,7 +398,7 @@ const initialData = await getAttendanceData(startDate, endDate);
                 </a>
               </div>
               ${hasComment ? `
-                <span class="comment-text text-sm text-base-content/75 font-medium mt-2 leading-relaxed">
+                <span class="comment-text text-sm text-base-content/75 font-medium mt-2">
                   ${log.detalle}
                 </span>
               ` : ''}
@@ -457,8 +455,45 @@ const initialData = await getAttendanceData(startDate, endDate);
     if (grid) {
       grid.innerHTML = '';
       const sortedLogs = [...opLogs].sort((a, b) => a.date.localeCompare(b.date));
-      
+
+      const consolidatedMap = new Map();
       sortedLogs.forEach(log => {
+        const existing = consolidatedMap.get(log.date);
+        if (!existing) {
+          consolidatedMap.set(log.date, { ...log });
+        } else {
+          const getComplianceRank = (c: string) => {
+            if (c === "Incumplió") return 4;
+            if (c === "Llegada Tarde" || c === "Retiro Anticipado" || c === "Tarde y Retiro Anticipado") return 3;
+            if (c === "Cumplió") return 2;
+            return 1;
+          };
+          const rNew = getComplianceRank(log.cumplimiento);
+          const rOld = getComplianceRank(existing.cumplimiento);
+          if (rNew > rOld) {
+            existing.cumplimiento = log.cumplimiento;
+          }
+          if (log.entradaReal) {
+            existing.entradaReal = existing.entradaReal ? `${existing.entradaReal} / ${log.entradaReal}` : log.entradaReal;
+          }
+          if (log.horarioEstipulado) {
+            existing.horarioEstipulado = existing.horarioEstipulado ? `${existing.horarioEstipulado} / ${log.horarioEstipulado}` : log.horarioEstipulado;
+          }
+          if (log.asistencia) {
+            existing.asistencia = existing.asistencia ? `${existing.asistencia} / ${log.asistencia}` : log.asistencia;
+          }
+          if (log.ausencia) {
+            existing.ausencia = existing.ausencia ? `${existing.ausencia} / ${log.ausencia}` : log.ausencia;
+          }
+          if (log.detalle) {
+            existing.detalle = existing.detalle ? `${existing.detalle} | ${log.detalle}` : log.detalle;
+          }
+        }
+      });
+
+      const consolidatedLogs = Array.from(consolidatedMap.values());
+      
+      consolidatedLogs.forEach(log => {
         const day = parseInt(log.date.substring(8, 10));
         const cell = document.createElement('div');
         
@@ -473,7 +508,7 @@ const initialData = await getAttendanceData(startDate, endDate);
           }
         }
         
-        cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-xxs font-black cursor-pointer shadow-sm transition-all duration-200 hover:scale-110 hover:z-10 relative ${colorClass}`;
+        cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-xxs font-black cursor-pointer shadow-sm transition-transform duration-200 hover:scale-110 hover:z-10 relative ${colorClass}`;
         cell.textContent = String(day);
 
         // Highlight absences with a red dot indicator (filtering out obsolete/invalid types)
@@ -491,9 +526,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         
         // Click redirects to attendance control with date
         cell.addEventListener('click', () => {
-          const cleanBase = import.meta.env.BASE_URL || "/";
-          const finalBase = cleanBase.endsWith("/") ? cleanBase : cleanBase + "/";
-          window.location.href = `${finalBase}supervision/asistencia?date=${log.date}`;
+          window.location.href = `${getCleanBase()}supervision/asistencia?date=${log.date}`;
         });
         
         const tooltipParts = [

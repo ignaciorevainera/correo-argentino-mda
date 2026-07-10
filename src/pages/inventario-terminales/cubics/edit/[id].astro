@@ -1,4 +1,5 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import { db } from "@db/index";
 import {
   cubics,
@@ -13,12 +14,10 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
+const cleanBase = getCleanBase();
 
 const { id } = Astro.params;
 const isNew = false;
@@ -143,19 +142,15 @@ if (Astro.request.method === "POST") {
       }
 
       if (oldName && oldName !== cubicData.name) {
-        await logAdminAction(
-          user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó el ordenador de "${oldName}" a "${cubicData.name}"`,
         );
       } else {
-        await logAdminAction(
-          user?.username || "Sistema",
+        await logAdminFromAstro(Astro.locals,
           `Actualizó el ordenador "${cubicData.name}"`,
         );
       }
-      return Astro.redirect(
-        `${cleanBase}inventario-terminales?toast_msg=${encodeURIComponent("Cubic actualizado con éxito.")}&toast_type=success`,
-      );
+      return redirectWithToast("/inventario-terminales", "Cubic actualizado con éxito.");
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")
@@ -181,7 +176,9 @@ const result = await db.query.cubics.findFirst({
   with: {
     assignments: {
       with: {
-        agent: true,
+        agent: {
+          columns: { id: true, name: true, avatarInitials: true },
+        },
       },
     },
   },
@@ -238,7 +235,7 @@ for (const agent of allAgents) {
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
         </script>
       )
     }
@@ -329,7 +326,7 @@ for (const agent of allAgents) {
                       </div>
                       <div>
                         <div class="flex items-center gap-2">
-                          <span class="font-bold text-base-content leading-tight">
+                          <span class="font-bold text-base-content">
                             {a.agent.name}
                           </span>
                           <span class="flex items-center gap-1 text-xxs text-base-content/60 bg-base-300/40 px-2 py-0.5 rounded border border-base-300 select-none">

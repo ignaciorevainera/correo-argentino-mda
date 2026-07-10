@@ -5,6 +5,7 @@ import {
   operatorAttendance,
   saturdayRotationConfig,
   agentSaturdayGroups,
+  weekendOvertimeShifts,
 } from "@db/schema";
 import { and, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
 
@@ -75,7 +76,12 @@ export async function getAttendanceData(startDate: string, endDate: string) {
   const dates = getDatesInRange(startDate, endDate);
 
   // 1. Fetch all agents
-  const dbAgents = await db.select().from(agents);
+  const dbAgents = await db.select({
+    id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+    horarioDefault: agents.horarioDefault,
+    esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+    saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
+  }).from(agents);
 
   // 2. Fetch schedules for this date range
   const dbSchedules = await db
@@ -93,6 +99,15 @@ export async function getAttendanceData(startDate: string, endDate: string) {
     .where(and(
       gte(operatorAttendance.date, startDate),
       lte(operatorAttendance.date, endDate)
+    ));
+
+  // 3.5. Fetch overtime shifts for this date range
+  const dbOvertimeShifts = await db
+    .select()
+    .from(weekendOvertimeShifts)
+    .where(and(
+      gte(weekendOvertimeShifts.date, startDate),
+      lte(weekendOvertimeShifts.date, endDate)
     ));
 
   // Find scheduled months to know where to apply weekly defaults vs Franco
@@ -279,51 +294,102 @@ export async function getAttendanceData(startDate: string, endDate: string) {
         modalidadPlanificada = "Franco";
       }
 
-      if (modalidadPlanificada === "Franco") {
+      if (modalidadPlanificada === "Franco" || modalidadPlanificada === "Vacaciones" || modalidadPlanificada === "Licencia") {
         horarioEstipulado = "";
       } else if (!horarioEstipulado || horarioEstipulado.trim() === "" || horarioEstipulado.trim() === "-") {
         horarioEstipulado = agent.horarioDefault || "";
       }
 
-      // Find actual attendance record
-      const actual = dbAttendance.find((a) => a.agentId === agent.id && a.date === dateStr);
+      // Check for Overtime / HE shift
+      const overtimeShift = dbOvertimeShifts.find((s) => s.agentId === agent.id && s.date === dateStr);
+      const hasOvertime = !!overtimeShift;
+      const isFranco = modalidadPlanificada === "Franco" || modalidadPlanificada === "Vacaciones" || modalidadPlanificada === "Licencia";
 
-      let defaultAsistencia = "";
-      if (modalidadPlanificada === "Home Office") {
-        defaultAsistencia = "HOME OFFICE";
-      } else if (modalidadPlanificada?.startsWith("Presencial")) {
-        defaultAsistencia = modalidadPlanificada.toUpperCase();
+      // 1. Emit normal row ONLY if it's not a Franco when HE is present
+      if (!(isFranco && hasOvertime)) {
+        const actualNormal = dbAttendance.find(
+          (a) => a.agentId === agent.id && a.date === dateStr && a.shiftType === "normal"
+        );
+
+        let defaultAsistencia = "";
+        if (modalidadPlanificada === "Home Office") {
+          defaultAsistencia = "HOME OFFICE";
+        } else if (modalidadPlanificada?.startsWith("Presencial")) {
+          defaultAsistencia = modalidadPlanificada.toUpperCase();
+        }
+
+        const asistencia = actualNormal?.asistencia || defaultAsistencia;
+        const ausencia = actualNormal?.ausencia ?? "";
+        const entradaReal = actualNormal?.entradaReal ?? "";
+        const cumplimientoForzado = actualNormal?.cumplimientoForzado ?? false;
+        const motivoLoguin = actualNormal?.motivoLoguin ?? "";
+        const detalle = actualNormal?.detalle ?? "";
+
+        let cumplimiento = actualNormal?.cumplimiento ?? "";
+        if (!cumplimientoForzado || !cumplimiento) {
+          cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
+        }
+
+        responseData.push({
+          agentId: agent.id,
+          rowId: `${agent.id}_normal`,
+          shiftType: "normal",
+          date: dateStr,
+          nombre: agent.name,
+          username: agent.username || "",
+          location: agent.location || "Monte Grande",
+          horarioEstipulado,
+          modalidadPlanificada,
+          asistenciaId: actualNormal?.id || null,
+          asistencia,
+          ausencia,
+          entradaReal,
+          cumplimiento,
+          cumplimientoForzado,
+          motivoLoguin,
+          detalle,
+        });
       }
 
-      const asistencia = actual?.asistencia || defaultAsistencia;
-      const ausencia = actual?.ausencia ?? "";
-      const entradaReal = actual?.entradaReal ?? "";
-      const cumplimientoForzado = actual?.cumplimientoForzado ?? false;
-      const motivoLoguin = actual?.motivoLoguin ?? "";
-      const detalle = actual?.detalle ?? "";
+      // 2. Emit overtime row if HE is present
+      if (hasOvertime && overtimeShift) {
+        const actualOvertime = dbAttendance.find(
+          (a) => a.agentId === agent.id && a.date === dateStr && a.shiftType === "overtime"
+        );
 
-      let cumplimiento = actual?.cumplimiento ?? "";
-      if (!cumplimientoForzado || !cumplimiento) {
-        cumplimiento = calculateCompliance(entradaReal, horarioEstipulado);
+        const heHorario = `${overtimeShift.startTime} - ${overtimeShift.endTime}`;
+        const asistencia = actualOvertime?.asistencia || "HORAS EXTRAS";
+        const ausencia = actualOvertime?.ausencia ?? "";
+        const entradaReal = actualOvertime?.entradaReal ?? "";
+        const cumplimientoForzado = actualOvertime?.cumplimientoForzado ?? false;
+        const motivoLoguin = actualOvertime?.motivoLoguin ?? "";
+        const detalle = actualOvertime?.detalle ?? "";
+
+        let cumplimiento = actualOvertime?.cumplimiento ?? "";
+        if (!cumplimientoForzado || !cumplimiento) {
+          cumplimiento = calculateCompliance(entradaReal, heHorario);
+        }
+
+        responseData.push({
+          agentId: agent.id,
+          rowId: `${agent.id}_overtime`,
+          shiftType: "overtime",
+          date: dateStr,
+          nombre: agent.name,
+          username: agent.username || "",
+          location: agent.location || "Monte Grande",
+          horarioEstipulado: heHorario,
+          modalidadPlanificada: "HORAS EXTRAS",
+          asistenciaId: actualOvertime?.id || null,
+          asistencia,
+          ausencia,
+          entradaReal,
+          cumplimiento,
+          cumplimientoForzado,
+          motivoLoguin,
+          detalle,
+        });
       }
-
-      responseData.push({
-        agentId: agent.id,
-        date: dateStr,
-        nombre: agent.name,
-        username: agent.username || "",
-        location: agent.location || "Monte Grande",
-        horarioEstipulado,
-        modalidadPlanificada,
-        asistenciaId: actual?.id || null,
-        asistencia,
-        ausencia,
-        entradaReal,
-        cumplimiento,
-        cumplimientoForzado,
-        motivoLoguin,
-        detalle,
-      });
     });
   }
 

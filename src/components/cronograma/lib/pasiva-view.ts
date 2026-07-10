@@ -1,7 +1,7 @@
 import { state } from './state';
 import { showToast } from './notifications';
 import { updateViewSwitcherUI } from './dashboard-client';
-import { escapeHtml } from './utils';
+import { escapeHtml } from '@lib/sanitize';
 
 export function hasPasivaChanges(): boolean {
   if (state.pasivaState.operatorId !== state.pasivaState.originalOperatorId) {

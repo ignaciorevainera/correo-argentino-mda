@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async () => {
   try {
@@ -8,6 +8,6 @@ export const GET: APIRoute = async () => {
     return jsonResponse(list, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET /api/disponibilidad Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

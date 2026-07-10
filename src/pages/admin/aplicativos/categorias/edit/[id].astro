@@ -1,21 +1,22 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applicationCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
-
 const { id } = Astro.params;
-const isNew = false;
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 let errorMsg = "";
 let category = { id: "", title: "" };
 
@@ -25,7 +26,7 @@ const existingCategory = await db.query.applicationCategories.findFirst({
 });
 if (existingCategory) {
   if (existingCategory.title.toLowerCase() === "sin categoría" || existingCategory.title.toLowerCase() === "sin categoria") {
-    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("No se puede modificar la categoría por defecto")}&toast_type=warning`));
+    return redirectWithToast("/admin/aplicativos", "No se puede modificar la categoría por defecto", "warning");
   }
   category = existingCategory as any;
 } else {
@@ -49,29 +50,19 @@ if (Astro.request.method === "POST") {
       .where(eq(applicationCategories.id, numericId));
 
     if (oldTitle && oldTitle !== title) {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
+      await logAdminFromAstro(Astro.locals, `Actualizó la categoría de aplicativos (de "${oldTitle}" a "${title}")`);
     } else {
-      await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó la categoría de aplicativos "${title}"`);
+      await logAdminFromAstro(Astro.locals, `Actualizó la categoría de aplicativos "${title}"`);
     }
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Categoría actualizada con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Categoría actualizada con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Categoría actualizada con éxito.")}&toast_type=success`));
+    return redirectWithToast("/admin/aplicativos", "Categoría actualizada con éxito.");
   } catch (error: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }
@@ -81,46 +72,33 @@ if (Astro.request.method === "POST") {
 <BaseLayout title="Editar categoría de Aplicativos">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-          <div
-            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
-          >
-            <div>
-              <h1 class="text-xl font-bold text-base-content">
-                Editar categoría
-              </h1>
-              <p class="text-sm text-base-content/60 mt-1">
-                Modificá el nombre de la categoría de aplicativos.
-              </p>
-            </div>
-            <a
-              href={resolveUrl("/admin/aplicativos")}
-              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
-              title="Cerrar"
-            >
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/aplicativos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Aplicativos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Editar categoría</span>
+      </div>
 
-          {
-            errorMsg && (
+      <PageHeader
+        title="Editar categoría"
+        description="Modificá el nombre de la categoría de aplicativos."
+      />
+
+      {
+        errorMsg && (
               <script is:inline define:vars={{ errorMsg }}>
-                const triggerToast = () => {
-                  if (window.showToast) {
-                    window.showToast(errorMsg, "alert-error");
-                  } else {
-                    setTimeout(triggerToast, 100);
-                  }
-                };
-                if (document.readyState === "loading") {
-                  document.addEventListener("DOMContentLoaded", triggerToast);
-                } else {
-                  triggerToast();
-                }
+                window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
               </script>
             )
-          }
+      }
+
+      <SectionCard>
+        <div class="p-6 sm:p-8">
 
           <form method="POST" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 gap-y-5">
@@ -138,18 +116,21 @@ if (Astro.request.method === "POST") {
             <div
               class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
             >
-              <a href={resolveUrl("/admin/aplicativos")} class="btn btn-ghost"
-                >Cancelar</a
-              >
-              <button type="submit" class="btn btn-primary gap-2">
-                <Icon name="boxicons:save" size={18} />
-                Guardar Categoría
-              </button>
+              <ActionCancelButton
+                href={resolveUrl("/admin/aplicativos")}
+                label="Cancelar"
+              />
+              <ActionConfirmButton
+                type="submit"
+                color="btn-primary"
+                label="Guardar Categoría"
+                icon="boxicons:save"
+              />
             </div>
           </form>
         </div>
       </SectionCard>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
-<AsyncFormScript />

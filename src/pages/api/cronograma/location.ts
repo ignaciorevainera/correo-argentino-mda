@@ -3,7 +3,7 @@ import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { requireWriteAccess } from "@lib/rbac-middleware";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -22,8 +22,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Case-insensitive lookup
-    const agent = await db
-      .select()
+    const agent = await db.select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
@@ -53,6 +52,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Location API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

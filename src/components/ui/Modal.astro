@@ -11,7 +11,15 @@ interface Props {
   class?: string;
 }
 
-const { id, title, icon, size = "md", zIndex, titleClass, class: className } = Astro.props;
+const {
+  id,
+  title,
+  icon,
+  size = "md",
+  zIndex,
+  titleClass,
+  class: className,
+} = Astro.props;
 
 const sizeClasses: Record<string, string> = {
   sm: "max-w-sm",
@@ -27,29 +35,26 @@ const sizeClasses: Record<string, string> = {
 <dialog {id} class:list={["modal modal-bottom sm:modal-middle", zIndex]}>
   <div
     class:list={[
-      "modal-box border border-base-300 shadow-xl bg-base-100",
+      "modal-box w-11/12 sm:w-full p-4 sm:p-5",
       sizeClasses[size],
       className,
     ]}
   >
     {
       title && (
-        <h3 class:list={["flex items-center gap-2 mb-4 text-base-content", titleClass || "font-bold text-lg"]}>
+        <h3
+          class:list={[
+            "flex items-center gap-2 mb-3 text-base-content",
+            titleClass || "font-bold text-lg",
+          ]}
+        >
           {icon && <Icon name={icon} class="text-primary shrink-0" size={22} />}
           {title}
         </h3>
       )
     }
     <slot name="content" />
-    <div class="modal-action gap-2 pt-4 border-t border-base-200 mt-6">
-      <slot name="actions">
-        <form method="dialog">
-          <button class="btn btn-ghost border border-base-300 hover:bg-base-200 cursor-pointer">
-            Cerrar
-          </button>
-        </form>
-      </slot>
-    </div>
+    <slot name="actions" />
   </div>
   <form method="dialog" class="modal-backdrop">
     <button>close</button>

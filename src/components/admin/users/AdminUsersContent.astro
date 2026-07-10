@@ -16,6 +16,8 @@ import PasswordField from "@components/ui/forms/PasswordField.astro";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import Modal from "@components/ui/Modal.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 
 interface Props {
   successMsg?: string;
@@ -313,21 +315,10 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         {
           (successMsg || errorMsg) && (
             <script is:inline define:vars={{ successMsg, errorMsg }}>
-              (() => {
-                const triggerToast = () => {
-                  if (typeof window.showToast === "function") {
-                    if (successMsg) {
-                      window.showToast(successMsg, "alert-success");
-                    }
-                    if (errorMsg) {
-                      window.showToast(errorMsg, "alert-error");
-                    }
-                  } else {
-                    setTimeout(triggerToast, 50);
-                  }
-                };
-                triggerToast();
-              })();
+              window.addEventListener('load', () => {
+                if (successMsg) window.showToast?.(successMsg, "alert-success");
+                if (errorMsg) window.showToast?.(errorMsg, "alert-error");
+              });
             </script>
           )
         }
@@ -368,10 +359,13 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           />
 
           <input type="hidden" name="action" value="create" />
-          <button type="submit" class="btn btn-secondary w-full gap-2 mt-2">
-            <Icon name="boxicons:user-check-filled" size={18} />
-            Dar de alta
-          </button>
+          <ActionConfirmButton
+            type="submit"
+            color="btn-secondary"
+            label="Dar de alta"
+            icon="boxicons:user-check-filled"
+            class="w-full mt-2"
+          />
         </form>
       </SectionCard>
     </section>
@@ -416,21 +410,25 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
       </div>
 
       <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
-        <button type="submit" class="btn btn-primary btn-sm gap-1">
-          <Icon name="boxicons:check-filled" size={14} />
-          Guardar
-        </button>
-        <button
+        <ActionConfirmButton
+          type="submit"
+          color="btn-primary"
+          label="Guardar"
+          icon="boxicons:check-filled"
+          size="sm"
+        />
+        <ActionCancelButton
           type="button"
-          class="btn btn-ghost btn-sm"
-          onclick="this.closest('dialog').close()">Cancelar</button
-        >
+          label="Cancelar"
+          size="sm"
+          onclick="this.closest('dialog').close()"
+        />
       </div>
     </form>
   </Fragment>
 </Modal>
 
-<Modal id="modal-permissions-matrix" title="Matriz de permisos por rol" icon="boxicons:universal-access-filled" class="w-fit">
+<Modal id="modal-permissions-matrix" title="Matriz de permisos por rol" icon="boxicons:universal-access-filled" size="full" class="!w-fit max-w-[calc(100vw-1rem)] !p-3 sm:!p-4">
   <Fragment slot="content">
     <p class="mb-4 text-xs text-base-content/60">
       Detalle comparativo de las acciones y accesos permitidos para cada rol
@@ -551,15 +549,6 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         </tbody>
       </table>
     </div>
-  </Fragment>
-  <Fragment slot="actions">
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm"
-      onclick="this.closest('dialog').close()"
-    >
-      Cerrar
-    </button>
   </Fragment>
 </Modal>
 

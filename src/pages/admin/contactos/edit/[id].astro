@@ -9,16 +9,17 @@ import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
+import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 
 const { id } = Astro.params;
-const isNew = false;
 
 let errorMsg = "";
 
@@ -35,8 +36,11 @@ if (id) {
     .from(providerContacts)
     .where(eq(providerContacts.id, Number(id)));
 
-  if (!result) return Astro.redirect(`${cleanBase}admin/contactos`);
-  contact = result;
+  if (!result) return Astro.redirect(resolveUrl("/admin/contactos"));
+  contact = {
+    ...result,
+    categoryId: result.categoryId ? String(result.categoryId) : "",
+  } as any;
 }
 
 if (Astro.request.method === "POST") {
@@ -44,7 +48,8 @@ if (Astro.request.method === "POST") {
   try {
     const fd = await Astro.request.formData();
 
-    const categoryId = fd.get("categoryId")?.toString() || null;
+    const categoryIdRaw = fd.get("categoryId")?.toString();
+    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
     const provider = fd.get("provider")?.toString().trim() ?? "";
     const service = fd.get("service")?.toString().trim() ?? "";
 
@@ -99,23 +104,21 @@ if (Astro.request.method === "POST") {
         const oldName = contact ? `${contact.provider} - ${contact.service}` : "";
         const newName = `${provider} - ${service}`;
         if (oldName && oldName !== newName) {
-          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el contacto de "${oldName}" a "${newName}"`);
+          await logAdminFromAstro(Astro.locals, `Actualizó el contacto de "${oldName}" a "${newName}"`);
         } else {
-          await logAdminAction(Astro.locals.user?.username || 'Sistema', `Actualizó el contacto "${newName}"`);
+          await logAdminFromAstro(Astro.locals, `Actualizó el contacto "${newName}"`);
         }
       }
 
       const toastMessage = "Contacto actualizado con éxito.";
       if (isAjax) {
-        return new Response(JSON.stringify({ success: true, message: toastMessage, redirectUrl: `${cleanBase}admin/contactos` }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return toastResponse({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/contactos") });
       }
-      return Astro.redirect(
-        `${cleanBase}admin/contactos?toast_msg=${encodeURIComponent(toastMessage)}&toast_type=success`
-      );
+      return redirectWithToast("/admin/contactos", toastMessage);
     }
   } catch (e: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: e.message || "Error al guardar el contacto." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: e.message || "Error al guardar el contacto." });
     }
     errorMsg = "Error al guardar el contacto.";
   }
@@ -135,7 +138,7 @@ const urlsText =
   <PageContainer>
     <div class="flex items-center gap-2 text-sm text-base-content/60">
       <a
-        href={`${cleanBase}admin/contactos`}
+        href={resolveUrl("/admin/contactos")}
         class="flex items-center gap-1.5 hover:text-base-content transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
@@ -153,7 +156,7 @@ const urlsText =
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
         </script>
       )
     }
@@ -214,7 +217,7 @@ const urlsText =
                   allCategories.map((cat) => (
                     <option
                       value={cat.id}
-                      selected={contact?.categoryId === cat.id}
+                      selected={contact?.categoryId ? Number(cat.id) === Number(contact.categoryId) : false}
                     >
                       {cat.title}
                     </option>
@@ -258,17 +261,17 @@ http://www.google.com"
       </SectionCard>
 
       <div class="flex items-center justify-between gap-3 pt-1">
-        <a
-          href={`${cleanBase}admin/contactos`}
-          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
-        >
-          <Icon name="boxicons:arrow-left-filled" size={16} />
-          Volver al listado
-        </a>
-        <button type="submit" class="btn btn-secondary btn-sm gap-2">
-          <Icon name="boxicons:save-filled" size={16} />
-          Guardar cambios
-        </button>
+        <ActionCancelButton
+          href={resolveUrl("/admin/contactos")}
+          label="Volver al listado"
+          icon="boxicons:arrow-left-filled"
+        />
+        <ActionConfirmButton
+          type="submit"
+          color="btn-secondary"
+          label="Guardar cambios"
+          icon="boxicons:save-filled"
+        />
       </div>
     </form>
   </PageContainer>

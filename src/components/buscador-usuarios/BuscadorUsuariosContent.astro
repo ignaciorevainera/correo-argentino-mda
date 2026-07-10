@@ -1,16 +1,18 @@
 ---
 /* ARCHIVO: src/pages/buscador-usuarios/index.astro */
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
 import UserCard from "@components/UserCard.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
-import { Icon } from "astro-icon/components";
+import HeroSearchBar from "@components/ui/HeroSearchBar.astro";
 import ChromeExtensionBanner from "./ChromeExtensionBanner.astro";
 import EditUserModal from "./EditUserModal.astro";
 import TerminalModal from "./TerminalModal.astro";
 import SkeletonCard from "@components/ui/skeletons/SkeletonCard.astro";
-const base = (import.meta.env as any).BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
+const cleanBase = getCleanBase();
+const userRole = Astro.locals.user?.role || "";
 ---
 
 <PageContainer>
@@ -20,57 +22,65 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     <section
       class="lg:col-span-2 py-8 px-6 md:px-8 rounded-2xl bg-base-200/50 border border-base-300 shadow-md flex flex-col justify-center"
     >
-      <PageHeader
-        description="Acceso rápido a contacto, internos y dependencias de todo el personal."
-        class="mb-6 text-left"
-        titleClass="text-2xl md:text-3xl"
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <PageHeader
+          description="Acceso rápido a contacto, internos y dependencias de todo el personal."
+          class="flex-1 text-left"
+          titleClass="text-2xl md:text-3xl"
+        />
+        <button
+          id="sync-invgate-btn"
+          class="btn btn-accent btn-outline btn-sm gap-2 hidden shrink-0 mt-1 w-[185px]"
+        >
+          <span id="sync-invgate-icon" class="inline-flex items-center">
+            <Icon
+              name="boxicons:refresh-ccw"
+              class="size-4"
+              id="sync-icon-idle"
+            />
+            <Icon
+              name="boxicons:check"
+              class="size-4 hidden"
+              id="sync-icon-success"
+            />
+            <Icon
+              name="boxicons:x"
+              class="size-4 hidden"
+              id="sync-icon-error"
+            />
+            <span
+              id="sync-icon-spinner"
+              class="loading loading-spinner loading-xs text-current hidden"
+            ></span>
+          </span>
+          <span id="sync-invgate-text">Sincronizar InvGate</span>
+        </button>
+      </div>
+
+      <HeroSearchBar
+        id="search-input"
+        placeholder="Escribe para buscar..."
+        ariaLabel="Buscar usuarios por nombre, apellido o DNI"
       />
 
-      <div class="w-full relative group">
+      <div class="flex flex-col gap-2 mt-6">
         <div
-          class="join w-full shadow-md rounded-xl overflow-hidden border border-base-300 group-focus-within:border-base-content/30 group-focus-within:ring-2 group-focus-within:ring-base-content/5 transition-[border-color,box-shadow] duration-300 bg-base-100"
+          class="flex items-center gap-2 text-xs sm:text-sm text-base-content/50"
+          id="search-status"
         >
-          <div class="relative flex-1">
-            <div
-              class="absolute inset-y-0 left-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 group-focus-within:text-primary transition-colors duration-300"
-            >
-              <Icon name="boxicons:search" size={24} />
-            </div>
-            <input
-              type="text"
-              id="search-input"
-              aria-label="Buscar usuarios por nombre, apellido o DNI"
-              placeholder="Escribe para buscar..."
-              class="w-full pl-12 pr-16 h-14 bg-transparent focus:outline-hidden text-base sm:text-lg transition-colors"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <div
-              class="absolute inset-y-0 right-4 flex items-center pointer-events-none group-focus-within:opacity-0 transition-opacity duration-300"
-            >
-              <kbd class="kbd kbd-sm font-sans font-bold text-base-content/50">
-                /
-              </kbd>
-            </div>
-            <div
-              class="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"
-            >
-              <Icon
-                name="boxicons:contact-book"
-                size={20}
-                class="text-base-content/30"
-              />
-            </div>
-          </div>
+          <span>Listo para buscar.</span>
+        </div>
+        <div
+          class="text-xxs sm:text-xs text-base-content/40 flex items-center gap-1"
+          id="sync-status"
+        >
         </div>
       </div>
-
-      <div
-        class="mt-4 flex items-center gap-2 text-xs sm:text-sm text-base-content/50"
-        id="search-status"
-      >
-        <span>Listo para buscar.</span>
-      </div>
+      <!-- Botón de sincronización InvGate (solo visible para admin) -->
+      <button id="sync-invgate-btn" class="btn btn-ghost btn-xs gap-1.5 hidden">
+        <Icon name="boxicons:refresh-ccw" class="size-3.5" />
+        <span>Sincronizar con InvGate</span>
+      </button>
     </section>
 
     <!-- Banner Extensión -->
@@ -91,10 +101,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       </div>
     </div>
 
-    <div
-      id="results-skeleton"
-      class="grid grid-cols-1 md:grid-cols-2 gap-6"
-    >
+    <div id="results-skeleton" class="grid grid-cols-1 md:grid-cols-2 gap-6">
       {[1, 2, 3, 4, 5, 6].map(() => <SkeletonCard type="user" />)}
     </div>
 
@@ -116,6 +123,11 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       clearButtonId="clear-search"
     />
   </section>
+  <div id="icon-store" class="hidden" aria-hidden="true">
+    <span data-icon="clock"><Icon name="boxicons:clock-filled" /></span>
+    <span data-icon="check-success"><Icon name="boxicons:check" /></span>
+    <span data-icon="x-error"><Icon name="boxicons:x" /></span>
+  </div>
 </PageContainer>
 
 <UserCard />
@@ -125,6 +137,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
 <!-- Modal de Consola Terminal (Grupos AD) -->
 <TerminalModal />
+
+<script is:inline define:vars={{ userRole }}>
+  window.__userRole = userRole;
+</script>
 
 <script>
   let isLoaded = false;
@@ -188,6 +204,13 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   const emptyState = document.getElementById("empty-state");
   const statusText = document.getElementById("search-status");
   const clearSearchBtn = document.getElementById("clear-search");
+  const syncStatus = document.getElementById("sync-status");
+  const syncBtn = document.getElementById(
+    "sync-invgate-btn",
+  ) as HTMLButtonElement | null;
+  if (syncBtn) {
+    syncBtn.addEventListener("click", handleSyncInvGate);
+  }
   const resultsSkeleton = document.getElementById("results-skeleton");
   const cardTemplate = document.getElementById(
     "user-card-template",
@@ -255,7 +278,9 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
   const btnCopyUsername = document.getElementById("btn-copy-username");
   const btnCopyFullname = document.getElementById("btn-copy-fullname");
   const btnCopyTitle = document.getElementById("btn-copy-title");
-  const btnCopyEmployeeNumber = document.getElementById("btn-copy-employeenumber");
+  const btnCopyEmployeeNumber = document.getElementById(
+    "btn-copy-employeenumber",
+  );
   const btnCopyOffice = document.getElementById("btn-copy-office");
   const btnCopyManager = document.getElementById("btn-copy-manager");
   const btnCopyPwdLastSet = document.getElementById("btn-copy-pwdlastset");
@@ -352,6 +377,170 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     resultsGrid?.classList.add("grid");
     setTimeout(() => resultsGrid?.classList.remove("opacity-0"), 50);
     displayResults([]);
+
+    fetchSyncStatus();
+  }
+
+  function svgIcon(name: string, extraClass = ""): string {
+    const icon = document.querySelector(
+      `#icon-store [data-icon="${name}"] > svg`,
+    );
+    if (!icon) return "";
+    const clone = icon.cloneNode(true) as SVGElement;
+    if (extraClass) clone.setAttribute("class", extraClass);
+    return clone.outerHTML;
+  }
+
+  async function fetchSyncStatus() {
+    if (!syncStatus) return;
+    try {
+      const res = await fetch("/api/usuarios/status");
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      if (data.lastSync) {
+        const date = new Date(data.lastSync.lastExecution);
+        const formatted = date.toLocaleDateString("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const isError = data.lastSync.status === "error";
+        syncStatus.innerHTML = `
+          ${svgIcon("clock", `size-4 ${isError ? "text-error" : "text-base-content/30"}`)}
+          <span>Última sinc.: ${formatted}</span>
+          ${isError ? '<span class="text-error font-semibold">(error)</span>' : ""}
+        `;
+      } else {
+        syncStatus.innerHTML = `
+          ${svgIcon("clock", "size-4 text-base-content/30")}
+          <span>Sin sincronización previa</span>
+        `;
+      }
+    } catch {
+      syncStatus.innerHTML = "";
+    }
+
+    const syncBtn = document.getElementById("sync-invgate-btn");
+    if (syncBtn && (window as any).__userRole === "admin") {
+      syncBtn.classList.remove("hidden");
+    }
+  }
+
+  function setSyncIcon(id: string) {
+    [
+      "sync-icon-idle",
+      "sync-icon-success",
+      "sync-icon-error",
+      "sync-icon-spinner",
+    ].forEach((name) => {
+      const el = document.getElementById(name);
+      if (el) el.classList.toggle("hidden", el.id !== id);
+    });
+  }
+
+  async function handleSyncInvGate() {
+    const syncBtn = document.getElementById(
+      "sync-invgate-btn",
+    ) as HTMLButtonElement | null;
+    const syncText = document.getElementById(
+      "sync-invgate-text",
+    ) as HTMLElement | null;
+    const searchStatus = document.getElementById("search-status");
+    if (!syncBtn || !syncText) return;
+
+    const originalClass =
+      "btn btn-accent btn-outline btn-sm gap-2 shrink-0 mt-1 w-[185px]";
+    const originalText = "Sincronizar InvGate";
+
+    syncBtn.disabled = true;
+    syncBtn.className = originalClass + " pointer-events-none";
+    syncText.textContent = "Sincronizando...";
+    setSyncIcon("sync-icon-spinner");
+
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 300000);
+
+    try {
+      const res = await fetch("/api/usuarios/sync-invgate", {
+        method: "POST",
+        signal: ac.signal,
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        syncBtn.className = originalClass.replace(
+          "btn-accent btn-outline",
+          "btn-success",
+        );
+        setSyncIcon("sync-icon-success");
+        syncText.textContent = `Sincronizado (${data.totalSynced})`;
+
+        if (searchStatus) {
+          searchStatus.innerHTML = `
+            <span class="text-success font-semibold flex items-center gap-1">
+              ${svgIcon("check-success")}
+              Sincronizado: ${data.totalSynced} usuarios de InvGate
+            </span>
+          `;
+        }
+        handleSearch();
+
+        setTimeout(() => {
+          syncBtn.className = originalClass;
+          setSyncIcon("sync-icon-idle");
+          syncText.textContent = originalText;
+        }, 4000);
+      } else {
+        syncBtn.className = originalClass.replace(
+          "btn-accent btn-outline",
+          "btn-error",
+        );
+        setSyncIcon("sync-icon-error");
+        syncText.textContent = "Error";
+
+        if (searchStatus) {
+          searchStatus.innerHTML = `
+            <span class="text-error font-semibold flex items-center gap-1">
+              ${svgIcon("x-error")}
+              Error: ${data.error || "Error al sincronizar"}
+            </span>
+          `;
+        }
+
+        setTimeout(() => {
+          syncBtn.className = originalClass;
+          setSyncIcon("sync-icon-idle");
+          syncText.textContent = originalText;
+        }, 4000);
+      }
+    } catch (err: any) {
+      syncBtn.className = originalClass.replace(
+        "btn-accent btn-outline",
+        "btn-error",
+      );
+      setSyncIcon("sync-icon-error");
+      syncText.textContent = "Error conexión";
+
+      if (searchStatus) {
+        searchStatus.innerHTML = `
+            <span class="text-error font-semibold flex items-center gap-1">
+              ${svgIcon("x-error")}
+              Error de conexión
+            </span>
+          `;
+      }
+
+      setTimeout(() => {
+        syncBtn.className = originalClass;
+        setSyncIcon("sync-icon-idle");
+        syncText.textContent = originalText;
+      }, 4000);
+    } finally {
+      clearTimeout(timeout);
+      syncBtn.disabled = false;
+    }
   }
 
   function displayResults(users: any[]) {
@@ -428,15 +617,21 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       }
 
       // Función auxiliar para actualizar los CopyButton del template de la tarjeta
-      const updateCardCopyButton = (btnSelector: string, value: string, highlightQuery: string = "") => {
+      const updateCardCopyButton = (
+        btnSelector: string,
+        value: string,
+        highlightQuery: string = "",
+      ) => {
         const btn = clone.querySelector(btnSelector) as HTMLElement | null;
         if (btn) {
           const val = value || "";
           btn.setAttribute("data-copy-value", val);
           btn.setAttribute("data-copy-label-default", val || "-");
           btn.setAttribute("aria-label", `Copiar: ${val || "-"}`);
-          
-          const labelSpan = btn.querySelector("[data-copy-label]") as HTMLElement | null;
+
+          const labelSpan = btn.querySelector(
+            "[data-copy-label]",
+          ) as HTMLElement | null;
           if (labelSpan) {
             if (highlightQuery && val) {
               labelSpan.innerHTML = highlightText(val, highlightQuery);
@@ -452,6 +647,20 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       updateCardCopyButton(".user-card-interno-btn", user.interno);
       updateCardCopyButton(".user-card-telefono-btn", user.telefono);
       updateCardCopyButton(".user-card-email-btn", user.email, query);
+
+      // Ubicación
+      const sucursal = user.sucursal;
+      if (sucursal) {
+        const sucursalNombre = user.sucursalNombre;
+        const valorCompleto = sucursalNombre
+          ? `${sucursal} — ${sucursalNombre}`
+          : sucursal;
+        updateCardCopyButton(".user-card-sucursal-btn", valorCompleto);
+      } else {
+        const sucursalBtn = clone.querySelector(".user-card-sucursal-btn");
+        const parentRow = sucursalBtn?.closest(".flex.flex-col");
+        if (parentRow) parentRow.classList.add("hidden");
+      }
 
       const safeNombre = user.nombre || "U";
       const initials = safeNombre
@@ -469,6 +678,22 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       if (avatarBg) {
         const colorClass = getAvatarColor(safeNombre);
         colorClass.split(" ").forEach((cls) => avatarBg.classList.add(cls));
+      }
+
+      // Badge de InvGate
+      const invgateBadge = clone.querySelector(
+        "[data-invgate-badge]",
+      ) as HTMLElement | null;
+      if (invgateBadge) {
+        if (user.invgateExists) {
+          invgateBadge.textContent = "En InvGate";
+          invgateBadge.className =
+            "badge badge-sm badge-soft bg-success/10 text-success font-semibold";
+        } else {
+          invgateBadge.textContent = "No en InvGate";
+          invgateBadge.className =
+            "badge badge-sm badge-soft bg-base-300/50 text-base-content/50 font-semibold";
+        }
       }
 
       // Botón de edición
@@ -493,6 +718,45 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         });
       } else if (netUserBtn) {
         netUserBtn.classList.add("hidden");
+      }
+
+      const invgateBtn = clone.querySelector(
+        "[data-invgate-copy-btn]",
+      ) as HTMLElement | null;
+      if (invgateBtn && user.usuario && !user.invgateExists) {
+        invgateBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const ticketBody = `Se solicita asignar al usuario en el grupo InvGate Service Management | Usuarios y grupos.
+
+Usuario de red: ${user.usuario}
+Nombre completo: ${user.nombre}
+DNI: ${user.dni}
+Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
+          copyText(ticketBody).then((ok) => {
+            if (!ok) return;
+            const tooltip = (invgateBtn as Element).closest(
+              ".tooltip",
+            ) as HTMLElement | null;
+            const originalTip = tooltip?.getAttribute("data-tip");
+            if (tooltip) {
+              tooltip.setAttribute(
+                "data-tip",
+                "Descripción del ticket copiada",
+              );
+              tooltip.classList.replace("tooltip-neutral", "tooltip-success");
+              tooltip.classList.add("tooltip-open");
+            }
+            setTimeout(() => {
+              if (tooltip) {
+                tooltip.setAttribute("data-tip", originalTip || "");
+                tooltip.classList.replace("tooltip-success", "tooltip-neutral");
+                tooltip.classList.remove("tooltip-open");
+              }
+            }, 2000);
+          });
+        });
+      } else if (invgateBtn) {
+        invgateBtn.closest(".tooltip")?.classList.add("hidden");
       }
 
       fragment.appendChild(clone);
@@ -544,13 +808,8 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
     searchTimeout = window.setTimeout(async () => {
       try {
-        const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-        const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?search=${encodeURIComponent(query)}`;
-        const response = await fetch(url, {
-          headers: {
-            "X-API-Key": token,
-          },
-        });
+        const url = `/api/usuarios/search?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
 
         if (!response.ok) throw new Error("API error");
         const data = await response.json();
@@ -563,6 +822,8 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           telefono: u.telefono,
           email: u.username ? `${u.username}@correoargentino.com.ar` : null,
           sucursal: u.sucursal,
+          sucursalNombre: u.sucursalNombre,
+          invgateExists: u.invgateExists ?? false,
         }));
 
         currentUsers = mappedResults;
@@ -630,22 +891,20 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     saveBtnSpinner.classList.remove("hidden");
 
     try {
-      const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-      const url = `http://mda.correo.local/api_mda_find_extension/get_users.php`;
+      const url = `/api/usuarios/${dni}`;
 
       const response = await fetch(url, {
-        method: "POST",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-API-Key": token,
         },
-        body: JSON.stringify({ dni, interno, telefono }),
+        body: JSON.stringify({ interno, telefono }),
       });
 
       if (!response.ok) throw new Error("Error en la respuesta del servidor.");
       const result = await response.json();
 
-      if (result.status === "success") {
+      if (result.ok) {
         // Actualizar el estado local en la grilla actual
         const idx = currentUsers.findIndex((u) => u.dni === dni);
         if (idx !== -1) {
@@ -721,24 +980,28 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
 
     // Resetear campos del panel organizado y sus botones de copia
     if (termInfoUsername) termInfoUsername.textContent = username;
-    if (btnCopyUsername) btnCopyUsername.setAttribute("data-copy-value", username);
+    if (btnCopyUsername)
+      btnCopyUsername.setAttribute("data-copy-value", username);
     if (termInfoFullname) termInfoFullname.textContent = "-";
     if (btnCopyFullname) btnCopyFullname.setAttribute("data-copy-value", "");
     if (termInfoTitle) termInfoTitle.textContent = "-";
     if (btnCopyTitle) btnCopyTitle.setAttribute("data-copy-value", "");
     if (termInfoEmployeeNumber) termInfoEmployeeNumber.textContent = "-";
-    if (btnCopyEmployeeNumber) btnCopyEmployeeNumber.setAttribute("data-copy-value", "");
+    if (btnCopyEmployeeNumber)
+      btnCopyEmployeeNumber.setAttribute("data-copy-value", "");
     if (termInfoOffice) termInfoOffice.textContent = "-";
     if (btnCopyOffice) btnCopyOffice.setAttribute("data-copy-value", "");
     if (termInfoManager) termInfoManager.textContent = "-";
     if (btnCopyManager) btnCopyManager.setAttribute("data-copy-value", "");
     if (btnSearchManager) btnSearchManager.classList.add("hidden");
     if (termInfoPwdLastSet) termInfoPwdLastSet.textContent = "-";
-    if (btnCopyPwdLastSet) btnCopyPwdLastSet.setAttribute("data-copy-value", "");
+    if (btnCopyPwdLastSet)
+      btnCopyPwdLastSet.setAttribute("data-copy-value", "");
     if (termInfoLastLogon) termInfoLastLogon.textContent = "-";
     if (btnCopyLastLogon) btnCopyLastLogon.setAttribute("data-copy-value", "");
     if (termInfoWhenCreated) termInfoWhenCreated.textContent = "-";
-    if (btnCopyWhenCreated) btnCopyWhenCreated.setAttribute("data-copy-value", "");
+    if (btnCopyWhenCreated)
+      btnCopyWhenCreated.setAttribute("data-copy-value", "");
     if (termInfoExpires) termInfoExpires.textContent = "-";
     if (btnCopyExpires) btnCopyExpires.setAttribute("data-copy-value", "");
     if (terminalGroupsCount) terminalGroupsCount.textContent = "0 grupos";
@@ -749,14 +1012,8 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
     terminalModal.showModal();
 
     try {
-      const token = "mda_live_bf9d7a2e8c5643190ab76d2e1f48c590";
-      const url = `http://mda.correo.local/api_mda_find_extension/get_users.php?action=net_user&username=${encodeURIComponent(username)}`;
-
-      const response = await fetch(url, {
-        headers: {
-          "X-API-Key": token,
-        },
-      });
+      const url = `/api/usuarios/net-user?username=${encodeURIComponent(username)}`;
+      const response = await fetch(url);
       if (!response.ok)
         throw new Error("Error en la ejecución del comando en el servidor.");
       const result = await response.json();
@@ -768,7 +1025,10 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
         if (termInfoFullname)
           termInfoFullname.textContent = result.fullname || "No especificado";
         if (btnCopyFullname)
-          btnCopyFullname.setAttribute("data-copy-value", result.fullname || "");
+          btnCopyFullname.setAttribute(
+            "data-copy-value",
+            result.fullname || "",
+          );
         if (termInfoTitle)
           termInfoTitle.textContent = result.title || "No especificado";
         if (btnCopyTitle)
@@ -777,17 +1037,26 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           termInfoEmployeeNumber.textContent =
             result.employee_number || "No especificado";
         if (btnCopyEmployeeNumber)
-          btnCopyEmployeeNumber.setAttribute("data-copy-value", result.employee_number || "");
+          btnCopyEmployeeNumber.setAttribute(
+            "data-copy-value",
+            result.employee_number || "",
+          );
         if (termInfoOffice)
           termInfoOffice.textContent =
             result.physical_office || "No especificado";
         if (btnCopyOffice)
-          btnCopyOffice.setAttribute("data-copy-value", result.physical_office || "");
+          btnCopyOffice.setAttribute(
+            "data-copy-value",
+            result.physical_office || "",
+          );
         if (termInfoManager)
           termInfoManager.textContent =
             result.manager_name || "No especificado";
         if (btnCopyManager)
-          btnCopyManager.setAttribute("data-copy-value", result.manager_name || "");
+          btnCopyManager.setAttribute(
+            "data-copy-value",
+            result.manager_name || "",
+          );
         if (btnSearchManager) {
           if (
             result.manager_name &&
@@ -802,23 +1071,35 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
           termInfoLastLogon.textContent =
             result.last_logon || "No especificado";
         if (btnCopyLastLogon)
-          btnCopyLastLogon.setAttribute("data-copy-value", result.last_logon || "");
+          btnCopyLastLogon.setAttribute(
+            "data-copy-value",
+            result.last_logon || "",
+          );
         if (termInfoWhenCreated)
           termInfoWhenCreated.textContent =
             result.when_created || "No especificado";
         if (btnCopyWhenCreated)
-          btnCopyWhenCreated.setAttribute("data-copy-value", result.when_created || "");
+          btnCopyWhenCreated.setAttribute(
+            "data-copy-value",
+            result.when_created || "",
+          );
 
         // Poblar diagnósticos de seguridad
         if (termInfoPwdLastSet)
           termInfoPwdLastSet.textContent =
             result.pwd_last_set || "No especificado";
         if (btnCopyPwdLastSet)
-          btnCopyPwdLastSet.setAttribute("data-copy-value", result.pwd_last_set || "");
+          btnCopyPwdLastSet.setAttribute(
+            "data-copy-value",
+            result.pwd_last_set || "",
+          );
         if (termInfoExpires)
           termInfoExpires.textContent = result.account_expires || "Nunca";
         if (btnCopyExpires)
-          btnCopyExpires.setAttribute("data-copy-value", result.account_expires || "Nunca");
+          btnCopyExpires.setAttribute(
+            "data-copy-value",
+            result.account_expires || "Nunca",
+          );
 
         currentLdapGroups = result.groups || [];
         if (terminalGroupsCount) {
@@ -989,7 +1270,7 @@ const cleanBase = base.endsWith("/") ? base : base + "/";
       item.innerHTML = `
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="size-4 shrink-0 select-none flex items-center justify-center">${categoryInfo.icon}</span>
-            <span class="font-semibold truncate text-small select-all text-base-content leading-none" title="${group}">${highlightGroupText(group, filterText)}</span>
+            <span class="font-semibold truncate text-small select-all text-base-content" title="${group}">${highlightGroupText(group, filterText)}</span>
           </div>
           <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0" data-copy-control data-copy-value="${group}" data-copy-label-default="Copiar grupo" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar nombre de grupo">
             <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-copy-icon-default>

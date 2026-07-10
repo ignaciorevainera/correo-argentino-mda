@@ -1,41 +1,22 @@
-import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { createDeleteHandler } from "@lib/api/deleteHandler";
 
-export const POST: APIRoute = async ({ params, redirect, locals }) => {
-  const linkId = params.id;
-  if (!linkId) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace no proporcionado")}&toast_type=error`);
-  }
-
-  const idNum = parseInt(linkId, 10);
-  if (isNaN(idNum)) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("ID de enlace inválido")}&toast_type=error`);
-  }
-
-  try {
+export const POST = createDeleteHandler({
+  entityName: "enlace",
+  redirectPath: "admin/recursos",
+  invalidIdMessage: "ID de enlace no proporcionado",
+  performDelete: async (id) => {
     const existing = await db.query.resourceLinks.findFirst({
-        where: eq(resourceLinks.id, idNum),
+      where: eq(resourceLinks.id, id),
     });
-
     if (existing) {
-        await db.delete(resourceLinks).where(eq(resourceLinks.id, idNum));
-        await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el enlace "${existing.title}"`);
+      await db.delete(resourceLinks).where(eq(resourceLinks.id, id));
+      return existing as Record<string, unknown>;
     }
-
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("Enlace eliminado con éxito")}&toast_type=success`);
-  } catch (error) {
-    console.error("Error al eliminar enlace:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/recursos?toast_msg=${encodeURIComponent("Error al eliminar el enlace")}&toast_type=error`);
-  }
-};
+    return null;
+  },
+  successMessage: () => "Enlace eliminado con éxito",
+  logMessage: (d) => d ? `Eliminó el enlace "${(d as any).title}"` : "Eliminó un enlace",
+});

@@ -30,7 +30,7 @@ export function showToast(message: string, type: ToastType = 'alert-info', durat
     const iconSvg = templateContainer.querySelector('svg');
     if (iconSvg) {
       const clonedSvg = iconSvg.cloneNode(true) as SVGElement;
-      clonedSvg.classList.add('flex-shrink-0');
+      clonedSvg.classList.add('shrink-0');
       toastDiv.appendChild(clonedSvg);
     }
   }

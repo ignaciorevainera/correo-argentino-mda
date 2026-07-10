@@ -1,0 +1,60 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  id: string;
+  current: string;
+}
+const { id, current } = Astro.props;
+
+const options = [
+  {
+    value: "alphabetical",
+    label: "Alfabético (A-Z)",
+    icon: "boxicons:arrow-down-a-z",
+  },
+  {
+    value: "alphabetical-za",
+    label: "Alfabético (Z-A)",
+    icon: "boxicons:arrow-up-a-z",
+  },
+  { value: "entry-time", label: "Entrada (Horario)", icon: "boxicons:clock-5" },
+  {
+    value: "location",
+    label: "Sede / Ubicación",
+    icon: "boxicons:location-pin",
+  },
+];
+const currentOption = options.find((o) => o.value === current) || options[0];
+---
+
+<details class="dropdown dropdown-bottom dropdown-end" id={id + "-container"}>
+  <summary
+    class="btn btn-soft justify-between w-full min-w-3xs font-bold text-xs gap-1"
+  >
+    <span class="flex items-center gap-1.5">
+      <Icon name="boxicons:arrow-down-up" size={14} />
+      <span id={id + "-label"}>Ordenar: {currentOption.label}</span>
+    </span>
+    <Icon name="boxicons:chevron-down" size={12} class="opacity-60" />
+  </summary>
+  <ul
+    class="dropdown-content menu menu-sm bg-base-100 rounded-box p-1.5 z-50 mt-1"
+  >
+    {
+      options.map((opt) => (
+        <li>
+          <button
+            type="button"
+            data-value={opt.value}
+            data-sort-option
+            class:list={[{ "menu-active": current === opt.value }]}
+          >
+            <Icon name={opt.icon} size={14} />
+            {opt.label}
+          </button>
+        </li>
+      ))
+    }
+  </ul>
+</details>

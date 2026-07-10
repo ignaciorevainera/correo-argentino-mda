@@ -1,24 +1,26 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+import { getPdfsDir, ensureDir } from "@lib/storage";
+import { processAppFileUpload } from "@lib/appFileUpload";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
-
-const isNew = true;
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 
 let errorMsg = "";
 let app = {
@@ -46,7 +48,8 @@ if (Astro.request.method === "POST") {
     formSnapshot = formData;
 
     const title = formData.get("title")?.toString().trim();
-    const categoryId = formData.get("categoryId")?.toString().trim() || null;
+    const categoryIdRaw = formData.get("categoryId")?.toString().trim();
+    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
     const description = formData.get("description")?.toString().trim() || null;
     const version = formData.get("version")?.toString().trim() || null;
     const uploadType = formData.get("uploadType")?.toString() as
@@ -75,47 +78,8 @@ if (Astro.request.method === "POST") {
       }
     } else {
       const file = formData.get("file") as File | null;
-
-      if (file && file.size > 0 && file.name) {
-        const fs = await import("node:fs");
-        const path = await import("node:path");
-
-        const uploadDir = path.resolve(
-          process.env.EXTERNAL_STORAGE_DIR ||
-            (import.meta.env.EXTERNAL_STORAGE_DIR as string) ||
-            "C:/Projects/correo-argentino-mda-programs",
-        );
-
-        try {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        } catch (dirError: any) {
-          if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
-            throw dirError;
-          }
-          console.error(
-            `[aplicativos] No se pudo crear el directorio "${uploadDir}": ${dirError.message}. Asegurate de que exista y tenga permisos de escritura.`,
-          );
-        }
-
-        const ext = path.extname(file.name);
-        const baseName = path
-          .basename(file.name, ext)
-          .replace(/[^a-zA-Z0-9_\-\.]/g, "_")
-          .replace(/_+/g, "_");
-        const safeFileName = `${Date.now()}_${baseName}${ext}`;
-
-        try {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          fs.writeFileSync(path.join(uploadDir, safeFileName), buffer);
-        } catch (writeError: any) {
-          console.error(
-            `[aplicativos] Error al escribir el archivo "${safeFileName}": ${writeError.message}`,
-          );
-          throw new Error(
-            `No se pudo guardar el archivo en el servidor. Verificá los permisos de la carpeta de almacenamiento.`,
-          );
-        }
-
+      const safeFileName = await processAppFileUpload(file, null);
+      if (safeFileName) {
         filePath = `${resolveUrl("api/download/")}${safeFileName}`;
       }
     }
@@ -150,18 +114,8 @@ if (Astro.request.method === "POST") {
       const fs = await import("node:fs");
       const path = await import("node:path");
 
-      const privateUploadDir = path.resolve(
-        process.env.EXTERNAL_PRIVATE_DIR || "C:/Projects/correo-argentino-mda-private-pdfs"
-      );
-
-      try {
-        fs.mkdirSync(privateUploadDir, { recursive: true });
-      } catch (dirError: any) {
-        if (dirError.code !== "EACCES" && dirError.code !== "EPERM") {
-          throw dirError;
-        }
-        console.error(`[aplicativos] No se pudo crear el directorio privado: ${dirError.message}`);
-      }
+      const pdfsDir = getPdfsDir();
+      ensureDir(pdfsDir);
 
       const ext = path.extname(instructionPdfFile.name);
       if (ext.toLowerCase() !== ".pdf") {
@@ -176,7 +130,7 @@ if (Astro.request.method === "POST") {
 
       try {
         const buffer = Buffer.from(await instructionPdfFile.arrayBuffer());
-        fs.writeFileSync(path.join(privateUploadDir, safeFileName), buffer);
+        fs.writeFileSync(path.join(pdfsDir, safeFileName), buffer);
         instructionPdfPath = safeFileName;
       } catch (writeError: any) {
         console.error(`[aplicativos] Error al escribir PDF privado: ${writeError.message}`);
@@ -194,28 +148,16 @@ if (Astro.request.method === "POST") {
       metadata: metadataEncrypted,
       instructionPdfPath,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó el aplicativo "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó el aplicativo "${title}"`);
 
     if (isAjax) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Aplicativo creado con éxito.",
-          redirectUrl: resolveUrl("/admin/aplicativos"),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return toastResponse({ success: true, message: "Aplicativo creado con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
     }
 
-    return Astro.redirect(
-      resolveUrl(`/admin/aplicativos?toast_msg=${encodeURIComponent("Aplicativo creado con éxito.")}&toast_type=success`)
-    );
+    return redirectWithToast("/admin/aplicativos", "Aplicativo creado con éxito.");
   } catch (error: any) {
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar el aplicativo." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return toastResponse({ success: false, error: error.message || "Error al guardar el aplicativo." });
     }
     errorMsg = error.message || "Error al guardar el aplicativo.";
     if (formSnapshot) {
@@ -244,36 +186,33 @@ const isExternal = formUploadType
 <BaseLayout title="Nuevo aplicativo">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/aplicativos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Aplicativos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Nuevo aplicativo</span>
+      </div>
+
+      <PageHeader
+        title="Nuevo aplicativo"
+        description="Registrá un nuevo aplicativo disponible para descarga."
+      />
+
+      {
+        errorMsg && (
+          <script is:inline define:vars={{ errorMsg }}>
+            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
+          </script>
+        )
+      }
+
       <SectionCard>
         <div class="p-6 sm:p-8">
-          <div
-            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
-          >
-            <div>
-              <h1 class="text-xl font-bold text-base-content">
-                Nuevo aplicativo
-              </h1>
-              <p class="text-sm text-base-content/60 mt-1">
-                Registrá un nuevo aplicativo disponible para descarga.
-              </p>
-            </div>
-            <a
-              href={resolveUrl("/admin/aplicativos")}
-              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
-              title="Cerrar"
-            >
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
-
-          {
-            errorMsg && (
-              <script is:inline define:vars={{ errorMsg }}>
-                window.showToast?.(errorMsg, "alert-error");
-              </script>
-            )
-          }
-
           <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
               <FormField
@@ -283,7 +222,7 @@ const isExternal = formUploadType
                 required
                 value={app.title}
                 placeholder="Ej: ShareX"
-                maxLength={50}
+                maxlength={50}
                 autofocus
               />
 
@@ -300,7 +239,7 @@ const isExternal = formUploadType
                   categories.map((cat) => (
                     <option
                       value={cat.id}
-                      selected={cat.id === app.categoryId}
+                      selected={Number(cat.id) === Number(app.categoryId)}
                     >
                       {cat.title}
                     </option>
@@ -451,27 +390,30 @@ const isExternal = formUploadType
               value={app.description}
               placeholder="Breve descripción del aplicativo y su uso operativo."
               rows={3}
-              maxLength={150}
+              maxlength={150}
             />
 
             <div
               class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
             >
-              <a href={resolveUrl("/admin/aplicativos")} class="btn btn-ghost"
-                >Cancelar</a
-              >
-              <button type="submit" class="btn btn-primary gap-2">
-                <Icon name="boxicons:save" size={18} />
-                Guardar aplicativo
-              </button>
+              <ActionCancelButton
+                href={resolveUrl("/admin/aplicativos")}
+                label="Cancelar"
+              />
+              <ActionConfirmButton
+                type="submit"
+                color="btn-primary"
+                label="Guardar aplicativo"
+                icon="boxicons:save"
+              />
             </div>
           </form>
         </div>
       </SectionCard>
     </div>
   </PageContainer>
+  <AsyncFormScript />
 </BaseLayout>
-<AsyncFormScript />
 
 <script>
   const radios = document.querySelectorAll<HTMLInputElement>(
@@ -569,7 +511,7 @@ const isExternal = formUploadType
   }
 
   // Antes del submit del formulario, serializar a JSON
-  form?.addEventListener("submit", (e) => {
+  form?.addEventListener("submit", () => {
     const rows = document.querySelectorAll(".app-meta-row");
     const metaArray: Array<{ label: string; value: string }> = [];
 

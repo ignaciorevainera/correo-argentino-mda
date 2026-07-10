@@ -4,10 +4,13 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 import { Icon } from "astro-icon/components";
 import UbicacionRow from "./UbicacionRow.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import { db } from "@db/index";
 import { provinces } from "@db/schema";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
@@ -16,7 +19,7 @@ const allProvinces = await db.select().from(provinces).orderBy(provinces.name);
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 const page = parseInt(searchParams.get("page") ?? "1", 10) || 1;
-const filter = searchParams.get("filter") ?? "all";
+const filter = searchParams.get("filter") ?? "unmatched";
 const q = searchParams.get("q") ?? "";
 const sync = searchParams.get("sync") === "true";
 
@@ -93,17 +96,21 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     /* --- COMPARISON RUNS / CACHED CONTENT --- */
     <div>
       <!-- Stats Summary cards -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 my-6">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 my-6">
         <div class="card bg-base-100 shadow border border-base-200 p-4">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total InvGate</span>
           <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalInvgate}</span>
         </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-success">
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
           <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Matcheados</span>
           <span class="text-2xl font-bold mt-1 text-success">{stats.matched}</span>
         </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 border-l-4 border-l-error">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Sin match</span>
+        <div class="card bg-base-100 shadow border border-base-200 p-4">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
+          <span class="text-2xl font-bold mt-1 text-warning">{stats.unmatchedMda}</span>
+        </div>
+        <div class="card bg-base-100 shadow border border-base-200 p-4 ">
+          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
           <span class="text-2xl font-bold mt-1 text-error">{stats.unmatchedInvgate}</span>
         </div>
         <div class="card bg-base-100 shadow border border-base-200 p-4">
@@ -132,7 +139,7 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
             href={`/admin/invgate/ubicaciones?filter=unmatched&q=${encodeURIComponent(q)}`}
             class:list={["join-item btn btn-md", filter === "unmatched" ? "btn-active btn-neutral" : "bg-base-100"]}
           >
-            Sin match
+            Solo en InvGate
           </a>
         </div>
 
@@ -143,20 +150,10 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
             Sincronizar
           </a>
 
-          <!-- Search Form -->
-          <form method="GET" action="/admin/invgate/ubicaciones" class="relative w-full md:w-80">
-            <input type="hidden" name="filter" value={filter} />
-            <input
-              type="text"
-              name="q"
-              value={q}
-              placeholder="Buscar ubicación, NIS, CP..."
-              class="input input-bordered w-full pr-10"
-            />
-            <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content" aria-label="Buscar">
-              <Icon name="boxicons:search" size={20} aria-hidden="true" />
-            </button>
-          </form>
+          <!-- Search Bar -->
+          <div class="w-full md:w-80">
+            <SearchBar id="ubicaciones-search" placeholder="Buscar ubicación, NIS, CP..." size="md" />
+          </div>
         </div>
       </div>
 
@@ -192,11 +189,9 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
           </DataTable>
 
           <!-- Infinite Scroll Sentinel -->
-          {pagination.totalPages > 1 && (
-            <div id="locations-sentinel" class="py-8 flex justify-center">
-              <span class="loading loading-spinner loading-md text-primary" id="locations-spinner"></span>
-            </div>
-          )}
+          <div id="locations-sentinel" class="py-8 text-center flex justify-center {pagination.totalPages > 1 ? '' : 'hidden'}" data-has-more={pagination.totalPages > 1 ? "true" : "false"} data-initial-page={pagination.page}>
+            <span class="loading loading-spinner loading-md text-primary hidden" id="locations-spinner"></span>
+          </div>
         </div>
       )}
     </div>
@@ -224,8 +219,16 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
         ))}
       </SelectField>
       <div class="modal-action flex justify-end gap-2 mt-6">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('create_office_modal').close()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Crear</button>
+        <ActionCancelButton
+          type="button"
+          label="Cancelar"
+          onclick="document.getElementById('create_office_modal').close()"
+        />
+        <ActionConfirmButton
+          type="submit"
+          color="btn-primary"
+          label="Crear"
+        />
       </div>
     </form>
   </div>
@@ -255,14 +258,15 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     });
   }
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-create-office-btn]");
-    if (!btn) return;
-
+  window.openCreateOfficeModal = function(btn) {
     const nis = btn.getAttribute("data-nis");
     const name = btn.getAttribute("data-name");
     const cc = btn.getAttribute("data-cc");
     const address = btn.getAttribute("data-address");
+    const invgateId = btn.getAttribute("data-invgate-id");
+    const invgateDisplayName = btn.getAttribute("data-invgate-display-name");
+    const invgateCp = btn.getAttribute("data-invgate-cp");
+    const invgateAddress = btn.getAttribute("data-invgate-address");
 
     const modal = document.getElementById("create_office_modal");
     if (!modal) return;
@@ -277,140 +281,180 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     }
 
     window.lastTriggeringBtn = btn;
+    window.lastInvgateLink = invgateId ? {
+      invgateLocationId: parseInt(invgateId, 10),
+      invgateDisplayName: invgateDisplayName || "",
+      invgateCp: invgateCp || "",
+      invgateAddress: invgateAddress || "",
+    } : null;
     modal.showModal();
-  });
+  };
 
-  document.addEventListener("DOMContentLoaded", () => {
+  (function setupCreateForm() {
     const form = document.getElementById("create_office_form");
     const modal = document.getElementById("create_office_modal");
+    if (!form || !modal) return;
 
-    if (form && modal) {
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
         const formData = new FormData(form);
         const data = {
           code: formData.get("code"),
           name: formData.get("name"),
-          address: formData.get("address"),
+          address: (formData.get("address") || "").toUpperCase() || null,
           provinceCode: formData.get("provinceCode"),
           cc: formData.get("cc"),
           type: formData.get("type"),
         };
-
-        try {
-          const res = await fetch("/api/admin/offices/create", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          });
-
-          const result = await res.json();
-
-          if (res.ok && result.success) {
-            window.showToast?.("Oficina creada con éxito.", "alert-success");
-            modal.close();
-
-            const row = window.lastTriggeringBtn ? window.lastTriggeringBtn.closest("[data-location-row]") : null;
-            if (row) {
-              const badgeDiv = row.querySelector("div:first-child");
-              if (badgeDiv) {
-                badgeDiv.innerHTML = '<span class="badge badge-success text-success-content badge-sm font-medium">Match</span>';
-              }
-
-              const actionDiv = row.querySelector("[data-create-btn-container]");
-              if (actionDiv) {
-                const parent = actionDiv.parentNode;
-                parent.innerHTML = `<span class="text-sm text-base-content font-medium">${data.name}</span>`;
-              }
-
-              const codeDiv = row.querySelector("div:nth-child(7)");
-              if (codeDiv) {
-                codeDiv.textContent = data.code;
-              }
-
-              const addressDiv = row.querySelector("div:nth-child(8)");
-              if (addressDiv) {
-                addressDiv.textContent = data.address || "—";
-                addressDiv.setAttribute("title", data.address || "—");
-              }
-            }
-          } else {
-            window.showToast?.(result.error || "Error al crear la oficina", "alert-error");
-          }
-        } catch (err) {
-          window.showToast?.("Error de conexión al servidor", "alert-error");
+        if (window.lastInvgateLink) {
+          data.invgateLink = window.lastInvgateLink;
         }
-      });
-    }
-  });
-</script>
-
-<script is:inline define:vars={{
-  initialPage: pagination.page,
-  totalPages: pagination.totalPages,
-  filter,
-  q
-}}>
-  document.addEventListener("DOMContentLoaded", () => {
-    const sentinel = document.getElementById("locations-sentinel");
-    const container = document.getElementById("locations-container");
-    const spinner = document.getElementById("locations-spinner");
-    
-    let currentPage = initialPage;
-    let hasMore = currentPage < totalPages;
-    let isLoading = false;
-
-    if (!sentinel || !container) return;
-
-    if (!hasMore) {
-      sentinel.classList.add("hidden");
-    }
-
-    const fetchNextPage = async () => {
-      if (isLoading || !hasMore) return;
-      isLoading = true;
-      spinner?.classList.remove("hidden");
 
       try {
-        currentPage++;
-        const params = new URLSearchParams();
-        params.set("page", currentPage.toString());
-        params.set("filter", filter);
-        if (q) params.set("q", q);
+        const res = await fetch("/api/admin/offices/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
 
-        const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
-        if (!response.ok) throw new Error("API call failed");
+        const result = await res.json();
 
-        const html = await response.text();
-        const newHasMore = response.headers.get("X-Has-More") === "true";
-        
-        hasMore = newHasMore;
-        container.insertAdjacentHTML("beforeend", html);
+        if (res.ok && result.success) {
+          window.showToast?.("Oficina creada con éxito.", "alert-success");
+          modal.close();
 
-        if (!hasMore) {
-          sentinel.classList.add("hidden");
+          const row = window.lastTriggeringBtn ? window.lastTriggeringBtn.closest("[data-location-row]") : null;
+          if (row) {
+            const badgeDiv = row.querySelector("div:first-child");
+            if (badgeDiv) {
+              badgeDiv.innerHTML = '<span class="badge badge-success text-success-content badge-sm font-medium">Match</span>';
+            }
+
+            const actionDiv = row.querySelector("[data-create-btn-container]");
+            if (actionDiv) {
+              const parent = actionDiv.parentNode;
+              parent.innerHTML = `<span class="text-sm text-base-content font-medium">${data.name}</span>`;
+            }
+
+            const codeDiv = row.querySelector("div:nth-child(7)");
+            if (codeDiv) {
+              codeDiv.textContent = data.code;
+            }
+
+            const addressDiv = row.querySelector("div:nth-child(8)");
+            if (addressDiv) {
+              addressDiv.textContent = data.address || "—";
+              addressDiv.setAttribute("title", data.address || "—");
+            }
+          }
+        } else {
+          window.showToast?.(result.error || "Error al crear la oficina", "alert-error");
         }
       } catch (err) {
-        console.error("Error fetching locations:", err);
-        // Revert page count on error so the page can be retried on next intersection
-        currentPage--;
-      } finally {
-        isLoading = false;
-        if (!hasMore && spinner) {
-          spinner.classList.add("hidden");
-        }
+        window.showToast?.("Error de conexión al servidor", "alert-error");
       }
-    };
+    });
+  })();
+</script>
 
+<script>
+  import { highlightSearchTargets } from "@lib/clientSearch";
+
+  const sentinel = document.getElementById("locations-sentinel");
+  const container = document.getElementById("locations-container");
+  const spinner = document.getElementById("locations-spinner");
+  const searchInput = document.getElementById("ubicaciones-search");
+
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentFilter = urlParams.get("filter") ?? "unmatched";
+  let currentSearch = urlParams.get("q") ?? "";
+  let currentPage = parseInt(sentinel?.getAttribute("data-initial-page") || "1", 10);
+  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
+  let isLoading = false;
+  let debounceTimeout;
+
+  // Initial highlight if there's a search query
+  if (currentSearch && container) {
+    highlightSearchTargets(container, currentSearch);
+  }
+
+  const fetchLocations = async (query, filter, page, isNewSearch) => {
+    if (isLoading) return;
+    isLoading = true;
+    spinner?.classList.remove("hidden");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("filter", filter);
+      if (query) params.set("q", query);
+
+      const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      hasMore = newHasMore;
+
+      if (isNewSearch && container) {
+        container.innerHTML = html;
+      } else if (container) {
+        container.insertAdjacentHTML("beforeend", html);
+      }
+
+      if (container && query) {
+        highlightSearchTargets(container, query);
+      }
+
+      if (hasMore) {
+        sentinel?.classList.remove("hidden");
+      } else {
+        sentinel?.classList.add("hidden");
+      }
+    } catch (err) {
+      console.error("Error fetching locations:", err);
+      if (isNewSearch) currentPage--;
+    } finally {
+      isLoading = false;
+      spinner?.classList.add("hidden");
+    }
+  };
+
+  // Debounced search
+  searchInput?.addEventListener("input", () => {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = window.setTimeout(() => {
+      currentSearch = searchInput.value.trim();
+      currentPage = 1;
+      hasMore = true;
+
+      const params = new URLSearchParams(window.location.search);
+      if (currentSearch) {
+        params.set("q", currentSearch);
+      } else {
+        params.delete("q");
+      }
+      params.set("page", "1");
+      params.set("filter", currentFilter);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, "", newUrl);
+
+      fetchLocations(currentSearch, currentFilter, 1, true);
+    }, 300);
+  });
+
+  // Infinite scroll
+  if (sentinel && container) {
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !isLoading && hasMore) {
-        fetchNextPage();
+        currentPage++;
+        fetchLocations(currentSearch, currentFilter, currentPage, false);
       }
     }, { rootMargin: "200px" });
 
     observer.observe(sentinel);
-  });
+  }
 </script>

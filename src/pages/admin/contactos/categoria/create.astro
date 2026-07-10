@@ -1,21 +1,21 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { contactCategories } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
-
-const isNew = true;
-
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
 
 let errorMsg = "";
 let category = { id: "", title: "", icon: "", tone: "primary" };
@@ -57,17 +57,17 @@ if (Astro.request.method === "POST") {
       icon,
       tone,
     });
-    await logAdminAction(Astro.locals.user?.username || 'Sistema', `Creó la categoría de contactos "${title}"`);
+    await logAdminFromAstro(Astro.locals, `Creó la categoría de contactos "${title}"`);
 
     const successMsg = "Categoría creada con éxito.";
     if (isAjax) {
-      return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/contactos") }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/contactos") });
     }
-    return Astro.redirect(resolveUrl(`/admin/contactos?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`));
+    return redirectWithToast("/admin/contactos", successMsg);
   } catch (error: any) {
     console.error("DEBUG ERROR CREATE CATEGORIA:", error);
     if (isAjax) {
-      return new Response(JSON.stringify({ success: false, error: error.message || "Error al guardar la categoría." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }
@@ -77,47 +77,33 @@ if (Astro.request.method === "POST") {
 <BaseLayout title="Nueva categoría de contactos">
   <PageContainer>
     <div class="max-w-2xl mx-auto py-4 sm:py-8">
+      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+        <a
+          href={resolveUrl("/admin/contactos")}
+          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Contactos
+        </a>
+        <span>/</span>
+        <span class="text-base-content font-medium truncate">Nueva categoría</span>
+      </div>
+
+      <PageHeader
+        title="Nueva categoría de contactos"
+        description="Definí cómo se agruparán y visualizarán los contactos."
+      />
+
+      {
+        errorMsg && (
+          <script is:inline define:vars={{ errorMsg }}>
+            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
+          </script>
+        )
+      }
+
       <SectionCard>
         <div class="p-6 sm:p-8">
-          <div
-            class="flex items-start justify-between mb-6 border-b border-base-200 pb-4"
-          >
-            <div>
-              <h1 class="text-xl font-bold text-base-content">
-                Nueva categoría de contactos
-              </h1>
-              <p class="text-sm text-base-content/60 mt-1">
-                Definí cómo se agruparán y visualizarán los contactos.
-              </p>
-            </div>
-            <a
-              href={resolveUrl("/admin/contactos")}
-              class="btn btn-sm btn-ghost btn-square text-base-content/60 hover:bg-base-200"
-              title="Cerrar"
-            >
-              <Icon name="boxicons:x" size={24} />
-            </a>
-          </div>
-
-          {
-            errorMsg && (
-              <script is:inline define:vars={{ errorMsg }}>
-                const triggerToast = () => {
-                  if (window.showToast) {
-                    window.showToast(errorMsg, "alert-error");
-                  } else {
-                    setTimeout(triggerToast, 100);
-                  }
-                };
-                if (document.readyState === "loading") {
-                  document.addEventListener("DOMContentLoaded", triggerToast);
-                } else {
-                  triggerToast();
-                }
-              </script>
-            )
-          }
-
           <form method="POST" data-async-form class="space-y-5">
             <div class="grid grid-cols-1 gap-y-5">
               <FormField
@@ -234,13 +220,16 @@ if (Astro.request.method === "POST") {
             <div
               class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
             >
-              <a href={resolveUrl("/admin/contactos")} class="btn btn-ghost"
-                >Cancelar</a
-              >
-              <button type="submit" class="btn btn-primary gap-2">
-                <Icon name="boxicons:save" size={18} />
-                Guardar Categoría
-              </button>
+              <ActionCancelButton
+                href={resolveUrl("/admin/contactos")}
+                label="Cancelar"
+              />
+              <ActionConfirmButton
+                type="submit"
+                color="btn-primary"
+                label="Guardar"
+                icon="boxicons:save"
+              />
             </div>
           </form>
         </div>

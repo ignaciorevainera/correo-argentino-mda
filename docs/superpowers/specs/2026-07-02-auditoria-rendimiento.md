@@ -1,0 +1,210 @@
+# Auditoría — Rendimiento
+
+**Fecha:** 2026-07-02 (8.ª pasada)
+**Enfoque:** Carga de cliente, consultas DB, optimización de recursos
+**Base:** Escaneo integral del proyecto
+
+---
+
+## Resumen
+
+| Prioridad | Cantidad |
+|-----------|----------|
+| 🔴 HIGH | 4 |
+| 🟡 MEDIUM | 8 |
+| 🟢 LOW | 7 |
+
+---
+
+## P0 — Alto impacto en carga de cliente
+
+### R1.1 🔴 React runtime ~180KB para una sola página
+
+El framework React + ReactDOM (~181.6 KB en `dist/client/_astro/`) se carga en
+TODAS las páginas porque `@astrojs/react` es una integración global. Solo se usa
+en `/titulos` con `<TitlesContainer client:idle />`. Ese componente hace
+búsqueda, filtro y copiado — todo factible con vanilla JS (el proyecto ya hace
+esto en todas las demás páginas).
+
+**Fix:** Reescribir `TitlesContainer` como vanilla JS. Eliminar `@astrojs/react`,
+`react`, `react-dom`, `@heroicons/react`, `@types/react`, `@types/react-dom`.
+**Ahorro:** ~180+ KB del bundle de cliente.
+**Esfuerzo:** 2-3 h.
+
+### R1.2 🟡 CronogramaDashboard script: 111.8KB en un solo chunk — RESUELTO
+
+`CronogramaDashboard.astro_astro_type_script_index_0_lang.DTsz_0D7.js` es el
+chunk JS más grande. Contiene monthly view, weekly view, overtime view, pasiva
+view, drawer logic, exporters, notifications — todo en un solo bundle.
+
+**Fix:** Usar `import()` dinámico para lazy-load de sub-módulos (overtime-view,
+pasiva-view) solo cuando el usuario navega a esas pestañas.
+**Ahorro:** ~60-80KB en carga inicial.
+**Esfuerzo:** 1-2 h.
+**Resolución:** Main chunk 85.9KB (−25.9KB, 23%). 3 chunks lazy-loaded: overtime-view (12.7KB), pasiva-view (7.4KB), exporters (5.5KB). Estado de overtime movido a state.ts. Build OK.
+
+### R1.3 🟡 BaseLayout CSS: 250.5KB en todas las páginas
+
+`BaseLayout.DyP84lZV.css` incluye todo Tailwind v4 + DaisyUI v5 (menos componentes
+excluidos).
+
+**Fix:** Auditar qué componentes DaisyUI se usan realmente. Expandir la lista de
+exclusión en `global.css`. Verificar que el JIT de Tailwind purga clases no usadas.
+**Esfuerzo:** 1 h.
+
+---
+
+## P1 — Consultas DB ineficientes
+
+### R2.1 🔴 `SELECT *` en tabla `agents` en 7 archivos — RESUELTO
+
+`agents` tiene 22 columnas (incluyendo 4 JSON: `esquemaSemanal`, `esquemaHorario`, `esquemaBreakInicio`, `esquemaBreakFin`).
+Se corrigieron los 7 archivos del audit + 11 adicionales encontrados en el escaneo + 2 relaciones Drizzle (`agent: true` → proyección explícita).
+Hot path (`disponibilidad.ts:51`) reducido de 22 a 16 columnas. Homepage (`index.astro:18`) reducido de 22 a 1 (`name`).
+
+### R2.2 🔴 O(N×M) loops con `.find()` en attendance
+
+`src/lib/attendance.ts` líneas 203-327: `getAttendanceData()` usa
+`dbAgents.forEach()` con `dbSchedules.find()` y `dbAttendance.find()` adentro.
+Para ~30 agentes y 31 días, son ~930 iteraciones cada una haciendo 2 `.find()`.
+
+**Fix:** Pre-indexar `dbSchedules` y `dbAttendance` en `Map<key, T>` con clave
+`agentName+date` y `agentId+date`. Reemplazar `.find()` por `.get()`.
+Cambia O(N) a O(1).
+**Esfuerzo:** 30 min.
+
+### R2.3 🟡 Sin índices en columnas frecuentemente consultadas — RESUELTO
+
+| Tabla | Índices agregados | Columnas |
+|-------|-------------------|----------|
+| `schedules` | 2 | `agentName`, `date` |
+| `operatorAttendance` | 2 | `(agentId, date)` compound + `date` |
+| `terminals` | 1 | `nis` |
+| `qualityAudits` | 1 | `month` |
+
+**Fix:** Agregados 6 índices vía Drizzle en `src/db/schema.ts`. Aplicados con `npm run db:push`.
+
+### R2.4 🟡 `getDisponibilidadHoy()` sin caché — cada 10 segundos
+
+`src/lib/disponibilidad.ts` línea 42: llamada cada 10 segundos desde el polling.
+Cada llamada fetcha TODOS los agentes (28 cols + 6 JSON) y TODOS los schedules
+de hoy.
+
+**Fix:** Caché en memoria con TTL de 5-10 segundos (variable de módulo con timestamp).
+**Esfuerzo:** 15 min.
+
+### R2.5 🟡 CronogramaContent carga TODOS los schedules sin filtro — RESUELTO
+
+`src/components/supervision/cronograma/CronogramaContent.astro` línea 23:
+`db.select().from(schedules)` — fetcha TODOS los registros históricos.
+
+**Fix:** `.where(like(schedules.date, \`${currentMonth}-%\`))`.
+**Esfuerzo:** 5 min.
+**Resolución:** Agregado filtro por mes actual + import de `like`. Build OK.
+
+### R2.6 🟡 `getOffices()` fetcha TODOS los officeAssets por request — RESUELTO
+
+`src/lib/officeQueries.ts` líneas 175-182: en cada request paginada de oficinas,
+se fetchan TODOS los hostnames de `officeAssets` para un Set de deduplicación.
+
+**Fix:** Cache module-level con TTL de 60s. Se agrega `manualHostnamesCache` + timestamp. La query solo se ejecuta cuando el cache expira.
+
+### R2.7 🟡 Doble query para `hasMore` en terminals — RESUELTO
+
+`src/lib/terminalQueries.ts` líneas 253, 295-296: el código actual ya usa el patrón `limit + 1` con `rows.length > limit`, evitando la segunda query. No requería cambios.
+
+### R2.8 🟡 Export endpoints cargan tablas enteras en memoria — RESUELTO
+
+`src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`: migrados a streaming via `streamCsv()` + `streamQuery()`. Las filas se leen una por una con `better-sqlite3`'s `.iterate()` y se escriben en el `Response` como chunks de ~64KB. Las boolean columns usan SQL CASE para compatibilidad con el CSV anterior. `offices` ordenado por `code` (natural sort: letra + número), `terminals` ordenado por `hostname` ASC.
+
+### R2.9 🟡 Generación de mes: N queries individuales sin transacción — RESUELTO
+
+`src/pages/api/cronograma/months/index.ts` líneas 25-66: loop por cada agente
+con DELETE + INSERT individual. ~60 queries para ~30 agentes.
+
+**Fix:** Wrap en `db.transaction()`. Batch deletes con `inArray()`.
+**Esfuerzo:** 30 min.
+**Resolución:** Transacción + batch delete con `inArray` + batch inserts chunked (100 filas/chunk). Build OK.
+
+---
+
+## P2 — Optimización de recursos
+
+### R8.1 🟡 `setInterval` nunca limpiados — memory leaks — RESUELTO
+
+**Fix:** Guardados los IDs de intervalo en el scope correspondiente y se limpian en el evento `astro:before-swap` (tanto en `SyncDashboard.astro` como en `AsignacionContent.astro`) para prevenir leaks al usar transiciones de página.
+
+### R5.2 🟡 0 páginas usan `prerender` — RESUELTO
+
+Prerenderizado activado (`prerender = true`) para páginas puramente estáticas o client-side:
+- `/generador-firmas` — puramente client-side
+- `/titulos` — fetch de Google Sheets client-side
+
+*(Nota: `/login` se mantuvo dinámico por decisión de diseño actual).*
+
+### R1.4 🟢 Leaflet desde CDN sin tree-shaking — RESUELTO
+
+`src/components/offices/DirectorioContent.astro` línea 575: `unpkg.com/leaflet`.
+
+**Fix:** Instalado `leaflet` como dependencia npm. CSS importado estáticamente en el frontmatter (~13KB). JS cargado con `await import("leaflet")` dentro de `initializeMap()`, solo cuando el usuario cambia a la vista de mapa (~150KB lazy). Se eliminaron tags CDN. `@types/leaflet` en devDependencies.
+
+### R1.5 🟢 `topojson-client` no lazy-loaded — RESUELTO
+
+`src/components/offices/DirectorioContent.astro` línea 581: importado en `<script>`.
+
+**Fix:** Se movió a `await import("topojson-client")` dentro de `initializeMap()`, solo se carga cuando el usuario cambia a la vista de mapa.
+
+### R2.10 🟢 Middleware fetcha password hash en cada request — RESUELTO
+
+`src/middleware.ts` líneas 43-53: `select()` de users trae TODAS las columnas.
+
+**Fix:** `db.select({ id: users.id, username: users.username, role: users.role })`.
+**Esfuerzo:** 15 min.
+**Resolución:** Proyectadas ambas queries (sessions + users). Solo columnas necesarias.
+
+### R6.3 🟢 `theme-change` — VERIFICADO: en uso
+
+`package.json` línea 39: `theme-change` se importa en `scripts/toggle-mode.ts` línea 1 y se usa en `BaseLayout.astro` para el toggle de modo oscuro del header. El escaneo inicial no lo detectó porque el import está en un archivo `.ts` fuera de `src/`.
+
+**Resolución:** Verificado — se mantiene. Sin cambios necesarios.
+
+### R6.4 🟢 `@astrojs/check` en dependencies Y devDependencies — RESUELTO
+
+`package.json` líneas 17, 44: duplicado.
+
+**Fix:** Se eliminó de `dependencies`, queda solo en `devDependencies`.
+
+---
+
+## Plan de Acción — Rendimiento
+
+| Prioridad | ID | Hallazgo | Esfuerzo | Ahorro/Impacto |
+|-----------|-----|----------|----------|----------------|
+| **P0** | R1.1 | 🔴 Eliminar React (~180KB) | 2-3 h | ~180KB bundle |
+| **P0** | R1.2 | 🟡 Lazy-load CronogramaDashboard | ✅ Resuelto — dynamic import() | 85.9KB (−25.9KB) |
+| **P0** | R1.3 | 🟡 Reducir CSS global | 1 h | ~50KB+ bundle |
+| **P1** | R2.1 | 🔴 SELECT * en agents (7 archivos) | ✅ Resuelto — 20 queries proyectadas | CPU + memoria |
+| **P1** | R2.2 | 🔴 O(N×M) loops attendance | 30 min | Performance |
+| **P1** | R2.3 | 🟡 Índices DB faltantes | ✅ Resuelto — 6 índices agregados | Query speed |
+| **P1** | R2.4 | 🟡 Caché disponibilidad | 15 min | DB pressure |
+| **P1** | R2.5 | 🟡 Filtrar schedules SSR | ✅ Resuelto — filtro por mes actual | Data size |
+| **P1** | R2.6 | 🟡 Caché officeAssets | ✅ Resuelto — cache 60s TTL | 1 query/req |
+| **P1** | R2.7 | 🟡 Doble query terminals | ✅ Resuelto — ya usaba limit+1 | 2x query cost |
+| **P1** | R2.8 | 🟡 Export endpoints memoria | ✅ Resuelto — streaming vía iterate() | Memory |
+| **P1** | R2.9 | 🟡 Mes sin transacción | ✅ Resuelto — transacción + batch delete/insert | Atomicity |
+| **P2** | R8.1 | 🟡 setInterval leaks | ✅ Resuelto — Limpieza en before-swap | Memory |
+| **P2** | R5.2 | 🟡 prerender candidatos | ✅ Resuelto — Prerender parcial | Server load |
+| **P2** | R1.4 | 🟢 Leaflet CDN → self-host | ✅ Resuelto — import dinámico | Dependency |
+| **P2** | R1.5 | 🟢 topojson lazy load | ✅ Resuelto — import() dinámico | JS |
+| **P2** | R2.10 | 🟢 Middleware select columns | ✅ Resuelto — proyección ambas queries | Security+perf |
+| **P2** | R6.3 | 🟢 theme-change sin uso | ✅ Resuelto — en uso | Dependency |
+| **P2** | R6.4 | 🟢 @astrojs/check duplicado | ✅ Resuelto — movido a devDeps | Dependency |
+
+**Total esfuerzo estimado:** ~10-14 h.
+**Ahorro estimado:** ~300KB+ de bundle, reducción significativa de queries DB.
+
+### Leyenda
+
+- **P0:** Alto impacto en carga de cliente.
+- **P1:** Consultas DB ineficientes.
+- **P2:** Optimización de recursos.

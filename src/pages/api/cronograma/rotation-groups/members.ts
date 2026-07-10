@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // Verificar existencia del agente
     const agentList = await db
-      .select()
+      .select({ id: agents.id })
       .from(agents)
       .where(eq(agents.id, parsedAgentId))
       .limit(1);

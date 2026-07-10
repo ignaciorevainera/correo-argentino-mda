@@ -1,4 +1,5 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import { db } from "@db/index";
 import {
   offices,
@@ -13,15 +14,13 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
+const cleanBase = getCleanBase();
 
 const { id } = Astro.params;
 const isNew = false;
@@ -230,11 +229,11 @@ if (Astro.request.method === "POST") {
       }
 
       if (oldName && oldName !== officeData.name) {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina NIS ${officeData.code} (de "${oldName}" a "${officeData.name}")`);
+        await logAdminFromAstro(Astro.locals, `Actualizó la oficina NIS ${officeData.code} (de "${oldName}" a "${officeData.name}")`);
       } else {
-        await logAdminAction(user?.username || 'Sistema', `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
+        await logAdminFromAstro(Astro.locals, `Actualizó la oficina "${officeData.name}" (NIS ${officeData.code})`);
       }
-      return Astro.redirect(`${cleanBase}oficinas?toast_msg=${encodeURIComponent("Oficina actualizada con éxito.")}&toast_type=success`);
+      return redirectWithToast("/oficinas", "Oficina actualizada con éxito.");
     }
   } catch (e: any) {
     console.error("[EditOffice] Error actualizando la oficina:", e);
@@ -362,9 +361,7 @@ const pageTitle = `Editar: ${office.name}`;
     {
       errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => {
-            window.showToast?.(errorMsg, "alert-error");
-          });
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
         </script>
       )
     }

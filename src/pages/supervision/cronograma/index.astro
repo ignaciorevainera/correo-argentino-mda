@@ -1,19 +1,19 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import CronogramaDashboard from "@components/cronograma/CronogramaDashboard.astro";
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { normalizeRole } from "@lib/rbac";
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
+const cleanBase = getCleanBase();
 
 const user = Astro.locals.user;
 const role = normalizeRole(user.role);
 ---
 
 <BaseLayout>
-  <PageContainer width="xl">
+  <PageContainer width="xl" id="crono-page-container">
     <PageHeader
       description="Gestión integral de asistencia y modalidades del equipo MDA."
       data-crono-hide-on-maximize
@@ -22,3 +22,18 @@ const role = normalizeRole(user.role);
     <CronogramaDashboard userRole={role} />
   </PageContainer>
 </BaseLayout>
+
+<style is:global>
+  body:has(#monthly-view:not(.hidden)) main,
+  body:has(#daily-view:not(.hidden)) main {
+    overflow-y: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body:has(#monthly-view:not(.hidden)) #crono-page-container,
+  body:has(#daily-view:not(.hidden)) #crono-page-container {
+    flex: 1;
+    min-height: 0;
+  }
+</style>

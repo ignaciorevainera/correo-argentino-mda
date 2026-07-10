@@ -1,14 +1,7 @@
 import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
-import { invgateGet } from "@lib/invgateClient";
-import { jsonResponse } from "@lib/apiResponse";
-import { db } from "@db/index";
-import { offices } from "@db/schema";
-import { matchLocations } from "@lib/invgate/locationMatcher";
-import type { LocationComparisonResult } from "@lib/invgate/locationMatcher";
-import type { InvgateLocation } from "../../../types/invgate";
-
-let cachedComparison: LocationComparisonResult | null = null;
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { getOrRefreshComparison } from "@lib/invgate/locationCache";
 
 export const GET: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -26,40 +19,30 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const filter = url.searchParams.get("filter") ?? "all";
     const q = url.searchParams.get("q") ?? "";
 
-    if (action === "sync" || cachedComparison === null) {
-      if (action !== "sync" && cachedComparison === null) {
+    if (action === "sync") {
+      const { clearCache } = await import("@lib/invgate/locationCache");
+      clearCache();
+    }
+
+    const { data: cachedComparison, error, status } = await getOrRefreshComparison();
+
+    if (error && !cachedComparison) {
+      if (status === 428) {
         return jsonResponse({
           results: [],
           stats: null,
-          pagination: {
-            page: 1,
-            limit,
-            totalPages: 1,
-            totalItems: 0,
-          },
+          pagination: { page: 1, limit, totalPages: 1, totalItems: 0 },
         });
       }
+      return jsonResponse({ error }, status || 500);
+    }
 
-      const response = await invgateGet<InvgateLocation[]>("locations");
-      if (!response.ok) {
-        return jsonResponse({ error: response.message }, response.status || 500);
-      }
-
-      const dbOffices = await db.select({
-        code: offices.code,
-        name: offices.name,
-        address: offices.address,
-      }).from(offices);
-
-      const officeMap = new Map<string, { name: string; address: string }>();
-      for (const off of dbOffices) {
-        officeMap.set(off.code, {
-          name: off.name,
-          address: off.address ?? "",
-        });
-      }
-
-      cachedComparison = matchLocations(response.data, officeMap);
+    if (!cachedComparison) {
+      return jsonResponse({
+        results: [],
+        stats: null,
+        pagination: { page: 1, limit, totalPages: 1, totalItems: 0 },
+      });
     }
 
     let filtered = cachedComparison.results;
@@ -102,6 +85,6 @@ export const GET: APIRoute = async ({ locals, request }) => {
     });
   } catch (error: any) {
     console.error("[Locations API] Error:", error);
-    return jsonResponse({ error: error.message || "Error interno del servidor" }, 500);
+    return jsonResponse({ error: sanitizeError(error) || "Error interno del servidor" }, 500);
   }
 };

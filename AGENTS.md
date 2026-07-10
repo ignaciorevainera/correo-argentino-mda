@@ -1,4 +1,11 @@
-# Correo Argentino MDA — Agent Guide
+# Portal MDA — Agent Guide
+
+## General workflow
+- **Read docs first** before writing code: `docs/DESIGN.md` (visual system), `docs/CONTEXT.md` (conventions, infra), `docs/lessons.md` (known errors)
+- **MCP tools have priority** over built-in equivalents when available. Use MCPs for: browser automation (Playwright MCP), documentation search, external API queries
+- **When you need to search docs** for a library/framework/API, use Context7 CLI (`ctx7`) — never guess API signatures or rely on training data
+- **Keep outputs minimal**: no preamble/postamble, no code explanations unless asked
+- **Never commit** unless explicitly requested
 
 ## Quick start
 - `npm run dev` — dev server (port 4321)
@@ -24,6 +31,7 @@
 - **Tailwind v4** (config-free) + **DaisyUI v5** — use DaisyUI token colors only, never hardcode hex
 - **React islands** via `@astrojs/react` — interactive only; prefer `.astro` for static content
 - **Icons**: `astro-icon` with `@iconify-json/boxicons`
+- **URL base helper**: `@lib/baseUrl` exposes `getCleanBase()` (with trailing `/`, for `` `${...}api/foo` ``) and `getBaseNoSlash()` (without trailing `/`, for `` `${...}/oficinas` ``). Always use it; never re-declare `const base = import.meta.env.BASE_URL || "/"` inline.
 - **Fonts**: `@fontsource-variable/geist` (UI), `@fontsource-variable/geist-mono` (technical data)
 - **Path aliases**: `@/*` → `src/*`, `@components/*`, `@db/*`, `@lib/*`, etc.
 - **Layout contract**: body `flex flex-col min-h-screen`, main `flex-1` (in `BaseLayout.astro`)
@@ -40,10 +48,20 @@
 - Form components in `src/components/ui/forms/`: FormField, SelectField, FormTextarea, PasswordField
 - DataTable: `src/components/ui/DataTable.astro`
 
+## Documentation lookup (Context7)
+- Use Context7 CLI (`ctx7`) to search docs for libraries, frameworks, SDKs, APIs — never guess or rely on training data
+- Two-step process:
+  1. `ctx7 library <name> <query>` — resolve library to Context7 ID
+  2. `ctx7 docs <libraryId> <query>` — query docs with the resolved ID
+- First try the MCP `context7` server (resolve-library-id + query-docs) before the CLI
+- Max 3 queries per question. If quota is exceeded, tell the user and answer from training data
+- Keep `ctx7` up to date: `npm install -g ctx7@latest`
+
 ## Frontend work — read first
 - `.agents/rules/frontend.md` — design system rules (always_on)
 - `docs/DESIGN.md` — source of truth for palette, typography, spacing
-- `docs/CONTEXT.md` — product context, sitemap, header contract
+- `docs/CONTEXT.md` — product context, sitemap, header contract, conventions
+- `docs/lessons.md` — known bugs and error patterns (read at session start)
 - `src/lib/navigation.ts` — register new routes here to auto-propagate sidebar + command palette
 
 ## PM2 production

@@ -1,3 +1,5 @@
+import { getCleanBase } from "./baseUrl";
+
 export interface NavItem {
   href: string;
   label: string;
@@ -92,7 +94,7 @@ export const navSections: NavSection[] = [
       {
         href: "/usuarios",
         label: "Buscador de usuarios",
-        icon: "boxicons:group-filled",
+        icon: "boxicons:user-search-filled",
       },
       {
         href: "/generador-firmas",
@@ -138,7 +140,7 @@ export const navSections: NavSection[] = [
           {
             href: "/admin/invgate/ubicaciones",
             label: "Ubicaciones InvGate",
-            icon: "boxicons:location-pin-filled",
+            icon: "boxicons:location-alt-filled",
           },
         ],
       },
@@ -161,8 +163,7 @@ export function getSectionTitle(pathname: string): string {
   });
 
   // Normalize pathname relative to BASE_URL
-  const base = import.meta.env.BASE_URL || "/";
-  const cleanBase = base.endsWith("/") ? base : base + "/";
+  const cleanBase = getCleanBase();
   let relativePath = pathname;
   if (pathname.startsWith(cleanBase)) {
     relativePath = "/" + pathname.slice(cleanBase.length);
@@ -200,14 +201,16 @@ export function getResolvedPathname(request: Request, url: URL): string {
       try {
         const refererUrl = new URL(referer);
         return refererUrl.pathname;
-      } catch (e) {
-      }
+      } catch (e) {}
     }
   }
   return pathname;
 }
 
-export function getResolvedSearchParams(request: Request, url: URL): URLSearchParams {
+export function getResolvedSearchParams(
+  request: Request,
+  url: URL,
+): URLSearchParams {
   const pathname = url.pathname;
   if (pathname.startsWith("/_server-islands/")) {
     const referer = request.headers.get("referer");
@@ -215,8 +218,7 @@ export function getResolvedSearchParams(request: Request, url: URL): URLSearchPa
       try {
         const refererUrl = new URL(referer);
         return refererUrl.searchParams;
-      } catch (e) {
-      }
+      } catch (e) {}
     }
   }
   return url.searchParams;

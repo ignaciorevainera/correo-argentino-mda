@@ -4,13 +4,14 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import MasterDetailTable from "@components/ui/MasterDetailTable.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
-import SearchInput from "@components/ui/SearchInput.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import { getOffices } from "@lib/officeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
+import Modal from "@components/ui/Modal.astro";
 import {
   officeTypeLabelByType,
   officeTypeTabActiveClassByType,
@@ -21,6 +22,7 @@ import { provinces, regions, offices } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
+import "leaflet/dist/leaflet.css";
 
 const user = Astro.locals.user;
 const isAllowedAdmin = user
@@ -189,14 +191,6 @@ const mainTabs = [
 ];
 ---
 
-<!-- Hoja de estilos de Leaflet (requerida por la librería) -->
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin=""
-/>
-
 <PageContainer width="xxl">
   <PageHeader
     description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
@@ -211,7 +205,6 @@ const mainTabs = [
     class="w-full grid grid-cols-2"
     containerClass="w-full"
   />
-
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6 mt-6">
     <form
@@ -337,7 +330,7 @@ const mainTabs = [
 
       <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
         <div class="w-full">
-          <SearchInput
+          <SearchBar
             id="office-search"
             name="search"
             value={searchFilter}
@@ -366,10 +359,52 @@ const mainTabs = [
               <span class="hidden sm:inline">Registrar oficina</span>
               <span class="sm:hidden">Registrar</span>
             </a>
+            <button id="sync-invgate-btn" type="button" class="btn btn-neutral btn-soft gap-2">
+              <span id="sync-btn-text">Sincronizar ahora</span>
+              <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
+            </button>
           )
         }
       </div>
     </form>
+
+    {
+      isAllowedAdmin && (
+        <div id="invgate-stats-bar" class="rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
+          <div id="stats-skeleton" class="flex flex-wrap items-center gap-4">
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-[160px]"></div>
+          </div>
+          <div id="stats-cards" class="flex flex-wrap items-center gap-4">
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
+              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Total MDA</span>
+              <span id="stat-totalMda" class="text-xl font-bold mt-0.5 text-base-content">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
+              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Matcheadas</span>
+              <span id="stat-matched" class="text-xl font-bold mt-0.5 text-success">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
+              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
+              <span id="stat-unmatchedMda" class="text-xl font-bold mt-0.5 text-warning">—</span>
+            </div>
+            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
+              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
+              <span id="stat-unmatchedInvgate" class="text-xl font-bold mt-0.5 text-error">—</span>
+            </div>
+            <a
+              href={`${import.meta.env.BASE_URL}admin/invgate/ubicaciones?sync=true`}
+              class="btn btn-primary btn-sm gap-1.5 ml-auto shrink-0"
+            >
+              <Icon name="boxicons:pie-chart-filled" size={16} />
+              Ver comparativa
+            </a>
+          </div>
+        </div>
+      )
+    }
 
     <div id="office-table-wrapper">
       <div
@@ -381,6 +416,7 @@ const mainTabs = [
           minWidthClass="min-w-280"
           headerGridClass={officeDirectoryHeaderGridClass}
           class="bg-base-100"
+          serverSideSort={true}
         >
           <div slot="header">
             <DataTableHeaderCell>
@@ -555,32 +591,19 @@ const mainTabs = [
       </div>
     </div>
   </div>
-  <dialog id="region-referents-modal" class="modal modal-bottom sm:modal-middle z-9999">
-    <div class="modal-box bg-base-100 border border-base-300 shadow-xl max-w-md">
+  <Modal id="region-referents-modal" zIndex="z-9999" class="max-w-md shadow-xl">
+    <Fragment slot="content">
       <form method="dialog">
         <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar modal">✕</button>
       </form>
       <div id="modal-region-content"></div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button>Cerrar</button>
-    </form>
-  </dialog>
+    </Fragment>
+  </Modal>
 </PageContainer>
-
-<!-- Removed SSR injected variables for map -->
-
-<script
-  is:inline
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-  crossorigin=""></script>
 
 <script>
   import { highlightSearchTargets } from "@lib/clientSearch";
-  import { feature } from "topojson-client";
-
-  declare const L: any;
+  import { showToast } from "@lib/toastClient";
 
   let regionsDataCache: any[] = [];
 
@@ -619,27 +642,7 @@ const mainTabs = [
   let currentSortOrder: "asc" | "desc" | null =
     (urlParams.get("sortOrder") as "asc" | "desc") || null;
 
-  const updateSortIcons = (tableEl: HTMLElement) => {
-    const headerCells = tableEl.querySelectorAll("[data-table-sort-key]");
-    headerCells.forEach((cell) => {
-      const cellKey = (cell as HTMLElement).dataset.tableSortKey;
-      const isActive = cellKey === currentSortBy && currentSortOrder !== null;
-      const direction = isActive
-        ? currentSortOrder === "asc"
-          ? "ascending"
-          : "descending"
-        : "none";
-      (cell as HTMLElement).dataset.tableSortDirection = direction;
-      cell.setAttribute("aria-sort", direction);
-      const icons = cell.querySelectorAll("[data-table-sort-icon]");
-      icons.forEach((icon) => {
-        const shouldShow =
-          (icon as HTMLElement).dataset.tableSortIcon === direction;
-        (icon as HTMLElement).classList.toggle("hidden", !shouldShow);
-        (icon as HTMLElement).classList.toggle("opacity-0", !shouldShow);
-      });
-    });
-  };
+
 
   const syncSortToURL = () => {
     const params = new URLSearchParams(window.location.search);
@@ -720,10 +723,12 @@ const mainTabs = [
     return params.toString();
   };
 
-  const fetchOffices = async (isNewSearch: boolean) => {
+  const fetchOffices = async (isNewSearch: boolean, showLoadingUI = true) => {
     if (isLoading) return;
     isLoading = true;
-    spinner?.classList.remove("hidden");
+    if (showLoadingUI) {
+      spinner?.classList.remove("hidden");
+    }
 
     try {
       const query = getQueryParams(currentPage);
@@ -787,13 +792,18 @@ const mainTabs = [
       console.error("Error fetching offices:", err);
     } finally {
       isLoading = false;
-      spinner?.classList.add("hidden");
+      if (showLoadingUI) {
+        spinner?.classList.add("hidden");
+      }
     }
   };
 
   let map: any = null;
   const initializeMap = async () => {
     if (map) return;
+
+    const L = (await import("leaflet")).default;
+    const { feature } = await import("topojson-client");
 
     const mapLoading = document.getElementById("map-loading");
     if (mapLoading) mapLoading.style.display = "flex";
@@ -1098,7 +1108,7 @@ const mainTabs = [
 
     dataMap.forEach((sucursal: any) => {
       const { lat, lng, nombre, nis, direccion } = sucursal;
-      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-base-300 pb-2 mb-2"><h3 class="font-bold text-base-content text-sm m-0 leading-tight">${nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${nis}</span></div><div class="text-xs text-base-content/85 space-y-1.5"><div class="flex flex-col gap-0.5"><span class="font-semibold text-base-content/60">Dirección</span><span class="text-base-content/90 font-medium">${direccion}</span></div></div></div>`;
+      const popupContent = `<div class="px-1 py-1 min-w-56"><div class="border-b border-base-300 pb-2 mb-2"><h3 class="font-bold text-base-content text-sm m-0">${nombre}</h3><span class="inline-block mt-1.5 px-2 py-0.5 bg-primary/10 text-primary text-xs font-black rounded uppercase tracking-wider">NIS: ${nis}</span></div><div class="text-xs text-base-content/85 space-y-1.5"><div class="flex flex-col gap-0.5"><span class="font-semibold text-base-content/60">Dirección</span><span class="text-base-content/90 font-medium">${direccion}</span></div></div></div>`;
       L.marker([lat, lng], { icon: sucursalMarkerIcon })
         .addTo(grupoSucursales)
         .bindPopup(popupContent, { className: "custom-popup" });
@@ -1149,35 +1159,30 @@ const mainTabs = [
 
   bindRowEvents();
 
-  tableRoot?.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    const btn = target.closest<HTMLButtonElement>(
-      "button[data-table-sort-key]",
-    );
-    if (!btn) return;
-    const key = btn.dataset.tableSortKey;
-    if (!key) return;
-
-    if (currentSortBy === key) {
-      if (currentSortOrder === "asc") {
-        currentSortOrder = "desc";
-      } else {
-        currentSortBy = null;
-        currentSortOrder = null;
-      }
-    } else {
-      currentSortBy = key;
-      currentSortOrder = "asc";
-    }
-
-    if (tableRoot) updateSortIcons(tableRoot);
+  tableRoot?.addEventListener("master-detail-sort-change", (e: any) => {
+    const { sortKey, direction } = e.detail;
+    currentSortBy = direction === "none" ? null : sortKey;
+    currentSortOrder = direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
     currentPage = 1;
-    fetchOffices(true);
+    fetchOffices(true, false); // isNewSearch = true, showLoadingUI = false
     syncSortToURL();
   });
 
   if (currentSortBy && tableRoot) {
-    updateSortIcons(tableRoot);
+    const dir = currentSortOrder === "desc" ? "descending" : "ascending";
+    tableRoot.dataset.masterDetailSortKey = currentSortBy;
+    tableRoot.dataset.masterDetailSortDirection = dir;
+
+    const control = tableRoot.querySelector(`[data-table-sort-key="${currentSortBy}"]`);
+    if (control) {
+      control.setAttribute("data-table-sort-direction", dir);
+      control.setAttribute("aria-sort", dir);
+      control.querySelectorAll("[data-table-sort-icon]").forEach((icon: any) => {
+        const shouldShow = icon.dataset.tableSortIcon === dir;
+        icon.classList.toggle("hidden", !shouldShow);
+        icon.classList.toggle("opacity-0", !shouldShow);
+      });
+    }
   }
 
   const toggleRegionReferents = (regionId: string, toggleBtn: HTMLButtonElement) => {
@@ -1421,6 +1426,68 @@ const mainTabs = [
 
     renderForm();
   };
+
+  let isInvgateSyncing = false;
+
+  const handleInvgateSync = async () => {
+    if (isInvgateSyncing) return;
+    isInvgateSyncing = true;
+
+    const btn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+    const text = document.getElementById("sync-btn-text");
+    const spinner = document.getElementById("sync-btn-spinner");
+    if (!btn || !text || !spinner) { isInvgateSyncing = false; return; }
+
+    text.textContent = "Sincronizando...";
+    spinner.classList.remove("hidden");
+
+    try {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${baseUrl}/api/admin/invgate/locations/sync`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(`Sincronización completada: ${data.matched} oficinas vinculadas`, "alert-success");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast(data.error || "Error al sincronizar", "alert-error");
+      }
+    } catch {
+      showToast("Error de red al sincronizar", "alert-error");
+    } finally {
+      isInvgateSyncing = false;
+      text.textContent = "Sincronizar ahora";
+      spinner.classList.add("hidden");
+    }
+  };
+
+  document.getElementById("sync-invgate-btn")?.addEventListener("click", handleInvgateSync);
+
+  // Load InvGate comparison stats
+  const statsSkeleton = document.getElementById("stats-skeleton");
+  const statsCards = document.getElementById("stats-cards");
+  if (statsSkeleton && statsCards) {
+    (async () => {
+      try {
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const res = await fetch(`${baseUrl}/api/invgate/stats`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const stats = await res.json();
+        const setStat = (id: string, val: number | undefined | null) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val != null ? String(val) : "—";
+        };
+        setStat("stat-totalMda", stats.totalMda);
+        setStat("stat-matched", stats.matched);
+        setStat("stat-unmatchedMda", stats.unmatchedMda);
+        setStat("stat-unmatchedInvgate", stats.unmatchedInvgate);
+        statsSkeleton.classList.add("hidden");
+        statsCards.classList.remove("hidden");
+      } catch (err) {
+        console.error("Error loading InvGate stats:", err);
+        statsSkeleton.innerHTML = `<p class="text-xs text-base-content/60 italic">No se pudieron cargar las estadísticas de InvGate.</p>`;
+      }
+    })();
+  }
 </script>
 
 <style is:global>
@@ -1610,18 +1677,5 @@ const mainTabs = [
     box-shadow:
       0 10px 15px -3px rgb(0 0 0 / 0.1),
       0 4px 6px -4px rgb(0 0 0 / 0.1);
-  }
-  .animate-fade-in {
-    animation: fadeIn 0.4s ease-out;
-  }
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 </style>

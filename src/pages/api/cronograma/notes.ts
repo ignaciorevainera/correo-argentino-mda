@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async ({ request }) => {
@@ -15,8 +15,7 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     // Lookup agent in database case-insensitively
-    const agent = await db
-      .select()
+    const agent = await db.select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
@@ -42,7 +41,7 @@ export const GET: APIRoute = async ({ request }) => {
     return jsonResponse({ notes: agent[0].notes || "" }, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET Notes API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };
 
@@ -59,8 +58,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Case-insensitive lookup
-    const agent = await db
-      .select()
+    const agent = await db.select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
@@ -90,6 +88,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Notes API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

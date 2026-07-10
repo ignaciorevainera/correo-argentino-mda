@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { db } from "@db/index";
 import { cubics, users, terminals } from "@db/schema";
 import { sql } from "drizzle-orm";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 const execPromise = promisify(exec);
 
@@ -37,14 +37,14 @@ export const GET: APIRoute = async ({ locals, url }) => {
       const allUsers = await db.select({ id: users.id, username: users.username, role: users.role }).from(users);
       return jsonResponse(allUsers);
     } catch (dbError: any) {
-      return jsonResponse({ error: dbError.message }, 500);
+      return jsonResponse({ error: sanitizeError(dbError) }, 500);
     }
   }
 
   try {
     let processes: any[] = [];
     try {
-      const { stdout } = await execPromise("pm2 jlist", { windowsHide: true });
+      const { stdout } = await execPromise("pm2 jlist", { windowsHide: true, timeout: 5000 });
       processes = JSON.parse(stdout);
     } catch (pm2Error) {
       console.warn("[SyncStatus API] PM2 no disponible o falló:", pm2Error);

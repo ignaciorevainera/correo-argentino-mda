@@ -1,6 +1,7 @@
 import { state } from './state';
 import { OperatorStatus, type OperatorData } from './types';
-import { getDaysInMonth, escapeHtml, timeToMinutes } from './utils';
+import { escapeHtml } from '@lib/sanitize';
+import { getDaysInMonth, timeToMinutes } from './utils';
 import { showToast } from './notifications';
 
 export let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;
@@ -219,7 +220,7 @@ export function renderRotationTimeline(dateStr: string): void {
           </div>
           <div class="flex flex-col min-w-0">
             <span class="truncate text-small font-bold text-base-content">${escapeHtml(op.nombre)}</span>
-            <span class="text-tiny font-semibold text-base-content/40 leading-tight">${horario}</span>
+            <span class="text-tiny font-semibold text-base-content/40">${horario}</span>
           </div>
         </td>
         ${hourCells}

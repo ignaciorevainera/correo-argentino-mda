@@ -288,8 +288,11 @@ import { Icon } from "astro-icon/components";
       invgateRefreshBtn.setAttribute("disabled", "true");
     }
 
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 15000);
+
     try {
-      const res = await fetch("/api/admin/invgate-status");
+      const res = await fetch("/api/admin/invgate-status", { signal: ac.signal });
       if (!res.ok) throw new Error("Error en la respuesta de la API");
 
       const data = await res.json();
@@ -328,6 +331,7 @@ import { Icon } from "astro-icon/components";
           "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
       }
     } finally {
+      clearTimeout(timeout);
       if (invgateRefreshIcon) {
         invgateRefreshIcon.classList.remove("animate-spin");
       }
@@ -348,13 +352,34 @@ import { Icon } from "astro-icon/components";
     updateInvgateStatus();
   }
 
-  updateDashboard();
-  initInvgate();
+  let syncInterval: any = null;
 
-  document.addEventListener("astro:page-load", () => {
+  function startSync() {
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(updateDashboard, 30000);
+  }
+
+  function stopSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
+
+  function initDashboard() {
     updateDashboard();
     initInvgate();
-  });
+    startSync();
+  }
 
-  setInterval(updateDashboard, 30000);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboard);
+  } else {
+    initDashboard();
+  }
+  document.addEventListener("astro:page-load", initDashboard);
+
+  document.addEventListener("astro:before-swap", () => {
+    stopSync();
+  });
 </script>

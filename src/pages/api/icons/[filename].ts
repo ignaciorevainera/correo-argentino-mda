@@ -1,10 +1,7 @@
 import type { APIRoute } from "astro";
 import fs from "node:fs";
 import path from "node:path";
-
-const STORAGE_DIR = path.resolve(
-  process.env.EXTERNAL_STORAGE_DIR || "C:/Projects/correo-argentino-mda-programs",
-);
+import { getIconsDir } from "@lib/storage";
 
 export const GET: APIRoute = ({ params }) => {
   const { filename } = params;
@@ -19,7 +16,7 @@ export const GET: APIRoute = ({ params }) => {
     return new Response("Nombre de archivo inválido.", { status: 400 });
   }
 
-  const filePath = path.join(STORAGE_DIR, "icons", sanitized);
+  const filePath = path.join(getIconsDir(), sanitized);
 
   if (!fs.existsSync(filePath)) {
     return new Response("Ícono no disponible.", { status: 404 });
@@ -57,6 +54,7 @@ export const GET: APIRoute = ({ params }) => {
       "Content-Type": contentType,
       "Content-Length": fileBuffer.byteLength.toString(),
       "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
+      ...(ext === ".svg" ? { "Content-Disposition": "attachment; filename=\"icon.svg\"" } : {}),
     },
   });
 };

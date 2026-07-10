@@ -1,18 +1,17 @@
 import { state, safeGetItem, safeSetItem } from './state';
 import { fetchCronogramaData, fetchCronogramaFullData, saveEdits, deleteOperator, deleteMonth } from './api';
 import { getStatusStyles } from './styles';
+import { escapeHtml } from '@lib/sanitize';
 import { 
   getGanttPosition, 
   getDaysInMonth, 
   formatYMD, 
   formatDMY, 
-  escapeHtml, 
   isCurrentlyWorking, 
   debounce, 
   timeToMinutes
 } from './utils';
 import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
-import { exportCSV, exportAsImage, exportAsClipboardImage } from './exporters';
 import { showToast, showConfirm } from './notifications';
 import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
 import { isFeriado, getFeriadoName } from './feriados';
@@ -31,32 +30,12 @@ import {
   setupRotationEventListeners
 } from './rotation-helper';
 
-import {
-  overtimeConfigs,
-  setOvertimeConfigs,
-  overtimeSelectedWeekend,
-  setOvertimeSelectedWeekend,
-  showOvertimeView,
-  renderOvertimeView,
-  refreshOvertimeForWeekend,
-  setupOvertimeEventListeners
-} from './overtime-view';
-
-import {
-  hasPasivaChanges,
-  updatePasivaToolbarUI,
-  savePasivaChanges,
-  discardPasivaChanges,
-  showPasivaView,
-  renderPasivaView,
-  setupPasivaEventListeners
-} from './pasiva-view';
 
 import {
   updateMonthDisplay,
   updateNavigationButtons,
   updateGroupsActiveMonthBadge,
-  renderMonthDropdown,
+  renderMonthSelect,
   changeMonth,
   renderDaily,
   renderHourly,
@@ -229,14 +208,14 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
     const payload = await fetchCronogramaFullData(monthToLoad);
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
     await loadRotationConfig(monthToLoad);
 
     renderDaily();
     renderMonthly();
-    renderMonthDropdown();
+    renderMonthSelect();
     updateMonthDisplay();
 
     // Actualizar vista de grupos si está visible
@@ -250,6 +229,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const pasivaView = document.getElementById('pasiva-view');
     const isPasivaVisible = pasivaView && !pasivaView.classList.contains('hidden');
     if (isPasivaVisible) {
+      const { renderPasivaView } = await import('./pasiva-view');
       await renderPasivaView();
     }
 
@@ -257,6 +237,7 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
     const overtimeView = document.getElementById('overtime-view');
     const isOvertimeVisible = overtimeView && !overtimeView.classList.contains('hidden');
     if (isOvertimeVisible) {
+      const { renderOvertimeView } = await import('./overtime-view');
       renderOvertimeView();
     }
   } catch (err) {
@@ -269,12 +250,13 @@ async function init(): Promise<void> {
   try {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
-    let initialMonth = dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7);
 
-    const payload = await fetchCronogramaFullData(initialMonth);
+    const payload = await fetchCronogramaFullData();
     state.cronoData = payload.operators;
-    setOvertimeConfigs(payload.weekendOvertimeConfigs);
+    state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
+
+    const activeMonth = payload.activeMonth || (dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7));
 
     try {
       const feriadosRes = await fetch('/api/cronograma/feriados');
@@ -285,15 +267,14 @@ async function init(): Promise<void> {
       console.warn("Failed to load holidays:", err);
     }
 
-    await loadRotationConfig(initialMonth);
+    await loadRotationConfig(activeMonth);
 
-    const hasDataForToday = state.cronoData.some(op => op.asistencia[todayStr]);
-    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || todayStr);
+    const hasDataForToday = activeMonth === todayStr.slice(0, 7) && state.cronoData.some(op => op.asistencia[todayStr]);
+    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || `${activeMonth}-01`);
 
     if (dateInput) {
       dateInput.value = initialDate;
       updateDateInputDisplay();
-      updateMonthDisplay();
       if (state.uniqueDates.length > 0) {
         dateInput.min = state.uniqueDates[0];
         dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
@@ -302,7 +283,8 @@ async function init(): Promise<void> {
 
     renderDaily();
     renderMonthly();
-    renderMonthDropdown();
+    renderMonthSelect();
+    updateMonthDisplay();
     setupEventListeners();
   } catch (err: unknown) {
     console.error("Error loading data:", err);
@@ -695,19 +677,19 @@ export async function renderGroupsView(): Promise<void> {
 }
 
 function updateFilterActiveStates(): void {
-  const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
-  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
-  const filterHoBtn = document.getElementById('filter-ho-btn');
-  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
-  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
+  const filterAllBtn = document.getElementById('filter-monthly-status-all');
+  const filterPresencialMgBtn = document.getElementById('filter-monthly-status-presencial-monte-grande');
+  const filterPresencialPpBtn = document.getElementById('filter-monthly-status-presencial-parque-patricios');
+  const filterHoBtn = document.getElementById('filter-monthly-status-home-office');
+  const filterLicenciaBtn = document.getElementById('filter-monthly-status-licencia');
+  const filterVacacionesBtn = document.getElementById('filter-monthly-status-vacaciones');
 
-  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
-  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
-  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
-  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
-  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
+  const filterAllBtnDaily = document.getElementById('filter-daily-status-all');
+  const filterPresencialMgBtnDaily = document.getElementById('filter-daily-status-presencial-monte-grande');
+  const filterPresencialPpBtnDaily = document.getElementById('filter-daily-status-presencial-parque-patricios');
+  const filterHoBtnDaily = document.getElementById('filter-daily-status-home-office');
+  const filterLicenciaBtnDaily = document.getElementById('filter-daily-status-licencia');
+  const filterVacacionesBtnDaily = document.getElementById('filter-daily-status-vacaciones');
 
   const monthlyButtons = [
     { el: filterAllBtn, value: 'all' },
@@ -732,13 +714,13 @@ function updateFilterActiveStates(): void {
 }
 
 function updateLocationFilterActiveStates(): void {
-  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
-  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
-  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
+  const filterLocationAllBtn = document.getElementById('filter-monthly-location-all');
+  const filterLocationMgBtn = document.getElementById('filter-monthly-location-monte-grande');
+  const filterLocationPpBtn = document.getElementById('filter-monthly-location-parque-patricios');
 
-  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
-  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
-  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
+  const filterLocationAllBtnDaily = document.getElementById('filter-daily-location-all');
+  const filterLocationMgBtnDaily = document.getElementById('filter-daily-location-monte-grande');
+  const filterLocationPpBtnDaily = document.getElementById('filter-daily-location-parque-patricios');
 
   const monthlyButtons = [
     { el: filterLocationAllBtn, value: 'all' },
@@ -784,35 +766,31 @@ function updateBrushUI(): void {
   });
 }
 
-function updateMaximizeUI(isMax: boolean): void {
-  const htmlEl = document.documentElement;
-  if (isMax) {
-    htmlEl.classList.add('cronograma-maximized');
-  } else {
-    htmlEl.classList.remove('cronograma-maximized');
-  }
-}
-
 function setupEventListeners(): void {
-  // Month Dropdown Event Delegation
-  const handleDropdownClick = (e: Event) => {
-    const target = (e.target as HTMLElement).closest('[data-month-val]');
-    if (!target) return;
-    const val = target.getAttribute('data-month-val');
-    if (val) {
-      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-      if (dateInput) {
-        dateInput.value = val;
-        updateDateInputDisplay();
-        reloadDataForActiveMonth(val.slice(0, 7));
-      }
+  // Month Select Change Handler
+  document.getElementById('month-selector')?.addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const val = select.value;
+    if (!val) return;
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (dateInput) {
+      dateInput.value = val;
+      updateDateInputDisplay();
+      reloadDataForActiveMonth(val.slice(0, 7));
     }
-    // Force close dropdown by blurring active element
-    (document.activeElement as HTMLElement | null)?.blur();
-  };
+  });
 
-  document.getElementById('month-dropdown-list')?.addEventListener('click', handleDropdownClick);
-  document.getElementById('groups-month-dropdown-list')?.addEventListener('click', handleDropdownClick);
+  document.getElementById('groups-month-selector')?.addEventListener('change', (e) => {
+    const select = e.target as HTMLSelectElement;
+    const val = select.value;
+    if (!val) return;
+    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    if (dateInput) {
+      dateInput.value = val;
+      updateDateInputDisplay();
+      reloadDataForActiveMonth(val.slice(0, 7));
+    }
+  });
 
   // New Operator Modal Handlers
   const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
@@ -903,7 +881,7 @@ function setupEventListeners(): void {
     if (trigger) applyBrushToCell(trigger);
   });
 
-  document.addEventListener('mouseup', () => { isDragging = false; });
+  document.addEventListener('mouseup', () => { isDragging = false; }); // [PERF] minimal — single assignment
   
   monthlyBody?.addEventListener('click', async (event) => {
     // Click on edit operator button
@@ -1009,90 +987,48 @@ function setupEventListeners(): void {
   const syncSortDropdowns = (val: string) => {
     const mLabel = document.getElementById('monthly-sort-label');
     const dLabel = document.getElementById('daily-sort-label');
-    const opt = document.querySelector(`.sort-option[data-value="${val}"]`);
+    const opt = document.querySelector(`[data-sort-option][data-value="${val}"]`);
     if (opt) {
-      const txt = opt.querySelector('span')?.textContent?.trim() || opt.textContent?.trim() || '';
+      const txt = opt.querySelector('span:last-child')?.textContent?.trim() || opt.textContent?.trim() || '';
       if (mLabel) mLabel.textContent = `Ordenar: ${txt}`;
       if (dLabel) dLabel.textContent = `Ordenar: ${txt}`;
     }
+    // Highlight active option
+    document.querySelectorAll('[data-sort-option]').forEach(el => el.classList.remove('menu-active'));
+    opt?.classList.add('menu-active');
   };
 
   syncSortDropdowns(state.activeSort);
 
-  document.querySelectorAll('.sort-option').forEach(opt => {
+  document.querySelectorAll('[data-sort-option]').forEach(opt => {
     opt.addEventListener('click', () => {
       const val = opt.getAttribute('data-value') || 'alphabetical';
       state.activeSort = val;
       syncSortDropdowns(val);
       (document.activeElement as HTMLElement)?.blur();
+      // Close the details dropdown
+      const details = opt.closest('details');
+      if (details) details.removeAttribute('open');
       renderMonthly();
       renderDaily();
     });
   });
 
-  // Wire up filter buttons
-  const filterAllBtn = document.getElementById('filter-all-btn');
-  const filterPresencialMgBtn = document.getElementById('filter-presencial-mg-btn');
-  const filterPresencialPpBtn = document.getElementById('filter-presencial-pp-btn');
-  const filterHoBtn = document.getElementById('filter-ho-btn');
-  const filterLicenciaBtn = document.getElementById('filter-licencia-btn');
-  const filterVacacionesBtn = document.getElementById('filter-vacaciones-btn');
-
-  const filterAllBtnDaily = document.getElementById('filter-all-btn-daily');
-  const filterPresencialMgBtnDaily = document.getElementById('filter-presencial-mg-btn-daily');
-  const filterPresencialPpBtnDaily = document.getElementById('filter-presencial-pp-btn-daily');
-  const filterHoBtnDaily = document.getElementById('filter-ho-btn-daily');
-  const filterLicenciaBtnDaily = document.getElementById('filter-licencia-btn-daily');
-  const filterVacacionesBtnDaily = document.getElementById('filter-vacaciones-btn-daily');
-
-  const filterBtns = [
-    { btn: filterAllBtn, value: 'all' },
-    { btn: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
-    { btn: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
-    { btn: filterHoBtn, value: 'Home Office' },
-    { btn: filterLicenciaBtn, value: 'Licencia' },
-    { btn: filterVacacionesBtn, value: 'Vacaciones' },
-    { btn: filterAllBtnDaily, value: 'all' },
-    { btn: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
-    { btn: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
-    { btn: filterHoBtnDaily, value: 'Home Office' },
-    { btn: filterLicenciaBtnDaily, value: 'Licencia' },
-    { btn: filterVacacionesBtnDaily, value: 'Vacaciones' }
-  ];
-
-  filterBtns.forEach(item => {
-    item.btn?.addEventListener('click', () => {
-      state.activeFilter = item.value;
+  // Wire up filter buttons via delegation
+  document.getElementById('cronograma-app-container')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-filter-value]');
+    if (!btn) return;
+    const val = btn.getAttribute('data-filter-value') || 'all';
+    const attr = btn.getAttribute('data-filter-attribute');
+    if (attr === 'data-filter') {
+      state.activeFilter = val;
       updateFilterActiveStates();
-      renderMonthly();
-      renderDaily();
-    });
-  });
-
-  const filterLocationAllBtn = document.getElementById('filter-location-all-btn');
-  const filterLocationMgBtn = document.getElementById('filter-location-mg-btn');
-  const filterLocationPpBtn = document.getElementById('filter-location-pp-btn');
-
-  const filterLocationAllBtnDaily = document.getElementById('filter-location-all-btn-daily');
-  const filterLocationMgBtnDaily = document.getElementById('filter-location-mg-btn-daily');
-  const filterLocationPpBtnDaily = document.getElementById('filter-location-pp-btn-daily');
-
-  const locationFilterBtns = [
-    { btn: filterLocationAllBtn, value: 'all' },
-    { btn: filterLocationMgBtn, value: 'Monte Grande' },
-    { btn: filterLocationPpBtn, value: 'Parque Patricios' },
-    { btn: filterLocationAllBtnDaily, value: 'all' },
-    { btn: filterLocationMgBtnDaily, value: 'Monte Grande' },
-    { btn: filterLocationPpBtnDaily, value: 'Parque Patricios' }
-  ];
-
-  locationFilterBtns.forEach(item => {
-    item.btn?.addEventListener('click', () => {
-      state.activeLocationFilter = item.value;
+    } else if (attr === 'data-location') {
+      state.activeLocationFilter = val;
       updateLocationFilterActiveStates();
-      renderMonthly();
-      renderDaily();
-    });
+    }
+    renderMonthly();
+    renderDaily();
   });
 
   // Initialize filter button states
@@ -1257,7 +1193,7 @@ function setupEventListeners(): void {
 
       updateDateInputDisplay();
       updateMonthDisplay();
-      renderMonthDropdown();
+      renderMonthSelect();
       renderDaily();
       renderMonthly();
       showToast(`El mes de ${monthName} ha sido eliminado correctamente.`, "success");
@@ -1272,9 +1208,9 @@ function setupEventListeners(): void {
     }
   });
 
-  const newMonthModal = document.getElementById('new-month-modal') as HTMLDialogElement & { showModal: () => void } | null;
+  const newMonthModal = document.getElementById('new-month-modal') as HTMLElement | null;
   document.getElementById('add-month-btn')?.addEventListener('click', () => {
-    newMonthModal?.showModal();
+    newMonthModal?.classList.add('modal-open');
   });
 
   // --- Import Handler ---
@@ -1374,7 +1310,7 @@ function setupEventListeners(): void {
   }
 
   // --- Premium Exporters ---
-  function handleExportCSV() {
+  async function handleExportCSV() {
     const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
     let monthName = 'reporte';
     if (dateInput && dateInput.value) {
@@ -1382,6 +1318,7 @@ function setupEventListeners(): void {
       monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
     }
     const dates = getDatesArrayForCurrentMonth();
+    const { exportCSV } = await import('./exporters');
     exportCSV(state.cronoData, dates, {
       minCoveragePercent: state.minCoveragePercent,
       maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
@@ -1405,6 +1342,7 @@ function setupEventListeners(): void {
     }
 
     try {
+      const { exportAsImage } = await import('./exporters');
       await exportAsImage(
         tableContainer,
         monthName,
@@ -1446,6 +1384,7 @@ function setupEventListeners(): void {
 
       saturdayCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(saturdayCard);
 
       copyBtn.classList.remove('btn-secondary');
@@ -1496,6 +1435,7 @@ function setupEventListeners(): void {
 
       overtimeCard.classList.add('exporting-image');
 
+      const { exportAsClipboardImage } = await import('./exporters');
       await exportAsClipboardImage(overtimeCard);
 
       copyBtn.classList.remove('btn-outline');
@@ -1904,8 +1844,27 @@ function setupEventListeners(): void {
 
   // Call submodule event listeners setup
   setupRotationEventListeners();
-  setupOvertimeEventListeners();
-  setupPasivaEventListeners();
+  // Lazy-load overtime-view on first tab click
+  let overtimeSetupDone = false;
+  document.getElementById('switch-to-overtime-btn')?.addEventListener('click', async () => {
+    const { showOvertimeView, setupOvertimeEventListeners } = await import('./overtime-view');
+    if (!overtimeSetupDone) {
+      setupOvertimeEventListeners();
+      overtimeSetupDone = true;
+    }
+    showOvertimeView();
+  });
+
+  // Lazy-load pasiva-view on first tab click
+  let pasivaSetupDone = false;
+  document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', async () => {
+    const { showPasivaView, setupPasivaEventListeners } = await import('./pasiva-view');
+    if (!pasivaSetupDone) {
+      setupPasivaEventListeners();
+      pasivaSetupDone = true;
+    }
+    showPasivaView();
+  });
 }
 
 // --- Global Event Listeners ---
@@ -1965,8 +1924,5 @@ document.addEventListener('mouseout', (e) => {
     breakBar?.classList.remove('gantt-break-highlighted');
   }
 });
-
-// Force maximized layout unconditionally
-updateMaximizeUI(true);
 
 init();

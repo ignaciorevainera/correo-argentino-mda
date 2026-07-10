@@ -4,8 +4,8 @@ import { operatorAttendance } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { getAttendanceData, calculateCompliance } from "@lib/attendance";
 import { requireReadAccess, requireWriteAccess } from "@lib/rbac-middleware";
-import { logAdminAction } from "@lib/auditLogger";
-import { jsonResponse } from "@lib/apiResponse";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export { calculateCompliance };
 
@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     return jsonResponse(responseData, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET Attendance API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };
 
@@ -78,6 +78,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       for (const edit of edits) {
         const {
           agentId,
+          shiftType,
           asistencia,
           ausencia,
           entradaReal,
@@ -89,6 +90,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
         const editDate = edit.date || date;
         if (!agentId) continue;
+        const finalShiftType = shiftType || "normal";
 
         const existing = tx
           .select()
@@ -96,7 +98,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .where(
             and(
               eq(operatorAttendance.agentId, agentId),
-              eq(operatorAttendance.date, editDate)
+              eq(operatorAttendance.date, editDate),
+              eq(operatorAttendance.shiftType, finalShiftType)
             )
           )
           .limit(1)
@@ -123,6 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           tx.insert(operatorAttendance).values({
             agentId,
             date: editDate,
+            shiftType: finalShiftType,
             asistencia: asistencia || "",
             ausencia: ausencia || "",
             entradaReal: entradaReal || "",
@@ -135,14 +139,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     });
 
-    await logAdminAction(
-      (locals as any).user?.username || 'Sistema',
+    await logAdminFromAstro(locals,
       `Guardó asistencias del ${date || edits[0]?.date} (${edits.length} registros)`
     );
 
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Attendance API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

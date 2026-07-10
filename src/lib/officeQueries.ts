@@ -1,5 +1,5 @@
 import { db } from "@db/index";
-import { provinces, regions, offices, officeAssets } from "@db/schema";
+import { provinces, regions, offices, officeAssets, officeInvgateLinks } from "@db/schema";
 import { eq, or, and, sql, inArray, asc, desc, like } from "drizzle-orm";
 import type {
   OfficeDirectoryItem,
@@ -8,16 +8,38 @@ import type {
 } from "@/types/offices";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
-export type OfficeSortKey = "code" | "name" | "parent-nis" | "address" | "type" | "region";
+let manualHostnamesCache: Set<string> | null = null;
+let manualHostnamesCacheTime = 0;
+const MANUAL_HOSTNAMES_TTL_MS = 60_000;
+
+export type OfficeSortKey = "code" | "name" | "parent-nis" | "address" | "type" | "region" | "cost-center";
 export type SortOrder = "asc" | "desc";
 
 const officeSortColumns = {
   code: offices.code,
-  name: offices.name,
+  name: sql`REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(${offices.name}), 'Á', 'A'), 'É', 'E'), 'Í', 'I'), 'Ó', 'O'), 'Ú', 'U'), 'á', 'A'), 'é', 'E'), 'í', 'I'), 'ó', 'O'), 'ú', 'U'), 'Ñ', 'N~'), 'ñ', 'N~'), 'Ü', 'U'), 'ü', 'U')`,
   "parent-nis": offices.parentNis,
-  address: offices.address,
+  address: sql`REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(${offices.address}), 'Á', 'A'), 'É', 'E'), 'Í', 'I'), 'Ó', 'O'), 'Ú', 'U'), 'á', 'A'), 'é', 'E'), 'í', 'I'), 'ó', 'O'), 'ú', 'U'), 'Ñ', 'N~'), 'ñ', 'N~'), 'Ü', 'U'), 'ü', 'U')`,
   type: offices.type,
   region: offices.provinceCode,
+  "cost-center": sql`COALESCE(
+    NULLIF(${offices.cctAdminOffice}, ''),
+    NULLIF(${offices.ccCommercial}, ''),
+    NULLIF(${offices.ccCommercialCorp}, ''),
+    NULLIF(${offices.ccElectoral}, ''),
+    NULLIF(${offices.ccNetworkMgmt}, ''),
+    NULLIF(${offices.ccOperations}, ''),
+    NULLIF(${offices.ccOperational}, ''),
+    NULLIF(${offices.ccHr}, ''),
+    NULLIF(${offices.ccSecurity}, ''),
+    NULLIF(${offices.ccAdmin}, ''),
+    NULLIF(${offices.ccAdmission}, ''),
+    NULLIF(${offices.ccCtp}, ''),
+    NULLIF(${offices.ccCtt}, ''),
+    NULLIF(${offices.ccTransport}, ''),
+    NULLIF(${offices.ccLogistics}, ''),
+    '—'
+  )`,
 } as const;
 
 export interface GetOfficesParams {
@@ -168,18 +190,23 @@ export async function getOffices(params: GetOfficesParams) {
       terminals: true,
       contacts: { with: { contact: true } },
       province: { with: { region: true } },
+      invgateLink: true,
     },
   });
 
-  // Fetch all manual hostnames globally to deduplicate terminals
-  const allManualHostnamesRows = await db
-    .select({ hostname: officeAssets.hostname })
-    .from(officeAssets)
-    .where(sql`${officeAssets.hostname} IS NOT NULL AND ${officeAssets.hostname} != ''`);
-  
-  const manualHostnames = new Set(
-    allManualHostnamesRows.map((r) => r.hostname?.toLowerCase())
-  );
+  // Cached: fetch all manual hostnames globally to deduplicate terminals
+  const now = Date.now();
+  if (!manualHostnamesCache || now - manualHostnamesCacheTime > MANUAL_HOSTNAMES_TTL_MS) {
+    const allManualHostnamesRows = await db
+      .select({ hostname: officeAssets.hostname })
+      .from(officeAssets)
+      .where(sql`${officeAssets.hostname} IS NOT NULL AND ${officeAssets.hostname} != ''`);
+    manualHostnamesCache = new Set(
+      allManualHostnamesRows.map((r) => r.hostname?.toLowerCase())
+    );
+    manualHostnamesCacheTime = now;
+  }
+  const manualHostnames = manualHostnamesCache;
 
   const officeDirectoryItems: OfficeDirectoryItem[] = dbOffices.map((office) => {
     let mappedType = office.type;
@@ -232,6 +259,13 @@ export async function getOffices(params: GetOfficesParams) {
         hostname: a.hostname ?? "",
         ip: a.ip ?? "",
       })),
+      invgateLinked: !!office.invgateLink,
+      invgateDisplayName: office.invgateLink?.invgateDisplayName ?? null,
+      invgateCp: office.invgateLink?.invgateCp ?? null,
+      invgateCc: office.invgateLink?.invgateCc ?? null,
+      invgateAddress: office.invgateLink?.invgateAddress ?? null,
+      invgateParentName: office.invgateLink?.invgateParentName ?? null,
+      invgateDuplicateCount: office.invgateLink?.invgateDuplicateCount ?? 0,
       terminals: (office.terminals ?? [])
         .filter((t) => {
           if (!t.hostname) return true;

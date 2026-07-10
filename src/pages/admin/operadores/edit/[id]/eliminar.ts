@@ -1,35 +1,22 @@
-import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { agents, schedules } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { createDeleteHandler } from "@lib/api/deleteHandler";
 
-export const POST: APIRoute = async ({ params, redirect, locals }) => {
-  const operatorId = params.id;
-  if (!operatorId || isNaN(Number(operatorId))) {
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/operadores?toast_msg=${encodeURIComponent("ID de operador no proporcionado")}&toast_type=error`);
-  }
-
-  try {
+export const POST = createDeleteHandler({
+  entityName: "operador",
+  redirectPath: "admin/operadores",
+  performDelete: async (id) => {
     const [deleted] = await db
       .delete(agents)
-      .where(eq(agents.id, Number(operatorId)))
+      .where(eq(agents.id, id))
       .returning({ id: agents.id, name: agents.name });
-
+    return deleted ?? null;
+  },
+  afterDelete: async ({ deleted }) => {
     if (deleted) {
-      await db.delete(schedules).where(eq(schedules.agentName, deleted.name));
-      await logAdminAction((locals as any).user?.username || 'Sistema', `Eliminó el operador "${deleted.name}"`);
+      await db.delete(schedules).where(eq(schedules.agentName, (deleted as any).name));
     }
-
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/operadores?toast_msg=${encodeURIComponent("Operador eliminado con éxito.")}&toast_type=success`);
-  } catch (error) {
-    console.error("Error al eliminar operador:", error);
-    const base = import.meta.env.BASE_URL || "/";
-    const cleanBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return redirect(`${cleanBase}/admin/operadores?toast_msg=${encodeURIComponent("Error al eliminar el operador.")}&toast_type=error`);
-  }
-};
+  },
+  successMessage: () => "Operador eliminado con éxito.",
+});

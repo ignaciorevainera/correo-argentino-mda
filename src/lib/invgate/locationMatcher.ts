@@ -22,6 +22,7 @@ export interface LocationComparisonStats {
   totalMda: number;
   matched: number;
   unmatchedInvgate: number;
+  unmatchedMda: number;
 }
 
 export interface LocationComparisonResult {
@@ -97,10 +98,13 @@ export function matchLocations(
     }
   }
 
-  // Filter to keep only leaf locations
-  const leafLocations = invgateLocations.filter(loc => !parentIds.has(loc.id));
+  // Filter to keep only leaf locations with a NIS (e.g. "(B0373)")
+  const nisRegex = /\([A-Z]\d{4}\s*\)/;
+  const relevantLocations = invgateLocations.filter(
+    loc => !parentIds.has(loc.id) && nisRegex.test(loc.name)
+  );
 
-  for (const loc of leafLocations) {
+  for (const loc of relevantLocations) {
     const parsed = parseInvgateLocationName(loc.name);
     const parsedLocation: ParsedInvgateLocation = {
       id: loc.id,
@@ -127,9 +131,10 @@ export function matchLocations(
     });
   }
 
-  const totalInvgate = leafLocations.length;
+  const totalInvgate = relevantLocations.length;
   const totalMda = allOfficeCodes.size;
   const unmatchedInvgate = totalInvgate - matchedCount;
+  const unmatchedMda = totalMda - matchedCount;
 
   return {
     results,
@@ -138,6 +143,30 @@ export function matchLocations(
       totalMda,
       matched: matchedCount,
       unmatchedInvgate,
+      unmatchedMda,
     },
   };
+}
+
+/**
+ * Scans InvGate locations for duplicate NIS values.
+ * Returns a Map of nis → count (only includes nis with count > 1).
+ */
+export function findDuplicateNis(
+  invgateLocations: InvgateLocation[]
+): Map<string, number> {
+  const nisCount = new Map<string, number>();
+  for (const loc of invgateLocations) {
+    const parsed = parseInvgateLocationName(loc.name);
+    if (parsed.nis) {
+      nisCount.set(parsed.nis, (nisCount.get(parsed.nis) || 0) + 1);
+    }
+  }
+  const duplicates = new Map<string, number>();
+  for (const [nis, count] of nisCount) {
+    if (count > 1) {
+      duplicates.set(nis, count);
+    }
+  }
+  return duplicates;
 }

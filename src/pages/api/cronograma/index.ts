@@ -9,7 +9,7 @@ import {
   agentSaturdayGroups,
 } from "@db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
@@ -23,7 +23,8 @@ export const GET: APIRoute = async ({ url }) => {
     
     const d = new Date();
     const currentMonthDefault = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const activeMonth = url.searchParams.get("month") || (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault);
+    const pastOrCurrentMonths = availableMonths.filter(m => m <= currentMonthDefault);
+    const activeMonth = url.searchParams.get("month") || (pastOrCurrentMonths.length > 0 ? pastOrCurrentMonths[pastOrCurrentMonths.length - 1] : (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault));
 
     // 2. Cargar configuración de rotación para este mes
     let configList = await db
@@ -90,7 +91,14 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     // 5. Cargar todos los agentes
-    const dbAgents = await db.select().from(agents);
+    const dbAgents = await db.select({
+      id: agents.id, name: agents.name, username: agents.username, location: agents.location,
+      horarioDefault: agents.horarioDefault,
+      esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
+      esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
+      maxConsecutiveHO: agents.maxConsecutiveHO, minPWeek: agents.minPWeek,
+      saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
+    }).from(agents);
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db
@@ -329,8 +337,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       if (!edits || !Array.isArray(edits)) {
-        await logAdminAction(
-          (locals as any).user?.username || 'Sistema',
+        await logAdminFromAstro(locals,
           `Actualizó esquemas semanales de ${weeklyCount} operadores`
         );
         return jsonResponse({ success: true, message: "Weekly schedules updated" });
@@ -351,7 +358,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
         if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
-          const agentList = tx.select().from(agents).where(eq(agents.name, agentName)).limit(1).all();
+          const agentList = tx.select({ id: agents.id }).from(agents).where(eq(agents.name, agentName)).limit(1).all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(
@@ -414,8 +421,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       logMessages.push(`Guardó cambios en el cronograma (${editCount} registros)`);
     }
     if (logMessages.length > 0) {
-      await logAdminAction(
-        (locals as any).user?.username || 'Sistema',
+      await logAdminFromAstro(locals,
         logMessages.join(' y ')
       );
     }

@@ -257,7 +257,16 @@ const bindMasterDetailTableRoot = (root: HTMLElement): void => {
     root.dataset.masterDetailSortKey = nextDirection === "none" ? "" : sortKey;
     root.dataset.masterDetailSortDirection = nextDirection;
 
-    arrangeRoot(root);
+    if (root.dataset.serverSideSort === "true") {
+      root.dispatchEvent(
+        new CustomEvent("master-detail-sort-change", {
+          detail: { sortKey, direction: nextDirection },
+          bubbles: true,
+        }),
+      );
+    } else {
+      arrangeRoot(root);
+    }
     updateSortControls(root, sortKey, nextDirection);
   });
 };

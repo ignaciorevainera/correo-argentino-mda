@@ -40,13 +40,13 @@ const normalizedType =
 const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""} ${office.costCenter}`;
 const hasContacts = office.contacts && office.contacts.length > 0;
 const hasInfo = Boolean(office.email || office.notes);
-const hasInfoSection = hasContacts || hasInfo;
+const hasInvgateDetail: boolean = office.invgateLinked === true;
+const hasInfoSection = hasContacts || hasInfo || hasInvgateDetail;
 
 const totalAssets =
   (office.assets?.length || 0) + (office.terminals?.length || 0);
 const hasAssetsSection = totalAssets > 0;
-
-const hasDetails = hasInfoSection || hasAssetsSection;
+const hasDetails = hasInfoSection || hasAssetsSection || hasInvgateDetail;
 
 const activeSectionsCount =
   (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
@@ -107,7 +107,20 @@ const officeDirectoryRowGridClass = isAllowedAdmin
       }
     </div>
 
-    <div>
+    <div class="relative inline-flex">
+      {
+        office.invgateLinked ? (
+          <span
+            class="absolute -top-0.5 right-4.5 z-10 size-2 rounded-full bg-info"
+            title="Presente en InvGate"
+          />
+        ) : (
+          <span
+            class="absolute -top-0.5 right-4.5 z-10 size-2 rounded-full bg-neutral"
+            title="No registrada en InvGate"
+          />
+        )
+      }
       <CopyButton
         value={office.code}
         variant="value"
@@ -160,7 +173,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
       <div class="min-w-0 space-y-1">
         <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
           <Icon
-            name="boxicons:location-pin-filled"
+            name="boxicons:location-alt-filled"
             class="shrink-0 text-secondary"
             size={16}
             aria-hidden="true"
@@ -237,6 +250,137 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   hasAssetsSection ? "lg:w-2/5" : "w-full",
                 ]}
               >
+                {hasInvgateDetail && (
+                  <section class="space-y-3">
+                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                      <Icon
+                        name="boxicons:database-alt-filled"
+                        size={16}
+                        class="text-secondary"
+                        aria-hidden="true"
+                      />
+                      Datos InvGate
+                    </h2>
+                    <div
+                      class:list={[
+                        "rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm",
+                        !hasAssetsSection
+                          ? "flex flex-wrap items-start gap-x-5 gap-y-2"
+                          : "space-y-2",
+                      ]}
+                    >
+                      {office.invgateDisplayName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                            Nombre
+                          </span>
+                          <span class="text-sm text-base-content/90">
+                            {office.invgateDisplayName}
+                          </span>
+                        </p>
+                      )}
+                      {office.invgateAddress && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                            Dirección
+                          </span>
+                          <span class="text-sm text-base-content/90">
+                            {office.invgateAddress}
+                          </span>
+                        </p>
+                      )}
+                      {office.invgateCp && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                            CP
+                          </span>
+                          <span class="font-mono text-sm text-base-content/90">
+                            {office.invgateCp}
+                          </span>
+                        </p>
+                      )}
+                      {office.invgateCc && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                            CC
+                          </span>
+                          <span class="font-mono text-sm text-base-content/90">
+                            {office.invgateCc}
+                          </span>
+                        </p>
+                      )}
+                      {office.invgateParentName && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                            Ubicación superior
+                          </span>
+                          <span class="text-sm text-base-content/90">
+                            {office.invgateParentName}
+                          </span>
+                        </p>
+                      )}
+                      {(office.invgateDuplicateCount ?? 0) > 0 && (
+                        <p class="flex items-start gap-2 text-xs text-warning">
+                          <span>
+                            En InvGate se encontraron{" "}
+                            {office.invgateDuplicateCount} registros con el
+                            mismo NIS. Se vinculó el primero.
+                          </span>
+                        </p>
+                      )}
+                      {!office.invgateCp &&
+                        !office.invgateCc &&
+                        !office.invgateAddress &&
+                        !office.invgateDisplayName &&
+                        !office.invgateParentName && (
+                          <p class="text-xs text-base-content/50 italic">
+                            Sin datos adicionales de InvGate
+                          </p>
+                        )}
+                    </div>
+                  </section>
+                )}
+
+                {hasInfo && (
+                  <section class="space-y-3">
+                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                      <Icon
+                        name="boxicons:info-circle"
+                        size={16}
+                        class="text-secondary"
+                        aria-hidden="true"
+                      />
+                      Información
+                    </h2>
+                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm space-y-2">
+                      {office.email && (
+                        <p class="flex items-center gap-2 text-sm text-base-content/80">
+                          <Icon
+                            name="boxicons:envelope-filled"
+                            size={14}
+                            class="shrink-0 text-base-content/50"
+                            aria-hidden="true"
+                          />
+                          <span class="font-mono text-xs break-all">
+                            {office.email}
+                          </span>
+                        </p>
+                      )}
+                      {office.notes && (
+                        <p class="flex items-start gap-2 text-xs text-base-content/60">
+                          <Icon
+                            name="boxicons:note-filled"
+                            size={14}
+                            class="mt-0.5 shrink-0 text-base-content/40"
+                            aria-hidden="true"
+                          />
+                          <span>{office.notes}</span>
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
                 {hasContacts && (
                   <section class="min-w-0 space-y-3">
                     <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
@@ -281,46 +425,6 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                           </div>
                         </article>
                       ))}
-                    </div>
-                  </section>
-                )}
-
-                {hasInfo && (
-                  <section class="space-y-3">
-                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                      <Icon
-                        name="boxicons:info-circle"
-                        size={16}
-                        class="text-secondary"
-                        aria-hidden="true"
-                      />
-                      Información
-                    </h2>
-                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm space-y-2">
-                      {office.email && (
-                        <p class="flex items-center gap-2 text-sm text-base-content/80">
-                          <Icon
-                            name="boxicons:envelope-filled"
-                            size={14}
-                            class="shrink-0 text-base-content/50"
-                            aria-hidden="true"
-                          />
-                          <span class="font-mono text-xs break-all">
-                            {office.email}
-                          </span>
-                        </p>
-                      )}
-                      {office.notes && (
-                        <p class="flex items-start gap-2 text-xs text-base-content/60">
-                          <Icon
-                            name="boxicons:note-filled"
-                            size={14}
-                            class="mt-0.5 shrink-0 text-base-content/40"
-                            aria-hidden="true"
-                          />
-                          <span>{office.notes}</span>
-                        </p>
-                      )}
                     </div>
                   </section>
                 )}

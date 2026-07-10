@@ -1,4 +1,4 @@
-import { showToast as globalShowToast, type ToastType } from '../../../lib/toastClient';
+import { showToast as globalShowToast, type ToastType } from "@lib/toastClient";
 
 export function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void {
   const typeMap: Record<'success' | 'error' | 'warning' | 'info', ToastType> = {
@@ -17,17 +17,18 @@ export function showConfirm(message: string): Promise<boolean> {
       return;
     }
 
-    const dialog = document.createElement('dialog');
+    const dialog = document.createElement('div');
     dialog.className = 'modal modal-bottom sm:modal-middle z-[250] modal-open';
     dialog.innerHTML = `
       <div class="modal-box max-w-sm bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
         <h3 class="font-black text-lg mb-3 text-base-content uppercase tracking-tight">Confirmar Acción</h3>
-        <p class="text-sm text-base-content/70 leading-relaxed">${message}</p>
+        <p class="text-sm text-base-content/70">${message}</p>
         <div class="modal-action mt-6 flex justify-end gap-2">
           <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="confirm-cancel-btn" type="button">Cancelar</button>
           <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-ok-btn" type="button">Confirmar</button>
         </div>
       </div>
+      <form method="dialog" class="modal-backdrop"><button type="button">close</button></form>
     `;
     document.body.appendChild(dialog);
 
@@ -42,7 +43,6 @@ export function showConfirm(message: string): Promise<boolean> {
 
     cancelBtn?.addEventListener('click', () => cleanUp(false));
     okBtn?.addEventListener('click', () => cleanUp(true));
-    dialog.addEventListener('close', () => cleanUp(false));
   });
 }
 
@@ -53,18 +53,19 @@ export function showPrompt(message: string, defaultValue: string = ''): Promise<
       return;
     }
 
-    const dialog = document.createElement('dialog');
+    const dialog = document.createElement('div');
     dialog.className = 'modal modal-bottom sm:modal-middle z-[250] modal-open';
     dialog.innerHTML = `
       <div class="modal-box max-w-sm bg-base-100 border border-base-300 shadow-2xl rounded-3xl">
         <h3 class="font-black text-lg mb-3 text-base-content uppercase tracking-tight">Ingresar Valor</h3>
-        <p class="text-sm text-base-content/70 leading-relaxed mb-4">${message}</p>
+        <p class="text-sm text-base-content/70 mb-4">${message}</p>
         <input type="text" id="prompt-input-field" class="input input-bordered w-full input-sm rounded-xl text-sm" value="${defaultValue}" />
         <div class="modal-action mt-6 flex justify-end gap-2">
           <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="prompt-cancel-btn" type="button">Cancelar</button>
           <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="prompt-ok-btn" type="button">Aceptar</button>
         </div>
       </div>
+      <form method="dialog" class="modal-backdrop"><button type="button">close</button></form>
     `;
     document.body.appendChild(dialog);
 
@@ -100,8 +101,6 @@ export function showPrompt(message: string, defaultValue: string = ''): Promise<
         cleanUp(val);
       }
     });
-
-    dialog.addEventListener('close', () => cleanUp(null));
   });
 }
 

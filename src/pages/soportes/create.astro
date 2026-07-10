@@ -1,4 +1,5 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -7,12 +8,10 @@ import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
-
-const user = Astro.locals.user;
+const cleanBase = getCleanBase();
 
 let errorMsg = "";
 
@@ -42,10 +41,8 @@ if (Astro.request.method === "POST") {
         notes,
       });
 
-      await logAdminAction(user?.username || 'Sistema', `Creó el soporte "${helpDeskName}"`);
-      return Astro.redirect(
-        `${cleanBase}soportes?toast_msg=${encodeURIComponent("Soporte creado con éxito.")}&toast_type=success`
-      );
+      await logAdminFromAstro(Astro.locals, `Creó el soporte "${helpDeskName}"`);
+      return redirectWithToast("/soportes", "Soporte creado con éxito.");
     }
   } catch (err) {
     console.error("Error creating support guide:", err);
@@ -73,7 +70,7 @@ const pageTitle = "Nuevo Soporte";
     <div class="mt-8 bg-base-100 p-6 md:p-8 rounded-2xl shadow-sm border border-base-200">
       {errorMsg && (
         <script is:inline define:vars={{ errorMsg }}>
-          window.showToast?.(errorMsg, "alert-error");
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
         </script>
       )}
 

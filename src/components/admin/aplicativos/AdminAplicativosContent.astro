@@ -1,21 +1,22 @@
 ---
+import { getCleanBase } from "@lib/baseUrl";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import SearchInput from "@components/ui/SearchInput.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
 import { db } from "@db/index";
 import { applications, applicationCategories } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
 import DeleteCategoryModal from "@components/ui/DeleteCategoryModal.astro";
 import { resolveUrl } from "@lib/url";
+import AddCategoryButton from "@components/ui/AddCategoryButton.astro";
+import AddEntityButton from "@components/ui/AddEntityButton.astro";
 
-const base = import.meta.env.BASE_URL || "/";
-const cleanBase = base.endsWith("/") ? base : base + "/";
+const cleanBase = getCleanBase();
 
 
 let deleteSuccess = false;
@@ -115,18 +116,12 @@ const truncatePath = (filePath: string | null) => {
       description="Gestión de los aplicativos disponibles para descarga y distribución interna."
     />
     <div class="flex gap-2 shrink-0">
-      <a href={resolveUrl("/admin/aplicativos/categorias/create")} class="btn btn-outline btn-sm gap-2">
-        <Icon name="boxicons:folder-plus" size={16} />
-        Nueva categoría
-      </a>
-      <a
+      <AddCategoryButton href={resolveUrl("/admin/aplicativos/categorias/create")} />
+      <AddEntityButton
         id="btn-add-app"
         href={resolveUrl("/admin/aplicativos/create")}
-        class="btn btn-primary btn-sm gap-2"
-      >
-        <Icon name="boxicons:plus" size={16} />
-        Nuevo aplicativo
-      </a>
+        label="Nuevo aplicativo"
+      />
     </div>
   </div>
 
@@ -272,7 +267,7 @@ const truncatePath = (filePath: string | null) => {
             </div>
           </div>
           <div class="w-full sm:max-w-xs shrink-0">
-            <SearchInput
+            <SearchBar
               id="aplicativos-search"
               label="Buscar aplicativo"
               placeholder="Buscar por nombre o archivo..."
@@ -392,6 +387,10 @@ const truncatePath = (filePath: string | null) => {
 </PageContainer>
 
 <script>
+  import { showToast } from "@lib/toastClient";
+  import { getCleanBase } from "@lib/baseUrl";
+  const cleanBase = getCleanBase();
+
   // State
   let activeCategoryId = "";
   
@@ -438,8 +437,6 @@ const truncatePath = (filePath: string | null) => {
 
     // Prefill categoryId in creation URL
     if (btnAddApp) {
-      const base = import.meta.env.BASE_URL || "/";
-      const cleanBase = base.endsWith("/") ? base : base + "/";
       if (categoryId === "all" || categoryId === "uncategorized") {
         btnAddApp.href = `${cleanBase}admin/aplicativos/create`;
       } else {
@@ -649,9 +646,6 @@ const truncatePath = (filePath: string | null) => {
           });
         });
       });
-
-      const base = import.meta.env.BASE_URL || "/";
-      const cleanBase = base.endsWith("/") ? base : base + "/";
       
       const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder`, {
          method: "POST",
@@ -660,10 +654,10 @@ const truncatePath = (filePath: string | null) => {
       });
 
       if (!response.ok) throw new Error("Error de red");
-      (window as any).showToast?.("Aplicativos sincronizados con éxito", "alert-success");
+      showToast("Aplicativos sincronizados con éxito", "alert-success");
     } catch (err) {
       console.error(err);
-      (window as any).showToast?.("Error al guardar el nuevo orden", "alert-error");
+      showToast("Error al guardar el nuevo orden", "alert-error");
     }
   };
 
@@ -745,9 +739,6 @@ const truncatePath = (filePath: string | null) => {
 
       if (items.length === 0) return;
 
-      const base = import.meta.env.BASE_URL || "/";
-      const cleanBase = base.endsWith("/") ? base : base + "/";
-
       const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder-categorias`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -755,10 +746,10 @@ const truncatePath = (filePath: string | null) => {
       });
 
       if (!response.ok) throw new Error("Error de red");
-      (window as any).showToast?.("Categorías reordenadas con éxito", "alert-success");
+      showToast("Categorías reordenadas con éxito", "alert-success");
     } catch (err) {
       console.error(err);
-      (window as any).showToast?.("Error al guardar el nuevo orden de categorías", "alert-error");
+      showToast("Error al guardar el nuevo orden de categorías", "alert-error");
     }
   };
 
@@ -767,7 +758,7 @@ const truncatePath = (filePath: string | null) => {
   const toastMsg = urlParams.get("toast_msg");
   const toastType = urlParams.get("toast_type") || "alert-success";
   if (toastMsg) {
-    (window as any).showToast?.(decodeURIComponent(toastMsg), toastType);
+    showToast(decodeURIComponent(toastMsg), toastType);
     // clean search params without reloading
     const newUrl = window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
