@@ -7,6 +7,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 import CopyButton from "@components/ui/CopyButton.astro";
+import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import TerminalRow from "@components/inventario/TerminalRow.astro";
 import { getActiveMachineCount, type CubicStatus } from "@lib/cubics";
@@ -146,7 +147,12 @@ const inventoryTabs = [
 <PageContainer width="xxl">
   <PageHeader>
     <span slot="description">
-      Los datos mostrados en esta página son provistos por la página de <a href="http://b1842zacs0255/mda/index.php" class="link link-accent link-hover font-semibold" target="_blank" rel="noopener noreferrer">Inventario de Terminales</a>.
+      Los datos mostrados en esta página son provistos por la página de <a
+        href="http://b1842zacs0255/mda/index.php"
+        class="link link-accent link-hover font-semibold"
+        target="_blank"
+        rel="noopener noreferrer">Inventario de Terminales</a
+      >.
     </span>
   </PageHeader>
 
@@ -231,7 +237,9 @@ const inventoryTabs = [
             <option value="all">Modelo (Todos)</option>
             {
               terminalModelsByBrand.map((entry) => (
-                <option value={entry.model} data-brand={entry.brand}>{entry.model}</option>
+                <option value={entry.model} data-brand={entry.brand}>
+                  {entry.model}
+                </option>
               ))
             }
           </select>
@@ -388,20 +396,13 @@ const inventoryTabs = [
           <div class="w-full">
             <SearchBar
               id="terminal-search"
-              label="Buscar terminal por hostname, dirección IP, MAC o sucursal"
               placeholder="Buscar por hostname, IP, MAC o sucursal"
             />
           </div>
-          <a
+          <ExportCsvButton
             href={import.meta.env.BASE_URL + "api/export/terminals"}
-            class="btn btn-primary font-semibold shadow-sm shrink-0 gap-2"
-            aria-label="Exportar terminales a CSV"
-            download
-          >
-            <Icon name="boxicons:file-detail-filled" class="size-5" />
-            <span class="hidden sm:inline">Exportar CSV</span>
-            <span class="sm:hidden">CSV</span>
-          </a>
+            ariaLabel="Exportar terminales a CSV"
+          />
         </div>
       </div>
 
@@ -424,7 +425,7 @@ const inventoryTabs = [
         <div class="card border border-error/20 bg-error/5 text-error-content max-w-2xl mx-auto my-8 shadow-sm">
           <div class="card-body items-center text-center p-6 sm:p-8">
             <span class="inline-flex size-14 items-center justify-center rounded-full bg-error/10 text-error mb-2 border border-error/20">
-              <Icon name="boxicons:error-circle-filled" class="size-8" />
+              <Icon name="boxicons:x-circle-filled-filled" class="size-8" />
             </span>
             <h3 class="text-lg font-bold text-base-content">
               Sin datos de terminales
@@ -1180,7 +1181,12 @@ const inventoryTabs = [
   terminalTable?.addEventListener("table-sort-change", (e: any) => {
     const { sortKey, direction } = e.detail;
     currentSortBy = direction === "none" ? null : sortKey;
-    currentSortOrder = direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
+    currentSortOrder =
+      direction === "ascending"
+        ? "asc"
+        : direction === "descending"
+          ? "desc"
+          : null;
     currentPage = 1;
     fetchTerminals(true, false);
     syncSortToURL();
@@ -1191,15 +1197,19 @@ const inventoryTabs = [
     terminalTable.dataset.tableSortKey = currentSortBy;
     terminalTable.dataset.tableSortDirection = dir;
 
-    const control = terminalTable.querySelector(`[data-table-sort-key="${currentSortBy}"]`);
+    const control = terminalTable.querySelector(
+      `[data-table-sort-key="${currentSortBy}"]`,
+    );
     if (control) {
       control.setAttribute("data-table-sort-direction", dir);
       control.setAttribute("aria-sort", dir);
-      control.querySelectorAll("[data-table-sort-icon]").forEach((icon: any) => {
-        const shouldShow = icon.dataset.tableSortIcon === dir;
-        icon.classList.toggle("hidden", !shouldShow);
-        icon.classList.toggle("opacity-0", !shouldShow);
-      });
+      control
+        .querySelectorAll("[data-table-sort-icon]")
+        .forEach((icon: any) => {
+          const shouldShow = icon.dataset.tableSortIcon === dir;
+          icon.classList.toggle("hidden", !shouldShow);
+          icon.classList.toggle("opacity-0", !shouldShow);
+        });
     }
   }
 </script>

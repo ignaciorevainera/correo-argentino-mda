@@ -3,293 +3,413 @@ import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
-import DataTable from "@components/ui/DataTable.astro";
-import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
-import { getSupportGuides } from "@lib/supportGuidesQueries";
-import SupportGuideRow from "@components/support-guides/SupportGuideRow.astro";
+import { invgateGet } from "@lib/invgateClient";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { asc } from "drizzle-orm";
 import { isAllowed } from "@lib/rolesMatrix";
+import HelpdeskCard from "./HelpdeskCard.astro";
+import UnassignedRecords from "./UnassignedRecords.astro";
+import SoportesStats from "./SoportesStats.astro";
+import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
+import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
+import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 
 const user = Astro.locals.user;
-const isAllowedAdmin = user
+const isAdminUser = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
 
-const searchParams = Astro.url.searchParams;
-const searchFilter = searchParams.get("search") || "";
+const hdResult =
+  await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+const invgateError = !hdResult.ok;
 
-const { data: guides, hasMore } = await getSupportGuides({
-  page: 1,
-  limit: 100,
-  search: searchFilter,
+const parentHelpdesks = allItems.filter(
+  (item) => item.level_order === undefined,
+);
+
+const parentMap = new Map<number, InvgateHelpdeskAndLevel>();
+parentHelpdesks.forEach((h) => parentMap.set(h.id, h));
+
+const subLevelsByParent = new Map<number, InvgateHelpdeskAndLevel[]>();
+allItems
+  .filter((item) => item.level_order !== undefined && item.parent_id !== null)
+  .forEach((level) => {
+    const pid = level.parent_id as number;
+    const list = subLevelsByParent.get(pid) || [];
+    list.push(level);
+    subLevelsByParent.set(pid, list);
+  });
+
+const visibleHelpdesks = parentHelpdesks
+  .filter((hd) => !HIDDEN_HELPDESK_IDS.includes(hd.id))
+  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+const parentNameMap = new Map<number, string>();
+visibleHelpdesks.forEach((hd) => {
+  if (hd.parent_id && parentMap.has(hd.parent_id)) {
+    parentNameMap.set(hd.id, parentMap.get(hd.parent_id)!.name || "");
+  }
 });
 
-const headerGridClass = "grid-cols-[1fr_1.1fr_2.2fr_1.2fr_150px] gap-4";
+const guides = await db.query.supportGuides.findMany({
+  orderBy: [asc(supportGuides.legacyName)],
+});
+
+const groupedRecords = new Map<number, typeof guides>();
+const unassignedRecords: typeof guides = [];
+
+guides.forEach((g) => {
+  if (g.invgate_id !== null) {
+    const existing = groupedRecords.get(g.invgate_id) || [];
+    existing.push(g);
+    groupedRecords.set(g.invgate_id, existing);
+  } else {
+    unassignedRecords.push(g);
+  }
+});
+
+const uniqueParentNames = [
+  ...new Set(
+    visibleHelpdesks.map((hd) => parentNameMap.get(hd.id)).filter(Boolean),
+  ),
+].sort((a, b) => a!.localeCompare(b!)) as string[];
+
+const activeCount = visibleHelpdesks.filter((hd) => hd.status_id === 1).length;
+const totalMembers = visibleHelpdesks.reduce(
+  (acc, hd) => acc + (hd.total_members || 0),
+  0,
+);
 ---
 
 <PageContainer width="xxl">
-  <!-- Page Header -->
-  <section class="space-y-4">
-    <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
-    >
-      <PageHeader
-        description="Matriz unificada de equivalencias y derivación técnica de la Mesa de Ayuda."
-        class="max-w-2xl"
-      />
+  <PageHeader
+    description="Matriz unificada de equivalencias y derivacion tecnica de la Mesa de Ayuda."
+    class="max-w-2xl"
+  />
 
-      <div
-        class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto"
-      >
-        <form
-          method="GET"
-          class="flex gap-2 w-full md:w-auto"
-          id="search-form"
-          aria-label="Filtros de guías de soporte"
-        >
-          <SearchBar
-            id="global-search"
-            name="search"
-            value={searchFilter}
-            label="Buscar grupo SM, Invgate, temas o ruta..."
-            placeholder="Buscar por grupo SM, Invgate..."
-            class="w-full md:w-80"
-          />
-          {
-            searchFilter !== "" && (
-              <a
-                href="/soportes"
-                class="btn btn-soft text-base-content/70 hover:text-base-content"
-                aria-label="Limpiar filtros"
-                title="Limpiar búsqueda"
-              >
-                Limpiar
-              </a>
-            )
-          }
-        </form>
-        {
-          isAllowedAdmin && (
-            <a
-              href={`${import.meta.env.BASE_URL}soportes/create`}
-              class="btn btn-secondary font-semibold shadow-sm gap-2 shrink-0"
-              aria-label="Registrar nuevo soporte"
-            >
-              <Icon name="boxicons:plus" class="size-4" />
-              <span class="hidden sm:inline">Registrar soporte</span>
-              <span class="sm:hidden">Registrar</span>
-            </a>
-          )
-        }
+  {
+    invgateError && (
+      <div role="alert" class="alert alert-warning mt-4">
+        <Icon name="boxicons:x-circle-filled" size={20} />
+        <span>
+          No se pudo conectar con InvGate. Mostrando datos locales disponibles.
+        </span>
       </div>
+    )
+  }
+
+  <UnassignedRecords count={unassignedRecords.length} isAdmin={isAdminUser} />
+
+  <SoportesStats
+    total={visibleHelpdesks.length}
+    active={activeCount}
+    totalMembers={totalMembers}
+  />
+
+  <div class="flex flex-nowrap items-center gap-2 md:gap-3 w-full">
+    <div class="flex-1 min-w-0">
+      <SearchBar
+        id="soportes-search"
+        placeholder="Buscar por nombre SM, Invgate, topico..."
+        class="w-full"
+      />
     </div>
-  </section>
 
-  <!-- Unified Table View -->
-  <div class="space-y-8" id="main-view-directory">
-    <section
-      class="bg-base-100 rounded-xl shadow-md overflow-hidden border border-base-content/10"
-      id="guides-table-wrapper"
+    <select
+      id="filter-status"
+      class="select select-bordered shrink-0 select-sm md:select-md"
     >
-      <div
-        id="guides-table-container"
-        class:list={[guides.length === 0 && "hidden"]}
-      >
-        <DataTable
-          ariaLabel="Guía de soportes"
-          minWidthClass="min-w-240"
-          headerGridClass={headerGridClass}
-          rowGridClass={headerGridClass}
-          id="table-guia-root"
+      <option value="all">Todos los estados</option>
+      <option value="active">Activos</option>
+      <option value="inactive">Inactivos</option>
+    </select>
+
+    {
+      uniqueParentNames.length > 0 && (
+        <select
+          id="filter-parent"
+          class="select select-bordered shrink-0 select-sm md:select-md"
         >
-          <div slot="header">
-            <DataTableHeaderCell sortKey="legacy"
-              >Nombre Anterior</DataTableHeaderCell
-            >
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="invgate">Invgate</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Ruta de búsqueda</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Tópicos</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Acciones</DataTableHeaderCell>
-          </div>
+          <option value="all">Todas las mesas padre</option>
+          {uniqueParentNames.map((name) => (
+            <option value={name}>{name}</option>
+          ))}
+        </select>
+      )
+    }
 
-          {guides.map((guide) => <SupportGuideRow guide={guide} />)}
-        </DataTable>
-      </div>
+    <select
+      id="sort-by"
+      class="select select-bordered shrink-0 select-sm md:select-md"
+    >
+      <option value="name-asc">Nombre A-Z</option>
+      <option value="name-desc">Nombre Z-A</option>
+      <option value="members-desc">Más miembros</option>
+      <option value="members-asc">Menos miembros</option>
+      <option value="topics-desc">Más tópicos</option>
+      <option value="topics-asc">Menos tópicos</option>
+    </select>
 
-      <SearchEmptyState
-        id="no-results-state"
-        class={guides.length > 0 ? "hidden" : "flex"}
-        title="No hay coincidencias"
-        description="No hemos podido encontrar guías que coincidan con la búsqueda. Probá modificando los criterios o restableciendo la búsqueda para explorar el directorio completo."
-        showClearButton={true}
-        clearButtonHref={import.meta.env.BASE_URL + "soportes"}
-        clearButtonText="Restablecer búsqueda"
-      />
+    <button
+      id="clear-filters"
+      class="btn btn-outline btn-error font-semibold gap-2 shrink-0 btn-sm md:btn-md"
+      aria-label="Limpiar todos los filtros"
+      title="Limpiar todos los filtros"
+    >
+      <Icon name="boxicons:trash" class="size-4" aria-hidden="true" />
+      <span class="hidden lg:inline">Limpiar filtros</span>
+    </button>
+    <ExportCsvButton
+      id="export-csv"
+      title="Exportar como CSV"
+      label="CSV"
+      shortLabel="CSV"
+      iconSize={16}
+    />
+  </div>
 
-      <div
-        id="scroll-sentinel"
-        class:list={[
-          "py-8 text-center flex justify-center",
-          !hasMore && "hidden",
-        ]}
-        data-has-more={hasMore ? "true" : "false"}
-      >
-        <span
-          class="loading loading-spinner loading-md text-primary hidden"
-          id="loading-spinner"></span>
-      </div>
-    </section>
+  <div
+    id="soportes-grid"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+  >
+    {
+      visibleHelpdesks.map((hd) => {
+        const records = groupedRecords.get(hd.id) || [];
+        const parentName = parentNameMap.get(hd.id);
+        const subLevels = subLevelsByParent.get(hd.id) || [];
+        return (
+          <HelpdeskCard
+            helpdesk={hd}
+            records={records}
+            isAdmin={isAdminUser}
+            parentName={parentName}
+            subLevels={subLevels}
+          />
+        );
+      })
+    }
+
+    {
+      visibleHelpdesks.length === 0 && guides.length === 0 && (
+        <div class="col-span-full flex flex-col items-center gap-3 py-16 text-base-content/50">
+          <div class="rounded-full bg-base-200 p-4">
+            <Icon
+              name="boxicons:group-alt-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <p class="text-sm font-semibold">No hay mesas de ayuda disponibles</p>
+          <p class="text-xs">
+            Verifica la conexion con InvGate o registra soportes manualmente.
+          </p>
+        </div>
+      )
+    }
+
+    <SearchEmptyState
+      id="no-results-state-soportes"
+      class="hidden col-span-full"
+      title="Sin resultados"
+      description="No se encontraron mesas de ayuda o áreas que coincidan con los filtros aplicados."
+      showClearButton={true}
+      clearButtonId="btn-clear-empty-soportes"
+      clearButtonText="Limpiar filtros"
+    />
   </div>
 </PageContainer>
 
 <script>
-  import { highlightSearchTargets } from "@lib/clientSearch";
+  import {
+    matchesSearchQuery,
+    highlightSearchTargets,
+  } from "@lib/clientSearch";
 
-  const container = document.querySelector<HTMLElement>(
-    "[data-table-sort-body]",
-  );
-  const sentinel = document.getElementById("scroll-sentinel");
-  const spinner = document.getElementById("loading-spinner");
-  const noResultsState = document.getElementById("no-results-state");
   const searchInput =
-    document.querySelector<HTMLInputElement>("#global-search");
-  const form = document.getElementById("search-form") as HTMLFormElement;
+    document.querySelector<HTMLInputElement>("#soportes-search");
+  const filterStatus =
+    document.querySelector<HTMLSelectElement>("#filter-status");
+  const filterParent =
+    document.querySelector<HTMLSelectElement>("#filter-parent");
+  const sortBy = document.querySelector<HTMLSelectElement>("#sort-by");
+  const grid = document.querySelector<HTMLElement>("#soportes-grid");
+  const cards = document.querySelectorAll<HTMLElement>("[data-card-for]");
 
-  let currentPage = 1;
-  let currentSearch = searchInput?.value.trim() || "";
-  let isLoading = false;
-  let hasMore = sentinel?.getAttribute("data-has-more") === "true";
-  let searchTimeout: ReturnType<typeof setTimeout>;
+  function applyFiltersAndSort() {
+    const query = searchInput?.value.trim() || "";
+    const statusFilter = filterStatus?.value || "all";
+    const parentFilter = filterParent?.value || "all";
+    const sortValue = sortBy?.value || "name-asc";
 
-  const getQueryParams = (pageNumber: number) => {
-    const params = new URLSearchParams();
-    params.set("page", pageNumber.toString());
-    params.set("limit", "100");
-    if (currentSearch) {
-      params.set("search", currentSearch);
-    }
-    return params.toString();
-  };
+    const visible: HTMLElement[] = [];
 
-  const fetchGuides = async (isNewSearch: boolean) => {
-    if (isLoading) return;
-    isLoading = true;
-    spinner?.classList.remove("hidden");
+    cards.forEach((card) => {
+      const searchText = card.dataset.searchText || "";
+      const cardStatus = card.dataset.status || "";
+      const cardParent = card.dataset.parentName || "";
 
-    try {
-      const query = getQueryParams(currentPage);
-      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const response = await fetch(`${baseUrl}/api/support-guides?${query}`);
-      if (!response.ok) throw new Error("API call failed");
+      const matchesSearch = matchesSearchQuery(query, [searchText]);
+      const matchesStatus =
+        statusFilter === "all" || cardStatus === statusFilter;
+      const matchesParent =
+        parentFilter === "all" || cardParent === parentFilter;
 
-      const html = await response.text();
-      const newHasMore = response.headers.get("X-Has-More") === "true";
-      const totalCount = parseInt(
-        response.headers.get("X-Total-Count") || "0",
-        10,
-      );
+      const isVisible = matchesSearch && matchesStatus && matchesParent;
+      card.classList.toggle("hidden", !isVisible);
 
-      hasMore = newHasMore;
-
-      if (container) {
-        if (isNewSearch) {
-          container.innerHTML = html;
-        } else {
-          container.insertAdjacentHTML("beforeend", html);
-        }
+      if (isVisible) {
+        visible.push(card);
+        highlightSearchTargets(card, query);
       }
-
-      const tableContainer = document.getElementById("guides-table-container");
-      if (noResultsState && tableContainer) {
-        if (totalCount === 0) {
-          noResultsState.classList.remove("hidden");
-          noResultsState.classList.add("flex");
-          tableContainer.classList.add("hidden");
-        } else {
-          noResultsState.classList.add("hidden");
-          noResultsState.classList.remove("flex");
-          tableContainer.classList.remove("hidden");
-        }
-      }
-
-      if (currentSearch && container) {
-        const newArticles = Array.from(
-          container.querySelectorAll<HTMLElement>(
-            "[data-master-detail-sort-item]",
-          ),
-        );
-        newArticles.forEach((item) => {
-          highlightSearchTargets(item, currentSearch);
-        });
-      }
-
-      if (!hasMore) {
-        sentinel?.classList.add("hidden");
-      } else {
-        sentinel?.classList.remove("hidden");
-      }
-    } catch (err) {
-      console.error("Error fetching guides:", err);
-    } finally {
-      isLoading = false;
-      spinner?.classList.add("hidden");
-    }
-  };
-
-  form?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    currentSearch = searchInput?.value.trim() || "";
-    currentPage = 1;
-    hasMore = true;
-    fetchGuides(true);
-  });
-
-  searchInput?.addEventListener("input", (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      currentSearch = (e.target as HTMLInputElement).value.trim();
-      currentPage = 1;
-      hasMore = true;
-      fetchGuides(true);
-    }, 300);
-  });
-
-  if (sentinel) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && hasMore && !isLoading) {
-          currentPage += 1;
-          fetchGuides(false);
-        }
-      },
-      {
-        rootMargin: "200px",
-      },
-    );
-    observer.observe(sentinel);
-  }
-
-  // Highlight initial results if there's a search on page load
-  if (currentSearch && container) {
-    const initialArticles = Array.from(
-      container.querySelectorAll<HTMLElement>("[data-master-detail-sort-item]"),
-    );
-    initialArticles.forEach((item) => {
-      highlightSearchTargets(item, currentSearch);
     });
+
+    const noResultsState = document.getElementById("no-results-state-soportes");
+    if (noResultsState) {
+      if (visible.length === 0) {
+        noResultsState.classList.remove("hidden");
+        noResultsState.classList.add("flex");
+      } else {
+        noResultsState.classList.add("hidden");
+        noResultsState.classList.remove("flex");
+      }
+    }
+
+    visible.sort((a, b) => {
+      const getName = (el: HTMLElement) =>
+        (el.dataset.name || "").toLowerCase();
+      const getMembers = (el: HTMLElement) =>
+        parseInt(el.dataset.memberCount || "0", 10);
+      const getTopics = (el: HTMLElement) =>
+        parseInt(el.dataset.topicCount || "0", 10);
+
+      switch (sortValue) {
+        case "name-desc":
+          return getName(b).localeCompare(getName(a));
+        case "members-desc":
+          return getMembers(b) - getMembers(a);
+        case "members-asc":
+          return getMembers(a) - getMembers(b);
+        case "topics-desc":
+          return getTopics(b) - getTopics(a);
+        case "topics-asc":
+          return getTopics(a) - getTopics(b);
+        default:
+          return getName(a).localeCompare(getName(b));
+      }
+    });
+
+    if (grid) {
+      visible.forEach((card) => grid.appendChild(card));
+    }
   }
 
+  searchInput?.addEventListener("input", applyFiltersAndSort);
+  filterStatus?.addEventListener("change", applyFiltersAndSort);
+  filterParent?.addEventListener("change", applyFiltersAndSort);
+  sortBy?.addEventListener("change", applyFiltersAndSort);
 
+  cards.forEach((card) => {
+    card.addEventListener("members-loaded", () => {
+      if (searchInput?.value) applyFiltersAndSort();
+    });
+  });
+
+  const clearFiltersBtn =
+    document.querySelector<HTMLButtonElement>("#clear-filters");
+  const clearEmptyBtn = document.querySelector<HTMLButtonElement>(
+    "#btn-clear-empty-soportes",
+  );
+
+  const resetFilters = () => {
+    if (searchInput) searchInput.value = "";
+    if (filterStatus) filterStatus.value = "all";
+    if (filterParent) filterParent.value = "all";
+    if (sortBy) sortBy.value = "name-asc";
+    applyFiltersAndSort();
+  };
+
+  clearFiltersBtn?.addEventListener("click", resetFilters);
+  clearEmptyBtn?.addEventListener("click", resetFilters);
+
+  const exportCsvBtn = document.querySelector<HTMLButtonElement>("#export-csv");
+  const exportPdfBtn = document.querySelector<HTMLButtonElement>("#export-pdf");
+
+  exportCsvBtn?.addEventListener("click", () => {
+    const visibleCards = Array.from(cards).filter(
+      (c) => !c.classList.contains("hidden"),
+    );
+
+    let csvContent = "\uFEFF";
+    csvContent += "Nombre,Estado,Mesa Padre,Miembros,Tópicos,Nombres Legacy\n";
+
+    visibleCards.forEach((card) => {
+      const name = (card.dataset.name || "").replace(/"/g, '""');
+      const status = card.dataset.status === "active" ? "Activo" : "Inactivo";
+      const parentName = (card.dataset.parentName || "").replace(/"/g, '""');
+      const members = card.dataset.memberCount || "0";
+
+      const topics = Array.from(card.querySelectorAll(".badge-secondary"))
+        .map((el) => el.textContent?.trim() || "")
+        .join(", ")
+        .replace(/"/g, '""');
+
+      const legacy = Array.from(card.querySelectorAll(".badge-ghost"))
+        .filter((el) => !el.querySelector(".line-clamp-2"))
+        .map((el) => el.textContent?.trim() || "")
+        .filter(Boolean)
+        .join(", ")
+        .replace(/"/g, '""');
+
+      csvContent += `"${name}","${status}","${parentName}",${members},"${topics}","${legacy}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "soportes-helpdesks.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  exportPdfBtn?.addEventListener("click", () => {
+    window.print();
+  });
 </script>
 
 <style>
+  @media print {
+    :global(header),
+    :global(footer),
+    :global(aside),
+    :global(nav),
+    #soportes-search,
+    #filter-status,
+    #filter-parent,
+    #sort-by,
+    #clear-filters,
+    #export-csv,
+    #export-pdf,
+    :global(.card-actions),
+    :global(.alert) {
+      display: none !important;
+    }
+    #soportes-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+    }
+    :global(.card) {
+      break-inside: avoid;
+      box-shadow: none !important;
+      border: 1px solid #e5e7eb !important;
+    }
+  }
 </style>

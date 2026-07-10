@@ -85,6 +85,11 @@ export const navSections: NavSection[] = [
         label: "Contactos",
         icon: "boxicons:phone-filled",
       },
+      {
+        href: "/soportes",
+        label: "Soportes",
+        icon: "boxicons:group-alt-filled",
+      },
     ],
   },
   {

@@ -1,0 +1,370 @@
+---
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+import ActionExternalButton from "@components/ui/ActionExternalButton.astro";
+import OpenModalButton from "@components/ui/OpenModalButton.astro";
+import Modal from "@components/ui/Modal.astro";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
+
+interface Props {
+  helpdesk: InvgateHelpdeskAndLevel;
+  records: any[];
+  isAdmin: boolean;
+  parentName?: string;
+  subLevels: InvgateHelpdeskAndLevel[];
+}
+
+const { helpdesk, records, isAdmin, parentName, subLevels } = Astro.props;
+const cleanBase = getCleanBase();
+const hdName = helpdesk.name || `Helpdesk #${helpdesk.id}`;
+const isActive = helpdesk.status_id === 1;
+const statusBadge = isActive ? "badge-success" : "badge-ghost";
+const statusLabel = isActive ? "Activo" : "Inactivo";
+const hasRecords = records.length > 0;
+const modalId = `modal-details-${helpdesk.id}`;
+
+const invgateApiBase = import.meta.env.INVGATE_BASE_URL || "";
+const invgateWebBase = invgateApiBase
+  ? invgateApiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "")
+  : "";
+const invgateProfileUrl = invgateWebBase
+  ? `${invgateWebBase}/group/profile/index/id/${helpdesk.id}`
+  : null;
+
+const legacyNames: string[] = [];
+records.forEach((r) => {
+  if (r.legacyName) legacyNames.push(r.legacyName);
+});
+
+const first = records[0];
+let topicsList: string[] = [];
+if (first?.topics) {
+  try {
+    const parsed = JSON.parse(first.topics);
+    topicsList = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    topicsList = first.topics
+      .split(",")
+      .map((t: string) => t.trim())
+      .filter(Boolean);
+  }
+}
+
+let categoryIds: number[] = [];
+if (first?.categories) {
+  try {
+    categoryIds = JSON.parse(first.categories);
+  } catch {}
+}
+
+const sortedSubLevels = [...subLevels].sort(
+  (a, b) => (a.level_order || 0) - (b.level_order || 0),
+);
+
+const levelColors = [
+  "badge-accent badge-soft",
+  "badge-info badge-soft",
+  "badge-success badge-soft",
+  "badge-warning badge-soft",
+];
+
+const searchableText = [
+  hdName,
+  parentName,
+  ...legacyNames,
+  topicsList.join(" "),
+  first?.contacts,
+  first?.notes,
+  ...sortedSubLevels.map((sl) => sl.name),
+]
+  .filter(Boolean)
+  .join(" ")
+  .toLowerCase();
+---
+
+<div
+  class="card bg-base-100 shadow-sm border border-base-300 h-full"
+  data-card-for={helpdesk.id}
+  data-search-text={searchableText}
+  data-status={isActive ? "active" : "inactive"}
+  data-parent-name={parentName || ""}
+  data-member-count={helpdesk.total_members}
+  data-topic-count={topicsList.length}
+  data-name={hdName}
+>
+  <div class="card-body p-5 gap-0 flex flex-col h-full">
+    <div class="flex-1 space-y-3">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1 min-w-0">
+          <h3
+            class="card-title text-base flex items-center gap-1 truncate mb-3"
+          >
+            <Icon
+              name="boxicons:group-alt-filled"
+              size={24}
+              class="text-secondary shrink-0"
+            />
+            <span class="truncate font-bold" data-highlight-target
+              >{hdName}</span
+            >
+          </h3>
+          <div class="flex flex-wrap items-center gap-2 mt-1">
+            <span class="badge badge-sm gap-1 font-mono">
+              <Icon name="boxicons:group-filled" size={12} />
+              {helpdesk.total_members}
+            </span>
+            <span
+              class="badge badge-sm badge-warning gap-1 font-mono hidden"
+              data-incidents-for={helpdesk.id}
+              title="Incidentes abiertos"
+            >
+              <Icon name="boxicons:envelope" size={12} aria-hidden="true" />
+              <span data-incidents-count>0</span>
+            </span>
+            <span class:list={["badge badge-sm", statusBadge]}
+              >{statusLabel}</span
+            >
+            {
+              parentName && (
+                <span
+                  class="badge badge-sm gap-1 badge-ghost h-auto whitespace-normal text-left"
+                  title={`Helpdesk padre: ${parentName}`}
+                >
+                  <Icon name="boxicons:git-branch" size={12} class="shrink-0" aria-hidden="true" />
+                  <span class="line-clamp-2" data-highlight-target>
+                    {parentName}
+                  </span>
+                </span>
+              )
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-base-200"></div>
+
+      {
+        sortedSubLevels.length > 0 && (
+          <div class="flex flex-wrap gap-1">
+            {sortedSubLevels.map((sl, i) => (
+              <span
+                class:list={[
+                  "badge badge-sm",
+                  levelColors[i % levelColors.length],
+                ]}
+                title={`${sl.total_members} miembros`}
+              >
+                {sl.name || `Nivel ${sl.level_order}`}
+                <span class="ml-0.5 opacity-50">{sl.total_members}</span>
+              </span>
+            ))}
+          </div>
+        )
+      }
+
+      {
+        legacyNames.length > 0 && (
+          <div class="flex flex-wrap items-center gap-1.5">
+            <Icon
+              name="boxicons:rename"
+              size={14}
+              class="opacity-50 shrink-0"
+              title="Nombres Legacy (SM)"
+            />
+            {legacyNames.map((name) => (
+              <span
+                class="badge badge-sm badge-ghost cursor-default"
+                data-highlight-target
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        )
+      }
+
+      {
+        topicsList.length > 0 && (
+          <div class="flex flex-wrap gap-1">
+            {topicsList.map((t) => (
+              <span
+                class="badge badge-sm badge-secondary"
+                data-highlight-target
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )
+      }
+    </div>
+
+    <div class="card-actions justify-end gap-2 pt-3 flex-nowrap">
+      <OpenModalButton
+        label="Ver más"
+        onclick={`document.getElementById('${modalId}').showModal()`}
+      />
+      {
+        invgateProfileUrl && (
+          <ActionExternalButton
+            href={invgateProfileUrl}
+            ariaLabel="Abrir en InvGate"
+          />
+        )
+      }
+      {
+        isAdmin && (
+          <a
+            href={`${cleanBase}soportes/edit?invgate_id=${helpdesk.id}`}
+            class="btn btn-sm md:btn-md btn-soft btn-secondary gap-2 flex-nowrap"
+          >
+            <Icon name="boxicons:pencil-filled" size={18} />
+            {hasRecords ? "Editar" : "Agregar info"}
+          </a>
+        )
+      }
+    </div>
+  </div>
+</div>
+
+<Modal id={modalId} title={hdName} icon="boxicons:group-alt-filled" size="md">
+  <div slot="content" class="space-y-4">
+    {
+      categoryIds.length > 0 && (
+        <div>
+          <p class="text-xs font-bold text-base-content/70">
+            Categorías de derivación
+          </p>
+          <div class="flex flex-wrap gap-1 mt-1">
+            {categoryIds.map((cid) => (
+              <span class="badge badge-xs badge-outline">ID:{cid}</span>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      first?.contacts && (
+        <div>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:phone-filled" size={18} />
+            Contactos
+          </p>
+          <p
+            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
+            data-highlight-target
+          >
+            {first.contacts}
+          </p>
+        </div>
+      )
+    }
+
+    {
+      first?.notes && (
+        <div>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:note-filled" size={18} />
+            Notas
+          </p>
+          <p
+            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
+            data-highlight-target
+          >
+            {first.notes}
+          </p>
+        </div>
+      )
+    }
+
+    {
+      helpdesk.total_members > 0 && (
+        <div data-members-for={helpdesk.id}>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:group-filled" size={18} />
+            Miembros
+          </p>
+          <ul
+            class="list-disc list-inside text-sm text-base-content/80 space-y-0.5 mt-1 ml-3"
+            data-members-list
+          >
+            <li class="italic text-base-content/50">
+              <span class="loading loading-dots loading-xs" />
+            </li>
+          </ul>
+        </div>
+      )
+    }
+  </div>
+  <div slot="actions" class="modal-action">
+    <form method="dialog">
+      <button class="btn btn-sm btn-ghost">Cerrar</button>
+    </form>
+  </div>
+</Modal>
+
+<script>
+  const cleanBase = (() => {
+    const b = import.meta.env.BASE_URL || "/";
+    return b.endsWith("/") ? b : b + "/";
+  })();
+
+  async function loadIncidentsSequentially() {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-card-for]"));
+    for (const card of cards) {
+      const helpdeskId = card.dataset.cardFor;
+      const badge = card.querySelector<HTMLElement>("[data-incidents-for]");
+      const countSpan = card.querySelector<HTMLElement>("[data-incidents-count]");
+      if (!helpdeskId || !badge || !countSpan) continue;
+
+      try {
+        const res = await fetch(`${cleanBase}api/invgate/incidents-by-helpdesk?helpdesk_id=${helpdeskId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.total === "number" && data.total > 0) {
+            countSpan.textContent = String(data.total);
+            badge.classList.remove("hidden");
+          }
+        }
+      } catch (err) {
+        console.error("Error loading incidents for " + helpdeskId, err);
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+
+  loadIncidentsSequentially();
+
+  document.querySelectorAll<HTMLElement>("[data-members-for]").forEach((el) => {
+    const invgateId = el.dataset.membersFor;
+    const list = el.querySelector<HTMLElement>("[data-members-list]");
+    if (!invgateId || !list) return;
+
+    fetch(`${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.members && data.members.length > 0) {
+          list.innerHTML = data.members
+            .map((m: string) => `<li data-highlight-target>${m}</li>`)
+            .join("");
+          const cardEl = el.closest<HTMLElement>("[data-card-for]");
+          if (cardEl) {
+            const existing = cardEl.dataset.searchText || "";
+            const membersText = data.members.join(" ").toLowerCase();
+            if (!existing.includes(membersText)) {
+              cardEl.dataset.searchText = existing + " " + membersText;
+            }
+            cardEl.dispatchEvent(new Event("members-loaded"));
+          }
+        } else {
+          list.innerHTML =
+            '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
+        }
+      })
+      .catch(() => {
+        list.innerHTML =
+          '<li class="italic text-error/60">Error al cargar miembros</li>';
+      });
+  });
+</script>

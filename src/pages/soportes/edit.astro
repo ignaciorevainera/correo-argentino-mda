@@ -1,0 +1,472 @@
+---
+import { getCleanBase } from "@lib/baseUrl";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import FormTextarea from "@components/ui/forms/FormTextarea.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { eq, isNull } from "drizzle-orm";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { invgateGet } from "@lib/invgateClient";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
+
+const cleanBase = getCleanBase();
+const invgateIdRaw = Astro.url.searchParams.get("invgate_id");
+const invgateId = invgateIdRaw ? Number(invgateIdRaw) : NaN;
+
+if (!invgateIdRaw || isNaN(invgateId)) {
+  return Astro.redirect(`${cleanBase}soportes`);
+}
+
+let errorMsg = "";
+
+const hdResult = await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+const linkedHd = allItems.find((h) => h.id === invgateId && !h.level_order);
+
+const linkedRecords = await db.query.supportGuides.findMany({
+  where: eq(supportGuides.invgate_id, invgateId),
+});
+
+const subLevels = allItems
+  .filter((h) => h.parent_id === invgateId && h.level_order !== undefined)
+  .sort((a, b) => (a.level_order ?? 0) - (b.level_order ?? 0));
+
+const levelColors = [
+  "badge-accent badge-soft",
+  "badge-info badge-soft",
+  "badge-success badge-soft",
+  "badge-warning badge-soft",
+];
+
+const linkedJson = JSON.stringify(
+  linkedRecords.map((r) => ({
+    id: r.id,
+    helpDeskName: r.legacyName || `Registro #${r.id}`,
+    legacyName: r.legacyName,
+  })),
+);
+
+const first = linkedRecords[0];
+
+const unassignedRecords = await db.query.supportGuides.findMany({
+  where: isNull(supportGuides.invgate_id),
+});
+
+const unassignedJson = JSON.stringify(
+  unassignedRecords.map((r) => ({
+    id: r.id,
+    helpDeskName: r.legacyName || `Registro #${r.id}`,
+    legacyName: r.legacyName,
+  })),
+);
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+    const categories = data.get("categories")?.toString() || null;
+    const route = categories;
+    const topics = data.get("topics")?.toString() || null;
+    const contacts = data.get("contacts")?.toString() || null;
+    const notes = data.get("notes")?.toString() || null;
+
+    if (linkedRecords.length > 0) {
+      for (const record of linkedRecords) {
+        await db
+          .update(supportGuides)
+          .set({
+            categories,
+            route,
+            topics,
+            contacts,
+            notes,
+          })
+          .where(eq(supportGuides.id, record.id));
+      }
+    } else {
+      await db.insert(supportGuides).values({
+        invgate_id: invgateId,
+        categories,
+        route,
+        topics,
+        contacts,
+        notes,
+      });
+    }
+
+    const label = linkedHd?.name || `ID ${invgateId}`;
+    await logAdminFromAstro(Astro.locals, `Actualizo los datos de la mesa de ayuda "${label}"`);
+    return redirectWithToast("/soportes", "Mesa de ayuda actualizada con exito.");
+  } catch (err) {
+    console.error("Error saving helpdesk metadata:", err);
+    errorMsg = "Ocurrio un error al guardar los datos.";
+  }
+}
+
+const hdName = linkedHd?.name || `Helpdesk #${invgateId}`;
+const pageTitle = `Editar: ${hdName}`;
+---
+
+<BaseLayout>
+  <PageContainer>
+    <div class="mb-6">
+      <a href={`${cleanBase}soportes`} class="btn btn-sm gap-2">
+        <Icon name="boxicons:arrow-left" size={16} />
+        Volver al listado
+      </a>
+    </div>
+
+    <PageHeader title={pageTitle} description="Modifica la metadata local vinculada a esta mesa de ayuda de InvGate." />
+
+    <div class="bg-base-100 p-6 md:p-8 rounded-2xl shadow-sm border border-base-200">
+      {errorMsg && (
+        <script is:inline define:vars={{ errorMsg }}>
+          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
+        </script>
+      )}
+
+      <form method="POST" class="flex flex-col gap-6">
+      {linkedHd && (
+        <div class="bg-base-200/40 rounded-xl p-5 border border-base-300  flex flex-col gap-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-base-300 pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-base-content flex items-center gap-2">
+                <Icon name="boxicons:info-circle" size={20} />
+                Mesa de ayuda InvGate: {linkedHd.name}
+              </h3>
+              <p class="text-sm text-base-content/70 mt-1">
+                Información del helpdesk sincronizada desde InvGate.
+              </p>
+            </div>
+            <div class="stats bg-base-100 shadow-sm border border-base-200">
+              <div class="stat py-2 px-4">
+                <div class="stat-title text-xs">Total miembros</div>
+                <div class="stat-value text-xl font-bold">{linkedHd.total_members}</div>
+              </div>
+            </div>
+          </div>
+
+          {subLevels.length > 0 && (
+            <div>
+              <h4 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
+                <Icon name="boxicons:git-repo-forked" size={16} />
+                Sub-niveles vinculados
+              </h4>
+              <div class="flex flex-wrap gap-2">
+                {subLevels.map((level, idx) => {
+                  const colorClass = levelColors[idx % levelColors.length];
+                  return (
+                    <span class={`badge ${colorClass} gap-1 p-3`}>
+                      <span class="font-medium">{level.name || `Nivel ${level.level_order}`}</span>
+                      <span class="opacity-70">({level.total_members} miembros)</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-1.5">
+              <Icon name="boxicons:group-filled" size={16} />
+              Lista de miembros
+            </h4>
+            <div id="members-loader" class="flex items-center gap-2 text-sm text-base-content/50 py-2">
+              <span class="loading loading-spinner loading-xs"></span>
+              Cargando miembros...
+            </div>
+            <ul id="members-list" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5 text-sm list-disc pl-5">
+            </ul>
+            <div id="members-error" class="text-sm text-error hidden">
+              Error al cargar la lista de miembros.
+            </div>
+          </div>
+        </div>
+      )}
+
+        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300">
+          <p class="text-sm font-bold text-base-content/70 mb-2 flex items-center gap-1">
+            <Icon name="boxicons:git-merge" size={16} />
+            Mesas SM vinculadas
+          </p>
+
+          <div id="linked-sm-list" class="flex flex-wrap gap-2 mb-3">
+             {linkedRecords.length > 0 ? (
+              linkedRecords.map((rec) => (
+                <div class="badge badge-neutral gap-2 pl-3 pr-2 py-4" data-linked-id={rec.id}>
+                  <span>{rec.legacyName || `Registro #${rec.id}`}</span>
+                  <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id={rec.id}><Icon name="boxicons:x" size={16} /></button>
+                </div>
+              ))
+            ) : (
+              <p id="empty-linked-message" class="text-sm italic text-base-content/40">Sin mesas SM vinculadas a esta helpdesk.</p>
+            )}
+          </div>
+
+          <div id="assign-chain" data-invgate-id={invgateId} data-unassigned={unassignedJson} data-linked={linkedJson}>
+            {unassignedRecords.length > 0 && (
+              <div class="assign-row flex items-center gap-2">
+                <select class="select select-bordered flex-1 assign-select">
+                  <option value="">Seleccionar mesa SM...</option>
+                  {unassignedRecords.map((rec) => (
+                    <option value={rec.id}>
+                      {rec.legacyName || `Registro #${rec.id}`}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" class="btn btn-primary assign-btn">
+                  Vincular
+                </button>
+              </div>
+            )}
+          </div>
+          <p class="text-xs text-base-content/40 mt-2 flex items-center gap-1">
+            <Icon name="boxicons:info-circle" size={12} />
+            Selecciona una mesa SM y haz clic en Vincular para asociarla.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormTextarea
+            id="categories"
+            name="categories"
+            label="Categorias de derivacion"
+            textareaClass="font-mono"
+            rows={4}
+            value={first?.categories || ""}
+            placeholder='[5, 12, 23]'
+          />
+
+          <FormTextarea
+            id="topics"
+            name="topics"
+            label="Topicos (JSON array)"
+            textareaClass="font-mono"
+            rows={4}
+            value={first?.topics || ""}
+            placeholder='["VPN", "Correo", "Hardware"]'
+          />
+
+          <FormTextarea
+            id="contacts"
+            name="contacts"
+            label="Contactos"
+            rows={4}
+            value={first?.contacts || ""}
+          />
+
+          <FormTextarea
+            id="notes"
+            name="notes"
+            label="Notas"
+            rows={4}
+            value={first?.notes || ""}
+          />
+        </div>
+
+        <div class="flex justify-end gap-3 mt-4 pt-6 border-t border-base-200">
+          <a href={`${cleanBase}soportes`} class="btn btn-ghost">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <Icon name="boxicons:save" size={20} />
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<template id="x-icon-template">
+  <Icon name="boxicons:x" size={16} />
+</template>
+
+<script>
+  import { getCleanBase } from "@lib/baseUrl";
+  const cleanBase = getCleanBase();
+
+  const chain = document.getElementById("assign-chain");
+  if (!chain) throw new Error("assign-chain not found");
+
+  const invgateId = Number(chain.dataset.invgateId);
+  let unassigned: { id: number; helpDeskName: string; legacyName: string | null }[] = [];
+  let linked: { id: number; helpDeskName: string; legacyName: string | null }[] = [];
+  try { unassigned = JSON.parse(chain.dataset.unassigned || "[]"); } catch {}
+  try { linked = JSON.parse(chain.dataset.linked || "[]"); } catch {}
+
+  const list = document.getElementById("linked-sm-list");
+
+  const membersLoader = document.getElementById("members-loader");
+  const membersList = document.getElementById("members-list");
+  const membersError = document.getElementById("members-error");
+
+  if (membersLoader && membersList && membersError) {
+    fetch(`${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        membersLoader.classList.add("hidden");
+        if (data.members && data.members.length > 0) {
+          membersList.innerHTML = data.members
+            .map((m: string) => `<li>${m}</li>`)
+            .join("");
+          membersList.classList.remove("hidden");
+        } else {
+          membersLoader.textContent = "No hay miembros registrados.";
+          membersLoader.classList.remove("hidden");
+        }
+      })
+      .catch(() => {
+        membersLoader.classList.add("hidden");
+        membersError.classList.remove("hidden");
+      });
+  }
+
+  function updateAssignChainUI() {
+    if (!chain) return;
+    if (unassigned.length === 0) {
+      chain.innerHTML = "";
+      return;
+    }
+
+    let row = chain.querySelector(".assign-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "assign-row flex items-center gap-2";
+      row.innerHTML = `
+        <select class="select select-sm select-bordered flex-1 assign-select">
+          <option value="">Seleccionar mesa SM...</option>
+        </select>
+        <button type="button" class="btn btn-xs btn-primary assign-btn">
+          Vincular
+        </button>
+      `;
+      chain.appendChild(row);
+      row.querySelector(".assign-btn")?.addEventListener("click", () => handleAssign());
+    }
+
+    const select = row.querySelector(".assign-select");
+    if (select) {
+      select.innerHTML = `
+        <option value="">Seleccionar mesa SM...</option>
+        ${unassigned
+          .map(
+            (r) =>
+              `<option value="${r.id}">${r.legacyName || "Registro #" + r.id}</option>`
+          )
+          .join("")}
+      `;
+    }
+  }
+
+  function handleAssign() {
+    const select = chain?.querySelector<HTMLSelectElement>(".assign-select");
+    const btn = chain?.querySelector<HTMLButtonElement>(".assign-btn");
+    const recordId = Number(select?.value);
+    if (!recordId || !btn) return;
+
+    btn.disabled = true;
+    const originalText = btn.textContent || "Vincular";
+    btn.textContent = "...";
+
+    fetch(`${cleanBase}api/support-guides/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId, invgate_id: invgateId }),
+    })
+      .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.error)))))
+      .then(() => {
+        const itemIndex = unassigned.findIndex((r) => r.id === recordId);
+        if (itemIndex > -1) {
+          const item = unassigned[itemIndex];
+          unassigned.splice(itemIndex, 1);
+          linked.push(item);
+
+          const emptyMsg = document.getElementById("empty-linked-message");
+          if (emptyMsg) {
+            emptyMsg.remove();
+          }
+
+          if (list) {
+            const xIconSvg = document.getElementById("x-icon-template")?.innerHTML || "✕";
+            const chip = document.createElement("div");
+            chip.className = "badge badge-neutral gap-2 pl-3 pr-2 py-4";
+            chip.setAttribute("data-linked-id", item.id.toString());
+            chip.innerHTML = `
+              <span>${item.legacyName || "Registro #" + item.id}</span>
+              <button type="button" class="btn btn-ghost btn-xs btn-circle unlink-btn" data-record-id="${item.id}">${xIconSvg}</button>
+            `;
+            list.appendChild(chip);
+          }
+        }
+
+        updateAssignChainUI();
+        btn.disabled = false;
+        btn.textContent = originalText;
+        (window as any).showToast?.("Mesa SM vinculada correctamente", "alert-success");
+      })
+      .catch((err: any) => {
+        (window as any).showToast?.(err.message || "Error al vincular", "alert-error");
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
+  }
+
+  const initialBtn = chain.querySelector(".assign-btn");
+  if (initialBtn) {
+    initialBtn.addEventListener("click", () => handleAssign());
+  }
+
+  list?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest(".unlink-btn") as HTMLButtonElement | null;
+    if (!btn) return;
+
+    const recordId = Number(btn.getAttribute("data-record-id"));
+    if (!recordId || isNaN(recordId)) return;
+
+    btn.disabled = true;
+    const originalText = btn.textContent || "✕";
+    btn.textContent = "...";
+
+    fetch(`${cleanBase}api/support-guides/unassign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId }),
+    })
+      .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.error)))))
+      .then(() => {
+        const itemIndex = linked.findIndex((r) => r.id === recordId);
+        if (itemIndex > -1) {
+          const item = linked[itemIndex];
+          linked.splice(itemIndex, 1);
+          unassigned.push(item);
+
+          const chip = list.querySelector(`[data-linked-id="${recordId}"]`);
+          if (chip) {
+            chip.remove();
+          }
+
+          if (linked.length === 0) {
+            list.innerHTML = `<p id="empty-linked-message" class="text-sm italic text-base-content/40">Sin mesas SM vinculadas a esta helpdesk.</p>`;
+          }
+        }
+
+        updateAssignChainUI();
+        (window as any).showToast?.("Mesa SM desvinculada correctamente", "alert-success");
+      })
+      .catch((err: any) => {
+        (window as any).showToast?.(err.message || "Error al desvincular", "alert-error");
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
+  });
+</script>

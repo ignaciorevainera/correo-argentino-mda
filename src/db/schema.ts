@@ -642,9 +642,9 @@ export const terminalsRelations = relations(terminals, ({ one }) => ({
 
 export const supportGuides = sqliteTable("support_guides", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  helpDeskName: text("help_desk_name").notNull(),
+  invgate_id: integer("invgate_id"),
+  categories: text("categories"),
   legacyName: text("legacy_name"),
-  invgateName: text("invgate_name"),
   route: text("route"),
   topics: text("topics"),
   contacts: text("contacts"),

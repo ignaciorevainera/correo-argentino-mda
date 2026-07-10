@@ -34,6 +34,7 @@ export const routePermissions: RoutePermission[] = [
   { path: "/supervision", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
   { path: "/soportes/create", roles: ["admin", "supervisor"] },
   { path: "/soportes/edit", roles: ["admin", "supervisor"] },
+  { path: "/soportes/asignar", roles: ["admin", "supervisor"] },
   { path: "/oficinas/create", roles: ["admin", "supervisor"] },
   { path: "/oficinas/edit", roles: ["admin", "supervisor"] },
   { path: "/inventario-terminales/cubics/create", roles: ["admin", "supervisor"] },
@@ -114,5 +115,3 @@ export function getModulePermissions(moduleName: string, userRole: string): Modu
 
   return perm;
 }
-
-

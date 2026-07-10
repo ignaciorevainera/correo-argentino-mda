@@ -1,0 +1,38 @@
+---
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+
+interface Props {
+  count: number;
+  isAdmin: boolean;
+}
+
+const { count, isAdmin } = Astro.props;
+
+if (!isAdmin || count === 0) {
+  return new Response(null, { status: 200 });
+}
+
+const cleanBase = getCleanBase();
+---
+
+<div role="alert" class="alert alert-warning alert-soft">
+  <Icon name="boxicons:x-circle-filled" size={20} />
+  <div>
+    <p class="font-bold">
+      {count}
+      {
+        count === 1
+          ? "mesa de ayuda sin vincular"
+          : "mesas de ayuda sin vincular"
+      }
+    </p>
+    <p class="text-xs opacity-80">
+      Registros locales que no están asociados a ninguna helpdesk de InvGate.
+    </p>
+  </div>
+  <a href={`${cleanBase}soportes/asignar`} class="btn btn-sm btn-warning">
+    <Icon name="boxicons:link" size={16} />
+    Asignar
+  </a>
+</div>
