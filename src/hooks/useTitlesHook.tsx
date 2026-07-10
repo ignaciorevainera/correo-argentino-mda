@@ -1,26 +1,47 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useDebounce } from "./useDebounce";
+import { showToast } from "@lib/toastClient"
+import type { ModulePermission } from "@/lib/rbac";
 
 declare const chrome: any;
 
-export interface TitleData {
-  title: string;
-  ci: string;
-  service: string;
+export interface Title {
+  id: number;
+  name: string;
+  categoryId: number;
+  category: string;
+  icon: string;
+  tone: string;
+  route: string | null;
+  description: string | null;
+  articleOnKdb: string | null
 }
 
-const SHEET_ID = "1zVeRuLjQSShxpyXnE8pDJNYe4B_m5edI5gCB-d71xJ4";
-const SHEET_NAME = "Hoja 1";
+export interface TitleFormData {
+  name: string;
+  categoryId: number;
+  route: string;
+  description: string;
+  articleOnKdb: string;
+}
 
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+export interface TitleCategory {
+  id: number;
+  name: string;
+  icon: string;
+  tone: string;
+}
 
-export function useTitles() {
-  const [titles, setTitles] = useState<TitleData[]>([]);
-  const [filteredTitles, setFilteredTitles] = useState<TitleData[]>([]);
+interface Props {
+  permissions: ModulePermission
+}
+export function useTitles({ permissions }: Props) {
+  const [titles, setTitles] = useState<Title[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Todos");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<TitleCategory[]>([]);
 
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -30,47 +51,221 @@ export function useTitles() {
     return saved ? JSON.parse(saved) : [];
   })
 
+
   // Debounce
   const debouncedSearch = useDebounce(searchQuery, 200);
 
-  // Fetch desde el sheet
-   useEffect(() => {
-    const loadTitles = async () => {
+  // Fetch
+  useEffect(() => {
+    setLoading(true)
+    const fetchTitles = async () => {
       try {
-        const res = await fetch(SHEET_URL);
-        const text = await res.text();
-
-        const json = JSON.parse(
-          text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1)
-        );
-
-        const parsed: TitleData[] = json.table.rows
-          .map((row: any) => ({
-            title: row.c?.[0]?.v?.trim() ?? "",
-            service: row.c?.[1]?.v?.trim() ?? "",
-            ci: row.c?.[2]?.v?.trim() ?? "",
-          }))
-          .filter((item: { title: any }) => item.title);
-
-        const unique = parsed
-          .filter((t, i, self) =>
-            i === self.findIndex((x) => x.title === t.title)
-          )
-          .sort((a, b) =>
-            a.title.localeCompare(b.title, "es", { sensitivity: "base" })
-          );
-
-        setTitles(unique);
-        setFilteredTitles(unique);
+        const res = await fetch("/api/titulos");
+        if (!res.ok) {
+          throw new Error("Error obteniendo títulos");
+        }
+        const data: Title[] = await res.json();
+        setTitles(data)
       } catch (error) {
         console.error("Error loading titles:", error);
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-
-    loadTitles();
+    }
+    fetchTitles()
   }, []);
+
+  const refreshTitles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/titulos");
+
+      if (!res.ok) {
+        throw new Error("Error cargando títulos.");
+      }
+
+      const data: Title[] = await res.json();
+      setTitles(data)
+        ;
+    } catch (error) {
+      console.error(error);
+      showToast(
+        "No se pudieron obtener los títulos",
+        "alert-error",
+        3000
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const refreshCategories = useCallback(async () => {
+
+    try {
+
+      const res = await fetch("/api/titulos/categorias");
+
+      if (!res.ok) throw new Error();
+
+      const data: TitleCategory[] = await res.json();
+
+      setCategories(data);
+
+    } catch (err) {
+
+      console.error(err);
+
+    }
+
+  }, []);
+
+  useEffect(() => {
+    refreshTitles();
+    refreshCategories();
+  }, [refreshTitles, refreshCategories]);
+
+  const createTitle = async (title: TitleFormData) => {
+    try {
+
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
+
+      const res = await fetch("/api/titulos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(title),
+      });
+      if (!res.ok) {
+        throw new Error();
+      }
+
+      showToast(
+        "Título creado correctamente.",
+        "alert-success",
+        3000
+      )
+
+      await refreshTitles();
+      await refreshCategories();
+      return true;
+
+    } catch (error) {
+      showToast(
+        "No se pudo crear el título",
+        "alert-error",
+        3000
+      );
+      return false;
+    }
+  }
+
+  const updateTitle = async (
+    id: number,
+    title: TitleFormData
+  ) => {
+    try {
+
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
+      const res = await fetch(`/api/titulos/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(title),
+      });
+
+      if (!res.ok) {
+        throw new Error();
+      }
+
+      showToast(
+        "Título actualizado",
+        "alert-success",
+        3000
+      );
+
+      await refreshTitles();
+      await refreshCategories();
+      return true;
+
+    } catch (error) {
+      showToast(
+        "Error actualizando título",
+        "alert-error",
+        3000
+      );
+
+      return false;
+    }
+  }
+
+  const deleteTitle = async (
+    id: number
+  ) => {
+
+    try {
+
+      if (!permissions.canWrite) {
+        showToast(
+          "No tenés permisos para realizar esta acción.",
+          "alert-error",
+          3000
+        );
+
+        return false;
+      }
+
+      const res = await fetch(`/api/titulos/${id}`, {
+
+        method: "DELETE",
+
+      });
+
+      if (!res.ok) {
+        throw new Error();
+      }
+
+      showToast(
+        "Título eliminado",
+        "alert-success",
+        3000
+      );
+
+      await refreshTitles();
+
+      return true;
+
+    } catch {
+
+      showToast(
+        "No se pudo eliminar",
+        "alert-error",
+        3000
+      );
+
+      return false;
+
+    }
+
+  };
+
 
 
   // Favoritos
@@ -81,58 +276,74 @@ export function useTitles() {
   const toggleFavorite = (title: string) => {
     setFavorites((prev) => {
       if (prev.includes(title)) {
+        showToast(`Título "${title}" eliminado de favoritos.`, 'alert-info', 3000);
         return prev.filter(
           (item) => item !== title
         );
       }
+      showToast(`Título "${title}" agregado a favoritos.`, 'alert-success', 3000);
       return [...prev, title];
     });
   };
 
-  // Búsqueda y filtros 
-  useEffect(() => {
+  // Búsqueda y filtros
+  const filteredTitles = useMemo(() => {
     const normalize = (str: string) =>
-      str.normalize("NFD")
+      str
+        .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
         .trim();
 
     const term = normalize(debouncedSearch);
 
-    let result = titles;
+    let result = [...titles];
 
-    // filtro en búsqueda
+    // Filtro de búsqueda
     if (term) {
-      result = result.filter(
-        (t) =>
-          normalize(t.title).includes(term) ||
-          normalize(t.ci).includes(term) ||
-          normalize(t.service).includes(term)
+      result = result.filter((title) =>
+        normalize(title.name).includes(term) ||
+        normalize(title.description ?? "").includes(term) ||
+        normalize(title.route ?? "").includes(term)
       );
     }
-    // filtro por categoría
+
+    // Filtro de favoritos y categorías
     if (activeFilter === "Favoritos") {
-      result = result.filter(
-        (t) => favorites.includes(t.title)
+      result = result.filter((title) =>
+        favorites.includes(title.name)
       );
     }
+
     else if (activeFilter !== "Todos") {
       result = result.filter(
-        (t) =>
-          normalize(t.service) ===
-          normalize(activeFilter)
+        (title) =>
+          normalize(title.category) === normalize(activeFilter)
       );
     }
+    return result;
+  }, [titles, favorites, debouncedSearch, activeFilter])
 
-    setFilteredTitles(result);
-  }, [debouncedSearch, activeFilter, titles, favorites]);
+  const filters = useMemo(() => {
+    const categories = [
+      ...new Set(
+        titles.map((t) => t.category)
+      ),
+    ].sort();
+
+    return [
+      "Todos",
+      "Favoritos",
+      ...categories,
+    ];
+  }, [titles]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
 
-      alert(`Titulo "${text}" copiado al portapapeles.`)
+      showToast(`Titulo "${text}" copiado al portapapeles.`, 'alert-success', 3000);
       if (typeof chrome !== "undefined" && chrome.tabs) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -142,29 +353,30 @@ export function useTitles() {
         });
       }
     } catch (err) {
+      showToast("Error al copiar al portapapeles", 'alert-error', 3000);
       console.error("Error copying to clipboard:", err);
     }
   }, []);
 
-  const sortedTitles = useMemo(() => {
-    return [...filteredTitles].sort((a, b) =>
-      a.title.localeCompare(b.title, "es")
-    )
-  }, [filteredTitles])
-
   return {
     titles,
+    setTitles,
+    categories,
+    filters,
     filteredTitles,
     loading,
     searchQuery,
     setSearchQuery,
     copyToClipboard,
     copiedIndex,
-    setActiveFilter,
     activeFilter,
-    sortedTitles,
+    setActiveFilter,
     favorites,
-    toggleFavorite
+    toggleFavorite,
+
+    updateTitle,
+    createTitle,
+    deleteTitle
   };
 }
 

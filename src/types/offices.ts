@@ -40,4 +40,11 @@ export interface OfficeDirectoryItem {
   contacts: OfficeContact[];
   assets: OfficeAsset[];
   terminals: OfficeTerminal[];
+  invgateLinked?: boolean;
+  invgateDisplayName?: string | null;
+  invgateCp?: string | null;
+  invgateCc?: string | null;
+  invgateAddress?: string | null;
+  invgateParentName?: string | null;
+  invgateDuplicateCount?: number;
 }

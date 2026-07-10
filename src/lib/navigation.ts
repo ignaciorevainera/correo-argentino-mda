@@ -140,7 +140,7 @@ export const navSections: NavSection[] = [
           {
             href: "/admin/invgate/ubicaciones",
             label: "Ubicaciones InvGate",
-            icon: "boxicons:location-pin-filled",
+            icon: "boxicons:location-alt-filled",
           },
         ],
       },
