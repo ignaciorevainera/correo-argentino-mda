@@ -98,7 +98,7 @@ export function updateGroupsActiveMonthBadge(): void {
   const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
   const groupsSelect = document.getElementById('groups-month-selector') as HTMLSelectElement | null;
   if (groupsSelect && dateInput && dateInput.value) {
-    groupsSelect.value = dateInput.value;
+    groupsSelect.value = dateInput.value.slice(0, 7) + "-01";
   }
 }
 
@@ -113,11 +113,14 @@ export function updateMonthDisplay(): void {
     return;
   }
 
-  mainSelect.value = value;
+  mainSelect.value = value.slice(0, 7) + "-01";
 
   updateNavigationButtons();
   updateGroupsActiveMonthBadge();
 }
+
+const MESES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const T_MONTH = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
 export function renderMonthSelect(): void {
   const mainSelect = document.getElementById('month-selector') as HTMLSelectElement | null;
@@ -125,12 +128,11 @@ export function renderMonthSelect(): void {
   if (!mainSelect && !groupsSelect) return;
 
   const html = state.uniqueMonths.map(ymStr => {
-    const [yearStr, monthStr] = ymStr.split('-');
-    const year = parseInt(yearStr, 10);
+    const [, monthStr] = ymStr.split('-');
     const month = parseInt(monthStr, 10) - 1;
-    const dateObj = new Date(year, month, 15);
-    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-    const label = formatter.format(dateObj).toUpperCase();
+    const year = ymStr.slice(0, 4);
+    const isCurrent = ymStr === T_MONTH;
+    const label = isCurrent ? `${MESES_ES[month]} ${year} (mes actual)` : `${MESES_ES[month]} ${year}`;
     return `<option value="${ymStr}-01">${label}</option>`;
   }).join('');
 
@@ -531,12 +533,12 @@ export function renderDaily(): void {
       const timelineBg = isHoliday ? 'bg-orange-100/10 dark:bg-orange-950/10' : '';
 
       rowsHtml += `
-        <tr class="hover:bg-base-200/40 transition-all duration-200 group border-b border-base-200/50 last:border-0">
+        <tr class="hover:bg-base-200/40 transition-colors duration-200 group border-b border-base-200/50 last:border-0">
           <td class="sticky left-0 bg-base-100 z-40 w-64 min-w-[16rem] px-6 py-4 border-r border-base-300/40 relative group-hover:bg-base-200 transition-colors">
             <div class="flex items-center gap-4">
               <div class="relative w-10 h-10 shrink-0">
                 <div class="absolute inset-0 rounded-full blur-[2px] opacity-0 group-hover:opacity-30 transition-opacity duration-300 ${status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios ? 'bg-secondary' : (status === OperatorStatus.HomeOffice ? 'bg-amber-500' : 'bg-primary')}"></div>
-                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-all duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
+                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-black ring-1 ring-base-300 transition-transform duration-300 group-hover:scale-110 group-hover:ring-offset-2 group-hover:ring-offset-base-100 ${ringClass}">
                   ${initials}
                 </div>
                 <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base-100 ${liveIndicatorClass}" title="${liveStatus.text}"></div>
@@ -595,7 +597,7 @@ export function renderHourly(dateStr: string): void {
     <tr>
       <th rowspan="2" class="sticky top-0 left-0 bg-base-100 z-50 w-[200px] min-w-[200px] border-r border-b border-base-200 px-6 py-4 font-black text-xs uppercase tracking-widest text-base-content/50">Operador</th>
       <th colspan="${hours.length}" class="sticky top-0 text-center py-3 bg-base-100 text-secondary border-b border-base-200 group z-40">
-         <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-all shadow-sm">
+         <button type="button" data-close-hourly class="absolute left-4 top-1/2 -translate-y-1/2 btn btn-xs btn-outline hover:bg-secondary/10 border-secondary/20 hover:border-secondary/40 text-secondary h-8 px-3 rounded-lg transition-colors shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left mr-1"><path d="m15 18-6-6 6-6"/></svg>
             Volver al mes
          </button>
@@ -642,7 +644,7 @@ export function renderHourly(dateStr: string): void {
         const isAbsent = status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones;
         const isFranco = status === OperatorStatus.Franco;
         
-        let rowClass = "group hover:bg-base-200/40 transition-all border-b border-base-200/50";
+        let rowClass = "group hover:bg-base-200/40 transition-colors border-b border-base-200/50";
         if (isHoliday) {
             rowClass += " bg-orange-100/30 dark:bg-orange-950/30 pointer-events-none";
         }
@@ -673,7 +675,7 @@ export function renderHourly(dateStr: string): void {
           }
         }
 
-        let opNameBtnClass = "hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate flex-1 font-bold text-xs";
+        let opNameBtnClass = "hover:text-secondary hover:underline underline-offset-2 transition-colors text-left truncate flex-1 font-bold text-xs";
         if (isHoliday) {
            opNameBtnClass += " text-orange-600 dark:text-orange-400";
         }
@@ -844,7 +846,7 @@ export function renderMonthly(): void {
         <button
           type="button"
           id="toggle-totals-btn"
-          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-200 text-base-content/50 hover:text-base-content transition-all"
+          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-200 text-base-content/50 hover:text-base-content transition-colors"
           title="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
           aria-label="${state.isTotalsCollapsed ? 'Mostrar columnas de totales' : 'Ocultar columnas de totales'}"
         >
@@ -983,10 +985,10 @@ export function renderMonthly(): void {
       tbodyHtml += `<tr class="group ${showViolation ? 'bg-error/2' : ''}" data-op-name="${op.nombre.toLowerCase()}">
         <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
-            <span class="w-2 h-2 rounded-full ${showViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-all shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
+            <span class="w-2 h-2 rounded-full ${showViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-transform shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
             <div class="flex flex-col min-w-0 flex-1">
               <div class="flex items-center justify-between w-full">
-                <button class="hover:text-secondary hover:underline underline-offset-2 transition-all text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
+                <button class="hover:text-secondary hover:underline underline-offset-2 transition-colors text-left truncate font-bold text-xs" data-op-profile="${op.nombre}">
                   ${op.nombre}
                 </button>
                 <div class="flex items-center gap-0.5 shrink-0 ml-1.5 no-print ${state.isEditMode ? '' : 'hidden'}">
@@ -1032,7 +1034,7 @@ export function renderMonthly(): void {
         if (isLicenseOverlap) totalInconsistencies++;
 
         const isFrancoCell = status === OperatorStatus.Franco || !status;
-        let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-all duration-300`;
+        let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-colors duration-300`;
         if (isTodayCell) {
           cellClass += isFrancoCell ? ' bg-base-200/80 dark:bg-base-300/20' : ' bg-secondary/10';
         }
@@ -1093,7 +1095,7 @@ export function renderMonthly(): void {
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
 
-        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110 hover:z-[60] relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm hover:shadow-lg ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-colors duration-300 cursor-pointer relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm ${isLicenseOverlap ? 'border-error/40' : ''}`;
         
         let tooltipAttrs = '';
         if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios || status === OperatorStatus.HomeOffice) {
@@ -1185,7 +1187,7 @@ export function renderMonthly(): void {
         <button
           type="button"
           id="toggle-coverage-btn"
-          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-300 text-base-content/50 hover:text-base-content transition-all"
+          class="btn btn-xs btn-ghost p-0.5 rounded hover:bg-base-300 text-base-content/50 hover:text-base-content transition-colors"
           title="${state.isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
           aria-label="${state.isCoverageMinimized ? 'Maximizar resumen de cobertura' : 'Minimizar resumen de cobertura'}"
         >
@@ -1218,9 +1220,9 @@ export function renderMonthly(): void {
         <div class="flex flex-col items-center gap-1.5">
            ${state.isCoverageMinimized ? '' : `
            <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
-              <div class="bg-purple-500 w-full transition-all duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
-              <div class="bg-amber-500 w-full transition-all duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
-              <div class="bg-secondary w-full transition-all duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
+               <div class="bg-purple-500 w-full transition-[height] duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
+               <div class="bg-amber-500 w-full transition-[height] duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
+               <div class="bg-secondary w-full transition-[height] duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
            </div>
            `}
            <div class="flex flex-col items-center">

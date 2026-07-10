@@ -1,20 +1,19 @@
 # DESIGN
 
-Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
+Generado el 2026-04-10. Ultima actualizacion: 2026-07-06.
 
 ## Stack
 
-- Framework: Astro
-- Estilos: Tailwind CSS + DaisyUI
-- Tema: DaisyUI con `light` como default y `dark` por preferencia del sistema
-- Contenido: MDX (Content Collections)
+- Framework: Astro v6 (output: `server` / SSR) con adaptador `@astrojs/node` standalone
+- Estilos: Tailwind CSS v4 + DaisyUI v5
+- Tipografia: `Geist Variable` (Sans) + `Geist Mono Variable` (Mono) via Fontsource
 - Iconos: `astro-icon` con Boxicons (`@iconify-json/boxicons`)
-- Interactividad de tema: `theme-change`
-- Datos/Auth: sin base de datos y sin autenticacion
-- Deploy objetivo: Vercel
-- Deploy actual: sin configuracion activa en entorno productivo
+- Interactividad: React islands con `@astrojs/react`, `theme-change` para toggle de tema
+- Base de datos: SQLite con Drizzle ORM + `better-sqlite3`
+- Autenticacion: Sesion cookie-based HMAC + RBAC (5 roles: agent, referent, team_leader, supervisor, admin)
+- Deploy: Node standalone con PM2 (3 procesos: Astro SSR, ping-worker, sync-legacy-inventory)
 
-## Contexto de producto (actualizado 2026-04-17)
+## Contexto de producto
 
 - Producto: Portal de la Mesa de Ayuda Interna.
 - Objetivo principal: centralizar y agilizar tareas de operadores N1/N2
@@ -25,11 +24,11 @@ Generado el 2026-04-10. Ultima actualizacion: 2026-04-18.
 ## Tema activo
 
 - Tema base activo: `light`
-- Modo oscuro: disponible por `prefers-color-scheme` con tema `dark`
-- Selector global: alternancia manual `light/dark` disponible desde el layout principal
+- Modo oscuro: disponible por toggle manual con persistencia en localStorage
+- Selector global: boton ghost en Header que alterna light/dark
 - Direccion visual: minimalista, utilitaria y de lectura rapida, orientada a productividad interna
 
-## Paleta oficial (actualizada 2026-04-13)
+## Paleta oficial
 
 ### Base institucional y lineas reservadas (HEX/HSL)
 
@@ -338,7 +337,7 @@ Uso recomendado:
 
 ## Interaccion operativa
 
-- Acciones de copia rapida con feedback inmediato para tareas repetitivas.
+- Acciones de copia rapida con feedback inmediato para tareas repetitivas (`CopyButton`).
 - Navegacion de baja friccion, orientada a resolucion de tareas en pocos clics.
 
 ## Escala tipografica usada
@@ -352,10 +351,10 @@ Uso recomendado:
 
 - Shell principal en 2 columnas:
   - Columna izquierda: `Sidebar` en drawer (`is-drawer-open:w-64`, `is-drawer-close:w-15`)
-  - Columna derecha: `Header` sticky + `main`
+  - Columna derecha: `Header` sticky + `main` dentro de `PageContainer`
 - Altura minima general: `min-h-screen`
 - Area de contenido: `main` con `flex-1` y `overflow-y-auto`
-- Padding base de contenido: `p-4 md:p-6`
+- Padding base de contenido: `p-4 md:p-6` (via `PageContainer`)
 - Bordes de separacion: `border-base-300`
 
 ## Contrato de Barra Superior (Header/TopBar)
@@ -371,104 +370,160 @@ Uso recomendado:
 - Zona izquierda (contexto): nombre dinamico de la ruta/pantalla activa.
   En mobile esta etiqueta se oculta para priorizar herramientas.
 - Zona derecha (herramientas globales), orden izquierda a derecha:
-  A. Busqueda maestra: omnibox/paleta/quick search con atajos. En desktop
-  se muestra expandida; en mobile se contrae a icono de lupa que abre modal.
-  B. Preferencias: toggle dark/light con icono dinamico que comunica estado
-  actual o accion de cambio.
-  C. Alertas y sistema: centro de notificaciones con badge discreto para no
-  leidas y acceso rapido a ayuda/manual.
+  A. Busqueda maestra: command palette con atajo `Ctrl+K` / `Cmd+K`.
+     En desktop se muestra expandida; en mobile se contrae a icono de lupa.
+  B. Preferencias: toggle dark/light con icono dinamico que comunica estado actual.
+  C. Alertas y sistema: modal "Acerca del proyecto" con datos de version y autores.
 
 ### Reglas de intervencion visual
 
 - Jerarquia visual reducida: botones `ghost`, sin CTAs pesados en Header.
-- Escalabilidad y agrupacion: usar divisores logicos entre bloques de
-  herramientas (por ejemplo, busqueda separada de utilidades).
-- Consistencia de temas: fondo, borde inferior, iconos y contraste dependen
-  de tokens semanticos light/dark del sistema.
+- Escalabilidad y agrupacion: usar divisores logicos entre bloques de herramientas.
+- Consistencia de temas: fondo, borde inferior, iconos y contraste dependen de tokens semanticos.
 
-### Estado actual vs objetivo (trazabilidad)
+### Estado actual
 
-- Estado actual en `BaseLayout`: Header sticky implementado con boton de drawer,
-  contexto dinamico por ruta (oculto en mobile), busqueda maestra (desktop +
-  trigger mobile), y toggle dark/light en la zona derecha.
-- Estado actual de busqueda maestra: modal de command palette con filtro local
-  y atajo `Ctrl+K` / `Cmd+K`.
-- Gap vigente: falta el bloque C (alertas y sistema) en Header con badge de
-  no leidas y acceso rapido a ayuda/manual.
-- Estado del contrato: cumplimiento parcial-alto. Se implementaron A y B;
-  queda pendiente C para cierre completo.
+Todas las zonas del Header estan implementadas y cerradas:
+- Zona A: Command palette operativa con modal y atajo Ctrl+K/Cmd+K.
+- Zona B: Swap icon de tema integrado con persistencia en localStorage.
+- Zona C: Modal "Acerca del proyecto" con datos del equipo, version y año.
+- Sin gaps pendientes.
 
 ## Componentes catalogados
 
-Globales actuales:
+### Globales estructurales
 
-- `Sidebar` (navegacion lateral con iconos y estado activo)
-- `Header` (sticky, contexto de ruta, busqueda maestra y toggle de tema)
-- `CommandPalette` (integrado en `BaseLayout` como modal con filtro)
+- `Sidebar` — navegacion lateral con iconos, estado activo, ancho colapsable (64px/256px)
+- `Header` — sticky, contexto de ruta, command palette, toggle de tema y modal "Acerca de"
+- `CommandPalette` — modal de busqueda con atajo `Ctrl+K`/`Cmd+K`, filtro local
+- `BaseLayout` — ensambla Sidebar + Header + main + PageContainer + scripts globales
 
-Layout actual:
+### Page structure
 
-- `BaseLayout` (ensambla sidebar + header + main + scripts de interaccion global)
+- `PageContainer` — wrapper de contenido con padding consistente (`p-4 md:p-6`)
+- `PageHeader` — bloque textual canonico: titulo + subtitulo. Sin slots interactivos.
+  Resuelve titulo automaticamente desde `@lib/navigation.ts` via `getSectionTitle()` + `getResolvedPathname()`.
 
-UI reutilizable actual:
+### Data display
 
-- `Button`
-- `ColorSwatch`
-- `CopyButton`
-  - Componente canónico para copiar valores al portapapeles.
-  - Variante `value`: el botón contiene el texto visible que se copia y mantiene el label estable para búsquedas con highlight.
-  - Variante `link`: muestra ícono + `Copiar`, con tooltip truncado para previsualizar el enlace.
-  - Variante `icon`: muestra solo el ícono de portapapeles, sin tooltip, para tablas densas donde el valor ya está visible fuera del botón.
-- `DataTable`
-  - Contenedor canonico para listados operativos con scroll horizontal,
-    encabezado institucional y filas proyectadas por slots.
-- `DataTableHeaderCell`
-  - Celda de encabezado reutilizable; puede ser estatica u ordenable mediante
-    `sortKey`.
-- `DesignSystemSection`
-- `MasterDetailTable`
-  - Contenedor para tablas con fila maestra, detalle expandible y ordenamiento
-    por bloques.
-- `OpenExternalUrlButton`
-  - Componente canónico para abrir recursos externos o salidas de flujo.
-  - Variantes `icon` y `text`; la variante `text` muestra `Abrir` con ícono y la variante `icon` conserva solo el ícono para tablas densas.
-- `PageHeader`
-  - Bloque textual canonico para titulo y subtitulo de pagina.
-  - No contiene buscadores, filtros, metricas ni acciones.
-- `SearchInput`
+- `DataTable` — contenedor canonico para listados operativos con scroll horizontal y encabezado institucional
+- `DataTableHeaderCell` — celda de encabezado reutilizable, estatica u ordenable via `sortKey`
+- `MasterDetailTable` — tabla con fila maestra, detalle expandible y ordenamiento por bloques
+- `FilterTabsBox` — tabs de filtro por categoria
+- `FilterButtonBar` — barra de botones de filtro
+- `StatsCard` — tarjeta de metrica/estadistica con icono y valor
+- `ViewSwitcher` — alternancia entre vistas (tarjetas/tabla)
+- `SearchBar` / `HeroSearchBar` — barras de busqueda con icono
+- `SearchEmptyState` — estado vacio con icono y mensaje
+- `MonthSelect` — selector de mes/ano
+- `SortDropdown` — dropdown de ordenamiento
+- `Pagination` — paginacion navegable con numeros de pagina
 
-Paginas implementadas hoy (estado real del repo):
+### Forms (`@components/ui/forms/`)
 
-- `/`
-- `/titulos-tickets`
-- `/buscador-usuarios`
-- `/directorio-oficinas`
-- `/guia-soportes`
-- `/cronograma`
-- `/cubics`
-- `/mapa-sucursales`
-- `/inventario-terminales`
-- `/enlaces-importantes`
-- `/configuracion`
+- `FormField` — input generico con icono opcional, sizing `sm`/`xs`, help text y required indicator
+- `SelectField` — dropdown con array `options` o slot para `<option>` personalizados
+- `FormTextarea` — textarea con `rows` configurable (default 4)
+- `PasswordField` — password con confirmacion, validacion de requisitos (8+ chars, mayuscula, minuscula, numero) y feedback visual en tiempo real
+- `FormLegend` — wrapper `<legend>` con clase `fieldset-legend`
 
-Roadmap funcional objetivo (11 vistas):
+### Action buttons
 
-| Vista                    | Ruta objetivo            | Estado actual | Nota operativa                                    |
-| ------------------------ | ------------------------ | ------------- | ------------------------------------------------- |
-| Dashboard principal      | `/`                      | Implementada  | Iterar widgets segun foco N1/N2                   |
-| Titulos de tickets       | `/titulos-tickets`       | Implementada  | Mantener agilidad de copia                        |
-| Buscador de usuarios     | `/buscador-usuarios`     | Implementada  | Definir criterios finales de acceso               |
-| Directorio de oficinas   | `/directorio-oficinas`   | Implementada  | Consolidar datos operativos definitivos           |
-| Guia de soportes         | `/guia-soportes`         | Implementada  | Completar cobertura funcional por area            |
-| Cronograma               | `/cronograma`            | Implementada  | Definir origen de datos y reglas de actualizacion |
-| Cubics                   | `/cubics`                | Implementada  | Evolucionar a monitoreo operativo                 |
-| Mapa de sucursales       | `/mapa-sucursales`       | Implementada  | Integrar fuente de datos geografica final         |
-| Inventario de terminales | `/inventario-terminales` | Implementada  | Definir estructura y ciclo de actualizacion       |
-| Enlaces importantes      | `/enlaces-importantes`   | Implementada  | Curar enlaces oficiales y responsables            |
-| Configuracion            | `/configuracion`         | Implementada  | Ajustar preferencias finales de usuario           |
+Familia de botones de accion para CRUDs, todas con icono y tooltip:
 
-Nota de trazabilidad: las 11 vistas objetivo ya existen a nivel de rutas.
-El gap actual es de madurez funcional de contenido y no de estructura de navegacion.
+- `ActionButton` — generico
+- `ActionCancelButton` — cancelar/volver
+- `ActionConfirmButton` — confirmar/aceptar
+- `ActionDeleteButton` — eliminar
+- `ActionEditButton` — editar
+- `ActionInfoButton` — informacion
+- `ActionNetUserButton` — consultar usuario de red
+- `ActionPasswordButton` — cambio de contrasena
+- `ActionRoleButton` — cambio de rol
+- `AddCategoryButton` — agregar categoria
+- `AddEntityButton` — agregar entidad generico
+
+### Modals
+
+- `Modal` — modal generico reutilizable
+- `aboutProjectModal` — dialogo "Acerca del proyecto" con version, autores, año
+- `commandPaletteModal` — paleta de comandos con atajo Ctrl+K
+- `feedbackModal` — formulario de feedback de usuario
+- `DeleteCategoryModal` — confirmacion de eliminacion de categoria
+
+### UI Utilities
+
+- `CopyButton` — copia al portapapeles. **3 variantes:**
+  - `value`: boton con texto visible que se copia, label estable para busquedas con highlight
+  - `link`: icono + `Copiar`, con tooltip truncado para previsualizar el enlace
+  - `icon`: solo icono de clipboard, sin tooltip, para tablas densas
+- `OpenExternalUrlButton` — abre recurso externo. **2 variantes:**
+  - `text`: "Abrir" + icono
+  - `icon`: solo icono (para tablas densas)
+- `QuickAccessCard` — tarjeta de acceso rapido en dashboard
+- `SectionCard` — tarjeta de seccion agrupada
+- `AnnouncementBanner` — banner de anuncios
+- `ColorSwatch` — muestra de color
+- `ToastContainer` — contenedor de notificaciones toast animadas
+- `GithubLink` — enlace a repositorio
+
+### Skeletons (`@components/ui/skeletons/`)
+
+- `SkeletonCard` — placeholder de tarjeta
+- `SkeletonMetric` — placeholder de metrica
+- `SkeletonTable` — placeholder de tabla con filas y columnas
+
+### Domain components
+
+- Componentes especificos de cada modulo en `_components/` dentro de la carpeta de cada pagina.
+
+## Paginas implementadas (rutas actuales)
+
+### Vistas operativas
+
+| Ruta                        | Descripcion                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `/`                         | Dashboard principal con acceso rapido por rol            |
+| `/titulos`                  | Tipificacion de tickets con copia rapida                 |
+| `/soportes`                 | Matriz de derivacion por tema y area de soporte          |
+| `/usuarios`                 | Busqueda de personal y validacion de usuarios            |
+| `/generador-firmas`         | Creador de firmas institucionales                        |
+| `/contactos`                | Directorio de numeros y correos utiles                   |
+| `/recursos`                 | Hub de accesos a recursos externos e internos            |
+| `/recursos/aplicativos`     | Catalogo de aplicativos con descargas                    |
+| `/oficinas`                 | Directorio de oficinas, activos de red y datos tecnicos  |
+| `/inventario-terminales`    | Consulta y estado del parque de terminales               |
+
+### Supervision
+
+| Ruta                                   | Descripcion                                     |
+| -------------------------------------- | ----------------------------------------------- |
+| `/supervision`                         | Redirecciona al dashboard                       |
+| `/supervision/cronograma`              | Gestion de cronograma y horarios                |
+| `/supervision/asistencia`              | Control de asistencia y cumplimiento            |
+| `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones        |
+| `/supervision/calidad-operadores`      | Auditoria y puntuacion de calidad               |
+
+### Administracion
+
+| Ruta                       | Descripcion                               |
+| -------------------------- | ----------------------------------------- |
+| `/admin`                   | Dashboard admin con resumen de sistema    |
+| `/admin/usuarios`          | CRUD de usuarios del sistema              |
+| `/admin/contactos`         | CRUD de contactos y categorias            |
+| `/admin/recursos`          | CRUD de enlaces y categorias              |
+| `/admin/auditoria`         | Logs de auditoria                         |
+| `/admin/operadores`        | CRUD de operadores N1/N2                  |
+| `/admin/aplicativos`       | CRUD de aplicativos del catalogo          |
+| `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate            |
+
+### Otras rutas
+
+| Ruta        | Descripcion                   |
+| ----------- | ----------------------------- |
+| `/login`    | Inicio de sesion              |
+| `/logout`   | Cierre de sesion              |
+| `/profile`  | Perfil de usuario             |
 
 ## Convenciones de nomenclatura
 
@@ -486,23 +541,65 @@ El gap actual es de madurez funcional de contenido y no de estructura de navegac
   - `@lib/*`
   - `@types/*`
 
+## Convenciones de codigo
+
+(Ver tambien el listado completo en `docs/CONTEXT.md` — seccion "Convenciones de codigo obligatorias")
+
+### URL base — siempre `@lib/baseUrl`
+
+```typescript
+import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl"
+const cleanBase = getCleanBase()     // "/mda/"
+const baseNoSlash = getBaseNoSlash() // "/mda"
+```
+
+NUNCA hacer `const base = import.meta.env.BASE_URL || "/"` inline.
+
+### Server Islands — `server:defer` + skeleton
+
+```astro
+<ContentComponent server:defer />
+<SkeletonComponent slot="fallback" />
+```
+
+En componentes diferidos, usar `getResolvedPathname()` y `getResolvedSearchParams()` de `@lib/navigation.ts` para recuperar la URL original via header `Referer`.
+
+### Toast system
+
+Redirects llevan `?toast_msg=...&toast_type=success|error|warning|info`.
+En cliente: `showToast(msg, type)` desde `@lib/toastClient.ts`.
+En API: `toastResponse()` / `redirectWithToast()` desde `@lib/api/`.
+
+### Auditoria
+
+Toda mutation admin llama a `logAdminAction()` o `logAdminFromAstro()` (`@lib/auditLogger.ts`). Templates en `@lib/auditDictionary.ts`.
+
+### Iconos
+
+```astro
+<Icon name="boxicons:check" size={24} />
+```
+
+Siempre `size` numerico. NUNCA `w-5 h-5 size-5`.
+
 ## Patrones prohibidos
 
-- Valores arbitrarios de Tailwind (ejemplo: `mt-[13px]`)
+- Valores arbitrarios de Tailwind (ejemplo: `mt-[13px]`, `text-[10px]`, `bg-[#254888]`)
 - Estilos inline
 - Colores hardcodeados en componentes (usar tokens semanticos)
+- `const base = import.meta.env.BASE_URL || "/"` inline
+- Dimensiones en iconos via clases (`w-5`, `h-5`, `size-5`)
 - Animaciones lentas o decorativas que afecten la velocidad de uso
 - Secciones no justificadas por el briefing funcional
 
 ## Reglas de intervencion de UI
 
-1. Mantener consistencia modular visual en contenedores, tarjetas y
-   composicion limpia de contenido.
-2. Si se agrega una ruta o vista nueva, registrar la ruta en el orquestador
-   principal y en la navegacion dinamica (sidebar y topbar cuando aplique).
-   Estado actual: `src/layouts/BaseLayout.astro` concentra el arreglo `navItems`.
-3. Todo componente nuevo debe usar referencias semanticas de color (tokens
-   DaisyUI o variables del sistema), para integracion automatica con temas.
+1. Mantener consistencia modular visual en contenedores, tarjetas y composicion limpia de contenido.
+2. Si se agrega una ruta o vista nueva, registrarla en `@lib/navigation.ts` para propagacion automatica a sidebar, header y command palette.
+3. Todo componente nuevo debe usar referencias semanticas de color (tokens DaisyUI), nunca hex hardcodeado.
+4. Toda pantalla CRUD debe invocar `logAdminAction()` / `logAdminFromAstro()`.
+5. En paginas con contenido diferido (`server:defer`), usar skeleton + helpers de `@lib/navigation.ts` para pathname/searchParams.
+6. Construir URLs internas con `getCleanBase()` + path relativo, nunca literales.
 
 ## Decisiones documentadas
 
@@ -515,44 +612,40 @@ El gap actual es de madurez funcional de contenido y no de estructura de navegac
 - El enlace activo en sidebar se marca con color `primary`
 - La arquitectura inicial privilegia claridad de lectura y navegacion rapida
 - El portal mantiene sentence case en espanol para texto visible
-- Las rutas nuevas deben pasar por el orquestador de `navItems` en BaseLayout
+- Las rutas nuevas deben pasar por `@lib/navigation.ts`
+- Los iconos se usan con `size={24}` numerico, no clases de dimension
+
+## Estandarización del Sistema de Diseño
+
+### 1. Border Radius
+
+Se han mapeado las clases por defecto de Tailwind CSS en `@theme` directamente a las variables dinamicas de DaisyUI v5. Esto garantiza que todos los bordes se adapten automaticamente a la semantica del tema activo (claro u oscuro):
+
+- **Pequeño (`rounded-xs`, `rounded-sm`)** → Mapeados a `var(--radius-selector)` (badges, toggles, checkboxes, etc.)
+- **Mediano (`rounded-md`, `rounded-lg`)** → Mapeados a `var(--radius-field)` (botones, entradas, campos, selectores, pestañas, etc.)
+- **Grande (`rounded-xl`, `rounded-2xl`, `rounded-3xl`)** → Mapeados a `var(--radius-box)` (tarjetas, modales, alertas, etc.)
+
+### 2. Tipografías Semánticas (Evitar Brackets)
+
+Para evitar la dispersion de valores de texto fijos con brackets (`text-[9px]`, etc.), se han registrado los siguientes tokens tipograficos en `@theme`:
+
+- `text-small`: `11px` (utilizado en identificadores compactos, ej. avatares)
+- `text-xxs`: `10px` (utilizado en etiquetas secundarias, metadatos y subtitulos densos)
+- `text-tiny`: `9px` (utilizado en celdas y barras de Gantt)
+- `text-micro`: `8px` (utilizado en subtitulos de KPIs y leyendas muy pequeñas)
+
+### 3. Sombras Semánticas
+
+Se han estandarizado las siguientes utilidades de sombras en el tema global:
+
+- `shadow-glow-success`: Brillo ambiental verde para estado de conexion en vivo de operadores
+- `shadow-glow-warning`: Brillo ambiental amarillo para estado de break en vivo de operadores
+- `shadow-table-edge`: Sombra de corte y delimitacion para tablas operativas con scroll y columnas fijas
 
 ## Pendientes
 
-- Completar bloque C del Header: alertas/sistema con badge de no leidas y acceso a ayuda/manual.
-- Diseñar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
-- Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
-- Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.
 - Catalogar componentes de dominio (cards, tablas, badges, filtros) con criterios de uso por contexto.
 - Ejecutar revision de accesibilidad y contraste WCAG AA sobre rutas operativas.
-
-## 5) Iconos (`Icon`)
-
-Uso recomendado:
-
-- Siempre utilice el atributo `size={24}` (ures/valores numéricos) en los componentes `<Icon />` de `astro-icon` para definir el tamaño del ícono.
-- Evite usar clases de Tailwind como `w-5`, `h-5`, `size-5` o sus variantes responsivas para controlar el tamaño del ícono.
-- Si necesita tamaños diferentes, ajuste el valor del atributo `size` (por ejemplo, `size={32}`).
-- Las clases pueden seguir utilizándose para otros estilos (color, margen, etc.), pero no deben incluir utilidades de ancho/alto o `size-`.
-
-## Estandarización del Sistema de Diseño (Actualizado 2026-06-14)
-
-### 1. Border Radius
-Se han mapeado las clases por defecto de Tailwind CSS en `@theme` directamente a las variables dinámicas de DaisyUI v4. Esto garantiza que todos los bordes se adapten automáticamente a la semántica del tema activo (claro u oscuro):
-- **Pequeño (`rounded-xs`, `rounded-sm`)** -> Mapeados a `var(--radius-selector)` (badges, toggles, checkboxes, etc.)
-- **Mediano (`rounded-md`, `rounded-lg`)** -> Mapeados a `var(--radius-field)` (botones, entradas, campos, selectores, pestañas, etc.)
-- **Grande (`rounded-xl`, `rounded-2xl`, `rounded-3xl`)** -> Mapeados a `var(--radius-box)` (tarjetas, modales, alertas, etc.)
-
-### 2. Tipografías Semánticas (Evitar Brackets)
-Para evitar la dispersión de valores de texto fijos con brackets (`text-[9px]`, etc.), se han registrado los siguientes tokens tipográficos en `@theme`:
-- `text-small`: `11px` (utilizado en identificadores compactos, ej. avatares).
-- `text-xxs`: `10px` (utilizado en etiquetas secundarias, metadatos y subtítulos densos).
-- `text-tiny`: `9px` (utilizado en celdas y barras de Gantt).
-- `text-micro`: `8px` (utilizado en subtítulos de KPIs y leyendas muy pequeñas).
-
-### 3. Sombras Semánticas
-Se han estandarizado las siguientes utilidades de sombras en el tema global:
-- `shadow-glow-success`: Brillo ambiental verde para estado de conexión en vivo de operadores.
-- `shadow-glow-warning`: Brillo ambiental amarillo para estado de break en vivo de operadores.
-- `shadow-table-edge`: Sombra de corte y delimitación para tablas operativas con scroll y columnas fijas.
-
+- Disenar y documentar la variante dark propia alineada al branding (hoy existe dark funcional base).
+- Implementar sidebar minimizable persistente (comportamiento tipo Gemini) con estado recordado.
+- Implementar breadcrumbs en secciones de catalogos para orientacion de navegacion.

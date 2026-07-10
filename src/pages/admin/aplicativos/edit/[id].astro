@@ -13,7 +13,8 @@ import { logAdminFromAstro } from "@lib/auditLogger";
 import { processIconUpload } from "@lib/iconUpload";
 import { encryptData, decryptData } from "@lib/encryption";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
-import { getAppsDir, ensureDir, getPdfsDir } from "@lib/storage";
+import { getPdfsDir, ensureDir } from "@lib/storage";
+import { processAppFileUpload } from "@lib/appFileUpload";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
@@ -116,49 +117,8 @@ if (Astro.request.method === "POST") {
       }
     } else {
       const file = formData.get("file") as File | null;
-
-      if (file && file.size > 0 && file.name) {
-        const fs = await import("node:fs");
-        const path = await import("node:path");
-
-        const appsDir = getAppsDir();
-        ensureDir(appsDir);
-
-        const ext = path.extname(file.name);
-        const baseName = path
-          .basename(file.name, ext)
-          .replace(/[^a-zA-Z0-9_\-\.]/g, "_")
-          .replace(/_+/g, "_");
-        const safeFileName = `${Date.now()}_${baseName}${ext}`;
-
-        try {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          fs.writeFileSync(path.join(appsDir, safeFileName), buffer);
-        } catch (writeError: any) {
-          console.error(
-            `[aplicativos] Error al escribir el archivo "${safeFileName}": ${writeError.message}`,
-          );
-          throw new Error(
-            `No se pudo guardar el archivo en el servidor. Verificá los permisos de la carpeta de almacenamiento.`,
-          );
-        }
-
-        if (app.filePath && !app.filePath.startsWith("http")) {
-          const downloadPrefix = resolveUrl("api/download/");
-          const oldFileName = app.filePath.startsWith(downloadPrefix)
-            ? app.filePath.slice(downloadPrefix.length)
-            : null;
-
-          if (oldFileName) {
-            try {
-              const oldAbsPath = path.join(appsDir, oldFileName);
-              if (fs.existsSync(oldAbsPath)) {
-                fs.unlinkSync(oldAbsPath);
-              }
-            } catch {}
-          }
-        }
-
+      const safeFileName = await processAppFileUpload(file, app.filePath);
+      if (safeFileName) {
         filePath = `${resolveUrl("api/download/")}${safeFileName}`;
       }
     }

@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { parse } from "csv-parse/sync";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
 // Helper to normalize multiple date formats to YYYY-MM-DD
@@ -287,6 +287,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ edits: parsedEdits });
   } catch (error: any) {
     console.error("Import CSV Error:", error);
-    return jsonResponse({ error: "Error al procesar el archivo CSV: " + error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error, "Error al procesar el archivo CSV") }, 500);
   }
 };

@@ -171,7 +171,29 @@ export const officesRelations = relations(offices, ({ one, many }) => ({
   contacts: many(officeContacts),
   assets: many(officeAssets),
   terminals: many(terminals),
+  invgateLink: one(officeInvgateLinks, {
+    fields: [offices.id],
+    references: [officeInvgateLinks.officeId],
+  }),
 }));
+
+export const officeInvgateLinks = sqliteTable("office_invgate_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  officeId: integer("office_id")
+    .notNull()
+    .unique()
+    .references(() => offices.id, { onDelete: "cascade" }),
+  invgateLocationId: integer("invgate_location_id").notNull(),
+  invgateParentId: integer("invgate_parent_id"),
+  invgateParentName: text("invgate_parent_name"),
+  invgateDisplayName: text("invgate_display_name"),
+  invgateCp: text("invgate_cp"),
+  invgateCc: text("invgate_cc"),
+  invgateAddress: text("invgate_address"),
+  invgateDuplicateCount: integer("invgate_duplicate_count").default(0),
+  lastSyncedAt: text("last_synced_at").notNull().default(sql`(datetime('now'))`),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
 
 export const officeContactsRelations = relations(officeContacts, ({ one }) => ({
   office: one(offices, {
@@ -807,3 +829,28 @@ export const assignmentLock = sqliteTable("assignment_lock", {
   lastActivityAt: integer("last_activity_at").notNull(),
   releaseRequested: integer("release_requested").notNull().default(0),
 });
+
+export const titleCategory = sqliteTable("title_category", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  icon: text("icon").notNull(),
+  tone: text("tone").notNull(),
+})
+
+export const titles = sqliteTable("titles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  categoryId: integer("category_id")
+    .notNull()
+    .references(() => titleCategory.id),
+  route: text("route"),
+  description: text("description"),
+  articleOnKdb: text("article_on_kdb"),
+  deprecated: integer("deprecated", {
+    mode: "boolean",
+  }).default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$onUpdateFn(() => new Date()),
+})

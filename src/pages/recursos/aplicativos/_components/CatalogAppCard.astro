@@ -5,6 +5,7 @@ import CatalogSoftBadge from "./CatalogSoftBadge.astro";
 import { decryptData } from "@lib/encryption";
 import CopyButton from "@components/ui/CopyButton.astro";
 import { resolveUrl } from "@lib/url";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
 
 interface Props {
   id: number;
@@ -49,10 +50,10 @@ if (isAuthenticated && metadata) {
 const cleanBase = getCleanBase();
 const isWebUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 
-const itemUrl = filePath?.trim() ? resolveUrl(filePath.trim()) : "";
+const rawPath = filePath?.trim() || "";
+const isExternal = isWebUrl(rawPath);
+const itemUrl = isExternal ? rawPath : (rawPath ? resolveUrl(rawPath) : "");
 const hasItemUrl = itemUrl.length > 0;
-const isExternal =
-  hasItemUrl && !itemUrl.includes("/api/download/") && isWebUrl(itemUrl);
 
 const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
 const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""].join(" ").toLowerCase();
@@ -199,20 +200,28 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
         }
         {
           hasItemUrl ? (
-            <a
-              href={itemUrl}
-              class="btn btn-secondary btn-sm gap-2"
-              target={isExternal ? "_blank" : undefined}
-              rel={isExternal ? "noopener noreferrer" : undefined}
-              download={!isExternal ? "" : undefined}
-            >
-              <Icon
-                name="boxicons:arrow-to-bottom-stroke"
-                size={18}
-                aria-hidden="true"
+            isExternal ? (
+              <OpenExternalUrlButton
+                href={itemUrl}
+                ariaLabel={`Acceder a enlace de ${title}`}
+                variant="text"
+                label="Acceder"
+                size="sm"
               />
-              <span>Descargar</span>
-            </a>
+            ) : (
+              <a
+                href={itemUrl}
+                class="btn btn-secondary btn-sm gap-2"
+                download=""
+              >
+                <Icon
+                  name="boxicons:arrow-to-bottom-stroke"
+                  size={18}
+                  aria-hidden="true"
+                />
+                <span>Descargar</span>
+              </a>
+            )
           ) : (
             <button
               type="button"

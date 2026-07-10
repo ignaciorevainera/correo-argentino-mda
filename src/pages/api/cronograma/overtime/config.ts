@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { weekendOvertimeConfig } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { sanitizeError } from "@lib/apiResponse";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -24,7 +25,7 @@ export const GET: APIRoute = async ({ url }) => {
   } catch (error: any) {
     console.error("GET overtime config API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -49,24 +50,28 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .from(weekendOvertimeConfig)
       .where(eq(weekendOvertimeConfig.weekendStartDate, weekendStartDate))
       .limit(1);
+    let configId = 0;
     if (existing.length > 0) {
+      configId = existing[0].id;
       await db
         .update(weekendOvertimeConfig)
         .set({ referente })
-        .where(eq(weekendOvertimeConfig.id, existing[0].id));
+        .where(eq(weekendOvertimeConfig.id, configId));
     } else {
-      await db
+      const inserted = await db
         .insert(weekendOvertimeConfig)
-        .values({ weekendStartDate, referente });
+        .values({ weekendStartDate, referente })
+        .returning();
+      configId = inserted[0]?.id || 0;
     }
     return new Response(
-      JSON.stringify({ weekendStartDate, referente }),
+      JSON.stringify({ id: configId, weekendStartDate, referente }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("POST overtime config API Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeError(error) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

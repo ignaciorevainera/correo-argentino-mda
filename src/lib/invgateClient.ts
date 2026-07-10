@@ -1,9 +1,18 @@
 import type { InvgateResult } from "@/types/invgate";
 
+function getEnv(key: string): string {
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    //return (import.meta.env as any)[key] || "";
+    const val = (import.meta.env as any)[key];
+    if (val && typeof val === "string") return val;
+  }
+  return process.env[key] || "";
+}
+
 export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promise<InvgateResult<T>> {
-  const apiKey = import.meta.env.INVGATE_API_KEY;
-  const baseUrl = import.meta.env.INVGATE_BASE_URL;
-  const rawUsername = import.meta.env.INVGATE_API_USERNAME;
+  const apiKey = getEnv("INVGATE_API_KEY");
+  const baseUrl = getEnv("INVGATE_BASE_URL");
+  const rawUsername = getEnv("INVGATE_API_USERNAME");
 
   if (!apiKey) {
     throw new Error("[InvGate] Variable de entorno INVGATE_API_KEY no definida.");
@@ -41,7 +50,7 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
       return {
         ok: false,
         status: response.status,
-        message: `[InvGate] HTTP ${response.status}: ${response.statusText} — ${url}`,
+        message: `[InvGate] HTTP ${response.status}: ${response.statusText}`,
       };
     }
 
@@ -57,7 +66,7 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
     return {
       ok: false,
       status: lastStatus,
-      message: `[InvGate] Error de red: ${message} — ${url}`,
+      message: `[InvGate] Error de red: ${message}`,
     };
   } finally {
     clearTimeout(timeout);

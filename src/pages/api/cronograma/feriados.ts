@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { holidays } from "@db/schema";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async () => {
@@ -13,7 +13,7 @@ export const GET: APIRoute = async () => {
     }
     return jsonResponse(feriados, 200, "no-store, no-cache, must-revalidate");
   } catch (err: any) {
-    return jsonResponse({ error: err.message }, 500);
+    return jsonResponse({ error: sanitizeError(err) }, 500);
   }
 };
 
@@ -43,6 +43,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     return jsonResponse({ success: true });
   } catch (err: any) {
-    return jsonResponse({ error: err.message }, 500);
+    return jsonResponse({ error: sanitizeError(err) }, 500);
   }
 };

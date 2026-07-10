@@ -8,11 +8,11 @@
 
 ## Resumen
 
-| Prioridad | Cantidad |
-|-----------|----------|
-| 🔴 CRITICAL | 4 |
-| 🟡 HIGH | 5 |
-| 🟢 MEDIUM | 5 |
+| Prioridad | Cantidad | Resueltos |
+|-----------|----------|-----------|
+| 🔴 CRITICAL | 4 | 2 |
+| 🟡 HIGH | 5 | 4 |
+| 🟢 MEDIUM | 5 | 3 |
 
 ---
 
@@ -41,47 +41,48 @@ sesión activa.
 cross-origin para APIs específicas, usar configuración CORS explícita.
 **Esfuerzo:** 5 min.
 
-### S1.3 🔴 Sin headers de seguridad configurados
+### ~~S1.3 🔴 Sin headers de seguridad configurados~~ ✅ Resuelto
 
-No se encontraron Content-Security-Policy, X-Frame-Options,
-X-Content-Type-Options, Strict-Transport-Security en ningún lugar del proyecto.
+~~No se encontraron Content-Security-Policy, X-Frame-Options,
+X-Content-Type-Options, Strict-Transport-Security en ningún lugar del proyecto.~~
 
-**Headers faltantes:**
-- `Content-Security-Policy` — scripts inline de cualquier fuente pueden ejecutarse
-- `X-Frame-Options` — sin protección contra clickjacking
-- `X-Content-Type-Options: nosniff` — MIME sniffing posible
-- `Strict-Transport-Security` — sin HSTS (cuando se use HTTPS)
-- `Referrer-Policy` — sin control de información de referrer
+**~~Headers faltantes:~~**
+- ~~`Content-Security-Policy` — scripts inline de cualquier fuente pueden ejecutarse~~
+- ~~`X-Frame-Options` — sin protección contra clickjacking~~
+- ~~`X-Content-Type-Options: nosniff` — MIME sniffing posible~~
+- ~~`Strict-Transport-Security` — sin HSTS (cuando se use HTTPS)~~
+- ~~`Referrer-Policy` — sin control de información de referrer~~
 
-**Impacto:** Un atacante que consiga inyectar un script puede ejecutarlo sin
-restricciones (no hay CSP). La página puede ser iframeada por terceros.
+**Impacto:** ~~Un atacante que consiga inyectar un script puede ejecutarlo sin
+restricciones (no hay CSP). La página puede ser iframeada por terceros.~~
 
-**Fix:** Agregar en middleware:
-```ts
-response.headers.set("X-Content-Type-Options", "nosniff");
-response.headers.set("X-Frame-Options", "DENY");
-response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-```
-Agregar CSP restrictivo en producción.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Headers agregados en `src/middleware.ts` vía `setSecurityHeaders()`.
+Headers seteados: X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+Strict-Transport-Security (HSTS 2 años), Content-Security-Policy restrictivo.
+CSP permite `cdn.jsdelivr.net` (Chart.js), `wms.ign.gob.ar` (tiles IGN),
+`'unsafe-inline'` para scripts/style (requerido por Astro SSR + Tailwind).
+**Esfuerzo:** 15 min.
 
-### S1.4 🔴 Sin rate limiting en ningún endpoint
+### ~~S1.4 🔴 Sin rate limiting en ningún endpoint~~ ✅ Resuelto
 
-No se encontró implementación de rate limiting, throttle, ni protección
-anti-brute-force en todo el proyecto.
+~~No se encontró implementación de rate limiting, throttle, ni protección
+anti-brute-force en todo el proyecto.~~
 
-**Endpoints sin protección:**
-- Login (brute-force de passwords)
-- API endpoints de cronograma (data scraping, DoS)
-- File upload (disk exhaustion)
-- Export endpoints (data scraping masivo)
+**~~Endpoints sin protección:~~**
+- ~~Login (brute-force de passwords)~~
+- ~~API endpoints de cronograma (data scraping, DoS)~~
+- ~~File upload (disk exhaustion)~~
+- ~~Export endpoints (data scraping masivo)~~
 
-**Fix:** Implementar rate limiting middleware. Sugerencia:
-- Login: 5 intentos/minuto/IP
-- API read: 60 requests/minuto/sesión
-- API write: 20 requests/minuto/sesión
-- Uploads: 10/hora/sesión
-**Esfuerzo:** 2-3 h.
+**Fix aplicado:** Rate limiting implementado en `src/middleware.ts` vía `applyRateLimit()`.
+Storage in-memory `Map` con lazy sweep cada 60s. Límites:
+- Login: 10 intentos/minuto/IP (`POST /login`)
+- API read: 60 requests/minuto/sesión (GET/HEAD/OPTIONS)
+- API write: 20 requests/minuto/sesión (POST/PUT/DELETE/PATCH)
+- Uploads: 10/hora/sesión (`POST /api/cronograma/import`)
+Al excederse se retorna 429 con `Retry-After` (API) o redirect a login con toast (login).
+Key por endpoint individual + identificador (userId o IP si no autenticado).
+**Esfuerzo:** 40 min.
 
 ---
 
@@ -109,73 +110,76 @@ la sesión.
 **Fix:** `secure: process.env.NODE_ENV === "production"`.
 **Esfuerzo:** 5 min.
 
-### S3.2 🟡 Enumeración de usuarios via mensajes de login
+### ~~S3.2 🟡 Enumeración de usuarios via mensajes de login~~ ✅ Resuelto
 
-`src/pages/login/index.astro` líneas 62-69: mensajes diferentes para
-"El usuario no existe" vs "Contraseña incorrecta".
+~~`src/pages/login/index.astro` líneas 62-69: mensajes diferentes para
+"El usuario no existe" vs "Contraseña incorrecta".~~
 
-**Impacto:** Un atacante puede probar usernames y determinar cuáles son válidos.
+**~~Impacto:~~** ~~Un atacante puede probar usernames y determinar cuáles son válidos.~~
 
-**Fix:** Mensaje genérico único: "Credenciales inválidas".
+**Fix aplicado:** Unificado en único mensaje genérico "Credenciales inválidas" sin importar si el usuario existe o la contraseña es incorrecta.
 **Esfuerzo:** 5 min.
 
-### S3.3 🟡 Sin protección brute-force en login
+### ~~S3.3 🟡 Sin protección brute-force en login~~ ✅ Resuelto
 
-El endpoint de login no tiene rate limiting, lockout progresivo, ni delays.
-Intentos ilimitados de contraseña.
+~~El endpoint de login no tiene rate limiting, lockout progresivo, ni delays.
+Intentos ilimitados de contraseña.~~
 
-**Fix:** Rate limiting (cubierto por S1.4). Considerar lockout después de
-N intentos fallidos.
+**~~Fix:~~** ~~Rate limiting (cubierto por S1.4). Considerar lockout después de
+N intentos fallidos.~~
+**Fix aplicado:** Rate limit 10 POST/min/IP en `POST /login` via `src/lib/rateLimit.ts` + `src/middleware.ts`.
+Cubre tanto login como todos los APIs. Ver S1.4.
 **Esfuerzo:** Incluido en S1.4.
 
-### S3.4 🟡 Endpoints de exportación accesibles sin autenticación
+### ~~S3.4 🟡 Endpoints de exportación accesibles sin autenticación~~ ✅ Resuelto
 
-`src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`:
+~~`src/pages/api/export/offices.ts` y `src/pages/api/export/terminals.ts`:
 retornan dumps completos de la base de datos (columnas internas incluidas).
-NO están en la lista de rutas protegidas del middleware.
+NO están en la lista de rutas protegidas del middleware.~~
 
-**Fix:** Agregar a la lista de rutas protegidas o check explícito de `locals.user`.
-**Esfuerzo:** 10 min.
+**Fix aplicado:** Agregado `lowerPath.startsWith("/api/export")` a la lista de rutas protegidas en `src/middleware.ts`.
+**Esfuerzo:** 5 min.
 
-### S3.5 🟡 Subida de archivos de aplicativos sin validación de tipo
+### ~~S3.5 🟡 Subida de archivos de aplicativos sin validación de tipo~~ ✅ Resuelto
 
-`src/pages/admin/aplicativos/create.astro` líneas 75-103: al subir archivos
-via modalidad "local", no hay validación de MIME type, extensión ni tamaño.
+~~`src/pages/admin/aplicativos/create.astro` líneas 75-103: al subir archivos
+via modalidad "local", no hay validación de MIME type, extensión ni tamaño.~~
 
-**Fix:** Allowlist de extensiones (`.zip`, `.exe`, `.msi`, `.rar`), validación
-de MIME type, límite de tamaño (100MB). El sistema de iconos ya hace esto
-correctamente en `iconUpload.ts`.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Creado `src/lib/appFileUpload.ts` con `processAppFileUpload()` siguiendo patrón de `iconUpload.ts`.
+Validación: extensión (.zip, .exe, .msi, .rar), MIME type, tamaño 100 MB.
+Aplicado en `create.astro` y `edit/[id].astro`.
+**Esfuerzo:** 20 min.
 
 ---
 
 ## P2 — Mejoras
 
-### S4.1 🟡 SVG upload permite XSS embebido
+### ~~S4.1 🟡 SVG upload permite XSS embebido~~ ✅ Resuelto
 
-`src/lib/iconUpload.ts` línea 10: permite SVG como iconos. Los SVGs pueden
+~~`src/lib/iconUpload.ts` línea 10: permite SVG como iconos. Los SVGs pueden
 contener `<script>` y event handlers que se ejecutan si se sirven con
-`Content-Type: image/svg+xml`.
+`Content-Type: image/svg+xml`.~~
 
-**Fix:** Sanitizar SVGs al upload (stripear scripts, event handlers) o
-servir con `Content-Type: application/octet-stream` y usar `<img>` tags.
-**Esfuerzo:** 30 min.
+**Fix aplicado:** Defensa en profundidad.
+Upload: `sanitizeSvgContent()` en `src/lib/iconUpload.ts` strippe `<script>`, `on*`, `<foreignObject>`, `javascript:` hrefs.
+Serve: `Content-Disposition: attachment` en `src/pages/api/icons/[filename].ts` para SVGs.
+`<img>` tags existentes renderizan normal.
+**Esfuerzo:** 10 min.
 
-### S4.2 🟡 Error messages filtran detalles internos
+### ~~S4.2 🟡 Error messages filtran detalles internos~~ ✅ Resuelto
 
-Múltiples endpoints retornan `error.message` al cliente:
+~~Múltiples endpoints retornan `error.message` al cliente:~~
 
-| Endpoint | Línea | Filtra |
+~~| Endpoint | Línea | Filtra |
 |----------|-------|--------|
 | `invgate/incidents.ts` | 43 | URLs internas de InvGate |
 | `invgate/ping.ts` | 30 | Ídem |
 | `cronograma/import.ts` | 290 | File paths del servidor |
 | `offices/create.ts` | 65-69 | Detalles de UNIQUE constraint |
 | `asistencia/index.ts` | 28, 146 | Errores crudos |
-| `admin/sync-status.ts` | 40 | Errores de DB |
+| `admin/sync-status.ts` | 40 | Errores de DB |~~
 
-**Fix:** En producción, retornar mensajes genéricos ("Error interno del servidor").
-Loggear errores detallados solo server-side.
+**Fix aplicado:** Helper `sanitizeError()` en `src/lib/apiResponse.ts` que retorna genérico en prod, detalle en dev. URLs internas de InvGate removidas de `invgateClient.ts`. 30 endpoints API migrados a `sanitizeError()`. Build pasa.
 **Esfuerzo:** 30 min.
 
 ### S4.3 🟡 innerHTML masivo (100+ usos) — vector XSS
@@ -202,15 +206,14 @@ cifrados a la UI.
 **Fix:** Retornar string vacío o lanzar error en caso de fallo.
 **Esfuerzo:** 5 min.
 
-### S4.5 🟢 Session secret fallback en desarrollo
+### ~~S4.5 🟢 Session secret fallback en desarrollo~~ ✅ Resuelto
 
-`src/lib/session.ts` línea 12:
+~~`src/lib/session.ts` línea 12:
 ```ts
 const SECRET_KEY = SECRET || "fallback-secret-do-not-use-in-prod";
-```
+```~~
 
-**Fix:** Eliminar fallback y siempre requerir la variable de entorno,
-o restringir a `import.meta.env.DEV`.
+**Fix aplicado:** Fallback reemplazado por `randomBytes(32).toString("hex")` — genera clave aleatoria por reinicio en dev. Prod sigue lanzando error si falta `SESSION_SECRET`.
 **Esfuerzo:** 5 min.
 
 ---
@@ -221,18 +224,18 @@ o restringir a `import.meta.env.DEV`.
 |-----------|-----|----------|----------|---------|
 | **P0** | S1.1 | 🔴 API key hardcodeada en cliente | 1-2 h | Secret exposure |
 | **P0** | S1.2 | 🔴 checkOrigin: false | 5 min | CSRF |
-| **P0** | S1.3 | 🔴 Sin security headers | 30 min | XSS + clickjacking |
-| **P0** | S1.4 | 🔴 Sin rate limiting | 2-3 h | DoS + brute-force |
+| **P0** | S1.3 | ~~🔴 Sin security headers~~ ✅ | ~~30 min~~ | ~~XSS + clickjacking~~ |
+| **P0** | S1.4 | ~~🔴 Sin rate limiting~~ ✅ | ~~2-3 h~~ | ~~DoS + brute-force~~ |
 | **P1** | S3.1 | 🟡 Session secure:false | 5 min | Session hijack |
-| **P1** | S3.2 | 🟡 User enumeration en login | 5 min | Info leak |
-| **P1** | S3.3 | 🟡 Sin brute-force protection | incl. en S1.4 | Brute-force |
-| **P1** | S3.4 | 🟡 Export endpoints sin auth | 10 min | Data exposure |
-| **P1** | S3.5 | 🟡 Upload sin validación de tipo | 30 min | Arbitrary upload |
-| **P2** | S4.1 | 🟡 SVG upload XSS risk | 30 min | XSS |
-| **P2** | S4.2 | 🟡 Error messages filtran detalles | 30 min | Info leak |
+| **P1** | S3.2 | ~~🟡 User enumeration en login~~ ✅ | ~~5 min~~ | ~~Info leak~~ |
+| **P1** | S3.3 | ~~🟡 Sin brute-force protection~~ ✅ | ~~incl. en S1.4~~ | ~~Brute-force~~ |
+| **P1** | S3.4 | ~~🟡 Export endpoints sin auth~~ ✅ | ~~10 min~~ | ~~Data exposure~~ |
+| **P1** | S3.5 | ~~🟡 Upload sin validación de tipo~~ ✅ | ~~30 min~~ | ~~Arbitrary upload~~ |
+| **P2** | S4.1 | ~~🟡 SVG upload XSS risk~~ ✅ | ~~30 min~~ | ~~XSS~~ |
+| **P2** | ~~S4.2~~ | ~~🟡 Error messages filtran detalles~~ ✅ | ~~30 min~~ | ~~Info leak~~ |
 | **P2** | S4.3 | 🟡 innerHTML masivo (100+) | 4-6 h | XSS |
 | **P2** | S4.4 | 🟢 Decryption fallback ciphertext | 5 min | Data leak |
-| **P2** | S4.5 | 🟢 Session secret fallback | 5 min | Weak crypto |
+| **P2** | ~~S4.5~~ | ~~🟢 Session secret fallback~~ ✅ | ~~5 min~~ | ~~Weak crypto~~ |
 
 **Total esfuerzo estimado:** ~9-14 h.
 **Impacto:** Eliminación de 4 vulnerabilidades críticas + hardening general.

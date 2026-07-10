@@ -3,11 +3,19 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import TitlesContainer from "./_components/TitlesContainer";
+import { getModulePermissions } from "@/lib/rbac";
+
+const user = Astro.locals.user;
+
+const permissions = getModulePermissions(
+  "titulos",
+  user.role
+)
 ---
 
 <BaseLayout>
   <PageContainer>
     <PageHeader title="Títulos" description="Buscá y copiá los títulos rápidamente."/>
-    <TitlesContainer client:idle />
+    <TitlesContainer permissions={permissions} client:idle/>
   </PageContainer>
 </BaseLayout>

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { jsonResponse, jsonError } from "@lib/apiResponse";
+import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 import ldap from "ldapjs";
 
 const LDAP_SERVER = import.meta.env.LDAP_SERVER || process.env.LDAP_SERVER || "ldap://correo.local";
@@ -232,8 +232,8 @@ export const GET: APIRoute = async ({ request }) => {
     console.error("[NetUser] Error:", error);
     return jsonResponse({
       status: "error",
-      error: error.message || "Error al consultar Active Directory",
-      output: `Error: ${error.message || "No se pudo conectar con el servidor LDAP"}`,
+      error: sanitizeError(error) || "Error al consultar Active Directory",
+      output: `Error: ${sanitizeError(error) || "No se pudo conectar con el servidor LDAP"}`,
     });
   }
 };

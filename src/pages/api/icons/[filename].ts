@@ -54,6 +54,7 @@ export const GET: APIRoute = ({ params }) => {
       "Content-Type": contentType,
       "Content-Length": fileBuffer.byteLength.toString(),
       "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
+      ...(ext === ".svg" ? { "Content-Disposition": "attachment; filename=\"icon.svg\"" } : {}),
     },
   });
 };

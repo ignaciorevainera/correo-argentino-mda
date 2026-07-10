@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { getAttendanceData, calculateCompliance } from "@lib/attendance";
 import { requireReadAccess, requireWriteAccess } from "@lib/rbac-middleware";
 import { logAdminFromAstro } from "@lib/auditLogger";
-import { jsonResponse } from "@lib/apiResponse";
+import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export { calculateCompliance };
 
@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     return jsonResponse(responseData, 200, "no-store, no-cache, must-revalidate");
   } catch (error: any) {
     console.error("GET Attendance API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };
 
@@ -146,6 +146,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST Attendance API Error:", error);
-    return jsonResponse({ error: error.message }, 500);
+    return jsonResponse({ error: sanitizeError(error) }, 500);
   }
 };

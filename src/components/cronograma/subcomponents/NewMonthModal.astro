@@ -1,12 +1,16 @@
 ---
 // NewMonthModal.astro
-import Modal from "@components/ui/Modal.astro";
+import { Icon } from "astro-icon/components";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 ---
 
-<Modal id="new-month-modal" title="Agregar Nuevo Mes" icon="boxicons:calendar-plus" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-[200]" class="max-w-md">
-  <Fragment slot="content">
+<div id="new-month-modal" class="modal modal-bottom sm:modal-middle z-[200]">
+  <div class="modal-box w-11/12 sm:w-full max-w-md p-4 sm:p-5">
+    <h3 class="flex items-center gap-2 mb-3 text-base-content font-black text-lg uppercase tracking-tight">
+      <Icon name="boxicons:calendar-plus" class="text-primary shrink-0" size={22} />
+      Agregar Nuevo Mes
+    </h3>
     <div class="space-y-4">
       <FormField id="new-month-year" name="new-month-year" label="Seleccionar Año" type="number" value="2026" min="2020" max="2035" size="sm" inputClass="font-mono" />
       <SelectField id="new-month-month" name="new-month-month" label="Seleccionar Mes" size="sm">
@@ -24,33 +28,39 @@ import SelectField from "@components/ui/forms/SelectField.astro";
         <option value="11">Diciembre</option>
       </SelectField>
     </div>
-  </Fragment>
-  <Fragment slot="actions">
     <div class="modal-action mt-6 flex justify-end gap-2">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
-      </form>
+      <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
+      <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
     </div>
-  </Fragment>
-</Modal>
+  </div>
+  <div class="modal-backdrop">
+    <button id="new-month-backdrop" type="button" class="cursor-default">close</button>
+  </div>
+</div>
 
 <script>
   import { createMonth } from '../lib/api';
   import { state } from '../lib/state';
   import { showToast } from '../lib/notifications';
 
-  const modal = document.getElementById('new-month-modal') as HTMLDialogElement | null;
+  const modal = document.getElementById('new-month-modal') as HTMLElement | null;
   if (modal) {
     const yearInput = document.getElementById('new-month-year') as HTMLInputElement | null;
     const monthSelect = document.getElementById('new-month-month') as HTMLSelectElement | null;
     const cancelBtn = document.getElementById('cancel-new-month');
     const confirmBtn = document.getElementById('confirm-new-month') as HTMLButtonElement | null;
+    const backdrop = document.getElementById('new-month-backdrop');
+
+    function closeModal() {
+      modal.classList.remove('modal-open');
+    }
+
+    backdrop?.addEventListener('click', closeModal);
 
     cancelBtn?.addEventListener('click', () => {
       if (yearInput) yearInput.value = '2026';
       if (monthSelect) monthSelect.value = '0';
-      modal.close();
+      closeModal();
     });
 
     confirmBtn?.addEventListener('click', async (e) => {
@@ -67,13 +77,11 @@ import SelectField from "@components/ui/forms/SelectField.astro";
         showToast("El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.", "error");
         return;
       }
-
       confirmBtn.disabled = true;
       try {
         await createMonth(year, month);
-        modal.close();
+        closeModal();
         
-        // Dispatch custom event with month/year payload so parent can jump to it
         document.dispatchEvent(new CustomEvent('cronograma:month-created', {
           detail: { year, month }
         }));

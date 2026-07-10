@@ -16,10 +16,18 @@ const region = searchParams.get("region") || "all";
 const province = searchParams.get("province") || "all";
 const zone = searchParams.get("zone") || "all";
 const paqar = searchParams.get("paqar") || "all";
-const sortBy = (searchParams.get("sortBy") || undefined) as OfficeSortKey | undefined;
-const sortOrder = (searchParams.get("sortOrder") || undefined) as SortOrder | undefined;
+const sortBy = (searchParams.get("sortBy") || undefined) as
+  | OfficeSortKey
+  | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as
+  | SortOrder
+  | undefined;
 
-const { data: offices, count, hasMore } = await getOffices({
+const {
+  data: offices,
+  count,
+  hasMore,
+} = await getOffices({
   page,
   limit,
   search,
@@ -35,15 +43,14 @@ const { data: offices, count, hasMore } = await getOffices({
 Astro.response.headers.set("X-Total-Count", count.toString());
 Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
 Astro.response.headers.set("Cache-Control", "private, max-age=300");
-
-console.log("=== API ENDPOINT DIAGNOSTIC ===");
-console.log("First office name:", offices[0]?.name);
-console.log("First office code:", offices[0]?.code);
-console.log("First office costCenter:", offices[0]?.costCenter);
-console.log("===============================");
 ---
-{offices.map((office) => (
-  view === "admin"
-    ? <AdminOfficeRow office={office} />
-    : <OfficeRow office={office} />
-))}
+
+{
+  offices.map((office) =>
+    view === "admin" ? (
+      <AdminOfficeRow office={office} />
+    ) : (
+      <OfficeRow office={office} />
+    ),
+  )
+}
