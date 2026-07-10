@@ -86,6 +86,11 @@ const searchableText = [
   class="card bg-base-100 shadow-sm border border-base-300 h-full"
   data-card-for={helpdesk.id}
   data-search-text={searchableText}
+  data-status={isActive ? "active" : "inactive"}
+  data-parent-name={parentName || ""}
+  data-member-count={helpdesk.total_members}
+  data-topic-count={topicsList.length}
+  data-name={hdName}
 >
   <div class="card-body p-5 gap-0 flex flex-col h-full">
     <div class="flex-1 space-y-3">
@@ -108,18 +113,27 @@ const searchableText = [
               <Icon name="boxicons:group-filled" size={12} />
               {helpdesk.total_members}
             </span>
+            <span
+              class="badge badge-sm badge-warning gap-1 font-mono hidden"
+              data-incidents-for={helpdesk.id}
+              title="Incidentes abiertos"
+            >
+              <Icon name="boxicons:envelope" size={12} aria-hidden="true" />
+              <span data-incidents-count>0</span>
+            </span>
             <span class:list={["badge badge-sm", statusBadge]}
               >{statusLabel}</span
             >
             {
               parentName && (
                 <span
-                  class="badge badge-sm gap-1 badge-ghost"
+                  class="badge badge-sm gap-1 badge-ghost h-auto whitespace-normal text-left"
                   title={`Helpdesk padre: ${parentName}`}
-                  data-highlight-target
                 >
-                  <Icon name="boxicons:git-branch-filled" size={12} />
-                  {parentName}
+                  <Icon name="boxicons:git-branch" size={12} class="shrink-0" aria-hidden="true" />
+                  <span class="line-clamp-2" data-highlight-target>
+                    {parentName}
+                  </span>
                 </span>
               )
             }
@@ -152,7 +166,7 @@ const searchableText = [
         legacyNames.length > 0 && (
           <div class="flex flex-wrap items-center gap-1.5">
             <Icon
-              name="boxicons:rename-filled"
+              name="boxicons:rename"
               size={14}
               class="opacity-50 shrink-0"
               title="Nombres Legacy (SM)"
@@ -295,6 +309,32 @@ const searchableText = [
     const b = import.meta.env.BASE_URL || "/";
     return b.endsWith("/") ? b : b + "/";
   })();
+
+  async function loadIncidentsSequentially() {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-card-for]"));
+    for (const card of cards) {
+      const helpdeskId = card.dataset.cardFor;
+      const badge = card.querySelector<HTMLElement>("[data-incidents-for]");
+      const countSpan = card.querySelector<HTMLElement>("[data-incidents-count]");
+      if (!helpdeskId || !badge || !countSpan) continue;
+
+      try {
+        const res = await fetch(`${cleanBase}api/invgate/incidents-by-helpdesk?helpdesk_id=${helpdeskId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.total === "number" && data.total > 0) {
+            countSpan.textContent = String(data.total);
+            badge.classList.remove("hidden");
+          }
+        }
+      } catch (err) {
+        console.error("Error loading incidents for " + helpdeskId, err);
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+
+  loadIncidentsSequentially();
 
   document.querySelectorAll<HTMLElement>("[data-members-for]").forEach((el) => {
     const invgateId = el.dataset.membersFor;
