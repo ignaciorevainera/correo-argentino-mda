@@ -829,3 +829,28 @@ export const assignmentLock = sqliteTable("assignment_lock", {
   lastActivityAt: integer("last_activity_at").notNull(),
   releaseRequested: integer("release_requested").notNull().default(0),
 });
+
+export const titleCategory = sqliteTable("title_category", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  icon: text("icon").notNull(),
+  tone: text("tone").notNull(),
+})
+
+export const titles = sqliteTable("titles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  categoryId: integer("category_id")
+    .notNull()
+    .references(() => titleCategory.id),
+  route: text("route"),
+  description: text("description"),
+  articleOnKdb: text("article_on_kdb"),
+  deprecated: integer("deprecated", {
+    mode: "boolean",
+  }).default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$onUpdateFn(() => new Date()),
+})

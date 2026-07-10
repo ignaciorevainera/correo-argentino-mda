@@ -43,7 +43,7 @@ export const routePermissions: RoutePermission[] = [
 export function hasPermission(path: string, userRole: string): boolean {
   const role = normalizeRole(userRole);
   const normalizedPath = path.toLowerCase();
-  
+
   const matchedRoute = routePermissions
     .filter(route => normalizedPath.startsWith(route.path.toLowerCase()))
     .sort((a, b) => b.path.length - a.path.length)[0];
@@ -105,6 +105,10 @@ export function getModulePermissions(moduleName: string, userRole: string): Modu
   } else if (moduleName === "asistencia") {
     // Leen/escriben: admin, supervisor, team_leader
     perm.canRead = rank >= ROLE_HIERARCHY.team_leader;
+    perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
+  } else if (moduleName === "titulos") {
+    // Leen: todos / Escriben: admin, supervisor, team_leader
+    perm.canRead = true;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
   }
 
