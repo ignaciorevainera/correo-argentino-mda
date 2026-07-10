@@ -1,0 +1,175 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { isNull } from "drizzle-orm";
+import { invgateGet } from "@lib/invgateClient";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
+import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
+
+const cleanBase = getCleanBase();
+
+const unassignedRecords = await db.query.supportGuides.findMany({
+  where: isNull(supportGuides.invgate_id),
+});
+
+if (unassignedRecords.length === 0) {
+  return Astro.redirect(`${cleanBase}soportes`);
+}
+
+const hdResult =
+  await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+
+const helpdesks = allItems
+  .filter((h) => !h.level_order && !HIDDEN_HELPDESK_IDS.includes(h.id))
+  .map((h) => ({ id: h.id, name: h.name || `Helpdesk #${h.id}` }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+---
+
+<BaseLayout>
+  <PageContainer>
+    <div>
+      <a href={`${cleanBase}soportes`} class="btn btn-ghost btn-sm gap-2">
+        <Icon name="boxicons:arrow-left" size={16} />
+        Volver al listado
+      </a>
+    </div>
+
+    <PageHeader
+      title="Asignar mesas de ayuda"
+      description="Vincula registros locales de Service Manager a las helpdesks de InvGate."
+    />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {
+        unassignedRecords.map((guide) => {
+          let topicsList: string[] = [];
+          if (guide.topics) {
+            try {
+              const parsed = JSON.parse(guide.topics);
+              topicsList = Array.isArray(parsed) ? parsed : [];
+            } catch {
+              topicsList = guide.topics
+                .split(",")
+                .map((t: string) => t.trim())
+                .filter(Boolean);
+            }
+          }
+          const selectId = `assign-select-${guide.id}`;
+
+          return (
+            <div class="bg-base-100 rounded-lg p-4 border border-base-300 flex flex-col gap-2">
+              <p class="font-semibold text-sm truncate">
+                {guide.helpDeskName || `Registro #${guide.id}`}
+              </p>
+              {guide.legacyName && (
+                <p class="text-xs text-base-content/60">
+                  SM: {guide.legacyName}
+                </p>
+              )}
+              {topicsList.length > 0 && (
+                <div class="flex flex-wrap gap-1">
+                  {topicsList.slice(0, 3).map((t) => (
+                    <span class="badge badge-xs badge-outline">{t}</span>
+                  ))}
+                  {topicsList.length > 3 && (
+                    <span class="text-xs text-base-content/50">
+                      +{topicsList.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div class="flex items-center gap-2 mt-2">
+                <select
+                  id={selectId}
+                  class="select select-sm select-bordered flex-1 text-xs"
+                >
+                  <option value="">Seleccionar helpdesk...</option>
+                  {helpdesks.map((hd) => (
+                    <option value={hd.id}>{hd.name}</option>
+                  ))}
+                </select>
+                <button
+                  class="btn btn-xs btn-primary"
+                  data-assign-btn
+                  data-record-id={guide.id}
+                  data-select-id={selectId}
+                >
+                  Asignar
+                </button>
+              </div>
+            </div>
+          );
+        })
+      }
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  import { getCleanBase } from "@lib/baseUrl";
+  const cleanBase = getCleanBase();
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-assign-btn]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const recordId = Number(btn.dataset.recordId);
+        const selectId = btn.dataset.selectId;
+        const select = document.getElementById(selectId!) as HTMLSelectElement;
+        const invgateId = Number(select?.value);
+
+        if (!invgateId) {
+          (window as any).showToast?.(
+            "Selecciona una mesa de ayuda primero",
+            "alert-warning",
+          );
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "...";
+
+        try {
+          const res = await fetch(`${cleanBase}api/support-guides/assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ recordId, invgate_id: invgateId }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "Error desconocido");
+          }
+
+          (window as any).showToast?.(
+            "Registro asignado correctamente",
+            "alert-success",
+          );
+
+          const card = btn.closest<HTMLElement>(".bg-base-100");
+          if (card) {
+            card.style.opacity = "0.5";
+            card.style.pointerEvents = "none";
+          }
+
+          const remaining = document.querySelectorAll<HTMLElement>(
+            "[data-assign-btn]:not([disabled])",
+          );
+          if (remaining.length === 0) {
+            setTimeout(() => (location.href = `${cleanBase}soportes`), 1000);
+          }
+        } catch (err: any) {
+          (window as any).showToast?.(err.message, "alert-error");
+          btn.disabled = false;
+          btn.textContent = "Asignar";
+        }
+      });
+    });
+</script>

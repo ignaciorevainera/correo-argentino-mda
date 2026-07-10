@@ -1,127 +1,38 @@
 ---
 import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
 
 interface Props {
-  records: any[];
-  helpdesks: { id: number; name: string }[];
+  count: number;
   isAdmin: boolean;
 }
 
-const { records, helpdesks, isAdmin } = Astro.props;
+const { count, isAdmin } = Astro.props;
 
-if (!isAdmin || records.length === 0) {
+if (!isAdmin || count === 0) {
   return new Response(null, { status: 200 });
 }
+
+const cleanBase = getCleanBase();
 ---
 
-<div class="mb-8 bg-warning/5 border border-warning/20 rounded-box p-5">
-  <div class="flex items-center gap-2 mb-4">
-    <Icon name="boxicons:x-circle-filled" size={20} class="text-warning" />
-    <h2 class="text-lg font-bold text-warning">
-      Registros sin asignar ({records.length})
-    </h2>
-  </div>
-  <p class="text-sm text-base-content/70 mb-4">
-    Estos registros locales no estan vinculados a ninguna mesa de ayuda de InvGate.
-    Asignalos para que aparezcan dentro de su card correspondiente.
-  </p>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {records.map((guide) => {
-      let topicsList: string[] = [];
-      if (guide.topics) {
-        try {
-          const parsed = JSON.parse(guide.topics);
-          topicsList = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          topicsList = guide.topics.split(",").map((t: string) => t.trim()).filter(Boolean);
-        }
+<div role="alert" class="alert alert-warning alert-soft">
+  <Icon name="boxicons:x-circle-filled" size={20} />
+  <div>
+    <p class="font-bold">
+      {count}
+      {
+        count === 1
+          ? "mesa de ayuda sin vincular"
+          : "mesas de ayuda sin vincular"
       }
-      const selectId = `assign-select-${guide.id}`;
-
-      return (
-        <div class="bg-base-100 rounded-lg p-4 border border-base-300 flex flex-col gap-2">
-          <p class="font-semibold text-sm truncate">
-            {guide.helpDeskName || `Registro #${guide.id}`}
-          </p>
-          {guide.legacyName && (
-            <p class="text-xs text-base-content/60">SM: {guide.legacyName}</p>
-          )}
-          {topicsList.length > 0 && (
-            <div class="flex flex-wrap gap-1">
-              {topicsList.slice(0, 3).map((t) => (
-                <span class="badge badge-xs badge-outline">{t}</span>
-              ))}
-              {topicsList.length > 3 && (
-                <span class="text-xs text-base-content/50">+{topicsList.length - 3}</span>
-              )}
-            </div>
-          )}
-          <div class="flex items-center gap-2 mt-2">
-            <select
-              id={selectId}
-              class="select select-sm select-bordered flex-1 text-xs"
-            >
-              <option value="">Seleccionar helpdesk...</option>
-              {[...helpdesks].sort((a, b) => a.name.localeCompare(b.name)).map((hd) => (
-                <option value={hd.id}>{hd.name}</option>
-              ))}
-            </select>
-            <button
-              class="btn btn-xs btn-primary"
-              data-assign-btn
-              data-record-id={guide.id}
-              data-select-id={selectId}
-            >
-              Asignar
-            </button>
-          </div>
-        </div>
-      );
-    })}
+    </p>
+    <p class="text-xs opacity-80">
+      Registros locales que no están asociados a ninguna helpdesk de InvGate.
+    </p>
   </div>
+  <a href={`${cleanBase}soportes/asignar`} class="btn btn-sm btn-warning">
+    <Icon name="boxicons:link" size={16} />
+    Asignar
+  </a>
 </div>
-
-<script>
-  const cleanBase = (() => {
-    const b = import.meta.env.BASE_URL || "/";
-    return b.endsWith("/") ? b : b + "/";
-  })();
-
-  document.querySelectorAll<HTMLButtonElement>("[data-assign-btn]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const recordId = Number(btn.dataset.recordId);
-      const selectId = btn.dataset.selectId;
-      const select = document.getElementById(selectId!) as HTMLSelectElement;
-      const invgateId = Number(select?.value);
-
-      if (!invgateId) {
-        (window as any).showToast?.("Selecciona una mesa de ayuda primero", "alert-warning");
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = "...";
-
-      try {
-        const res = await fetch(`${cleanBase}api/support-guides/assign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recordId, invgate_id: invgateId }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Error desconocido");
-        }
-
-        (window as any).showToast?.("Registro asignado correctamente", "alert-success");
-        setTimeout(() => location.reload(), 800);
-      } catch (err: any) {
-        (window as any).showToast?.(err.message, "alert-error");
-        btn.disabled = false;
-        btn.textContent = "Asignar";
-      }
-    });
-  });
-</script>

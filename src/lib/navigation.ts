@@ -88,7 +88,7 @@ export const navSections: NavSection[] = [
       {
         href: "/soportes",
         label: "Soportes",
-        icon: "boxicons:buoy-filled",
+        icon: "boxicons:group-alt-filled",
       },
     ],
   },

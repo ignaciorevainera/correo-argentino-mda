@@ -29,7 +29,13 @@ if (displayName === user?.username) {
 
 const isRouteLocked = (href: string): boolean => {
   const lowerHref = href.toLowerCase();
-  if (user?.id === 0 && (lowerHref === "/supervision" || lowerHref.startsWith("/supervision/") || lowerHref === "/admin" || lowerHref.startsWith("/admin/"))) {
+  if (
+    user?.id === 0 &&
+    (lowerHref === "/supervision" ||
+      lowerHref.startsWith("/supervision/") ||
+      lowerHref === "/admin" ||
+      lowerHref.startsWith("/admin/"))
+  ) {
     return true;
   }
   return !hasPermission(href, userRole);
@@ -89,7 +95,7 @@ const quickAccessItems: QuickAccessItem[] = [
     title: "Soportes",
     description:
       "Revisa derivaciones por tema para resolver casos con rapidez.",
-    icon: "boxicons:buoy-filled",
+    icon: "boxicons:group-alt-filled",
     iconTone: "bg-warning/10 text-warning",
   },
   {
@@ -155,19 +161,23 @@ const quickAccessItems: QuickAccessItem[] = [
  ¿PR?  → Bienvenido.
 =====================================================================
 -->
-
 <BaseLayout>
   <PageContainer>
     <header class="space-y-2 mb-6">
       <h1 class="text-3xl font-bold tracking-tight text-base-content">
-        {user?.id !== 0 ? (
-          <>¡Hola, <span class="text-secondary">{displayName}</span>!</>
-        ) : (
-          "¡Hola!"
-        )}
+        {
+          user?.id !== 0 ? (
+            <>
+              ¡Hola, <span class="text-secondary">{displayName}</span>!
+            </>
+          ) : (
+            "¡Hola!"
+          )
+        }
       </h1>
       <p class="max-w-3xl text-sm text-base-content/70 sm:text-base">
-        Bienvenido al panel principal. Desde aquí puedes entrar rápido a los módulos operativos del portal.
+        Bienvenido al panel principal. Desde aquí puedes entrar rápido a los
+        módulos operativos del portal.
       </p>
     </header>
 
@@ -177,16 +187,24 @@ const quickAccessItems: QuickAccessItem[] = [
       class="flex flex-col gap-6"
     >
       <!-- Módulos Principales -->
-      {user && user.id !== 0 && (
-        <div
-          class:list={[
-            "grid grid-cols-1 sm:grid-cols-2 gap-6",
-            ["agent", "referent"].includes(userRole) ? "lg:grid-cols-3" : "lg:grid-cols-4"
-          ]}
-        >
-          {
-            mainModules
-              .filter((mod) => !(["agent", "referent"].includes(userRole) && mod.href === "/supervision/asistencia"))
+      {
+        user && user.id !== 0 && (
+          <div
+            class:list={[
+              "grid grid-cols-1 sm:grid-cols-2 gap-6",
+              ["agent", "referent"].includes(userRole)
+                ? "lg:grid-cols-3"
+                : "lg:grid-cols-4",
+            ]}
+          >
+            {mainModules
+              .filter(
+                (mod) =>
+                  !(
+                    ["agent", "referent"].includes(userRole) &&
+                    mod.href === "/supervision/asistencia"
+                  ),
+              )
               .map((mod) => {
                 const locked = isRouteLocked(mod.href);
                 return (
@@ -200,10 +218,10 @@ const quickAccessItems: QuickAccessItem[] = [
                     layout="horizontal"
                   />
                 );
-              })
-          }
-        </div>
-      )}
+              })}
+          </div>
+        )
+      }
 
       <!-- Enlaces de acceso rápido -->
       <div

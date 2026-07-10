@@ -2,6 +2,8 @@
 import { Icon } from "astro-icon/components";
 import { getCleanBase } from "@lib/baseUrl";
 import ActionExternalButton from "@components/ui/ActionExternalButton.astro";
+import OpenModalButton from "@components/ui/OpenModalButton.astro";
+import Modal from "@components/ui/Modal.astro";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 
 interface Props {
@@ -19,6 +21,7 @@ const isActive = helpdesk.status_id === 1;
 const statusBadge = isActive ? "badge-success" : "badge-ghost";
 const statusLabel = isActive ? "Activo" : "Inactivo";
 const hasRecords = records.length > 0;
+const modalId = `modal-details-${helpdesk.id}`;
 
 const invgateApiBase = import.meta.env.INVGATE_BASE_URL || "";
 const invgateWebBase = invgateApiBase
@@ -58,6 +61,13 @@ const sortedSubLevels = [...subLevels].sort(
   (a, b) => (a.level_order || 0) - (b.level_order || 0),
 );
 
+const levelColors = [
+  "badge-accent badge-soft",
+  "badge-info badge-soft",
+  "badge-success badge-soft",
+  "badge-warning badge-soft",
+];
+
 const searchableText = [
   hdName,
   parentName,
@@ -81,28 +91,34 @@ const searchableText = [
     <div class="flex-1 space-y-3">
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0">
-          <h3 class="card-title text-base flex items-center gap-2 truncate">
+          <h3
+            class="card-title text-base flex items-center gap-1 truncate mb-3"
+          >
             <Icon
-              name="boxicons:buoy-filled"
-              size={20}
+              name="boxicons:group-alt-filled"
+              size={24}
               class="text-secondary shrink-0"
             />
-            <span class="truncate" data-highlight-target>{hdName}</span>
+            <span class="truncate font-bold" data-highlight-target
+              >{hdName}</span
+            >
           </h3>
           <div class="flex flex-wrap items-center gap-2 mt-1">
             <span class="badge badge-sm gap-1 font-mono">
-              <Icon name="boxicons:group" size={12} />
+              <Icon name="boxicons:group-filled" size={12} />
               {helpdesk.total_members}
             </span>
-            <span class:list={["badge badge-sm", statusBadge]}>{statusLabel}</span
+            <span class:list={["badge badge-sm", statusBadge]}
+              >{statusLabel}</span
             >
             {
               parentName && (
                 <span
-                  class="badge badge-sm badge-ghost"
+                  class="badge badge-sm gap-1 badge-ghost"
                   title={`Helpdesk padre: ${parentName}`}
+                  data-highlight-target
                 >
-                  <Icon name="boxicons:git-branch" size={12} class="mr-0.5" />
+                  <Icon name="boxicons:git-branch-filled" size={12} />
                   {parentName}
                 </span>
               )
@@ -116,9 +132,12 @@ const searchableText = [
       {
         sortedSubLevels.length > 0 && (
           <div class="flex flex-wrap gap-1">
-            {sortedSubLevels.map((sl) => (
+            {sortedSubLevels.map((sl, i) => (
               <span
-                class="badge badge-sm badge-accent badge-soft"
+                class:list={[
+                  "badge badge-sm",
+                  levelColors[i % levelColors.length],
+                ]}
                 title={`${sl.total_members} miembros`}
               >
                 {sl.name || `Nivel ${sl.level_order}`}
@@ -131,23 +150,20 @@ const searchableText = [
 
       {
         legacyNames.length > 0 && (
-          <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <Icon
+              name="boxicons:rename-filled"
+              size={14}
+              class="opacity-50 shrink-0"
+              title="Nombres Legacy (SM)"
+            />
             {legacyNames.map((name) => (
-              <p class="text-sm font-semibold text-base-content" data-highlight-target>
-                <span class="text-base-content/50 text-xs font-normal">SM:</span>{" "}
+              <span
+                class="badge badge-sm badge-ghost cursor-default"
+                data-highlight-target
+              >
                 {name}
-              </p>
-            ))}
-          </div>
-        )
-      }
-
-    {
-      categoryIds.length > 0 && (
-          <div class="flex flex-wrap gap-1">
-            <span class="text-xs text-base-content/50">Categorias:</span>
-            {categoryIds.map((cid) => (
-              <span class="badge badge-xs badge-outline">ID:{cid}</span>
+              </span>
             ))}
           </div>
         )
@@ -157,61 +173,23 @@ const searchableText = [
         topicsList.length > 0 && (
           <div class="flex flex-wrap gap-1">
             {topicsList.map((t) => (
-              <span class="badge badge-sm badge-secondary" data-highlight-target>{t}</span>
+              <span
+                class="badge badge-sm badge-secondary"
+                data-highlight-target
+              >
+                {t}
+              </span>
             ))}
-          </div>
-        )
-      }
-
-      {
-        first?.contacts && (
-          <div>
-            <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-              <Icon name="boxicons:phone" size={12} />
-              Contactos
-            </p>
-            <p class="text-xs whitespace-pre-wrap text-base-content/80" data-highlight-target>
-              {first.contacts}
-            </p>
-          </div>
-        )
-      }
-
-      {
-        first?.notes && (
-          <div>
-            <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-              <Icon name="boxicons:note" size={12} />
-              Notas
-            </p>
-            <p class="text-xs whitespace-pre-wrap text-base-content/80" data-highlight-target>
-              {first.notes}
-            </p>
-          </div>
-        )
-      }
-
-      {
-        helpdesk.total_members > 0 && (
-          <div data-members-for={helpdesk.id}>
-            <p class="text-xs font-bold text-base-content/70 flex items-center gap-1">
-              <Icon name="boxicons:group" size={12} />
-              Miembros
-            </p>
-            <ul
-              class="list-disc list-inside text-xs text-base-content/80 space-y-0.5"
-              data-members-list
-            >
-              <li class="italic text-base-content/50">
-                <span class="loading loading-dots loading-xs" />
-              </li>
-            </ul>
           </div>
         )
       }
     </div>
 
     <div class="card-actions justify-end gap-2 pt-3 flex-nowrap">
+      <OpenModalButton
+        label="Ver más"
+        onclick={`document.getElementById('${modalId}').showModal()`}
+      />
       {
         invgateProfileUrl && (
           <ActionExternalButton
@@ -234,6 +212,83 @@ const searchableText = [
     </div>
   </div>
 </div>
+
+<Modal id={modalId} title={hdName} icon="boxicons:group-alt-filled" size="md">
+  <div slot="content" class="space-y-4">
+    {
+      categoryIds.length > 0 && (
+        <div>
+          <p class="text-xs font-bold text-base-content/70">
+            Categorías de derivación
+          </p>
+          <div class="flex flex-wrap gap-1 mt-1">
+            {categoryIds.map((cid) => (
+              <span class="badge badge-xs badge-outline">ID:{cid}</span>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      first?.contacts && (
+        <div>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:phone-filled" size={18} />
+            Contactos
+          </p>
+          <p
+            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
+            data-highlight-target
+          >
+            {first.contacts}
+          </p>
+        </div>
+      )
+    }
+
+    {
+      first?.notes && (
+        <div>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:note-filled" size={18} />
+            Notas
+          </p>
+          <p
+            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
+            data-highlight-target
+          >
+            {first.notes}
+          </p>
+        </div>
+      )
+    }
+
+    {
+      helpdesk.total_members > 0 && (
+        <div data-members-for={helpdesk.id}>
+          <p class="font-bold text-base-content/70 flex items-center gap-1">
+            <Icon name="boxicons:group-filled" size={18} />
+            Miembros
+          </p>
+          <ul
+            class="list-disc list-inside text-sm text-base-content/80 space-y-0.5 mt-1 ml-3"
+            data-members-list
+          >
+            <li class="italic text-base-content/50">
+              <span class="loading loading-dots loading-xs" />
+            </li>
+          </ul>
+        </div>
+      )
+    }
+  </div>
+  <div slot="actions" class="modal-action">
+    <form method="dialog">
+      <button class="btn btn-sm btn-ghost">Cerrar</button>
+    </form>
+  </div>
+</Modal>
 
 <script>
   const cleanBase = (() => {
