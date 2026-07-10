@@ -329,7 +329,7 @@ export async function exportAsClipboardImage(
         height: element.scrollHeight + 'px'
       },
       quality: 1.0,
-      pixelRatio: 2
+      pixelRatio: 3
     });
 
     // Restore original styles

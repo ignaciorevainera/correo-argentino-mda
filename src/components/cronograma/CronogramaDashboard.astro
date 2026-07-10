@@ -621,6 +621,7 @@ const { userRole = "agent" } = Astro.props;
           <!-- Visual timeline grid -->
           <div class="space-y-2">
             <div
+              id="rotation-timeline-wrapper"
               class="overflow-x-auto rounded-xl border border-base-300 bg-base-200/30"
             >
               <table
@@ -715,71 +716,63 @@ const { userRole = "agent" } = Astro.props;
 
       <!-- Weekend selector + referente config -->
       <div
-        class="flex flex-col lg:flex-row lg:items-end gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60"
+        class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60"
       >
-        <div class="flex flex-col gap-1.5 shrink-0">
-          <label
-            class="label-xxs text-base-content/40"
-            >Sábado del Fin de Semana</label
-          >
-          <div
-            id="overtime-weekend-date-wrapper"
-            class="relative flex h-8 min-w-44 items-center gap-2 bg-base-100 px-3 py-1.5 rounded-lg border border-base-300 shadow-sm hover:border-warning/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-warning/20 cursor-pointer"
-          >
-            <Icon
-              name="boxicons:calendar"
-              size={14}
-              class="text-base-content/40 pointer-events-none"
-            />
-            <span
-              id="overtime-weekend-date-display"
-              class="text-xs font-semibold tabular-nums text-base-content pointer-events-none"
-              >Seleccionar sábado...</span
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3 flex-1">
+          <div class="flex flex-col gap-1.5 shrink-0">
+            <label class="label-xxs text-base-content/40">Fin de Semana</label>
+            <button
+              type="button"
+              id="preview-month-btn"
+              class="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 text-base-content justify-between w-56 font-bold shadow-sm"
+              title="Seleccionar fin de semana..."
             >
-            <input
-              type="date"
-              id="overtime-weekend-date"
-              class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
-            />
+              <span class="flex items-center gap-2 min-w-0">
+                <Icon name="boxicons:calendar" size={14} class="text-warning shrink-0" />
+                <span id="overtime-weekend-date-display" class="tabular-nums truncate text-xs">Seleccionar fin de semana...</span>
+              </span>
+              <Icon name="boxicons:chevron-down" size={14} class="text-base-content/40 shrink-0" />
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-1.5 min-w-40">
+            <label
+              class="label-xxs text-base-content/40"
+              >Referente</label
+            >
+            <select
+              id="overtime-referente-select"
+              class="select select-sm select-bordered font-bold cursor-pointer text-base-content w-full"
+            >
+              <option value="">Sin asignar</option>
+            </select>
+            <span
+              id="overtime-referente-text"
+              class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
+            ></span>
           </div>
         </div>
 
-        <div class="flex flex-col gap-1.5 flex-1 max-w-xs">
-          <label
-            class="label-xxs text-base-content/40"
-            >Referente del Weekend</label
+        <div class="flex items-end gap-2 shrink-0">
+          <button
+            type="button"
+            id="copy-overtime-image-btn"
+            class="btn btn-sm btn-ghost shrink-0 gap-1.5 font-bold no-export cursor-pointer"
+            title="Copiar horas extras al portapapeles como imagen"
           >
-          <select
-            id="overtime-referente-select"
-            class="select select-sm select-bordered font-bold cursor-pointer text-base-content"
+            <Icon name="boxicons:clipboard" size={14} />
+            Copiar Tabla
+          </button>
+
+          <button
+            type="button"
+            id="save-overtime-referente-btn"
+            class="btn btn-sm btn-warning shrink-0 gap-1.5 font-bold no-export"
           >
-            <option value="">Sin asignar</option>
-          </select>
-          <span
-            id="overtime-referente-text"
-            class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
-          ></span>
+            <Icon name="boxicons:save" size={14} />
+            Guardar Configuración
+          </button>
         </div>
-
-        <button
-          type="button"
-          id="save-overtime-referente-btn"
-          class="btn btn-sm btn-warning shrink-0 gap-1.5 uppercase font-bold text-xxs no-export"
-        >
-          <Icon name="boxicons:save" size={14} />
-          Guardar Config.
-        </button>
-
-        <!-- New Copy to Clipboard Button for Overtime -->
-        <button
-          type="button"
-          id="copy-overtime-image-btn"
-          class="btn btn-sm btn-outline btn-warning shrink-0 gap-1.5 uppercase font-bold text-xxs no-export cursor-pointer"
-          title="Copiar horas extras al portapapeles como imagen"
-        >
-          <Icon name="boxicons:clipboard" size={14} />
-          Copiar Tabla
-        </button>
       </div>
 
       <!-- Visual timeline -->
@@ -790,6 +783,7 @@ const { userRole = "agent" } = Astro.props;
           Línea de Tiempo del Fin de Semana
         </p>
         <div
+          id="overtime-timeline-wrapper"
           class="relative overflow-x-auto rounded-xl border border-base-300 bg-base-200/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <!-- Time header labels row -->
@@ -822,99 +816,66 @@ const { userRole = "agent" } = Astro.props;
         </div>
       </div>
 
-      <!-- Add shift form -->
-      <div class="space-y-3 no-export" id="overtime-add-shift-section">
-        <p
-          class="label-xxs text-base-content/40"
-        >
-          Agregar Turno de Hora Extra
-        </p>
-        <form
-          id="overtime-shift-form"
-          class="flex flex-col md:flex-row md:items-end gap-3 p-4 bg-base-200/40 rounded-xl border border-base-300/60"
-        >
-          <div class="flex flex-col gap-1.5 flex-1 max-w-xs">
-            <label
-              class="label-xxs text-base-content/40"
-              >Operador</label
-            >
-            <select
-              id="overtime-shift-agent"
-              class="select select-sm select-bordered font-bold cursor-pointer text-base-content"
-              required
-            >
-              <option value="">Seleccionar operador...</option>
-            </select>
-          </div>
-          <div class="flex flex-col gap-1.5 shrink-0">
-            <label
-              class="label-xxs text-base-content/40"
-              >Día</label
-            >
-            <select
-              id="overtime-shift-day"
-              class="select select-sm select-bordered font-bold cursor-pointer text-base-content"
-              required
-            >
-              <option value="saturday">Sábado (tarde)</option>
-              <option value="sunday">Domingo</option>
-            </select>
-          </div>
-          <div class="flex flex-col gap-1.5 shrink-0">
-            <label
-              class="label-xxs text-base-content/40"
-              >Inicio</label
-            >
-            <input
-              type="time"
-              id="overtime-shift-start"
-              class="input input-sm input-bordered w-28 font-mono font-bold"
-              required
-            />
-          </div>
-          <div class="flex flex-col gap-1.5 shrink-0">
-            <label
-              class="label-xxs text-base-content/40"
-              >Fin</label
-            >
-            <input
-              type="time"
-              id="overtime-shift-end"
-              class="input input-sm input-bordered w-28 font-mono font-bold"
-              required
-            />
-          </div>
-          <input type="hidden" id="overtime-shift-edit-id" value="" />
-          <button
-            type="submit"
-            id="overtime-shift-submit-btn"
-            class="btn btn-sm btn-warning gap-1.5 uppercase font-bold text-xxs shrink-0"
-          >
-            <Icon name="boxicons:plus-circle" size={14} />
-            Agregar Turno
-          </button>
-          <button
-            type="button"
-            id="overtime-shift-cancel-btn"
-            class="btn btn-sm btn-ghost gap-1.5 uppercase font-bold text-xxs shrink-0 hidden"
-          >
-            Cancelar
-          </button>
-        </form>
-      </div>
+      <!-- Gestión de Turnos (form + lista side-by-side) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 no-export">
+        <!-- Columna 1: Formulario -->
+        <div class="bg-base-200/40 rounded-xl border border-base-300/60 p-4 space-y-4 self-start">
+          <p class="text-xxs font-black uppercase tracking-wider text-base-content/50 pb-2 border-b border-base-300/50">
+            Gestión de Turnos
+          </p>
+          <form id="overtime-shift-form" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1.5">
+              <label class="label-xxs text-base-content/40">Operador</label>
+              <select id="overtime-shift-agent" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
+                <option value="">Seleccionar operador...</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="label-xxs text-base-content/40">Día</label>
+              <select id="overtime-shift-day" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
+                <option value="saturday">Sábado (tarde)</option>
+                <option value="sunday">Domingo</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40">Inicio</label>
+                <input type="time" id="overtime-shift-start" class="input input-sm input-bordered font-mono font-bold" required />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40">Fin</label>
+                <input type="time" id="overtime-shift-end" class="input input-sm input-bordered font-mono font-bold" required />
+              </div>
+            </div>
+            <input type="hidden" id="overtime-shift-edit-id" value="" />
+            <div class="flex justify-between items-center mt-2">
+              <button type="button" id="overtime-shift-cancel-btn" class="btn btn-xs btn-ghost font-bold hidden">
+                Cancelar
+              </button>
+              <div class="flex gap-2 ml-auto">
+                <button type="button" id="overtime-shift-delete-btn" class="btn btn-xs btn-ghost text-error gap-1 font-bold hidden">
+                  <Icon name="boxicons:trash" size={12} />
+                  Eliminar
+                </button>
+                <button type="submit" id="overtime-shift-submit-btn" class="btn btn-sm btn-warning gap-1.5 font-bold">
+                  <Icon name="boxicons:plus-circle" size={14} />
+                  Agregar Turno
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
 
-      <!-- Saved shifts list -->
-      <div class="space-y-2 no-export">
-        <p
-          class="label-xxs text-base-content/40"
-        >
-          Turnos Guardados
-        </p>
-        <div id="overtime-shifts-list">
-          <div
-            class="text-xs text-base-content/30 text-center py-6 font-bold uppercase tracking-wider"
-          >
-            No hay turnos guardados para este fin de semana
+        <!-- Columna 2+3: Lista compacta -->
+        <div class="lg:col-span-2 bg-base-200/40 rounded-xl border border-base-300/60 p-4 space-y-3">
+          <p class="text-xxs font-black uppercase tracking-wider text-base-content/50 pb-2 border-b border-base-300/50">
+            Turnos Guardados
+          </p>
+          <div id="overtime-shifts-list">
+            <div class="flex flex-col items-center justify-center py-10 text-base-content/20 gap-2">
+              <Icon name="boxicons:briefcase-alt-2" size={32} />
+              <p class="text-xs font-bold uppercase tracking-wider">No hay turnos guardados</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1918,6 +1879,8 @@ const { userRole = "agent" } = Astro.props;
     padding-bottom: 2.5rem !important;
   }
 </style>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
 <script>
   import "./lib/dashboard-client";
