@@ -21,7 +21,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const [record] = await db
-      .select({ helpDeskName: supportGuides.helpDeskName })
+      .select({ legacyName: supportGuides.legacyName })
       .from(supportGuides)
       .where(eq(supportGuides.id, recordId));
 
@@ -36,7 +36,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     await logAdminAction(
       user.username || "sistema",
-      `Desvinculo la mesa de ayuda "${record.helpDeskName}".`,
+      `Desvinculo la mesa de ayuda "${record.legacyName || `Registro #${recordId}`}".`,
     );
 
     return jsonResponse({ ok: true });

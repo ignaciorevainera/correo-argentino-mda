@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const [record] = await db
-      .select({ helpDeskName: supportGuides.helpDeskName })
+      .select({ legacyName: supportGuides.legacyName })
       .from(supportGuides)
       .where(eq(supportGuides.id, recordId));
 
@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     await logAdminAction(
       user.username || "sistema",
-      `Asigno la mesa de ayuda "${record.helpDeskName}" al helpdesk de InvGate ID ${invgateId}.`,
+      `Asigno la mesa de ayuda "${record.legacyName || `Registro #${recordId}`}" al helpdesk de InvGate ID ${invgateId}.`,
     );
 
     return jsonResponse({ ok: true });
