@@ -130,7 +130,12 @@ const searchableText = [
                   class="badge badge-sm gap-1 badge-ghost h-auto whitespace-normal text-left"
                   title={`Helpdesk padre: ${parentName}`}
                 >
-                  <Icon name="boxicons:git-branch" size={12} class="shrink-0" aria-hidden="true" />
+                  <Icon
+                    name="boxicons:git-branch"
+                    size={12}
+                    class="shrink-0"
+                    aria-hidden="true"
+                  />
                   <span class="line-clamp-2" data-highlight-target>
                     {parentName}
                   </span>
@@ -200,10 +205,6 @@ const searchableText = [
     </div>
 
     <div class="card-actions justify-end gap-2 pt-3 flex-nowrap">
-      <OpenModalButton
-        label="Ver más"
-        onclick={`document.getElementById('${modalId}').showModal()`}
-      />
       {
         invgateProfileUrl && (
           <ActionExternalButton
@@ -212,6 +213,10 @@ const searchableText = [
           />
         )
       }
+      <OpenModalButton
+        label="Ver más"
+        onclick={`document.getElementById('${modalId}').showModal()`}
+      />
       {
         isAdmin && (
           <a
@@ -311,15 +316,21 @@ const searchableText = [
   })();
 
   async function loadIncidentsSequentially() {
-    const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-card-for]"));
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-card-for]"),
+    );
     for (const card of cards) {
       const helpdeskId = card.dataset.cardFor;
       const badge = card.querySelector<HTMLElement>("[data-incidents-for]");
-      const countSpan = card.querySelector<HTMLElement>("[data-incidents-count]");
+      const countSpan = card.querySelector<HTMLElement>(
+        "[data-incidents-count]",
+      );
       if (!helpdeskId || !badge || !countSpan) continue;
 
       try {
-        const res = await fetch(`${cleanBase}api/invgate/incidents-by-helpdesk?helpdesk_id=${helpdeskId}`);
+        const res = await fetch(
+          `${cleanBase}api/invgate/incidents-by-helpdesk?helpdesk_id=${helpdeskId}`,
+        );
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data.total === "number" && data.total > 0) {
@@ -330,7 +341,7 @@ const searchableText = [
       } catch (err) {
         console.error("Error loading incidents for " + helpdeskId, err);
       }
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
 
