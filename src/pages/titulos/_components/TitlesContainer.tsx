@@ -84,7 +84,7 @@ export default function TitlesContainer({ permissions }: Props) {
 
   return (
     <div className="flex flex-col">
-      <header className="w-full bg-base-100 h-28 pt-3 pb-4 px-2 sticky -top-6 z-10 border-b border-base-300/40 flex flex-row items-center">
+      <header className="w-full bg-base-100 h-28 pt-3 pb-4 sticky -top-6 z-10 border-b border-base-300/40 flex flex-row items-center">
         <article>
           <label className="input max-w-xl w-full rounded-md group">
             <MagnifyingGlassIcon className="size-6 opacity-50 group-hover:opacity-100 group-hover:text-primary transition" />
@@ -125,12 +125,12 @@ export default function TitlesContainer({ permissions }: Props) {
         }
 
       </header >
-      <section className="min-h-128 pb-4 ">
+      <section className="min-h-128 pb-4 rounded-box">
         {loading ? <TitleCardSkeleton count={30} />
           : (
             <>
               {filteredTitles.length === 0 ? (
-                <div className="bg-base-200 h-48 w-full rounded-md flex flex-col items-center justify-center gap-y-1">
+                <div className="bg-base-200 h-48 mt-4 w-full rounded-box flex flex-col items-center justify-center gap-y-1">
                   <h3 className="text-xl font-semibold">
                     No se encontraron coincidencias
                   </h3>

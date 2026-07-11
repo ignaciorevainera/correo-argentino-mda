@@ -1,6 +1,12 @@
 ---
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
+import { isAllowed } from "@lib/rolesMatrix";
+
+const user = Astro.locals.user;
+const isAdminUser = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
 ---
 
 <PageContainer width="xxl">
@@ -9,29 +15,87 @@ import PageHeader from "@components/ui/PageHeader.astro";
     class="max-w-2xl"
   />
 
-  <div class="skeleton-debounced grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-    {Array.from({ length: 6 }).map(() => (
-      <div class="card bg-base-100 shadow-sm border border-base-300">
-        <div class="card-body p-5 gap-4">
-          <div class="flex items-center gap-3">
-            <div class="skeleton size-10 rounded-full shrink-0"></div>
-            <div class="flex flex-col gap-2 flex-1">
-              <div class="skeleton h-4 w-3/4 rounded"></div>
-              <div class="skeleton h-3 w-1/2 rounded"></div>
+  <div class="skeleton-debounced flex flex-col gap-6">
+    {
+      isAdminUser && (
+        <div class="alert alert-warning alert-soft flex justify-between items-center gap-4">
+          <div class="flex items-center gap-3 flex-1">
+            <div class="skeleton size-5 rounded-full shrink-0"></div>
+            <div class="flex flex-col gap-1.5 flex-1">
+              <div class="skeleton h-4 w-48 rounded"></div>
+              <div class="skeleton h-3 w-96 max-w-full rounded opacity-70"></div>
             </div>
           </div>
-          <div class="border-t border-base-200"></div>
-          <div class="space-y-2">
-            <div class="skeleton h-4 w-full rounded"></div>
-            <div class="skeleton h-4 w-5/6 rounded"></div>
-            <div class="skeleton h-4 w-2/3 rounded"></div>
-          </div>
-          <div class="flex justify-end gap-2">
-            <div class="skeleton h-8 w-24 rounded"></div>
-            <div class="skeleton h-8 w-24 rounded"></div>
-          </div>
+          <div class="skeleton h-8 w-24 rounded shrink-0"></div>
+        </div>
+      )
+    }
+
+    <div class="flex flex-wrap gap-6 bg-base-200/50 rounded-xl p-4 border border-base-300/50">
+      <div class="flex items-center gap-2.5">
+        <div class="skeleton size-9 rounded-lg shrink-0"></div>
+        <div class="flex flex-col gap-1.5">
+          <div class="skeleton h-3 w-20 rounded"></div>
+          <div class="skeleton h-5 w-8 rounded"></div>
         </div>
       </div>
-    ))}
+
+      <div class="border-r border-base-300 hidden md:block h-10 self-center"></div>
+
+      <div class="flex items-center gap-2.5">
+        <div class="skeleton size-9 rounded-lg shrink-0"></div>
+        <div class="flex flex-col gap-1.5">
+          <div class="skeleton h-3 w-12 rounded"></div>
+          <div class="skeleton h-5 w-8 rounded"></div>
+        </div>
+      </div>
+
+      <div class="border-r border-base-300 hidden md:block h-10 self-center"></div>
+
+      <div class="flex items-center gap-2.5">
+        <div class="skeleton size-9 rounded-lg shrink-0"></div>
+        <div class="flex flex-col gap-1.5">
+          <div class="skeleton h-3 w-24 rounded"></div>
+          <div class="skeleton h-5 w-8 rounded"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-nowrap items-center gap-2 md:gap-3 w-full">
+      <div class="flex-1 min-w-0">
+        <div class="skeleton h-8 md:h-12 w-full rounded-lg"></div>
+      </div>
+      <div class="skeleton h-8 md:h-12 w-28 md:w-36 rounded-lg shrink-0"></div>
+      <div class="skeleton h-8 md:h-12 w-32 md:w-44 rounded-lg shrink-0"></div>
+      <div class="skeleton h-8 md:h-12 w-24 md:w-32 rounded-lg shrink-0"></div>
+      <div class="skeleton h-8 md:h-12 w-10 md:w-28 rounded-lg shrink-0"></div>
+      <div class="skeleton h-8 md:h-12 w-12 md:w-16 rounded-lg shrink-0"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map(() => (
+        <div class="card bg-base-100 shadow-sm border border-base-300">
+          <div class="card-body p-5 gap-4">
+            <div class="flex items-center gap-3">
+              <div class="skeleton size-10 rounded-full shrink-0"></div>
+              <div class="flex flex-col gap-2 flex-1">
+                <div class="skeleton h-4 w-3/4 rounded"></div>
+                <div class="skeleton h-3 w-1/2 rounded"></div>
+              </div>
+            </div>
+            <div class="border-t border-base-200"></div>
+            <div class="space-y-2">
+              <div class="skeleton h-4 w-full rounded"></div>
+              <div class="skeleton h-4 w-5/6 rounded"></div>
+              <div class="skeleton h-4 w-2/3 rounded"></div>
+            </div>
+            <div class="flex justify-end gap-2">
+              <div class="skeleton h-8 w-24 rounded"></div>
+              <div class="skeleton h-8 w-24 rounded"></div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   </div>
 </PageContainer>
