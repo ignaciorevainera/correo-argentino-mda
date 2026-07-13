@@ -364,10 +364,7 @@ const mainTabs = [
       isAllowedAdmin && (
         <div id="invgate-stats-bar" class="rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
           <div id="stats-skeleton" class="flex flex-wrap items-center gap-4">
-            <div class="skeleton h-[72px] w-[160px]"></div>
-            <div class="skeleton h-[72px] w-[160px]"></div>
-            <div class="skeleton h-[72px] w-[160px]"></div>
-            <div class="skeleton h-[72px] w-[160px]"></div>
+            <div class="skeleton h-[72px] w-full rounded-lg"></div>
           </div>
           <div id="stats-cards" class="flex flex-wrap items-center gap-4">
             <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
@@ -1458,6 +1455,8 @@ const mainTabs = [
   const statsSkeleton = document.getElementById("stats-skeleton");
   const statsCards = document.getElementById("stats-cards");
   if (statsSkeleton && statsCards) {
+    statsSkeleton.classList.add("hidden");
+    statsCards.classList.remove("hidden");
     (async () => {
       try {
         const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -1472,11 +1471,8 @@ const mainTabs = [
         setStat("stat-matched", stats.matched);
         setStat("stat-unmatchedMda", stats.unmatchedMda);
         setStat("stat-unmatchedInvgate", stats.unmatchedInvgate);
-        statsSkeleton.classList.add("hidden");
-        statsCards.classList.remove("hidden");
       } catch (err) {
         console.error("Error loading InvGate stats:", err);
-        statsSkeleton.innerHTML = `<p class="text-xs text-base-content/60 italic">No se pudieron cargar las estadísticas de InvGate.</p>`;
       }
     })();
   }
