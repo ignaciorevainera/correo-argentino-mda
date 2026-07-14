@@ -235,14 +235,22 @@ const initialData = await getAttendanceData(startDate, endDate);
           labels: doughnutLabels,
           datasets: [{
             data: doughnutValues,
-            backgroundColor: [
-              'rgba(16, 185, 129, 0.65)',
-              'rgba(245, 158, 11, 0.65)',
-              'rgba(239, 68, 68, 0.65)',
-              'rgba(99, 102, 241, 0.65)',
-              'rgba(236, 72, 153, 0.65)',
-              'rgba(14, 165, 233, 0.65)'
-            ],
+            backgroundColor: (() => {
+              const palette = [
+                'rgba(245, 158, 11, 0.65)',   // amber-500
+                'rgba(239, 68, 68, 0.65)',    // red-500
+                'rgba(99, 102, 241, 0.65)',   // indigo-500
+                'rgba(236, 72, 153, 0.65)',   // pink-500
+                'rgba(14, 165, 233, 0.65)',   // sky-500
+                'rgba(20, 184, 166, 0.65)',   // teal-500
+                'rgba(168, 85, 247, 0.65)',   // purple-500
+                'rgba(249, 115, 22, 0.65)',    // orange-500
+                'rgba(217, 70, 239, 0.65)',   // fuchsia-500
+                'rgba(244, 63, 94, 0.65)',     // rose-500
+                'rgba(100, 116, 139, 0.65)'   // slate-500 (gris)
+              ];
+              return doughnutLabels.map((_, i) => palette[i % palette.length]);
+            })(),
             borderColor: 'rgba(150, 150, 150, 0.1)',
             borderWidth: 1.5
           }]
@@ -267,8 +275,8 @@ const initialData = await getAttendanceData(startDate, endDate);
             legend: {
               position: 'bottom',
               labels: {
-                boxWidth: 10,
-                font: { family: 'Geist', size: 9, weight: 'bold' },
+                boxWidth: 13,
+                font: { family: 'Geist', size: 12, weight: 'bold' },
                 color: 'gray'
               }
             }
@@ -379,9 +387,8 @@ const initialData = await getAttendanceData(startDate, endDate);
             const tipText = hasComment
               ? comment.replace(/"/g, '&quot;')
               : `Ir a ${display}`;
-            const tipColor = hasComment ? 'tooltip-warning' : '';
             return `
-              <div class="tooltip ${tipColor} tooltip-bottom" data-tip="${tipText}">
+              <div class="js-portal-tooltip" data-tip="${tipText}">
                 <a href="${baseUrl}supervision/asistencia?date=${date}"
                    class="relative px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer block"
                    style="background:rgba(${rgb},0.12);color:rgba(${rgb},0.95);border:1px solid rgba(${rgb},0.28)"
@@ -702,6 +709,11 @@ const initialData = await getAttendanceData(startDate, endDate);
       doughnutChartInstance.data.datasets[0].borderWidth = 1.5;
       doughnutChartInstance.update();
     }
+    const portal = document.getElementById('daisy-tooltip-portal');
+    if (portal) {
+      portal.style.display = 'none';
+      portal.className = '';
+    }
   });
 
   document.getElementById('detail-content')?.addEventListener('click', (event) => {
@@ -724,6 +736,45 @@ const initialData = await getAttendanceData(startDate, endDate);
   }
 
   safeInit();
+
+  // Tooltip Portal Logic to fix clipping inside overflow containers
+  const portal = document.createElement('div');
+  portal.id = 'daisy-tooltip-portal';
+  portal.style.display = 'none';
+  document.body.appendChild(portal);
+
+  document.addEventListener('mouseover', (e) => {
+    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const tipText = target.getAttribute('data-tip');
+      portal.style.display = 'block';
+      portal.style.top = rect.top + 'px';
+      portal.style.left = rect.left + 'px';
+      portal.style.width = rect.width + 'px';
+      portal.style.height = rect.height + 'px';
+      portal.setAttribute('data-tip', tipText || '');
+      
+      // Prevent hiding below browser viewport
+      const spaceAbove = rect.top;
+      const posClass = spaceAbove < 80 ? 'tooltip-bottom' : 'tooltip-top';
+
+      portal.className = `tooltip tooltip-open fixed z-[99999] pointer-events-none ${posClass}`;
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
+    const related = (e.relatedTarget as HTMLElement)?.closest('.js-portal-tooltip');
+    if (target && target !== related) {
+      portal.style.display = 'none';
+      portal.className = '';
+    }
+  });
+
+  document.addEventListener('scroll', () => {
+    portal.style.display = 'none';
+  }, { capture: true });
 </script>
 
 <style is:global>
