@@ -61,7 +61,11 @@ const sortOrder = (Astro.url.searchParams.get("sortOrder") || undefined) as
   | SortOrder
   | undefined;
 
-const { data: terminals, hasMore } = await getTerminals({
+const {
+  data: terminals,
+  count: totalTerminals,
+  hasMore,
+} = await getTerminals({
   page: 1,
   limit: 50,
   sortBy,
@@ -398,6 +402,13 @@ const inventoryTabs = [
               id="terminal-search"
               placeholder="Buscar por hostname, IP, MAC o sucursal"
             />
+          </div>
+          <div
+            class="badge badge-neutral badge-lg whitespace-nowrap"
+            aria-label="Cantidad de resultados"
+          >
+            <Icon name="boxicons:eye-filled" size={16} />
+            <span>{totalTerminals} resultados</span>
           </div>
           <ExportCsvButton
             href={import.meta.env.BASE_URL + "api/export/terminals"}
