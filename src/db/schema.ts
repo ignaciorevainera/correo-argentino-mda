@@ -94,6 +94,8 @@ export const offices = sqliteTable("offices", {
   posAutoAuto2: text("pos_auto_auto_2"),
   posSapTerminal: text("pos_sap_terminal"),
   searchableText: text("searchable_text"),
+  active: integer("active", { mode: "boolean" }).default(true),
+  closedReason: text("closed_reason"),
 }, (table) => ({
   nameIdx: index("name_idx").on(table.name),
   localityIdx: index("locality_idx").on(table.locality),

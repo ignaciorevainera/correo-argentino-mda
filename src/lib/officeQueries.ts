@@ -326,6 +326,8 @@ export async function getOffices(params: GetOfficesParams) {
           ipAddress: t.ipAddress ?? "",
           operatingSystem: t.operatingSystem ?? "",
         })),
+      active: office.active ?? true,
+      closedReason: office.closedReason,
     };
   });
 

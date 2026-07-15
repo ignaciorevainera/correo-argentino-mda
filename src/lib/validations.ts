@@ -61,4 +61,6 @@ export const officeFormSchema = z.object({
   posVirtual: z.string().nullable().optional(),
   posAutoAuto2: z.string().nullable().optional(),
   posSapTerminal: z.string().nullable().optional(),
+  active: z.boolean().optional().default(true),
+  closedReason: z.string().nullable().optional(),
 });
