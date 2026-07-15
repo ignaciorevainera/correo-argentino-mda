@@ -212,12 +212,14 @@ const mainTabs = [
   />
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6">
+    <div id="provinces-data" data-provinces={JSON.stringify(provincesByRegion)} class="hidden"></div>
     <form
       method="GET"
       class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
       aria-label="Filtros del directorio"
     >
       <div class="w-full">
+        <input type="hidden" name="type" id="filter-tabs-hidden-type" value={typeFilter} />
         <FilterTabsBox
           tabs={officeTypeTabs.map((tab) => ({
             value: tab.type,
@@ -228,6 +230,7 @@ const mainTabs = [
           name="type"
           activeClasses={officeTypeTabActiveClassByType}
           class="flex-wrap bg-base-200/50 p-2"
+          submitOnChange={false}
         />
       </div>
 
@@ -238,7 +241,6 @@ const mainTabs = [
             id="regionFilter"
             class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Filtrar por región"
-            onchange="document.getElementById('provinceFilter').value='all'; this.form.submit()"
           >
             <option value="all" selected={regionFilter === "all"}
               >Regiones (Todas)</option
@@ -259,7 +261,6 @@ const mainTabs = [
             id="provinceFilter"
             class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Filtrar por provincia"
-            onchange="this.form.submit()"
             disabled={regionFilter === "all"}
           >
             <option value="all" selected={provinceFilter === "all"}
@@ -285,7 +286,6 @@ const mainTabs = [
             id="zoneFilter"
             class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Filtrar por zona"
-            onchange="this.form.submit()"
           >
             <option value="all" selected={zoneFilter === "all"}
               >Zonas (Todas)</option
@@ -306,7 +306,6 @@ const mainTabs = [
             id="paqarFilter"
             class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Filtrar por servicios Paq.AR"
-            onchange="this.form.submit()"
           >
             <option value="all" selected={paqarFilter === "all"}
               >Paq.AR (Todos)</option
@@ -325,22 +324,23 @@ const mainTabs = [
         <div class="flex items-center gap-4 px-2">
           <label class="label cursor-pointer gap-2 p-0">
             <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Depende de otra</span>
-            <input type="checkbox" name="hasParent" value="true" class="toggle toggle-sm toggle-primary" onchange="this.form.submit()" checked={hasParentFilter} aria-label="Mostrar solo oficinas que dependen de otra" />
+            <input type="checkbox" name="hasParent" value="true" class="toggle toggle-sm toggle-primary" checked={hasParentFilter} aria-label="Mostrar solo oficinas que dependen de otra" />
           </label>
           <label class="label cursor-pointer gap-2 p-0">
             <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Solo Cabeceras</span>
-            <input type="checkbox" name="isHeadquarter" value="true" class="toggle toggle-sm toggle-primary" onchange="this.form.submit()" checked={isHeadquarterFilter} aria-label="Mostrar solo oficinas cabecera" />
+            <input type="checkbox" name="isHeadquarter" value="true" class="toggle toggle-sm toggle-primary" checked={isHeadquarterFilter} aria-label="Mostrar solo oficinas cabecera" />
           </label>
         </div>
-        <a
-          href={import.meta.env.BASE_URL + "oficinas"}
+        <button
+          type="button"
+          id="clear-filters-btn"
           class="btn btn-outline btn-error font-semibold gap-2"
           aria-label="Limpiar todos los filtros"
           title="Limpiar todos los filtros"
         >
           <Icon name="boxicons:trash" class="size-4" />
           Limpiar filtros
-        </a>
+        </button>
       </div>
 
       <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
@@ -352,7 +352,7 @@ const mainTabs = [
         </div>
         <div class="badge badge-neutral badge-lg whitespace-nowrap">
           <Icon name="boxicons:eye-filled" size={16} />
-          <span>{totalOffices} resultados</span>
+          <span id="total-count-badge">{totalOffices} resultados</span>
         </div>
         <ExportCsvButton
           href={import.meta.env.BASE_URL + "api/export/offices"}
@@ -648,22 +648,114 @@ const mainTabs = [
 
 
 
-  const syncSortToURL = () => {
-    const params = new URLSearchParams(window.location.search);
-    if (currentSortBy && currentSortOrder) {
-      params.set("sortBy", currentSortBy);
-      params.set("sortOrder", currentSortOrder);
-    } else {
-      params.delete("sortBy");
-      params.delete("sortOrder");
+  const syncFiltersToURL = () => {
+    const params = new URLSearchParams();
+    if (form) {
+      const formData = new FormData(form);
+      for (const [key, value] of formData.entries()) {
+        if (value && value !== "all" && key !== "search") {
+          params.set(key, value.toString());
+        }
+      }
     }
-    const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+    if (currentSearch) {
+      params.set("search", currentSearch);
+    }
+    if (currentSortBy) {
+      params.set("sortBy", currentSortBy);
+      if (currentSortOrder) params.set("sortOrder", currentSortOrder);
+    }
+    const queryString = params.toString();
+    const newUrl = `${window.location.pathname}${queryString ? "?" + queryString : ""}`;
     window.history.replaceState({}, "", newUrl);
+
+    // Update export CSV href
+    const exportBtn = document.getElementById("export-csv-btn") as HTMLAnchorElement | null;
+    if (exportBtn) {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      exportBtn.href = `${baseUrl}/api/export/offices${queryString ? "?" + queryString : ""}`;
+    }
   };
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
   });
+
+  // Dynamically handle region -> province mapping client-side
+  const provincesContainer = document.getElementById("provinces-data");
+  let provincesByRegion: Record<string, { code: string; name: string }[]> = {};
+  if (provincesContainer && provincesContainer.dataset.provinces) {
+    try {
+      provincesByRegion = JSON.parse(provincesContainer.dataset.provinces);
+    } catch (e) {
+      console.error("Error parsing provinces data", e);
+    }
+  }
+
+  const regionSelect = document.getElementById("regionFilter") as HTMLSelectElement | null;
+  const provinceSelect = document.getElementById("provinceFilter") as HTMLSelectElement | null;
+  const zoneSelect = document.getElementById("zoneFilter") as HTMLSelectElement | null;
+  const paqarSelect = document.getElementById("paqarFilter") as HTMLSelectElement | null;
+  const hasParentToggle = document.querySelector<HTMLInputElement>('input[name="hasParent"]');
+  const isHeadquarterToggle = document.querySelector<HTMLInputElement>('input[name="isHeadquarter"]');
+  const typeHiddenInput = document.getElementById("filter-tabs-hidden-type") as HTMLInputElement | null;
+  const typeTabsContainer = document.querySelector(".filter-tabs-box");
+
+  const handleFilterChange = () => {
+    currentPage = 1;
+    fetchOffices(true);
+    syncFiltersToURL();
+  };
+
+  regionSelect?.addEventListener("change", () => {
+    const region = regionSelect.value;
+    if (provinceSelect) {
+      if (region === "all") {
+        provinceSelect.value = "all";
+        provinceSelect.disabled = true;
+        provinceSelect.innerHTML = '<option value="all">Provincias (Todas)</option>';
+      } else {
+        provinceSelect.disabled = false;
+        const regionProvinces = provincesByRegion[region] || [];
+        let htmlOptions = '<option value="all">Provincias (Todas)</option>';
+        regionProvinces.forEach((p) => {
+          htmlOptions += `<option value="${p.code}">${escapeHTML(p.name)}</option>`;
+        });
+        provinceSelect.innerHTML = htmlOptions;
+        provinceSelect.value = "all";
+      }
+    }
+    handleFilterChange();
+  });
+
+  provinceSelect?.addEventListener("change", handleFilterChange);
+  zoneSelect?.addEventListener("change", handleFilterChange);
+  paqarSelect?.addEventListener("change", handleFilterChange);
+  hasParentToggle?.addEventListener("change", handleFilterChange);
+  isHeadquarterToggle?.addEventListener("change", handleFilterChange);
+
+  // Tab buttons click listeners
+  if (typeTabsContainer) {
+    const tabButtons = typeTabsContainer.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-tab-value") || "all";
+        if (typeHiddenInput) {
+          typeHiddenInput.value = val;
+        }
+
+        // Toggle active states on DOM
+        tabButtons.forEach((b) => {
+          b.setAttribute("aria-selected", "false");
+          b.classList.remove("tab-active");
+        });
+        btn.setAttribute("aria-selected", "true");
+        btn.classList.add("tab-active");
+
+        handleFilterChange();
+      });
+    });
+  }
 
   const bindRowEvents = (parent: HTMLElement | Document = document) => {
     const toggleButtons = Array.from(
@@ -748,6 +840,11 @@ const mainTabs = [
       );
 
       hasMore = newHasMore;
+
+      const badgeText = document.getElementById("total-count-badge");
+      if (badgeText) {
+        badgeText.textContent = `${totalCount} resultados`;
+      }
 
       if (container) {
         if (isNewSearch) {
@@ -1161,6 +1258,39 @@ const mainTabs = [
     }, 300);
   });
 
+  const clearFiltersBtn = document.getElementById("clear-filters-btn");
+  clearFiltersBtn?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    currentSearch = "";
+
+    if (regionSelect) regionSelect.value = "all";
+    if (provinceSelect) {
+      provinceSelect.innerHTML = '<option value="all">Provincias (Todas)</option>';
+      provinceSelect.value = "all";
+      provinceSelect.disabled = true;
+    }
+    if (zoneSelect) zoneSelect.value = "all";
+    if (paqarSelect) paqarSelect.value = "all";
+
+    if (hasParentToggle) hasParentToggle.checked = false;
+    if (isHeadquarterToggle) isHeadquarterToggle.checked = false;
+
+    if (typeHiddenInput) typeHiddenInput.value = "all";
+    if (typeTabsContainer) {
+      const tabButtons = typeTabsContainer.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+      tabButtons.forEach((b) => {
+        b.setAttribute("aria-selected", "false");
+        b.classList.remove("tab-active");
+        if (b.getAttribute("data-tab-value") === "all" || (!b.getAttribute("data-tab-value") && b.textContent?.trim() === "Todas")) {
+          b.setAttribute("aria-selected", "true");
+          b.classList.add("tab-active");
+        }
+      });
+    }
+
+    handleFilterChange();
+  });
+
   bindRowEvents();
 
   tableRoot?.addEventListener("master-detail-sort-change", (e: any) => {
@@ -1169,7 +1299,7 @@ const mainTabs = [
     currentSortOrder = direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
     currentPage = 1;
     fetchOffices(true, false); // isNewSearch = true, showLoadingUI = false
-    syncSortToURL();
+    syncFiltersToURL();
   });
 
   if (currentSortBy && tableRoot) {
