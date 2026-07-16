@@ -55,6 +55,8 @@ export interface OfficeFormData {
   posVirtual?: string | null;
   posAutoAuto2?: string | null;
   posSapTerminal?: string | null;
+  active?: boolean | null;
+  closedReason?: string | null;
 
   // Relacionales y adicionales
   parentNis?: string | null;
@@ -271,11 +273,27 @@ if (office?.type === "SUCURSAL") {
               <span class="label-text font-medium">Payroll</span>
               <input type="checkbox" name="payroll" class="toggle toggle-primary toggle-sm" checked={office?.payroll || false} />
             </label>
+            <label class="cursor-pointer label gap-2 tooltip" data-tip="Indica si la oficina está activa y operativa">
+              <span class="label-text font-medium">Activa</span>
+              <input type="checkbox" name="active" id="toggle-active" class="toggle toggle-success toggle-sm" checked={office ? (office.active !== false) : true} />
+            </label>
             <label class="cursor-pointer label gap-2 tooltip" data-tip="Exento de impuestos">
               <span class="label-text font-medium">Tax Exempt</span>
               <input type="checkbox" name="taxExempt" class="toggle toggle-primary toggle-sm" checked={office?.taxExempt || false} />
             </label>
           </div>
+        </div>
+
+        <div class="col-span-1 md:col-span-3" id="closed-reason-container" style={office ? (office.active !== false ? "display: none;" : "") : "display: none;"}>
+          <FormField
+            id="input-closedReason"
+            name="closedReason"
+            label="Motivo de Cierre"
+            value={office?.closedReason ?? ""}
+            placeholder="Ej: Problemas edilicios, cerrada por decisión institucional"
+            autocomplete="off"
+            inputClass="input-sm"
+          />
         </div>
 
         <div class="col-span-1 md:col-span-3">
@@ -793,6 +811,32 @@ if (office?.type === "SUCURSAL") {
     });
   }
 
+  function initActiveToggle() {
+    console.log("initActiveToggle: starting initialization");
+    const activeToggle = document.getElementById("toggle-active") as HTMLInputElement;
+    const closedReasonContainer = document.getElementById("closed-reason-container");
+    if (!activeToggle || !closedReasonContainer) {
+      console.warn("initActiveToggle: activeToggle or closedReasonContainer not found");
+      return;
+    }
+
+    function toggleClosedReason() {
+      if (activeToggle.checked) {
+        closedReasonContainer.style.display = "none";
+      } else {
+        closedReasonContainer.style.display = "";
+      }
+    }
+
+    if (activeToggle.dataset.toggleBound !== "true") {
+      activeToggle.dataset.toggleBound = "true";
+      activeToggle.addEventListener("change", toggleClosedReason);
+    }
+
+    // Initial toggle state
+    toggleClosedReason();
+  }
+
   function runInitializations() {
     try {
       initDynamicRows();
@@ -808,6 +852,11 @@ if (office?.type === "SUCURSAL") {
       initTypeToggle();
     } catch (e) {
       console.error("Error running initTypeToggle:", e);
+    }
+    try {
+      initActiveToggle();
+    } catch (e) {
+      console.error("Error running initActiveToggle:", e);
     }
     try {
       initTextFormatting();

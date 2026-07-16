@@ -47,4 +47,6 @@ export interface OfficeDirectoryItem {
   invgateAddress?: string | null;
   invgateParentName?: string | null;
   invgateDuplicateCount?: number;
+  active?: boolean;
+  closedReason?: string | null;
 }

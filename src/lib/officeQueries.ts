@@ -51,6 +51,8 @@ export interface GetOfficesParams {
   province?: string;
   zone?: string;
   paqar?: string;
+  hasParent?: boolean;
+  isHeadquarter?: boolean;
   sortBy?: OfficeSortKey;
   sortOrder?: SortOrder;
 }
@@ -122,9 +124,47 @@ export async function getOffices(params: GetOfficesParams) {
   // Search filter
   if (searchFilter) {
     const normalizedSearch = normalizeSearchValue(searchFilter);
-    whereConditions.push(
-      like(offices.searchableText, `%${normalizedSearch}%`)
-    );
+    const trimmedSearch = searchFilter.trim();
+    const looksLikeIp = /^\d{1,3}(\.\d{1,3}){0,3}\.?$/.test(trimmedSearch);
+
+    const hostnameConditions = [
+      sql`EXISTS (
+        SELECT 1 FROM terminals t
+        WHERE t.nis = ${offices.code}
+          AND lower(t.hostname) LIKE ${`%${trimmedSearch.toLowerCase()}%`}
+      )`,
+      sql`EXISTS (
+        SELECT 1 FROM office_assets oa
+        WHERE oa.office_id = ${offices.id}
+          AND lower(oa.hostname) LIKE ${`%${trimmedSearch.toLowerCase()}%`}
+      )`,
+    ];
+
+    if (looksLikeIp) {
+      whereConditions.push(
+        or(
+          like(offices.searchableText, `%${normalizedSearch}%`),
+          sql`EXISTS (
+            SELECT 1 FROM terminals t
+            WHERE t.nis = ${offices.code}
+              AND t.ip_address LIKE ${trimmedSearch + '%'}
+          )`,
+          sql`EXISTS (
+            SELECT 1 FROM office_assets oa
+            WHERE oa.office_id = ${offices.id}
+              AND oa.ip LIKE ${trimmedSearch + '%'}
+          )`,
+          ...hostnameConditions,
+        ),
+      );
+    } else {
+      whereConditions.push(
+        or(
+          like(offices.searchableText, `%${normalizedSearch}%`),
+          ...hostnameConditions,
+        ),
+      );
+    }
   }
 
   // Province/Region filter
@@ -160,6 +200,16 @@ export async function getOffices(params: GetOfficesParams) {
         and(eq(offices.paqarAdmision, true), eq(offices.paqarEntrega, true)),
       );
     }
+  }
+
+  // Parent / Headquarter filters
+  if (params.hasParent === true) {
+    whereConditions.push(
+      sql`${offices.parentNis} IS NOT NULL AND ${offices.parentNis} != ''`,
+    );
+  }
+  if (params.isHeadquarter === true) {
+    whereConditions.push(like(offices.code, "_0000"));
   }
 
   const whereClause =
@@ -276,6 +326,8 @@ export async function getOffices(params: GetOfficesParams) {
           ipAddress: t.ipAddress ?? "",
           operatingSystem: t.operatingSystem ?? "",
         })),
+      active: office.active ?? true,
+      closedReason: office.closedReason,
     };
   });
 

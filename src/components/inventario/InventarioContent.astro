@@ -61,7 +61,11 @@ const sortOrder = (Astro.url.searchParams.get("sortOrder") || undefined) as
   | SortOrder
   | undefined;
 
-const { data: terminals, hasMore } = await getTerminals({
+const {
+  data: terminals,
+  count: totalTerminals,
+  hasMore,
+} = await getTerminals({
   page: 1,
   limit: 50,
   sortBy,
@@ -168,7 +172,7 @@ const inventoryTabs = [
   </div>
 
   <div
-    class="flex flex-col gap-4 w-full mt-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
+    class="flex flex-col gap-4 w-full rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
   >
     <!-- Contenedor de Filtros (Fila Superior) -->
     <div class="w-full">
@@ -399,7 +403,15 @@ const inventoryTabs = [
               placeholder="Buscar por hostname, IP, MAC o sucursal"
             />
           </div>
+          <div
+            class="badge badge-neutral badge-lg whitespace-nowrap"
+            aria-label="Cantidad de resultados"
+          >
+            <Icon name="boxicons:eye-filled" size={16} />
+            <span id="total-count-badge-terminales">{totalTerminals} resultados</span>
+          </div>
           <ExportCsvButton
+            id="export-csv-terminales-btn"
             href={import.meta.env.BASE_URL + "api/export/terminals"}
             ariaLabel="Exportar terminales a CSV"
           />
@@ -412,14 +424,13 @@ const inventoryTabs = [
       >
         <SearchBar
           id="machine-search"
-          label="Buscar cubic por hostname, dirección IP o usuario asignado"
           placeholder="Buscar por hostname, IP o usuario"
         />
       </div>
     </div>
   </div>
 
-  <div id="view-terminales" class="space-y-6 mt-6">
+  <div id="view-terminales" class="space-y-6">
     {
       terminals.length === 0 ? (
         <div class="card border border-error/20 bg-error/5 text-error-content max-w-2xl mx-auto my-8 shadow-sm">
@@ -510,7 +521,7 @@ const inventoryTabs = [
     }
   </div>
 
-  <div id="view-cubics" class="hidden space-y-6 mt-6">
+  <div id="view-cubics" class="hidden space-y-6">
     <section class="space-y-3">
       <DataTable
         id="table-cubics"
@@ -760,6 +771,8 @@ const inventoryTabs = [
     "loading-spinner-terminales",
   );
   const terminalsContainer = document.getElementById("table-terminales-body");
+  const totalCountBadge = document.getElementById("total-count-badge-terminales");
+  const exportCsvBtn = document.getElementById("export-csv-terminales-btn");
 
   let currentPage = 1;
   let currentSearch = terminalSearchInput?.value.trim() || "";
@@ -782,8 +795,27 @@ const inventoryTabs = [
   let currentSortOrder: "asc" | "desc" | null =
     (urlParams.get("sortOrder") as "asc" | "desc") || null;
 
-  const syncSortToURL = () => {
+  const syncFiltersToURL = () => {
     const params = new URLSearchParams(window.location.search);
+    const filters: Record<string, string> = {
+      search: currentSearch,
+      os: currentOs,
+      osVariant: currentOsVariant,
+      architecture: currentArch,
+      brand: currentBrand,
+      ram: currentRam,
+      model: currentModel,
+      status: currentStatus,
+    };
+
+    for (const [key, val] of Object.entries(filters)) {
+      if (val && val !== "all") {
+        params.set(key, val);
+      } else {
+        params.delete(key);
+      }
+    }
+
     if (currentSortBy && currentSortOrder) {
       params.set("sortBy", currentSortBy);
       params.set("sortOrder", currentSortOrder);
@@ -791,8 +823,25 @@ const inventoryTabs = [
       params.delete("sortBy");
       params.delete("sortOrder");
     }
+
     const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
     window.history.replaceState({}, "", newUrl);
+
+    if (exportCsvBtn) {
+      const baseUrl = import.meta.env.BASE_URL.endsWith("/")
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+      const queryParams = new URLSearchParams();
+      for (const [key, val] of Object.entries(filters)) {
+        if (val && val !== "all") {
+          queryParams.set(key, val);
+        }
+      }
+      exportCsvBtn.setAttribute(
+        "href",
+        `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`
+      );
+    }
   };
 
   const fetchTerminals = async (isNewSearch: boolean, showLoadingUI = true) => {
@@ -830,8 +879,13 @@ const inventoryTabs = [
 
       const html = await response.text();
       const newHasMore = response.headers.get("X-Has-More") === "true";
+      const totalCount = response.headers.get("X-Total-Count") || "0";
 
       hasMore = newHasMore;
+
+      if (totalCountBadge) {
+        totalCountBadge.textContent = `${totalCount} resultados`;
+      }
 
       if (terminalsContainer) {
         if (isNewSearch) {
@@ -918,6 +972,7 @@ const inventoryTabs = [
         statusRadioInputs.find((r) => r.checked)?.dataset.terminalStatus ||
         "all";
       fetchTerminals(true);
+      syncFiltersToURL();
     }, 300);
   };
 
@@ -953,6 +1008,7 @@ const inventoryTabs = [
     currentModel = "all";
     currentStatus = "all";
     fetchTerminals(true);
+    syncFiltersToURL();
   });
 
   const btnClearEmptyTerminales = document.getElementById(
@@ -1189,7 +1245,7 @@ const inventoryTabs = [
           : null;
     currentPage = 1;
     fetchTerminals(true, false);
-    syncSortToURL();
+    syncFiltersToURL();
   });
 
   if (currentSortBy && terminalTable) {

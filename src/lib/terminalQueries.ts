@@ -235,8 +235,16 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     filters.push(eq(terminals.model, params.model));
   }
 
-  if (filters.length > 0) {
-    queryBuilder = queryBuilder.where(and(...filters));
+  const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(terminals)
+    .leftJoin(offices, eq(terminals.nis, offices.code))
+    .where(whereClause);
+
+  if (whereClause) {
+    queryBuilder = queryBuilder.where(whereClause);
   }
 
   const sortColumn = params.sortBy
@@ -298,6 +306,7 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
 
   return {
     data,
+    count,
     hasMore,
   };
 }

@@ -64,18 +64,14 @@ export const complianceClasses: Record<string, string> = {
   "Sin Registro": "badge-ghost text-base-content/50",
   "Cumplió": "badge-success text-success-content dark:bg-emerald-950/20 dark:text-emerald-400",
   "Incumplió": "badge-error text-error-content dark:bg-rose-950/20 dark:text-rose-400",
-  "Llegada Tarde": "badge-warning text-warning-content dark:bg-amber-950/20 dark:text-amber-400",
-  "Retiro Anticipado": "badge-warning text-warning-content dark:bg-amber-950/20 dark:text-amber-400",
-  "Tarde y Retiro Anticipado": "badge-error text-error-content dark:bg-rose-950/20 dark:text-rose-400"
+  "Llegada Tarde": "badge-warning text-warning-content dark:bg-amber-950/20 dark:text-amber-400"
 };
 
 export const complianceLabels: Record<string, string> = {
   "Sin Registro": "SIN REGISTRO",
   "Cumplió": "CUMPLIÓ",
   "Incumplió": "INCUMPLIÓ",
-  "Llegada Tarde": "LLEGADA TARDE",
-  "Retiro Anticipado": "RET. ANTICIPADO",
-  "Tarde y Retiro Anticipado": "TARDE Y R. ANTIC."
+  "Llegada Tarde": "LLEGADA TARDE"
 };
 
 export function getSpanishDayName(dateStr: string) {
