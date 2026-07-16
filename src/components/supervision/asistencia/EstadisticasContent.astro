@@ -57,7 +57,7 @@ const initialData = await getAttendanceData(startDate, endDate);
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
     <!-- Doughnut Chart -->
     <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4">
-      <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Distribución de Eventualidades</h3>
+      <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Distribución de Incidencias</h3>
       <div class="relative w-full h-[220px] flex items-center justify-center">
         <canvas id="doughnut-chart"></canvas>
       </div>
@@ -213,14 +213,17 @@ const initialData = await getAttendanceData(startDate, endDate);
   }
 
   function updateCharts() {
-    const absenceData: Record<string, number> = {};
+    const incidenceData: Record<string, number> = {};
     rawLogs.forEach(log => {
       if (log.ausencia && log.ausencia !== "") {
-        absenceData[log.ausencia] = (absenceData[log.ausencia] || 0) + 1;
+        incidenceData[log.ausencia] = (incidenceData[log.ausencia] || 0) + 1;
+      }
+      if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Incumplió") {
+        incidenceData[log.cumplimiento] = (incidenceData[log.cumplimiento] || 0) + 1;
       }
     });
-    const doughnutLabels = Object.keys(absenceData);
-    const doughnutValues = Object.values(absenceData);
+    const doughnutLabels = Object.keys(incidenceData);
+    const doughnutValues = Object.values(incidenceData);
 
     const doughnutCtx = (document.getElementById('doughnut-chart') as HTMLCanvasElement).getContext('2d');
     if (doughnutChartInstance) doughnutChartInstance.destroy();
@@ -232,14 +235,22 @@ const initialData = await getAttendanceData(startDate, endDate);
           labels: doughnutLabels,
           datasets: [{
             data: doughnutValues,
-            backgroundColor: [
-              'rgba(16, 185, 129, 0.65)',
-              'rgba(245, 158, 11, 0.65)',
-              'rgba(239, 68, 68, 0.65)',
-              'rgba(99, 102, 241, 0.65)',
-              'rgba(236, 72, 153, 0.65)',
-              'rgba(14, 165, 233, 0.65)'
-            ],
+            backgroundColor: (() => {
+              const palette = [
+                'rgba(245, 158, 11, 0.65)',   // amber-500
+                'rgba(239, 68, 68, 0.65)',    // red-500
+                'rgba(99, 102, 241, 0.65)',   // indigo-500
+                'rgba(236, 72, 153, 0.65)',   // pink-500
+                'rgba(14, 165, 233, 0.65)',   // sky-500
+                'rgba(20, 184, 166, 0.65)',   // teal-500
+                'rgba(168, 85, 247, 0.65)',   // purple-500
+                'rgba(249, 115, 22, 0.65)',    // orange-500
+                'rgba(217, 70, 239, 0.65)',   // fuchsia-500
+                'rgba(244, 63, 94, 0.65)',     // rose-500
+                'rgba(100, 116, 139, 0.65)'   // slate-500 (gris)
+              ];
+              return doughnutLabels.map((_, i) => palette[i % palette.length]);
+            })(),
             borderColor: 'rgba(150, 150, 150, 0.1)',
             borderWidth: 1.5
           }]
@@ -264,8 +275,8 @@ const initialData = await getAttendanceData(startDate, endDate);
             legend: {
               position: 'bottom',
               labels: {
-                boxWidth: 10,
-                font: { family: 'Geist', size: 9, weight: 'bold' },
+                boxWidth: 13,
+                font: { family: 'Geist', size: 12, weight: 'bold' },
                 color: 'gray'
               }
             }
@@ -339,6 +350,82 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
   }
 
+  function rgbaToRgbStr(rgba: string): string {
+    const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) return '';
+    return `${m[1]}, ${m[2]}, ${m[3]}`;
+  }
+
+  function renderGroupedCard(nombre: string, dateGroups: string[][], logs: any[], baseUrl: string, sliceColor: string) {
+    const initials = nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+    const totalDays = dateGroups.reduce((sum, g) => sum + g.length, 0);
+    const allDates = dateGroups.flat().sort();
+    const rgb = rgbaToRgbStr(sliceColor);
+
+    const dateToComment: Record<string, string> = {};
+    logs.forEach(log => { if (log.detalle) dateToComment[log.date] = log.detalle; });
+
+    return `
+      <div class="eventuality-detail-card flex flex-col p-3.5 bg-base-100 dark:bg-base-200/50 rounded-xl border border-base-300/40 shadow-sm transition-all duration-200">
+        <div class="flex items-center justify-between w-full">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center font-black text-xs text-secondary animate-in fade-in zoom-in duration-200 shrink-0">
+              ${initials}
+            </div>
+            <span class="font-bold text-sm text-base-content truncate">${nombre}</span>
+          </div>
+          <span class="text-xs font-bold bg-base-200/80 px-3 py-1.5 rounded-lg text-base-content/80 tracking-wider shadow-sm shrink-0 whitespace-nowrap">
+            ${totalDays} ${totalDays === 1 ? 'día' : 'días'}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-2.5">
+          ${allDates.map(date => {
+            const parts = date.split('-');
+            const display = `${parts[2]}/${parts[1]}`;
+            const comment = dateToComment[date];
+            const hasComment = !!comment;
+            const tipText = hasComment
+              ? comment.replace(/"/g, '&quot;')
+              : `Ir a ${display}`;
+            return `
+              <div class="js-portal-tooltip" data-tip="${tipText}">
+                <a href="${baseUrl}supervision/asistencia?date=${date}"
+                   class="relative px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer block"
+                   style="background:rgba(${rgb},0.12);color:rgba(${rgb},0.95);border:1px solid rgba(${rgb},0.28)"
+                   onmouseover="this.style.background='rgba(${rgb},0.22)';this.style.borderColor='rgba(${rgb},0.5)'"
+                   onmouseout="this.style.background='rgba(${rgb},0.12)';this.style.borderColor='rgba(${rgb},0.28)'">
+                  ${display}
+                  ${hasComment ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-base-100 shadow-sm"></span>' : ''}
+                </a>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function groupConsecutiveDates(dates: string[]): string[][] {
+    const sorted = [...dates].sort();
+    const groups: string[][] = [];
+    let current: string[] = [sorted[0]];
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = new Date(sorted[i - 1] + "T12:00:00");
+      const curr = new Date(sorted[i] + "T12:00:00");
+      const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays === 1) {
+        current.push(sorted[i]);
+      } else {
+        groups.push(current);
+        current = [sorted[i]];
+      }
+    }
+    groups.push(current);
+    return groups;
+  }
+
+  const complianceLabelsSet = new Set(["Llegada Tarde", "Incumplió"]);
+
   function showEventualityDetail(label: string, color: string, index: number) {
     if (doughnutChartInstance) {
       const activeBorderColors = doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) => 
@@ -360,50 +447,35 @@ const initialData = await getAttendanceData(startDate, endDate);
       colorEl.style.boxShadow = `0 0 12px ${color}`;
     }
 
-    const matchingLogs = rawLogs.filter(log => log.ausencia === label)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const isComplianceSlice = complianceLabelsSet.has(label);
+    const filterField = isComplianceSlice ? 'cumplimiento' : 'ausencia';
+
+    const matchingLogs = rawLogs.filter(log => log[filterField] === label)
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     const contentEl = document.getElementById('detail-content');
     if (contentEl) {
       if (matchingLogs.length === 0) {
-        contentEl.innerHTML = '<div class="text-center py-12 text-base-content/40 font-bold">No hay registros de esta eventualidad en este mes.</div>';
+        contentEl.innerHTML = '<div class="text-center py-12 text-base-content/40 font-bold">No hay registros de esta incidencia en este mes.</div>';
       } else {
         const baseUrl = import.meta.env.BASE_URL || "/";
         const finalBase = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        contentEl.innerHTML = matchingLogs.map(log => {
-          const parts = log.date.split('-');
-          const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-          const initials = log.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-          const hasComment = !!log.detalle;
-          const cardClass = `eventuality-detail-card ${hasComment ? 'cursor-pointer active:scale-[0.99] hover:bg-base-200/40 dark:hover:bg-base-200/80' : ''} flex flex-col p-3.5 bg-base-100 dark:bg-base-200/50 rounded-xl border border-base-300/40 shadow-sm transition-all duration-200`;
-          return `
-            <div class="${cardClass}">
-              <div class="flex items-center justify-between w-full">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center font-black text-xs text-secondary animate-in fade-in zoom-in duration-200 shrink-0">
-                    ${initials}
-                  </div>
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="font-bold text-sm text-base-content truncate">${log.nombre}</span>
-                    ${hasComment ? `
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square text-amber-500/80 animate-pulse shrink-0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    ` : ''}
-                  </div>
-                </div>
-                <a href="${finalBase}supervision/asistencia?date=${log.date}" 
-                   class="text-xs font-bold bg-base-200/80 hover:bg-secondary/15 hover:text-secondary px-3 py-1.5 rounded-lg text-base-content/80 tracking-wider transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0"
-                   title="Ir al control de asistencia de este día">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar shrink-0"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                  ${formattedDate}
-                </a>
-              </div>
-              ${hasComment ? `
-                <span class="comment-text text-sm text-base-content/75 font-medium mt-2">
-                  ${log.detalle}
-                </span>
-              ` : ''}
-            </div>
-          `;
+
+        const groupedByOperator: Record<string, { logs: any[]; dates: string[] }> = {};
+        matchingLogs.forEach(log => {
+          if (!groupedByOperator[log.nombre]) {
+            groupedByOperator[log.nombre] = { logs: [], dates: [] };
+          }
+          groupedByOperator[log.nombre].logs.push(log);
+          groupedByOperator[log.nombre].dates.push(log.date);
+        });
+
+        const sortedOperators = Object.keys(groupedByOperator).sort();
+        contentEl.innerHTML = sortedOperators.map(nombre => {
+          const group = groupedByOperator[nombre];
+          const uniqueDates = [...new Set(group.dates)].sort();
+          const dateGroups = groupConsecutiveDates(uniqueDates);
+          return renderGroupedCard(nombre, dateGroups, group.logs, finalBase, color);
         }).join('');
       }
     }
@@ -432,9 +504,7 @@ const initialData = await getAttendanceData(startDate, endDate);
     const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
     const complied = opLogs.filter(log => log.cumplimiento === "Cumplió").length;
     const lates = opLogs.filter(log => 
-      log.cumplimiento === "Llegada Tarde" || 
-      log.cumplimiento === "Retiro Anticipado" || 
-      log.cumplimiento === "Tarde y Retiro Anticipado"
+      log.cumplimiento === "Llegada Tarde"
     ).length;
     const failed = opLogs.filter(log => log.cumplimiento === "Incumplió").length;
     const absences = opLogs.filter(log => log.ausencia && log.ausencia !== "").length;
@@ -464,7 +534,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         } else {
           const getComplianceRank = (c: string) => {
             if (c === "Incumplió") return 4;
-            if (c === "Llegada Tarde" || c === "Retiro Anticipado" || c === "Tarde y Retiro Anticipado") return 3;
+            if (c === "Llegada Tarde") return 3;
             if (c === "Cumplió") return 2;
             return 1;
           };
@@ -501,7 +571,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         if (log.cumplimiento && log.cumplimiento !== "Sin Registro") {
           if (log.cumplimiento === "Cumplió") {
             colorClass = 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30';
-          } else if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Retiro Anticipado" || log.cumplimiento === "Tarde y Retiro Anticipado") {
+          } else if (log.cumplimiento === "Llegada Tarde") {
             colorClass = 'bg-amber-500/20 text-amber-600 border border-amber-500/30';
           } else if (log.cumplimiento === "Incumplió") {
             colorClass = 'bg-error/15 text-error border border-error/30';
@@ -639,6 +709,11 @@ const initialData = await getAttendanceData(startDate, endDate);
       doughnutChartInstance.data.datasets[0].borderWidth = 1.5;
       doughnutChartInstance.update();
     }
+    const portal = document.getElementById('daisy-tooltip-portal');
+    if (portal) {
+      portal.style.display = 'none';
+      portal.className = '';
+    }
   });
 
   document.getElementById('detail-content')?.addEventListener('click', (event) => {
@@ -661,6 +736,45 @@ const initialData = await getAttendanceData(startDate, endDate);
   }
 
   safeInit();
+
+  // Tooltip Portal Logic to fix clipping inside overflow containers
+  const portal = document.createElement('div');
+  portal.id = 'daisy-tooltip-portal';
+  portal.style.display = 'none';
+  document.body.appendChild(portal);
+
+  document.addEventListener('mouseover', (e) => {
+    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const tipText = target.getAttribute('data-tip');
+      portal.style.display = 'block';
+      portal.style.top = rect.top + 'px';
+      portal.style.left = rect.left + 'px';
+      portal.style.width = rect.width + 'px';
+      portal.style.height = rect.height + 'px';
+      portal.setAttribute('data-tip', tipText || '');
+      
+      // Prevent hiding below browser viewport
+      const spaceAbove = rect.top;
+      const posClass = spaceAbove < 80 ? 'tooltip-bottom' : 'tooltip-top';
+
+      portal.className = `tooltip tooltip-open fixed z-[99999] pointer-events-none ${posClass}`;
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
+    const related = (e.relatedTarget as HTMLElement)?.closest('.js-portal-tooltip');
+    if (target && target !== related) {
+      portal.style.display = 'none';
+      portal.className = '';
+    }
+  });
+
+  document.addEventListener('scroll', () => {
+    portal.style.display = 'none';
+  }, { capture: true });
 </script>
 
 <style is:global>
