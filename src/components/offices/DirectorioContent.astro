@@ -23,12 +23,14 @@ import { provinces, regions, offices } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
+import { can } from "@lib/roleConfig";
 import "leaflet/dist/leaflet.css";
 
 const user = Astro.locals.user;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
+const canViewInvgateStats = user ? can(user.role, "team_leader") : false;
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -369,6 +371,10 @@ const mainTabs = [
               <span class="hidden sm:inline">Registrar oficina</span>
               <span class="sm:hidden">Registrar</span>
             </a>
+          )
+        }
+        {
+          canViewInvgateStats && (
             <button id="sync-invgate-btn" type="button" class="btn btn-neutral btn-soft gap-2">
               <span id="sync-btn-text">Sincronizar ahora</span>
               <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
@@ -379,7 +385,7 @@ const mainTabs = [
     </form>
 
     {
-      isAllowedAdmin && (
+      canViewInvgateStats && (
         <div id="invgate-stats-bar" class="rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
           <div id="stats-cards" class="flex flex-wrap items-center gap-4">
             <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">

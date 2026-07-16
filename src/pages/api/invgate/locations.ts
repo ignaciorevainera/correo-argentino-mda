@@ -7,7 +7,7 @@ export const GET: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
-  if (!can(locals.user.role, "admin")) {
+  if (!can(locals.user.role, "team_leader")) {
     return jsonResponse({ error: "Prohibido" }, 403);
   }
 

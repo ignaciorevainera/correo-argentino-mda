@@ -2,9 +2,11 @@
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { isAllowed } from "@lib/rolesMatrix";
+import { can } from "@lib/roleConfig";
 
 const user = Astro.locals.user;
 const isAllowedAdmin = user ? isAllowed("Administrar Contenido", user.role) : false;
+const canViewInvgateStats = user ? can(user.role, "team_leader") : false;
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
   : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
@@ -59,14 +61,26 @@ const officeDirectoryHeaderGridClass = isAllowedAdmin
             )
           }
           {
-            isAllowedAdmin && (
+            canViewInvgateStats && (
               <div class="h-10 w-36 skeleton rounded-lg shrink-0"></div>
             )
           }
         </div>
       </div>
 
-
+      {
+        canViewInvgateStats && (
+          <div class="rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
+            <div class="flex flex-wrap items-center gap-4">
+              <div class="skeleton h-[72px] w-[160px]"></div>
+              <div class="skeleton h-[72px] w-[160px]"></div>
+              <div class="skeleton h-[72px] w-[160px]"></div>
+              <div class="skeleton h-[72px] w-[160px]"></div>
+              <div class="skeleton h-8 w-[146px] shrink-0 ml-auto"></div>
+            </div>
+          </div>
+        )
+      }
 
       <!-- Table Skeleton (MasterDetailTable layout) -->
       <div class="border border-base-300 rounded-xl overflow-hidden bg-base-100 shadow-sm">
@@ -95,6 +109,7 @@ const officeDirectoryHeaderGridClass = isAllowedAdmin
               </div>
               <!-- Code -->
               <div class="relative inline-flex">
+                <span class="absolute -top-0.5 right-4.5 z-10 size-2 rounded-full bg-neutral"></span>
                 <div class="h-4 w-12 skeleton rounded font-mono"></div>
               </div>
               <!-- Name / Details -->
