@@ -79,6 +79,8 @@ export interface GetTerminalsParams {
   model?: string;
   sortBy?: TerminalSortKey;
   sortOrder?: SortOrder;
+  isMediterranea?: boolean;
+  mediterraneaType?: string;
 }
 
 export async function getTerminals(params: GetTerminalsParams = {}) {
@@ -108,6 +110,21 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     .$dynamic();
 
   const filters = [];
+
+  if (params.isMediterranea === true) {
+    if (params.mediterraneaType === "turnero") {
+      filters.push(like(terminals.hostname, "TMEDI%"));
+    } else if (params.mediterraneaType === "tv") {
+      filters.push(like(terminals.hostname, "TVMEDI%"));
+    } else {
+      filters.push(
+        or(
+          like(terminals.hostname, "TMEDI%"),
+          like(terminals.hostname, "TVMEDI%")
+        )
+      );
+    }
+  }
 
   if (params.search && params.search !== "") {
     const normalizedSearch = normalizeSearchValue(params.search).trim();
@@ -254,6 +271,12 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   if (sortColumn) {
     const orderFn = params.sortOrder === "desc" ? desc : asc;
     queryBuilder = queryBuilder.orderBy(orderFn(sortColumn));
+  } else if (params.isMediterranea === true) {
+    queryBuilder = queryBuilder.orderBy(
+      asc(sql`SUBSTR(${terminals.hostname}, INSTR(${terminals.hostname}, 'MEDI') + 6)`),
+      asc(sql`CASE WHEN ${terminals.hostname} LIKE 'TMEDI%' THEN 0 ELSE 1 END`),
+      asc(terminals.hostname)
+    );
   } else {
     queryBuilder = queryBuilder.orderBy(asc(terminals.hostname));
   }

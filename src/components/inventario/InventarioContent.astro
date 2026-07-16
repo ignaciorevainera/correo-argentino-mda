@@ -25,6 +25,8 @@ import OperatorAvatar from "@components/cubics/OperatorAvatar.astro";
 import { isAllowed } from "@lib/rolesMatrix";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
+import { getResolvedSearchParams } from "@lib/navigation";
+import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
 
 const user = Astro.locals.user;
 const isAllowedAdmin = user
@@ -54,12 +56,14 @@ const osMap = {
 
 const terminalModelsByBrand = await getTerminalModelsByBrand();
 
-const sortBy = (Astro.url.searchParams.get("sortBy") || undefined) as
+const resolvedParams = getResolvedSearchParams(Astro.request, Astro.url);
+const sortBy = (resolvedParams.get("sortBy") || undefined) as
   | TerminalSortKey
   | undefined;
-const sortOrder = (Astro.url.searchParams.get("sortOrder") || undefined) as
+const sortOrder = (resolvedParams.get("sortOrder") || undefined) as
   | SortOrder
   | undefined;
+const activeTab = resolvedParams.get("inventory_tabs") || "terminales";
 
 const {
   data: terminals,
@@ -144,6 +148,11 @@ const inventoryTabs = [
     value: "terminales",
     icon: "boxicons:desktop-filled",
   },
+  {
+    label: "Mediterránea",
+    value: "mediterranea",
+    icon: "boxicons:tv",
+  },
   { label: "Cúbics", value: "cubics", icon: "boxicons:server-filled" },
 ];
 ---
@@ -163,10 +172,10 @@ const inventoryTabs = [
   <div class="w-full">
     <ViewSwitcher
       tabs={inventoryTabs}
-      activeValue="terminales"
+      activeValue={activeTab}
       name="inventory_tabs"
       id="inventory-view-switcher"
-      class="w-full grid grid-cols-2"
+      class="w-full grid grid-cols-3"
       containerClass="w-full"
     />
   </div>
@@ -179,7 +188,10 @@ const inventoryTabs = [
       <!-- Filtros para Terminales -->
       <div
         id="header-right-terminales"
-        class="flex flex-wrap items-center gap-3 w-full transition-opacity duration-300"
+        class:list={[
+          "flex flex-wrap items-center gap-3 w-full transition-opacity duration-300",
+          activeTab === "terminales" ? "flex" : "hidden",
+        ]}
       >
         <div class="form-control grow">
           <select
@@ -305,7 +317,10 @@ const inventoryTabs = [
       <!-- Filtros para Cúbics -->
       <div
         id="header-right-cubics"
-        class="hidden flex-wrap items-center justify-between gap-4 w-full transition-opacity duration-300"
+        class:list={[
+          "flex-wrap items-center justify-between gap-4 w-full transition-opacity duration-300",
+          activeTab === "cubics" ? "flex" : "hidden",
+        ]}
       >
         <div class="flex flex-wrap items-center gap-3">
           <div
@@ -388,13 +403,74 @@ const inventoryTabs = [
           }
         </div>
       </div>
+
+      <div
+        id="header-right-mediterranea"
+        class:list={[
+          "flex-wrap items-center gap-3 w-full transition-opacity duration-300",
+          activeTab === "mediterranea" ? "flex" : "hidden",
+        ]}
+      >
+        <div class="form-control grow">
+          <select
+            id="filter-medi-type"
+            class="select select-bordered w-full font-medium text-base-content/80"
+            aria-label="Filtrar por tipo de Mediterránea"
+          >
+            <option value="all">Tipos (Todos)</option>
+            <option value="turnero">Turneros</option>
+            <option value="tv">TVs</option>
+          </select>
+        </div>
+        <div
+          class="tabs tabs-box"
+          role="radiogroup"
+          aria-label="Estado de conexión Mediterránea"
+        >
+          <input
+            type="radio"
+            name="medi_status"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Todas"
+            checked
+            data-medi-status="all"
+          />
+          <input
+            type="radio"
+            name="medi_status"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Online"
+            data-medi-status="online"
+          />
+          <input
+            type="radio"
+            name="medi_status"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Offline"
+            data-medi-status="offline"
+          />
+        </div>
+        <button
+          id="btn-clear-filters-medi"
+          class="btn btn-outline btn-error font-semibold gap-2"
+          type="button"
+          aria-label="Limpiar todos los filtros de Mediterránea"
+          title="Limpiar todos los filtros"
+        >
+          <Icon name="boxicons:trash" size={16} />
+          Limpiar filtros
+        </button>
+      </div>
     </div>
 
     <!-- Contenedor de Búsqueda (Fila Inferior) -->
     <div class="w-full">
       <div
         id="header-search-terminales"
-        class="w-full transition-opacity duration-300"
+        class:list={[
+          "w-full transition-opacity duration-300",
+          activeTab !== "terminales" && "hidden",
+        ]}
       >
         <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
           <div class="w-full">
@@ -408,7 +484,9 @@ const inventoryTabs = [
             aria-label="Cantidad de resultados"
           >
             <Icon name="boxicons:eye-filled" size={16} />
-            <span id="total-count-badge-terminales">{totalTerminals} resultados</span>
+            <span id="total-count-badge-terminales"
+              >{totalTerminals} resultados</span
+            >
           </div>
           <ExportCsvButton
             id="export-csv-terminales-btn"
@@ -420,17 +498,52 @@ const inventoryTabs = [
 
       <div
         id="header-search-cubics"
-        class="hidden w-full transition-opacity duration-300"
+        class:list={[
+          "w-full transition-opacity duration-300",
+          activeTab !== "cubics" && "hidden",
+        ]}
       >
         <SearchBar
           id="machine-search"
           placeholder="Buscar por hostname, IP o usuario"
         />
       </div>
+
+      <div
+        id="header-search-mediterranea"
+        class:list={[
+          "w-full transition-opacity duration-300",
+          activeTab !== "mediterranea" && "hidden",
+        ]}
+      >
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+          <div class="w-full">
+            <SearchBar
+              id="medi-search"
+              placeholder="Buscar por hostname, IP o sucursal"
+            />
+          </div>
+          <div
+            class="badge badge-neutral badge-lg whitespace-nowrap"
+            aria-label="Cantidad de resultados de Mediterránea"
+          >
+            <Icon name="boxicons:eye-filled" size={16} />
+            <span id="total-count-badge-mediterranea">0 resultados</span>
+          </div>
+          <ExportCsvButton
+            id="export-csv-medi-btn"
+            href={getCleanBase() + "api/export/terminals?isMediterranea=true"}
+            ariaLabel="Exportar Mediterránea a CSV"
+          />
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="view-terminales" class="space-y-6">
+  <div
+    id="view-terminales"
+    class:list={["space-y-6", activeTab !== "terminales" && "hidden"]}
+  >
     {
       terminals.length === 0 ? (
         <div class="card border border-error/20 bg-error/5 text-error-content max-w-2xl mx-auto my-8 shadow-sm">
@@ -521,7 +634,10 @@ const inventoryTabs = [
     }
   </div>
 
-  <div id="view-cubics" class="hidden space-y-6">
+  <div
+    id="view-cubics"
+    class:list={["space-y-6", activeTab !== "cubics" && "hidden"]}
+  >
     <section class="space-y-3">
       <DataTable
         id="table-cubics"
@@ -701,6 +817,69 @@ const inventoryTabs = [
       </DataTable>
     </section>
   </div>
+
+  <div
+    id="view-mediterranea"
+    class:list={["space-y-6", activeTab !== "mediterranea" && "hidden"]}
+  >
+    <section class="space-y-3">
+      <div id="mediterranea-table-wrapper">
+        <DataTable
+          id="table-mediterranea"
+          ariaLabel="Inventario de Mediterránea"
+          minWidthClass="min-w-280"
+          headerGridClass="grid grid-cols-10 gap-4"
+          rowGridClass="grid grid-cols-10 items-start gap-4"
+          serverSideSort={true}
+        >
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell sortKey="hostname">
+              Hostname
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="hardware">
+              Hardware
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="os">
+              Sistema operativo
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell align="right">
+              Último contacto
+            </DataTableHeaderCell>
+          </div>
+          <div id="table-mediterranea-body" class="contents"></div>
+        </DataTable>
+
+        <div
+          id="scroll-sentinel-mediterranea"
+          class:list={[
+            "py-8 text-center flex justify-center",
+            "hidden",
+          ]}
+          data-has-more="false"
+        >
+          <span
+            class="loading loading-spinner loading-md text-primary"
+            id="loading-spinner-mediterranea"></span>
+        </div>
+      </div>
+
+      <SearchEmptyState
+        id="no-results-state-mediterranea"
+        class="hidden"
+        title="No hay coincidencias"
+        description="No hemos podido encontrar terminales de Mediterránea que coincidan con los filtros seleccionados. Probá modificando los criterios o limpiando los filtros."
+        showClearButton={true}
+        clearButtonId="btn-clear-empty-mediterranea"
+        clearButtonText="Limpiar filtros"
+      />
+    </section>
+  </div>
 </PageContainer>
 
 <script>
@@ -712,39 +891,79 @@ const inventoryTabs = [
   const switcher = document.getElementById("inventory-view-switcher");
   const viewTerminales = document.getElementById("view-terminales");
   const viewCubics = document.getElementById("view-cubics");
+  const viewMediterranea = document.getElementById("view-mediterranea");
   const searchTerminales = document.getElementById("header-search-terminales");
   const searchCubics = document.getElementById("header-search-cubics");
+  const searchMediterranea = document.getElementById(
+    "header-search-mediterranea",
+  );
   const rightTerminales = document.getElementById("header-right-terminales");
   const rightCubics = document.getElementById("header-right-cubics");
+  const rightMediterranea = document.getElementById(
+    "header-right-mediterranea",
+  );
 
   const updateTabs = (activeValue: string) => {
     const isTerminales = activeValue === "terminales";
+    const isCubics = activeValue === "cubics";
+    const isMediterranea = activeValue === "mediterranea";
+
     viewTerminales?.classList.toggle("hidden", !isTerminales);
-    viewCubics?.classList.toggle("hidden", isTerminales);
+    viewCubics?.classList.toggle("hidden", !isCubics);
+    viewMediterranea?.classList.toggle("hidden", !isMediterranea);
 
     if (isTerminales) {
       searchTerminales?.classList.remove("hidden");
       searchCubics?.classList.add("hidden");
+      searchMediterranea?.classList.add("hidden");
 
       rightTerminales?.classList.remove("hidden");
       rightTerminales?.classList.add("flex");
 
       rightCubics?.classList.add("hidden");
       rightCubics?.classList.remove("flex");
-    } else {
+
+      rightMediterranea?.classList.add("hidden");
+      rightMediterranea?.classList.remove("flex");
+    } else if (isCubics) {
       searchTerminales?.classList.add("hidden");
       searchCubics?.classList.remove("hidden");
+      searchMediterranea?.classList.add("hidden");
 
       rightTerminales?.classList.add("hidden");
       rightTerminales?.classList.remove("flex");
 
       rightCubics?.classList.remove("hidden");
       rightCubics?.classList.add("flex");
+
+      rightMediterranea?.classList.add("hidden");
+      rightMediterranea?.classList.remove("flex");
+    } else {
+      searchTerminales?.classList.add("hidden");
+      searchCubics?.classList.add("hidden");
+      searchMediterranea?.classList.remove("hidden");
+
+      rightTerminales?.classList.add("hidden");
+      rightTerminales?.classList.remove("flex");
+
+      rightCubics?.classList.add("hidden");
+      rightCubics?.classList.remove("flex");
+
+      rightMediterranea?.classList.remove("hidden");
+      rightMediterranea?.classList.add("flex");
     }
   };
 
   switcher?.addEventListener("view-change", (e: any) => {
     updateTabs(e.detail.value);
+    syncFiltersToURL();
+    if (
+      e.detail.value === "mediterranea" &&
+      mediContainer?.children.length === 0
+    ) {
+      mediCurrentPage = 1;
+      fetchMediterranea(true);
+    }
   });
 
   const terminalSearchInput =
@@ -771,7 +990,9 @@ const inventoryTabs = [
     "loading-spinner-terminales",
   );
   const terminalsContainer = document.getElementById("table-terminales-body");
-  const totalCountBadge = document.getElementById("total-count-badge-terminales");
+  const totalCountBadge = document.getElementById(
+    "total-count-badge-terminales",
+  );
   const exportCsvBtn = document.getElementById("export-csv-terminales-btn");
 
   let currentPage = 1;
@@ -790,6 +1011,29 @@ const inventoryTabs = [
     document.querySelectorAll<HTMLElement>("[data-terminal-row]"),
   );
 
+  const mediSearchInput =
+    document.querySelector<HTMLInputElement>("#medi-search");
+  const mediTypeSelect =
+    document.querySelector<HTMLSelectElement>("#filter-medi-type");
+  const mediStatusRadioInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>("[data-medi-status]"),
+  );
+  const mediSentinel = document.getElementById("scroll-sentinel-mediterranea");
+  const mediSpinner = document.getElementById("loading-spinner-mediterranea");
+  const mediContainer = document.getElementById("table-mediterranea-body");
+  const mediTotalCountBadge = document.getElementById(
+    "total-count-badge-mediterranea",
+  );
+  const mediExportCsvBtn = document.getElementById("export-csv-medi-btn");
+
+  let mediCurrentPage = 1;
+  let mediCurrentSearch = mediSearchInput?.value.trim() || "";
+  let mediCurrentType = mediTypeSelect?.value || "all";
+  let mediCurrentStatus =
+    mediStatusRadioInputs.find((r) => r.checked)?.dataset.mediStatus || "all";
+  let mediHasMore = false;
+  let mediIsLoading = false;
+
   const urlParams = new URLSearchParams(window.location.search);
   let currentSortBy: string | null = urlParams.get("sortBy");
   let currentSortOrder: "asc" | "desc" | null =
@@ -797,23 +1041,65 @@ const inventoryTabs = [
 
   const syncFiltersToURL = () => {
     const params = new URLSearchParams(window.location.search);
-    const filters: Record<string, string> = {
-      search: currentSearch,
-      os: currentOs,
-      osVariant: currentOsVariant,
-      architecture: currentArch,
-      brand: currentBrand,
-      ram: currentRam,
-      model: currentModel,
-      status: currentStatus,
-    };
+    const activeTabRadio = switcher?.querySelector(
+      'input[type="radio"]:checked',
+    ) as HTMLInputElement;
+    const activeTab = activeTabRadio ? activeTabRadio.value : "terminales";
 
-    for (const [key, val] of Object.entries(filters)) {
-      if (val && val !== "all") {
-        params.set(key, val);
-      } else {
-        params.delete(key);
+    params.set("inventory_tabs", activeTab);
+
+    if (activeTab === "terminales") {
+      params.delete("mediterraneaType");
+
+      const filters: Record<string, string> = {
+        search: currentSearch,
+        os: currentOs,
+        osVariant: currentOsVariant,
+        architecture: currentArch,
+        brand: currentBrand,
+        ram: currentRam,
+        model: currentModel,
+        status: currentStatus,
+      };
+
+      for (const [key, val] of Object.entries(filters)) {
+        if (val && val !== "all") {
+          params.set(key, val);
+        } else {
+          params.delete(key);
+        }
       }
+    } else if (activeTab === "mediterranea") {
+      params.delete("os");
+      params.delete("osVariant");
+      params.delete("architecture");
+      params.delete("brand");
+      params.delete("ram");
+      params.delete("model");
+
+      const filters: Record<string, string> = {
+        search: mediCurrentSearch,
+        mediterraneaType: mediCurrentType,
+        status: mediCurrentStatus,
+      };
+
+      for (const [key, val] of Object.entries(filters)) {
+        if (val && val !== "all") {
+          params.set(key, val);
+        } else {
+          params.delete(key);
+        }
+      }
+    } else {
+      params.delete("os");
+      params.delete("osVariant");
+      params.delete("architecture");
+      params.delete("brand");
+      params.delete("ram");
+      params.delete("model");
+      params.delete("mediterraneaType");
+      params.delete("status");
+      params.delete("search");
     }
 
     if (currentSortBy && currentSortOrder) {
@@ -827,11 +1113,22 @@ const inventoryTabs = [
     const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
     window.history.replaceState({}, "", newUrl);
 
+    const baseUrl = import.meta.env.BASE_URL.endsWith("/")
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`;
+
     if (exportCsvBtn) {
-      const baseUrl = import.meta.env.BASE_URL.endsWith("/")
-        ? import.meta.env.BASE_URL
-        : `${import.meta.env.BASE_URL}/`;
       const queryParams = new URLSearchParams();
+      const filters: Record<string, string> = {
+        search: currentSearch,
+        os: currentOs,
+        osVariant: currentOsVariant,
+        architecture: currentArch,
+        brand: currentBrand,
+        ram: currentRam,
+        model: currentModel,
+        status: currentStatus,
+      };
       for (const [key, val] of Object.entries(filters)) {
         if (val && val !== "all") {
           queryParams.set(key, val);
@@ -839,7 +1136,21 @@ const inventoryTabs = [
       }
       exportCsvBtn.setAttribute(
         "href",
-        `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`
+        `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`,
+      );
+    }
+
+    if (mediExportCsvBtn) {
+      const queryParams = new URLSearchParams();
+      queryParams.set("isMediterranea", "true");
+      if (mediCurrentSearch) queryParams.set("search", mediCurrentSearch);
+      if (mediCurrentType && mediCurrentType !== "all")
+        queryParams.set("mediterraneaType", mediCurrentType);
+      if (mediCurrentStatus && mediCurrentStatus !== "all")
+        queryParams.set("status", mediCurrentStatus);
+      mediExportCsvBtn.setAttribute(
+        "href",
+        `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`,
       );
     }
   };
@@ -954,6 +1265,189 @@ const inventoryTabs = [
       { rootMargin: "200px" },
     );
     observer.observe(terminalsSentinel);
+  }
+
+  const fetchMediterranea = async (
+    isNewSearch: boolean,
+    showLoadingUI = true,
+  ) => {
+    if (mediIsLoading) return;
+    mediIsLoading = true;
+    if (showLoadingUI) mediSpinner?.classList.remove("hidden");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("isMediterranea", "true");
+      params.set("page", mediCurrentPage.toString());
+      params.set("limit", "50");
+      if (mediCurrentSearch) params.set("search", mediCurrentSearch);
+      if (mediCurrentType && mediCurrentType !== "all")
+        params.set("mediterraneaType", mediCurrentType);
+      if (mediCurrentStatus && mediCurrentStatus !== "all")
+        params.set("status", mediCurrentStatus);
+      if (currentSortBy) {
+        params.set("sortBy", currentSortBy);
+        if (currentSortOrder) params.set("sortOrder", currentSortOrder);
+      }
+
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(
+        `${baseUrl}/api/terminals?${params.toString()}`,
+      );
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      const totalCount = response.headers.get("X-Total-Count") || "0";
+
+      mediHasMore = newHasMore;
+
+      if (mediTotalCountBadge) {
+        mediTotalCountBadge.textContent = `${totalCount} resultados`;
+      }
+
+      if (mediContainer) {
+        if (isNewSearch) {
+          mediContainer.innerHTML = html;
+        } else {
+          mediContainer.insertAdjacentHTML("beforeend", html);
+        }
+
+        // Post-procesamiento de filas visibles para agrupar por NIS
+        mediContainer
+          .querySelectorAll("[data-medi-group-header]")
+          .forEach((el) => el.remove());
+        const rows = Array.from(
+          mediContainer.querySelectorAll<HTMLElement>("[data-terminal-row]"),
+        );
+
+        let currentNis = "";
+        let currentGroupRows: HTMLElement[] = [];
+        const groups: {
+          nis: string;
+          branch: string;
+          region: string;
+          rows: HTMLElement[];
+        }[] = [];
+
+        const extractNisFromHostname = (hostname: string): string => {
+          const match = hostname.match(/MEDI\d{2}(.+)/i);
+          return match ? match[1] : "";
+        };
+
+        rows.forEach((row) => {
+          const hostname = row.getAttribute("data-hostname") || "";
+          const nis = extractNisFromHostname(hostname);
+          if (nis !== currentNis) {
+            if (currentGroupRows.length > 0) {
+              groups.push({
+                nis: currentNis,
+                branch: currentGroupRows[0].getAttribute("data-branch") || "",
+                region: currentGroupRows[0].getAttribute("data-region") || "",
+                rows: currentGroupRows,
+              });
+            }
+            currentNis = nis;
+            currentGroupRows = [row];
+          } else {
+            currentGroupRows.push(row);
+          }
+        });
+
+        if (currentGroupRows.length > 0) {
+          groups.push({
+            nis: currentNis,
+            branch: currentGroupRows[0].getAttribute("data-branch") || "",
+            region: currentGroupRows[0].getAttribute("data-region") || "",
+            rows: currentGroupRows,
+          });
+        }
+
+        groups.forEach((group) => {
+          const firstRow = group.rows[0];
+          const groupHeader = document.createElement("div");
+          groupHeader.className =
+            "col-span-full bg-base-200 border-b border-base-300 px-4 py-2 flex items-center justify-between";
+          groupHeader.setAttribute("data-medi-group-header", "true");
+
+          const countText =
+            group.rows.length === 1
+              ? "1 equipo"
+              : `${group.rows.length} equipos`;
+          groupHeader.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-sm text-base-content">${group.branch}</span>
+              <div class="badge badge-sm badge-soft font-mono text-xs">${group.nis}</div>
+              ${
+                group.region && group.region !== "--"
+                  ? `
+                <span class="text-xs text-base-content/40">•</span>
+                <span class="text-xs text-base-content/50 font-normal uppercase tracking-wider">${group.region}</span>
+              `
+                  : ""
+              }
+            </div>
+            <span class="badge badge-neutral badge-sm font-medium">${countText}</span>
+          `;
+
+          firstRow.parentNode?.insertBefore(groupHeader, firstRow);
+        });
+      }
+
+      const rowCount =
+        mediContainer?.querySelectorAll("[data-terminal-row]").length ?? 0;
+      const noResultsState = document.getElementById(
+        "no-results-state-mediterranea",
+      );
+      const tableWrapper = document.getElementById(
+        "mediterranea-table-wrapper",
+      );
+
+      if (noResultsState && tableWrapper) {
+        if (rowCount === 0) {
+          noResultsState.classList.remove("hidden");
+          noResultsState.classList.add("flex");
+          tableWrapper.classList.add("hidden");
+        } else {
+          noResultsState.classList.add("hidden");
+          noResultsState.classList.remove("flex");
+          tableWrapper.classList.remove("hidden");
+        }
+      }
+
+      if (mediCurrentSearch && mediContainer) {
+        const newArticles = Array.from(
+          mediContainer.querySelectorAll<HTMLElement>("[data-terminal-row]"),
+        );
+        newArticles.forEach((item) => {
+          highlightSearchTargets(item, mediCurrentSearch);
+        });
+      }
+
+      if (!mediHasMore) {
+        mediSentinel?.classList.add("hidden");
+      } else {
+        mediSentinel?.classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error("Error fetching Mediterránea:", err);
+    } finally {
+      mediIsLoading = false;
+      if (showLoadingUI) mediSpinner?.classList.add("hidden");
+    }
+  };
+
+  if (mediSentinel) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !mediIsLoading && mediHasMore) {
+          mediCurrentPage++;
+          fetchMediterranea(false);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(mediSentinel);
   }
 
   let debounceTimeout: number;
@@ -1233,6 +1727,49 @@ const inventoryTabs = [
   bindSorting("table-cubics", machineRows);
   updateMachineRows();
 
+  let mediDebounceTimeout: number;
+  const triggerMediSearch = () => {
+    clearTimeout(mediDebounceTimeout);
+    mediDebounceTimeout = window.setTimeout(() => {
+      mediCurrentPage = 1;
+      mediCurrentSearch = mediSearchInput?.value.trim() || "";
+      mediCurrentType = mediTypeSelect?.value || "all";
+      mediCurrentStatus =
+        mediStatusRadioInputs.find((r) => r.checked)?.dataset.mediStatus ||
+        "all";
+      fetchMediterranea(true);
+      syncFiltersToURL();
+    }, 300);
+  };
+
+  mediSearchInput?.addEventListener("input", triggerMediSearch);
+  mediTypeSelect?.addEventListener("change", triggerMediSearch);
+  mediStatusRadioInputs.forEach((radio) =>
+    radio.addEventListener("change", triggerMediSearch),
+  );
+
+  const btnClearMedi = document.getElementById("btn-clear-filters-medi");
+  btnClearMedi?.addEventListener("click", () => {
+    if (mediSearchInput) mediSearchInput.value = "";
+    if (mediTypeSelect) mediTypeSelect.value = "all";
+    mediStatusRadioInputs.forEach((radio, idx) => {
+      radio.checked = idx === 0;
+    });
+    mediCurrentPage = 1;
+    mediCurrentSearch = "";
+    mediCurrentType = "all";
+    mediCurrentStatus = "all";
+    fetchMediterranea(true);
+    syncFiltersToURL();
+  });
+
+  const btnClearEmptyMedi = document.getElementById(
+    "btn-clear-empty-mediterranea",
+  );
+  btnClearEmptyMedi?.addEventListener("click", () => {
+    btnClearMedi?.click();
+  });
+
   const terminalTable = document.getElementById("table-terminales");
   terminalTable?.addEventListener("table-sort-change", (e: any) => {
     const { sortKey, direction } = e.detail;
@@ -1248,25 +1785,85 @@ const inventoryTabs = [
     syncFiltersToURL();
   });
 
-  if (currentSortBy && terminalTable) {
-    const dir = currentSortOrder === "desc" ? "descending" : "ascending";
-    terminalTable.dataset.tableSortKey = currentSortBy;
-    terminalTable.dataset.tableSortDirection = dir;
+  const mediterraneaTable = document.getElementById("table-mediterranea");
+  mediterraneaTable?.addEventListener("table-sort-change", (e: any) => {
+    const { sortKey, direction } = e.detail;
+    currentSortBy = direction === "none" ? null : sortKey;
+    currentSortOrder =
+      direction === "ascending"
+        ? "asc"
+        : direction === "descending"
+          ? "desc"
+          : null;
+    mediCurrentPage = 1;
+    fetchMediterranea(true, false);
+    syncFiltersToURL();
+  });
 
-    const control = terminalTable.querySelector(
-      `[data-table-sort-key="${currentSortBy}"]`,
-    );
-    if (control) {
-      control.setAttribute("data-table-sort-direction", dir);
-      control.setAttribute("aria-sort", dir);
-      control
-        .querySelectorAll("[data-table-sort-icon]")
-        .forEach((icon: any) => {
-          const shouldShow = icon.dataset.tableSortIcon === dir;
-          icon.classList.toggle("hidden", !shouldShow);
-          icon.classList.toggle("opacity-0", !shouldShow);
-        });
+  if (currentSortBy) {
+    const dir = currentSortOrder === "desc" ? "descending" : "ascending";
+
+    if (terminalTable) {
+      terminalTable.dataset.tableSortKey = currentSortBy;
+      terminalTable.dataset.tableSortDirection = dir;
+      const control = terminalTable.querySelector(
+        `[data-table-sort-key="${currentSortBy}"]`,
+      );
+      if (control) {
+        control.setAttribute("data-table-sort-direction", dir);
+        control.setAttribute("aria-sort", dir);
+        control
+          .querySelectorAll("[data-table-sort-icon]")
+          .forEach((icon: any) => {
+            const shouldShow = icon.dataset.tableSortIcon === dir;
+            icon.classList.toggle("hidden", !shouldShow);
+            icon.classList.toggle("opacity-0", !shouldShow);
+          });
+      }
     }
+
+    if (mediterraneaTable) {
+      mediterraneaTable.dataset.tableSortKey = currentSortBy;
+      mediterraneaTable.dataset.tableSortDirection = dir;
+      const control = mediterraneaTable.querySelector(
+        `[data-table-sort-key="${currentSortBy}"]`,
+      );
+      if (control) {
+        control.setAttribute("data-table-sort-direction", dir);
+        control.setAttribute("aria-sort", dir);
+        control
+          .querySelectorAll("[data-table-sort-icon]")
+          .forEach((icon: any) => {
+            const shouldShow = icon.dataset.tableSortIcon === dir;
+            icon.classList.toggle("hidden", !shouldShow);
+            icon.classList.toggle("opacity-0", !shouldShow);
+          });
+      }
+    }
+  }
+
+  const initialUrlParams = new URLSearchParams(window.location.search);
+  const initialActiveTab =
+    initialUrlParams.get("inventory_tabs") || "terminales";
+
+  if (initialActiveTab === "mediterranea") {
+    if (mediSearchInput && initialUrlParams.has("search")) {
+      mediSearchInput.value = initialUrlParams.get("search") || "";
+      mediCurrentSearch = mediSearchInput.value.trim();
+    }
+    if (mediTypeSelect && initialUrlParams.has("mediterraneaType")) {
+      mediTypeSelect.value = initialUrlParams.get("mediterraneaType") || "all";
+      mediCurrentType = mediTypeSelect.value;
+    }
+    if (initialUrlParams.has("status")) {
+      const statusVal = initialUrlParams.get("status") || "all";
+      mediStatusRadioInputs.forEach((radio) => {
+        radio.checked = radio.dataset.mediStatus === statusVal;
+      });
+      mediCurrentStatus = statusVal;
+    }
+
+    fetchMediterranea(true);
   }
 </script>
 <script
@@ -1279,3 +1876,12 @@ const inventoryTabs = [
   id="model-brand-data"
   set:html={JSON.stringify(terminalModelsByBrand)}
 />
+
+<style is:global>
+  #table-mediterranea [data-terminal-row] {
+    grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+  }
+  #table-mediterranea [data-terminal-row] > div:nth-child(4) {
+    display: none !important;
+  }
+</style>
