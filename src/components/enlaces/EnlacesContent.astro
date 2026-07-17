@@ -80,11 +80,13 @@ const cleanBase = getCleanBase();
 
   <div
     id="important-links-grid"
-    class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+    class="masonry-grid"
   >
     {
       importantCategories.map((category) => (
-        <CategoryCard category={category} />
+        <div class="grid-item">
+          <CategoryCard category={category} />
+        </div>
       ))
     }
   </div>
@@ -101,15 +103,82 @@ const cleanBase = getCleanBase();
     background-color: rgba(226, 173, 31, 0.3);
     color: inherit;
   }
+
+  .masonry-grid {
+    position: relative;
+  }
+
+  .masonry-grid .grid-item {
+    width: 100%;
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+
+  @media (min-width: 768px) {
+    .masonry-grid .grid-item {
+      width: calc(50% - 4px);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .masonry-grid .grid-item {
+      width: calc(33.333% - 5.333px);
+    }
+  }
 </style>
 
 <script>
   import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+  import Masonry from "masonry-layout";
 
   const searchInput = document.getElementById("important-links-search") as HTMLInputElement | null;
   const linksGrid = document.getElementById("important-links-grid") as HTMLElement | null;
   const emptyState = document.getElementById("important-links-empty") as HTMLElement | null;
   const categoryCards = Array.from(document.querySelectorAll<HTMLElement>("[data-link-category]"));
+
+  const GAP = 8;
+
+  const getColumnWidth = (): number => {
+    if (!linksGrid) return 0;
+    const width = linksGrid.offsetWidth;
+    const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
+    return (width - GAP * (columns - 1)) / columns;
+  };
+
+  let msnry: Masonry | null = null;
+  if (linksGrid) {
+    msnry = new Masonry(linksGrid, {
+      itemSelector: ".grid-item",
+      columnWidth: getColumnWidth(),
+      gutter: GAP,
+      transitionDuration: "0.2s",
+      initLayout: true,
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (!msnry) return;
+      msnry.options.columnWidth = getColumnWidth();
+      msnry.layout();
+    });
+    resizeObserver.observe(linksGrid);
+
+    linksGrid.addEventListener("toggle", (event) => {
+      const target = event.target as HTMLDetailsElement | null;
+      if (!target || target.tagName !== "DETAILS") return;
+
+      if (target.open) {
+        document.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((details) => {
+          if (details !== target) {
+            details.open = false;
+          }
+        });
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => msnry?.layout());
+      });
+    }, true);
+  }
 
   let isFiltered = false;
 
@@ -153,6 +222,8 @@ const cleanBase = getCleanBase();
     linksGrid?.classList.toggle("hidden", visibleLinks === 0);
     emptyState?.classList.toggle("hidden", visibleLinks > 0);
     emptyState?.classList.toggle("flex", visibleLinks === 0);
+
+    requestAnimationFrame(() => msnry?.layout());
   };
 
   searchInput?.addEventListener("input", updateVisibleLinks);
