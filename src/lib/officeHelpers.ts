@@ -75,6 +75,7 @@ export const assetIconByType: Record<OfficeAssetType, BoxiconName> = {
   printer: "boxicons:printer-filled",
   desktop: "boxicons:desktop-filled",
   client: "boxicons:desktop-filled",
+  backup: "boxicons:hard-drive-filled",
 };
 
 export const assetLabelByType: Record<OfficeAssetType, string> = {
@@ -82,6 +83,7 @@ export const assetLabelByType: Record<OfficeAssetType, string> = {
   printer: "Impresora",
   desktop: "Terminal",
   client: "Cliente",
+  backup: "Backup",
 };
 
 export const assetColorByType: Record<OfficeAssetType, string> = {
@@ -93,6 +95,8 @@ export const assetColorByType: Record<OfficeAssetType, string> = {
     "bg-blue-600 text-white border-blue-700/30 shadow-sm shadow-blue-500/20",
   printer:
     "bg-purple-600 text-white border-purple-700/30 shadow-sm shadow-purple-500/20",
+  backup:
+    "bg-sky-500 text-white border-sky-600/30 shadow-sm shadow-sky-400/20",
 };
 
 export const assetOrderByType: Record<OfficeAssetType, number> = {
@@ -100,4 +104,5 @@ export const assetOrderByType: Record<OfficeAssetType, number> = {
   client: 2,
   desktop: 2,
   printer: 3,
+  backup: 4,
 };
