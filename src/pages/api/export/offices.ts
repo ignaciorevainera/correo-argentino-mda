@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { streamQuery } from "@lib/dbRaw";
 import { streamCsv } from "@lib/csv";
+import { can } from "@lib/roleConfig";
 
 const SQL_COLUMNS = [
   "id", "code", "name", "type", "provinceCode", "address", "lat", "lng",
@@ -47,7 +48,15 @@ const SQL = `SELECT ${SQL_COLUMNS.map(toSqlExpr).join(", ")}
 FROM offices
 ORDER BY substr(code, 1, 1) ASC, CAST(substr(code, 2) AS INTEGER) ASC`;
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
+  const user = locals.user;
+  if (!user || !can(user.role, "team_leader")) {
+    return new Response(
+      JSON.stringify({ error: "Acceso denegado. Se requieren permisos de Team Leader o superior para exportar a CSV." }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const csvStream = streamCsv(HEADERS, streamQuery(SQL), KEY_MAP);
     const dateStr = new Date().toISOString().split("T")[0];
