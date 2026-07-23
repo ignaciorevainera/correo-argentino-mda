@@ -1,0 +1,143 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div
+  class="card bg-base-100 border border-base-300 flex flex-row items-center justify-between p-5 md:p-6"
+>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2">
+      <div
+        class="text-xs font-semibold uppercase tracking-wider text-base-content/60 truncate"
+      >
+        Wise CX
+      </div>
+      <button
+        type="button"
+        id="wise-cx-refresh-btn"
+        class="btn btn-ghost btn-circle btn-xs text-base-content/50 hover:text-base-content focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        title="Verificar conexión de Wise CX"
+        aria-label="Verificar conexión de Wise CX"
+      >
+        <Icon
+          name="boxicons:refresh-ccw-filled"
+          size={14}
+          id="wise-cx-refresh-icon"
+        />
+      </button>
+    </div>
+    <div class="text-lg md:text-xl font-bold mt-0.5" id="wise-cx-status">
+      Cargando...
+    </div>
+    <div class="text-xs text-base-content/50 mt-1 truncate" id="wise-cx-desc">
+      Esperando datos...
+    </div>
+    <div class="mt-1">
+      <a
+        href="https://api-docs.wisecx.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs link link-secondary link-hover"
+      >
+        Documentación de la API
+      </a>
+    </div>
+  </div>
+  <div
+    class="bg-base-200/60 text-base-content/40 p-3 rounded-xl shrink-0 ml-4"
+    id="wise-cx-icon-container"
+  >
+    <Icon name="boxicons:chart-network-filled" size={32} />
+  </div>
+</div>
+
+<script>
+  const wiseCxStatusEl = document.getElementById("wise-cx-status");
+  const wiseCxDescEl = document.getElementById("wise-cx-desc");
+  const wiseCxIconContainer = document.getElementById("wise-cx-icon-container");
+  const wiseCxRefreshBtn = document.getElementById("wise-cx-refresh-btn");
+  const wiseCxRefreshIcon = document.getElementById("wise-cx-refresh-icon");
+
+  async function updateWiseCxStatus() {
+    if (!wiseCxStatusEl) return;
+
+    if (wiseCxRefreshIcon) {
+      wiseCxRefreshIcon.classList.add("animate-spin");
+    }
+    if (wiseCxRefreshBtn) {
+      wiseCxRefreshBtn.setAttribute("disabled", "true");
+    }
+
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 15000);
+
+    try {
+      const res = await fetch("/api/admin/wise-cx-status", {
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error("Error en la respuesta de la API");
+
+      const data = await res.json();
+
+      let statusText = "Desconectado";
+      let statusClass = "text-error";
+      let iconContainerClass =
+        "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
+
+      if (data.ok) {
+        statusText = "Conectado";
+        statusClass = "text-success";
+        iconContainerClass =
+          "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
+      }
+
+      wiseCxStatusEl.textContent = statusText;
+      wiseCxStatusEl.className = `text-lg md:text-xl font-bold mt-0.5 ${statusClass}`;
+
+      if (wiseCxDescEl) {
+        const descText = data.message || `HTTP ${data.status}`;
+        wiseCxDescEl.textContent = descText;
+        wiseCxDescEl.title = descText;
+      }
+
+      if (wiseCxIconContainer) {
+        wiseCxIconContainer.className = iconContainerClass;
+      }
+    } catch (err) {
+      console.error("[AdminWiseCxStatusCard] Error al verificar Wise CX:", err);
+      wiseCxStatusEl.textContent = "Error de Conexión";
+      wiseCxStatusEl.className =
+        "text-lg md:text-xl font-bold mt-0.5 text-warning";
+      if (wiseCxIconContainer) {
+        wiseCxIconContainer.className =
+          "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (wiseCxRefreshIcon) {
+        wiseCxRefreshIcon.classList.remove("animate-spin");
+      }
+      if (wiseCxRefreshBtn) {
+        wiseCxRefreshBtn.removeAttribute("disabled");
+      }
+    }
+  }
+
+  function initWiseCxCard() {
+    const btn = document.getElementById("wise-cx-refresh-btn");
+    if (btn) {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        updateWiseCxStatus();
+      };
+    }
+    updateWiseCxStatus();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initWiseCxCard);
+  } else {
+    initWiseCxCard();
+  }
+  document.addEventListener("astro:page-load", initWiseCxCard);
+</script>

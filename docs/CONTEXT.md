@@ -45,12 +45,18 @@ de operaciones logisticas y postales.
 ### Variables de entorno requeridas
 
 ```
-SESSION_SECRET          — 64-char hex para firmar cookies de sesion
-ENCRYPTION_KEY          — 32-char hex para AES-256-GCM de credenciales
-INVGATE_API_KEY         — API key de InvGate Service Management
-INVGATE_BASE_URL        — URL base de InvGate API
-INVGATE_API_USERNAME    — Usuario para autenticacion InvGate
-EXTERNAL_STORAGE_DIR    — Directorio raiz para archivos subidos (apps, iconos, PDFs)
+SESSION_SECRET              — 64-char hex para firmar cookies de sesion
+ENCRYPTION_KEY              — 32-char hex para AES-256-GCM de credenciales
+INVGATE_API_KEY             — API key de InvGate Service Management
+INVGATE_BASE_URL            — URL base de InvGate API
+INVGATE_API_USERNAME        — Usuario para autenticacion InvGate
+INVGATE_QA_API_KEY          — API key de InvGate QA (test environment)
+INVGATE_QA_BASE_URL         — URL base de InvGate QA (servidor separado)
+INVGATE_QA_API_USERNAME     — Usuario para autenticacion InvGate QA
+WISE_CX_API_KEY             — API key de Wise CX
+WISE_CX_BASE_URL            — URL base de Wise CX API
+WISE_CX_API_USER            — Usuario para autenticacion Wise CX
+EXTERNAL_STORAGE_DIR        — Directorio raiz para archivos subidos (apps, iconos, PDFs)
 ```
 
 Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**

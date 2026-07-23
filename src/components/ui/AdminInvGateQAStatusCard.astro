@@ -26,13 +26,13 @@ import { Icon } from "astro-icon/components";
         />
       </button>
     </div>
-    <div
-      class="text-lg md:text-xl font-bold mt-0.5"
-      id="invgate-qa-status"
-    >
+    <div class="text-lg md:text-xl font-bold mt-0.5" id="invgate-qa-status">
       Cargando...
     </div>
-    <div class="text-xs text-base-content/50 mt-1 truncate" id="invgate-qa-desc">
+    <div
+      class="text-xs text-base-content/50 mt-1 truncate"
+      id="invgate-qa-desc"
+    >
       Esperando datos...
     </div>
     <div class="mt-1">
@@ -50,16 +50,20 @@ import { Icon } from "astro-icon/components";
     class="bg-base-200/60 text-base-content/40 p-3 rounded-xl shrink-0 ml-4"
     id="invgate-qa-icon-container"
   >
-    <Icon name="boxicons:flask-filled" size={32} />
+    <Icon name="boxicons:medical-flask-filled" size={32} />
   </div>
 </div>
 
 <script>
   const invgateQaStatusEl = document.getElementById("invgate-qa-status");
   const invgateQaDescEl = document.getElementById("invgate-qa-desc");
-  const invgateQaIconContainer = document.getElementById("invgate-qa-icon-container");
+  const invgateQaIconContainer = document.getElementById(
+    "invgate-qa-icon-container",
+  );
   const invgateQaRefreshBtn = document.getElementById("invgate-qa-refresh-btn");
-  const invgateQaRefreshIcon = document.getElementById("invgate-qa-refresh-icon");
+  const invgateQaRefreshIcon = document.getElementById(
+    "invgate-qa-refresh-icon",
+  );
 
   async function updateInvgateQaStatus() {
     if (!invgateQaStatusEl) return;
@@ -75,19 +79,23 @@ import { Icon } from "astro-icon/components";
     const timeout = setTimeout(() => ac.abort(), 15000);
 
     try {
-      const res = await fetch("/api/admin/invgate-qa-status", { signal: ac.signal });
+      const res = await fetch("/api/admin/invgate-qa-status", {
+        signal: ac.signal,
+      });
       if (!res.ok) throw new Error("Error en la respuesta de la API");
 
       const data = await res.json();
 
       let statusText = "Desconectado";
       let statusClass = "text-error";
-      let iconContainerClass = "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
+      let iconContainerClass =
+        "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
 
       if (data.ok) {
         statusText = "Conectado";
         statusClass = "text-success";
-        iconContainerClass = "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
+        iconContainerClass =
+          "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
       }
 
       invgateQaStatusEl.textContent = statusText;
@@ -103,11 +111,16 @@ import { Icon } from "astro-icon/components";
         invgateQaIconContainer.className = iconContainerClass;
       }
     } catch (err) {
-      console.error("[AdminInvGateQAStatusCard] Error al verificar InvGate QA:", err);
+      console.error(
+        "[AdminInvGateQAStatusCard] Error al verificar InvGate QA:",
+        err,
+      );
       invgateQaStatusEl.textContent = "Error de Conexión";
-      invgateQaStatusEl.className = "text-lg md:text-xl font-bold mt-0.5 text-warning";
+      invgateQaStatusEl.className =
+        "text-lg md:text-xl font-bold mt-0.5 text-warning";
       if (invgateQaIconContainer) {
-        invgateQaIconContainer.className = "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+        invgateQaIconContainer.className =
+          "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
       }
     } finally {
       clearTimeout(timeout);
