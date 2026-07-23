@@ -85,6 +85,8 @@ export const GET: APIRoute = async ({ url }) => {
       }
     }
 
+    combined.sort((a, b) => b.id - a.id);
+
     const results = combined.slice(0, 10).map((article) => ({
       id: article.id,
       title: article.title,
