@@ -6,6 +6,7 @@ function getClient() {
 
 export function streamQuery<T = Record<string, unknown>>(
   sql: string,
+  ...params: any[]
 ): IterableIterator<T> {
-  return getClient().prepare(sql).iterate() as IterableIterator<T>;
+  return getClient().prepare(sql).iterate(...params) as IterableIterator<T>;
 }
