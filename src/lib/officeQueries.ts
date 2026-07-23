@@ -53,6 +53,7 @@ export interface GetOfficesParams {
   paqar?: string;
   hasParent?: boolean;
   isHeadquarter?: boolean;
+  noAddress?: boolean;
   sortBy?: OfficeSortKey;
   sortOrder?: SortOrder;
 }
@@ -210,6 +211,16 @@ export async function getOffices(params: GetOfficesParams) {
   }
   if (params.isHeadquarter === true) {
     whereConditions.push(like(offices.code, "_0000"));
+  }
+
+  // No address filter
+  if (params.noAddress === true) {
+    whereConditions.push(
+      or(
+        sql`${offices.address} IS NULL`,
+        sql`${offices.address} = ''`,
+      ),
+    );
   }
 
   const whereClause =
