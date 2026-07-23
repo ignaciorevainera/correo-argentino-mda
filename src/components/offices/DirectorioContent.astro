@@ -20,7 +20,7 @@ import {
 } from "@lib/officeHelpers";
 import { db } from "@db/index";
 import { provinces, regions, offices } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
 import { can } from "@lib/roleConfig";
@@ -42,6 +42,7 @@ const zoneFilter = searchParams.get("zone") || "all";
 const paqarFilter = searchParams.get("paqar") || "all";
 const hasParentFilter = searchParams.get("hasParent") === "true";
 const isHeadquarterFilter = searchParams.get("isHeadquarter") === "true";
+const noAddressFilter = searchParams.get("noAddress") === "true";
 const searchFilter = searchParams.get("search") || "";
 
 const allProvincesWithRegion = await db
@@ -189,6 +190,17 @@ const uniqueZones = allZonesRaw
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
+const noAddressCount = await db
+  .select({ count: sql<number>`count(*)` })
+  .from(offices)
+  .where(
+    or(
+      sql`${offices.address} IS NULL`,
+      sql`${offices.address} = ''`,
+    ),
+  );
+const hasNoAddressOffices = noAddressCount[0].count > 0;
+
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
   : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
@@ -333,6 +345,14 @@ const mainTabs = [
             <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Solo Cabeceras</span>
             <input type="checkbox" name="isHeadquarter" value="true" class="toggle toggle-sm toggle-primary" checked={isHeadquarterFilter} aria-label="Mostrar solo oficinas cabecera" />
           </label>
+          {
+            isAllowedAdmin && hasNoAddressOffices && (
+              <label class="label cursor-pointer gap-2 p-0">
+                <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Sin domicilio</span>
+                <input type="checkbox" name="noAddress" value="true" class="toggle toggle-sm toggle-primary" checked={noAddressFilter} aria-label="Mostrar solo oficinas sin domicilio registrado" />
+              </label>
+            )
+          }
         </div>
         <button
           type="button"
@@ -710,6 +730,7 @@ const mainTabs = [
   const paqarSelect = document.getElementById("paqarFilter") as HTMLSelectElement | null;
   const hasParentToggle = document.querySelector<HTMLInputElement>('input[name="hasParent"]');
   const isHeadquarterToggle = document.querySelector<HTMLInputElement>('input[name="isHeadquarter"]');
+  const noAddressToggle = document.querySelector<HTMLInputElement>('input[name="noAddress"]');
   const typeHiddenInput = document.getElementById("filter-tabs-hidden-type") as HTMLInputElement | null;
   const typeTabsContainer = document.querySelector(".filter-tabs-box");
 
@@ -745,6 +766,7 @@ const mainTabs = [
   paqarSelect?.addEventListener("change", handleFilterChange);
   hasParentToggle?.addEventListener("change", handleFilterChange);
   isHeadquarterToggle?.addEventListener("change", handleFilterChange);
+  noAddressToggle?.addEventListener("change", handleFilterChange);
 
   // Tab buttons click listeners
   if (typeTabsContainer) {
@@ -1286,6 +1308,7 @@ const mainTabs = [
 
     if (hasParentToggle) hasParentToggle.checked = false;
     if (isHeadquarterToggle) isHeadquarterToggle.checked = false;
+    if (noAddressToggle) noAddressToggle.checked = false;
 
     if (typeHiddenInput) typeHiddenInput.value = "all";
     if (typeTabsContainer) {
