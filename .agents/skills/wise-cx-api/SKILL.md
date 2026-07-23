@@ -6,93 +6,236 @@ description: Use when integrating or querying the Wise CX API for cases, calls, 
 # Wise CX API
 
 ## Overview
-Wise CX API reference for managing case routing, agent presence, calls, and email activities.
+Wise CX API reference for managing case routing, agent presence, calls, and email activities. 75 REST endpoints across 21 resource groups.
 
-## Formato y Autenticación
+## Formato y Autenticacion
 - **Base URL:** `https://api.wcx.cloud`
-- **Límite de peticiones (Rate Limit):** 5000 requests/min, 150000 requests/day.
-- **Autenticación (GET /core/v1/authenticate):**
-  - Requiere parámetro query `user` y cabecera `x-api-key`.
-  - Retorna Token JWT válido por 3600 segundos.
-  - Peticiones posteriores: cabecera `Authorization: Bearer <Token>`.
+- **Rate Limit:** 5000 requests/min, 150000 requests/day.
+- **Autenticacion (GET /core/v1/authenticate):**
+  - Query param `user` (required) + header `x-api-key` (required).
+  - Returns JWT valid for 3600s.
+  - Subsequent requests: header `Authorization: Bearer <Token>`.
+- **x-api-key MUST be sent on ALL requests**, not just /authenticate. Omitting it returns `403 Forbidden`.
 
-### Generación del API Key
-1. Acceder a **Settings** -> **Canales** -> **Api** en Wise CX.
-2. Registrar un nombre de usuario (`user`).
-3. Presionar **Generar** para obtener la `x-api-key`.
+### API Key Generation
+1. Settings -> Canales -> Api in Wise CX dashboard.
+2. Register a username (`user`).
+3. Click "Generar" to get the `x-api-key`.
 
-### Reglas Críticas
-- Enviar cabecera `x-api-key` y `Authorization: Bearer <Token>` en **todas** las peticiones subsiguientes.
-- Si se omite `x-api-key` tras autenticar, la API retornará `403 Forbidden`.
+### Parametros Comunes
+- `fields` — columnas a devolver (comma-separated). Si se omite, solo campos por defecto.
+- `filtering` — filtro avanzado: `[{'field':'col','operator':'EQUAL','value':'x'}]`. Operadores: IN, NOT IN, EQUAL, NOT EQUAL, GREATER, LOWER, GREATER EQUAL, LOWER EQUAL, CONTAINS.
+- `sort` + `sort_field` — ordenamiento (default: asc).
+- `page` + `limit` — paginacion offset-based (max/defecto: 100).
 
-## Endpoints y Parámetros
+---
 
-### 1. Crear Casos (Llamadas / Correos)
-- **POST** `/core/v1/cases`
-- **Parámetros del Body (JSON):**
-  - `source_channel` (string, requerido): `"phone"` para llamadas, `"email"` para correos.
-  - `group_id` (string, requerido): ID de la cola asignada.
-  - `subject` (string, requerido): Asunto del caso.
-  - `activities` (array, opcional): Actividades iniciales asociadas.
+## Endpoint Reference (75 endpoints)
 
-### 2. Login y Asignación de Agentes a Colas
-- **PUT** `/core/v1/users/{id}/queues`
-- **Parámetros del Body (JSON):**
-  - Array de objetos conteniendo:
-    - `id` (string, requerido): ID de la cola.
-    - `auto_assign` (boolean, requerido): `true` para activar enrutamiento automático (estar disponible).
+### 1. Autenticacion
+| Method | Path | Description |
+|--------|------|-------------|
+| **GET** | `/core/v1/authenticate` | Obtener JWT. Query: `user` (required). Header: `x-api-key`. |
 
-### 3. Consultar Estado de Operación
-- **GET** `/core/v1/business_hours/is_open`
-- **Parámetros Query (Opcionales):**
-  - `queue_id` (string): Evalúa si una cola específica está en horario de atención.
+### 2. Casos (Cases)
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/cases` | `group_id`*, `source_channel`* (phone/email), `subject`*, `user_id`, `tags`, `type_id`, `priority`, `due_at`, `custom_fields[]`, `activities[]` |
+| **PUT** | `/core/v1/cases/{{id}}` | Same fields as POST (all optional). Also: `status`, `spam`, `deleted` |
+| **GET** | `/core/v1/cases` | — (ultimos 3 meses) |
+| **GET** | `/core/v1/cases/{{id}}` | — |
+| **DELETE** | `/core/v1/cases/{{id}}` | — |
+| **PUT** | `/core/v1/cases/{{id}}/transfer` | `{"group_id": 1234, "user_id": 5678}` |
+| **PUT** | `/core/v1/cases/{{id}}/status` | `{"status": "solved"}` (open/solved/pending/hold/closed) |
+| **GET** | `/core/v1/cases/{{id}}/activities` | — |
+| **GET** | `/core/v1/cases/{{id}}/activities/{{activity_id}}` | — |
+| **POST** | `/core/v1/cases/{{id}}/summarize` | AI summary. No body. |
 
-## Pruebas de Conexión (Testing / Ping)
+**Fields (cases):** `id, number, group_id, user_id, contact_id, status, source_channel, tags, type_id, subject, priority, due_at, custom_fields, created_at, solved_at, closed_at, last_read, last_update, first_read, sla_result, channel_account, bot_resolved, bot_attended, summary`
 
-### Fase 1: Ping de Autenticación
-Comprobar credenciales con `GET https://api.wcx.cloud/core/v1/authenticate?user=test_user` y el header `x-api-key`.
-- **200 OK:** Credenciales válidas.
-- **403/401:** Credenciales inválidas.
+**Fields (activities):** `id, case_id, type, user_id, channel, content, contact_from, contacts_to, attachments, recordings, created_at, sending_status`
+
+**Filter operators (activities):** `type` -> IN/NOT IN/EQUAL/NOT EQUAL. `created_at, id` -> todos los operadores.
+
+### 3. Casos / Tipos
+| Method | Path |
+|--------|------|
+| **GET** | `/core/v1/cases/types` |
+| **GET** | `/core/v1/types` (same) |
+
+**Fields:** `id, name, parent_id`. Filter: `id, name, parent_id` -> IN, EQUAL.
+
+### 4. Casos / Etiquetas
+| Method | Path |
+|--------|------|
+| **GET** | `/core/v1/cases/tags` |
+
+**Fields:** `id, name`.
+
+### 5. Casos / Custom Fields Options
+| Method | Path | Body |
+|--------|------|------|
+| **GET** | `/core/v1/cases/fields/{{field_name}}/options` | — |
+| **POST** | `/core/v1/cases/fields/{{field_name}}/options` | `{"value": "nuevo_valor"}` |
+| **PUT** | `/core/v1/cases/fields/{{field_name}}/options/{{option_id}}` | `{"value": "nuevo_valor"}` |
+| **DELETE** | `/core/v1/cases/fields/{{field_name}}/options/{{option_id}}` | — |
+
+### 6. Contactos (Contacts)
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/contacts/` | `email`, `personal_id`, `phone` (al menos 1 required). `name`, `guid`, `password`, `organization_id`, `address`, `custom_fields[]` |
+| **PUT** | `/core/v1/contacts/{{id}}` | Same fields (all optional). `organization_id: -1` to unlink. |
+| **GET** | `/core/v1/contacts/` | — |
+| **GET** | `/core/v1/contacts/{{id}}` | — |
+| **DELETE** | `/core/v1/contacts/{{id}}` | — |
+
+**Fields:** `id, email, personal_id, phone, name, guid, password, custom_fields, last_update, organization_id, address, city, channel_data, groups_ids`
+
+**Filter:** `id, email, personal_id, phone, last_update, organization_id` -> IN, EQUAL. `contact.group_id` -> IN, EQUAL. `contact.<custom_field>` -> EQUAL.
+
+### 7. Contactos / Organizaciones
+| Method | Path | Body |
+|--------|------|------|
+| **GET** | `/core/v1/contacts/organizations` | — |
+| **POST** | `/core/v1/contacts/organizations/` | `custom_id`*, `name`*, `phone`, `email`, `address`, `state`, `country`, `executives[]`, `custom_fields[]` |
+| **PUT** | `/core/v1/contacts/organizations/{{id}}` | Same as POST (all optional) |
+| **DELETE** | `/core/v1/contacts/organizations/{{id}}` | — |
+
+**Fields:** `id, custom_id, name, phone, email, web, state, address, executives, custom_fields, assignment_priorities`
+
+**custom_fields:** `field`* (string), `value`* (string).
+
+### 8. Contactos / Grupos
+| Method | Path | Body |
+|--------|------|------|
+| **GET** | `/core/v1/contacts/groups` | — |
+| **POST** | `/core/v1/contacts/groups/` | `{"name": "nombre"}` |
+| **PUT** | `/core/v1/contacts/{{contact_id}}/groups/{{group_id}}` | — |
+| **DELETE** | `/core/v1/contacts/{{contact_id}}/groups/{{group_id}}` | — |
+
+**Fields:** `id, code, name`. Filter: `id, code, name` -> IN, EQUAL.
+
+### 9. Contactos / Importacion Masiva
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/contacts/import` | `group_ids[]`*, `identifier`* (email/personal_id/phone), `action` (add_update/add_only/update_only), `fields_mapping{}` |
+| **POST** | `/core/v1/contacts/import/{{importId}}/add` | Array of `[{email, phone, name, personal_id, metadata{}}]`. Max 50/request, 10k total. |
+| **GET** | `/core/v1/contacts/import/{{importId}}/status` | — |
+
+### 10. Grupos de Atencion (Queues)
+| Method | Path | Body |
+|--------|------|------|
+| **GET** | `/core/v1/queues` | — |
+| **POST** | `/core/v1/queues` | `name`* (max 50 chars), `users[{id, auto_assign}]` |
+| **GET** | `/core/v1/queues/{{id}}` | — |
+| **PUT** | `/core/v1/queues/{{id}}/users` | `[{id*, auto_assign}]`. Response: added/updated/unchanged summary. |
+| **DELETE** | `/core/v1/queues/{{id}}/users/{{user_id}}` | — (204 No Content) |
+| **DELETE** | `/core/v1/queues/{{id}}/users` | `{"ids": [10, 11, 12]}` |
+| **GET** | `/core/v1/business_hours/is_open` | — (optional query: `queue_id`) |
+
+**Fields:** `id, name, businessHours, users`.
+
+### 11. Usuarios
+| Method | Path | Body |
+|--------|------|------|
+| **GET** | `/core/v1/users` | — |
+| **GET** | `/core/v1/users/{{id}}` | — |
+| **POST** | `/core/v1/users` | `user_name`* (email), `nick`, `first_name`, `last_name`, `is_bot` |
+| **PUT** | `/core/v1/users/{{id}}/queues` | `[{id*, auto_assign}]` |
+| **DELETE** | `/core/v1/users/{{id}}/queues` | `{"queues_ids": [159, 6059]}` |
+
+**Fields:** `id, user_name, nick, first_name, last_name, is_bot, created_at, last_login, queues`.
+
+### 12. Canales
+| Method | Path |
+|--------|------|
+| **GET** | `/core/v1/channels` |
+
+**Fields:** `id, name, source`.
+
+### 13. Templates WhatsApp
+| Method | Path |
+|--------|------|
+| **GET** | `/core/v1/whatsapp_templates` |
+
+**Fields:** `template_id, content, name, whatsapp_number, whatsapp_description`.
+
+### 14. Encuestas (Surveys)
+| Method | Path |
+|--------|------|
+| **GET** | `/core/v1/surveys` |
+| **GET** | `/core/v1/surveys/{id}/questions` |
+| **GET** | `/core/v1/surveys/{id}/responses` |
+
+**Filter (responses):** `status` -> IN/NOT IN/EQUAL/NOT EQUAL. `responded_since, responded_until, sent_since, sent_until` -> todos.
+
+### 15. Analytics
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/analytics/export/{{id}}` | `columns` (all/only_visible), `group_by` (d/h/m), `filter{date_from*, date_to*}` |
+| **GET** | `/core/v1/analytics/export/{{export_id}}/status` | Returns: export_id, status, progress, report_url. |
+
+### 16. Orders / Mercado Libre
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/orders` | `ecommerce_store_id`*, `ecommerce_platform`*, `status`*, `ecommerce_order_id`*, `reject_reason`, `total_amount`*, `sales_recovery`, `customer{name*, email*, personal_id, phone}` |
+| **PUT** | `/core/v1/orders/{{id}}` | Same fields (all optional) |
+| **GET** | `/core/v1/orders` | — |
+| **GET** | `/core/v1/meli/orders/{{id}}` | Field `order_data` contains MELI info. |
+
+**Fields:** `id, ecommerce_store_id, ecommerce_platform, ecommerce_order_id, status, reject_reason, total_amount, sales_recovery, customer, created_at, updated_at, order_data`
+
+### 17. Asistentes
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/assistans/node/{Id}/execute` | `{case_id, context: ["key:value", ...]}` |
+| **POST** | `/core/v1/assistans/{assistantID}/{nodeName}/execute` | `{case_id, context: ["key:value", ...]}` |
+
+### 18. NITRO (Campaigns & Transactional)
+| Method | Path | Body |
+|--------|------|------|
+| **POST** | `/core/v1/nitro/campaigns` | `name`*, `type`* (simple/transactional), `description`, `groups_ids`* |
+| **GET** | `/core/v1/nitro/campaigns` | — |
+| **GET** | `/core/v1/nitro/campaigns/{{id}}` | — |
+| **PUT** | `/core/v1/nitro/campaigns/{{id}}` | `name`, `description`, `groups_ids` |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/messages` | `channel`* (whatsapp/email/call), `channel_config`* |
+| **PUT** | `/core/v1/nitro/campaigns/{{id}}/messages/{{mid}}` | `channel_config`* (channel immutable) |
+| **GET** | `/core/v1/nitro/campaigns/{{id}}/messages/{{mid}}/contacts` | — |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/schedule` | `{"scheduled_at": "YYYY-MM-DD HH:MM:SS"}` |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/send` | Sin body |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/activate` | Sin body |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/stop` | Sin body |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/delete` | Sin body |
+| **POST** | `/core/v1/nitro/campaigns/{{id}}/actions/cancel-send` | Sin body |
+| **POST** | `/core/v1/nitro/transactional/{{id}}/send` | `channels[]`*, `contact{}`*, `user_id`, `variables{}`, `metadata{}` |
+| **POST** | `/core/v1/nitro/transactional/send` | Bulk: array of same objects. |
+| **GET** | `/core/v1/nitro/transactional/requests/{{tracking_id}}` | — |
+
+**WhatsApp channel_config:** `template_id`*, `variables[{name, value_from, value_default}]`, `reply_type` (group/user/assistant), `reply_id`.
+
+---
+
+## Pruebas de Conexion (Testing / Ping)
+
+### Fase 1: Ping de Autenticacion
+`GET https://api.wcx.cloud/core/v1/authenticate?user=test_user` con header `x-api-key`.
+- **200 OK:** Credenciales validas.
+- **403 Forbidden:** Credenciales invalidas.
 
 ### Fase 2: Ping de Consumo
-Validar token JWT obtenido consultando `GET https://api.wcx.cloud/core/v1/channels?limit=1`.
-- Debe llevar headers `Authorization` y `x-api-key`.
+`GET https://api.wcx.cloud/core/v1/channels?limit=1` con headers `Authorization: Bearer <token>` y `x-api-key`.
 
-## Arquitectura del Cliente HTTP (WiseCxClient)
+---
 
-```mermaid
-graph TD
-    A[Inicio de Petición API] --> B{"¿Hay token almacenado en caché?"}
-    B -- No / Expirado --> C["Llamar GET /authenticate"]
-    C --> D{"¿Autenticación exitosa?"}
-    D -- Sí --> E["Almacenar Token en caché con expiración de 55 min"]
-    D -- No --> F["Lanzar Error de Credenciales"]
-    B -- Sí, es válido --> G["Agregar Headers: Bearer Token y x-api-key"]
-    E --> G
-    G --> H[Ejecutar petición HTTP original]
-    H --> I{"¿Código de Respuesta?"}
-    I -- 200 OK --> J[Retornar Datos]
-    I -- 403 Forbidden --> K{"¿Es el primer intento?"}
-    K -- Sí --> L[Invalidar token en caché]
-    L --> C
-    K -- No --> M[Retornar error de Permiso / Fin]
-    I -- 429 Too Many Requests --> N[Aplicar Backoff Exponencial / Re-intento]
-    I -- Otros Errores --> O[Mapear y lanzar excepción correspondiente]
-```
+## Error Codes
 
-## Recomendaciones de Optimización y Errores
-- **Caché del Token:** Almacenar token en memoria/Redis con TTL de **55 minutos** (margen de 5m antes del vencimiento).
-- **Mapeo de Errores HTTP:**
-
-| Código HTTP | Causa Probable | Acción Recomendada |
+| Codigo HTTP | Causa Probable | Accion |
 | :--- | :--- | :--- |
-| **400 Bad Request** | Parámetros inválidos o filtros erróneos. | No reintentar. Corregir formato. |
-| **403 Forbidden** | Falta `x-api-key` o token expiró. | Limpiar caché de token, re-autenticar y reintentar una vez. |
-| **429 Too Many Requests**| Superado rate limit (5000/min o 150000/día). | Aplicar **Backoff Exponencial con Jitter**. |
-| **500 / 503 Server Error**| Caída de Wise CX. | Reintentar con retraso prudente (ej. 2s, 4s, 8s). |
-
-> [!IMPORTANT]
-> En caso de dudas sobre endpoints adicionales o cambios en los esquemas, consultar la documentacion oficial en https://api-docs.wisecx.com/ y hacer preguntas pertinentes.
+| **400** | Parametros invalidos | No reintentar. Corregir formato. |
+| **403** | Falta `x-api-key` o token expirado | Limpiar cache de token, re-autenticar, reintentar una vez. |
+| **429** | Rate limit excedido (5000/min o 150000/dia) | Backoff Exponencial con Jitter. |
+| **500/503** | Caida de Wise CX | Reintentar con delay (2s, 4s, 8s). |
+| **501** | Method not implemented | Endpoint o metodo no soportado. |
 
 ---
 
@@ -103,6 +246,7 @@ graph TD
 - Auth JWT con cache en memoria (55 min TTL)
 - Auto-reautenticacion en 403
 - Retorna `InvgateResult<T>` (mismo patron que InvGate)
+- Base URL stripping y AbortController en auth request
 
 **Variables de entorno (`.env`):**
 ```
@@ -118,6 +262,6 @@ WISE_CX_API_USER="<user>"
 **Uso:**
 ```typescript
 import { wiseCxGet } from "@/lib/wise-cx-client";
-const result = await wiseCxGet<MyType>("/core/v1/endpoint");
+const result = await wiseCxGet<MyType>("/core/v1/cases");
 if (result.ok) { /* result.data */ }
 ```
