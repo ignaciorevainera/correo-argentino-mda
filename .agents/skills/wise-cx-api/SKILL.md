@@ -92,4 +92,32 @@ graph TD
 | **500 / 503 Server Error**| Caída de Wise CX. | Reintentar con retraso prudente (ej. 2s, 4s, 8s). |
 
 > [!IMPORTANT]
-> En caso de dudas sobre endpoints adicionales o cambios en los esquemas, consultar la documentación oficial en https://api-docs.wisecx.com/ y hacer preguntas pertinentes.
+> En caso de dudas sobre endpoints adicionales o cambios en los esquemas, consultar la documentacion oficial en https://api-docs.wisecx.com/ y hacer preguntas pertinentes.
+
+---
+
+## Implementacion en el proyecto
+
+**Cliente:** `src/lib/wise-cx-client.ts`
+- Exporta: `wiseCxGet`, `wiseCxPost`, `wiseCxPut`, `wiseCxDelete`
+- Auth JWT con cache en memoria (55 min TTL)
+- Auto-reautenticacion en 403
+- Retorna `InvgateResult<T>` (mismo patron que InvGate)
+
+**Variables de entorno (`.env`):**
+```
+WISE_CX_BASE_URL="https://api.wcx.cloud"
+WISE_CX_API_KEY="<key>"
+WISE_CX_API_USER="<user>"
+```
+
+**Endpoint de estado:** `GET /api/admin/wise-cx-status`
+- Verifica conexion autenticando + consultando `/core/v1/channels?limit=1`
+- Tarjeta en `/admin`: `src/components/ui/AdminWiseCxStatusCard.astro`
+
+**Uso:**
+```typescript
+import { wiseCxGet } from "@/lib/wise-cx-client";
+const result = await wiseCxGet<MyType>("/core/v1/endpoint");
+if (result.ok) { /* result.data */ }
+```
