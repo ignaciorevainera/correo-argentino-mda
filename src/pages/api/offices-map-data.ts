@@ -4,12 +4,7 @@ import { offices, provinces, regions, technologyReferents } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { jsonError } from "@lib/apiResponse";
 
-export const GET: APIRoute = async ({ locals }) => {
-  const user = locals.user;
-  if (!user || user.id === 0) {
-    return jsonError("No autenticado", 401);
-  }
-
+export const GET: APIRoute = async () => {
   try {
     const allOffices = await db
       .select({
