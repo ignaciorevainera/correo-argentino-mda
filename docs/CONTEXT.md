@@ -240,8 +240,8 @@ BaseLayout (flex flex-col min-h-screen)
 | - | --------------------------- | -------------------------------------------------------- |
 | 1 | `/`                         | Dashboard principal con acceso rapido por rol            |
 | 2 | `/titulos`                  | Tipificacion de tickets con copia rapida                 |
-| 3 | `/soportes`                 | Matriz de derivacion por tema y area de soporte          |
-| 4 | `/usuarios`                 | Busqueda de personal y validacion de usuarios            |
+| 3 | `/mesas-de-ayuda`           | Matriz de derivacion por tema y area de soporte          |
+| 4 | `/buscador-usuarios`        | Busqueda de personal y validacion de usuarios            |
 | 5 | `/generador-firmas`         | Creador de firmas institucionales                        |
 | 6 | `/contactos`                | Directorio de numeros y correos utiles                   |
 | 7 | `/recursos`                 | Hub de accesos a recursos externos e internos            |

@@ -485,8 +485,8 @@ Familia de botones de accion para CRUDs, todas con icono y tooltip:
 | --------------------------- | -------------------------------------------------------- |
 | `/`                         | Dashboard principal con acceso rapido por rol            |
 | `/titulos`                  | Tipificacion de tickets con copia rapida                 |
-| `/soportes`                 | Matriz de derivacion por tema y area de soporte          |
-| `/usuarios`                 | Busqueda de personal y validacion de usuarios            |
+| `/mesas-de-ayuda`           | Matriz de derivacion por tema y area de soporte          |
+| `/buscador-usuarios`        | Busqueda de personal y validacion de usuarios            |
 | `/generador-firmas`         | Creador de firmas institucionales                        |
 | `/contactos`                | Directorio de numeros y correos utiles                   |
 | `/recursos`                 | Hub de accesos a recursos externos e internos            |
