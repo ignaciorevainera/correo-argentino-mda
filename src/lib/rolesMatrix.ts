@@ -37,7 +37,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Ver Soportes",
+    feature: "Ver Mesas de Ayuda",
     icon: "boxicons:headphone",
     agent: true,
     referent: true,

@@ -86,8 +86,8 @@ export const navSections: NavSection[] = [
         icon: "boxicons:phone-filled",
       },
       {
-        href: "/soportes",
-        label: "Soportes",
+        href: "/mesas-de-ayuda",
+        label: "Mesas de Ayuda",
         icon: "boxicons:group-alt-filled",
       },
     ],
@@ -97,7 +97,7 @@ export const navSections: NavSection[] = [
     label: "Herramientas",
     items: [
       {
-        href: "/usuarios",
+        href: "/buscador-usuarios",
         label: "Buscador de usuarios",
         icon: "boxicons:user-search-filled",
       },
