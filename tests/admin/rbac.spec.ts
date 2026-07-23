@@ -99,8 +99,8 @@ test.describe('Controles de Acceso (RBAC) - Agente', () => {
     await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
   });
 
-  test('Agente no deberia poder acceder a /soportes/edit', async ({ page }) => {
-    await page.goto('/soportes/edit/99999');
+  test('Agente no deberia poder acceder a /mesas-de-ayuda/edit', async ({ page }) => {
+    await page.goto('/mesas-de-ayuda/edit/99999');
     await expect(page).toHaveURL('http://localhost:4321/');
     await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
   });
@@ -181,8 +181,8 @@ test.describe('Controles de Acceso (RBAC) - Supervisor', () => {
     await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
   });
 
-  test('Supervisor deberia poder acceder a /soportes', async ({ page }) => {
-    await page.goto('/soportes');
+  test('Supervisor deberia poder acceder a /mesas-de-ayuda', async ({ page }) => {
+    await page.goto('/mesas-de-ayuda');
     await expect(page).not.toHaveURL('http://localhost:4321/');
     await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
   });
@@ -234,8 +234,8 @@ test.describe('Controles de Acceso (RBAC) - Team Leader', () => {
     await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
   });
 
-  test('Team Leader no deberia poder acceder a /soportes/edit', async ({ page }) => {
-    await page.goto('/soportes/edit/99999');
+  test('Team Leader no deberia poder acceder a /mesas-de-ayuda/edit', async ({ page }) => {
+    await page.goto('/mesas-de-ayuda/edit/99999');
     await expect(page).toHaveURL('http://localhost:4321/');
     await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
   });
@@ -269,8 +269,8 @@ test.describe('Controles de Acceso (RBAC) - Administrador', () => {
     await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
   });
 
-  test('Administrador deberia poder acceder a /soportes', async ({ page }) => {
-    await page.goto('/soportes');
+  test('Administrador deberia poder acceder a /mesas-de-ayuda', async ({ page }) => {
+    await page.goto('/mesas-de-ayuda');
     await expect(page).not.toHaveURL('http://localhost:4321/');
     await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
   });

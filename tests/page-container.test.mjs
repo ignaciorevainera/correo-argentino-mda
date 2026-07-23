@@ -56,7 +56,7 @@ const migratedRoutes = [
     /<PageContainer(?:\s|>)[\s\S]*width="xl"/,
   ],
   [
-    "src/pages/guia-soportes/index.astro",
+    "src/pages/mesas-de-ayuda/index.astro",
     /<PageContainer(?:\s|>)[\s\S]*width="xl"/,
   ],
 ];
