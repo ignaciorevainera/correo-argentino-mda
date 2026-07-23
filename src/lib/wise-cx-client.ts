@@ -28,30 +28,43 @@ async function getToken(): Promise<string> {
   if (!baseUrl) throw new Error("[Wise CX] WISE_CX_BASE_URL no definida.");
   if (!user) throw new Error("[Wise CX] WISE_CX_API_USER no definida.");
 
-  const url = `${baseUrl}/core/v1/authenticate?user=${encodeURIComponent(user)}`;
+  const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+  const url = `${cleanBaseUrl}/core/v1/authenticate?user=${encodeURIComponent(user)}`;
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { "x-api-key": apiKey },
-  });
+  console.log("[Wise CX] Authenticating at:", url.replace(apiKey, "***"));
 
-  if (!response.ok) {
-    throw new Error(
-      `[Wise CX] Autenticacion fallida: HTTP ${response.status} ${response.statusText}`,
-    );
+  const controller = new AbortController();
+  const authTimeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "(no body)");
+      console.log("[Wise CX] Auth response body:", body);
+      throw new Error(
+        `[Wise CX] Autenticacion fallida: HTTP ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    const token = data.token || data.access_token || data.jwt;
+    if (!token) throw new Error("[Wise CX] Token no encontrado en respuesta de autenticacion.");
+
+    tokenCache = {
+      token,
+      expiresAt: Date.now() + 55 * 60 * 1000,
+    };
+
+    console.log("[Wise CX] Token obtenido, valido hasta:", new Date(tokenCache.expiresAt).toISOString());
+    return token;
+  } finally {
+    clearTimeout(authTimeout);
   }
-
-  const data = await response.json();
-  const token = data.token || data.access_token || data.jwt;
-  if (!token) throw new Error("[Wise CX] Token no encontrado en respuesta de autenticacion.");
-
-  tokenCache = {
-    token,
-    expiresAt: Date.now() + 55 * 60 * 1000,
-  };
-
-  console.log("[Wise CX] Token obtenido, valido hasta:", new Date(tokenCache.expiresAt).toISOString());
-  return token;
 }
 
 function clearToken(): void {
@@ -84,7 +97,8 @@ async function wiseCxRequest<T>(
     return { ok: false, status: 0, message: msg };
   }
 
-  const url = `${baseUrl}${path}`;
+  const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+  const url = `${cleanBaseUrl}${path}`;
   let lastStatus = 0;
 
   const controller = new AbortController();
