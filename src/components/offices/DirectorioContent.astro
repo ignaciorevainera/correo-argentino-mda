@@ -31,6 +31,7 @@ const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
 const canViewInvgateStats = user ? can(user.role, "team_leader") : false;
+const canExport = user ? can(user.role, "team_leader") : false;
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -356,10 +357,15 @@ const mainTabs = [
           <Icon name="boxicons:eye-filled" size={16} />
           <span id="total-count-badge">{totalOffices} resultados</span>
         </div>
-        <ExportCsvButton
-          href={import.meta.env.BASE_URL + "api/export/offices"}
-          ariaLabel="Exportar directorio a CSV"
-        />
+        {
+          canExport && (
+            <ExportCsvButton
+              id="export-csv-btn"
+              href={import.meta.env.BASE_URL + "api/export/offices"}
+              ariaLabel="Exportar directorio a CSV"
+            />
+          )
+        }
         {
           isAllowedAdmin && (
             <a

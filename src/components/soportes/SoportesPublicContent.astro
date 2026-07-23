@@ -15,11 +15,13 @@ import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
+import { can } from "@lib/roleConfig";
 
 const user = Astro.locals.user;
 const isAdminUser = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
+const canExport = user ? can(user.role, "team_leader") : false;
 
 const hdResult =
   await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
@@ -163,13 +165,17 @@ const totalMembers = visibleHelpdesks.reduce(
       <Icon name="boxicons:trash" class="size-4" aria-hidden="true" />
       <span class="hidden lg:inline">Limpiar filtros</span>
     </button>
-    <ExportCsvButton
-      id="export-csv"
-      title="Exportar como CSV"
-      label="CSV"
-      shortLabel="CSV"
-      iconSize={16}
-    />
+    {
+      canExport && (
+        <ExportCsvButton
+          id="export-csv"
+          title="Exportar como CSV"
+          label="CSV"
+          shortLabel="CSV"
+          iconSize={16}
+        />
+      )
+    }
   </div>
 
   <div
