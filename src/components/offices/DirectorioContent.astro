@@ -191,16 +191,19 @@ const uniqueZones = allZonesRaw
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
-const noAddressCount = await db
-  .select({ count: sql<number>`count(*)` })
-  .from(offices)
-  .where(
-    or(
-      sql`${offices.address} IS NULL`,
-      sql`${offices.address} = ''`,
-    ),
-  );
-const hasNoAddressOffices = noAddressCount[0].count > 0;
+let hasNoAddressOffices = false;
+if (isAllowedAdmin) {
+  const noAddressCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(offices)
+    .where(
+      or(
+        sql`${offices.address} IS NULL`,
+        sql`${offices.address} = ''`,
+      ),
+    );
+  hasNoAddressOffices = noAddressCount[0].count > 0;
+}
 
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
