@@ -528,8 +528,14 @@ export async function renderGroupsView(): Promise<void> {
     }
     if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
     if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
+    
+    const disabledGroupsList = (config.disabledGroups || "").split(",").map((g: string) => g.trim()).filter(Boolean);
+    ['A', 'B', 'C', 'D'].forEach(g => {
+      const toggle = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+      if (toggle) toggle.checked = !disabledGroupsList.includes(g);
+    });
 
-    setActiveRotationConfig({ startDate: config.startDate, startGroup: config.startGroup, rotationOrder: config.rotationOrder });
+    setActiveRotationConfig({ startDate: config.startDate, startGroup: config.startGroup, rotationOrder: config.rotationOrder, disabledGroups: config.disabledGroups || "" });
     ['A', 'B', 'C', 'D'].forEach(group => {
       const dateEl = document.getElementById(`group-${group}-next-date`);
       if (dateEl) {
@@ -1641,6 +1647,13 @@ function setupEventListeners(): void {
     const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
     const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
     const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
+    
+    const disabledGroups = ['A', 'B', 'C', 'D']
+      .filter(g => {
+        const t = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+        return t && !t.checked;
+      })
+      .join(',');
 
     const dateObj = new Date(startDate + "T12:00:00");
     if (dateObj.getDay() !== 6) {
@@ -1662,10 +1675,10 @@ function setupEventListeners(): void {
       const res = await fetch('/api/cronograma/rotation-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, startDate, startGroup, rotationOrder })
+        body: JSON.stringify({ month, startDate, startGroup, rotationOrder, disabledGroups })
       });
       if (!res.ok) throw new Error("Error al guardar la configuración");
-      setActiveRotationConfig({ startDate, startGroup, rotationOrder });
+      setActiveRotationConfig({ startDate, startGroup, rotationOrder, disabledGroups });
       
       await reloadDataForActiveMonth(month);
       renderGroupsView();
@@ -1679,6 +1692,36 @@ function setupEventListeners(): void {
         saveBtn.innerHTML = originalText;
       }
     }
+  });
+
+  document.querySelectorAll('[data-group-toggle]').forEach(el => {
+    el.addEventListener('change', async () => {
+      const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement)?.value || '';
+      const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement)?.value || '';
+      const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement)?.value || '';
+      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+      const month = dateInput?.value?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+
+      const disabledGroups = ['A', 'B', 'C', 'D']
+        .filter(g => {
+          const t = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+          return t && !t.checked;
+        })
+        .join(',');
+
+      try {
+        const res = await fetch('/api/cronograma/rotation-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month, startDate, startGroup, rotationOrder, disabledGroups })
+        });
+        if (!res.ok) throw new Error();
+        setActiveRotationConfig({ startDate, startGroup, rotationOrder, disabledGroups });
+        await reloadDataForActiveMonth(month);
+      } catch {
+        showToast('Error al cambiar estado del grupo', 'error');
+      }
+    });
   });
 
   ['A', 'B', 'C', 'D'].forEach(g => {

@@ -161,6 +161,7 @@ export async function getAttendanceData(startDate: string, endDate: string) {
         rotationOrder: "A,B,C,D",
         startDate: "2026-06-06",
         startGroup: "A",
+        disabledGroups: "",
       };
       config = {
         id: baseConfig.id,
@@ -168,6 +169,7 @@ export async function getAttendanceData(startDate: string, endDate: string) {
         rotationOrder: baseConfig.rotationOrder,
         startDate: baseConfig.startDate,
         startGroup: baseConfig.startGroup,
+        disabledGroups: baseConfig.disabledGroups || "",
       };
     }
     rotationConfigsByMonth[m] = config;

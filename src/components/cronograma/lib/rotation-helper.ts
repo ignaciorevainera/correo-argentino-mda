@@ -4,7 +4,7 @@ import { escapeHtml } from '@lib/sanitize';
 import { getDaysInMonth, timeToMinutes } from './utils';
 import { showToast } from './notifications';
 
-export let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string } | null = null;
+export let activeRotationConfig: { startDate: string; startGroup: string; rotationOrder: string; disabledGroups?: string } | null = null;
 export function setActiveRotationConfig(val: typeof activeRotationConfig) {
   activeRotationConfig = val;
 }
@@ -35,9 +35,9 @@ export function isHourCoveredBySchedule(scheduleStr: string, hourStart: number):
   return startMin <= slotStartMin && endMin >= slotEndMin;
 }
 
-export function getActiveGroupForDate(dateStr: string): string | null {
+export function getActiveGroupForDate(dateStr: string, ignoreDisabled?: boolean): string | null {
   if (!activeRotationConfig) return null;
-  const { startDate, startGroup, rotationOrder } = activeRotationConfig;
+  const { startDate, startGroup, rotationOrder, disabledGroups } = activeRotationConfig;
   if (!startDate || !startGroup || !rotationOrder) return null;
 
   const dateObj = new Date(dateStr + "T12:00:00");
@@ -54,7 +54,13 @@ export function getActiveGroupForDate(dateStr: string): string | null {
   const startIndex = groups.indexOf(startGroup);
   const idx = startIndex >= 0 ? startIndex : 0;
   const activeIndex = ((idx + weeksDiff) % N + N) % N;
-  return groups[activeIndex];
+  const activeGroup = groups[activeIndex];
+
+  if (!ignoreDisabled) {
+    const disabledList = (disabledGroups || "").split(",").map((g) => g.trim()).filter(Boolean);
+    if (disabledList.includes(activeGroup)) return null;
+  }
+  return activeGroup;
 }
 
 export function getNextSaturdayForGroup(targetGroup: string): string | null {
@@ -81,7 +87,7 @@ export function getNextSaturdayForGroup(targetGroup: string): string | null {
       const mStr = String(date.getMonth() + 1).padStart(2, '0');
       const dStr = String(date.getDate()).padStart(2, '0');
       const satStr = `${y}-${mStr}-${dStr}`;
-      if (getActiveGroupForDate(satStr) === targetGroup) {
+      if (getActiveGroupForDate(satStr, true) === targetGroup) {
         return satStr;
       }
     }

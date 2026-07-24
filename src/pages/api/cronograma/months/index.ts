@@ -76,6 +76,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           rotationOrder: prevRotationConfig.rotationOrder,
           startDate: prevRotationConfig.startDate,
           startGroup: prevRotationConfig.startGroup,
+          disabledGroups: "",
         };
       }
     }
