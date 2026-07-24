@@ -47,6 +47,7 @@ export const GET: APIRoute = async ({ url }) => {
         rotationOrder: "A,B,C,D",
         startDate: "2026-06-06",
         startGroup: "A",
+        disabledGroups: "",
       };
 
       // Devolver configuración en memoria sin persistirla en GET (Side-effect free GET)
@@ -56,6 +57,7 @@ export const GET: APIRoute = async ({ url }) => {
         rotationOrder: baseConfig.rotationOrder,
         startDate: baseConfig.startDate,
         startGroup: baseConfig.startGroup,
+        disabledGroups: baseConfig.disabledGroups || "",
       };
     }
 
@@ -188,19 +190,22 @@ export const GET: APIRoute = async ({ url }) => {
         // Cálculo dinámico de sábados de rotación
         const isSaturday = dateObj.getDay() === 6;
         if (isSaturday && operator.saturdayGroup) {
-          const start = new Date(rotationConfig.startDate + "T12:00:00");
-          const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-          const weeksDiff = Math.floor(diffDays / 7);
-          const groups = rotationConfig.rotationOrder.split(",").map((g) => g.trim());
-          const N = groups.length;
-          const startIndex = groups.indexOf(rotationConfig.startGroup);
-          const idx = startIndex >= 0 ? startIndex : 0;
-          const activeIndex = ((idx + weeksDiff) % N + N) % N;
-          const activeGroup = groups[activeIndex];
+          const disabledList = (rotationConfig.disabledGroups || "").split(",").map((g: string) => g.trim()).filter(Boolean);
+          if (!disabledList.includes(operator.saturdayGroup)) {
+            const start = new Date(rotationConfig.startDate + "T12:00:00");
+            const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const weeksDiff = Math.floor(diffDays / 7);
+            const groups = rotationConfig.rotationOrder.split(",").map((g) => g.trim());
+            const N = groups.length;
+            const startIndex = groups.indexOf(rotationConfig.startGroup);
+            const idx = startIndex >= 0 ? startIndex : 0;
+            const activeIndex = ((idx + weeksDiff) % N + N) % N;
+            const activeGroup = groups[activeIndex];
 
-          if (operator.saturdayGroup === activeGroup && !overrides[s.date]) {
-            status = "Home Office";
-            horario = operator.saturdayHorario || "07:00 - 13:00";
+            if (operator.saturdayGroup === activeGroup && !overrides[s.date]) {
+              status = "Home Office";
+              horario = operator.saturdayHorario || "07:00 - 13:00";
+            }
           }
         }
 

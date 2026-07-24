@@ -699,6 +699,7 @@ export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
   rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
   startDate: text("start_date").notNull().default("2026-06-06"),
   startGroup: text("start_group").notNull().default("A"),
+  disabledGroups: text("disabled_groups").notNull().default(""),
 });
 
 export const agentSaturdayGroups = sqliteTable("agent_saturday_groups", {

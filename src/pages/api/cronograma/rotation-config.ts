@@ -42,6 +42,7 @@ export const GET: APIRoute = async ({ url }) => {
         rotationOrder: "A,B,C,D",
         startDate: "2026-06-06",
         startGroup: "A",
+        disabledGroups: "",
       };
 
       // Devolver configuración en memoria sin persistirla
@@ -51,6 +52,7 @@ export const GET: APIRoute = async ({ url }) => {
         rotationOrder: baseConfig.rotationOrder,
         startDate: baseConfig.startDate,
         startGroup: baseConfig.startGroup,
+        disabledGroups: baseConfig.disabledGroups || "",
       };
     }
 
@@ -73,7 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonResponse({ error: "Malformed JSON body" }, 400);
     }
 
-    const { month, rotationOrder, startDate, startGroup } = body;
+    const { month, rotationOrder, startDate, startGroup, disabledGroups } = body;
     
     if (
       typeof startDate !== "string" ||
@@ -82,6 +84,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     ) {
       return jsonResponse({ error: "Required fields (startDate, startGroup, rotationOrder) must be strings" }, 400);
     }
+
+    const disabledGroupsStr = typeof disabledGroups === "string" ? disabledGroups : "";
 
     const targetMonth = (typeof month === "string" && month)
       ? month
@@ -107,7 +111,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (existing) {
       await db
         .update(saturdayRotationConfig)
-        .set({ rotationOrder, startDate, startGroup })
+        .set({ rotationOrder, startDate, startGroup, disabledGroups: disabledGroupsStr })
         .where(eq(saturdayRotationConfig.id, existing.id));
     } else {
       await db
@@ -117,6 +121,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           rotationOrder,
           startDate,
           startGroup,
+          disabledGroups: disabledGroupsStr,
         });
     }
 

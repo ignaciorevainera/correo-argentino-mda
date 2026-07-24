@@ -288,7 +288,7 @@ const { userRole = "agent" } = Astro.props;
         <div
           class="bg-base-100 rounded-2xl border border-base-300 shadow-md h-full flex flex-col overflow-hidden"
         >
-          <div class="relative z-60 bg-base-200 border-b border-base-300">
+          <div class="relative z-60 bg-base-200 border-b border-base-300 shrink-0">
             <div
               class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6"
             >
@@ -372,7 +372,7 @@ const { userRole = "agent" } = Astro.props;
             </div>
           </div>
           <div
-            class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 no-print"
+            class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 no-print shrink-0"
           >
             <div class="flex flex-wrap items-center gap-4">
               <!-- Status Filters Container -->
@@ -404,7 +404,7 @@ const { userRole = "agent" } = Astro.props;
               />
             </div>
             <div
-              class="flex flex-wrap gap-2 justify-start xl:justify-end shrink-0"
+              class="flex flex-wrap gap-2 justify-start lg:justify-end shrink-0"
             >
               <div class="relative">
                 <input
@@ -708,7 +708,7 @@ const { userRole = "agent" } = Astro.props;
               Horas Extras – Fin de Semana
             </h2>
             <p class="text-small text-base-content/50">
-              Sábado 13:00 hs hasta el fin del Domingo
+              Sábado y Domingo — 24 hs
             </p>
           </div>
         </div>
@@ -833,7 +833,7 @@ const { userRole = "agent" } = Astro.props;
             <div class="flex flex-col gap-1.5">
               <label class="label-xxs text-base-content/40">Día</label>
               <select id="overtime-shift-day" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
-                <option value="saturday">Sábado (tarde)</option>
+                <option value="saturday">Sábado</option>
                 <option value="sunday">Domingo</option>
               </select>
             </div>
@@ -1308,6 +1308,44 @@ const { userRole = "agent" } = Astro.props;
 
   #cronograma-container {
     padding-bottom: 2rem !important;
+  }
+
+  .overtime-custom-tooltip {
+    position: fixed;
+    z-index: 9999;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 6px;
+    background: var(--color-neutral);
+    color: var(--color-neutral-content);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  /* Flecha abajo (tooltip arriba de la barra) */
+  .overtime-custom-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--color-neutral);
+  }
+
+  /* Flecha arriba (tooltip abajo de la barra - near top) */
+  .overtime-custom-tooltip.tooltip-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--color-neutral);
+  }
+
+  /* Barra seleccionada: anillo secondary */
+  .overtime-timeline-bar.selected > div {
+    box-shadow: 0 0 0 2px var(--color-secondary), 0 0 0 4px color-mix(in srgb, var(--color-secondary) 25%, transparent);
   }
 
   #date-picker-container {

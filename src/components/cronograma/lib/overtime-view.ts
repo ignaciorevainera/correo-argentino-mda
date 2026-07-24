@@ -130,32 +130,31 @@ export function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvert
   if (!hoursContainer || !bodyContainer) return;
   if (placeholder) placeholder.classList.add('hidden');
 
-  // Timeline: Sat 13:00 → Sun 23:59 = 35h = 2100 min
-  const TIMELINE_START_MIN = 13 * 60;
-  const TOTAL_MINUTES = 11 * 60 + 24 * 60;
+  // Timeline: Sat 00:00 → Sun 23:59 = 48h = 2880 min
+  const TIMELINE_START_MIN = 0;
+  const TOTAL_MINUTES = 24 * 60 + 24 * 60;
 
-  const hours: string[] = [];
-  for (let h = 13; h < 24; h++) hours.push(`${String(h).padStart(2, '0')}:00`);
-  for (let h = 0; h < 24; h++) hours.push(`${String(h).padStart(2, '0')}:00`);
+  const hours: { label: string; isMidnight: boolean }[] = [];
+  for (let h = 0; h < 24; h += 2) hours.push({ label: `${String(h).padStart(2, '0')}:00`, isMidnight: false });
+  for (let h = 0; h < 24; h += 2) hours.push({ label: `${String(h).padStart(2, '0')}:00`, isMidnight: h === 0 });
 
   const sundayDateObj = new Date(weekendDate + 'T12:00:00');
   sundayDateObj.setDate(sundayDateObj.getDate() + 1);
   const sundayDate = `${sundayDateObj.getFullYear()}-${String(sundayDateObj.getMonth()+1).padStart(2,'0')}-${String(sundayDateObj.getDate()).padStart(2,'0')}`;
 
-  const satWidthPct = (11 * 60 / TOTAL_MINUTES) * 100;
+  const satWidthPct = (24 * 60 / TOTAL_MINUTES) * 100;
   const sunWidthPct = 100 - satWidthPct;
 
   hoursContainer.innerHTML = `
     <div class="flex flex-col flex-1">
       <div class="flex border-b border-base-300/60">
-        <div style="width: ${satWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 border-r border-base-300/50 py-1 px-2 bg-warning/5">Sábado (tarde)</div>
+        <div style="width: ${satWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 border-r border-base-300/50 py-1 px-2 bg-warning/5">Sábado</div>
         <div style="width: ${sunWidthPct.toFixed(2)}%" class="text-micro font-black uppercase tracking-wider text-info py-1 px-2 bg-info/5">Domingo</div>
       </div>
       <div class="flex">
-        ${hours.map((h, i) => {
-          const wp = (60 / TOTAL_MINUTES) * 100;
-          const isMidnight = h === '00:00' && i > 0;
-          return `<div style="width:${wp.toFixed(2)}%" class="text-micro font-bold text-base-content/40 border-r border-base-300/30 py-1 px-1 shrink-0 ${isMidnight ? 'bg-info/5 text-info/60 font-black border-info/30' : ''}">${h}</div>`;
+        ${hours.map((h) => {
+          const wp = (120 / TOTAL_MINUTES) * 100;
+          return `<div style="width:${wp.toFixed(2)}%" class="text-micro font-bold text-base-content/40 border-r border-base-300/[0.12] py-1 px-1 shrink-0 ${h.isMidnight ? 'bg-info/5 text-info/60 font-black border-info/30' : ''}">${h.label}</div>`;
         }).join('')}
       </div>
     </div>
@@ -164,7 +163,7 @@ export function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvert
   const toMinSinceStart = (dateStr: string, timeStr: string): number => {
     const [h, m] = timeStr.split(':').map(Number);
     const mins = h * 60 + m;
-    return dateStr === weekendDate ? mins - TIMELINE_START_MIN : 11 * 60 + mins;
+    return dateStr === weekendDate ? mins : 24 * 60 + mins;
   };
 
   const getShiftStartAndEnd = (s: WeekendOvertimeShift) => {
@@ -177,7 +176,7 @@ export function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvert
       } else {
         // Ends on Monday (next day after Sunday)
         const [eh, em] = s.endTime.split(':').map(Number);
-        endMin = 11 * 60 + 24 * 60 + (eh * 60 + em);
+        endMin = 24 * 60 + 24 * 60 + (eh * 60 + em);
       }
     }
     return { startMin, endMin };
@@ -219,11 +218,12 @@ export function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvert
       const cappedEndMin = Math.min(endMin, TOTAL_MINUTES);
       const lp = (startMin / TOTAL_MINUTES) * 100;
       const wp = ((cappedEndMin - startMin) / TOTAL_MINUTES) * 100;
-      return `<div class="absolute top-1 bottom-1 rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden cursor-pointer hover:bg-warning/95 overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" title="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><span class="text-xxs font-black text-warning-content truncate px-1">${s.startTime}-${s.endTime}</span></div>`;
+      const dur = calcDuration(s.startTime, s.endTime);
+      return `<div class="absolute top-[3px] bottom-[3px] overflow-visible cursor-pointer overtime-timeline-bar" style="left:${lp.toFixed(2)}%;width:${wp.toFixed(2)}%;min-width:4px;" data-tip="${escapeHtml(op.nombre)}: ${s.startTime}-${s.endTime}" data-shift-id="${s.id}" data-agent-id="${s.agentId}" data-date="${s.date}" data-start="${s.startTime}" data-end="${s.endTime}"><div class="w-full h-full rounded bg-warning/80 border border-warning flex items-center justify-center overflow-hidden hover:bg-warning/95"><span class="text-xxs font-black text-warning-content truncate px-1">${dur}h</span></div></div>`;
     }).join('');
     return `
-      <div class="flex items-stretch min-h-[40px] border-b border-base-300/30 last:border-0">
-        <div class="w-36 shrink-0 px-3 py-2 border-r border-base-300/40 flex items-center gap-2">
+      <div class="flex items-stretch min-h-[32px] border-b border-base-300/[0.12] last:border-0">
+        <div class="w-36 shrink-0 px-2 py-1 border-r border-base-300/40 flex items-center gap-2">
           <div class="w-6 h-6 rounded-full bg-base-300/50 flex items-center justify-center text-tiny font-black shrink-0">${initials}</div>
           <span class="truncate text-xxs font-bold text-base-content">${escapeHtml(op.nombre)}</span>
         </div>
@@ -234,7 +234,48 @@ export function renderOvertimeTimeline(weekendDate: string, shifts: WeekendOvert
   }).join('');
 
   bodyContainer.querySelectorAll('.overtime-timeline-bar').forEach(bar => {
+    bar.addEventListener('mouseenter', (e) => {
+      document.getElementById('overtime-custom-tooltip')?.remove();
+      const target = e.currentTarget as HTMLElement;
+      const tipText = target.dataset.tip;
+      if (!tipText) return;
+
+      const rect = target.getBoundingClientRect();
+      const tip = document.createElement('div');
+      tip.id = 'overtime-custom-tooltip';
+      tip.className = 'overtime-custom-tooltip';
+      tip.textContent = tipText;
+      document.body.appendChild(tip);
+
+      const tipRect = tip.getBoundingClientRect();
+      let top = rect.top - tipRect.height - 8;
+      let isBelow = false;
+
+      if (top < 8) {
+        top = rect.bottom + 8;
+        isBelow = true;
+        tip.classList.add('tooltip-below');
+      }
+
+      let left = rect.left + rect.width / 2;
+      const halfWidth = tipRect.width / 2;
+      if (left - halfWidth < 8) left = halfWidth + 8;
+      if (left + halfWidth > window.innerWidth - 8) left = window.innerWidth - halfWidth - 8;
+
+      tip.style.top = `${top}px`;
+      tip.style.left = `${left}px`;
+      tip.style.transform = 'translateX(-50%)';
+    });
+
+    bar.addEventListener('mouseleave', () => {
+      document.getElementById('overtime-custom-tooltip')?.remove();
+    });
+
     bar.addEventListener('click', (e) => {
+      document.getElementById('overtime-custom-tooltip')?.remove();
+      document.querySelectorAll('.overtime-timeline-bar.selected')
+        .forEach(b => b.classList.remove('selected'));
+      (e.currentTarget as HTMLElement).classList.add('selected');
       const dataset = (e.currentTarget as HTMLElement).dataset;
       loadShiftIntoForm({
         id: Number(dataset.shiftId),
@@ -390,6 +431,10 @@ export function setupOvertimeEventListeners(): void {
     }
   });
 
+  const removeTip = () => document.getElementById('overtime-custom-tooltip')?.remove();
+  window.addEventListener('scroll', removeTip, { passive: true });
+  window.addEventListener('resize', removeTip, { passive: true });
+
   const overtimeShiftForm = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
   if (overtimeShiftForm) {
     overtimeShiftForm.addEventListener('submit', async (e) => {
@@ -414,11 +459,6 @@ export function setupOvertimeEventListeners(): void {
       const sundayDate = `${sundayDateObj.getFullYear()}-${String(sundayDateObj.getMonth()+1).padStart(2,'0')}-${String(sundayDateObj.getDate()).padStart(2,'0')}`;
       const shiftDate = dayVal === 'saturday' ? state.overtimeSelectedWeekend : sundayDate;
 
-      if (dayVal === 'saturday' && startTime < '13:00') {
-        showToast('Los turnos del sábado deben iniciar desde las 13:00 hs', 'error');
-        return;
-      }
-
       const submitBtn = document.getElementById('overtime-shift-submit-btn') as HTMLButtonElement | null;
       const origHtml = submitBtn?.innerHTML || '';
       if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...'; }
@@ -441,6 +481,7 @@ export function setupOvertimeEventListeners(): void {
         if (!res.ok) throw new Error('Error al guardar turno');
 
         showToast(editId ? 'Turno actualizado' : 'Turno agregado', 'success');
+        document.querySelectorAll('.overtime-timeline-bar.selected').forEach(b => b.classList.remove('selected'));
         overtimeShiftForm.reset();
         (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
         document.getElementById('overtime-shift-cancel-btn')?.classList.add('hidden');
@@ -455,6 +496,7 @@ export function setupOvertimeEventListeners(): void {
   }
 
   document.getElementById('overtime-shift-cancel-btn')?.addEventListener('click', () => {
+    document.querySelectorAll('.overtime-timeline-bar.selected').forEach(b => b.classList.remove('selected'));
     const form = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
     if (form) form.reset();
     (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
@@ -473,6 +515,7 @@ export function setupOvertimeEventListeners(): void {
       const res = await fetch(`/api/cronograma/overtime/shifts?id=${shiftId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Error al eliminar');
       showToast('Turno eliminado', 'success');
+      document.querySelectorAll('.overtime-timeline-bar.selected').forEach(b => b.classList.remove('selected'));
       const form = document.getElementById('overtime-shift-form') as HTMLFormElement | null;
       if (form) form.reset();
       (document.getElementById('overtime-shift-edit-id') as HTMLInputElement).value = '';
