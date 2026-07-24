@@ -69,7 +69,7 @@ export const supportGuides = sqliteTable("support_guides", {
 npm run db:push
 ```
 
-Expected: "No changes to push" or success message. If migration mismatch, run `npx tsx scripts/fix-drizzle-mismatch.ts` then retry.
+Expected: "No changes to push" or success message. If migration mismatch, run `npm run db:push` then retry.
 
 - [ ] **Step 3: Commit**
 
