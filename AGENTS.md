@@ -23,7 +23,6 @@
 - **Schema**: `src/db/schema.ts` — all tables, relations, types
 - **Config**: `drizzle.config.ts` (sqlite dialect, schema `./src/db/schema.ts`, out `./drizzle`)
 - **Connection**: `src/db/index.ts` via `better-sqlite3`
-- **Migration mismatches**: `npx tsx scripts/fix-drizzle-mismatch.ts`
 - After schema changes, always run `npm run db:push`
 
 ## Stack & style

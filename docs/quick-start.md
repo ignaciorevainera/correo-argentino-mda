@@ -90,7 +90,6 @@ Schema mismatch — drizzle-kit detects differences
 **Causa:** Cambiaste de rama o actualizaste `src/db/schema.ts` y la base local quedó desincronizada.
 
 ```
-npx tsx scripts/fix-drizzle-mismatch.ts
 npm run db:push
 ```
 

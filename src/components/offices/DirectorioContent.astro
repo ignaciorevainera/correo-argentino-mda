@@ -10,7 +10,7 @@ import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
-import { getOffices } from "@lib/officeQueries";
+import { getOffices, hasClosedOffices } from "@lib/officeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
 import Modal from "@components/ui/Modal.astro";
 import {
@@ -43,6 +43,7 @@ const paqarFilter = searchParams.get("paqar") || "all";
 const hasParentFilter = searchParams.get("hasParent") === "true";
 const isHeadquarterFilter = searchParams.get("isHeadquarter") === "true";
 const noAddressFilter = searchParams.get("noAddress") === "true";
+const statusFilter = searchParams.get("status") || "all";
 const searchFilter = searchParams.get("search") || "";
 
 const allProvincesWithRegion = await db
@@ -83,6 +84,8 @@ const sortOrder = (searchParams.get("sortOrder") || undefined) as
   | "desc"
   | undefined;
 
+const showClosedToggle = await hasClosedOffices();
+
 const { data: officeDirectoryItems, count: totalOffices, hasMore } = await getOffices({
   page: 1,
   limit: 100,
@@ -94,6 +97,7 @@ const { data: officeDirectoryItems, count: totalOffices, hasMore } = await getOf
   hasParent: hasParentFilter,
   isHeadquarter: isHeadquarterFilter,
   noAddress: noAddressFilter,
+  status: statusFilter as "all" | "active" | "closed",
   search: searchFilter,
   sortBy,
   sortOrder,
@@ -354,6 +358,14 @@ const mainTabs = [
               <label class="label cursor-pointer gap-2 p-0">
                 <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Sin domicilio</span>
                 <input type="checkbox" name="noAddress" value="true" class="toggle toggle-sm toggle-primary" checked={noAddressFilter} aria-label="Mostrar solo oficinas sin domicilio registrado" />
+              </label>
+            )
+          }
+          {
+            showClosedToggle && (
+              <label class="label cursor-pointer gap-2 p-0">
+                <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Mostrar solo inoperativas</span>
+                <input type="checkbox" name="status" value="closed" class="toggle toggle-sm toggle-primary" checked={statusFilter === "closed"} aria-label="Mostrar solo oficinas inoperativas" />
               </label>
             )
           }
@@ -735,6 +747,7 @@ const mainTabs = [
   const hasParentToggle = document.querySelector<HTMLInputElement>('input[name="hasParent"]');
   const isHeadquarterToggle = document.querySelector<HTMLInputElement>('input[name="isHeadquarter"]');
   const noAddressToggle = document.querySelector<HTMLInputElement>('input[name="noAddress"]');
+  const statusToggle = document.querySelector<HTMLInputElement>('input[name="status"]');
   const typeHiddenInput = document.getElementById("filter-tabs-hidden-type") as HTMLInputElement | null;
   const typeTabsContainer = document.querySelector(".filter-tabs-box");
 
@@ -771,6 +784,8 @@ const mainTabs = [
   hasParentToggle?.addEventListener("change", handleFilterChange);
   isHeadquarterToggle?.addEventListener("change", handleFilterChange);
   noAddressToggle?.addEventListener("change", handleFilterChange);
+  statusToggle?.addEventListener("change", handleFilterChange);
+
 
   // Tab buttons click listeners
   if (typeTabsContainer) {
