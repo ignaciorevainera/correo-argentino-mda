@@ -10,7 +10,7 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import AdminOfficeRow from "@components/admin/AdminOfficeRow.astro";
-import { getOffices } from "@lib/officeQueries";
+import { getOffices, hasClosedOffices } from "@lib/officeQueries";
 import { officeTypeTabActiveClassByType } from "@lib/officeHelpers";
 import { Icon } from "astro-icon/components";
 
@@ -31,6 +31,8 @@ const {
   paqarFilter = "all",
   searchFilter = "",
 } = Astro.props;
+
+const statusFilter = Astro.url.searchParams.get("status") || "all";
 
 let activeProvinceFilter = provinceFilter;
 
@@ -80,6 +82,8 @@ const uniqueZones = allZonesRaw
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
+const showClosedToggle = await hasClosedOffices();
+
 const { data: allOffices, count: totalOfficesCount, hasMore } = await getOffices({
   page: 1,
   limit: 100,
@@ -89,6 +93,7 @@ const { data: allOffices, count: totalOfficesCount, hasMore } = await getOffices
   province: activeProvinceFilter,
   zone: zoneFilter,
   paqar: paqarFilter,
+  status: statusFilter as "all" | "active" | "closed",
 });
 
 const rawCounts = await db
@@ -262,7 +267,21 @@ const cleanBase = getCleanBase();
         <option value="ambos" selected={paqarFilter === "ambos"}>Admite y Entrega</option>
       </select>
 
-      <div class="flex-2 min-w-70 flex gap-2">
+      <div class="flex-2 min-w-70 flex items-center gap-4">
+        {
+          showClosedToggle && (
+            <label class="label cursor-pointer gap-2 p-0 select-none shrink-0">
+              <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Mostrar solo inoperativas</span>
+              <input
+                type="checkbox"
+                id="admin-office-status-toggle"
+                class="toggle toggle-sm toggle-primary"
+                checked={statusFilter === "closed"}
+                aria-label="Mostrar solo oficinas inoperativas"
+              />
+            </label>
+          )
+        }
         <SearchBar
           id="admin-office-search"
           name="search"
@@ -277,6 +296,7 @@ const cleanBase = getCleanBase();
             activeProvinceFilter !== "all" ||
             zoneFilter !== "all" ||
             paqarFilter !== "all" ||
+            statusFilter !== "all" ||
             searchFilter !== "") && (
             <a
               id="admin-office-clear-filters"
@@ -399,8 +419,10 @@ const cleanBase = getCleanBase();
     const spinner = document.getElementById("loading-spinner");
     const countBadge = document.querySelector<HTMLElement>("#office-count-badge");
     const clearBtn = document.querySelector<HTMLElement>("#admin-office-clear-filters");
+    const statusToggle = document.querySelector<HTMLInputElement>("#admin-office-status-toggle");
 
     let activeType = new URLSearchParams(window.location.search).get("type") || "all";
+    let currentStatus = new URLSearchParams(window.location.search).get("status") || "all";
     let currentPage = 1;
     let currentSearch = searchInput?.value.trim() || "";
     let isLoading = false;
@@ -417,6 +439,7 @@ const cleanBase = getCleanBase();
       if (provinceFilter && provinceFilter.value !== "all") params.set("province", provinceFilter.value);
       if (zoneFilter && zoneFilter.value !== "all") params.set("zone", zoneFilter.value);
       if (paqarFilter && paqarFilter.value !== "all") params.set("paqar", paqarFilter.value);
+      if (currentStatus !== "all") params.set("status", currentStatus);
       if (currentSearch) params.set("search", currentSearch);
       
       return params.toString();
@@ -429,6 +452,7 @@ const cleanBase = getCleanBase();
       if (provinceFilter && provinceFilter.value !== "all") params.set("province", provinceFilter.value);
       if (zoneFilter && zoneFilter.value !== "all") params.set("zone", zoneFilter.value);
       if (paqarFilter && paqarFilter.value !== "all") params.set("paqar", paqarFilter.value);
+      if (currentStatus !== "all") params.set("status", currentStatus);
       if (currentSearch) params.set("search", currentSearch);
       
       const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
@@ -517,6 +541,11 @@ const cleanBase = getCleanBase();
       fetchOffices(true);
     };
 
+    statusToggle?.addEventListener("change", (e) => {
+      currentStatus = (e.target as HTMLInputElement).checked ? "closed" : "all";
+      onFilterChange();
+    });
+
     regionFilter?.addEventListener("change", () => {
       const provincesData = (window as any)._ADMIN_PROVINCES_BY_REGION;
       const selectedRegion = regionFilter.value;
@@ -547,6 +576,8 @@ const cleanBase = getCleanBase();
       clearBtn.addEventListener("click", (e) => {
         e.preventDefault();
         activeType = "all";
+        currentStatus = "all";
+        if (statusToggle) statusToggle.checked = false;
         typeTabs.forEach((t) => {
           const isActive = (t as HTMLElement).dataset.tabValue === activeType;
           t.setAttribute("aria-selected", isActive ? "true" : "false");

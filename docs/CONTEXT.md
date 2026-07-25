@@ -335,7 +335,6 @@ BaseLayout (flex flex-col min-h-screen)
 | `sync-legacy-inventory.ts`          | Worker PM2 de sincronizacion de inventario           |
 | `sync-users.ts`                     | Sincronizacion de empleados via MidPoint             |
 | `toggle-mode.ts`                    | Script de alternancia de tema light/dark             |
-| `migrate-users-mysql-to-sqlite.ts`  | Migracion one-shot MySQL → SQLite                    |
 
 ### Base de datos
 
@@ -346,8 +345,6 @@ BaseLayout (flex flex-col min-h-screen)
 - Conexion: `src/db/index.ts` via `better-sqlite3`
 - Despues de cambios de schema, ejecutar `npm run db:push`
 - Para explorar datos: `npm run db:studio`
-- Si hay desajuste de migraciones: `npx tsx scripts/fix-drizzle-mismatch.ts`
-
 ---
 
 ## Estado del proyecto
