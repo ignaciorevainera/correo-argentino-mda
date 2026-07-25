@@ -868,7 +868,7 @@ export function renderMonthly(): void {
     const thTitle = pd.feriadoName ? ` title="Feriado: ${pd.feriadoName}"` : '';
     const tooltipText = pd.feriadoName ? `Feriado: ${pd.feriadoName}` : `Ver detalle del día ${pd.dateNum} de ${pd.monthName}`;
     theadHtml += `
-      <th class="${pd.thClass} p-0"${thTitle}>
+      <th class="${pd.thClass} p-0"${thTitle}${pd.isToday ? ' data-today-header="true"' : ''}>
         <button
           type="button"
           class="w-full h-full flex flex-col items-center justify-center py-2 gap-0.5 cursor-pointer hover:bg-base-content/5 active:bg-base-content/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-none border-0"
@@ -983,7 +983,7 @@ export function renderMonthly(): void {
       const opShadowClass = state.isTotalsCollapsed ? 'shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]' : '';
 
       tbodyHtml += `<tr class="group ${showViolation ? 'bg-error/2' : ''}" data-op-name="${op.nombre.toLowerCase()}">
-        <td class="sticky left-0 bg-base-100 z-30 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:bg-base-200 transition-colors ${opShadowClass}">
+        <td class="sticky left-0 bg-base-100 z-40 w-[200px] min-w-[200px] font-bold py-3 px-6 text-xs border-r border-b border-base-200/70 group-hover:!bg-base-200 transition-colors ${opShadowClass}">
           <div class="flex items-center gap-3">
             <span class="w-2 h-2 rounded-full ${showViolation ? 'bg-error animate-pulse' : 'bg-base-300 group-hover:bg-amber-500'} transition-transform shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-secondary/50 op-row-dot ${state.isEditMode ? 'op-row-header' : ''}" title="${state.isEditMode ? 'Pintar toda la fila' : 'Destacar fila'}"></span>
             <div class="flex flex-col min-w-0 flex-1">
@@ -1009,9 +1009,9 @@ export function renderMonthly(): void {
 
       if (!state.isTotalsCollapsed) {
         tbodyHtml += `
-          <td class="sticky left-[200px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-secondary group-hover:bg-base-200 transition-colors">${stats.P}</td>
-          <td class="sticky left-[240px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-amber-700 dark:text-amber-400 group-hover:bg-base-200 transition-colors">${stats.HO}</td>
-          <td class="sticky left-[280px] bg-base-100 z-30 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-error group-hover:bg-base-200 transition-colors shadow-table-edge">${stats.L}</td>
+          <td class="sticky left-[200px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-secondary group-hover:!bg-base-200 transition-colors">${stats.P}</td>
+          <td class="sticky left-[240px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-amber-700 dark:text-amber-400 group-hover:!bg-base-200 transition-colors">${stats.HO}</td>
+          <td class="sticky left-[280px] bg-base-100 z-40 w-[40px] min-w-[40px] py-3 px-1 text-center text-xxs font-black border-r border-b border-base-200/70 text-error group-hover:!bg-base-200 transition-colors shadow-table-edge">${stats.L}</td>
         `;
       }
         
@@ -1048,7 +1048,7 @@ export function renderMonthly(): void {
         const otAttr = dayOvertime ? `data-overtime="${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}"` : '';
 
         if (isFrancoCell) {
-          let francoBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center relative hover:z-[60] ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
+          let francoBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center relative hover:z-20 ${isTodayCell ? 'bg-base-300/40 border border-base-content/25' : 'bg-base-200/20 border border-base-300/20'}`;
           if (isHoliday) {
             francoBtnClass += " line-through opacity-60 !bg-orange-200/60 dark:!bg-orange-600/60 !border-orange-300 dark:!border-orange-500";
           }
@@ -1095,13 +1095,21 @@ export function renderMonthly(): void {
         else if (status === OperatorStatus.Licencia) initials = "L";
         else if (status === OperatorStatus.Vacaciones) initials = "V";
 
-        let statusBtnClass = `monthly-cell-button h-12 flex flex-col items-center justify-center transition-colors duration-300 cursor-pointer relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm ${isLicenseOverlap ? 'border-error/40' : ''}`;
+        let statusBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center transition-colors duration-300 cursor-pointer relative border ${isTodayCell ? 'border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]' : 'border-base-300/30'} ${styles.bgClass} shadow-sm ${isLicenseOverlap ? 'border-error/40' : ''}`;
         
         let tooltipAttrs = '';
+        const tooltipDir = opIdx === 0 ? 'tooltip-bottom' : 'tooltip-top';
+
         if (status === OperatorStatus.PresencialMonteGrande || status === OperatorStatus.PresencialParquePatricios || status === OperatorStatus.HomeOffice) {
-          const tooltipDir = opIdx === 0 ? 'tooltip-bottom' : 'tooltip-top';
           statusBtnClass += ` tooltip ${tooltipDir} tooltip-neutral`;
-          tooltipAttrs = `data-tip="${safeHorario}"`;
+          let tipText = safeHorario;
+          if (dayOvertime) {
+            tipText += `\nHE: ${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}`;
+          }
+          tooltipAttrs = `data-tip="${tipText}"`;
+        } else if (dayOvertime) {
+          statusBtnClass += ` tooltip ${tooltipDir} tooltip-neutral`;
+          tooltipAttrs = `data-tip="HE: ${escapeHtml(dayOvertime.startTime + ' - ' + dayOvertime.endTime)}"`;
         }
 
         const isSaturday = pd.day === 6;
@@ -1149,7 +1157,6 @@ export function renderMonthly(): void {
               ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight mt-0.5 scale-90">HE: ${dayOvertime.startTime}</span>` : ''}
               ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ''}
               ${hasComment ? `<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>` : ''}
-              ${isRotationCell ? '<div class="absolute bottom-1.5 w-1 h-1 rounded-full bg-secondary"></div>' : ''}
             </button>
           </td>
         `;
@@ -1219,7 +1226,7 @@ export function renderMonthly(): void {
       <td class="${cellPyClass} border-r border-base-200/50 min-w-16 ${isLowCoverage ? 'bg-error/5' : ''}">
         <div class="flex flex-col items-center gap-1.5">
            ${state.isCoverageMinimized ? '' : `
-           <div class="flex flex-col w-2.5 h-12 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+           <div class="flex flex-col w-2.5 h-10 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
                <div class="bg-purple-500 w-full transition-[height] duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
                <div class="bg-amber-500 w-full transition-[height] duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
                <div class="bg-secondary w-full transition-[height] duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
@@ -1237,4 +1244,23 @@ export function renderMonthly(): void {
 
   const tfoot = document.getElementById('monthly-tfoot');
   if (tfoot) tfoot.innerHTML = tfootHtml;
+
+  // Auto-scroll horizontal bar to center today's column if viewing current month
+  const todayHeader = document.querySelector('[data-today-header="true"]') as HTMLElement | null;
+  if (todayHeader) {
+    const scrollContainer = document.getElementById('monthly-table')?.parentElement;
+    if (scrollContainer) {
+      requestAnimationFrame(() => {
+        const stickyCol = document.querySelector('#monthly-thead th.sticky') as HTMLElement | null;
+        const stickyWidth = stickyCol ? stickyCol.offsetWidth : 256;
+        const containerWidth = scrollContainer.clientWidth;
+        const visibleDaysWidth = containerWidth - stickyWidth;
+        const todayLeft = todayHeader.offsetLeft;
+        const todayWidth = todayHeader.offsetWidth;
+        
+        const targetScrollLeft = Math.max(0, todayLeft - stickyWidth - (visibleDaysWidth / 2) + (todayWidth / 2));
+        scrollContainer.scrollLeft = targetScrollLeft;
+      });
+    }
+  }
 }

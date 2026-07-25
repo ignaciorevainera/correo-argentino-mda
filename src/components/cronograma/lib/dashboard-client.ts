@@ -475,10 +475,10 @@ function showMonthlyView(): void {
   if (pasivaView) pasivaView.classList.add('hidden');
 
   if (datePickerContainer) {
-    datePickerContainer.classList.remove('hidden');
+    datePickerContainer.classList.add('is-faded');
     setTimeout(() => {
-      datePickerContainer.classList.remove('is-faded');
-    }, 50);
+      datePickerContainer.classList.add('hidden');
+    }, 300);
   }
 }
 

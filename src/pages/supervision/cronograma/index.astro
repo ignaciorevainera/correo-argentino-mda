@@ -4,7 +4,6 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import CronogramaDashboard from "@components/cronograma/CronogramaDashboard.astro";
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import { normalizeRole } from "@lib/rbac";
 const cleanBase = getCleanBase();
 
@@ -14,11 +13,6 @@ const role = normalizeRole(user.role);
 
 <BaseLayout>
   <PageContainer width="xl" id="crono-page-container">
-    <PageHeader
-      description="Gestión integral de asistencia y modalidades del equipo MDA."
-      data-crono-hide-on-maximize
-    />
-
     <CronogramaDashboard userRole={role} />
   </PageContainer>
 </BaseLayout>
@@ -29,6 +23,7 @@ const role = normalizeRole(user.role);
     overflow-y: hidden !important;
     display: flex !important;
     flex-direction: column !important;
+    padding-top: 0.5rem !important;
   }
 
   body:has(#monthly-view:not(.hidden)) #crono-page-container,
@@ -37,13 +32,8 @@ const role = normalizeRole(user.role);
     min-height: 0;
   }
 
-  /* Compact mode for short viewports (125%+ zoom on 768px screens) */
+  /* Compact mode for short viewports */
   @media (max-height: 700px) {
-    body:has(#monthly-view:not(.hidden)) [data-crono-hide-on-maximize],
-    body:has(#daily-view:not(.hidden)) [data-crono-hide-on-maximize] {
-      display: none !important;
-    }
-
     body:has(#monthly-view:not(.hidden)) main,
     body:has(#daily-view:not(.hidden)) main {
       padding: 0.5rem !important;
