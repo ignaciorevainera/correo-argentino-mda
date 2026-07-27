@@ -1,0 +1,151 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import KbEditor from "@components/base-conocimientos/KbEditor.astro";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import { invgateQaGet, invgateQaPut } from "@lib/invgate-qa-client";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import type { InvgateKbArticle, InvgateKbCategory, InvgateKbCategoriesResponse } from "@/types/invgate";
+
+const { id } = Astro.params;
+const articleId = parseInt(id || "0", 10);
+
+if (!articleId || articleId <= 0) {
+  return Astro.redirect(`${import.meta.env.BASE_URL || "/"}base-conocimientos`);
+}
+
+interface KbArticleSingleResponse {
+  status: string;
+  data: InvgateKbArticle[];
+}
+
+let article: InvgateKbArticle | null = null;
+let categories: { id: number; name: string }[] = [];
+let errorMsg = "";
+
+try {
+  const [articleResult, categoriesResult] = await Promise.all([
+    invgateQaGet<KbArticleSingleResponse>(`kb.articles?id=${articleId}`),
+    invgateQaGet<InvgateKbCategoriesResponse>("kb.categories"),
+  ]);
+
+  if (articleResult.ok && Array.isArray(articleResult.data?.data) && articleResult.data.data.length > 0) {
+    article = articleResult.data.data[0];
+  }
+
+  if (categoriesResult.ok && Array.isArray(categoriesResult.data?.data)) {
+    categories = categoriesResult.data.data.map((c: InvgateKbCategory) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  }
+} catch (e) {
+  console.error("[KB Edit] Error loading data:", e);
+}
+
+if (!article) {
+  return Astro.redirect(`${import.meta.env.BASE_URL || "/"}base-conocimientos`);
+}
+
+if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get("accept")?.includes("application/json");
+  try {
+    const fd = await Astro.request.formData();
+    const title = fd.get("title")?.toString().trim() || "";
+    const content = fd.get("content")?.toString() || "";
+    const categoryId = parseInt(fd.get("category_id")?.toString() || "0", 10);
+    const authorId = Astro.locals.user?.id;
+
+    if (!title) {
+      errorMsg = "El título es obligatorio.";
+    } else if (!content) {
+      errorMsg = "El contenido es obligatorio.";
+    } else if (!authorId) {
+      errorMsg = "Sesión no válida.";
+    } else {
+      const body: Record<string, unknown> = {
+        id: articleId,
+        title,
+        content,
+        author_id: authorId,
+      };
+      if (categoryId > 0) {
+        body.category_id = categoryId;
+      }
+
+      const result = await invgateQaPut<{ status: string }>("kb.articles", body);
+
+      if (!result.ok) {
+        errorMsg = `Error de InvGate: ${result.message}`;
+      } else {
+        await logAdminFromAstro(
+          Astro.locals,
+          `Actualizó artículo KB #${articleId} "${title}" en InvGate QA`,
+        );
+
+        const toastMsg = `Artículo "${title}" actualizado con éxito.`;
+        if (isAjax) {
+          return toastResponse({
+            success: true,
+            message: toastMsg,
+            redirectUrl: resolveUrl(`/base-conocimientos/${articleId}`),
+          });
+        }
+        return redirectWithToast(`/base-conocimientos/${articleId}`, toastMsg);
+      }
+    }
+  } catch (e: any) {
+    console.error("[KB Edit] POST error:", e);
+    errorMsg = "Error al actualizar el artículo.";
+  }
+
+  if (isAjax && errorMsg) {
+    return toastResponse({ success: false, error: errorMsg });
+  }
+}
+---
+
+<BaseLayout title={`Editar: ${article.title}`}>
+  <PageContainer>
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a
+        href={resolveUrl("/base-conocimientos")}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Base de Conocimientos
+      </a>
+      <span>/</span>
+      <a
+        href={resolveUrl(`/base-conocimientos/${articleId}`)}
+        class="hover:text-base-content transition-colors"
+      >
+        {article.title}
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">Editar</span>
+    </div>
+
+    <PageHeader
+      title="Editar artículo"
+      description="Modificá el contenido del artículo en InvGate."
+    />
+
+    <KbEditor
+      mode="edit"
+      actionUrl={resolveUrl(`/base-conocimientos/edit/${articleId}`)}
+      categories={categories}
+      initialTitle={article.title}
+      initialContent={article.content || ""}
+      initialCategoryId={article.category_id ?? undefined}
+      articleId={articleId}
+      errorMsg={errorMsg}
+    />
+  </PageContainer>
+  <AsyncFormScript />
+</BaseLayout>

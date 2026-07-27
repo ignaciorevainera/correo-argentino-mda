@@ -1,0 +1,156 @@
+---
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@lib/url";
+import { invgateQaGet } from "@lib/invgate-qa-client";
+import type { InvgateKbArticle, InvgateKbCategory, InvgateKbCategoriesResponse } from "@/types/invgate";
+
+interface KbArticlesListResponse {
+  status: string;
+  data: InvgateKbArticle[];
+}
+
+let articles: InvgateKbArticle[] = [];
+let categories: { id: number; name: string }[] = [];
+let errorMsg = "";
+
+try {
+  const [articlesResult, categoriesResult] = await Promise.all([
+    invgateQaGet<KbArticlesListResponse>("kb.articles?page=1&page_size=50"),
+    invgateQaGet<InvgateKbCategoriesResponse>("kb.categories"),
+  ]);
+
+  if (articlesResult.ok && Array.isArray(articlesResult.data?.data)) {
+    articles = articlesResult.data.data;
+  }
+
+  if (categoriesResult.ok && Array.isArray(categoriesResult.data?.data)) {
+    categories = categoriesResult.data.data.map((c: InvgateKbCategory) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  }
+} catch (e: any) {
+  console.error("[KB List] Error fetching articles:", e);
+  errorMsg = "Error al cargar los artículos de InvGate.";
+}
+
+const categoryMap = new Map<number, string>();
+for (const cat of categories) {
+  categoryMap.set(cat.id, cat.name);
+}
+---
+
+<PageContainer>
+  <PageHeader
+    title="Base de Conocimientos"
+    description="Artículos de la base de conocimientos de InvGate."
+  />
+
+  {errorMsg && (
+    <div class="alert alert-error">
+      <Icon name="boxicons:alert-octagon-filled" size={20} />
+      <span>{errorMsg}</span>
+    </div>
+  )}
+
+  <div class="flex justify-end">
+    <a
+      href={resolveUrl("/base-conocimientos/create")}
+      class="btn btn-sm md:btn-md btn-primary gap-2"
+    >
+      <Icon name="boxicons:plus" size={16} />
+      Nuevo artículo
+    </a>
+  </div>
+
+  <div data-table-sort-root>
+    <DataTable
+      ariaLabel="Listado de artículos KB"
+      headerGridClass="grid-cols-[1fr_160px_120px_120px_100px]"
+      rowGridClass="grid-cols-[1fr_160px_120px_120px_100px]"
+      emptyStateTitle="Sin artículos"
+      emptyStateDescription="No se encontraron artículos en InvGate."
+    >
+      <DataTableHeaderCell sortKey="title">Título</DataTableHeaderCell>
+      <DataTableHeaderCell sortKey="category">Categoría</DataTableHeaderCell>
+      <DataTableHeaderCell sortKey="author">Autor</DataTableHeaderCell>
+      <DataTableHeaderCell sortKey="date">Fecha</DataTableHeaderCell>
+      <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+
+      {articles.map((article) => {
+        const categoryName = article.category_id != null
+          ? categoryMap.get(article.category_id) ?? "—"
+          : "—";
+        const searchText = `${article.title} ${categoryName}`.toLowerCase();
+
+        return (
+          <div
+            class="grid grid-cols-[1fr_160px_120px_120px_100px] items-center border-b border-base-300 px-4 py-3 hover:bg-base-200/50 transition-colors"
+            data-table-row
+            data-sort-title={article.title}
+            data-sort-category={categoryName}
+            data-sort-author={article.author_id?.toString() || ""}
+            data-sort-date={article.id.toString()}
+            data-search-text={searchText}
+          >
+            <span class="min-w-0 truncate font-medium text-base-content" data-highlight-target>
+              {article.title}
+            </span>
+            <span class="min-w-0 truncate text-sm text-base-content/70" data-highlight-target>
+              {categoryName}
+            </span>
+            <span class="min-w-0 truncate text-sm text-base-content/70">
+              #{article.author_id || "—"}
+            </span>
+            <span class="min-w-0 truncate text-sm text-base-content/70 font-mono">
+              #{article.id}
+            </span>
+            <div class="flex items-center justify-end gap-1">
+              <a
+                href={resolveUrl(`/base-conocimientos/${article.id}`)}
+                class="btn btn-xs btn-ghost btn-square"
+                title="Ver artículo"
+              >
+                <Icon name="boxicons:show" size={16} />
+              </a>
+              <a
+                href={resolveUrl(`/base-conocimientos/edit/${article.id}`)}
+                class="btn btn-xs btn-ghost btn-square"
+                title="Editar artículo"
+              >
+                <Icon name="boxicons:pencil" size={16} />
+              </a>
+            </div>
+          </div>
+        );
+      })}
+    </DataTable>
+  </div>
+
+  <script>
+    import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+
+    function initSearch() {
+      const searchInput = document.getElementById("kb-search") as HTMLInputElement;
+      if (!searchInput) return;
+
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value;
+        const rows = document.querySelectorAll("[data-table-row]") as HTMLElement[];
+        rows.forEach((row) => {
+          const searchTexts = [row.dataset.searchText || ""];
+          const matches = matchesSearchQuery(query, searchTexts);
+          row.style.display = matches ? "" : "none";
+        });
+        highlightSearchTargets(document, query);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", initSearch);
+    document.addEventListener("astro:page-load", initSearch);
+  </script>
+</PageContainer>

@@ -153,6 +153,15 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     supervisor: false,
     admin: true,
   },
+  {
+    feature: "Base de Conocimientos",
+    icon: "boxicons:book-library-filled",
+    agent: true,
+    referent: true,
+    team_leader: true,
+    supervisor: true,
+    admin: true,
+  },
 ];
 
 export const isAllowed = (featureName: string, role: string) => {

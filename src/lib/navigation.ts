@@ -109,6 +109,17 @@ export const navSections: NavSection[] = [
     ],
   },
   {
+    id: "base-conocimientos",
+    label: "Base de Conocimientos",
+    items: [
+      {
+        href: "/base-conocimientos",
+        label: "Base de Conocimientos",
+        icon: "boxicons:book-library-filled",
+      },
+    ],
+  },
+  {
     id: "admin",
     label: "Panel de Administración",
     items: [

@@ -1,0 +1,113 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import KbEditor from "@components/base-conocimientos/KbEditor.astro";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
+import { Icon } from "astro-icon/components";
+import { resolveUrl } from "@lib/url";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { toastResponse } from "@lib/api/toastResponse";
+import { invgateQaGet, invgateQaPost } from "@lib/invgate-qa-client";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import type { InvgateKbCategory, InvgateKbCategoriesResponse } from "@/types/invgate";
+
+let errorMsg = "";
+let categories: { id: number; name: string }[] = [];
+
+try {
+  const result = await invgateQaGet<InvgateKbCategoriesResponse>("kb.categories");
+  if (result.ok && Array.isArray(result.data?.data)) {
+    categories = result.data.data.map((c: InvgateKbCategory) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  }
+} catch (e) {
+  console.error("[KB Create] Error fetching categories:", e);
+}
+
+if (Astro.request.method === "POST") {
+  const isAjax = Astro.request.headers.get("accept")?.includes("application/json");
+  try {
+    const fd = await Astro.request.formData();
+    const title = fd.get("title")?.toString().trim() || "";
+    const content = fd.get("content")?.toString() || "";
+    const categoryId = parseInt(fd.get("category_id")?.toString() || "0", 10);
+    const authorId = Astro.locals.user?.id;
+
+    if (!title) {
+      errorMsg = "El título es obligatorio.";
+    } else if (!content) {
+      errorMsg = "El contenido es obligatorio.";
+    } else if (!categoryId || categoryId <= 0) {
+      errorMsg = "Seleccioná una categoría.";
+    } else if (!authorId) {
+      errorMsg = "Sesión no válida.";
+    } else {
+      const result = await invgateQaPost<{ article_id: number; status: string }>(
+        "kb.articles",
+        { title, content, category_id: categoryId, author_id: authorId },
+      );
+
+      if (!result.ok) {
+        errorMsg = `Error de InvGate: ${result.message}`;
+      } else {
+        const articleId = result.data?.article_id;
+        if (articleId) {
+          await logAdminFromAstro(
+            Astro.locals,
+            `Creó artículo KB #${articleId} "${title}" en InvGate QA`,
+          );
+        }
+
+        const toastMsg = `Artículo "${title}" publicado con éxito.`;
+        if (isAjax) {
+          return toastResponse({
+            success: true,
+            message: toastMsg,
+            redirectUrl: resolveUrl(`/base-conocimientos/${articleId}`),
+          });
+        }
+        return redirectWithToast(`/base-conocimientos/${articleId}`, toastMsg);
+      }
+    }
+  } catch (e: any) {
+    console.error("[KB Create] POST error:", e);
+    errorMsg = "Error al publicar el artículo.";
+  }
+
+  if (isAjax && errorMsg) {
+    return toastResponse({ success: false, error: errorMsg });
+  }
+}
+---
+
+<BaseLayout title="Nuevo artículo">
+  <PageContainer>
+    <div class="flex items-center gap-2 text-sm text-base-content/60">
+      <a
+        href={resolveUrl("/base-conocimientos")}
+        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Base de Conocimientos
+      </a>
+      <span>/</span>
+      <span class="text-base-content font-medium truncate">Nuevo artículo</span>
+    </div>
+
+    <PageHeader
+      title="Nuevo artículo"
+      description="Escribí el contenido en markdown y publicalo en InvGate."
+    />
+
+    <KbEditor
+      mode="create"
+      actionUrl={resolveUrl("/base-conocimientos/create")}
+      categories={categories}
+      errorMsg={errorMsg}
+    />
+  </PageContainer>
+  <AsyncFormScript />
+</BaseLayout>

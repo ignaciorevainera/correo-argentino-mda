@@ -39,6 +39,8 @@ export const routePermissions: RoutePermission[] = [
   { path: "/oficinas/edit", roles: ["admin", "supervisor"] },
   { path: "/inventario-terminales/cubics/create", roles: ["admin", "supervisor"] },
   { path: "/inventario-terminales/cubics/edit", roles: ["admin", "supervisor"] },
+  { path: "/base-conocimientos/create", roles: ["admin", "supervisor", "team_leader"] },
+  { path: "/base-conocimientos/edit", roles: ["admin", "supervisor", "team_leader"] },
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
@@ -108,6 +110,10 @@ export function getModulePermissions(moduleName: string, userRole: string): Modu
     perm.canRead = rank >= ROLE_HIERARCHY.team_leader;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
   } else if (moduleName === "titulos") {
+    // Leen: todos / Escriben: admin, supervisor, team_leader
+    perm.canRead = true;
+    perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
+  } else if (moduleName === "base-conocimientos") {
     // Leen: todos / Escriben: admin, supervisor, team_leader
     perm.canRead = true;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;

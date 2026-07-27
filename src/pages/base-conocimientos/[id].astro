@@ -1,0 +1,49 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import KbViewContent from "@components/base-conocimientos/KbViewContent.astro";
+import { invgateQaGet } from "@lib/invgate-qa-client";
+import type { InvgateKbArticle, InvgateKbCategory, InvgateKbCategoriesResponse } from "@/types/invgate";
+
+interface KbArticleSingleResponse {
+  status: string;
+  data: InvgateKbArticle[];
+}
+
+const { id } = Astro.params;
+const articleId = parseInt(id || "0", 10);
+
+if (!articleId || articleId <= 0) {
+  return Astro.redirect(`${import.meta.env.BASE_URL || "/"}base-conocimientos`);
+}
+
+let article: InvgateKbArticle | null = null;
+let categories: { id: number; name: string }[] = [];
+
+try {
+  const [articleResult, categoriesResult] = await Promise.all([
+    invgateQaGet<KbArticleSingleResponse>(`kb.articles?id=${articleId}`),
+    invgateQaGet<InvgateKbCategoriesResponse>("kb.categories"),
+  ]);
+
+  if (articleResult.ok && Array.isArray(articleResult.data?.data) && articleResult.data.data.length > 0) {
+    article = articleResult.data.data[0];
+  }
+
+  if (categoriesResult.ok && Array.isArray(categoriesResult.data?.data)) {
+    categories = categoriesResult.data.data.map((c: InvgateKbCategory) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  }
+} catch (e) {
+  console.error("[KB View] Error:", e);
+}
+
+if (!article) {
+  return Astro.redirect(`${import.meta.env.BASE_URL || "/"}base-conocimientos`);
+}
+---
+
+<BaseLayout title={article.title}>
+  <KbViewContent article={article} categories={categories} />
+</BaseLayout>
