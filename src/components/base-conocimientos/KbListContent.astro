@@ -6,7 +6,11 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
 import { resolveUrl } from "@lib/url";
 import { invgateQaGet } from "@lib/invgate-qa-client";
-import type { InvgateKbArticle, InvgateKbCategory, InvgateKbCategoriesResponse } from "@/types/invgate";
+import type {
+  InvgateKbArticle,
+  InvgateKbCategory,
+  InvgateKbCategoriesResponse,
+} from "@/types/invgate";
 
 interface KbArticlesListResponse {
   status: string;
@@ -50,12 +54,14 @@ for (const cat of categories) {
     description="Artículos de la base de conocimientos de InvGate."
   />
 
-  {errorMsg && (
-    <div class="alert alert-error">
-      <Icon name="boxicons:alert-octagon-filled" size={20} />
-      <span>{errorMsg}</span>
-    </div>
-  )}
+  {
+    errorMsg && (
+      <div class="alert alert-error">
+        <Icon name="boxicons:alert-octagon-filled" size={20} />
+        <span>{errorMsg}</span>
+      </div>
+    )
+  }
 
   <div class="flex justify-end">
     <a
@@ -81,66 +87,82 @@ for (const cat of categories) {
       <DataTableHeaderCell sortKey="date">Fecha</DataTableHeaderCell>
       <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
 
-      {articles.map((article) => {
-        const categoryName = article.category_id != null
-          ? categoryMap.get(article.category_id) ?? "—"
-          : "—";
-        const searchText = `${article.title} ${categoryName}`.toLowerCase();
+      {
+        articles.map((article) => {
+          const categoryName =
+            article.category_id != null
+              ? (categoryMap.get(article.category_id) ?? "—")
+              : "—";
+          const searchText = `${article.title} ${categoryName}`.toLowerCase();
 
-        return (
-          <div
-            class="grid grid-cols-[1fr_160px_120px_120px_100px] items-center border-b border-base-300 px-4 py-3 hover:bg-base-200/50 transition-colors"
-            data-table-row
-            data-sort-title={article.title}
-            data-sort-category={categoryName}
-            data-sort-author={article.author_id?.toString() || ""}
-            data-sort-date={article.id.toString()}
-            data-search-text={searchText}
-          >
-            <span class="min-w-0 truncate font-medium text-base-content" data-highlight-target>
-              {article.title}
-            </span>
-            <span class="min-w-0 truncate text-sm text-base-content/70" data-highlight-target>
-              {categoryName}
-            </span>
-            <span class="min-w-0 truncate text-sm text-base-content/70">
-              #{article.author_id || "—"}
-            </span>
-            <span class="min-w-0 truncate text-sm text-base-content/70 font-mono">
-              #{article.id}
-            </span>
-            <div class="flex items-center justify-end gap-1">
-              <a
-                href={resolveUrl(`/base-conocimientos/${article.id}`)}
-                class="btn btn-xs btn-ghost btn-square"
-                title="Ver artículo"
+          return (
+            <div
+              class="grid grid-cols-[1fr_160px_120px_120px_100px] items-center border-b border-base-300 px-4 py-3 hover:bg-base-200/50 transition-colors"
+              data-table-row
+              data-sort-title={article.title}
+              data-sort-category={categoryName}
+              data-sort-author={article.author_id?.toString() || ""}
+              data-sort-date={article.id.toString()}
+              data-search-text={searchText}
+            >
+              <span
+                class="min-w-0 truncate font-medium text-base-content"
+                data-highlight-target
               >
-                <Icon name="boxicons:show" size={16} />
-              </a>
-              <a
-                href={resolveUrl(`/base-conocimientos/edit/${article.id}`)}
-                class="btn btn-xs btn-ghost btn-square"
-                title="Editar artículo"
+                {article.title}
+              </span>
+              <span
+                class="min-w-0 truncate text-sm text-base-content/70"
+                data-highlight-target
               >
-                <Icon name="boxicons:pencil" size={16} />
-              </a>
+                {categoryName}
+              </span>
+              <span class="min-w-0 truncate text-sm text-base-content/70">
+                #{article.author_id || "—"}
+              </span>
+              <span class="min-w-0 truncate text-sm text-base-content/70 font-mono">
+                #{article.id}
+              </span>
+              <div class="flex items-center justify-end gap-1">
+                <a
+                  href={resolveUrl(`/base-conocimientos/${article.id}`)}
+                  class="btn btn-xs btn-ghost btn-square"
+                  title="Ver artículo"
+                >
+                  <Icon name="boxicons:eye-filled" size={16} />
+                </a>
+                <a
+                  href={resolveUrl(`/base-conocimientos/edit/${article.id}`)}
+                  class="btn btn-xs btn-ghost btn-square"
+                  title="Editar artículo"
+                >
+                  <Icon name="boxicons:pencil" size={16} />
+                </a>
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      }
     </DataTable>
   </div>
 
   <script>
-    import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+    import {
+      matchesSearchQuery,
+      highlightSearchTargets,
+    } from "@lib/clientSearch";
 
     function initSearch() {
-      const searchInput = document.getElementById("kb-search") as HTMLInputElement;
+      const searchInput = document.getElementById(
+        "kb-search",
+      ) as HTMLInputElement;
       if (!searchInput) return;
 
       searchInput.addEventListener("input", () => {
         const query = searchInput.value;
-        const rows = document.querySelectorAll("[data-table-row]") as HTMLElement[];
+        const rows = document.querySelectorAll(
+          "[data-table-row]",
+        ) as HTMLElement[];
         rows.forEach((row) => {
           const searchTexts = [row.dataset.searchText || ""];
           const matches = matchesSearchQuery(query, searchTexts);
