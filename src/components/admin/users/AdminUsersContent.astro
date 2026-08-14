@@ -132,7 +132,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                                 ? "bg-accent text-accent-content"
                                 : u.role === "referent"
                                   ? "bg-warning text-warning-content"
-                                  : "bg-neutral text-neutral-content",
+                                  : u.role === "agent_coord"
+                                    ? "bg-accent/60 text-accent-content"
+                                    : "bg-neutral text-neutral-content",
                         ]}
                         aria-hidden="true"
                       >
@@ -158,7 +160,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                               ? "badge-accent"
                               : u.role === "referent"
                                 ? "badge-warning"
-                                : "badge-neutral",
+                                : u.role === "agent_coord"
+                                  ? "badge-accent badge-outline"
+                                  : "badge-neutral",
                       ]}
                     >
                       {u.role === "admin"
@@ -171,7 +175,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                             ? "Team Leader"
                             : u.role === "referent"
                               ? "Referente"
-                              : "Agente"}
+                              : u.role === "agent_coord"
+                                ? "Ag. Coordinación"
+                                : "Agente"}
                     </span>
                   </div>
 
@@ -347,6 +353,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             label="Rol en sistema"
             options={[
               { value: "agent", label: "Agente" },
+              { value: "agent_coord", label: "Ag. Coordinación" },
               { value: "referent", label: "Referente" },
               { value: "team_leader", label: "Team Leader" },
               { value: "supervisor", label: "Supervisor" },
@@ -387,6 +394,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         selectClass="select-sm"
         options={[
           { value: "agent", label: "Agente" },
+          { value: "agent_coord", label: "Ag. Coordinación" },
           { value: "referent", label: "Referente" },
           { value: "team_leader", label: "Team Leader" },
           { value: "supervisor", label: "Supervisor" },
@@ -445,6 +453,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             <th class="bg-neutral text-neutral-content text-center font-bold"
               >Agente</th
             >
+            <th class="bg-accent/70 text-accent-content text-center font-bold"
+              >Ag. Coord.</th
+            >
             <th class="bg-warning text-warning-content text-center font-bold"
               >Referente</th
             >
@@ -473,6 +484,21 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                 </td>
                 <td class="bg-base-200/5 text-center">
                   {row.agent ? (
+                    <Icon
+                      name="boxicons:check"
+                      class="text-success inline-block"
+                      size={24}
+                    />
+                  ) : (
+                    <Icon
+                      name="boxicons:x"
+                      class="text-error inline-block"
+                      size={24}
+                    />
+                  )}
+                </td>
+                <td class="bg-accent/5 text-center">
+                  {row.agent_coord ? (
                     <Icon
                       name="boxicons:check"
                       class="text-success inline-block"
@@ -577,6 +603,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
       agent:
         "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
+      agent_coord:
+        "Agente de Mesa de Coordinación. Acceso a herramientas generales del portal y al módulo de Soporte Técnico Franquicias. Sin acceso a módulos de Supervisión.",
     };
 
     const modal = document.getElementById(

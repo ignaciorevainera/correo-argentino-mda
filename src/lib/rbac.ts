@@ -1,8 +1,9 @@
 export type Role =
-  "admin" | "supervisor" | "team_leader" | "referent" | "agent";
+  "admin" | "supervisor" | "team_leader" | "referent" | "agent" | "agent_coord";
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
   agent: 1,
+  agent_coord: 1,
   referent: 2,
   team_leader: 3,
   supervisor: 4,
@@ -20,6 +21,7 @@ export function normalizeRole(role: string): Role {
   )
     return "team_leader";
   if (clean === "referent" || clean === "referente") return "referent";
+  if (clean === "agent coord") return "agent_coord";
   return "agent";
 }
 
@@ -70,6 +72,8 @@ export const routePermissions: RoutePermission[] = [
     path: "/inventario-terminales/cubics/edit",
     roles: ["admin", "supervisor"],
   },
+  // agent_coord is explicitly blocked from all supervision routes
+  // (supervision routes don't list agent_coord, so hasPermission returns false)
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
@@ -115,10 +119,11 @@ export function getModulePermissions(
     canViewTotals: true,
   };
 
+  const isAgentCoord = role === "agent_coord";
+
   if (moduleName === "cronograma") {
-    // Todos leen
-    perm.canRead = true;
-    // Escriben: admin, supervisor, team_leader
+    // agent_coord no tiene acceso al cronograma
+    perm.canRead = !isAgentCoord;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
     // Ocultar totales y comentarios a operador (agent) y referente
     if (rank < ROLE_HIERARCHY.team_leader) {
@@ -126,16 +131,13 @@ export function getModulePermissions(
       perm.canViewTotals = false;
     }
   } else if (moduleName === "asignacion_ag") {
-    // Todos leen
-    perm.canRead = true;
-    // Escriben: todos excepto agent
+    // agent_coord no tiene acceso a autogestiones
+    perm.canRead = !isAgentCoord;
     perm.canWrite = rank >= ROLE_HIERARCHY.referent;
   } else if (moduleName === "calidad") {
-    // Todos leen
-    perm.canRead = true;
-    // Escriben: todos excepto agent
+    // agent_coord no tiene acceso a calidad
+    perm.canRead = !isAgentCoord;
     perm.canWrite = rank >= ROLE_HIERARCHY.referent;
-    // agent solo ve su propia calidad
     perm.canViewAll = rank >= ROLE_HIERARCHY.referent;
   } else if (moduleName === "asistencia") {
     // Leen/escriben: admin, supervisor, team_leader

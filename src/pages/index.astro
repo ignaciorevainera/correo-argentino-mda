@@ -192,16 +192,27 @@ const quickAccessItems: QuickAccessItem[] = [
           <div
             class:list={[
               "grid grid-cols-1 gap-6 sm:grid-cols-2",
-              ["agent", "referent"].includes(userRole)
+              ["agent", "agent_coord", "referent"].includes(userRole)
                 ? "lg:grid-cols-3"
                 : "lg:grid-cols-4",
             ]}
           >
-            {mainModules
+            {userRole === "agent_coord" ? (
+              <QuickAccessCard
+                href="https://soporte-tecnico-franquicias.vercel.app/"
+                title="Soporte Técnico Franquicias"
+                description="Portal de soporte para franquicias"
+                icon="boxicons:store-alt-filled"
+                iconTone="bg-accent/10 text-accent"
+                locked={false}
+                layout="horizontal"
+              />
+            ) : (
+              mainModules
               .filter(
                 (mod) =>
                   !(
-                    ["agent", "referent"].includes(userRole) &&
+                    ["agent", "agent_coord", "referent"].includes(userRole) &&
                     mod.href === "/supervision/asistencia"
                   ),
               )
@@ -218,7 +229,8 @@ const quickAccessItems: QuickAccessItem[] = [
                     layout="horizontal"
                   />
                 );
-              })}
+              })
+            )}
           </div>
         )
       }

@@ -8,6 +8,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   team_leader: "Team Leader",
   referent: "Referente",
   agent: "Agente",
+  agent_coord: "Ag. Coordinación",
 };
 
 export const ROLE_VARIANTS: Record<Role, string> = {
@@ -16,6 +17,7 @@ export const ROLE_VARIANTS: Record<Role, string> = {
   team_leader: "badge-info",
   referent: "badge-success",
   agent: "badge-ghost",
+  agent_coord: "badge-accent",
 };
 
 export function can(userRole: string, minimumRole: Role): boolean {
@@ -25,6 +27,7 @@ export function can(userRole: string, minimumRole: Role): boolean {
 
 export const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "agent", label: "Agente" },
+  { value: "agent_coord", label: "Ag. Coordinación" },
   { value: "referent", label: "Referente" },
   { value: "team_leader", label: "Team Leader" },
   { value: "supervisor", label: "Supervisor" },
