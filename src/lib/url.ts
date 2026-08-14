@@ -1,6 +1,10 @@
 import { getCleanBase } from "./baseUrl";
 
 export function resolveUrl(path: string, base?: string): string {
+  if (/^(?:https?|mailto|tel):/i.test(path)) {
+    return path;
+  }
+
   if (base !== undefined) {
     const b = base.endsWith("/") ? base : base + "/";
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
