@@ -15,6 +15,8 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("agent"),
+  helpdeskId: integer("helpdesk_id"),
+  helpdeskName: text("helpdesk_name"),
 });
 
 export const employees = sqliteTable("employees", {
