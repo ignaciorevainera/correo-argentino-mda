@@ -243,10 +243,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return redirect(resolveUrl("/login"));
   }
 
-  if (
-    !relativePath.startsWith("/api/") &&
-    !isSectionVisible(currentUser.helpdeskName, role, relativePath)
-  ) {
+  if (!isSectionVisible(currentUser.helpdeskName, role, relativePath)) {
+    if (relativePath.startsWith("/api/")) {
+      return jsonError("Acceso no autorizado", 401);
+    }
     if (currentUser.id !== 0) {
       return redirect(
         resolveUrl(

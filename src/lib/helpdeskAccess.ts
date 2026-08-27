@@ -15,6 +15,10 @@ const SUPERVISION_SECTIONS = [
   "/supervision/calidad-operadores",
   "/supervision/asignacion-autogestiones",
   "/supervision/asistencia",
+  // Equivalent API endpoints (defense-in-depth; HTML routes already gated)
+  "/api/cronograma",
+  "/api/asistencia",
+  "/api/disponibilidad",
 ];
 
 const SUPERIOR_ROLES = new Set(["team_leader", "supervisor"]);
