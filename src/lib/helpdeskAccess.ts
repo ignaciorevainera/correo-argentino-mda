@@ -2,7 +2,6 @@ import { normalizeRole } from "./rbac";
 
 export const MDA_TI_HELPDESK = "TI_GSM_MDA TI";
 export const COORD_HELPDESK = "TI_GSM_Mesa de Coord";
-export const DEFAULT_HELPDESK = "Default";
 
 export const ALLOWED_HELPDESK_NAMES: string[] = [
   MDA_TI_HELPDESK,

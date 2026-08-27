@@ -7,7 +7,6 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
-import { DEFAULT_HELPDESK } from "@lib/helpdeskAccess";
 
 let successMsg = "";
 let errorMsg = "";
@@ -35,7 +34,7 @@ if (Astro.request.method === "POST") {
       const parsedId = Number(idStr);
       helpdeskId =
         Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
-      helpdeskName = name || DEFAULT_HELPDESK;
+      helpdeskName = name || null;
     }
 
     if (username && password && role) {
@@ -154,7 +153,7 @@ if (Astro.request.method === "POST") {
           .where(eq(users.id, userId));
         const targetUsername = targetUser?.username || "desconocido";
         const oldRole = targetUser?.role || "desconocido";
-        const oldHelpdesk = targetUser?.helpdeskName || "Sin asignar";
+        const oldHelpdesk = targetUser?.helpdeskName || "Sin mesa de ayuda";
 
         await db
           .update(users)
@@ -163,7 +162,7 @@ if (Astro.request.method === "POST") {
         successMsg = "Rol y mesa de ayuda actualizados con éxito.";
         await logAdminFromAstro(
           Astro.locals,
-          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin asignar"}"`,
+          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin mesa de ayuda"}"`,
         );
       } catch (e) {
         errorMsg = "Error al actualizar el usuario.";
