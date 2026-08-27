@@ -1,3 +1,5 @@
+import { normalizeRole } from "./rbac";
+
 export const MDA_TI_HELPDESK = "TI_GSM_MDA TI";
 export const COORD_HELPDESK = "TI_GSM_Mesa de Coord";
 export const DEFAULT_HELPDESK = "Default";
@@ -33,10 +35,11 @@ export function isSectionVisible(
   role: string,
   href: string,
 ): boolean {
-  if (role === "admin") return true;
+  const normalizedRole = normalizeRole(role);
+  if (normalizedRole === "admin") return true;
 
   if (isSupervisionSection(href)) {
-    return helpdeskName === MDA_TI_HELPDESK && isSuperiorRole(role);
+    return helpdeskName === MDA_TI_HELPDESK && isSuperiorRole(normalizedRole);
   }
 
   return true;
