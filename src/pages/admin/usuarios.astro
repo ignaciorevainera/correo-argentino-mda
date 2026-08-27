@@ -7,6 +7,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
+import { DEFAULT_HELPDESK } from "@lib/helpdeskAccess";
 
 let successMsg = "";
 let errorMsg = "";
@@ -22,6 +23,20 @@ if (Astro.request.method === "POST") {
     const username = formData.get("username")?.toString().trim().toLowerCase();
     const password = formData.get("password")?.toString();
     const role = formData.get("role")?.toString();
+    const rawHelpdesk = formData.get("helpdesk")?.toString() ?? "";
+
+    let helpdeskId: number | null = null;
+    let helpdeskName: string | null = null;
+
+    if (rawHelpdesk) {
+      const sep = rawHelpdesk.indexOf("|");
+      const idStr = sep === -1 ? rawHelpdesk : rawHelpdesk.slice(0, sep);
+      const name = sep === -1 ? "" : rawHelpdesk.slice(sep + 1);
+      const parsedId = Number(idStr);
+      helpdeskId =
+        Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+      helpdeskName = name || DEFAULT_HELPDESK;
+    }
 
     if (username && password && role) {
       const pwdValidation = passwordSchema.safeParse(password);
@@ -34,6 +49,8 @@ if (Astro.request.method === "POST") {
             username,
             password: hashedPassword,
             role: role as any,
+            helpdeskId,
+            helpdeskName,
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
           await logAdminFromAstro(
@@ -132,6 +149,49 @@ if (Astro.request.method === "POST") {
         );
       } catch (e) {
         errorMsg = "Error al actualizar el rol de usuario.";
+      }
+    }
+  }
+
+  if (action === "change-helpdesk") {
+    const userId = Number(formData.get("userId"));
+    const raw = formData.get("helpdesk")?.toString() ?? "";
+
+    let helpdeskId: number | null = null;
+    let helpdeskName: string | null = null;
+
+    if (raw) {
+      const sep = raw.indexOf("|");
+      const idStr = sep === -1 ? raw : raw.slice(0, sep);
+      const name = sep === -1 ? "" : raw.slice(sep + 1);
+      const parsedId = Number(idStr);
+      helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+      helpdeskName = name || null;
+    }
+
+    if (userId) {
+      try {
+        const [targetUser] = await db
+          .select({
+            username: users.username,
+            helpdeskName: users.helpdeskName,
+          })
+          .from(users)
+          .where(eq(users.id, userId));
+        const targetUsername = targetUser?.username || "desconocido";
+        const oldHelpdesk = targetUser?.helpdeskName || "Sin asignar";
+
+        await db
+          .update(users)
+          .set({ helpdeskId, helpdeskName })
+          .where(eq(users.id, userId));
+        successMsg = "Mesa de ayuda actualizada con éxito.";
+        await logAdminFromAstro(
+          Astro.locals,
+          `Cambió la mesa de ayuda de "${targetUsername}" de "${oldHelpdesk}" a "${helpdeskName || "Sin asignar"}"`,
+        );
+      } catch (e) {
+        errorMsg = "Error al actualizar la mesa de ayuda.";
       }
     }
   }
