@@ -9,6 +9,10 @@ import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionRoleButton from "@components/ui/ActionRoleButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
+import { invgateGet } from "@lib/invgateClient";
+import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
+import { ALLOWED_HELPDESK_NAMES, DEFAULT_HELPDESK } from "@lib/helpdeskAccess";
+import ActionHelpdeskButton from "@components/ui/ActionHelpdeskButton.astro";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -28,8 +32,16 @@ const { successMsg = "", errorMsg = "" } = Astro.props;
 
 const allUsers = await db.select().from(users);
 
-const headerGridClass = "grid-cols-[1fr_140px_320px] gap-4";
-const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
+const hdResult =
+  await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const helpdeskOptions = (
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : []
+)
+  .filter((h) => !h.level_order && ALLOWED_HELPDESK_NAMES.includes(h.name ?? ""))
+  .map((h) => ({ id: h.id, name: h.name ?? `Helpdesk #${h.id}` }));
+
+const headerGridClass = "grid-cols-[1fr_140px_180px_320px] gap-4";
+const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4";
 ---
 
 <PageContainer width="xl">
@@ -82,6 +94,10 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           <div slot="header">
             <DataTableHeaderCell sortKey="role">Rol</DataTableHeaderCell>
           </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell
+            >
+          </div>
           <div slot="header" class="text-right">
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
           </div>
@@ -112,6 +128,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                   data-table-row
                   data-sort-username={u.username}
                   data-sort-role={u.role}
+                  data-sort-helpdesk={u.helpdeskName ?? ""}
                   class:list={[
                     rowGridClass,
                     "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
@@ -175,12 +192,31 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                     </span>
                   </div>
 
+                  <div class="flex min-w-0 items-center">
+                    {u.helpdeskName ? (
+                      <span class="badge badge-sm badge-outline font-mono whitespace-nowrap">
+                        {u.helpdeskName}
+                      </span>
+                    ) : (
+                      <span class="text-base-content/40 text-xs italic">
+                        Sin asignar
+                      </span>
+                    )}
+                  </div>
+
                   <div class="flex items-center justify-end gap-2">
                     <ActionRoleButton
                       data-action="change-role-btn"
                       data-user-id={u.id}
                       data-user-role={u.role}
                       ariaLabel={`Cambiar rol de ${u.username}`}
+                    />
+
+                    <ActionHelpdeskButton
+                      data-action="change-helpdesk-btn"
+                      data-user-id={u.id}
+                      data-user-helpdesk={`${u.helpdeskId ?? 0}|${u.helpdeskName ?? ""}`}
+                      ariaLabel={`Cambiar mesa de ayuda de ${u.username}`}
                     />
 
                     <ActionEditButton
@@ -352,6 +388,20 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             helpText="Define el nivel de acceso a módulos del portal."
           />
 
+          <SelectField
+            id="admin-helpdesk"
+            name="helpdesk"
+            label="Mesa de ayuda"
+            options={[
+              ...helpdeskOptions.map((hd) => ({
+                value: `${hd.id}|${hd.name}`,
+                label: hd.name,
+              })),
+              { value: `0|${DEFAULT_HELPDESK}`, label: `${DEFAULT_HELPDESK} (genérica)` },
+            ]}
+            helpText="Mesa de InvGate que gobierna qué secciones ve el usuario."
+          />
+
           <input type="hidden" name="action" value="create" />
           <ActionConfirmButton
             type="submit"
@@ -416,6 +466,53 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           color="btn-primary"
           label="Guardar"
           icon="boxicons:check-filled"
+        />
+      </div>
+    </form>
+  </Fragment>
+</Modal>
+
+<Modal id="modal-change-helpdesk">
+  <Fragment slot="content">
+    <h3 class="text-base-content mb-1 text-base font-semibold">
+      Cambiar mesa de ayuda
+    </h3>
+    <p class="text-base-content/60 mb-4 text-xs">
+      Define qué secciones ve el usuario en el portal.
+    </p>
+    <form method="POST" class="space-y-4" data-async-form>
+      <input type="hidden" name="action" value="change-helpdesk" />
+      <input type="hidden" name="userId" id="change-helpdesk-user-id" />
+      <SelectField
+        id="change-helpdesk-select"
+        name="helpdesk"
+        label="Mesa de ayuda"
+        selectClass="select-sm"
+        options={[
+          ...helpdeskOptions.map((hd) => ({
+            value: `${hd.id}|${hd.name}`,
+            label: hd.name,
+          })),
+          { value: `0|${DEFAULT_HELPDESK}`, label: `${DEFAULT_HELPDESK} (genérica)` },
+          { value: "", label: "Sin asignar" },
+        ]}
+      />
+
+      <div
+        class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3"
+      >
+        <ActionConfirmButton
+          type="submit"
+          color="btn-primary"
+          label="Guardar"
+          icon="boxicons:check-filled"
+          size="sm"
+        />
+        <ActionCancelButton
+          type="button"
+          label="Cancelar"
+          size="sm"
+          onclick="this.closest('dialog').close()"
         />
       </div>
     </form>
@@ -627,6 +724,30 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             roleSelect.value = userRole || "agent";
             updateDesc(roleSelect.value as keyof typeof roleDescriptions);
             modal.showModal();
+          }
+        });
+      });
+
+    const helpdeskModal = document.getElementById(
+      "modal-change-helpdesk",
+    ) as HTMLDialogElement | null;
+    const helpdeskUserIdInput = document.getElementById(
+      "change-helpdesk-user-id",
+    ) as HTMLInputElement | null;
+    const helpdeskSelect = document.getElementById(
+      "change-helpdesk-select",
+    ) as HTMLSelectElement | null;
+
+    document
+      .querySelectorAll('[data-action="change-helpdesk-btn"]')
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const userId = btn.getAttribute("data-user-id");
+          const userHelpdesk = btn.getAttribute("data-user-helpdesk") || "";
+          if (helpdeskUserIdInput && helpdeskSelect && helpdeskModal) {
+            helpdeskUserIdInput.value = userId || "";
+            helpdeskSelect.value = userHelpdesk;
+            helpdeskModal.showModal();
           }
         });
       });
