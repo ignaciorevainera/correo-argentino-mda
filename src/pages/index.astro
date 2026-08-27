@@ -4,6 +4,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
 import { Icon } from "astro-icon/components";
 import { normalizeRole, hasPermission } from "@lib/rbac";
+import { isSectionVisible } from "@lib/helpdeskAccess";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -38,7 +39,9 @@ const isRouteLocked = (href: string): boolean => {
   ) {
     return true;
   }
-  return !hasPermission(href, userRole);
+  if (!hasPermission(href, userRole)) return true;
+  if (!isSectionVisible(user?.helpdeskName, user?.role, href)) return true;
+  return false;
 };
 
 const mainModules = [
@@ -198,12 +201,8 @@ const quickAccessItems: QuickAccessItem[] = [
             ]}
           >
             {mainModules
-              .filter(
-                (mod) =>
-                  !(
-                    ["agent", "referent"].includes(userRole) &&
-                    mod.href === "/supervision/asistencia"
-                  ),
+              .filter((mod) =>
+                isSectionVisible(user?.helpdeskName, user?.role, mod.href),
               )
               .map((mod) => {
                 const locked = isRouteLocked(mod.href);
