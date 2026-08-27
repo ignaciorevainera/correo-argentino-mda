@@ -4,6 +4,7 @@ import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
 import { hasPermission } from "./lib/rbac";
+import { isSectionVisible } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
@@ -129,6 +130,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     id: 0,
     username: "Usuario",
     role: "agent",
+    helpdeskId: null as number | null,
+    helpdeskName: null as string | null,
   };
 
   const signedSessionId = cookies.get("session_id")?.value;
@@ -150,7 +153,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
     if (session && session.expiresAt > Date.now()) {
       const [dbUser] = await db
-        .select({ id: users.id, username: users.username, role: users.role })
+        .select({
+          id: users.id,
+          username: users.username,
+          role: users.role,
+          helpdeskId: users.helpdeskId,
+          helpdeskName: users.helpdeskName,
+        })
         .from(users)
         .where(eq(users.id, session.userId));
 
@@ -224,6 +233,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const role = (currentUser.role || "").toLowerCase().trim();
 
   if (!hasPermission(relativePath, role)) {
+    if (currentUser.id !== 0) {
+      return redirect(
+        resolveUrl(
+          `/?toast_msg=${encodeURIComponent("Acceso no autorizado")}&toast_type=error`,
+        ),
+      );
+    }
+    return redirect(resolveUrl("/login"));
+  }
+
+  if (
+    !relativePath.startsWith("/api/") &&
+    !isSectionVisible(currentUser.helpdeskName, role, relativePath)
+  ) {
     if (currentUser.id !== 0) {
       return redirect(
         resolveUrl(
