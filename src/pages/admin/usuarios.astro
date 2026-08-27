@@ -129,37 +129,10 @@ if (Astro.request.method === "POST") {
   if (action === "change-role") {
     const userId = Number(formData.get("userId"));
     const newRole = formData.get("newRole")?.toString();
-    if (userId && newRole) {
-      try {
-        const [targetUser] = await db
-          .select({ username: users.username, role: users.role })
-          .from(users)
-          .where(eq(users.id, userId));
-        const targetUsername = targetUser?.username || "desconocido";
-        const oldRole = targetUser?.role || "desconocido";
-
-        await db
-          .update(users)
-          .set({ role: newRole as any })
-          .where(eq(users.id, userId));
-        successMsg = "Rol de usuario actualizado con éxito.";
-        await logAdminFromAstro(
-          Astro.locals,
-          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}"`,
-        );
-      } catch (e) {
-        errorMsg = "Error al actualizar el rol de usuario.";
-      }
-    }
-  }
-
-  if (action === "change-helpdesk") {
-    const userId = Number(formData.get("userId"));
     const raw = formData.get("helpdesk")?.toString() ?? "";
 
     let helpdeskId: number | null = null;
     let helpdeskName: string | null = null;
-
     if (raw) {
       const sep = raw.indexOf("|");
       const idStr = sep === -1 ? raw : raw.slice(0, sep);
@@ -169,29 +142,31 @@ if (Astro.request.method === "POST") {
       helpdeskName = name || null;
     }
 
-    if (userId) {
+    if (userId && newRole) {
       try {
         const [targetUser] = await db
           .select({
             username: users.username,
+            role: users.role,
             helpdeskName: users.helpdeskName,
           })
           .from(users)
           .where(eq(users.id, userId));
         const targetUsername = targetUser?.username || "desconocido";
+        const oldRole = targetUser?.role || "desconocido";
         const oldHelpdesk = targetUser?.helpdeskName || "Sin asignar";
 
         await db
           .update(users)
-          .set({ helpdeskId, helpdeskName })
+          .set({ role: newRole as any, helpdeskId, helpdeskName })
           .where(eq(users.id, userId));
-        successMsg = "Mesa de ayuda actualizada con éxito.";
+        successMsg = "Rol y mesa de ayuda actualizados con éxito.";
         await logAdminFromAstro(
           Astro.locals,
-          `Cambió la mesa de ayuda de "${targetUsername}" de "${oldHelpdesk}" a "${helpdeskName || "Sin asignar"}"`,
+          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin asignar"}"`,
         );
       } catch (e) {
-        errorMsg = "Error al actualizar la mesa de ayuda.";
+        errorMsg = "Error al actualizar el usuario.";
       }
     }
   }

@@ -12,7 +12,6 @@ import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { ALLOWED_HELPDESK_NAMES, DEFAULT_HELPDESK } from "@lib/helpdeskAccess";
-import ActionHelpdeskButton from "@components/ui/ActionHelpdeskButton.astro";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -209,14 +208,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                       data-action="change-role-btn"
                       data-user-id={u.id}
                       data-user-role={u.role}
-                      ariaLabel={`Cambiar rol de ${u.username}`}
-                    />
-
-                    <ActionHelpdeskButton
-                      data-action="change-helpdesk-btn"
-                      data-user-id={u.id}
-                      data-user-helpdesk={u.helpdeskId ? `${u.helpdeskId}|${u.helpdeskName ?? ""}` : ""}
-                      ariaLabel={`Cambiar mesa de ayuda de ${u.username}`}
+                      data-user-helpdesk={u.helpdeskId ? `${u.helpdeskId}|${u.helpdeskName ?? ""}` : (u.helpdeskName ? `0|${u.helpdeskName}` : "")}
+                      ariaLabel={`Cambiar rol y mesa de ayuda de ${u.username}`}
                     />
 
                     <ActionEditButton
@@ -428,6 +421,20 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
       <input type="hidden" name="action" value="change-role" />
       <input type="hidden" name="userId" id="change-role-user-id" />
       <SelectField
+        id="change-role-helpdesk-select"
+        name="helpdesk"
+        label="Mesa de ayuda"
+        selectClass="select-sm"
+        options={[
+          ...helpdeskOptions.map((hd) => ({
+            value: `${hd.id}|${hd.name}`,
+            label: hd.name,
+          })),
+          { value: `0|${DEFAULT_HELPDESK}`, label: `${DEFAULT_HELPDESK} (genérica)` },
+          { value: "", label: "Sin asignar" },
+        ]}
+      />
+      <SelectField
         id="change-role-select"
         name="newRole"
         label="Nuevo rol"
@@ -466,53 +473,6 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
           color="btn-primary"
           label="Guardar"
           icon="boxicons:check-filled"
-        />
-      </div>
-    </form>
-  </Fragment>
-</Modal>
-
-<Modal id="modal-change-helpdesk">
-  <Fragment slot="content">
-    <h3 class="text-base-content mb-1 text-base font-semibold">
-      Cambiar mesa de ayuda
-    </h3>
-    <p class="text-base-content/60 mb-4 text-xs">
-      Define qué secciones ve el usuario en el portal.
-    </p>
-    <form method="POST" class="space-y-4" data-async-form>
-      <input type="hidden" name="action" value="change-helpdesk" />
-      <input type="hidden" name="userId" id="change-helpdesk-user-id" />
-      <SelectField
-        id="change-helpdesk-select"
-        name="helpdesk"
-        label="Mesa de ayuda"
-        selectClass="select-sm"
-        options={[
-          ...helpdeskOptions.map((hd) => ({
-            value: `${hd.id}|${hd.name}`,
-            label: hd.name,
-          })),
-          { value: `0|${DEFAULT_HELPDESK}`, label: `${DEFAULT_HELPDESK} (genérica)` },
-          { value: "", label: "Sin asignar" },
-        ]}
-      />
-
-      <div
-        class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3"
-      >
-        <ActionConfirmButton
-          type="submit"
-          color="btn-primary"
-          label="Guardar"
-          icon="boxicons:check-filled"
-          size="sm"
-        />
-        <ActionCancelButton
-          type="button"
-          label="Cancelar"
-          size="sm"
-          onclick="this.closest('dialog').close()"
         />
       </div>
     </form>
@@ -673,6 +633,56 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
         "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
     };
 
+    const MDA_TI_HELPDESK_NAME = "TI_GSM_MDA TI";
+    const ROLE_OPTIONS_FULL = [
+      { value: "agent", label: "Agente" },
+      { value: "referent", label: "Referente" },
+      { value: "team_leader", label: "Team Leader" },
+      { value: "supervisor", label: "Supervisor" },
+      { value: "admin", label: "Administrador" },
+    ];
+    const ROLE_OPTIONS_LIMITED = [
+      { value: "agent", label: "Agente" },
+      { value: "supervisor", label: "Supervisor" },
+    ];
+
+    const helpdeskSelect = document.getElementById(
+      "change-role-helpdesk-select",
+    ) as HTMLSelectElement | null;
+
+    const rebuildRoleOptions = (
+      helpdeskName: string | undefined,
+      preferredRole?: string,
+    ) => {
+      if (!roleSelect) return;
+      const opts =
+        helpdeskName === MDA_TI_HELPDESK_NAME
+          ? ROLE_OPTIONS_FULL
+          : ROLE_OPTIONS_LIMITED;
+      roleSelect.innerHTML = "";
+      let preferredValid = false;
+      for (const o of opts) {
+        const opt = document.createElement("option");
+        opt.value = o.value;
+        opt.textContent = o.label;
+        roleSelect.appendChild(opt);
+        if (preferredRole && o.value === preferredRole) preferredValid = true;
+      }
+      roleSelect.value = preferredValid
+        ? (preferredRole as string)
+        : opts[0].value;
+      updateDesc(roleSelect.value as keyof typeof roleDescriptions);
+    };
+
+    helpdeskSelect?.addEventListener("change", () => {
+      const selected =
+        helpdeskSelect.selectedOptions[0]?.textContent ?? undefined;
+      rebuildRoleOptions(
+        selected?.replace(" (genérica)", "").trim() || undefined,
+        roleSelect?.value,
+      );
+    });
+
     const modal = document.getElementById(
       "modal-change-role",
     ) as HTMLDialogElement | null;
@@ -715,39 +725,19 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
       .forEach((btn) => {
         btn.addEventListener("click", () => {
           const userId = btn.getAttribute("data-user-id");
-          const userRole = btn.getAttribute(
-            "data-user-role",
-          ) as keyof typeof roleDescriptions;
-
-          if (userIdInput && roleSelect && modal) {
-            userIdInput.value = userId || "";
-            roleSelect.value = userRole || "agent";
-            updateDesc(roleSelect.value as keyof typeof roleDescriptions);
-            modal.showModal();
-          }
-        });
-      });
-
-    const helpdeskModal = document.getElementById(
-      "modal-change-helpdesk",
-    ) as HTMLDialogElement | null;
-    const helpdeskUserIdInput = document.getElementById(
-      "change-helpdesk-user-id",
-    ) as HTMLInputElement | null;
-    const helpdeskSelect = document.getElementById(
-      "change-helpdesk-select",
-    ) as HTMLSelectElement | null;
-
-    document
-      .querySelectorAll('[data-action="change-helpdesk-btn"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const userId = btn.getAttribute("data-user-id");
+          const userRole = btn.getAttribute("data-user-role") || "agent";
           const userHelpdesk = btn.getAttribute("data-user-helpdesk") || "";
-          if (helpdeskUserIdInput && helpdeskSelect && helpdeskModal) {
-            helpdeskUserIdInput.value = userId || "";
+
+          if (userIdInput && roleSelect && modal && helpdeskSelect) {
+            userIdInput.value = userId || "";
             helpdeskSelect.value = userHelpdesk;
-            helpdeskModal.showModal();
+            const selectedName =
+              helpdeskSelect.selectedOptions[0]?.textContent ?? undefined;
+            rebuildRoleOptions(
+              selectedName?.replace(" (genérica)", "").trim() || undefined,
+              userRole,
+            );
+            modal.showModal();
           }
         });
       });
