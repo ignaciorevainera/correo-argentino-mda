@@ -215,7 +215,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                       data-action="change-role-btn"
                       data-user-id={u.id}
                       data-user-role={u.role}
-                      data-user-helpdesk={u.helpdeskId ? `${u.helpdeskId}|${u.helpdeskName ?? ""}` : (u.helpdeskName ? `0|${u.helpdeskName}` : "")}
+                      data-user-helpdesk={u.helpdeskName ?? ""}
                       ariaLabel={`Cambiar rol y mesa de ayuda de ${u.username}`}
                     />
 
@@ -736,7 +736,14 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
 
           if (userIdInput && roleSelect && modal && helpdeskSelect) {
             userIdInput.value = userId || "";
-            helpdeskSelect.value = userHelpdesk;
+            const targetName = userHelpdesk.trim();
+            helpdeskSelect.value = "";
+            if (targetName) {
+              const match = Array.from(helpdeskSelect.options).find(
+                (o) => (o.textContent ?? "").trim() === targetName,
+              );
+              if (match) helpdeskSelect.value = match.value;
+            }
             const selectedName =
               helpdeskSelect.selectedOptions[0]?.textContent ?? undefined;
             rebuildRoleOptions(
