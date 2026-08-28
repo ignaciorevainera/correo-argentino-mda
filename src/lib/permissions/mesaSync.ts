@@ -1,7 +1,7 @@
 // src/lib/permissions/mesaSync.ts
 import { db } from "../../db";
 import { mesas } from "../../db/schema";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 import { invalidatePermissionsCache } from "./cache";
 import type { InvgateResult } from "@/types/invgate";
 
@@ -26,11 +26,20 @@ export function diffMesas(
   invGateList: InvGateMesa[],
   local: Array<{ invgateId: number; name: string; displayName: string | null; active: boolean }>,
 ): MesaDiff {
+  // Dedupe by invgateId (keep first) so a duplicate in the InvGate response
+  // cannot produce two added/updated rows for the same unique column.
+  const seen = new Set<number>();
+  const uniqueList = invGateList.filter((m) => {
+    if (seen.has(m.invgateId)) return false;
+    seen.add(m.invgateId);
+    return true;
+  });
+
   const localById = new Map(local.map((m) => [m.invgateId, m]));
   const added: MesaDiff["added"] = [];
   const updated: MesaDiff["updated"] = [];
 
-  for (const ig of invGateList) {
+  for (const ig of uniqueList) {
     const existing = localById.get(ig.invgateId);
     if (!existing) {
       added.push({ invgateId: ig.invgateId, name: ig.name, displayName: ig.displayName ?? null });
@@ -85,6 +94,15 @@ export async function syncMesas(): Promise<{
   total: number;
 }> {
   const invGateList = await fetchInvGateMesas();
+
+  // Guard against an accidental wipe: a legitimate-but-empty InvGate response
+  // (or a flaky 200 with no data) must NOT soft-deactivate every local mesa.
+  if (invGateList.length === 0) {
+    throw new Error(
+      "[mesaSync] InvGate devolvió 0 mesas; se cancela el sync para evitar desactivar todas las mesas locales.",
+    );
+  }
+
   const localRows = await db.select().from(mesas);
   const diff = diffMesas(
     invGateList,
@@ -97,27 +115,32 @@ export async function syncMesas(): Promise<{
   );
   const now = new Date().toISOString();
 
-  await db.transaction(async (tx) => {
+  // better-sqlite3 commits synchronously when the callback returns, so the
+  // transaction callback MUST be synchronous (no async/await inside) — otherwise
+  // inserts run after the commit and lose atomicity. Use .run() per statement.
+  db.transaction((tx) => {
     for (const a of diff.added) {
-      await tx.insert(mesas).values({
-        invgateId: a.invgateId,
-        name: a.name,
-        displayName: a.displayName,
-        active: true,
-        lastSyncedAt: now,
-      });
+      tx.insert(mesas)
+        .values({
+          invgateId: a.invgateId,
+          name: a.name,
+          displayName: a.displayName,
+          active: true,
+          lastSyncedAt: now,
+        })
+        .run();
     }
     for (const u of diff.updated) {
-      await tx
-        .update(mesas)
+      tx.update(mesas)
         .set({ name: u.name, displayName: u.displayName, active: true, lastSyncedAt: now })
-        .where(inArray(mesas.invgateId, [u.invgateId]));
+        .where(eq(mesas.invgateId, u.invgateId))
+        .run();
     }
     if (diff.deactivated.length > 0) {
-      await tx
-        .update(mesas)
+      tx.update(mesas)
         .set({ active: false, lastSyncedAt: now })
-        .where(inArray(mesas.invgateId, diff.deactivated));
+        .where(inArray(mesas.invgateId, diff.deactivated))
+        .run();
     }
   });
 
