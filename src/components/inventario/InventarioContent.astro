@@ -27,8 +27,10 @@ import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
+import { MDA_TI_HELPDESK } from "@lib/helpdeskAccess";
 
 const user = Astro.locals.user;
+const showCubicsTab = user?.helpdeskName === MDA_TI_HELPDESK;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
@@ -92,15 +94,17 @@ const formatLastPing = (lastPing: Date | string | null | undefined): string => {
   return `${day}/${month}/${year} - ${hours}:${minutes} hs`;
 };
 
-const cubicMachines = await db.query.cubics.findMany({
-  with: {
-    assignments: {
+const cubicMachines = showCubicsTab
+  ? await db.query.cubics.findMany({
       with: {
-        agent: true,
+        assignments: {
+          with: {
+            agent: true,
+          },
+        },
       },
-    },
-  },
-});
+    })
+  : [];
 
 const onlineCount = getActiveMachineCount(cubicMachines as any);
 const totalMachines = cubicMachines.length;
@@ -155,7 +159,9 @@ const inventoryTabs = [
     value: "mediterranea",
     icon: "boxicons:tv",
   },
-  { label: "Cúbics", value: "cubics", icon: "boxicons:server-filled" },
+  ...(showCubicsTab
+    ? [{ label: "Cúbics", value: "cubics", icon: "boxicons:server-filled" }]
+    : []),
 ];
 ---
 
@@ -646,6 +652,7 @@ const inventoryTabs = [
     }
   </div>
 
+  {showCubicsTab && (
   <div
     id="view-cubics"
     class:list={["space-y-6", activeTab !== "cubics" && "hidden"]}
@@ -829,6 +836,7 @@ const inventoryTabs = [
       </DataTable>
     </section>
   </div>
+  )}
 
   <div
     id="view-mediterranea"
