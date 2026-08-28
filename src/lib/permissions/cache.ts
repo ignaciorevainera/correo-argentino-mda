@@ -14,6 +14,7 @@ const CACHE_TTL_MS = 60_000;
 
 let routeSnapshot: Map<string, boolean> | null = null;
 let moduleSnapshot: Map<string, ModuleFlags> | null = null;
+let moduleByName: Map<string, { id: number; flags: string[] }> | null = null;
 let mesasList: MesaRecord[] = [];
 let lastLoadedAt = 0;
 let loadingPromise: Promise<void> | null = null;
@@ -47,8 +48,14 @@ export async function loadPermissionsCache(force = false): Promise<void> {
       });
     }
 
+    const nextModuleByName = new Map<string, { id: number; flags: string[] }>();
+    for (const m of modulesRows) {
+      nextModuleByName.set(m.name, { id: m.id, flags: m.flags });
+    }
+
     routeSnapshot = nextRoute;
     moduleSnapshot = nextModule;
+    moduleByName = nextModuleByName;
     mesasList = mesasRows;
     lastLoadedAt = Date.now();
   })().finally(() => {
@@ -83,6 +90,11 @@ export function getRouteSnapshot(): ReadonlyMap<string, boolean> {
 export function getModuleSnapshot(): ReadonlyMap<string, ModuleFlags> {
   if (!moduleSnapshot) throw new Error("Permissions cache not loaded");
   return Object.freeze(new Map(moduleSnapshot));
+}
+
+export function getModuleByName(): ReadonlyMap<string, { id: number; flags: string[] }> {
+  if (!moduleByName) throw new Error("Permissions cache not loaded");
+  return Object.freeze(new Map(moduleByName));
 }
 
 export function getActiveMesas(): MesaRecord[] {

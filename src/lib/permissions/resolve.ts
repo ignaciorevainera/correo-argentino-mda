@@ -3,7 +3,9 @@ import {
   loadPermissionsCache,
   getRouteSnapshot,
   getModuleSnapshot,
+  getModuleByName,
 } from "./cache";
+import type { ModuleFlags } from "./types";
 import {
   routePermissions,
   getModulePermissions as getHardcodedModulePermissions,
@@ -12,8 +14,7 @@ import {
   type Role,
 } from "../rbac";
 import { db } from "../../db";
-import { routes, modules } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { routes } from "../../db/schema";
 
 const ROUTES_TTL_MS = 60_000;
 
@@ -84,6 +85,30 @@ export async function hasRouteAccess(
   return hardcodedRouteAllowed(path, role);
 }
 
+// Resolve a module's cached access entry (mesa-specific → global → undefined).
+// Returns the cached ModuleFlags if present, else undefined so the caller can
+// fall back to the hardcoded default. Resolves moduleId from the in-memory
+// cache (no DB hit) — modules are loaded once into cache.ts.
+function resolveModuleEntry(
+  moduleName: string,
+  role: string,
+  mesaId: number | null,
+): ModuleFlags | undefined {
+  const byName = getModuleByName();
+  const mod = byName.get(moduleName);
+  if (!mod) return undefined;
+
+  const snapshot = getModuleSnapshot();
+  const mesaSpecificKey = `${mod.id}:${role}:${mesaId ?? 0}`;
+  const specific = snapshot.get(mesaSpecificKey);
+  if (specific) return specific;
+  if (mesaId != null) {
+    const global = snapshot.get(`${mod.id}:${role}:0`);
+    if (global) return global;
+  }
+  return undefined;
+}
+
 export async function hasModuleFlag(
   moduleName: string,
   flag: "canRead" | "canWrite" | "canViewAll" | "canViewComments" | "canViewTotals",
@@ -91,15 +116,8 @@ export async function hasModuleFlag(
   mesaId: number | null,
 ): Promise<boolean> {
   await loadPermissionsCache();
-  const [mod] = await db.select().from(modules).where(eq(modules.name, moduleName));
-  if (!mod) return getHardcodedModulePermissions(moduleName, role)[flag];
-
-  const snapshot = getModuleSnapshot();
-  const mesaSpecificKey = `${mod.id}:${role}:${mesaId ?? 0}`;
-  if (snapshot.has(mesaSpecificKey)) return snapshot.get(mesaSpecificKey)![flag];
-  if (mesaId != null && snapshot.has(`${mod.id}:${role}:0`)) {
-    return snapshot.get(`${mod.id}:${role}:0`)![flag];
-  }
+  const entry = resolveModuleEntry(moduleName, role, mesaId);
+  if (entry) return entry[flag];
   return getHardcodedModulePermissions(moduleName, role)[flag];
 }
 
@@ -115,14 +133,7 @@ export async function getModulePermissionsFor(
   canViewTotals: boolean;
 }> {
   await loadPermissionsCache();
-  const [mod] = await db.select().from(modules).where(eq(modules.name, moduleName));
-  if (!mod) return getHardcodedModulePermissions(moduleName, role);
-
-  const snapshot = getModuleSnapshot();
-  const mesaSpecificKey = `${mod.id}:${role}:${mesaId ?? 0}`;
-  if (snapshot.has(mesaSpecificKey)) return snapshot.get(mesaSpecificKey)!;
-  if (mesaId != null && snapshot.has(`${mod.id}:${role}:0`)) {
-    return snapshot.get(`${mod.id}:${role}:0`)!;
-  }
+  const entry = resolveModuleEntry(moduleName, role, mesaId);
+  if (entry) return entry;
   return getHardcodedModulePermissions(moduleName, role);
 }
