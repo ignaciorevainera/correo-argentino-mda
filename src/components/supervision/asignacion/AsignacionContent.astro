@@ -931,6 +931,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 <script>
   import { showToast } from "@/lib/toastClient";
   import { escapeHtml } from "@lib/sanitize";
+  import { matchesCurrentUser } from "@lib/currentUserMatch";
 
   let countdownInterval: any = null;
   let timer: any = null;
@@ -1099,6 +1100,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           maxAgentId = op.agentId;
         }
       });
+
+      const currentUsername =
+        (
+          document
+            .querySelector("[data-user-username]")
+            ?.getAttribute("data-user-username") || ""
+        )
+          .toLowerCase()
+          .trim();
 
       // 2. Update summary cards
       const disponiblesCount = data.filter((op) => op.disponible).length;
@@ -1361,6 +1371,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           "border-l-primary",
           "bg-secondary/10",
           "border-l-secondary",
+          "bg-accent/10",
+          "border-l-accent",
           "border-l-4",
           "opacity-50",
           "grayscale-[30%]",
@@ -1368,8 +1380,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
         const isExceptional = !!op.estadoExcepcional;
         const isHighlighted = op.agentId === maxAgentId && maxAssignedTime > 0;
+        const isCurrentUser = matchesCurrentUser(
+          row.getAttribute("data-op-username"),
+          row.getAttribute("data-op-nombre"),
+          currentUsername,
+        );
 
-        if (isExceptional) {
+        if (isCurrentUser) {
+          row.classList.add("bg-accent/10", "border-l-4", "border-l-accent");
+        } else if (isExceptional) {
           row.classList.add(
             "bg-secondary/10",
             "border-l-4",
