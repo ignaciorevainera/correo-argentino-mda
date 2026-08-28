@@ -9,6 +9,9 @@ import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
+import { bootstrapPermissions } from "./lib/permissions/bootstrap";
+
+let bootstrapped = false;
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -109,6 +112,14 @@ function setSecurityHeaders(response: Response): Response {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  if (!bootstrapped) {
+    bootstrapped = true;
+    try {
+      await bootstrapPermissions();
+    } catch (err) {
+      console.error("Permissions bootstrap failed:", err);
+    }
+  }
   const { cookies, url, redirect, locals } = context;
   const path = url.pathname;
 
