@@ -8,13 +8,19 @@ export interface PermisosShellProps {
   currentUser: { username: string; mesaId: number | null };
 }
 
-interface PermisosData {
-  routes: unknown[];
-  modules: unknown[];
-  mesas: unknown[];
-  routeAccess: unknown[];
-  moduleAccess: unknown[];
-}
+type RouteDef = { id: number; path: string; label: string; sortOrder: number };
+type ModuleDef = { id: number; name: string; label: string; flags: string[]; sortOrder: number };
+type MesaDef = { id: number; name: string; displayName: string; active: boolean; invgateId: string; lastSyncedAt: string | null };
+type RouteCell = { routeId: number; role: string; mesaId: number; allowed: boolean };
+type ModuleCell = { moduleId: number; role: string; mesaId: number; canRead: boolean; canWrite: boolean; canViewAll: boolean; canViewComments: boolean; canViewTotals: boolean };
+
+type PermisosData = {
+  routes: RouteDef[];
+  modules: ModuleDef[];
+  mesas: MesaDef[];
+  routeAccess: RouteCell[];
+  moduleAccess: ModuleCell[];
+};
 
 type Tab = "rutas" | "modulos" | "mesas";
 
