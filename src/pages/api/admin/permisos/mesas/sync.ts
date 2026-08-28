@@ -13,11 +13,19 @@ export const POST: APIRoute = async ({ locals }) => {
     const result = await syncMesas();
     await logAdminFromAstro(locals, "permisos.mesas.sync");
     return jsonResponse(result);
-  } catch (err: any) {
-    const message = err?.message ?? "Error desconocido";
-    if (message.includes("401") || message.includes("403")) {
-      return jsonError(`InvGate rechazó la solicitud (${message})`, 502);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Error desconocido";
+    // The empty-list guard throws "0 mesas" — a successful InvGate contact that
+    // returned no data; surface as 400 (aborted), not a 502 transport failure.
+    if (message.includes("0 mesas")) {
+      return jsonError("InvGate devolvió 0 mesas; no se modificó la lista local.", 400);
     }
-    return jsonError(`No se pudo contactar InvGate: ${message}`, 502);
+    // InvGate auth rejection or any other contact failure — do not echo upstream
+    // internals to the client.
+    console.error("Error en sync de mesas:", message);
+    if (message.includes("401") || message.includes("403")) {
+      return jsonError("InvGate rechazó la solicitud (verifica credenciales).", 502);
+    }
+    return jsonError("No se pudo contactar InvGate. Reintenta más tarde.", 502);
   }
 };
