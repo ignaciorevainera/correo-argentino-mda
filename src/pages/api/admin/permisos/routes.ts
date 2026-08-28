@@ -9,14 +9,16 @@ import { invalidatePermissionsCache } from "../../../../lib/permissions/cache";
 import { logAdminFromAstro } from "@lib/auditLogger";
 
 const BodySchema = z.object({
-  changes: z.array(
-    z.object({
-      routeId: z.number().int().positive(),
-      role: z.enum(["agent", "referent", "team_leader", "supervisor"]),
-      mesaId: z.number().int().positive(),
-      allowed: z.boolean(),
-    }),
-  ),
+  changes: z
+    .array(
+      z.object({
+        routeId: z.number().int().positive(),
+        role: z.enum(["agent", "referent", "team_leader", "supervisor"]),
+        mesaId: z.number().int().positive(),
+        allowed: z.boolean(),
+      }),
+    )
+    .max(5000, "Demasiados cambios en una sola operación"),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -45,61 +47,66 @@ export const POST: APIRoute = async ({ request, locals }) => {
   // better-sqlite3 commits synchronously when the callback returns, so the
   // transaction callback MUST be synchronous (no async/await inside) — otherwise
   // statements run after the commit and lose atomicity. Use .run()/.all() per statement.
-  db.transaction((tx) => {
-    for (const change of body.changes) {
-      const [current] = tx
-        .select()
-        .from(routeAccess)
-        .where(
-          and(
-            eq(routeAccess.routeId, change.routeId),
-            eq(routeAccess.role, change.role),
-            eq(routeAccess.mesaId, change.mesaId),
-          ),
-        )
-        .all();
+  try {
+    db.transaction((tx) => {
+      for (const change of body.changes) {
+        const [current] = tx
+          .select()
+          .from(routeAccess)
+          .where(
+            and(
+              eq(routeAccess.routeId, change.routeId),
+              eq(routeAccess.role, change.role),
+              eq(routeAccess.mesaId, change.mesaId),
+            ),
+          )
+          .all();
 
-      const before = current ? { allowed: current.allowed } : { allowed: null };
-      if (current && current.allowed === change.allowed) continue;
+        const before = current ? { allowed: current.allowed } : { allowed: null };
+        if (current && current.allowed === change.allowed) continue;
 
-      if (current) {
-        tx.update(routeAccess)
-          .set({ allowed: change.allowed })
-          .where(eq(routeAccess.id, current.id))
-          .run();
-      } else {
-        tx.insert(routeAccess)
+        if (current) {
+          tx.update(routeAccess)
+            .set({ allowed: change.allowed })
+            .where(eq(routeAccess.id, current.id))
+            .run();
+        } else {
+          tx.insert(routeAccess)
+            .values({
+              routeId: change.routeId,
+              role: change.role,
+              mesaId: change.mesaId,
+              allowed: change.allowed,
+            })
+            .run();
+        }
+
+        summary.push({
+          type: "route",
+          targetId: change.routeId,
+          role: change.role,
+          mesaId: change.mesaId,
+          before,
+          after: { allowed: change.allowed },
+        });
+        changedCells++;
+      }
+
+      if (changedCells > 0) {
+        tx.insert(permissionAuditBatches)
           .values({
-            routeId: change.routeId,
-            role: change.role,
-            mesaId: change.mesaId,
-            allowed: change.allowed,
+            adminUsername: locals.user.username,
+            editedAt: new Date().toISOString(),
+            changedCells,
+            summary: JSON.stringify(summary),
           })
           .run();
       }
-
-      summary.push({
-        type: "route",
-        targetId: change.routeId,
-        role: change.role,
-        mesaId: change.mesaId,
-        before,
-        after: { allowed: change.allowed },
-      });
-      changedCells++;
-    }
-
-    if (changedCells > 0) {
-      tx.insert(permissionAuditBatches)
-        .values({
-          adminUsername: locals.user.username,
-          editedAt: new Date().toISOString(),
-          changedCells,
-          summary: JSON.stringify(summary),
-        })
-        .run();
-    }
-  });
+    });
+  } catch (err) {
+    console.error("Error al guardar permisos de rutas:", err);
+    return jsonError("Error al guardar. Cambios no aplicados.", 500);
+  }
 
   await invalidatePermissionsCache();
   await logAdminFromAstro(locals, "permisos.routes.save");
