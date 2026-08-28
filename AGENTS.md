@@ -14,6 +14,7 @@
 - `npm run build` — Astro SSR build (`dist/`)
 - `npm run db:push` — push Drizzle schema to SQLite
 - `npm run db:studio` — Drizzle Studio GUI
+- **After `git pull` that changes `package.json`/`package-lock.json` (e.g. Astro upgrades): always run `npm install` before `npm run build`.** Stale/mismatched `node_modules` builds a broken `dist/server/entry.mjs` where the Astro SSR manifest gets `rootDir: undefined`, crashing at startup with `TypeError: Invalid URL` in `deserializeManifest`. `npm install` + rebuild fixes it; repo code is fine.
 
 ## Testing
 
