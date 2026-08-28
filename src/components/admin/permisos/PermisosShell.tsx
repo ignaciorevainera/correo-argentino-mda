@@ -53,20 +53,30 @@ export default function PermisosShell(_props: PermisosShellProps): JSX.Element {
   useEffect(() => {
     (async () => {
       try {
-        await load();
-      } catch {
-        return;
-      }
-      if (data && data.mesas.length === 0) {
-        try {
-          await fetch(`${getCleanBase()}api/admin/permisos/mesas/sync`, {
-            method: "POST",
-            credentials: "same-origin",
-          });
-          await load();
-        } catch {
-          // non-fatal
+        const res = await fetch(`${getCleanBase()}api/admin/permisos/data`, {
+          credentials: "same-origin",
+        });
+        if (!res.ok) throw new Error(`Error ${res.status} al cargar permisos`);
+        const json = (await res.json()) as PermisosData;
+        setData(json);
+        if (json.mesas.length === 0) {
+          try {
+            await fetch(`${getCleanBase()}api/admin/permisos/mesas/sync`, {
+              method: "POST",
+              credentials: "same-origin",
+            });
+            const res2 = await fetch(`${getCleanBase()}api/admin/permisos/data`, {
+              credentials: "same-origin",
+            });
+            if (res2.ok) setData((await res2.json()) as PermisosData);
+          } catch {
+            // non-fatal: user can retry via Mesas tab
+          }
         }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error desconocido");
+      } finally {
+        setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

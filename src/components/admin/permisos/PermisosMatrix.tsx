@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { getCleanBase } from "@lib/baseUrl";
 import { showToast } from "@lib/toastClient";
@@ -114,12 +114,23 @@ export default function PermisosMatrix(props: PermisosMatrixProps): JSX.Element 
   };
 
   const [current, setCurrent] = useState<Map<string, CellValue>>(initMap);
-  const [snapshot] = useState<Map<string, CellValue>>(() => new Map(initMap()));
+  const [snapshot, setSnapshot] = useState<Map<string, CellValue>>(() => new Map(initMap()));
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState<Set<number>>(
     () => new Set((type === "routes" ? routes : modules).map((s) => s.id)),
   );
+
+  // Rebuild current/snapshot whenever the source cells change (e.g. after a
+  // successful save calls reload(), or when switching tabs). Without this the
+  // matrix keeps stale dirty borders and would re-send already-applied changes.
+  useEffect(() => {
+    const m = initMap();
+    setCurrent(m);
+    setSnapshot(new Map(m));
+    setOpen(new Set((type === "routes" ? routes : modules).map((s) => s.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cells, type, routes, modules]);
 
   const activeMesas = useMemo(() => mesas.filter((m) => m.active), [mesas]);
   const inactiveMesas = useMemo(() => mesas.filter((m) => !m.active), [mesas]);
@@ -183,7 +194,7 @@ export default function PermisosMatrix(props: PermisosMatrixProps): JSX.Element 
         type === "routes"
           ? val !== (snap ?? false)
           : ALL_FLAGS.some(
-                (f) => (val as ModuleFlags)[f] !== ((snap as ModuleFlags | undefined)?.[f] ?? MODULE_FLAGS_DEFAULT[f]),
+              (f) => (val as ModuleFlags)[f] !== ((snap as ModuleFlags | undefined)?.[f] ?? MODULE_FLAGS_DEFAULT[f]),
             );
       if (isDiff) n++;
     }
@@ -214,7 +225,7 @@ export default function PermisosMatrix(props: PermisosMatrixProps): JSX.Element 
           type === "routes"
             ? val !== (snap ?? false)
             : ALL_FLAGS.some(
-              (f) => (val as ModuleFlags)[f] !== ((snap as ModuleFlags | undefined)?.[f] ?? MODULE_FLAGS_DEFAULT[f]),
+                (f) => (val as ModuleFlags)[f] !== ((snap as ModuleFlags | undefined)?.[f] ?? MODULE_FLAGS_DEFAULT[f]),
               );
         if (!isDiff) continue;
         const [idStr, role, mesaIdStr] = key.split(":");
