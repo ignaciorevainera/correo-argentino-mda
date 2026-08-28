@@ -76,8 +76,11 @@ export async function hasRouteAccess(
   if (routeId == null) return hardcodedRouteAllowed(path, role);
 
   const snapshot = getRouteSnapshot();
-  const mesaKey = `${routeId}:${role}:${mesaId ?? 0}`;
-  if (snapshot.has(mesaKey)) return snapshot.get(mesaKey)!;
+  const mesaSpecificKey = `${routeId}:${role}:${mesaId ?? 0}`;
+  if (snapshot.has(mesaSpecificKey)) return snapshot.get(mesaSpecificKey)!;
+  if (mesaId != null && snapshot.has(`${routeId}:${role}:0`)) {
+    return snapshot.get(`${routeId}:${role}:0`)!;
+  }
   return hardcodedRouteAllowed(path, role);
 }
 
@@ -92,8 +95,11 @@ export async function hasModuleFlag(
   if (!mod) return getHardcodedModulePermissions(moduleName, role)[flag];
 
   const snapshot = getModuleSnapshot();
-  const key = `${mod.id}:${role}:${mesaId ?? 0}`;
-  if (snapshot.has(key)) return snapshot.get(key)![flag];
+  const mesaSpecificKey = `${mod.id}:${role}:${mesaId ?? 0}`;
+  if (snapshot.has(mesaSpecificKey)) return snapshot.get(mesaSpecificKey)![flag];
+  if (mesaId != null && snapshot.has(`${mod.id}:${role}:0`)) {
+    return snapshot.get(`${mod.id}:${role}:0`)![flag];
+  }
   return getHardcodedModulePermissions(moduleName, role)[flag];
 }
 
@@ -113,7 +119,10 @@ export async function getModulePermissionsFor(
   if (!mod) return getHardcodedModulePermissions(moduleName, role);
 
   const snapshot = getModuleSnapshot();
-  const key = `${mod.id}:${role}:${mesaId ?? 0}`;
-  if (snapshot.has(key)) return snapshot.get(key)!;
+  const mesaSpecificKey = `${mod.id}:${role}:${mesaId ?? 0}`;
+  if (snapshot.has(mesaSpecificKey)) return snapshot.get(mesaSpecificKey)!;
+  if (mesaId != null && snapshot.has(`${mod.id}:${role}:0`)) {
+    return snapshot.get(`${mod.id}:${role}:0`)!;
+  }
   return getHardcodedModulePermissions(moduleName, role);
 }

@@ -96,3 +96,48 @@ describe("hasModuleFlag fallback chain", () => {
     expect(await hasModuleFlag("cronograma", "canRead", "agent", null)).toBe(false);
   });
 });
+
+describe("global (mesaId 0) override tier", () => {
+  it("route global override beats hardcoded default for any mesa", async () => {
+    (db.select as any).mockImplementation(
+      makeSelect({
+        [getTableName(routes)]: [
+          { id: 2, path: "/admin", label: "Admin", sortOrder: 0 },
+        ],
+        [getTableName(routeAccess)]: [
+          { routeId: 2, role: "agent", mesaId: 0, allowed: true },
+        ],
+      }),
+    );
+    await invalidatePermissionsCache();
+    await loadPermissionsCache(true);
+    // /admin is hardcoded-denied for agent; global allow=true must win for mesa 5
+    expect(await hasRouteAccess("/admin", "agent", 5)).toBe(true);
+  });
+
+  it("module global override beats hardcoded default", async () => {
+    (db.select as any).mockImplementation(
+      makeSelect({
+        [getTableName(modules)]: [
+          { id: 1, name: "cronograma", label: "Cronograma", flags: [], sortOrder: 0 },
+        ],
+        [getTableName(moduleAccess)]: [
+          {
+            moduleId: 1,
+            role: "agent",
+            mesaId: 0,
+            canRead: false,
+            canWrite: false,
+            canViewAll: true,
+            canViewComments: true,
+            canViewTotals: true,
+          },
+        ],
+      }),
+    );
+    await invalidatePermissionsCache();
+    await loadPermissionsCache(true);
+    // cronograma hardcoded canRead=true for agent; global override false must win for mesa 7
+    expect(await hasModuleFlag("cronograma", "canRead", "agent", 7)).toBe(false);
+  });
+});
