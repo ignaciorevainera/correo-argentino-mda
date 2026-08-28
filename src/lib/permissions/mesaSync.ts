@@ -61,29 +61,26 @@ export function diffMesas(
   return { added, updated, deactivated };
 }
 
-// TODO: confirm InvGate categories endpoint + response shape.
-// This repo calls InvGate via `invgateGet<T>(endpoint)` (src/lib/invgateClient.ts),
-// where endpoint is a relative resource path (e.g. "helpdesks", "kb.categories").
-// The plan assumed `/api/v1/sd/categories?type=helpdesk` returning { categories: [...] }.
-// Mesas ("mesas de ayuda") in this app map to InvGate helpdesks, so the real endpoint
-// may be `helpdesks` (returns an array directly) instead of `sd.categories?type=helpdesk`.
-// The mapping below is resilient to both shapes.
+// Mesas ("mesas de ayuda") map to InvGate **helpdesks** (confirmed by existing
+// usage in src/pages/api/invgate/helpdesk-search.ts and src/pages/api/usuarios/
+// invgate-user.ts, both calling invgateGet<InvgateHelpdesk[]>("helpdesks")).
+// `invgateGet` returns the parsed body directly in `result.data` (no wrapper),
+// a plain array of { id, name } — no display_name field exists on helpdesks.
 export async function fetchInvGateMesas(): Promise<InvGateMesa[]> {
   const { invgateGet } = await import("../invgateClient");
-  const result = await invgateGet<any>("sd.categories?type=helpdesk");
+  const result = await invgateGet<{ id: number; name: string }[]>("helpdesks");
   if (!result.ok || !("data" in result)) {
     const message = "message" in result ? result.message : "Sin datos de InvGate";
     throw new Error(`[mesaSync] Error al obtener mesas de InvGate: ${message}`);
   }
-  const payload = result.data;
-  const rawList: any[] = payload?.categories ?? payload?.data ?? payload ?? [];
+  const rawList = result.data;
   if (!Array.isArray(rawList)) {
-    throw new Error("[mesaSync] La respuesta de categorías de InvGate no es un array.");
+    throw new Error("[mesaSync] La respuesta de helpdesks de InvGate no es un array.");
   }
-  return rawList.map((c: any) => ({
-    invgateId: c.id,
-    name: c.name,
-    displayName: c.display_name ?? null,
+  return rawList.map((h) => ({
+    invgateId: h.id,
+    name: h.name,
+    displayName: null,
   }));
 }
 
