@@ -949,3 +949,107 @@ export const titles = sqliteTable("titles", {
     () => new Date(),
   ),
 });
+
+// 18. ADMIN PERMISOS Y ACCESOS
+export const mesas = sqliteTable("mesas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  invgateId: integer("invgate_id").notNull().unique(),
+  name: text("name").notNull().unique(),
+  displayName: text("display_name"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  lastSyncedAt: text("last_synced_at").notNull(),
+});
+
+export const routes = sqliteTable("routes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  path: text("path").notNull().unique(),
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const modules = sqliteTable("modules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  label: text("label").notNull(),
+  flags: text("flags", { mode: "json" }).$type<string[]>().notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const routeAccess = sqliteTable(
+  "route_access",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    routeId: integer("route_id")
+      .notNull()
+      .references(() => routes.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    mesaId: integer("mesa_id")
+      .notNull()
+      .references(() => mesas.id, { onDelete: "cascade" }),
+    allowed: integer("allowed", { mode: "boolean" }).notNull(),
+  },
+  (table) => ({
+    routeRoleMesaIdx: uniqueIndex("route_access_unique_idx").on(
+      table.routeId,
+      table.role,
+      table.mesaId,
+    ),
+  }),
+);
+
+export const moduleAccess = sqliteTable(
+  "module_access",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    moduleId: integer("module_id")
+      .notNull()
+      .references(() => modules.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    mesaId: integer("mesa_id")
+      .notNull()
+      .references(() => mesas.id, { onDelete: "cascade" }),
+    canRead: integer("can_read", { mode: "boolean" }).notNull().default(false),
+    canWrite: integer("can_write", { mode: "boolean" }).notNull().default(false),
+    canViewAll: integer("can_view_all", { mode: "boolean" }).notNull().default(true),
+    canViewComments: integer("can_view_comments", { mode: "boolean" }).notNull().default(true),
+    canViewTotals: integer("can_view_totals", { mode: "boolean" }).notNull().default(true),
+  },
+  (table) => ({
+    moduleRoleMesaIdx: uniqueIndex("module_access_unique_idx").on(
+      table.moduleId,
+      table.role,
+      table.mesaId,
+    ),
+  }),
+);
+
+export const permissionAuditBatches = sqliteTable("permission_audit_batches", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  adminUsername: text("admin_username").notNull(),
+  editedAt: text("edited_at").notNull(),
+  changedCells: integer("changed_cells").notNull(),
+  summary: text("summary").notNull(),
+});
+
+export const mesasRelations = relations(mesas, ({ many }) => ({
+  routeAccess: many(routeAccess),
+  moduleAccess: many(moduleAccess),
+}));
+
+export const routesRelations = relations(routes, ({ many }) => ({
+  access: many(routeAccess),
+}));
+
+export const modulesRelations = relations(modules, ({ many }) => ({
+  access: many(moduleAccess),
+}));
+
+export const routeAccessRelations = relations(routeAccess, ({ one }) => ({
+  route: one(routes, { fields: [routeAccess.routeId], references: [routes.id] }),
+  mesa: one(mesas, { fields: [routeAccess.mesaId], references: [mesas.id] }),
+}));
+
+export const moduleAccessRelations = relations(moduleAccess, ({ one }) => ({
+  module: one(modules, { fields: [moduleAccess.moduleId], references: [modules.id] }),
+  mesa: one(mesas, { fields: [moduleAccess.mesaId], references: [mesas.id] }),
+}));
