@@ -31,14 +31,14 @@ export async function loadPermissionsCache(force = false): Promise<void> {
         db.select().from(mesas).where(eq(mesas.active, true)),
       ]);
 
-    routeSnapshot = new Map();
+    const nextRoute = new Map<string, boolean>();
     for (const row of routeAccessRows) {
-      routeSnapshot.set(`${row.routeId}:${row.role}:${row.mesaId}`, row.allowed);
+      nextRoute.set(`${row.routeId}:${row.role}:${row.mesaId}`, row.allowed);
     }
 
-    moduleSnapshot = new Map();
+    const nextModule = new Map<string, ModuleFlags>();
     for (const row of moduleAccessRows) {
-      moduleSnapshot.set(`${row.moduleId}:${row.role}:${row.mesaId}`, {
+      nextModule.set(`${row.moduleId}:${row.role}:${row.mesaId}`, {
         canRead: row.canRead,
         canWrite: row.canWrite,
         canViewAll: row.canViewAll,
@@ -47,10 +47,16 @@ export async function loadPermissionsCache(force = false): Promise<void> {
       });
     }
 
+    routeSnapshot = nextRoute;
+    moduleSnapshot = nextModule;
     mesasList = mesasRows;
     lastLoadedAt = Date.now();
+  })().finally(() => {
+    // Always clear so a rejected load cannot poison the cache for the
+    // process lifetime (callers would otherwise keep receiving the same
+    // rejected promise and never retry).
     loadingPromise = null;
-  })();
+  });
   return loadingPromise;
 }
 
@@ -62,14 +68,21 @@ export async function invalidatePermissionsCache(force = false): Promise<void> {
   await loadPermissionsCache(true);
 }
 
-export function getRouteSnapshot(): Map<string, boolean> {
+// Cross-process note: PM2 runs 3 Astro processes, each with its own module
+// cache. A write in one process reloads only that process; others catch up
+// within CACHE_TTL_MS (60s). This is the accepted trade-off of the hybrid
+// in-memory design (per plan). For immediate cluster-wide propagation a
+// shared-timestamp broadcast would be needed — out of scope.
+
+export function getRouteSnapshot(): ReadonlyMap<string, boolean> {
   if (!routeSnapshot) throw new Error("Permissions cache not loaded");
-  return routeSnapshot;
+  // Return a frozen copy so callers cannot mutate the shared snapshot.
+  return Object.freeze(new Map(routeSnapshot));
 }
 
-export function getModuleSnapshot(): Map<string, ModuleFlags> {
+export function getModuleSnapshot(): ReadonlyMap<string, ModuleFlags> {
   if (!moduleSnapshot) throw new Error("Permissions cache not loaded");
-  return moduleSnapshot;
+  return Object.freeze(new Map(moduleSnapshot));
 }
 
 export function getActiveMesas(): MesaRecord[] {
