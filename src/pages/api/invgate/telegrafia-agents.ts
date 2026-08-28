@@ -12,7 +12,7 @@ export interface TelegrafiaAgent {
 }
 
 export const GET: APIRoute = async ({ locals }) => {
-  const denied = requireWriteAccess(locals, "usuarios");
+  const denied = await requireWriteAccess(locals, "usuarios");
   if (denied) return denied;
 
   try {

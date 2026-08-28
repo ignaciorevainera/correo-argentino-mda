@@ -3,7 +3,7 @@ import { db } from "./db/index";
 import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
-import { hasPermission } from "./lib/rbac";
+import { hasPermissionAsync } from "./lib/rbac";
 import { isSectionVisible } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
@@ -232,7 +232,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const role = (currentUser.role || "").toLowerCase().trim();
 
-  if (!hasPermission(relativePath, role)) {
+  const allowed = await hasPermissionAsync(relativePath, role, currentUser.helpdeskId);
+  if (!allowed) {
     if (currentUser.id !== 0) {
       return redirect(
         resolveUrl(
@@ -243,7 +244,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return redirect(resolveUrl("/login"));
   }
 
-  if (!isSectionVisible(currentUser.helpdeskName, role, relativePath)) {
+  const sectionVisible = await isSectionVisible(
+    currentUser.helpdeskName,
+    role,
+    relativePath,
+    currentUser.helpdeskId,
+  );
+  if (!sectionVisible) {
     if (relativePath.startsWith("/api/")) {
       return jsonError("Acceso no autorizado", 401);
     }

@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { titles, titleCategory } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
-import { getModulePermissions } from "@/lib/rbac";
+import { getModulePermissionsAsync } from "@/lib/rbac";
 
 export const GET: APIRoute = async () => {
   const data = await db
@@ -31,7 +31,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     role: locals.user?.role,
   });
 
-  const permissions = getModulePermissions("titulos", user.role);
+  const permissions = await getModulePermissionsAsync("titulos", user.role, user.helpdeskId);
   if (!permissions.canWrite) {
     return new Response(
       JSON.stringify({

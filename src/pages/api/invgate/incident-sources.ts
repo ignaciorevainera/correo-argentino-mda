@@ -14,7 +14,7 @@ export interface IncidentSource {
 const ALLOWED_SOURCE_IDS = [1, 3, 8]; // Correo, Teléfono, API
 
 export const GET: APIRoute = async ({ locals }) => {
-  const denied = requireWriteAccess(locals, "usuarios");
+  const denied = await requireWriteAccess(locals, "usuarios");
   if (denied) return denied;
 
   try {

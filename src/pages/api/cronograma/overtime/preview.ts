@@ -42,7 +42,7 @@ function getSaturdaysInMonth(year: number, month: number): string[] {
 }
 
 export const GET: APIRoute = async ({ url, locals }) => {
-  const denied = requireReadAccess(locals, "cronograma");
+  const denied = await requireReadAccess(locals, "cronograma");
   if (denied) return denied;
 
   try {

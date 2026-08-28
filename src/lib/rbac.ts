@@ -1,3 +1,8 @@
+import {
+  hasRouteAccess as resolveRouteAccess,
+  getModulePermissionsFor as resolveModulePermissions,
+} from "./permissions/resolve";
+
 export type Role =
   "admin" | "supervisor" | "team_leader" | "referent" | "agent";
 
@@ -152,4 +157,20 @@ export function getModulePermissions(
   }
 
   return perm;
+}
+
+export async function hasPermissionAsync(
+  path: string,
+  userRole: string,
+  mesaId: number | null = null,
+): Promise<boolean> {
+  return resolveRouteAccess(path, userRole, mesaId);
+}
+
+export async function getModulePermissionsAsync(
+  moduleName: string,
+  userRole: string,
+  mesaId: number | null = null,
+): Promise<ModulePermission> {
+  return resolveModulePermissions(moduleName, userRole, mesaId);
 }

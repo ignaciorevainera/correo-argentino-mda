@@ -55,7 +55,7 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const denied = requireWriteAccess(locals, "cronograma");
+  const denied = await requireWriteAccess(locals, "cronograma");
   if (denied) return denied;
 
   try {

@@ -4,7 +4,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import QuickAccessCard from "@components/ui/QuickAccessCard.astro";
 import { Icon } from "astro-icon/components";
 import { normalizeRole, hasPermission } from "@lib/rbac";
-import { isSectionVisible } from "@lib/helpdeskAccess";
+import { isSectionVisibleSync } from "@lib/helpdeskAccess";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -40,7 +40,7 @@ const isRouteLocked = (href: string): boolean => {
     return true;
   }
   if (!hasPermission(href, userRole)) return true;
-  if (!isSectionVisible(user?.helpdeskName, user?.role, href)) return true;
+  if (!isSectionVisibleSync(user?.helpdeskName, user?.role, href)) return true;
   return false;
 };
 
@@ -78,7 +78,7 @@ const mainModules = [
 const visibleMainModules =
   user && user.id !== 0
     ? mainModules.filter((m) =>
-        isSectionVisible(user.helpdeskName, user.role, m.href),
+        isSectionVisibleSync(user.helpdeskName, user.role, m.href),
       )
     : [];
 

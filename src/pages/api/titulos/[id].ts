@@ -2,11 +2,11 @@ import type { APIRoute } from "astro";
 import { db } from "@/db";
 import { titles } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getModulePermissions } from "@/lib/rbac";
+import { getModulePermissionsAsync } from "@/lib/rbac";
 
 export const PUT: APIRoute = async ({ request, params, locals }) => {
   const user = locals.user;
-  const permissions = getModulePermissions("titulos", user.role);
+  const permissions = await getModulePermissionsAsync("titulos", user.role, user.helpdeskId);
 
   if (!permissions.canWrite) {
     return new Response(
@@ -36,7 +36,7 @@ export const PUT: APIRoute = async ({ request, params, locals }) => {
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
   const user = locals.user;
-  const permissions = getModulePermissions("titulos", user.role);
+  const permissions = await getModulePermissionsAsync("titulos", user.role, user.helpdeskId);
   if (!permissions.canWrite) {
     return new Response(
       JSON.stringify({

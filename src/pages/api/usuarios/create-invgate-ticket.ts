@@ -5,7 +5,7 @@ import { invgatePost, invgateGet } from "@lib/invgateClient";
 import { logAdminAction } from "@lib/auditLogger";
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const denied = requireWriteAccess(locals, "usuarios");
+  const denied = await requireWriteAccess(locals, "usuarios");
   if (denied) return denied;
 
   const adminUsername = locals.user?.username;

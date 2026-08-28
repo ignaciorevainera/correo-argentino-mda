@@ -1,4 +1,5 @@
 import { normalizeRole } from "./rbac";
+import { hasRouteAccess } from "./permissions/resolve";
 
 export const MDA_TI_HELPDESK = "TI_GSM_MDA TI";
 export const COORD_HELPDESK = "TI_GSM_Mesa de Coord";
@@ -14,7 +15,7 @@ export function isSuperiorRole(role: string): boolean {
   return SUPERIOR_ROLES.has(normalizeRole(role));
 }
 
-export function isSectionVisible(
+export function isSectionVisibleSync(
   helpdeskName: string | null | undefined,
   role: string,
   href: string,
@@ -72,4 +73,23 @@ export function isSectionVisible(
   if (lower.startsWith("/api/export")) return isSuperiorRole(normalizedRole);
 
   return true;
+}
+
+// Async wrapper: sync logic is authoritative for HARD blocks (non-MDA-TI
+// mesa boundaries, API path gating). DB overrides can only further DENY a
+// managed route that sync would otherwise allow.
+export async function isSectionVisible(
+  helpdeskName: string | null | undefined,
+  role: string,
+  href: string,
+  mesaId: number | null = null,
+): Promise<boolean> {
+  const syncAllowed = isSectionVisibleSync(helpdeskName, role, href);
+  if (!syncAllowed) return false; // hard block preserved
+  try {
+    return await hasRouteAccess(href, role, mesaId);
+  } catch {
+    // On cache/resolver error, fail open conservatively (sync already allowed).
+    return true;
+  }
 }

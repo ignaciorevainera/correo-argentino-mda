@@ -12,7 +12,7 @@ import {
 import { resolveInvgateLocationId } from "@lib/invgate/resolveOfficeLocation";
 
 export const GET: APIRoute = async ({ request, locals }) => {
-  const denied = requireWriteAccess(locals, "usuarios");
+  const denied = await requireWriteAccess(locals, "usuarios");
   if (denied) return denied;
 
   const url = new URL(request.url);

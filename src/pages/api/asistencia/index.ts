@@ -10,7 +10,7 @@ import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 export { calculateCompliance };
 
 export const GET: APIRoute = async ({ url, locals }) => {
-  const denied = requireReadAccess(locals, "asistencia");
+  const denied = await requireReadAccess(locals, "asistencia");
   if (denied) return denied;
   try {
     const startDate =
@@ -35,7 +35,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const denied = requireWriteAccess(locals, "asistencia");
+  const denied = await requireWriteAccess(locals, "asistencia");
   if (denied) return denied;
   try {
     const body = await request.json();

@@ -8,7 +8,7 @@ import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
 export const POST: APIRoute = async ({ locals }) => {
-  const denied = requireWriteAccess(locals, "asignacion_ag");
+  const denied = await requireWriteAccess(locals, "asignacion_ag");
   if (denied) return denied;
 
   const lockCheck = await ensureHasLock(locals);
