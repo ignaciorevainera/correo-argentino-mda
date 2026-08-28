@@ -19,11 +19,13 @@ import {
 } from "@lib/disponibilidad";
 
 import { normalizeRole } from "@lib/rbac";
+import { matchesCurrentUser } from "@lib/currentUserMatch";
 
 const cleanBase = getCleanBase();
 
 const user = Astro.locals.user;
 const role = normalizeRole(user.role);
+const currentUsername = (user?.username || "").toLowerCase();
 
 const lockStatus = await getLockStatus();
 let hasLock = false;
@@ -707,10 +709,17 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       allOperators.map((op) => {
         const isHighlighted = op.agentId === maxAssignedOperatorId;
         const isExceptional = !!op.estadoExcepcional;
+        const isCurrentUser = matchesCurrentUser(
+          op.username,
+          op.nombre,
+          currentUsername,
+        );
 
         let rowClasses =
           "group border-b border-base-300 px-4 py-2.5 transition-colors duration-300 hover:bg-base-200/50";
-        if (isExceptional) {
+        if (isCurrentUser) {
+          rowClasses += " bg-accent/10 border-l-4 border-l-accent";
+        } else if (isExceptional) {
           rowClasses += " bg-secondary/10 border-l-4 border-l-secondary";
         } else if (isHighlighted) {
           rowClasses += " bg-primary/10 border-l-4 border-l-primary";
@@ -724,6 +733,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             class={rowClasses}
             data-table-row
             data-op-id={op.agentId}
+            data-op-username={op.username}
+            data-op-nombre={op.nombre}
             data-op-estado={
               op.disponible ? "disponible" : op.motivo || "offline"
             }
