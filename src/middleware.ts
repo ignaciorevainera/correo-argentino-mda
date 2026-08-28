@@ -11,7 +11,7 @@ import { jsonError } from "@lib/apiResponse";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
 import { bootstrapPermissions } from "./lib/permissions/bootstrap";
 
-let bootstrapped = false;
+let bootstrapState: "idle" | "running" | "done" = "idle";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -112,11 +112,15 @@ function setSecurityHeaders(response: Response): Response {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (!bootstrapped) {
-    bootstrapped = true;
+  if (bootstrapState === "idle") {
+    bootstrapState = "running";
     try {
       await bootstrapPermissions();
+      bootstrapState = "done";
     } catch (err) {
+      // Allow retry on the next request instead of permanently masking a
+      // failed/partial seed with a pre-set flag.
+      bootstrapState = "idle";
       console.error("Permissions bootstrap failed:", err);
     }
   }
