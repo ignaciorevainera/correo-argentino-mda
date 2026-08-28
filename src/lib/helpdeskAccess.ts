@@ -61,8 +61,8 @@ export function isSectionVisible(
       return isSuperiorRole(normalizedRole);
     }
     if (lower.startsWith("/supervision/asignacion-autogestiones")) {
-      // Agents cannot see AGS assignments; referent+ can.
-      return normalizedRole !== "agent";
+      // AGS visible to all MDA TI roles (write still gated by getModulePermissions).
+      return true;
     }
     // Any other supervision subpath requires a superior role.
     return isSuperiorRole(normalizedRole);

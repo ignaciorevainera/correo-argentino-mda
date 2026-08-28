@@ -75,6 +75,13 @@ const mainModules = [
   },
 ];
 
+const visibleMainModules =
+  user && user.id !== 0
+    ? mainModules.filter((m) =>
+        isSectionVisible(user.helpdeskName, user.role, m.href),
+      )
+    : [];
+
 type BoxiconName = `boxicons:${string}`;
 
 interface QuickAccessItem {
@@ -191,33 +198,22 @@ const quickAccessItems: QuickAccessItem[] = [
     >
       <!-- Módulos Principales -->
       {
-        user && user.id !== 0 && (
-          <div
-            class:list={[
-              "grid grid-cols-1 gap-6 sm:grid-cols-2",
-              ["agent", "referent"].includes(userRole)
-                ? "lg:grid-cols-3"
-                : "lg:grid-cols-4",
-            ]}
-          >
-            {mainModules
-              .filter((mod) =>
-                isSectionVisible(user?.helpdeskName, user?.role, mod.href),
-              )
-              .map((mod) => {
-                const locked = isRouteLocked(mod.href);
-                return (
-                  <QuickAccessCard
-                    href={mod.href}
-                    title={mod.label}
-                    description={mod.sublabel}
-                    icon={mod.icon}
-                    iconTone={mod.tone}
-                    locked={locked}
-                    layout="horizontal"
-                  />
-                );
-              })}
+        visibleMainModules.length > 0 && (
+          <div class="grid grid-cols-1 gap-6 [grid-template-columns:repeat(auto-fit,minmax(18rem,1fr))]">
+            {visibleMainModules.map((mod) => {
+              const locked = isRouteLocked(mod.href);
+              return (
+                <QuickAccessCard
+                  href={mod.href}
+                  title={mod.label}
+                  description={mod.sublabel}
+                  icon={mod.icon}
+                  iconTone={mod.tone}
+                  locked={locked}
+                  layout="horizontal"
+                />
+              );
+            })}
           </div>
         )
       }

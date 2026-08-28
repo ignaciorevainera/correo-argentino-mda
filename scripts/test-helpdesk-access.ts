@@ -28,8 +28,8 @@ assert.equal(
     "agent",
     "/supervision/asignacion-autogestiones",
   ),
-  false,
-  "MDA TI + agent NO ve AGS",
+  true,
+  "MDA TI + agent ve AGS (escritura restringida por rol)",
 );
 assert.equal(
   isSectionVisible(
