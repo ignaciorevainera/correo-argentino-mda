@@ -152,6 +152,11 @@ export const navSections: NavSection[] = [
             label: "Sugerencias y Reportes",
             icon: "boxicons:mail-open-filled",
           },
+          {
+            href: "/admin/permisos",
+            label: "Permisos y accesos",
+            icon: "boxicons:lock-alt",
+          },
         ],
       },
     ],
