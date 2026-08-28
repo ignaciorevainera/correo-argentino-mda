@@ -89,7 +89,9 @@ export async function isSectionVisible(
   try {
     return await hasRouteAccess(href, role, mesaId);
   } catch {
-    // On cache/resolver error, fail open conservatively (sync already allowed).
-    return true;
+    // On cache/resolver error, fail closed to the sync decision (sync is
+    // authoritative for hard blocks). syncAllowed is already true here, but
+    // preserving it keeps the deny-if-unsure invariant.
+    return syncAllowed;
   }
 }
