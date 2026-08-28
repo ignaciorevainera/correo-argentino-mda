@@ -36,5 +36,15 @@ assert.equal(
   true,
   "username case-insensitive match",
 );
+assert.equal(
+  matchesCurrentUser("  jRevainera  ", "X", "jrevainera"),
+  true,
+  "username trimmed before compare",
+);
+assert.equal(
+  matchesCurrentUser(null, "  Juan Revainera  ", "juan revainera"),
+  true,
+  "name trimmed before compare",
+);
 
 console.log("OK current-user-match");
