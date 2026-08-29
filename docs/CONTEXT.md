@@ -271,7 +271,7 @@ BaseLayout (flex flex-col min-h-screen)
 | Ruta                                    | Descripcion                             |
 | --------------------------------------- | --------------------------------------- |
 | `/supervision`                          | Redirecciona al dashboard               |
-| `/supervision/cronograma`               | Gestion de cronograma y horarios        |
+| `/supervision/cronograma`               | Gestion de cronograma, horarios y ubicaciones |
 | `/supervision/asistencia`               | Control de asistencia y cumplimiento    |
 | `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones |
 | `/supervision/calidad-operadores`       | Auditoria y puntuacion de calidad       |
@@ -281,11 +281,10 @@ BaseLayout (flex flex-col min-h-screen)
 | Ruta                         | Descripcion                            |
 | ---------------------------- | -------------------------------------- |
 | `/admin`                     | Dashboard admin con resumen de sistema |
-| `/admin/usuarios`            | CRUD de usuarios del sistema           |
+| `/admin/usuarios`            | CRUD de usuarios + participaciones (enCronograma, asignableCubic, incluidoCalidad, asignableAgs) |
 | `/admin/contactos`           | CRUD de contactos y categorias         |
 | `/admin/recursos`            | CRUD de enlaces y categorias           |
 | `/admin/auditoria`           | Logs de auditoria                      |
-| `/admin/operadores`          | CRUD de operadores N1/N2               |
 | `/admin/aplicativos`         | CRUD de aplicativos del catalogo       |
 | `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate           |
 | `/admin/feedback`            | Formulario de feedback                 |
