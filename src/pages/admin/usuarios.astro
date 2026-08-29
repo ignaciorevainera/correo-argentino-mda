@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
-import { users } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { users, agents } from "@db/schema";
+import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
@@ -22,39 +22,66 @@ if (Astro.request.method === "POST") {
     const username = formData.get("username")?.toString().trim().toLowerCase();
     const password = formData.get("password")?.toString();
     const role = formData.get("role")?.toString();
+    const name = formData.get("name")?.toString().trim();
     const rawHelpdesk = formData.get("helpdesk")?.toString() ?? "";
+    const participaciones = {
+      enCronograma: formData.get("enCronograma") === "on",
+      asignableCubic: formData.get("asignableCubic") === "on",
+      incluidoCalidad: formData.get("incluidoCalidad") === "on",
+      asignableAgs: formData.get("asignableAgs") === "on",
+    };
 
     let helpdeskId: number | null = null;
     let helpdeskName: string | null = null;
-
     if (rawHelpdesk) {
       const sep = rawHelpdesk.indexOf("|");
       const idStr = sep === -1 ? rawHelpdesk : rawHelpdesk.slice(0, sep);
-      const name = sep === -1 ? "" : rawHelpdesk.slice(sep + 1);
+      const hdName = sep === -1 ? "" : rawHelpdesk.slice(sep + 1);
       const parsedId = Number(idStr);
-      helpdeskId =
-        Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
-      helpdeskName = name || null;
+      helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+      helpdeskName = hdName || null;
     }
 
-    if (username && password && role) {
+    if (!username || !password || !role || !name) {
+      errorMsg = "Nombre completo, nombre de red, contraseña y rol son obligatorios.";
+    } else {
       const pwdValidation = passwordSchema.safeParse(password);
       if (!pwdValidation.success) {
         errorMsg = pwdValidation.error.issues[0].message;
       } else {
         try {
           const hashedPassword = await hashPassword(password);
-          await db.insert(users).values({
-            username,
-            password: hashedPassword,
-            role: role as any,
-            helpdeskId,
-            helpdeskName,
+          await db.transaction(async (tx) => {
+            await tx.insert(users).values({
+              username,
+              password: hashedPassword,
+              role: role as any,
+              helpdeskId,
+              helpdeskName,
+            });
+
+            const [existingAgent] = await tx
+              .select({ id: agents.id })
+              .from(agents)
+              .where(sql`lower(coalesce(${agents.username}, '')) = ${username}`);
+
+            if (existingAgent) {
+              await tx
+                .update(agents)
+                .set({ name, ...participaciones })
+                .where(eq(agents.id, existingAgent.id));
+            } else {
+              await tx.insert(agents).values({
+                name,
+                username,
+                ...participaciones,
+              });
+            }
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
           await logAdminFromAstro(
             Astro.locals,
-            `Creó al usuario "${username}" con rol ${role}`,
+            `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${participaciones.enCronograma ? "sí" : "no"}, cubic=${participaciones.asignableCubic ? "sí" : "no"}, calidad=${participaciones.incluidoCalidad ? "sí" : "no"}, AGS=${participaciones.asignableAgs ? "sí" : "no"}`,
           );
         } catch (e) {
           errorMsg = "Error: El nombre de usuario ya existe.";
