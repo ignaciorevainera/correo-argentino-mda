@@ -80,6 +80,21 @@ describe("checkSlidingRateLimit (per-user sliding window)", () => {
     expect(getSlidingEntryCount()).toBe(1);
   });
 
+  it("sweep does not reset live sliding windows (prunes by per-key window)", () => {
+    for (let i = 0; i < 10; i++) {
+      checkSlidingRateLimit("rate:sweep:1", 10, 60_000);
+    }
+    // half the window elapsed: all 10 requests still live
+    vi.advanceTimersByTime(30_000);
+    // trigger sweep via an unrelated key
+    checkSlidingRateLimit("rate:sweep:other", 10, 60_000);
+    // original key must still remember its earlier requests
+    expect(checkSlidingRateLimit("rate:sweep:1", 10, 60_000)).toBe(false);
+    // after the window fully elapses, the limit clears
+    vi.advanceTimersByTime(30_001);
+    expect(checkSlidingRateLimit("rate:sweep:1", 10, 60_000)).toBe(true);
+  });
+
   it("allows request exactly at window boundary (<= cutoff)", () => {
     expect(checkSlidingRateLimit("rate:edge:1", 1, 60_000)).toBe(true);
     expect(checkSlidingRateLimit("rate:edge:1", 1, 60_000)).toBe(false);

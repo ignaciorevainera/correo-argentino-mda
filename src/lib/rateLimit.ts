@@ -28,17 +28,18 @@ export const RATE_LIMITS = {
   upload: { limit: 10, windowMs: 60 * 60_000 },
 } as const satisfies Record<string, RateLimitProfile>;
 
-const slidingWindows = new Map<string, number[]>();
+const slidingWindows = new Map<string, { timestamps: number[]; windowMs: number }>();
 let lastSlidingSweep = Date.now();
 
 function sweepSliding(now: number) {
   if (now - lastSlidingSweep < SWEEP_INTERVAL) return;
   lastSlidingSweep = now;
-  for (const [k, timestamps] of slidingWindows) {
-    while (timestamps.length > 0 && timestamps[0] <= now) {
-      timestamps.shift();
+  for (const [k, entry] of slidingWindows) {
+    const cutoff = now - entry.windowMs;
+    while (entry.timestamps.length > 0 && entry.timestamps[0] <= cutoff) {
+      entry.timestamps.shift();
     }
-    if (timestamps.length === 0) {
+    if (entry.timestamps.length === 0) {
       slidingWindows.delete(k);
     }
   }
@@ -52,11 +53,13 @@ export function checkSlidingRateLimit(
   const now = Date.now();
   sweepSliding(now);
 
-  let timestamps = slidingWindows.get(key);
-  if (!timestamps) {
-    timestamps = [];
-    slidingWindows.set(key, timestamps);
+  let entry = slidingWindows.get(key);
+  if (!entry) {
+    entry = { timestamps: [], windowMs };
+    slidingWindows.set(key, entry);
   }
+  entry.windowMs = windowMs;
+  const timestamps = entry.timestamps;
 
   const cutoff = now - windowMs;
   while (timestamps.length > 0 && timestamps[0] <= cutoff) {

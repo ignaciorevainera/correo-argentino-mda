@@ -30,6 +30,15 @@ async function getFirstVisibleCardId(page: Page): Promise<number> {
   return id;
 }
 
+async function getCsrfToken(page: Page): Promise<string> {
+  const csrf = await page
+    .locator("[data-csrf-token]")
+    .first()
+    .getAttribute("data-csrf-token");
+  expect(csrf).toBeTruthy();
+  return csrf as string;
+}
+
 async function unHideByDb(invgateId: number): Promise<void> {
   await db
     .delete(hiddenHelpdesks)
@@ -63,9 +72,10 @@ test("Admin oculta y muestra una mesa por API (persistencia)", async ({
 }) => {
   await setSessionCookie(context, adminUser.signedSessionId);
   const id = await getFirstVisibleCardId(page);
+  const csrf = await getCsrfToken(page);
 
   const hideResp = await page.request.post("/api/soportes/helpdesks/hide", {
-    data: { invgate_id: id },
+    data: { invgate_id: id, csrf_token: csrf },
   });
   expect(hideResp.status()).toBe(200);
   expect(await hideResp.json()).toEqual({ ok: true });
@@ -77,7 +87,7 @@ test("Admin oculta y muestra una mesa por API (persistencia)", async ({
   expect(rows).toHaveLength(1);
 
   const showResp = await page.request.post("/api/soportes/helpdesks/show", {
-    data: { invgate_id: id },
+    data: { invgate_id: id, csrf_token: csrf },
   });
   expect(showResp.status()).toBe(200);
 
@@ -152,9 +162,10 @@ test("Agente no ve mesas ocultas ni el menu de ocultas", async ({
 
   await setSessionCookie(context, adminUser.signedSessionId);
   const id = await getFirstVisibleCardId(page);
+  const csrf = await getCsrfToken(page);
 
   const hideResp = await adminReq.post("/api/soportes/helpdesks/hide", {
-    data: { invgate_id: id },
+    data: { invgate_id: id, csrf_token: csrf },
   });
   expect(hideResp.status()).toBe(200);
 
