@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { routes, modules, mesas, routeAccess, moduleAccess } from "@db/schema";
 import { EDITABLE_ROLES } from "@lib/permissions/types";
 import { getCsrfTokenForSession } from "@lib/csrf";
+import { getModulePermissionsAsync } from "@lib/rbac";
 
 const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows] =
   await Promise.all([
@@ -51,11 +52,16 @@ const ROLE_LABELS: Record<string, string> = {
   team_leader: "Líder de equipo",
   supervisor: "Supervisor",
 };
+
+const user = Astro.locals.user;
+const permisosPerms = await getModulePermissionsAsync("permisos", user.role, user.helpdeskId);
+const canWrite = permisosPerms.canWrite;
 ---
 
 <div
   id="permisos-root"
   data-mesa-count={mesaList.length}
+  data-can-write={canWrite ? "1" : "0"}
   data-csrf-token={getCsrfTokenForSession(Astro.locals.sessionId)}
   class="space-y-4"
 >
@@ -77,9 +83,11 @@ const ROLE_LABELS: Record<string, string> = {
       />
       <button type="button" class="btn btn-ghost btn-sm" data-expand-all="rutas">Expandir todo</button>
       <button type="button" class="btn btn-ghost btn-sm" data-collapse-all="rutas">Contraer todo</button>
-      <button type="button" id="save-routes" class="btn btn-primary btn-sm" disabled>
-        Guardar (<span data-diff-count="routes">0</span>)
-      </button>
+      {canWrite && (
+        <button type="button" id="save-routes" class="btn btn-primary btn-sm" disabled>
+          Guardar (<span data-diff-count="routes">0</span>)
+        </button>
+      )}
     </div>
     <div class="alert alert-info mt-2 py-1 text-xs">
       <span>Los permisos de admin no se editan: acceso completo solo en MDA TI.</span>
@@ -161,9 +169,11 @@ const ROLE_LABELS: Record<string, string> = {
       />
       <button type="button" class="btn btn-ghost btn-sm" data-expand-all="modulos">Expandir todo</button>
       <button type="button" class="btn btn-ghost btn-sm" data-collapse-all="modulos">Contraer todo</button>
-      <button type="button" id="save-modules" class="btn btn-primary btn-sm" disabled>
-        Guardar (<span data-diff-count="modules">0</span>)
-      </button>
+      {canWrite && (
+        <button type="button" id="save-modules" class="btn btn-primary btn-sm" disabled>
+          Guardar (<span data-diff-count="modules">0</span>)
+        </button>
+      )}
     </div>
 
     <div class="mt-3 space-y-3">
@@ -240,10 +250,12 @@ const ROLE_LABELS: Record<string, string> = {
 
   <div data-tab-panel="mesas" class="hidden">
     <div class="flex flex-wrap items-center gap-3">
-      <button type="button" id="mesas-sync" class="btn btn-primary btn-sm">
-        <span class="sync-label">Sincronizar desde InvGate</span>
-        <span class="loading loading-spinner loading-xs hidden" aria-hidden="true"></span>
-      </button>
+      {canWrite && (
+        <button type="button" id="mesas-sync" class="btn btn-primary btn-sm">
+          <span class="sync-label">Sincronizar desde InvGate</span>
+          <span class="loading loading-spinner loading-xs hidden" aria-hidden="true"></span>
+        </button>
+      )}
       {mesaList.length > 0 && (
         <span class="text-base-content/60 text-xs">
           Última sincronización: {mesaList[0]?.lastSyncedAt ?? "—"}
@@ -288,6 +300,7 @@ const ROLE_LABELS: Record<string, string> = {
 
     const root = document.getElementById("permisos-root");
     if (root) {
+      const canWriteClient = root.getAttribute("data-can-write") === "1";
       const initial = JSON.parse(
         (document.getElementById("permisos-initial") as HTMLScriptElement).text,
       ) as {
@@ -322,11 +335,34 @@ const ROLE_LABELS: Record<string, string> = {
       // --- Tabs ---
       const tabButtons = root.querySelectorAll<HTMLButtonElement>("[data-tab-btn]");
       const panels = root.querySelectorAll<HTMLElement>("[data-tab-panel]");
+      const TAB_STORAGE_KEY = "permisos-active-tab";
+      function getSavedTab(): string {
+        try {
+          const saved = localStorage.getItem(TAB_STORAGE_KEY);
+          if (saved && Array.from(tabButtons).some((b) => b.dataset.tabBtn === saved)) {
+            return saved;
+          }
+        } catch {
+          /* storage unavailable (privacy mode) */
+        }
+        return "rutas";
+      }
+      function activateTab(tabName: string): void {
+        tabButtons.forEach((b) =>
+          b.classList.toggle("tab-active", b.dataset.tabBtn === tabName),
+        );
+        panels.forEach((p) => p.classList.toggle("hidden", p.dataset.tabPanel !== tabName));
+      }
+      activateTab(getSavedTab());
       tabButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
-          const target = btn.dataset.tabBtn;
-          tabButtons.forEach((b) => b.classList.toggle("tab-active", b === btn));
-          panels.forEach((p) => p.classList.toggle("hidden", p.dataset.tabPanel !== target));
+          const target = btn.dataset.tabBtn || "rutas";
+          activateTab(target);
+          try {
+            localStorage.setItem(TAB_STORAGE_KEY, target);
+          } catch {
+            /* storage unavailable (privacy mode) */
+          }
         });
       });
 
@@ -413,12 +449,17 @@ const ROLE_LABELS: Record<string, string> = {
       // --- Save ---
       async function postJson(url: string, body: unknown): Promise<any> {
         const csrfToken = root.getAttribute("data-csrf-token") || "";
-        const res = await fetch(getCleanBase() + url, {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...(body as object), csrf_token: csrfToken }),
-        });
+        let res: Response;
+        try {
+          res = await fetch(getCleanBase() + url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...(body as object), csrf_token: csrfToken }),
+          });
+        } catch {
+          throw new Error("Error de conexión. Verifica tu red e intenta nuevamente.");
+        }
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error ?? `Error ${res.status}`);
         return json;
@@ -502,7 +543,7 @@ const ROLE_LABELS: Record<string, string> = {
           spinner?.classList.add("hidden");
         }
       });
-      if (initial.mesas.length === 0) {
+      if (canWriteClient && initial.mesas.length === 0) {
         syncMesas().catch(() => {
           /* non-fatal: admin retries from the Mesas tab */
         });
