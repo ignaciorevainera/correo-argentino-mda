@@ -1,6 +1,7 @@
 ---
 import { db } from "@db/index";
-import { users } from "@db/schema";
+import { users, agents } from "@db/schema";
+import { sql } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -29,7 +30,24 @@ interface Props {
 
 const { successMsg = "", errorMsg = "" } = Astro.props;
 
-const allUsers = await db.select().from(users);
+const allUsers = await db
+  .select({
+    id: users.id,
+    username: users.username,
+    role: users.role,
+    helpdeskName: users.helpdeskName,
+    agentId: agents.id,
+    agentName: agents.name,
+    enCronograma: agents.enCronograma,
+    asignableCubic: agents.asignableCubic,
+    incluidoCalidad: agents.incluidoCalidad,
+    asignableAgs: agents.asignableAgs,
+  })
+  .from(users)
+  .leftJoin(
+    agents,
+    sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
+  );
 
 const hdResult =
   await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
@@ -39,8 +57,8 @@ const helpdeskOptions = (
   .filter((h) => !h.level_order && ALLOWED_HELPDESK_NAMES.includes(h.name ?? ""))
   .map((h) => ({ id: h.id, name: h.name ?? `Helpdesk #${h.id}` }));
 
-const headerGridClass = "grid-cols-[1fr_140px_180px_320px] gap-4";
-const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4";
+const headerGridClass = "grid-cols-[1fr_140px_180px_100px_320px] gap-4";
+const rowGridClass = "grid grid-cols-[1fr_140px_180px_100px_320px] items-center gap-4";
 ---
 
 <PageContainer width="xl">
@@ -96,6 +114,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
           <div slot="header">
             <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell
             >
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell sortKey="participaciones">Participaciones</DataTableHeaderCell>
           </div>
           <div slot="header" class="text-right">
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
@@ -210,7 +231,41 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                     )}
                   </div>
 
+                  <div class="flex min-w-0 items-center gap-1">
+                    {u.agentId && (
+                      <span
+                        class="badge badge-xs font-mono badge-success"
+                        title={`Cronograma: ${u.enCronograma ? "activo" : "inactivo"} · Cubic: ${u.asignableCubic ? "sí" : "no"} · Calidad: ${u.incluidoCalidad ? "sí" : "no"} · AGS: ${u.asignableAgs ? "sí" : "no"}`}
+                      >
+                        {u.enCronograma ? "CRONO" : "—"}
+                      </span>
+                    )}
+                    {!u.agentId && (
+                      <span class="text-base-content/40 text-xs italic">Sin agente</span>
+                    )}
+                  </div>
+
                   <div class="flex items-center justify-end gap-2">
+                    {u.agentId && (
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        onclick={`document.getElementById('modal-participaciones-${u.id}').showModal()`}
+                        aria-label={`Participaciones de ${u.username}`}
+                      >
+                        <Icon name="boxicons:list-check" size={16} />
+                      </button>
+                    )}
+                    {u.agentId && (
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        onclick={`document.getElementById('modal-nombre-${u.id}').showModal()`}
+                        aria-label={`Editar nombre de ${u.username}`}
+                      >
+                        <Icon name="boxicons:user-detail" size={16} />
+                      </button>
+                    )}
                     <ActionRoleButton
                       data-action="change-role-btn"
                       data-user-id={u.id}
@@ -230,6 +285,68 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                     />
                   </div>
 
+                  <Modal id={`modal-participaciones-${u.id}`}>
+                    <Fragment slot="content">
+                      <h3 class="text-base-content mb-1 text-base font-semibold">
+                        Participaciones
+                      </h3>
+                      <p class="text-base-content/60 mb-4 text-xs">
+                        Define dónde aparece{" "}
+                        <span class="font-mono font-semibold">{u.username}</span>.
+                        Desmarcar no borra historial.
+                      </p>
+                      <form method="POST" class="space-y-3" data-async-form>
+                        <input type="hidden" name="action" value="update-participaciones" />
+                        <input type="hidden" name="userId" value={u.id} />
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                          <input type="checkbox" name="enCronograma" class="toggle toggle-sm toggle-secondary" checked={!!u.enCronograma} />
+                          <span class="text-base-content text-sm">Cronograma</span>
+                        </label>
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                          <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableCubic} />
+                          <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
+                        </label>
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                          <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" checked={!!u.incluidoCalidad} />
+                          <span class="text-base-content text-sm">Auditorías de calidad</span>
+                        </label>
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                          <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableAgs} />
+                          <span class="text-base-content text-sm">Asignación AGS</span>
+                        </label>
+                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
+                          <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
+                          <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
+                        </div>
+                      </form>
+                    </Fragment>
+                  </Modal>
+                  <Modal id={`modal-nombre-${u.id}`}>
+                    <Fragment slot="content">
+                      <h3 class="text-base-content mb-1 text-base font-semibold">
+                        Nombre visible del agente
+                      </h3>
+                      <form method="POST" class="space-y-3" data-async-form>
+                        <input type="hidden" name="action" value="update-name" />
+                        <input type="hidden" name="userId" value={u.id} />
+                        <FormField
+                          id={`agent-name-${u.id}`}
+                          name="newName"
+                          required
+                          label="Nombre completo"
+                          placeholder={u.agentName || u.username}
+                          value={u.agentName || ""}
+                          autocomplete="off"
+                          inputClass="input-sm"
+                          helpText="Se propaga a los cronogramas guardados."
+                        />
+                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
+                          <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
+                          <ActionConfirmButton type="submit" color="btn-secondary" label="Guardar" icon="boxicons:check-filled" />
+                        </div>
+                      </form>
+                    </Fragment>
+                  </Modal>
                   {/* ── Modales (Fuera del flujo visual de la fila) ── */}
                   <Modal id={`modal-rename-${u.id}`}>
                     <Fragment slot="content">
@@ -353,7 +470,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
           }
         </script>
 
-        <form method="POST" class="space-y-4" data-async-form>
+        <form method="POST" class="space-y-4" data-async-form id="nuevo-usuario-form">
           <FormField
             id="admin-username"
             name="username"
@@ -374,6 +491,16 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
             autocomplete="new-password"
           />
 
+          <FormField
+            id="admin-fullname"
+            name="name"
+            required
+            label="Nombre completo"
+            placeholder="ej: Juan González"
+            autocomplete="off"
+            helpText="Se muestra en cronograma, asistencia y reportes."
+          />
+
           <SelectField
             id="admin-role"
             name="role"
@@ -387,6 +514,31 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
             ]}
             helpText="Define el nivel de acceso a módulos del portal."
           />
+
+          <div class="space-y-2">
+            <p class="text-base-content/70 text-xs font-semibold uppercase">
+              Participaciones
+            </p>
+            <label class="label cursor-pointer justify-start gap-3 py-1">
+              <input type="checkbox" name="enCronograma" class="toggle toggle-sm toggle-secondary" />
+              <span class="text-base-content text-sm">Cronograma</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3 py-1">
+              <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" />
+              <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3 py-1">
+              <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" />
+              <span class="text-base-content text-sm">Auditorías de calidad</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3 py-1">
+              <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" />
+              <span class="text-base-content text-sm">Asignación AGS</span>
+            </label>
+            <p class="text-base-content/50 text-xs">
+              Se preseleccionan según el rol elegido. Ajustables luego.
+            </p>
+          </div>
 
           <SelectField
             id="admin-helpdesk"
@@ -754,6 +906,31 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
           }
         });
       });
+
+    const PARTICIPATION_PRESETS: Record<string, Record<string, boolean>> = {
+      agent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
+      referent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
+      team_leader: { enCronograma: true, asignableCubic: true, incluidoCalidad: false, asignableAgs: false },
+      supervisor: { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
+      admin: { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
+    };
+
+    function applyPresets(role: string) {
+      const preset = PARTICIPATION_PRESETS[role];
+      if (!preset) return;
+      const form = document.getElementById("nuevo-usuario-form");
+      if (!form) return;
+      for (const [flagName, checked] of Object.entries(preset)) {
+        const cb = form.querySelector<HTMLInputElement>(`input[name="${flagName}"]`);
+        if (cb) cb.checked = checked;
+      }
+    }
+
+    const altaRoleSelect = document.getElementById("admin-role") as HTMLSelectElement | null;
+    altaRoleSelect?.addEventListener("change", (e) => {
+      applyPresets((e.target as HTMLSelectElement).value);
+    });
+    applyPresets(altaRoleSelect?.value || "agent");
 
     return true;
   }

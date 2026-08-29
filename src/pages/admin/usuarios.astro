@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { users, agents } from "@db/schema";
+import { users, agents, schedules } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -90,6 +90,97 @@ if (Astro.request.method === "POST") {
     }
   }
 
+  if (action === "update-participaciones") {
+    const userId = Number(formData.get("userId"));
+    const participaciones = {
+      enCronograma: formData.get("enCronograma") === "on",
+      asignableCubic: formData.get("asignableCubic") === "on",
+      incluidoCalidad: formData.get("incluidoCalidad") === "on",
+      asignableAgs: formData.get("asignableAgs") === "on",
+    };
+    if (userId) {
+      try {
+        const [targetUser] = await db
+          .select({ username: users.username })
+          .from(users)
+          .where(eq(users.id, userId));
+        const targetUsername = targetUser?.username || "desconocido";
+
+        const [existingAgent] = await db
+          .select({ id: agents.id })
+          .from(agents)
+          .where(sql`lower(coalesce(${agents.username}, '')) = ${targetUsername}`);
+
+        if (existingAgent) {
+          await db
+            .update(agents)
+            .set(participaciones)
+            .where(eq(agents.id, existingAgent.id));
+        } else {
+          await db.insert(agents).values({
+            name: targetUsername.toUpperCase(),
+            username: targetUsername,
+            ...participaciones,
+          });
+        }
+        successMsg = "Participaciones actualizadas con éxito.";
+        await logAdminFromAstro(
+          Astro.locals,
+          `Actualizó participaciones de "${targetUsername}": cronograma=${participaciones.enCronograma ? "sí" : "no"}, cubic=${participaciones.asignableCubic ? "sí" : "no"}, calidad=${participaciones.incluidoCalidad ? "sí" : "no"}, AGS=${participaciones.asignableAgs ? "sí" : "no"}`,
+        );
+      } catch (e) {
+        errorMsg = "Error al actualizar participaciones.";
+      }
+    }
+  }
+
+  if (action === "update-name") {
+    const userId = Number(formData.get("userId"));
+    const newName = formData.get("newName")?.toString().trim();
+    if (userId && newName) {
+      try {
+        const [existingAgent] = await db
+          .select({ id: agents.id, name: agents.name })
+          .from(agents)
+          .innerJoin(
+            users,
+            sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
+          )
+          .where(eq(users.id, userId));
+
+        if (!existingAgent) {
+          errorMsg = "No existe fila de agente vinculada a este usuario.";
+        } else {
+          const oldName = existingAgent.name;
+
+          await db.transaction(async (tx) => {
+            await tx
+              .update(agents)
+              .set({ name: newName })
+              .where(eq(agents.id, existingAgent.id));
+
+            if (oldName !== newName) {
+              await tx
+                .update(schedules)
+                .set({ agentName: newName })
+                .where(eq(schedules.agentName, oldName));
+            }
+          });
+
+          successMsg = "Nombre actualizado con éxito.";
+          await logAdminFromAstro(
+            Astro.locals,
+            oldName !== newName
+              ? `Renombró al agente de "${oldName}" a "${newName}" (propagado a cronogramas)`
+              : `Actualizó el nombre del agente a "${newName}"`,
+          );
+        }
+      } catch (e) {
+        errorMsg = "Error al actualizar el nombre. ¿Ya existe un agente con ese nombre?";
+      }
+    }
+  }
+
   if (action === "reset-password") {
     const userId = Number(formData.get("userId"));
     const newPassword = formData.get("newPassword")?.toString();
@@ -141,6 +232,12 @@ if (Astro.request.method === "POST") {
           .update(users)
           .set({ username: newUsername })
           .where(eq(users.id, userId));
+
+        await db
+          .update(agents)
+          .set({ username: newUsername })
+          .where(sql`lower(coalesce(${agents.username}, '')) = ${oldUsername.toLowerCase()}`);
+
         successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
         await logAdminFromAstro(
           Astro.locals,
