@@ -125,8 +125,10 @@ export const GET: APIRoute = async ({ url }) => {
         minPWeek: agents.minPWeek,
         saturdayGroup: agents.saturdayGroup,
         saturdayHorario: agents.saturdayHorario,
+        enCronograma: agents.enCronograma,
       })
-      .from(agents);
+      .from(agents)
+      .where(eq(agents.enCronograma, true));
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db
