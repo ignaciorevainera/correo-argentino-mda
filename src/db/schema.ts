@@ -6,20 +6,30 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  check,
 } from "drizzle-orm/sqlite-core";
 
 import { relations, sql } from "drizzle-orm";
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role").notNull().default("agent"),
-  helpdeskId: integer("helpdesk_id").references(() => mesas.invgateId, {
-    onDelete: "set null",
-  }),
-  helpdeskName: text("helpdesk_name"),
-});
+export const users = sqliteTable(
+  "users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    username: text("username").notNull().unique(),
+    password: text("password").notNull(),
+    role: text("role").notNull().default("agent"),
+    helpdeskId: integer("helpdesk_id").references(() => mesas.invgateId, {
+      onDelete: "set null",
+    }),
+    helpdeskName: text("helpdesk_name"),
+  },
+  (table) => [
+    check(
+      "users_role_check",
+      sql`${table.role} in ('admin', 'supervisor', 'team_leader', 'referent', 'agent')`,
+    ),
+  ],
+);
 
 export const employees = sqliteTable("employees", {
   dni: text("dni").primaryKey(),

@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { isValidRole } from "@lib/rbac";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
 
@@ -44,6 +45,8 @@ if (Astro.request.method === "POST") {
 
     if (!username || !password || !role || !name) {
       errorMsg = "Nombre completo, nombre de red, contraseña y rol son obligatorios.";
+    } else if (!isValidRole(role)) {
+      errorMsg = `Rol inválido: "${role}".`;
     } else {
       const pwdValidation = passwordSchema.safeParse(password);
       if (!pwdValidation.success) {
@@ -265,7 +268,7 @@ if (Astro.request.method === "POST") {
       helpdeskName = name || null;
     }
 
-    if (userId && newRole) {
+    if (userId && newRole && isValidRole(newRole)) {
       try {
         const [targetUser] = await db
           .select({
@@ -291,6 +294,8 @@ if (Astro.request.method === "POST") {
       } catch (e) {
         errorMsg = "Error al actualizar el usuario.";
       }
+    } else if (userId && newRole && !isValidRole(newRole)) {
+      errorMsg = `Rol inválido: "${newRole}".`;
     }
   }
 

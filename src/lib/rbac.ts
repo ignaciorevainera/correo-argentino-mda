@@ -14,6 +14,20 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   admin: 5,
 };
 
+export const CANONICAL_ROLES: readonly Role[] = [
+  "admin",
+  "supervisor",
+  "team_leader",
+  "referent",
+  "agent",
+] as const;
+
+const CANONICAL_ROLE_SET = new Set<string>(CANONICAL_ROLES);
+
+export function isValidRole(role: string): role is Role {
+  return typeof role === "string" && CANONICAL_ROLE_SET.has(role);
+}
+
 export function normalizeRole(role: string): Role {
   const clean = role.toLowerCase().replace(/[-_]/g, " ").trim();
   if (clean === "admin") return "admin";
