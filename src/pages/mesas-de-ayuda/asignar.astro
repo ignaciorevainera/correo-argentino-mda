@@ -10,8 +10,10 @@ import { isNull } from "drizzle-orm";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
+import { getCsrfTokenForSession } from "@lib/csrf";
 
 const cleanBase = getCleanBase();
+const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
 
 const unassignedRecords = await db.query.supportGuides.findMany({
   where: isNull(supportGuides.invgate_id),
@@ -117,9 +119,7 @@ const helpdesks = allItems
 
 <script>
 import { getCleanBase } from "@lib/baseUrl";
-import { getCsrfTokenForSession } from "@lib/csrf";
 const cleanBase = getCleanBase();
-const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
 
   document
     .querySelectorAll<HTMLButtonElement>("[data-assign-btn]")

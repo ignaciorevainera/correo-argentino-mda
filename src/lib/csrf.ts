@@ -33,6 +33,11 @@ export function validateCsrfToken(
   return timingSafeEqual(a, b);
 }
 
+export function getCsrfTokenForSession(sessionId: string | null): string {
+  if (!sessionId) return "";
+  return generateCsrfToken(sessionId);
+}
+
 export async function validateRequestCsrf(
   request: Request,
   locals: { sessionId: string | null },
