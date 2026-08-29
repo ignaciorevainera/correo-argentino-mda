@@ -58,11 +58,10 @@ describe("fetchInvGateMesas error path", () => {
 
 describe("syncMesas empty-list guard", () => {
   it("throws and does NOT touch the DB when InvGate returns 0 mesas", async () => {
-    (invgateGet as any).mockResolvedValue({ ok: true, status: 200, data: { categories: [] } });
+    (invgateGet as any).mockResolvedValue({ ok: true, status: 200, data: [] });
     (db.select as any).mockResolvedValue([]);
     await expect(syncMesas()).rejects.toThrow(/0 mesas/);
     // Transaction must never be invoked on the empty guard path.
     expect(db.transaction).not.toHaveBeenCalled();
   });
 });
-
