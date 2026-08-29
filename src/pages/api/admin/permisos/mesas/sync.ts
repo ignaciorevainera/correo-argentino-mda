@@ -5,6 +5,7 @@ import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { syncMesas } from "../../../../../lib/permissions/mesaSync";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { validateRequestCsrf } from "@lib/csrf";
+import { checkSlidingRateLimit } from "@lib/rateLimit";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = await requireWriteAccess(locals, "permisos");
@@ -12,6 +13,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   if (!(await validateRequestCsrf(request, locals))) {
     return jsonResponse({ error: "Token CSRF inválido o ausente" }, 403);
+  }
+
+  if (!checkSlidingRateLimit(`mesas-sync:${locals.user.id}`, 5, 60000)) {
+    return jsonResponse(
+      { error: "Demasiadas solicitudes de sincronización. Intenta de nuevo en un minuto." },
+      429,
+    );
   }
 
   try {
