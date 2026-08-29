@@ -1,0 +1,116 @@
+---
+import { db } from "@db/index";
+import { routes, modules, mesas, routeAccess, moduleAccess } from "@db/schema";
+import { EDITABLE_ROLES } from "@lib/permissions/types";
+
+const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows] =
+  await Promise.all([
+    db.select().from(routes),
+    db.select().from(modules),
+    db.select().from(mesas),
+    db.select().from(routeAccess),
+    db.select().from(moduleAccess),
+  ]);
+
+const routeList = routeRows.sort((a, b) => a.sortOrder - b.sortOrder);
+const moduleList = moduleRows.sort((a, b) => a.sortOrder - b.sortOrder);
+const mesaList = [...mesaRows].sort((a, b) => a.name.localeCompare(b.name));
+const activeMesas = mesaList.filter((m) => m.active);
+const inactiveMesas = mesaList.filter((m) => !m.active);
+
+// Initial state for client-side diff. Escape "<" so mesa names can't break out
+// of the JSON script tag.
+const initialJson = JSON.stringify({
+  mesas: mesaList,
+  routeAccess: routeAccessRows,
+  moduleAccess: moduleAccessRows,
+}).replace(/</g, "\\u003c");
+
+// Route overrides: key "routeId:role:mesaId" -> allowed
+const routeAllowed = new Map(
+  routeAccessRows.map((r) => [`${r.routeId}:${r.role}:${r.mesaId}`, r.allowed]),
+);
+
+// Module overrides: key "moduleId:role:mesaId" -> flags object
+const moduleFlags = new Map(
+  moduleAccessRows.map((r) => [`${r.moduleId}:${r.role}:${r.mesaId}`, r]),
+);
+
+const MODULE_DEFAULTS: Record<string, boolean> = {
+  canRead: false,
+  canWrite: false,
+  canViewAll: true,
+  canViewComments: true,
+  canViewTotals: true,
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  agent: "Agente",
+  referent: "Referente",
+  team_leader: "Líder de equipo",
+  supervisor: "Supervisor",
+};
+---
+
+<div id="permisos-root" data-mesa-count={mesaList.length} class="space-y-4">
+  <script type="application/json" id="permisos-initial" set:html={initialJson} />
+
+  <div role="tablist" class="tabs tabs-bordered">
+    <button type="button" role="tab" data-tab-btn="rutas" class="tab tab-active">Rutas</button>
+    <button type="button" role="tab" data-tab-btn="modulos" class="tab">Módulos</button>
+    <button type="button" role="tab" data-tab-btn="mesas" class="tab">Mesas</button>
+  </div>
+
+  <div data-tab-panel="rutas">
+    <!-- Rutas matrix markup: added in Task 4 -->
+  </div>
+
+  <div data-tab-panel="modulos" class="hidden">
+    <!-- Módulos matrix markup: added in Task 4 -->
+  </div>
+
+  <div data-tab-panel="mesas" class="hidden">
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="button" id="mesas-sync" class="btn btn-primary btn-sm">
+        Sincronizar desde InvGate
+      </button>
+      {mesaList.length > 0 && (
+        <span class="text-base-content/60 text-xs">
+          Última sincronización: {mesaList[0]?.lastSyncedAt ?? "—"}
+        </span>
+      )}
+    </div>
+
+    <div class="overflow-x-auto mt-3">
+      <table class="table table-zebra table-sm">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>InvGate ID</th>
+            <th>Activa</th>
+            <th>Sincronizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mesaList.length === 0 && (
+            <tr>
+              <td colspan="4" class="text-base-content/50 text-center">
+                No hay mesas. Usá "Sincronizar desde InvGate" para traerlas.
+              </td>
+            </tr>
+          )}
+          {mesaList.map((m) => (
+            <tr class:list={[!m.active && "opacity-50"]}>
+              <td class="font-mono">{m.name}</td>
+              <td>{m.invgateId}</td>
+              <td>{m.active ? "Sí" : "No"}</td>
+              <td>{m.lastSyncedAt ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Client script: added in Task 5 -->
+</div>
