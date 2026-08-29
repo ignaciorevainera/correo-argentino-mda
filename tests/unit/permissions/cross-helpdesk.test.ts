@@ -25,10 +25,10 @@ function mockRecord(record: { invgate_id: number | null } | null) {
   });
 }
 
-function mockUpdate() {
+function mockUpdate(changes = 1) {
   const updateMock = vi.fn().mockReturnValue({
     set: () => ({
-      where: () => Promise.resolve(),
+      where: () => Promise.resolve({ changes }),
     }),
   });
   (db.update as any) = updateMock;
@@ -90,17 +90,48 @@ describe("assign cross-helpdesk validation", () => {
     expect(updateMock).toHaveBeenCalled();
   });
 
-  it("does not block record with invgate_id null", async () => {
+  it("blocks record with invgate_id null when target mismatches user mesa (Issue 1)", async () => {
     mockRecord({ invgate_id: null });
     const updateMock = mockUpdate();
 
     const res = await assignPost({
-      request: makeRequest({ recordId: 1, invgate_id: 200 }),
+      request: makeRequest({ recordId: 1, invgate_id: 300 }),
+      locals: { user: supervisor(100) },
+    } as any);
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("otra mesa");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows assign when target helpdesk matches user mesa (record already assigned to it)", async () => {
+    mockRecord({ invgate_id: 100 });
+    const updateMock = mockUpdate();
+
+    const res = await assignPost({
+      request: makeRequest({ recordId: 1, invgate_id: 100 }),
       locals: { user: supervisor(100) },
     } as any);
 
     expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
+    expect(logAdminAction).toHaveBeenCalled();
+  });
+
+  it("returns 404 when conditional update affects 0 rows (race)", async () => {
+    mockRecord({ invgate_id: null });
+    mockUpdate(0);
+
+    const res = await assignPost({
+      request: makeRequest({ recordId: 1, invgate_id: 100 }),
+      locals: { user: supervisor(100) },
+    } as any);
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain("Registro no encontrado");
   });
 });
 

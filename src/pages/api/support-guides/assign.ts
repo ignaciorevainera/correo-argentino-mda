@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { ROLE_HIERARCHY } from "@lib/rbac";
@@ -28,11 +28,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
+    if (user.helpdeskId !== null && user.helpdeskId !== invgateId) {
+      return jsonResponse(
+        { error: "Acceso denegado: no puedes asignar helpdesks de otra mesa" },
+        403,
+      );
+    }
+
     const [record] = await db
-      .select({
-        legacyName: supportGuides.legacyName,
-        invgate_id: supportGuides.invgate_id,
-      })
+      .select({ legacyName: supportGuides.legacyName })
       .from(supportGuides)
       .where(eq(supportGuides.id, recordId));
 
@@ -40,21 +44,27 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonResponse({ error: "Registro no encontrado" }, 404);
     }
 
-    if (
-      user.helpdeskId !== null &&
-      record.invgate_id !== null &&
-      user.helpdeskId !== record.invgate_id
-    ) {
-      return jsonResponse(
-        { error: "Acceso denegado: no puedes asignar helpdesks de otra mesa" },
-        403,
+    // Atomic guard: update only succeeds if the record's current helpdesk
+    // is still null or belongs to the requesting user's mesa (prevents
+    // select/update race where another request reassigns in between).
+    const conditions = [eq(supportGuides.id, recordId)];
+    if (user.helpdeskId !== null) {
+      conditions.push(
+        or(
+          isNull(supportGuides.invgate_id),
+          eq(supportGuides.invgate_id, user.helpdeskId),
+        )!,
       );
     }
 
-    await db
+    const result = await db
       .update(supportGuides)
       .set({ invgate_id: invgateId })
-      .where(eq(supportGuides.id, recordId));
+      .where(and(...conditions));
+
+    if (!result || result.changes === 0) {
+      return jsonResponse({ error: "Registro no encontrado" }, 404);
+    }
 
     await logAdminAction(
       user.username || "sistema",
