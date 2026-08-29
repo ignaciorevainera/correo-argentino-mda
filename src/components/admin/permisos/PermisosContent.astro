@@ -406,6 +406,8 @@ const ROLE_LABELS: Record<string, string> = {
 
       const saveRoutes = document.getElementById("save-routes");
       saveRoutes?.addEventListener("click", async () => {
+        const btn = saveRoutes as HTMLButtonElement;
+        btn.disabled = true;
         const changes = computeRoutesDiff().map((cb) => ({
           routeId: Number(cb.dataset.routeId),
           role: cb.dataset.role,
@@ -418,11 +420,15 @@ const ROLE_LABELS: Record<string, string> = {
           window.location.reload();
         } catch (err) {
           showToast(err instanceof Error ? err.message : "Error al guardar", "alert-error");
+          btn.disabled = false;
+          refreshCounts();
         }
       });
 
       const saveModules = document.getElementById("save-modules");
       saveModules?.addEventListener("click", async () => {
+        const btn = saveModules as HTMLButtonElement;
+        btn.disabled = true;
         const changes = Array.from(computeModuleDiff().keys()).map((key) => {
           const [moduleId, role, mesaId] = key.split(":");
           const cellInputs = Array.from(
@@ -440,6 +446,8 @@ const ROLE_LABELS: Record<string, string> = {
           window.location.reload();
         } catch (err) {
           showToast(err instanceof Error ? err.message : "Error al guardar", "alert-error");
+          btn.disabled = false;
+          refreshCounts();
         }
       });
 
