@@ -4,6 +4,7 @@ import { users, sessions } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
 import { hasPermissionAsync } from "./lib/rbac";
+import { getIslandEffectivePathname } from "./lib/navigation";
 import { isSectionVisible } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
@@ -233,6 +234,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const lowerPath = relativePath.toLowerCase();
 
+  // Server islands: heredar permisos de la pagina padre (header Referer).
+  // Sin referer valido queda el path de la island -> deny-by-default.
+  const checkPath = getIslandEffectivePathname(
+    relativePath,
+    context.request.headers.get("referer"),
+  );
+
   // Proteger endpoints de API para usuarios no autenticados
   if (
     lowerPath.startsWith("/api/cronograma") ||
@@ -266,7 +274,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const role = (currentUser.role || "").toLowerCase().trim();
 
-  const allowed = await hasPermissionAsync(relativePath, role, currentUser.helpdeskId);
+  const allowed = await hasPermissionAsync(checkPath, role, currentUser.helpdeskId);
   if (!allowed) {
     if (currentUser.id !== 0) {
       return redirect(
@@ -281,7 +289,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const sectionVisible = await isSectionVisible(
     currentUser.helpdeskName,
     role,
-    relativePath,
+    checkPath,
     currentUser.helpdeskId,
   );
   if (!sectionVisible) {
