@@ -423,10 +423,15 @@ const ROLE_LABELS: Record<string, string> = {
 
       const saveModules = document.getElementById("save-modules");
       saveModules?.addEventListener("click", async () => {
-        const changes = Array.from(computeModuleDiff().entries()).map(([key, inputs]) => {
+        const changes = Array.from(computeModuleDiff().keys()).map((key) => {
           const [moduleId, role, mesaId] = key.split(":");
+          const cellInputs = Array.from(
+            root.querySelectorAll<HTMLInputElement>(
+              `input[data-kind="module"][data-module-id="${moduleId}"][data-role="${role}"][data-mesa-id="${mesaId}"]`,
+            ),
+          );
           const flags: Record<string, boolean> = {};
-          inputs.forEach((cb) => (flags[cb.dataset.flag as string] = cb.checked));
+          cellInputs.forEach((cb) => (flags[cb.dataset.flag as string] = cb.checked));
           return { moduleId: Number(moduleId), role, mesaId: Number(mesaId), flags };
         });
         try {
