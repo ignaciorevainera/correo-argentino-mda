@@ -6,6 +6,7 @@ import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { ROLE_HIERARCHY } from "@lib/rbac";
 import { validateRequestCsrf } from "@lib/csrf";
+import { checkSlidingRateLimit } from "@lib/rateLimit";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const user = locals.user;
@@ -19,6 +20,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   if (!(await validateRequestCsrf(request, locals))) {
     return jsonResponse({ error: "Token CSRF inválido o ausente" }, 403);
+  }
+
+  if (!checkSlidingRateLimit(`rate:assign:${user.id}`, 10, 60_000)) {
+    return jsonResponse(
+      { error: "Demasiadas solicitudes. Intenta de nuevo en un minuto." },
+      429,
+    );
   }
 
   try {
