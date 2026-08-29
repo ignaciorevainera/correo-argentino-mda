@@ -11,6 +11,11 @@ SET helpdesk_id = NULL
 WHERE helpdesk_id IS NOT NULL
   AND helpdesk_id NOT IN (SELECT invgate_id FROM mesas);
 
+-- 1b) sessions whose userId no longer exists (blocks users table recreate / FK checks)
+--     Found on dev DB (2026-08-29): 7 rows.
+DELETE FROM sessions
+WHERE userId NOT IN (SELECT id FROM users);
+
 -- 2) hidden_helpdesks rows whose invgate_id is not in mesas.invgate_id -> DELETE
 --    (cascade semantics: row only meaningful while mesa exists)
 --    Found on dev DB (2026-08-29): 2 rows (invgate_id 2, 2645).
