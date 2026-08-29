@@ -7,6 +7,7 @@ import {
   weekendOvertimeConfig,
   weekendOvertimeShifts,
   agentSaturdayGroups,
+  workLocations,
 } from "@db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
@@ -507,6 +508,175 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("POST API Error:", error);
+    return jsonResponse({ error: "Internal server error" }, 500);
+  }
+};
+
+export const PUT: APIRoute = async ({ request, locals }) => {
+  const denied = await requireWriteAccess(locals, "cronograma");
+  if (denied) return denied;
+
+  try {
+    const body = await request.json();
+    const { edits, weeklySchedules } = body;
+
+    const allLocations = await db
+      .select({ id: workLocations.id, name: workLocations.name })
+      .from(workLocations)
+      .orderBy(workLocations.name);
+
+    let weeklyCount = 0;
+
+    if (weeklySchedules && Array.isArray(weeklySchedules)) {
+      weeklyCount = weeklySchedules.length;
+      for (const ws of weeklySchedules) {
+        const {
+          agentName,
+          esquema_semanal,
+          esquema_horario,
+          esquema_break_inicio,
+          esquema_break_fin,
+          locationId,
+        } = ws;
+        if (!agentName) continue;
+
+        const updateData: any = {};
+        if (esquema_semanal !== undefined) {
+          updateData.esquemaSemanal = esquema_semanal;
+        }
+        if (esquema_horario !== undefined) {
+          updateData.esquemaHorario = esquema_horario;
+        }
+        if (esquema_break_inicio !== undefined) {
+          updateData.esquemaBreakInicio = esquema_break_inicio;
+        }
+        if (esquema_break_fin !== undefined) {
+          updateData.esquemaBreakFin = esquema_break_fin;
+        }
+        if (locationId !== undefined && locationId !== null && locationId !== "") {
+          const loc = allLocations.find((l) => l.id === String(locationId));
+          updateData.location = loc ? loc.name : "Monte Grande";
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await db
+            .update(agents)
+            .set(updateData)
+            .where(eq(agents.name, agentName));
+        }
+      }
+
+      if (!edits || !Array.isArray(edits)) {
+        await logAdminFromAstro(
+          locals,
+          `Actualizó esquemas semanales de ${weeklyCount} operadores`,
+        );
+        return jsonResponse({
+          success: true,
+          message: "Weekly schedules updated",
+        });
+      }
+    }
+
+    if (!Array.isArray(edits)) {
+      return jsonResponse({ error: "Edits must be an array" }, 400);
+    }
+
+    await db.transaction((tx) => {
+      for (const edit of edits) {
+        const {
+          agentName,
+          date,
+          status,
+          comment,
+          horario,
+          breakInicio,
+          breakFin,
+        } = edit;
+        if (!agentName || !date) continue;
+
+        const dateObj = new Date(date + "T12:00:00");
+        const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        if (
+          isWeekendDay &&
+          (status === "Licencia" || status === "Vacaciones")
+        ) {
+          const agentList = tx
+            .select({ id: agents.id })
+            .from(agents)
+            .where(eq(agents.name, agentName))
+            .limit(1)
+            .all();
+          if (agentList.length > 0) {
+            tx.delete(weekendOvertimeShifts)
+              .where(
+                and(
+                  eq(weekendOvertimeShifts.agentId, agentList[0].id),
+                  eq(weekendOvertimeShifts.date, date),
+                ),
+              )
+              .run();
+          }
+        }
+
+        const existing = tx
+          .select()
+          .from(schedules)
+          .where(
+            and(eq(schedules.agentName, agentName), eq(schedules.date, date)),
+          )
+          .limit(1)
+          .all();
+
+        if (existing.length > 0) {
+          const updateData: any = {};
+          if (status !== undefined) updateData.status = status;
+          if (comment !== undefined) updateData.comment = comment;
+          if (horario !== undefined) updateData.horario = horario;
+          if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
+          if (breakFin !== undefined) updateData.breakFin = breakFin;
+          updateData.isOverride = true;
+
+          tx.update(schedules)
+            .set(updateData)
+            .where(eq(schedules.id, existing[0].id))
+            .run();
+        } else {
+          tx.insert(schedules)
+            .values({
+              agentName,
+              date,
+              status: status !== undefined ? status : "Franco",
+              comment: comment || "",
+              horario: horario || "",
+              breakInicio: breakInicio || "",
+              breakFin: breakFin || "",
+              isOverride: true,
+            })
+            .run();
+        }
+      }
+    });
+
+    const editCount = edits?.length || 0;
+    let logMessages: string[] = [];
+    if (weeklyCount > 0) {
+      logMessages.push(
+        `Actualizó esquemas semanales de ${weeklyCount} operadores`,
+      );
+    }
+    if (editCount > 0) {
+      logMessages.push(
+        `Guardó cambios en el cronograma (${editCount} registros)`,
+      );
+    }
+    if (logMessages.length > 0) {
+      await logAdminFromAstro(locals, logMessages.join(" y "));
+    }
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    console.error("PUT API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
   }
 };
