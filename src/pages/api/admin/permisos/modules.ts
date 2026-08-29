@@ -7,6 +7,7 @@ import { requireWriteAccess } from "../../../../lib/rbac-middleware";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { invalidatePermissionsCache } from "../../../../lib/permissions/cache";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { validateRequestCsrf } from "@lib/csrf";
 
 const BodySchema = z.object({
   changes: z
@@ -30,6 +31,10 @@ const BodySchema = z.object({
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = await requireWriteAccess(locals, "permisos");
   if (denied) return denied;
+
+  if (!(await validateRequestCsrf(request, locals))) {
+    return jsonResponse({ error: "Token CSRF inválido o ausente" }, 403);
+  }
 
   let body;
   try {

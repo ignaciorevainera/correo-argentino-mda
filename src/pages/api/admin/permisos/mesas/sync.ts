@@ -4,10 +4,15 @@ import { requireWriteAccess } from "../../../../../lib/rbac-middleware";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { syncMesas } from "../../../../../lib/permissions/mesaSync";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { validateRequestCsrf } from "@lib/csrf";
 
-export const POST: APIRoute = async ({ locals }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   const denied = await requireWriteAccess(locals, "permisos");
   if (denied) return denied;
+
+  if (!(await validateRequestCsrf(request, locals))) {
+    return jsonResponse({ error: "Token CSRF inválido o ausente" }, 403);
+  }
 
   try {
     const result = await syncMesas();

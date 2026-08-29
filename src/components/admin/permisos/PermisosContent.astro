@@ -2,6 +2,7 @@
 import { db } from "@db/index";
 import { routes, modules, mesas, routeAccess, moduleAccess } from "@db/schema";
 import { EDITABLE_ROLES } from "@lib/permissions/types";
+import { getCsrfTokenForSession } from "@lib/csrf";
 
 const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows] =
   await Promise.all([
@@ -52,7 +53,12 @@ const ROLE_LABELS: Record<string, string> = {
 };
 ---
 
-<div id="permisos-root" data-mesa-count={mesaList.length} class="space-y-4">
+<div
+  id="permisos-root"
+  data-mesa-count={mesaList.length}
+  data-csrf-token={getCsrfTokenForSession(Astro.locals.sessionId)}
+  class="space-y-4"
+>
   <script type="application/json" id="permisos-initial" set:html={initialJson} />
 
   <div role="tablist" class="tabs tabs-bordered">
@@ -393,11 +399,12 @@ const ROLE_LABELS: Record<string, string> = {
 
       // --- Save ---
       async function postJson(url: string, body: unknown): Promise<any> {
+        const csrfToken = root.getAttribute("data-csrf-token") || "";
         const res = await fetch(getCleanBase() + url, {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...(body as object), csrf_token: csrfToken }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error ?? `Error ${res.status}`);
