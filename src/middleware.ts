@@ -10,6 +10,7 @@ import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
 import { bootstrapPermissions } from "./lib/permissions/bootstrap";
+import { isFingerprintValid, computeFingerprint } from "./lib/sessionFingerprint";
 
 let bootstrapState: "idle" | "running" | "done" = "idle";
 
@@ -162,24 +163,41 @@ export const onRequest = defineMiddleware(async (context, next) => {
         id: sessions.id,
         userId: sessions.userId,
         expiresAt: sessions.expiresAt,
+        fingerprint: sessions.fingerprint,
       })
       .from(sessions)
       .where(eq(sessions.id, sessionId));
 
     if (session && session.expiresAt > Date.now()) {
-      const [dbUser] = await db
-        .select({
-          id: users.id,
-          username: users.username,
-          role: users.role,
-          helpdeskId: users.helpdeskId,
-          helpdeskName: users.helpdeskName,
-        })
-        .from(users)
-        .where(eq(users.id, session.userId));
+      const currentFingerprint = computeFingerprint(
+        context.request.headers.get("user-agent"),
+      );
+      if (!isFingerprintValid(session.fingerprint, currentFingerprint)) {
+        deleteSessionCookie(cookies);
+        await db.delete(sessions).where(eq(sessions.id, sessionId));
+        sessionId = null;
+        if (relativePath !== "/login") {
+          return redirect(
+            resolveUrl(
+              `/login?toast_msg=${encodeURIComponent("Sesión inválida")}&toast_type=error`,
+            ),
+          );
+        }
+      } else {
+        const [dbUser] = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            role: users.role,
+            helpdeskId: users.helpdeskId,
+            helpdeskName: users.helpdeskName,
+          })
+          .from(users)
+          .where(eq(users.id, session.userId));
 
-      if (dbUser) {
-        currentUser = dbUser;
+        if (dbUser) {
+          currentUser = dbUser;
+        }
       }
     } else {
       deleteSessionCookie(cookies);

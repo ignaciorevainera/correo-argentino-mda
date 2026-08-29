@@ -64,6 +64,7 @@ export const sessions = sqliteTable("sessions", {
     .notNull()
     .references(() => users.id),
   expiresAt: integer("expiresAt").notNull(),
+  fingerprint: text("fingerprint"),
 });
 
 export const offices = sqliteTable(

@@ -13,6 +13,7 @@ import { Icon } from "astro-icon/components";
 import FormField from "@components/ui/forms/FormField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
 import { getCleanBase } from "@lib/baseUrl";
+import { computeFingerprint } from "@lib/sessionFingerprint";
 
 if (Astro.locals.user.id !== 0) {
   return Astro.redirect(getCleanBase());
@@ -51,6 +52,7 @@ if (Astro.request.method === "POST") {
         id: sessionId,
         userId: userFound.id,
         expiresAt: expiresAtMs,
+        fingerprint: computeFingerprint(Astro.request.headers.get("user-agent")),
       });
 
       const signedId = signSessionId(sessionId);
