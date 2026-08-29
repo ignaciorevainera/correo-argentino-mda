@@ -84,8 +84,9 @@ describe("Default-Deny Permissions", () => {
     expect(hasPermission("/supervision/cronograma", "agent")).toBe(true);
   });
 
-  it("should allow unauthenticated users (rank 0) on public routes, matching middleware auth gates", () => {
+  it("should normalize empty role to agent and apply normal matching", () => {
     expect(hasPermission("/", "")).toBe(true);
     expect(hasPermission("/api/invgate/ping", "")).toBe(true);
+    expect(hasPermission("/admin/aplicativos", "")).toBe(false);
   });
 });

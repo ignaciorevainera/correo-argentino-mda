@@ -128,13 +128,7 @@ export function hasPermission(path: string, userRole: string): boolean {
     .filter((route) => normalizedPath.startsWith(route.path.toLowerCase()))
     .sort((a, b) => b.path.length - a.path.length)[0];
 
-  const userRank = ROLE_HIERARCHY[role] || 0;
-
-  // Unauthenticated requests (rank 0) are gated earlier in middleware
-  // (401/redirect for /api/* protected groups, /admin, /supervision), so they
-  // only ever reach this check for public paths — keep them allowed, as under
-  // the old default-allow behavior.
-  if (userRank === 0) return true;
+  const userRank = ROLE_HIERARCHY[role];
 
   // The home page is public. It cannot be expressed as a prefix entry because
   // "/" matches every path under startsWith semantics.

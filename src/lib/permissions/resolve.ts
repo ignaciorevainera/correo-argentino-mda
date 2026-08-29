@@ -57,11 +57,7 @@ function resolveRouteIdByPath(path: string): number | null {
 
 function hardcodedRouteAllowed(path: string, role: string): boolean {
   const normalized = path.toLowerCase();
-  const rank = ROLE_HIERARCHY[normalizeRole(role)] || 0;
-
-  // Unauthenticated requests (rank 0) are gated earlier in middleware — keep
-  // them allowed, mirroring hasPermission in rbac.ts.
-  if (rank === 0) return true;
+  const rank = ROLE_HIERARCHY[normalizeRole(role)];
 
   // Home page is public; "/" can't be a prefix entry (matches everything).
   if (normalized === "/") return true;
