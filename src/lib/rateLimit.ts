@@ -35,6 +35,9 @@ function sweepSliding(now: number) {
   if (now - lastSlidingSweep < SWEEP_INTERVAL) return;
   lastSlidingSweep = now;
   for (const [k, timestamps] of slidingWindows) {
+    while (timestamps.length > 0 && timestamps[0] <= now) {
+      timestamps.shift();
+    }
     if (timestamps.length === 0) {
       slidingWindows.delete(k);
     }
@@ -70,6 +73,12 @@ export function checkSlidingRateLimit(
 
 export function resetRateLimit(): void {
   slidingWindows.clear();
+  lastSlidingSweep = Date.now();
+}
+
+/** @internal test-only: number of live sliding window keys */
+export function getSlidingEntryCount(): number {
+  return slidingWindows.size;
 }
 
 export function checkRateLimit(

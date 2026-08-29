@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   checkSlidingRateLimit,
   resetRateLimit,
+  getSlidingEntryCount,
 } from "../../../src/lib/rateLimit";
 
 describe("checkSlidingRateLimit (per-user sliding window)", () => {
@@ -65,5 +66,24 @@ describe("checkSlidingRateLimit (per-user sliding window)", () => {
     expect(checkSlidingRateLimit("rate:show:7", 10, 60_000)).toBe(false);
     resetRateLimit();
     expect(checkSlidingRateLimit("rate:show:7", 10, 60_000)).toBe(true);
+  });
+
+  it("sweep reclaims abandoned keys after window expires", () => {
+    for (let i = 0; i < 10; i++) {
+      checkSlidingRateLimit("rate:abandon:1", 10, 60_000);
+    }
+    expect(getSlidingEntryCount()).toBeGreaterThan(0);
+    // force lastSlidingSweep back so the sweep interval has elapsed
+    vi.advanceTimersByTime(60_001);
+    // trigger sweep via an unrelated key (sweep runs before pruning)
+    checkSlidingRateLimit("rate:other:1", 10, 60_000);
+    expect(getSlidingEntryCount()).toBe(1);
+  });
+
+  it("allows request exactly at window boundary (<= cutoff)", () => {
+    expect(checkSlidingRateLimit("rate:edge:1", 1, 60_000)).toBe(true);
+    expect(checkSlidingRateLimit("rate:edge:1", 1, 60_000)).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(checkSlidingRateLimit("rate:edge:1", 1, 60_000)).toBe(true);
   });
 });
