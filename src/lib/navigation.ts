@@ -150,7 +150,7 @@ export const navSections: NavSection[] = [
           {
             href: "/admin/permisos",
             label: "Permisos y accesos",
-            icon: "boxicons:lock-alt",
+            icon: "boxicons:lock",
           },
         ],
       },

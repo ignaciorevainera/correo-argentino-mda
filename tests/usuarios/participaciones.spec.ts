@@ -1,0 +1,222 @@
+import "dotenv/config";
+import { test, expect, type BrowserContext } from "@playwright/test";
+import { db } from "../../src/db/index";
+import { users, sessions, agents } from "../../src/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { createHmac, randomUUID } from "crypto";
+
+const SECRET_KEY =
+  process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
+
+function signSessionId(sessionId: string): string {
+  const signature = createHmac("sha256", SECRET_KEY)
+    .update(sessionId)
+    .digest("base64url");
+  return `${sessionId}.${signature}`;
+}
+
+interface AdminTestContext {
+  adminUsername: string;
+  adminSessionId: string;
+  adminUserId: number;
+}
+
+async function setupAdmin(context: BrowserContext): Promise<AdminTestContext> {
+  const suffix = randomUUID();
+  const adminUsername = `e2e_part_admin_${suffix}`;
+  const adminSessionId = `e2e_part_session_${suffix}`;
+
+  const [newUser] = await db
+    .insert(users)
+    .values({
+      username: adminUsername,
+      password: "hashed_fake_password",
+      role: "admin",
+      helpdeskName: "TI_GSM_MDA TI",
+    })
+    .returning({ id: users.id });
+
+  await db.insert(sessions).values({
+    id: adminSessionId,
+    userId: newUser.id,
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+  });
+
+  await context.addCookies([
+    {
+      name: "session_id",
+      value: signSessionId(adminSessionId),
+      domain: "127.0.0.1",
+      path: "/",
+    },
+  ]);
+
+  return { adminUsername, adminSessionId, adminUserId: newUser.id };
+}
+
+async function cleanupAdmin(ctx: AdminTestContext): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.id, ctx.adminSessionId));
+  await db.delete(users).where(eq(users.id, ctx.adminUserId));
+}
+
+const uniq = () =>
+  `e2e_part_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+async function waitForUserInDb(username: string, maxRetries = 10): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    const [row] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(users)
+      .where(eq(users.username, username));
+    if (row && row.count > 0) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
+test.describe("Participaciones de usuarios", () => {
+  let adminCtx: AdminTestContext;
+
+  test.beforeEach(async ({ context }) => {
+    adminCtx = await setupAdmin(context);
+  });
+
+  test.afterEach(async () => {
+    await cleanupAdmin(adminCtx);
+  });
+
+  test("alta con rol team_leader prefilá crono+cubic", async ({ page }) => {
+    const username = uniq();
+
+    await page.goto("/admin/usuarios");
+    await page.waitForSelector("#nuevo-usuario-form");
+
+    await page.fill("#admin-username", username);
+    await page.fill("#admin-password", "CambiarEst0!Clave");
+    await page.fill("#admin-fullname", `E2E Participaciones ${username}`);
+    await page.selectOption("#admin-role", "team_leader");
+
+    await expect(
+      page.locator('#nuevo-usuario-form input[name="enCronograma"]'),
+    ).toBeChecked();
+    await expect(
+      page.locator('#nuevo-usuario-form input[name="asignableCubic"]'),
+    ).toBeChecked();
+    await expect(
+      page.locator('#nuevo-usuario-form input[name="incluidoCalidad"]'),
+    ).not.toBeChecked();
+    await expect(
+      page.locator('#nuevo-usuario-form input[name="asignableAgs"]'),
+    ).not.toBeChecked();
+
+    const submitPromise = page.waitForResponse(
+      (r) =>
+        r.url().includes("/admin/usuarios") &&
+        r.request().method() === "POST",
+      { timeout: 15000 },
+    ).catch(() => null);
+
+    await page.evaluate(() => {
+      const form = document.getElementById("nuevo-usuario-form");
+      if (form) HTMLFormElement.prototype.submit.call(form);
+    });
+
+    const response = await submitPromise;
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBe(200);
+
+    await page.waitForLoadState("networkidle");
+
+    const created = await waitForUserInDb(username);
+    expect(created).toBe(true);
+
+    const [agentRow] = await db
+      .select()
+      .from(agents)
+      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+
+    expect(agentRow).toBeTruthy();
+    expect(agentRow!.enCronograma).toBe(true);
+    expect(agentRow!.asignableCubic).toBe(true);
+    expect(agentRow!.incluidoCalidad).toBe(false);
+    expect(agentRow!.asignableAgs).toBe(false);
+
+    await db
+      .delete(agents)
+      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+    await db.delete(users).where(eq(users.username, username));
+  });
+
+  test("toggle OFF de enCronograma saca al agente del listado", async ({
+    page,
+  }) => {
+    const username = uniq();
+
+    await page.goto("/admin/usuarios");
+    await page.waitForSelector("#nuevo-usuario-form");
+
+    await page.fill("#admin-username", username);
+    await page.fill("#admin-password", "CambiarEst0!Clave");
+    await page.fill("#admin-fullname", `Toggle Crono Test ${username}`);
+
+    const createSubmitPromise = page.waitForResponse(
+      (r) =>
+        r.url().includes("/admin/usuarios") &&
+        r.request().method() === "POST",
+      { timeout: 15000 },
+    ).catch(() => null);
+
+    await page.evaluate(() => {
+      const form = document.getElementById("nuevo-usuario-form");
+      if (form) HTMLFormElement.prototype.submit.call(form);
+    });
+
+    const createResponse = await createSubmitPromise;
+    expect(createResponse).not.toBeNull();
+    expect(createResponse!.status()).toBe(200);
+
+    await page.waitForLoadState("networkidle");
+
+    const created = await waitForUserInDb(username);
+    expect(created).toBe(true);
+
+    const res1 = await page.request.get("/api/cronograma/");
+    const body1 = await res1.json();
+    expect(body1.operators.some((o: any) => o.username === username)).toBe(true);
+
+    const row = page.locator(`article[data-sort-username="${username}"]`);
+    await row.waitFor({ state: "visible", timeout: 10000 });
+    await row.locator('button[aria-label^="Participaciones"]').click();
+
+    const dialog = page.locator("dialog[open]");
+    await expect(dialog).toBeVisible();
+
+    await dialog.locator('input[name="enCronograma"]').uncheck();
+
+    await page.evaluate(() => {
+      const dialog = document.querySelector("dialog[open]");
+      const form = dialog?.querySelector("form");
+      if (form) form.requestSubmit();
+    });
+    await page.waitForLoadState("networkidle");
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    const res2 = await page.request.get("/api/cronograma/");
+    const body2 = await res2.json();
+    expect(body2.operators.some((o: any) => o.username === username)).toBe(
+      false,
+    );
+
+    const [agentRow] = await db
+      .select()
+      .from(agents)
+      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+    expect(agentRow).toBeTruthy();
+
+    await db
+      .delete(agents)
+      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+    await db.delete(users).where(eq(users.username, username));
+  });
+});
