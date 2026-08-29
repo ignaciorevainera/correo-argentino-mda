@@ -23,6 +23,7 @@ export interface AgentDisponibilidad {
   estadoExcepcionalMotivo?: string; // Comentario del supervisor
   estadoExcepcionalAt?: number; // Timestamp
   estadoExcepcionalMinutos?: number | null; // Tiempo extra para break extendido en minutos
+  asignableAgs?: boolean;
 }
 
 export const EXCEPTION_LABELS: Record<string, string> = {
@@ -74,8 +75,11 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       estadoExcepcionalMotivo: agents.estadoExcepcionalMotivo,
       estadoExcepcionalAt: agents.estadoExcepcionalAt,
       estadoExcepcionalMinutos: agents.estadoExcepcionalMinutos,
+      enCronograma: agents.enCronograma,
+      asignableAgs: agents.asignableAgs,
     })
-    .from(agents);
+    .from(agents)
+    .where(eq(agents.enCronograma, true));
 
   // 2. Fetch today's persistent schedule overrides
   const dbSchedules = await db
@@ -170,6 +174,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       estadoExcepcionalMotivo: agent.estadoExcepcionalMotivo || undefined,
       estadoExcepcionalAt: agent.estadoExcepcionalAt || undefined,
       estadoExcepcionalMinutos: agent.estadoExcepcionalMinutos,
+      asignableAgs: !!agent.asignableAgs,
     };
 
     const applyOverride = () => {

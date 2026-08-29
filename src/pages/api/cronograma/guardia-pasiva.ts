@@ -7,7 +7,7 @@ import {
   employees,
   agents,
 } from "@db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql, and } from "drizzle-orm";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
@@ -127,7 +127,12 @@ export const GET: APIRoute = async ({ url }) => {
         employees,
         sql`lower(${employees.username}) = lower(${users.username})`,
       )
-      .where(inArray(users.role, ["admin", "supervisor", "team_leader"]));
+      .where(
+        and(
+          inArray(users.role, ["admin", "supervisor", "team_leader"]),
+          eq(agents.enCronograma, true),
+        ),
+      );
 
     const supervisorNamesSet = new Set<string>();
     supervisorNamesSet.add(DEFAULT_SUPERVISOR);
@@ -168,7 +173,10 @@ export const GET: APIRoute = async ({ url }) => {
         sql`lower(${agents.username}) = lower(${users.username})`,
       )
       .where(
-        inArray(users.role, ["referent", "supervisor", "team_leader", "admin"]),
+        and(
+          inArray(users.role, ["referent", "supervisor", "team_leader", "admin"]),
+          eq(agents.enCronograma, true),
+        ),
       )
       .orderBy(agents.name);
 

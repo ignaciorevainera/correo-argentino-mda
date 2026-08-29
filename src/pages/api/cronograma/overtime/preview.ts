@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { weekendOvertimeShifts, agents } from "@db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { sanitizeError } from "@lib/apiResponse";
 import { requireReadAccess } from "@lib/rbac-middleware";
 
@@ -60,7 +60,12 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const currentUser = await db
       .select({ id: agents.id })
       .from(agents)
-      .where(eq(agents.username, locals.user!.username))
+      .where(
+        and(
+          eq(agents.username, locals.user!.username),
+          eq(agents.enCronograma, true),
+        ),
+      )
       .limit(1);
     const currentAgentId = currentUser[0]?.id ?? null;
     const respondedUserId = currentAgentId ?? currentUserId;
