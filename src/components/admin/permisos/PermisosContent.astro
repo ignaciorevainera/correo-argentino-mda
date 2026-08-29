@@ -120,15 +120,22 @@ const ROLE_LABELS: Record<string, string> = {
                     <td class="font-mono">{ROLE_LABELS[role] ?? role}</td>
                     {activeMesas.map((m) => (
                       <td class="text-center" data-cell-wrap={route.id + ":" + role + ":" + m.id}>
-                        <input
-                          type="checkbox"
-                          class="checkbox checkbox-sm"
-                          data-kind="route"
-                          data-route-id={route.id}
-                          data-role={role}
-                          data-mesa-id={m.id}
-                          checked={routeAllowed.get(route.id + ":" + role + ":" + m.id) === true}
-                        />
+                        <label class="cursor-pointer">
+                          <input
+                            type="checkbox"
+                            class="checkbox checkbox-sm"
+                            data-kind="route"
+                            data-route-id={route.id}
+                            data-role={role}
+                            data-mesa-id={m.id}
+                            checked={routeAllowed.get(route.id + ":" + role + ":" + m.id) === true}
+                            aria-label={`Permitir ruta ${route.path} para rol ${ROLE_LABELS[role] ?? role} en mesa ${m.name}`}
+                          />
+                          <span class="sr-only"
+                            >Permitir ruta {route.path} para rol {ROLE_LABELS[role] ?? role} en mesa {m
+                              .name}</span
+                          >
+                        </label>
                       </td>
                     ))}
                     {inactiveMesas.map(() => (
@@ -206,7 +213,12 @@ const ROLE_LABELS: Record<string, string> = {
                                   data-mesa-id={m.id}
                                   data-flag={flag}
                                   checked={row ? (row as any)[flag] === true : MODULE_DEFAULTS[flag]}
+                                  aria-label={`${flag} para módulo ${mod.name}, rol ${ROLE_LABELS[role] ?? role}, mesa ${m.name}`}
                                 />
+                                <span class="sr-only"
+                                  >{flag} para módulo {mod.name}, rol {ROLE_LABELS[role] ?? role}, mesa {m
+                                    .name}</span
+                                >
                               </label>
                             ))}
                           </div>
@@ -229,7 +241,8 @@ const ROLE_LABELS: Record<string, string> = {
   <div data-tab-panel="mesas" class="hidden">
     <div class="flex flex-wrap items-center gap-3">
       <button type="button" id="mesas-sync" class="btn btn-primary btn-sm">
-        Sincronizar desde InvGate
+        <span class="sync-label">Sincronizar desde InvGate</span>
+        <span class="loading loading-spinner loading-xs hidden" aria-hidden="true"></span>
       </button>
       {mesaList.length > 0 && (
         <span class="text-base-content/60 text-xs">
@@ -465,10 +478,28 @@ const ROLE_LABELS: Record<string, string> = {
         window.location.reload();
       }
       document.getElementById("mesas-sync")?.addEventListener("click", async () => {
+        if (
+          !confirm("¿Sincronizar mesas desde InvGate? Esta operación puede tardar varios segundos.")
+        ) {
+          return;
+        }
+
+        const btn = document.getElementById("mesas-sync") as HTMLButtonElement | null;
+        const label = btn?.querySelector(".sync-label") as HTMLSpanElement | null;
+        const spinner = btn?.querySelector(".loading-spinner") as HTMLSpanElement | null;
+
+        if (btn) btn.disabled = true;
+        label?.classList.add("hidden");
+        spinner?.classList.remove("hidden");
+
         try {
           await syncMesas();
         } catch (err) {
           showToast(err instanceof Error ? err.message : "No se pudo contactar InvGate", "alert-error");
+        } finally {
+          if (btn) btn.disabled = false;
+          label?.classList.remove("hidden");
+          spinner?.classList.add("hidden");
         }
       });
       if (initial.mesas.length === 0) {
