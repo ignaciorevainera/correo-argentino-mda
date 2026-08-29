@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { hiddenHelpdesks } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminActionStructured } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { ROLE_HIERARCHY } from "@lib/rbac";
 import { validateRequestCsrf } from "@lib/csrf";
@@ -44,9 +44,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .delete(hiddenHelpdesks)
       .where(eq(hiddenHelpdesks.invgateId, invgateId));
 
-    await logAdminAction(
+    await logAdminActionStructured(
       user.username || "sistema",
       `Mostro la mesa de ayuda ID ${invgateId}.`,
+      "helpdesk",
+      invgateId,
+      { hidden: true },
+      null,
     );
 
     return jsonResponse({ ok: true });

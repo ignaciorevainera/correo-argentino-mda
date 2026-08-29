@@ -723,6 +723,10 @@ export const auditLogs = sqliteTable("audit_logs", {
   username: text("username").notNull(),
   action: text("action").notNull(),
   timestamp: text("timestamp").notNull(),
+  entityType: text("entity_type"),
+  entityId: integer("entity_id"),
+  beforeState: text("before_state", { mode: "json" }),
+  afterState: text("after_state", { mode: "json" }),
 });
 
 // 15. CONTROL DE ASISTENCIA (Horarios reales y eventualidades)

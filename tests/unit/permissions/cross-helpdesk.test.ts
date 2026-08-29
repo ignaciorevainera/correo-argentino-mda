@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST as assignPost } from "../../../src/pages/api/support-guides/assign";
 import { POST as unassignPost } from "../../../src/pages/api/support-guides/unassign";
 import { db } from "@db/index";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminActionStructured } from "@lib/auditLogger";
 import { generateCsrfToken } from "@lib/csrf";
 
 const CSRF_SESSION = "test-session-id";
@@ -13,7 +13,7 @@ vi.mock("@db/index", () => ({
 }));
 
 vi.mock("@lib/auditLogger", () => ({
-  logAdminAction: vi.fn(),
+  logAdminActionStructured: vi.fn(),
 }));
 
 function makeRequest(body: any) {
@@ -79,7 +79,7 @@ describe("assign cross-helpdesk validation", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
-    expect(logAdminAction).toHaveBeenCalled();
+    expect(logAdminActionStructured).toHaveBeenCalled();
   });
 
   it("does not block user with helpdeskId null", async () => {
@@ -122,7 +122,7 @@ describe("assign cross-helpdesk validation", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
-    expect(logAdminAction).toHaveBeenCalled();
+    expect(logAdminActionStructured).toHaveBeenCalled();
   });
 
   it("returns 404 when conditional update affects 0 rows (race)", async () => {
@@ -172,7 +172,7 @@ describe("unassign cross-helpdesk validation", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
-    expect(logAdminAction).toHaveBeenCalled();
+    expect(logAdminActionStructured).toHaveBeenCalled();
   });
 
   it("does not block user with helpdeskId null", async () => {

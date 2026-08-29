@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { supportGuides } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminActionStructured } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { ROLE_HIERARCHY } from "@lib/rbac";
 import { validateRequestCsrf } from "@lib/csrf";
@@ -70,9 +70,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .set({ invgate_id: null })
       .where(eq(supportGuides.id, recordId));
 
-    await logAdminAction(
+    await logAdminActionStructured(
       user.username || "sistema",
       `Desvinculo la mesa de ayuda "${record.legacyName || `Registro #${recordId}`}".`,
+      "support_guide",
+      recordId,
+      { invgate_id: record.invgate_id },
+      { invgate_id: null },
     );
 
     return jsonResponse({ ok: true });

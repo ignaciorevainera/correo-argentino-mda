@@ -6,7 +6,7 @@ import {
 } from "../../../src/lib/csrf";
 import { POST as assignPost } from "../../../src/pages/api/support-guides/assign";
 import { db } from "@db/index";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminActionStructured } from "@lib/auditLogger";
 
 vi.mock("@db/index", () => ({
   db: { select: vi.fn(), update: vi.fn() },
@@ -14,6 +14,7 @@ vi.mock("@db/index", () => ({
 
 vi.mock("@lib/auditLogger", () => ({
   logAdminAction: vi.fn(),
+  logAdminActionStructured: vi.fn(),
 }));
 
 const SESSION = "test-session-id";
@@ -164,6 +165,6 @@ describe("assign endpoint CSRF guard", () => {
     } as any);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(logAdminAction).toHaveBeenCalled();
+    expect(logAdminActionStructured).toHaveBeenCalled();
   });
 });

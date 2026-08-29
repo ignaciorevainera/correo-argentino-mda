@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST as assignPost } from "../../../src/pages/api/support-guides/assign";
 import { db } from "@db/index";
-import { logAdminAction } from "@lib/auditLogger";
+import { logAdminActionStructured } from "@lib/auditLogger";
 import { mesas } from "@db/schema";
 import { generateCsrfToken } from "@lib/csrf";
 
@@ -13,7 +13,7 @@ vi.mock("@db/index", () => ({
 }));
 
 vi.mock("@lib/auditLogger", () => ({
-  logAdminAction: vi.fn(),
+  logAdminActionStructured: vi.fn(),
 }));
 
 function makeRequest(body: any) {
@@ -99,7 +99,7 @@ describe("assign helpdesk existence validation", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
-    expect(logAdminAction).toHaveBeenCalled();
+    expect(logAdminActionStructured).toHaveBeenCalled();
   });
 
   it("existence check runs before record lookup (no wasted queries)", async () => {
