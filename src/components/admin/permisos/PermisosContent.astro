@@ -62,11 +62,162 @@ const ROLE_LABELS: Record<string, string> = {
   </div>
 
   <div data-tab-panel="rutas">
-    <!-- Rutas matrix markup: added in Task 4 -->
+    <div class="bg-base-100/95 border-base-300 sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b py-2">
+      <input
+        type="search"
+        placeholder="Buscar ruta..."
+        class="input input-bordered input-sm min-w-48 grow"
+        data-matrix-search
+      />
+      <button type="button" class="btn btn-ghost btn-sm" data-expand-all="rutas">Expandir todo</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-collapse-all="rutas">Contraer todo</button>
+      <button type="button" id="save-routes" class="btn btn-primary btn-sm" disabled>
+        Guardar (<span data-diff-count="routes">0</span>)
+      </button>
+    </div>
+    <div class="alert alert-info mt-2 py-1 text-xs">
+      <span>Los permisos de admin no se editan: acceso completo solo en MDA TI.</span>
+    </div>
+
+    <div class="mt-3 space-y-3">
+      {routeList.length === 0 && (
+        <div class="text-base-content/60 text-sm">No hay rutas registradas.</div>
+      )}
+      {routeList.map((route) => (
+        <section class="border-base-300 rounded-lg border" data-search={route.path.toLowerCase() + " " + route.label.toLowerCase()}>
+          <button
+            type="button"
+            class="hover:bg-base-200 flex w-full items-center justify-between px-3 py-2 text-left"
+            data-section-toggle
+          >
+            <span class="font-mono text-sm">{route.path}</span>
+            <span class="text-base-content/70 text-sm">{route.label}</span>
+          </button>
+          <div data-section-body class="overflow-x-auto px-3 pb-3">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th class="font-mono">Rol</th>
+                  {activeMesas.map((m) => (
+                    <th class="font-mono text-center">{m.name}</th>
+                  ))}
+                  {inactiveMesas.map((m) => (
+                    <th class="font-mono text-center opacity-50" title={`Inactiva desde ${m.lastSyncedAt}`}>
+                      {m.name} (inactiva)
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {EDITABLE_ROLES.map((role) => (
+                  <tr>
+                    <td class="font-mono">{ROLE_LABELS[role] ?? role}</td>
+                    {activeMesas.map((m) => (
+                      <td class="text-center" data-cell-wrap={route.id + ":" + role + ":" + m.id}>
+                        <input
+                          type="checkbox"
+                          class="checkbox checkbox-sm"
+                          data-kind="route"
+                          data-route-id={route.id}
+                          data-role={role}
+                          data-mesa-id={m.id}
+                          checked={routeAllowed.get(route.id + ":" + role + ":" + m.id) === true}
+                        />
+                      </td>
+                    ))}
+                    {inactiveMesas.map(() => (
+                      <td class="opacity-40 text-center">—</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
   </div>
 
   <div data-tab-panel="modulos" class="hidden">
-    <!-- Módulos matrix markup: added in Task 4 -->
+    <div class="bg-base-100/95 border-base-300 sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b py-2">
+      <input
+        type="search"
+        placeholder="Buscar módulo..."
+        class="input input-bordered input-sm min-w-48 grow"
+        data-matrix-search
+      />
+      <button type="button" class="btn btn-ghost btn-sm" data-expand-all="modulos">Expandir todo</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-collapse-all="modulos">Contraer todo</button>
+      <button type="button" id="save-modules" class="btn btn-primary btn-sm" disabled>
+        Guardar (<span data-diff-count="modules">0</span>)
+      </button>
+    </div>
+
+    <div class="mt-3 space-y-3">
+      {moduleList.length === 0 && (
+        <div class="text-base-content/60 text-sm">No hay módulos registrados.</div>
+      )}
+      {moduleList.map((mod) => (
+        <section class="border-base-300 rounded-lg border" data-search={mod.name.toLowerCase() + " " + mod.label.toLowerCase()}>
+          <button
+            type="button"
+            class="hover:bg-base-200 flex w-full items-center justify-between px-3 py-2 text-left"
+            data-section-toggle
+          >
+            <span class="font-mono text-sm">{mod.name}</span>
+            <span class="text-base-content/70 text-sm">{mod.label}</span>
+          </button>
+          <div data-section-body class="overflow-x-auto px-3 pb-3">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th class="font-mono">Rol</th>
+                  {activeMesas.map((m) => (
+                    <th class="font-mono text-center">{m.name}</th>
+                  ))}
+                  {inactiveMesas.map(() => (
+                    <th class="font-mono text-center opacity-50">(inactiva)</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {EDITABLE_ROLES.map((role) => (
+                  <tr>
+                    <td class="font-mono">{ROLE_LABELS[role] ?? role}</td>
+                    {activeMesas.map((m) => {
+                      const row = moduleFlags.get(mod.id + ":" + role + ":" + m.id);
+                      return (
+                        <td class="text-center">
+                          <div class="flex flex-wrap justify-center gap-1">
+                            {mod.flags.map((flag) => (
+                              <label class="cursor-pointer" title={flag}>
+                                <input
+                                  type="checkbox"
+                                  class="checkbox checkbox-xs"
+                                  data-kind="module"
+                                  data-module-id={mod.id}
+                                  data-role={role}
+                                  data-mesa-id={m.id}
+                                  data-flag={flag}
+                                  checked={row ? (row as any)[flag] === true : MODULE_DEFAULTS[flag]}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    {inactiveMesas.map(() => (
+                      <td class="opacity-40 text-center">—</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
   </div>
 
   <div data-tab-panel="mesas" class="hidden">
