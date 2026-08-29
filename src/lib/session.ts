@@ -12,7 +12,7 @@ if (!SECRET) {
     "WARNING: SESSION_SECRET is not defined. Using an insecure fallback secret for development.",
   );
 }
-const SECRET_KEY = SECRET || randomBytes(32).toString("hex");
+export const SECRET_KEY = SECRET || randomBytes(32).toString("hex");
 
 // Firma el sessionId usando HMAC-SHA256
 export function signSessionId(sessionId: string): string {

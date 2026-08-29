@@ -4,6 +4,9 @@ import { POST as assignPost } from "../../../src/pages/api/support-guides/assign
 import { POST as unassignPost } from "../../../src/pages/api/support-guides/unassign";
 import { db } from "@db/index";
 import { logAdminAction } from "@lib/auditLogger";
+import { generateCsrfToken } from "@lib/csrf";
+
+const CSRF_SESSION = "test-session-id";
 
 vi.mock("@db/index", () => ({
   db: { select: vi.fn(), update: vi.fn() },
@@ -14,7 +17,9 @@ vi.mock("@lib/auditLogger", () => ({
 }));
 
 function makeRequest(body: any) {
-  return { json: async () => body } as any;
+  return {
+    json: async () => ({ ...body, csrf_token: generateCsrfToken(CSRF_SESSION) }),
+  } as any;
 }
 
 function mockRecord(record: { invgate_id: number | null } | null) {
@@ -53,7 +58,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 200 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(403);
@@ -68,7 +73,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 200 }),
-      locals: { user: supervisor(200) },
+      locals: { user: supervisor(200), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -83,7 +88,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 200 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -96,7 +101,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 300 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(403);
@@ -111,7 +116,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 100 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -126,7 +131,7 @@ describe("assign cross-helpdesk validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 100 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(404);
@@ -146,7 +151,7 @@ describe("unassign cross-helpdesk validation", () => {
 
     const res = await unassignPost({
       request: makeRequest({ recordId: 1 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(403);
@@ -161,7 +166,7 @@ describe("unassign cross-helpdesk validation", () => {
 
     const res = await unassignPost({
       request: makeRequest({ recordId: 1 }),
-      locals: { user: supervisor(200) },
+      locals: { user: supervisor(200), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -176,7 +181,7 @@ describe("unassign cross-helpdesk validation", () => {
 
     const res = await unassignPost({
       request: makeRequest({ recordId: 1 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -189,7 +194,7 @@ describe("unassign cross-helpdesk validation", () => {
 
     const res = await unassignPost({
       request: makeRequest({ recordId: 1 }),
-      locals: { user: supervisor(100) },
+      locals: { user: supervisor(100), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);

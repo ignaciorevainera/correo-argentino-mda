@@ -15,6 +15,7 @@ declare namespace App {
       helpdeskId: number | null;
       helpdeskName: string | null;
     };
+    sessionId: string | null;
   }
 }
 

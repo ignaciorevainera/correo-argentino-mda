@@ -4,6 +4,9 @@ import { POST as assignPost } from "../../../src/pages/api/support-guides/assign
 import { db } from "@db/index";
 import { logAdminAction } from "@lib/auditLogger";
 import { mesas } from "@db/schema";
+import { generateCsrfToken } from "@lib/csrf";
+
+const CSRF_SESSION = "test-session-id";
 
 vi.mock("@db/index", () => ({
   db: { select: vi.fn(), update: vi.fn() },
@@ -14,7 +17,9 @@ vi.mock("@lib/auditLogger", () => ({
 }));
 
 function makeRequest(body: any) {
-  return { json: async () => body } as any;
+  return {
+    json: async () => ({ ...body, csrf_token: generateCsrfToken(CSRF_SESSION) }),
+  } as any;
 }
 
 type MesaResult = { id: number } | undefined;
@@ -58,7 +63,7 @@ describe("assign helpdesk existence validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 999 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(400);
@@ -73,7 +78,7 @@ describe("assign helpdesk existence validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 300 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(400);
@@ -88,7 +93,7 @@ describe("assign helpdesk existence validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 200 }),
-      locals: { user: supervisor(200) },
+      locals: { user: supervisor(200), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);
@@ -103,7 +108,7 @@ describe("assign helpdesk existence validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 999 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(400);
@@ -118,7 +123,7 @@ describe("assign helpdesk existence validation", () => {
 
     const res = await assignPost({
       request: makeRequest({ recordId: 1, invgate_id: 300 }),
-      locals: { user: supervisor(null) },
+      locals: { user: supervisor(null), sessionId: CSRF_SESSION },
     } as any);
 
     expect(res.status).toBe(200);

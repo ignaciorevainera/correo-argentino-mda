@@ -206,6 +206,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   locals.user = currentUser;
+  locals.sessionId = sessionId;
 
   const rateLimited = applyRateLimit(context, relativePath);
   if (rateLimited) {

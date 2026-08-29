@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { ROLE_HIERARCHY } from "@lib/rbac";
+import { validateRequestCsrf } from "@lib/csrf";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const user = locals.user;
@@ -14,6 +15,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       ROLE_HIERARCHY.admin
   ) {
     return jsonResponse({ error: "Acceso denegado" }, 403);
+  }
+
+  if (!(await validateRequestCsrf(request, locals))) {
+    return jsonResponse({ error: "Token CSRF inválido o ausente" }, 403);
   }
 
   try {

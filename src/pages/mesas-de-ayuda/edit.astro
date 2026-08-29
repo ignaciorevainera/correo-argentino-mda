@@ -84,6 +84,8 @@ const linkedJson = JSON.stringify(
   })),
 );
 
+const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
+
 const unassignedJson = JSON.stringify(
   unassignedRecords.map((r) => ({
     id: r.id,
@@ -206,6 +208,7 @@ const pageTitle = `Editar: ${hdName}`;
       data-invgate-id={invgateId}
       data-unassigned={unassignedJson}
       data-linked={linkedJson}
+      data-csrf-token={csrfToken}
     >
       {
         unassignedRecords.length > 0 && (
@@ -302,13 +305,15 @@ const pageTitle = `Editar: ${hdName}`;
 </template>
 
 <script>
-  import { getCleanBase } from "@lib/baseUrl";
+import { getCleanBase } from "@lib/baseUrl";
+import { getCsrfTokenForSession } from "@lib/csrf";
   const cleanBase = getCleanBase();
 
   const chain = document.getElementById("assign-chain");
   if (!chain) throw new Error("assign-chain not found");
 
   const invgateId = Number(chain.dataset.invgateId);
+  const csrfToken = chain.dataset.csrfToken || "";
   let unassigned: {
     id: number;
     helpDeskName: string;
@@ -380,7 +385,7 @@ const pageTitle = `Editar: ${hdName}`;
     fetch(`${cleanBase}api/support-guides/assign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordId, invgate_id: invgateId }),
+      body: JSON.stringify({ recordId, invgate_id: invgateId, csrf_token: csrfToken }),
     })
       .then((r) =>
         r.ok
@@ -453,7 +458,7 @@ const pageTitle = `Editar: ${hdName}`;
     fetch(`${cleanBase}api/support-guides/unassign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordId }),
+      body: JSON.stringify({ recordId, csrf_token: csrfToken }),
     })
       .then((r) =>
         r.ok
