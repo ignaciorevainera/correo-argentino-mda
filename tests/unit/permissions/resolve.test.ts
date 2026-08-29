@@ -37,9 +37,9 @@ beforeEach(async () => {
 });
 
 describe("hasRouteAccess fallback chain", () => {
-  it("returns true when no route matches (open by default)", async () => {
+  it("denies when no route matches (default-deny)", async () => {
     const result = await hasRouteAccess("/some/unknown/path", "agent", null);
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
   it("uses hardcoded default when DB has no override", async () => {

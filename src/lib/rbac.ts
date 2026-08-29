@@ -33,6 +33,16 @@ export interface RoutePermission {
   roles: Role[];
 }
 
+// Every role, ordered by hierarchy. Used for whitelist entries whose access
+// was "everyone" under the old default-allow behavior.
+const ALL_ROLES: Role[] = [
+  "agent",
+  "referent",
+  "team_leader",
+  "supervisor",
+  "admin",
+];
+
 export const routePermissions: RoutePermission[] = [
   { path: "/admin/usuarios-sin-ubicacion", roles: ["admin"] },
   { path: "/admin/usuarios", roles: ["admin"] },
@@ -75,6 +85,39 @@ export const routePermissions: RoutePermission[] = [
     path: "/inventario-terminales/cubics/edit",
     roles: ["admin", "supervisor"],
   },
+
+  // Default-deny whitelist: every route group that exists under src/pages
+  // today is listed explicitly below with the access it had under the old
+  // default-allow behavior. Any NEW path is denied by default and must be
+  // added here. Do NOT add a bare "/" entry — the longest-prefix `startsWith`
+  // matching would make it a catch-all that defeats default-deny.
+  { path: "/404", roles: ALL_ROLES },
+  { path: "/login", roles: ALL_ROLES },
+  { path: "/logout", roles: ALL_ROLES },
+  { path: "/profile", roles: ALL_ROLES },
+  { path: "/buscador-usuarios", roles: ALL_ROLES },
+  { path: "/contactos", roles: ALL_ROLES },
+  { path: "/generador-firmas", roles: ALL_ROLES },
+  { path: "/inventario-terminales", roles: ALL_ROLES },
+  { path: "/mesas-de-ayuda", roles: ALL_ROLES },
+  { path: "/oficinas", roles: ALL_ROLES },
+  { path: "/recursos", roles: ALL_ROLES },
+  { path: "/titulos", roles: ALL_ROLES },
+  { path: "/api/admin", roles: ALL_ROLES },
+  { path: "/api/aplicativos", roles: ALL_ROLES },
+  { path: "/api/asistencia", roles: ALL_ROLES },
+  { path: "/api/cronograma", roles: ALL_ROLES },
+  { path: "/api/disponibilidad", roles: ALL_ROLES },
+  { path: "/api/download", roles: ALL_ROLES },
+  { path: "/api/export", roles: ALL_ROLES },
+  { path: "/api/icons", roles: ALL_ROLES },
+  { path: "/api/invgate", roles: ALL_ROLES },
+  { path: "/api/offices", roles: ALL_ROLES },
+  { path: "/api/soportes", roles: ALL_ROLES },
+  { path: "/api/support-guides", roles: ALL_ROLES },
+  { path: "/api/terminals", roles: ALL_ROLES },
+  { path: "/api/titulos", roles: ALL_ROLES },
+  { path: "/api/usuarios", roles: ALL_ROLES },
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
@@ -85,11 +128,24 @@ export function hasPermission(path: string, userRole: string): boolean {
     .filter((route) => normalizedPath.startsWith(route.path.toLowerCase()))
     .sort((a, b) => b.path.length - a.path.length)[0];
 
+  const userRank = ROLE_HIERARCHY[role] || 0;
+
+  // Unauthenticated requests (rank 0) are gated earlier in middleware
+  // (401/redirect for /api/* protected groups, /admin, /supervision), so they
+  // only ever reach this check for public paths — keep them allowed, as under
+  // the old default-allow behavior.
+  if (userRank === 0) return true;
+
+  // The home page is public. It cannot be expressed as a prefix entry because
+  // "/" matches every path under startsWith semantics.
+  if (normalizedPath === "/") return true;
+
+  // Default deny: unknown paths must be explicitly whitelisted in
+  // routePermissions.
   if (!matchedRoute) {
-    return true;
+    return false;
   }
 
-  const userRank = ROLE_HIERARCHY[role] || 0;
   return matchedRoute.roles.some((allowedRole) => {
     const allowedRank = ROLE_HIERARCHY[allowedRole];
     return userRank >= allowedRank;

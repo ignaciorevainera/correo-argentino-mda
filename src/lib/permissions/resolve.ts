@@ -57,11 +57,20 @@ function resolveRouteIdByPath(path: string): number | null {
 
 function hardcodedRouteAllowed(path: string, role: string): boolean {
   const normalized = path.toLowerCase();
+  const rank = ROLE_HIERARCHY[normalizeRole(role)] || 0;
+
+  // Unauthenticated requests (rank 0) are gated earlier in middleware — keep
+  // them allowed, mirroring hasPermission in rbac.ts.
+  if (rank === 0) return true;
+
+  // Home page is public; "/" can't be a prefix entry (matches everything).
+  if (normalized === "/") return true;
+
   const matched = routePermissions
     .filter((r) => normalized.startsWith(r.path.toLowerCase()))
     .sort((a, b) => b.path.length - a.path.length)[0];
-  if (!matched) return true;
-  const rank = ROLE_HIERARCHY[normalizeRole(role)] || 0;
+  // Default deny: unknown paths must be explicitly whitelisted.
+  if (!matched) return false;
   return matched.roles.some((allowedRole) => rank >= ROLE_HIERARCHY[allowedRole]);
 }
 
