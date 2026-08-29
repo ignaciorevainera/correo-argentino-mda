@@ -1,29 +1,55 @@
 ---
 import { db } from "@db/index";
-import { routes, modules, mesas, routeAccess, moduleAccess } from "@db/schema";
+import { routes, modules, mesas, routeAccess, moduleAccess, users } from "@db/schema";
+import { sql, isNotNull } from "drizzle-orm";
 import { EDITABLE_ROLES } from "@lib/permissions/types";
 import { getCsrfTokenForSession } from "@lib/csrf";
 import { getModulePermissionsAsync } from "@lib/rbac";
 
-const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows] =
+const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows, userCountRows] =
   await Promise.all([
     db.select().from(routes),
     db.select().from(modules),
     db.select().from(mesas),
     db.select().from(routeAccess),
     db.select().from(moduleAccess),
+    db
+      .select({ helpdeskId: users.helpdeskId, total: sql<number>`count(*)` })
+      .from(users)
+      .where(isNotNull(users.helpdeskId))
+      .groupBy(users.helpdeskId),
   ]);
 
 const routeList = routeRows.sort((a, b) => a.sortOrder - b.sortOrder);
 const moduleList = moduleRows.sort((a, b) => a.sortOrder - b.sortOrder);
 const mesaList = [...mesaRows].sort((a, b) => a.name.localeCompare(b.name));
-const activeMesas = mesaList.filter((m) => m.active);
-const inactiveMesas = mesaList.filter((m) => !m.active);
 
-// Initial state for client-side diff. Escape "<" so mesa names can't break out
-// of the JSON script tag.
+// users.helpdeskId referencia mesas.invgateId; normalizamos el conteo a mesas.id.
+const countByInvgateId = new Map<number, number>();
+for (const row of userCountRows) {
+  if (row.helpdeskId != null) {
+    countByInvgateId.set(row.helpdeskId, Number(row.total));
+  }
+}
+const mesaUserCount = new Map<number, number>();
+for (const m of mesaList) {
+  mesaUserCount.set(m.id, countByInvgateId.get(m.invgateId) ?? 0);
+}
+
+// En Rutas/Módulos solo se editan/muestran mesas activas CON al menos un usuario.
+const visibleMesas = mesaList.filter((m) => m.active && (mesaUserCount.get(m.id) ?? 0) > 0);
+
+// Initial state for client-side diff + modal. Escape "<" so mesa names can't
+// break out of the JSON script tag.
 const initialJson = JSON.stringify({
-  mesas: mesaList,
+  mesas: mesaList.map((m) => ({ ...m, userCount: mesaUserCount.get(m.id) ?? 0 })),
+  visibleMesaIds: visibleMesas.map((m) => m.id),
+  roleLabels: {
+    agent: "Agente",
+    referent: "Referente",
+    team_leader: "Líder de equipo",
+    supervisor: "Supervisor",
+  },
   routeAccess: routeAccessRows,
   moduleAccess: moduleAccessRows,
 }).replace(/</g, "\\u003c");
@@ -53,6 +79,32 @@ const ROLE_LABELS: Record<string, string> = {
   supervisor: "Supervisor",
 };
 
+const FLAG_LABELS: Record<string, string> = {
+  canRead: "Lectura",
+  canWrite: "Escritura",
+  canViewAll: "Ver todos los operadores",
+  canViewComments: "Ver comentarios",
+  canViewTotals: "Ver totales",
+};
+
+function routeBadge(allowed: boolean | undefined, mesaName: string): string {
+  return allowed === true ? `✓ ${mesaName}` : `✗ ${mesaName}`;
+}
+
+function moduleBadgeText(flags: Record<string, boolean>): string {
+  return `L${flags.canRead ? "✓" : "✗"} E${flags.canWrite ? "✓" : "✗"}`;
+}
+
+function moduleBadgeTitle(flags: Record<string, boolean>): string {
+  return (
+    `Lectura: ${flags.canRead ? "sí" : "no"} · ` +
+    `Escritura: ${flags.canWrite ? "sí" : "no"} · ` +
+    `Ver todos: ${flags.canViewAll ? "sí" : "no"} · ` +
+    `Comentarios: ${flags.canViewComments ? "sí" : "no"} · ` +
+    `Totales: ${flags.canViewTotals ? "sí" : "no"}`
+  );
+}
+
 const user = Astro.locals.user;
 const permisosPerms = await getModulePermissionsAsync("permisos", user.role, user.helpdeskId);
 const canWrite = permisosPerms.canWrite;
@@ -60,7 +112,6 @@ const canWrite = permisosPerms.canWrite;
 
 <div
   id="permisos-root"
-  data-mesa-count={mesaList.length}
   data-can-write={canWrite ? "1" : "0"}
   data-csrf-token={getCsrfTokenForSession(Astro.locals.sessionId)}
   class="space-y-4"
@@ -90,7 +141,10 @@ const canWrite = permisosPerms.canWrite;
       )}
     </div>
     <div class="alert alert-info mt-2 py-1 text-xs">
-      <span>Los permisos de admin no se editan: acceso completo solo en MDA TI.</span>
+      <span>
+        Los permisos de admin no se editan: acceso completo solo en MDA TI. Solo se listan mesas
+        con usuarios asignados.
+      </span>
     </div>
 
     <div class="mt-3 space-y-3">
@@ -107,49 +161,63 @@ const canWrite = permisosPerms.canWrite;
             <span class="font-mono text-sm">{route.path}</span>
             <span class="text-base-content/70 text-sm">{route.label}</span>
           </button>
-          <div data-section-body class="overflow-x-auto px-3 pb-3">
+          <div data-section-body class="px-3 pb-3">
             <table class="table table-sm">
               <thead>
                 <tr>
                   <th class="font-mono">Rol</th>
-                  {activeMesas.map((m) => (
-                    <th class="font-mono text-center">{m.name}</th>
-                  ))}
-                  {inactiveMesas.map((m) => (
-                    <th class="font-mono text-center opacity-50" title={`Inactiva desde ${m.lastSyncedAt}`}>
-                      {m.name} (inactiva)
-                    </th>
-                  ))}
+                  <th>Estado por mesa</th>
+                  {canWrite && <th class="text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
                 {EDITABLE_ROLES.map((role) => (
                   <tr>
                     <td class="font-mono">{ROLE_LABELS[role] ?? role}</td>
-                    {activeMesas.map((m) => (
-                      <td class="text-center" data-cell-wrap={route.id + ":" + role + ":" + m.id}>
-                        <label class="cursor-pointer">
-                          <input
-                            type="checkbox"
-                            class="checkbox checkbox-sm"
-                            data-kind="route"
-                            data-route-id={route.id}
-                            data-role={role}
-                            data-mesa-id={m.id}
-                            checked={routeAllowed.get(route.id + ":" + role + ":" + m.id) === true}
-                            disabled={canWrite ? undefined : true}
-                            aria-label={`Permitir ruta ${route.path} para rol ${ROLE_LABELS[role] ?? role} en mesa ${m.name}`}
-                          />
-                          <span class="sr-only"
-                            >Permitir ruta {route.path} para rol {ROLE_LABELS[role] ?? role} en mesa {m
-                              .name}</span
-                          >
-                        </label>
+                    <td>
+                      <div class="flex flex-wrap gap-1">
+                        {visibleMesas.map((m) => {
+                          const allowed = routeAllowed.get(route.id + ":" + role + ":" + m.id) === true;
+                          return (
+                            <span
+                              class:list={[
+                                "badge badge-sm",
+                                allowed ? "badge-success" : "badge-error",
+                              ]}
+                              data-badge
+                              data-badge-kind="route"
+                              data-badge-element-id={route.id}
+                              data-badge-role={role}
+                              data-badge-mesa-id={m.id}
+                              data-mesa-name={m.name}
+                            >
+                              {routeBadge(allowed, m.name)}
+                            </span>
+                          );
+                        })}
+                        {visibleMesas.length === 0 && (
+                          <span class="text-base-content/40 text-xs italic">
+                            Sin mesas con usuarios
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {canWrite && (
+                      <td class="text-right">
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs"
+                          data-edit
+                          data-edit-kind="route"
+                          data-edit-element-id={route.id}
+                          data-edit-role={role}
+                          data-edit-label={route.label}
+                          aria-label={`Editar permisos de ${ROLE_LABELS[role] ?? role} en ${route.label}`}
+                        >
+                          Editar
+                        </button>
                       </td>
-                    ))}
-                    {inactiveMesas.map(() => (
-                      <td class="opacity-40 text-center">—</td>
-                    ))}
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -176,6 +244,11 @@ const canWrite = permisosPerms.canWrite;
         </button>
       )}
     </div>
+    <div class="alert alert-info mt-2 py-1 text-xs">
+      <span>
+        L = lectura · E = escritura. Pasá el mouse sobre un badge para ver el detalle completo.
+      </span>
+    </div>
 
     <div class="mt-3 space-y-3">
       {moduleList.length === 0 && (
@@ -191,55 +264,70 @@ const canWrite = permisosPerms.canWrite;
             <span class="font-mono text-sm">{mod.name}</span>
             <span class="text-base-content/70 text-sm">{mod.label}</span>
           </button>
-          <div data-section-body class="overflow-x-auto px-3 pb-3">
+          <div data-section-body class="px-3 pb-3">
             <table class="table table-sm">
               <thead>
                 <tr>
                   <th class="font-mono">Rol</th>
-                  {activeMesas.map((m) => (
-                    <th class="font-mono text-center">{m.name}</th>
-                  ))}
-                  {inactiveMesas.map(() => (
-                    <th class="font-mono text-center opacity-50">(inactiva)</th>
-                  ))}
+                  <th>Estado por mesa</th>
+                  {canWrite && <th class="text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
                 {EDITABLE_ROLES.map((role) => (
                   <tr>
                     <td class="font-mono">{ROLE_LABELS[role] ?? role}</td>
-                    {activeMesas.map((m) => {
-                      const row = moduleFlags.get(mod.id + ":" + role + ":" + m.id);
-                      return (
-                        <td class="text-center">
-                          <div class="flex flex-wrap justify-center gap-1">
-                            {mod.flags.map((flag) => (
-                              <label class="cursor-pointer" title={flag}>
-                                <input
-                                  type="checkbox"
-                                  class="checkbox checkbox-xs"
-                                  data-kind="module"
-                                  data-module-id={mod.id}
-                                  data-role={role}
-                                  data-mesa-id={m.id}
-                                  data-flag={flag}
-                                  checked={row ? (row as any)[flag] === true : MODULE_DEFAULTS[flag]}
-                                  disabled={canWrite ? undefined : true}
-                                  aria-label={`${flag} para módulo ${mod.name}, rol ${ROLE_LABELS[role] ?? role}, mesa ${m.name}`}
-                                />
-                                <span class="sr-only"
-                                  >{flag} para módulo {mod.name}, rol {ROLE_LABELS[role] ?? role}, mesa {m
-                                    .name}</span
-                                >
-                              </label>
-                            ))}
-                          </div>
-                        </td>
-                      );
-                    })}
-                    {inactiveMesas.map(() => (
-                      <td class="opacity-40 text-center">—</td>
-                    ))}
+                    <td>
+                      <div class="flex flex-wrap gap-1">
+                        {visibleMesas.map((m) => {
+                          const row = moduleFlags.get(mod.id + ":" + role + ":" + m.id);
+                          const flags = row
+                            ? {
+                                canRead: row.canRead,
+                                canWrite: row.canWrite,
+                                canViewAll: row.canViewAll,
+                                canViewComments: row.canViewComments,
+                                canViewTotals: row.canViewTotals,
+                              }
+                            : { ...MODULE_DEFAULTS };
+                          return (
+                            <span
+                              class="badge badge-sm badge-outline"
+                              data-badge
+                              data-badge-kind="module"
+                              data-badge-element-id={mod.id}
+                              data-badge-role={role}
+                              data-badge-mesa-id={m.id}
+                              data-mesa-name={m.name}
+                              title={moduleBadgeTitle(flags)}
+                            >
+                              {m.name}: {moduleBadgeText(flags)}
+                            </span>
+                          );
+                        })}
+                        {visibleMesas.length === 0 && (
+                          <span class="text-base-content/40 text-xs italic">
+                            Sin mesas con usuarios
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {canWrite && (
+                      <td class="text-right">
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs"
+                          data-edit
+                          data-edit-kind="module"
+                          data-edit-element-id={mod.id}
+                          data-edit-role={role}
+                          data-edit-label={mod.label}
+                          aria-label={`Editar permisos de ${ROLE_LABELS[role] ?? role} en ${mod.label}`}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -271,6 +359,7 @@ const canWrite = permisosPerms.canWrite;
           <tr>
             <th>Nombre</th>
             <th>InvGate ID</th>
+            <th>Usuarios</th>
             <th>Activa</th>
             <th>Sincronizado</th>
           </tr>
@@ -278,7 +367,7 @@ const canWrite = permisosPerms.canWrite;
         <tbody>
           {mesaList.length === 0 && (
             <tr>
-              <td colspan="4" class="text-base-content/50 text-center">
+              <td colspan="5" class="text-base-content/50 text-center">
                 No hay mesas. Usá "Sincronizar desde InvGate" para traerlas.
               </td>
             </tr>
@@ -287,6 +376,16 @@ const canWrite = permisosPerms.canWrite;
             <tr class:list={[!m.active && "opacity-50"]}>
               <td class="font-mono">{m.name}</td>
               <td>{m.invgateId}</td>
+              <td>
+                <span
+                  class:list={[
+                    "badge badge-sm",
+                    (mesaUserCount.get(m.id) ?? 0) > 0 ? "badge-success" : "badge-ghost",
+                  ]}
+                >
+                  {mesaUserCount.get(m.id) ?? 0}
+                </span>
+              </td>
               <td>{m.active ? "Sí" : "No"}</td>
               <td>{m.lastSyncedAt ?? "—"}</td>
             </tr>
@@ -295,6 +394,61 @@ const canWrite = permisosPerms.canWrite;
       </table>
     </div>
   </div>
+
+  <!-- Inputs ocultos: source of truth para diff/save; el modal los manipula. -->
+  <div class="hidden" data-hidden-inputs aria-hidden="true">
+    {routeList.map((route) =>
+      EDITABLE_ROLES.map((role) =>
+        visibleMesas.map((m) => (
+          <input
+            type="checkbox"
+            data-kind="route"
+            data-route-id={route.id}
+            data-role={role}
+            data-mesa-id={m.id}
+            checked={routeAllowed.get(route.id + ":" + role + ":" + m.id) === true}
+          />
+        )),
+      ),
+    )}
+    {moduleList.map((mod) =>
+      EDITABLE_ROLES.map((role) =>
+        visibleMesas.map((m) => {
+          const row = moduleFlags.get(mod.id + ":" + role + ":" + m.id);
+          return mod.flags.map((flag) => (
+            <input
+              type="checkbox"
+              data-kind="module"
+              data-module-id={mod.id}
+              data-role={role}
+              data-mesa-id={m.id}
+              data-flag={flag}
+              checked={row ? (row as any)[flag] === true : MODULE_DEFAULTS[flag]}
+            />
+          ));
+        }),
+      ),
+    )}
+  </div>
+
+  <!-- Modal de edicion (rol x elemento, todas las mesas visibles) -->
+  <dialog id="permisos-modal" class="modal">
+    <div class="modal-box max-w-lg">
+      <h3 class="text-base font-semibold" id="permisos-modal-title">Permisos</h3>
+      <p class="text-base-content/60 mb-3 text-xs">
+        Aplica a las mesas con usuarios asignados. Los cambios se acumulan localmente; confirmá
+        con el botón "Guardar" de la sección.
+      </p>
+      <div id="permisos-modal-body" class="space-y-2"></div>
+      <div class="border-base-200 modal-action border-t pt-3">
+        <button type="button" class="btn btn-ghost btn-sm" data-modal-close>Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="permisos-modal-save">Aplicar</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button type="button" data-modal-close>cerrar</button>
+    </form>
+  </dialog>
 
   <script>
     import { showToast } from "@lib/toastClient";
@@ -306,7 +460,9 @@ const canWrite = permisosPerms.canWrite;
       const initial = JSON.parse(
         (document.getElementById("permisos-initial") as HTMLScriptElement).text,
       ) as {
-        mesas: Array<{ id: number; name: string; active: boolean }>;
+        mesas: Array<{ id: number; name: string; active: boolean; userCount: number }>;
+        visibleMesaIds: number[];
+        roleLabels: Record<string, string>;
         routeAccess: Array<{ routeId: number; role: string; mesaId: number; allowed: boolean }>;
         moduleAccess: Array<{
           moduleId: number;
@@ -326,13 +482,23 @@ const canWrite = permisosPerms.canWrite;
       const moduleInitial = new Map(
         initial.moduleAccess.map((r) => [`${r.moduleId}:${r.role}:${r.mesaId}`, r]),
       );
-      const MODULE_DEFAULTS = {
+      const MODULE_DEFAULTS: Record<string, boolean> = {
         canRead: false,
         canWrite: false,
         canViewAll: true,
         canViewComments: true,
         canViewTotals: true,
       };
+      const FLAG_LABELS: Record<string, string> = {
+        canRead: "Lectura",
+        canWrite: "Escritura",
+        canViewAll: "Ver todos los operadores",
+        canViewComments: "Ver comentarios",
+        canViewTotals: "Ver totales",
+      };
+      const visibleMesas = initial.mesas.filter(
+        (m) => m.active && m.userCount > 0 && initial.visibleMesaIds.includes(m.id),
+      );
 
       // --- Tabs ---
       const tabButtons = root.querySelectorAll<HTMLButtonElement>("[data-tab-btn]");
@@ -441,11 +607,141 @@ const canWrite = permisosPerms.canWrite;
           modulesBtn.querySelector("[data-diff-count]")!.textContent = String(modulesCount);
         }
       }
+
+      // --- Badge rendering (estado visible derivado de los inputs ocultos) ---
+      function badgeText(kind: string, elementId: string, role: string, mesaId: string, mesaName: string): { text: string; ok: boolean } {
+        if (kind === "route") {
+          const cb = root.querySelector<HTMLInputElement>(
+            `input[data-kind="route"][data-route-id="${elementId}"][data-role="${role}"][data-mesa-id="${mesaId}"]`,
+          );
+          const allowed = cb ? cb.checked : false;
+          return { text: `${allowed ? "✓" : "✗"} ${mesaName}`, ok: allowed };
+        }
+        const read = flagValue("module", elementId, role, mesaId, "canRead");
+        const write = flagValue("module", elementId, role, mesaId, "canWrite");
+        return { text: `${mesaName}: L${read ? "✓" : "✗"} E${write ? "✓" : "✗"}`, ok: read };
+      }
+      function flagValue(kind: string, elementId: string, role: string, mesaId: string, flag: string): boolean {
+        const idAttr = kind === "route" ? "data-route-id" : "data-module-id";
+        const cb = root.querySelector<HTMLInputElement>(
+          `input[data-kind="${kind}"][${idAttr}="${elementId}"][data-role="${role}"][data-mesa-id="${mesaId}"]${flag ? `[data-flag="${flag}"]` : ""}`,
+        );
+        return cb ? cb.checked : false;
+      }
+      function renderBadges(): void {
+        root.querySelectorAll<HTMLElement>("[data-badge]").forEach((badge) => {
+          const kind = badge.dataset.badgeKind as string;
+          const elementId = badge.dataset.badgeElementId as string;
+          const role = badge.dataset.badgeRole as string;
+          const mesaId = badge.dataset.badgeMesaId as string;
+          const mesaName = badge.dataset.mesaName as string;
+          if (kind === "route") {
+            const { text, ok } = badgeText(kind, elementId, role, mesaId, mesaName);
+            badge.textContent = text;
+            badge.classList.toggle("badge-success", ok);
+            badge.classList.toggle("badge-error", !ok);
+          } else {
+            const all = ["canRead", "canWrite", "canViewAll", "canViewComments", "canViewTotals"];
+            const flags: Record<string, boolean> = {};
+            all.forEach((f) => (flags[f] = flagValue("module", elementId, role, mesaId, f)));
+            const read = flags.canRead;
+            const write = flags.canWrite;
+            badge.textContent = `${mesaName}: L${read ? "✓" : "✗"} E${write ? "✓" : "✗"}`;
+            badge.title =
+              `Lectura: ${read ? "sí" : "no"} · Escritura: ${write ? "sí" : "no"} · ` +
+              `Ver todos: ${flags.canViewAll ? "sí" : "no"} · Comentarios: ${flags.canViewComments ? "sí" : "no"} · ` +
+              `Totales: ${flags.canViewTotals ? "sí" : "no"}`;
+          }
+        });
+      }
+
       root.addEventListener("change", (e) => {
         const t = e.target as HTMLElement;
         if (t instanceof HTMLInputElement && (t.dataset.kind === "route" || t.dataset.kind === "module")) {
           refreshCounts();
+          renderBadges();
         }
+      });
+
+      // --- Modal de edición ---
+      const modal = document.getElementById("permisos-modal") as HTMLDialogElement | null;
+      const modalBody = document.getElementById("permisos-modal-body") as HTMLElement | null;
+      const modalTitle = document.getElementById("permisos-modal-title") as HTMLElement | null;
+      let editing: { kind: string; elementId: string; role: string } | null = null;
+
+      function openModal(kind: string, elementId: string, role: string, label: string): void {
+        if (!modal || !modalBody || !modalTitle) return;
+        editing = { kind, elementId, role };
+        const roleLabel = initial.roleLabels[role] ?? role;
+        modalTitle.textContent = `Permisos — ${roleLabel} · ${label}`;
+
+        modalBody.innerHTML = "";
+        visibleMesas.forEach((m) => {
+          const block = document.createElement("div");
+          block.className = "border-base-300 rounded-lg border p-3";
+          block.dataset.modalMesaId = String(m.id);
+
+          const name = document.createElement("div");
+          name.className = "font-mono mb-2 text-sm font-semibold";
+          name.textContent = m.name;
+          block.appendChild(name);
+
+          const flags = kind === "route" ? ["allowed"] : ["canRead", "canWrite", "canViewAll", "canViewComments", "canViewTotals"];
+          flags.forEach((flag) => {
+            const label2 = document.createElement("label");
+            label2.className = "label cursor-pointer justify-start gap-3 py-1";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.className = kind === "route" ? "toggle toggle-sm toggle-primary" : "checkbox checkbox-sm";
+            cb.dataset.modalFlag = flag;
+            cb.dataset.modalMesaId = String(m.id);
+            cb.checked = flagValue(kind, elementId, role, String(m.id), kind === "route" ? "" : flag);
+            const span = document.createElement("span");
+            span.className = "text-base-content text-sm";
+            span.textContent = kind === "route" ? "Permitido" : FLAG_LABELS[flag] ?? flag;
+            label2.appendChild(cb);
+            label2.appendChild(span);
+            block.appendChild(label2);
+          });
+
+          modalBody.appendChild(block);
+        });
+        modal.showModal();
+      }
+
+      root.querySelectorAll<HTMLButtonElement>("[data-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openModal(
+            btn.dataset.editKind as string,
+            btn.dataset.editElementId as string,
+            btn.dataset.editRole as string,
+            btn.dataset.editLabel as string,
+          );
+        });
+      });
+
+      modal?.querySelectorAll<HTMLButtonElement>("[data-modal-close]").forEach((btn) => {
+        btn.addEventListener("click", () => modal.close());
+      });
+
+      document.getElementById("permisos-modal-save")?.addEventListener("click", () => {
+        if (!modal || !editing) return;
+        const { kind, elementId, role } = editing;
+        modalBody?.querySelectorAll<HTMLElement>("[data-modal-mesa-id]").forEach((block) => {
+          const mesaId = (block as HTMLElement).dataset.modalMesaId as string;
+          block.querySelectorAll<HTMLInputElement>("[data-modal-flag]").forEach((cb) => {
+            const flag = cb.dataset.modalFlag as string;
+            const selector =
+              kind === "route"
+                ? `input[data-kind="route"][data-route-id="${elementId}"][data-role="${role}"][data-mesa-id="${mesaId}"]`
+                : `input[data-kind="module"][data-module-id="${elementId}"][data-role="${role}"][data-mesa-id="${mesaId}"][data-flag="${flag}"]`;
+            const target = root.querySelector<HTMLInputElement>(selector);
+            if (target) target.checked = cb.checked;
+          });
+        });
+        renderBadges();
+        refreshCounts();
+        modal.close();
       });
 
       // --- Save ---
@@ -552,6 +848,7 @@ const canWrite = permisosPerms.canWrite;
       }
 
       refreshCounts();
+      renderBadges();
     }
   </script>
 </div>
