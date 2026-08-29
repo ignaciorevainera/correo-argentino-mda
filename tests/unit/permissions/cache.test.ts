@@ -1,5 +1,7 @@
 // tests/unit/permissions/cache.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { unlinkSync } from "fs";
+import { join } from "path";
 import {
   loadPermissionsCache,
   invalidatePermissionsCache,
@@ -55,6 +57,14 @@ describe("permissions cache", () => {
   });
 
   it("does not reload within TTL window", async () => {
+    // Remove the cross-process invalidation file: beforeEach wrote a
+    // real-clock timestamp, and under fake timers Date.now() can start
+    // microseconds behind it, spuriously triggering a forced reload.
+    try {
+      unlinkSync(join(process.cwd(), ".permissions-invalidation-timestamp"));
+    } catch {
+      // not present — fine
+    }
     vi.useFakeTimers();
     const selectMock = vi.fn().mockReturnValue({
       from: () => makeSelectResult(),
