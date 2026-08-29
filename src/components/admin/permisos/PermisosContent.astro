@@ -263,5 +263,201 @@ const ROLE_LABELS: Record<string, string> = {
     </div>
   </div>
 
-  <!-- Client script: added in Task 5 -->
+  <script>
+    import { showToast } from "@lib/toastClient";
+    import { getCleanBase } from "@lib/baseUrl";
+
+    const root = document.getElementById("permisos-root");
+    if (root) {
+      const initial = JSON.parse(
+        (document.getElementById("permisos-initial") as HTMLScriptElement).text,
+      ) as {
+        mesas: Array<{ id: number; name: string; active: boolean }>;
+        routeAccess: Array<{ routeId: number; role: string; mesaId: number; allowed: boolean }>;
+        moduleAccess: Array<{
+          moduleId: number;
+          role: string;
+          mesaId: number;
+          canRead: boolean;
+          canWrite: boolean;
+          canViewAll: boolean;
+          canViewComments: boolean;
+          canViewTotals: boolean;
+        }>;
+      };
+
+      const routeInitial = new Map(
+        initial.routeAccess.map((r) => [`${r.routeId}:${r.role}:${r.mesaId}`, r.allowed]),
+      );
+      const moduleInitial = new Map(
+        initial.moduleAccess.map((r) => [`${r.moduleId}:${r.role}:${r.mesaId}`, r]),
+      );
+      const MODULE_DEFAULTS = {
+        canRead: false,
+        canWrite: false,
+        canViewAll: true,
+        canViewComments: true,
+        canViewTotals: true,
+      };
+
+      // --- Tabs ---
+      const tabButtons = root.querySelectorAll<HTMLButtonElement>("[data-tab-btn]");
+      const panels = root.querySelectorAll<HTMLElement>("[data-tab-panel]");
+      tabButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.tabBtn;
+          tabButtons.forEach((b) => b.classList.toggle("tab-active", b === btn));
+          panels.forEach((p) => p.classList.toggle("hidden", p.dataset.tabPanel !== target));
+        });
+      });
+
+      // --- Sections: expand / collapse / search ---
+      root.querySelectorAll<HTMLButtonElement>("[data-section-toggle]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const body = btn.nextElementSibling as HTMLElement | null;
+          if (body) body.classList.toggle("hidden");
+        });
+      });
+      root.querySelectorAll<HTMLButtonElement>("[data-expand-all]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          panelOf(btn)
+            .querySelectorAll<HTMLElement>("[data-section-body]")
+            .forEach((b) => b.classList.remove("hidden"));
+        });
+      });
+      root.querySelectorAll<HTMLButtonElement>("[data-collapse-all]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          panelOf(btn)
+            .querySelectorAll<HTMLElement>("[data-section-body]")
+            .forEach((b) => b.classList.add("hidden"));
+        });
+      });
+      root.querySelectorAll<HTMLInputElement>("[data-matrix-search]").forEach((input) => {
+        input.addEventListener("input", () => {
+          const q = input.value.trim().toLowerCase();
+          panelOf(input)
+            .querySelectorAll<HTMLElement>("section[data-search]")
+            .forEach((s) => {
+              s.classList.toggle("hidden", q !== "" && !s.dataset.search?.includes(q));
+            });
+        });
+      });
+      function panelOf(el: Element): HTMLElement {
+        return el.closest("[data-tab-panel]") as HTMLElement;
+      }
+
+      // --- Diff computation (full re-scan on any change; matrices are small) ---
+      function computeRoutesDiff(): HTMLInputElement[] {
+        const changed: HTMLInputElement[] = [];
+        root.querySelectorAll<HTMLInputElement>('input[data-kind="route"]').forEach((cb) => {
+          const key = `${cb.dataset.routeId}:${cb.dataset.role}:${cb.dataset.mesaId}`;
+          if (cb.checked !== (routeInitial.get(key) ?? false)) changed.push(cb);
+        });
+        return changed;
+      }
+      function computeModuleDiff(): Map<string, HTMLInputElement[]> {
+        const changed = new Map<string, HTMLInputElement[]>();
+        root.querySelectorAll<HTMLInputElement>('input[data-kind="module"]').forEach((cb) => {
+          const key = `${cb.dataset.moduleId}:${cb.dataset.role}:${cb.dataset.mesaId}`;
+          const snap = moduleInitial.get(key);
+          const defaultValue = MODULE_DEFAULTS[cb.dataset.flag as keyof typeof MODULE_DEFAULTS];
+          const ref = snap ? snap[cb.dataset.flag as keyof typeof MODULE_DEFAULTS] : defaultValue;
+          if (cb.checked !== ref) {
+            const list = changed.get(key) ?? [];
+            list.push(cb);
+            changed.set(key, list);
+          }
+        });
+        return changed;
+      }
+      function refreshCounts(): void {
+        const routesBtn = document.getElementById("save-routes") as HTMLButtonElement | null;
+        const modulesBtn = document.getElementById("save-modules") as HTMLButtonElement | null;
+        const routesCount = computeRoutesDiff().length;
+        const modulesCount = computeModuleDiff().size;
+        if (routesBtn) {
+          routesBtn.disabled = routesCount === 0;
+          routesBtn.querySelector("[data-diff-count]")!.textContent = String(routesCount);
+        }
+        if (modulesBtn) {
+          modulesBtn.disabled = modulesCount === 0;
+          modulesBtn.querySelector("[data-diff-count]")!.textContent = String(modulesCount);
+        }
+      }
+      root.addEventListener("change", (e) => {
+        const t = e.target as HTMLElement;
+        if (t instanceof HTMLInputElement && (t.dataset.kind === "route" || t.dataset.kind === "module")) {
+          refreshCounts();
+        }
+      });
+
+      // --- Save ---
+      async function postJson(url: string, body: unknown): Promise<any> {
+        const res = await fetch(getCleanBase() + url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error ?? `Error ${res.status}`);
+        return json;
+      }
+
+      const saveRoutes = document.getElementById("save-routes");
+      saveRoutes?.addEventListener("click", async () => {
+        const changes = computeRoutesDiff().map((cb) => ({
+          routeId: Number(cb.dataset.routeId),
+          role: cb.dataset.role,
+          mesaId: Number(cb.dataset.mesaId),
+          allowed: cb.checked,
+        }));
+        try {
+          const out = await postJson("api/admin/permisos/routes", { changes });
+          showToast(`${out.changedCells ?? changes.length} cambios guardados`, "alert-success");
+          window.location.reload();
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : "Error al guardar", "alert-error");
+        }
+      });
+
+      const saveModules = document.getElementById("save-modules");
+      saveModules?.addEventListener("click", async () => {
+        const changes = Array.from(computeModuleDiff().entries()).map(([key, inputs]) => {
+          const [moduleId, role, mesaId] = key.split(":");
+          const flags: Record<string, boolean> = {};
+          inputs.forEach((cb) => (flags[cb.dataset.flag as string] = cb.checked));
+          return { moduleId: Number(moduleId), role, mesaId: Number(mesaId), flags };
+        });
+        try {
+          const out = await postJson("api/admin/permisos/modules", { changes });
+          showToast(`${out.changedCells ?? changes.length} cambios guardados`, "alert-success");
+          window.location.reload();
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : "Error al guardar", "alert-error");
+        }
+      });
+
+      // --- Mesas sync (manual + auto-on-empty) ---
+      async function syncMesas(): Promise<void> {
+        await postJson("api/admin/permisos/mesas/sync", {});
+        showToast("Mesas sincronizadas desde InvGate", "alert-success");
+        window.location.reload();
+      }
+      document.getElementById("mesas-sync")?.addEventListener("click", async () => {
+        try {
+          await syncMesas();
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : "No se pudo contactar InvGate", "alert-error");
+        }
+      });
+      if (initial.mesas.length === 0) {
+        syncMesas().catch(() => {
+          /* non-fatal: admin retries from the Mesas tab */
+        });
+      }
+
+      refreshCounts();
+    }
+  </script>
 </div>
