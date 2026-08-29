@@ -133,11 +133,6 @@ export const navSections: NavSection[] = [
             icon: "boxicons:group-filled",
           },
           {
-            href: "/admin/operadores",
-            label: "Operadores",
-            icon: "boxicons:user-id-card-filled",
-          },
-          {
             href: "/admin/auditoria",
             label: "Auditoría",
             icon: "boxicons:history",
