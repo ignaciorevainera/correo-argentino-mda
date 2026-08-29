@@ -8,9 +8,15 @@ import {
   moduleAccess,
 } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { writeFileSync, readFileSync, existsSync } from "fs";
+import { join } from "path";
 import type { ModuleFlags, MesaRecord } from "./types";
 
 const CACHE_TTL_MS = 60_000;
+const INVALIDATION_FILE = join(
+  process.cwd(),
+  ".permissions-invalidation-timestamp",
+);
 
 let routeSnapshot: Map<string, boolean> | null = null;
 let moduleSnapshot: Map<string, ModuleFlags> | null = null;
@@ -20,7 +26,10 @@ let lastLoadedAt = 0;
 let loadingPromise: Promise<void> | null = null;
 
 export async function loadPermissionsCache(force = false): Promise<void> {
-  if (!force && routeSnapshot && Date.now() - lastLoadedAt < CACHE_TTL_MS) return;
+  if (!force) {
+    checkCrossProcessInvalidation();
+    if (routeSnapshot && Date.now() - lastLoadedAt < CACHE_TTL_MS) return;
+  }
   if (loadingPromise) return loadingPromise;
   loadingPromise = (async () => {
     const [routesRows, modulesRows, routeAccessRows, moduleAccessRows, mesasRows] =
@@ -71,15 +80,35 @@ export async function invalidatePermissionsCache(force = false): Promise<void> {
   routeSnapshot = null;
   moduleSnapshot = null;
   lastLoadedAt = 0;
+  try {
+    writeFileSync(INVALIDATION_FILE, Date.now().toString());
+  } catch {
+    // Write failures must not break invalidation; other processes fall back
+    // to the CACHE_TTL_MS window.
+  }
   if (force) return;
   await loadPermissionsCache(true);
 }
 
-// Cross-process note: PM2 runs 3 Astro processes, each with its own module
-// cache. A write in one process reloads only that process; others catch up
-// within CACHE_TTL_MS (60s). This is the accepted trade-off of the hybrid
-// in-memory design (per plan). For immediate cluster-wide propagation a
-// shared-timestamp broadcast would be needed — out of scope.
+// Cross-process invalidation: PM2 runs 3 Astro processes, each with its own
+// in-memory cache. On invalidate, the process writes a shared timestamp file;
+// other processes detect it via checkCrossProcessInvalidation() on cache
+// access and reload. If the file write/read fails, processes fall back to the
+// CACHE_TTL_MS (60s) catch-up window.
+export function checkCrossProcessInvalidation(): boolean {
+  if (!lastLoadedAt) return false;
+  try {
+    if (!existsSync(INVALIDATION_FILE)) return false;
+    const stamp = parseInt(readFileSync(INVALIDATION_FILE, "utf-8"), 10);
+    if (!Number.isFinite(stamp) || stamp <= lastLoadedAt) return false;
+  } catch {
+    return false;
+  }
+  routeSnapshot = null;
+  moduleSnapshot = null;
+  lastLoadedAt = 0;
+  return true;
+}
 
 export function getRouteSnapshot(): ReadonlyMap<string, boolean> {
   if (!routeSnapshot) throw new Error("Permissions cache not loaded");
