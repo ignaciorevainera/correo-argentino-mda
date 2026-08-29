@@ -28,12 +28,28 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const [record] = await db
-      .select({ legacyName: supportGuides.legacyName })
+      .select({
+        legacyName: supportGuides.legacyName,
+        invgate_id: supportGuides.invgate_id,
+      })
       .from(supportGuides)
       .where(eq(supportGuides.id, recordId));
 
     if (!record) {
       return jsonResponse({ error: "Registro no encontrado" }, 404);
+    }
+
+    if (
+      user.helpdeskId !== null &&
+      record.invgate_id !== null &&
+      user.helpdeskId !== record.invgate_id
+    ) {
+      return jsonResponse(
+        {
+          error: "Acceso denegado: no puedes desasignar helpdesks de otra mesa",
+        },
+        403,
+      );
     }
 
     await db
