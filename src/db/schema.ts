@@ -15,7 +15,9 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("agent"),
-  helpdeskId: integer("helpdesk_id"),
+  helpdeskId: integer("helpdesk_id").references(() => mesas.invgateId, {
+    onDelete: "set null",
+  }),
   helpdeskName: text("helpdesk_name"),
 });
 
@@ -708,7 +710,10 @@ export const supportGuides = sqliteTable("support_guides", {
 
 export const hiddenHelpdesks = sqliteTable("hidden_helpdesks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  invgateId: integer("invgate_id").notNull().unique(),
+  invgateId: integer("invgate_id")
+    .notNull()
+    .unique()
+    .references(() => mesas.invgateId, { onDelete: "cascade" }),
   hiddenBy: text("hidden_by").notNull(),
   hiddenAt: text("hidden_at").notNull(),
 });
