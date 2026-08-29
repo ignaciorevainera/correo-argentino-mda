@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { supportGuides } from "@db/schema";
+import { supportGuides, mesas } from "@db/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { logAdminAction } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
@@ -24,6 +24,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!recordId || !invgateId || isNaN(recordId) || isNaN(invgateId)) {
       return jsonResponse(
         { error: "recordId e invgate_id son requeridos y deben ser numeros" },
+        400,
+      );
+    }
+
+    const [mesa] = await db
+      .select({ id: mesas.id })
+      .from(mesas)
+      .where(and(eq(mesas.invgateId, invgateId), eq(mesas.active, true)));
+
+    if (!mesa) {
+      return jsonResponse(
+        { error: "Helpdesk no existe en la base de datos" },
         400,
       );
     }
