@@ -337,6 +337,18 @@ export const agents = sqliteTable("agents", {
   estadoExcepcionalMinutos: integer("estado_excepcional_minutos"),
   saturdayGroup: text("saturday_group"),
   saturdayHorario: text("saturday_horario"),
+  enCronograma: integer("en_cronograma", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  asignableCubic: integer("asignable_cubic", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  incluidoCalidad: integer("incluido_calidad", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  asignableAgs: integer("asignable_ags", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 export const cubicAssignments = sqliteTable(
