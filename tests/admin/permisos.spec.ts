@@ -103,10 +103,25 @@ test.describe("Admin Permisos y Accesos", () => {
     expect(Array.isArray(json.mesas)).toBe(true);
   });
 
-  test("admin guarda cambio de ruta via API y escribe auditoria", async ({ request }) => {
-    const res = await request.post(`${HOST}/api/admin/permisos/routes`, {
+  async function getCsrfToken(page: import("@playwright/test").Page): Promise<string> {
+    const csrf = await page
+      .locator("#permisos-root[data-csrf-token]")
+      .getAttribute("data-csrf-token", { timeout: 15000 });
+    expect(csrf).toBeTruthy();
+    return csrf as string;
+  }
+
+  test("admin guarda cambio de ruta via API y escribe auditoria", async ({ page, context }) => {
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
+    ]);
+    await page.goto(`${HOST}/admin/permisos`);
+    const csrf = await getCsrfToken(page);
+
+    const res = await page.request.post(`${HOST}/api/admin/permisos/routes`, {
       headers: { cookie: `session_id=${adminCookie}`, "Content-Type": "application/json" },
       data: {
+        csrf_token: csrf,
         changes: [{ routeId: 1, role: "supervisor", mesaId: testMesaId, allowed: false }],
       },
     });
