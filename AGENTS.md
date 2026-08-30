@@ -25,7 +25,7 @@
 ## DB & Drizzle
 
 - **SQLite** at `database/mda.db` (gitignored; copy from prod or `drizzle-kit push`)
-- **Schema alignment**: NO correr `drizzle-kit push` (no converge: recreate + CREATE INDEX duplicado en loop). Usar `npx tsx scripts/align-db-to-schema.mts [ruta-db]` — idempotente, hace backup, agrega columnas, recrea tablas con constraints/orden desalineado y verifica paridad + integridad. Si cambiás `src/db/schema.ts`, extendé sus secciones COLUMN_ADDS/REBUILDS/INDEXES.
+- **Schema alignment**: `npx tsx scripts/align-db-to-schema.mts` — idempotente, hace backup, deriva el DDL canónico de `src/db/schema.ts`, reconstruye tablas desalineadas y verifica paridad + integridad. `drizzle-kit push` volvió a funcionar (el bug lo disparaba el CHECK constraint en users, eliminado en 2026-08-30), pero el align script sigue siendo más seguro con datos reales: nunca trunca y reporta en vez de aplicar data-loss statements.
 - **Schema**: `src/db/schema.ts` — all tables, relations, types
 - **Config**: `drizzle.config.ts` (sqlite dialect, schema `./src/db/schema.ts`, out `./drizzle`)
 - **Connection**: `src/db/index.ts` via `better-sqlite3`
