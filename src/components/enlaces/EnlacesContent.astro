@@ -76,8 +76,8 @@ const cleanBase = getCleanBase();
     class="max-w-md"
   />
 
-  <div class="flex items-center justify-between gap-4" data-view-mode-bar>
-    <div role="tablist" class="tabs tabs-boxed bg-base-200/50">
+  <div class="flex flex-wrap items-center gap-4" data-view-controls>
+    <div role="tablist" class="tabs tabs-boxed bg-base-200/50" aria-label="Tamaño de íconos">
       <button
         type="button"
         role="tab"
@@ -104,6 +104,44 @@ const cleanBase = getCleanBase();
         aria-label="Iconos grandes"
       >
         <Icon name="boxicons:rectangle" size={16} aria-hidden="true" />
+      </button>
+    </div>
+    <div role="tablist" class="tabs tabs-boxed bg-base-200/50" aria-label="Cantidad de columnas">
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="1"
+        aria-label="1 columna"
+      >
+        <Icon name="boxicons:list-ul" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="2"
+        aria-label="2 columnas"
+      >
+        <Icon name="boxicons:columns" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="3"
+        aria-label="3 columnas"
+      >
+        <Icon name="boxicons:columns-3" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="4"
+        aria-label="4 columnas"
+      >
+        <Icon name="boxicons:columns-4" size={16} aria-hidden="true" />
       </button>
     </div>
   </div>
@@ -141,28 +179,6 @@ const cleanBase = getCleanBase();
     color: inherit;
   }
 
-  .masonry-grid {
-    position: relative;
-  }
-
-  .masonry-grid .grid-item {
-    width: 100%;
-    margin-bottom: 8px;
-    break-inside: avoid;
-  }
-
-  @media (min-width: 768px) {
-    .masonry-grid .grid-item {
-      width: calc(50% - 4px);
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .masonry-grid .grid-item {
-      width: calc(33.333% - 5.333px);
-    }
-  }
-
 /* View mode: icon sizes */
 [data-view-mode="compact"] {
   --link-icon-size: 28px;
@@ -179,11 +195,50 @@ const cleanBase = getCleanBase();
   --link-icon-container: 52px;
 }
 
-  /* Apply icon sizes */
-  [data-link-item] .icon-container {
-    width: var(--link-icon-container);
-    height: var(--link-icon-container);
+/* View columns */
+:root {
+  --columns: 3;
+}
+[data-view-columns="1"] {
+  --columns: 1;
+}
+[data-view-columns="2"] {
+  --columns: 2;
+}
+[data-view-columns="3"] {
+  --columns: 3;
+}
+[data-view-columns="4"] {
+  --columns: 4;
+}
+
+.masonry-grid {
+  position: relative;
+}
+
+.masonry-grid .grid-item {
+  width: calc((100% - (8px * (min(var(--columns), 1) - 1))) / min(var(--columns), 1));
+  margin-bottom: 8px;
+  break-inside: avoid;
+}
+
+@media (min-width: 768px) {
+  .masonry-grid .grid-item {
+    width: calc((100% - (8px * (min(var(--columns), 2) - 1))) / min(var(--columns), 2));
   }
+}
+
+@media (min-width: 1280px) {
+  .masonry-grid .grid-item {
+    width: calc((100% - (8px * (min(var(--columns), 4) - 1))) / min(var(--columns), 4));
+  }
+}
+
+/* Apply icon sizes */
+[data-link-item] .icon-container {
+  width: var(--link-icon-container);
+  height: var(--link-icon-container);
+}
 
   [data-link-item] .icon-container img,
   [data-link-item] .icon-container svg {
@@ -198,6 +253,7 @@ const cleanBase = getCleanBase();
     highlightSearchTargets,
   } from "@lib/clientSearch";
   import Masonry from "masonry-layout";
+  import { getViewMode, setViewMode, getViewColumns, setViewColumns, type ViewMode, type ViewColumns } from "@lib/viewMode";
 
   const searchInput = document.getElementById(
     "important-links-search",
@@ -214,11 +270,19 @@ const cleanBase = getCleanBase();
 
   const GAP = 8;
 
+  const getColumnCount = (): number => {
+    const raw = document.documentElement.getAttribute("data-view-columns") ?? "3";
+    const base = Math.min(4, Math.max(1, Number(raw) || 3)) as ViewColumns;
+    const width = linksGrid?.offsetWidth ?? 0;
+    if (width < 768) return 1;
+    if (width < 1280) return Math.min(base, 2);
+    return Math.min(base, 4);
+  };
+
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
-    const width = linksGrid.offsetWidth;
-    const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
-    return (width - GAP * (columns - 1)) / columns;
+    const columns = getColumnCount();
+    return (linksGrid.offsetWidth - GAP * (columns - 1)) / columns;
   };
 
   let msnry: Masonry | null = null;
@@ -298,8 +362,6 @@ const cleanBase = getCleanBase();
     updateVisibleLinks();
   }
 
-  import { getViewMode, setViewMode, type ViewMode } from "@lib/viewMode";
-
   // View mode initialization
   const initViewMode = (): void => {
     const mode = getViewMode();
@@ -333,4 +395,32 @@ const cleanBase = getCleanBase();
   });
 
   initViewMode();
+
+  // View columns initialization
+  const initViewColumns = (): void => {
+    const columns = getViewColumns();
+    document.documentElement.setAttribute("data-view-columns", String(columns));
+    document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
+      const tabColumns = tab.getAttribute("data-view-columns");
+      tab.classList.toggle("tab-active", tabColumns === String(columns));
+    });
+  };
+
+  // Column tab click handler
+  document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const columns = Number(tab.getAttribute("data-view-columns")) as ViewColumns;
+      setViewColumns(columns);
+      document.documentElement.setAttribute("data-view-columns", String(columns));
+      document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((t) => {
+        t.classList.toggle("tab-active", t === tab);
+      });
+      if (msnry) {
+        msnry.options.columnWidth = getColumnWidth();
+        msnry.layout();
+      }
+    });
+  });
+
+  initViewColumns();
 </script>
