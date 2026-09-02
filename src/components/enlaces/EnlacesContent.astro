@@ -1,5 +1,6 @@
 ---
 import { getCleanBase } from "@lib/baseUrl";
+import { Icon } from "astro-icon/components";
 import AnnouncementBanner from "@components/ui/AnnouncementBanner.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -75,6 +76,38 @@ const cleanBase = getCleanBase();
     class="max-w-md"
   />
 
+  <div class="flex items-center justify-between gap-4" data-view-mode-bar>
+    <div role="tablist" class="tabs tabs-boxed bg-base-200/50">
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="compact"
+        aria-label="Vista compacta (4 columnas)"
+      >
+        <Icon name="boxicons:grid" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="normal"
+        aria-label="Vista normal (3 columnas)"
+      >
+        <Icon name="boxicons:grid-small" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="large"
+        aria-label="Vista grande (2 columnas)"
+      >
+        <Icon name="boxicons:rectangle" size={16} aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+
   <AnnouncementBanner
     title="Nuevo catálogo de aplicativos"
     description="Descarga herramientas de mesa de ayuda desde un paquete .zip o por aplicativo individual para mantener la operatoria diaria."
@@ -129,6 +162,37 @@ const cleanBase = getCleanBase();
       width: calc(33.333% - 5.333px);
     }
   }
+
+  /* View mode: icon sizes */
+  [data-view-mode="compact"] {
+    --link-icon-size: 28px;
+    --link-icon-container: 36px;
+    --link-columns: 4;
+  }
+
+  [data-view-mode="normal"] {
+    --link-icon-size: 36px;
+    --link-icon-container: 44px;
+    --link-columns: 3;
+  }
+
+  [data-view-mode="large"] {
+    --link-icon-size: 44px;
+    --link-icon-container: 52px;
+    --link-columns: 2;
+  }
+
+  /* Apply icon sizes */
+  [data-link-item] .icon-container {
+    width: var(--link-icon-container);
+    height: var(--link-icon-container);
+  }
+
+  [data-link-item] .icon-container img,
+  [data-link-item] .icon-container svg {
+    width: var(--link-icon-size);
+    height: var(--link-icon-size);
+  }
 </style>
 
 <script>
@@ -153,10 +217,17 @@ const cleanBase = getCleanBase();
 
   const GAP = 8;
 
+  const getColumnCount = (): number => {
+    const mode = document.documentElement.getAttribute("data-view-mode");
+    if (mode === "compact") return 4;
+    if (mode === "large") return 2;
+    return 3; // normal
+  };
+
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
     const width = linksGrid.offsetWidth;
-    const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
+    const columns = width >= 1280 ? getColumnCount() : width >= 768 ? Math.min(2, getColumnCount()) : 1;
     return (width - GAP * (columns - 1)) / columns;
   };
 
@@ -259,4 +330,40 @@ const cleanBase = getCleanBase();
   if (searchInput && searchInput.value.trim().length > 0) {
     updateVisibleLinks();
   }
+
+  import { getViewMode, setViewMode, type ViewMode } from "@lib/viewMode";
+
+  // View mode initialization
+  const initViewMode = (): void => {
+    const mode = getViewMode();
+    document.documentElement.setAttribute("data-view-mode", mode);
+
+    // Update active tab
+    document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
+      const tabMode = tab.getAttribute("data-view-mode");
+      tab.classList.toggle("tab-active", tabMode === mode);
+    });
+  };
+
+  // View mode tab click handler
+  document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const mode = tab.getAttribute("data-view-mode") as ViewMode;
+      setViewMode(mode);
+      document.documentElement.setAttribute("data-view-mode", mode);
+
+      // Update active states
+      document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((t) => {
+        t.classList.toggle("tab-active", t === tab);
+      });
+
+      // Recalculate masonry
+      if (msnry) {
+        msnry.options.columnWidth = getColumnWidth();
+        msnry.layout();
+      }
+    });
+  });
+
+  initViewMode();
 </script>
