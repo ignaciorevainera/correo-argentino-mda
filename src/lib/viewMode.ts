@@ -7,6 +7,14 @@ export const VIEW_MODES: ViewMode[] = ["compact", "normal", "large"];
 
 export const DEFAULT_VIEW_MODE: ViewMode = "normal";
 
+export type ViewColumns = 1 | 2 | 3 | 4;
+
+export const VIEW_COLUMNS_KEY = "enlacesViewColumns";
+
+export const VIEW_COLUMNS: ViewColumns[] = [1, 2, 3, 4];
+
+export const DEFAULT_VIEW_COLUMNS: ViewColumns = 3;
+
 export function safeGetItem(key: string, fallback: string): string {
   try {
     return localStorage.getItem(key) ?? fallback;
@@ -32,4 +40,16 @@ export function getViewMode(): ViewMode {
 
 export function setViewMode(mode: ViewMode): void {
   safeSetItem(VIEW_MODE_KEY, mode);
+}
+
+export function getViewColumns(): ViewColumns {
+  const stored = safeGetItem(VIEW_COLUMNS_KEY, String(DEFAULT_VIEW_COLUMNS));
+  const parsed = Number(stored);
+  return VIEW_COLUMNS.includes(parsed as ViewColumns)
+    ? (parsed as ViewColumns)
+    : DEFAULT_VIEW_COLUMNS;
+}
+
+export function setViewColumns(columns: ViewColumns): void {
+  safeSetItem(VIEW_COLUMNS_KEY, String(columns));
 }
