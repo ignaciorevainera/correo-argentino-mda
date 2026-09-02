@@ -83,7 +83,7 @@ const cleanBase = getCleanBase();
         role="tab"
         class="tab gap-1.5"
         data-view-mode="compact"
-        aria-label="Vista compacta (4 columnas)"
+        aria-label="Iconos pequeños"
       >
         <Icon name="boxicons:grid" size={16} aria-hidden="true" />
       </button>
@@ -92,16 +92,16 @@ const cleanBase = getCleanBase();
         role="tab"
         class="tab gap-1.5"
         data-view-mode="normal"
-        aria-label="Vista normal (3 columnas)"
+        aria-label="Iconos normales"
       >
-        <Icon name="boxicons:grid-small" size={16} aria-hidden="true" />
+        <Icon name="boxicons:grid-9-filled" size={16} aria-hidden="true" />
       </button>
       <button
         type="button"
         role="tab"
         class="tab gap-1.5"
         data-view-mode="large"
-        aria-label="Vista grande (2 columnas)"
+        aria-label="Iconos grandes"
       >
         <Icon name="boxicons:rectangle" size={16} aria-hidden="true" />
       </button>
@@ -163,24 +163,21 @@ const cleanBase = getCleanBase();
     }
   }
 
-  /* View mode: icon sizes */
-  [data-view-mode="compact"] {
-    --link-icon-size: 28px;
-    --link-icon-container: 36px;
-    --link-columns: 4;
-  }
+/* View mode: icon sizes */
+[data-view-mode="compact"] {
+  --link-icon-size: 28px;
+  --link-icon-container: 36px;
+}
 
-  [data-view-mode="normal"] {
-    --link-icon-size: 36px;
-    --link-icon-container: 44px;
-    --link-columns: 3;
-  }
+[data-view-mode="normal"] {
+  --link-icon-size: 36px;
+  --link-icon-container: 44px;
+}
 
-  [data-view-mode="large"] {
-    --link-icon-size: 44px;
-    --link-icon-container: 52px;
-    --link-columns: 2;
-  }
+[data-view-mode="large"] {
+  --link-icon-size: 44px;
+  --link-icon-container: 52px;
+}
 
   /* Apply icon sizes */
   [data-link-item] .icon-container {
@@ -217,17 +214,10 @@ const cleanBase = getCleanBase();
 
   const GAP = 8;
 
-  const getColumnCount = (): number => {
-    const mode = document.documentElement.getAttribute("data-view-mode");
-    if (mode === "compact") return 4;
-    if (mode === "large") return 2;
-    return 3; // normal
-  };
-
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
     const width = linksGrid.offsetWidth;
-    const columns = width >= 1280 ? getColumnCount() : width >= 768 ? Math.min(2, getColumnCount()) : 1;
+    const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
     return (width - GAP * (columns - 1)) / columns;
   };
 
@@ -247,20 +237,6 @@ const cleanBase = getCleanBase();
       msnry.layout();
     });
     resizeObserver.observe(linksGrid);
-
-    linksGrid.addEventListener(
-      "toggle",
-      (event) => {
-        const target = event.target as HTMLDetailsElement | null;
-        if (!target || target.tagName !== "DETAILS") return;
-
-        // Reflow masonry on accordion toggle
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => msnry?.layout());
-        });
-      },
-      true,
-    );
   }
 
   let isFiltered = false;
@@ -302,7 +278,7 @@ const cleanBase = getCleanBase();
       categoryCard.classList.toggle("hidden", !isCategoryVisible);
 
       const categoryTitle = categoryCard.querySelector<HTMLElement>(
-        "summary [data-highlight-target]",
+        "header [data-highlight-target]",
       );
       if (categoryTitle) {
         highlightSearchTargets(categoryTitle, isCategoryVisible ? query : "");
