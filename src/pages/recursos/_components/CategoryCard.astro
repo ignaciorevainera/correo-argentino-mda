@@ -71,18 +71,27 @@ const classes = toneClasses[category.tone];
 const categorySearchText = category.category;
 ---
 
-<article
-  class="card border-base-300 bg-base-100 relative break-inside-avoid border shadow-md transition-all hover:z-20"
+<details
+  class="collapse collapse-arrow border-base-300 bg-base-100 shadow-md"
   data-link-category
   data-category-search={categorySearchText}
+  open
 >
-  <header
+  <summary
     class:list={[
-      "border-base-300 flex items-center justify-between gap-3 rounded-t-[inherit] border-b px-4 py-3",
+      "collapse-title border-base-300 flex items-center justify-between gap-3 border-b px-4 py-3",
       classes.headerClass,
     ]}
   >
-    <div class="min-w-0 flex-1">
+    <div class="flex min-w-0 flex-1 items-center gap-2">
+      {category.icon && (
+        <Icon
+          name={category.icon}
+          size={20}
+          class:list={["shrink-0", classes.iconClass]}
+          aria-hidden="true"
+        />
+      )}
       <h2
         class="text-base-content truncate text-base font-bold"
         data-highlight-target
@@ -96,15 +105,17 @@ const categorySearchText = category.category;
     >
       {category.links.length}
     </span>
-  </header>
+  </summary>
 
-  <div class="card-body bg-base-200/10 gap-0 p-3">
-    <ul class="flex flex-col gap-2">
-      {
-        category.links.map((link) => (
-          <LinkItem link={link} category={category.category} />
-        ))
-      }
-    </ul>
+  <div class="collapse-content !p-0">
+    <div class="bg-base-200/10 p-3">
+      <ul class="flex flex-col gap-2">
+        {
+          category.links.map((link) => (
+            <LinkItem link={link} category={category.category} />
+          ))
+        }
+      </ul>
+    </div>
   </div>
-</article>
+</details>
