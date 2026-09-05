@@ -254,6 +254,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                       data-user-id={u.id}
                       data-user-role={u.role}
                       data-user-helpdesk={u.helpdeskName ?? ""}
+                      data-user-username={u.username}
                       ariaLabel={`Cambiar rol y mesa de ayuda de ${u.username}`}
                     />
 
@@ -562,19 +563,31 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
     <form method="POST" class="space-y-4" data-async-form>
       <input type="hidden" name="action" value="change-role" />
       <input type="hidden" name="userId" id="change-role-user-id" />
-      <SelectField
-        id="change-role-helpdesk-select"
-        name="helpdesk"
-        label="Mesa de ayuda"
-        selectClass="select-sm"
-        options={[
+      <div class="flex items-end gap-2">
+        <div class="grow">
+          <SelectField
+          id="change-role-helpdesk-select"
+          name="helpdesk"
+          label="Mesa de ayuda"
+          selectClass="select-sm"
+          options={[
           ...helpdeskOptions.map((hd) => ({
-            value: `${hd.id}|${hd.name}`,
-            label: hd.name,
+          value: `${hd.id}|${hd.name}`,
+          label: hd.name,
           })),
           { value: "", label: "Sin mesa de ayuda" },
-        ]}
-      />
+          ]}
+          />
+        </div>
+        <button
+          type="button"
+          id="suggest-helpdesk-btn"
+          class="btn btn-ghost btn-sm"
+          title="Sugerir mesa según el usuario en InvGate"
+        >
+          Sugerir
+        </button>
+      </div>
       <SelectField
         id="change-role-select"
         name="newRole"
@@ -753,6 +766,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
 <AsyncFormScript />
 
 <script>
+import { getCleanBase } from "@lib/baseUrl";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
@@ -760,6 +774,69 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
       "change-role-select",
     ) as HTMLSelectElement | null;
     if (!roleSelect) return false;
+
+    let lastSeenUsername = "";
+    const adminUsernameInput = document.getElementById(
+      "admin-username",
+    ) as HTMLInputElement | null;
+    const adminHelpdeskSelect = document.getElementById(
+      "admin-helpdesk",
+    ) as HTMLSelectElement | null;
+
+    async function suggestMesaForUsername(
+      username: string,
+    ): Promise<{ invgateId: number; name: string } | null> {
+      try {
+        const res = await fetch(
+          `${getCleanBase()}api/admin/suggest-helpdesk?username=${encodeURIComponent(username)}`,
+          { credentials: "same-origin" },
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json?.helpdesk ?? null;
+      } catch {
+        return null;
+      }
+    }
+
+    function selectOrAddHelpdeskOption(
+      select: HTMLSelectElement,
+      invgateId: number,
+      name: string,
+    ): void {
+      const value = `${invgateId}|${name}`;
+      const existing = Array.from(select.options).find((o) => o.value === value);
+      if (existing) {
+        select.value = value;
+        return;
+      }
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = `${name} (sugerida)`;
+      select.appendChild(opt);
+      select.value = value;
+    }
+
+    adminUsernameInput?.addEventListener("blur", async () => {
+      const username = adminUsernameInput.value.trim();
+      if (!username) return;
+      if (adminHelpdeskSelect && !adminHelpdeskSelect.value) {
+        const hd = await suggestMesaForUsername(username);
+        if (hd) selectOrAddHelpdeskOption(adminHelpdeskSelect, hd.invgateId, hd.name);
+      }
+    });
+
+    const suggestBtn = document.getElementById("suggest-helpdesk-btn");
+    suggestBtn?.addEventListener("click", async () => {
+      // Leer el username desde el hidden input del modal (change-role-user-id)
+      // no alcanza; usamos el último username visto via change-role-btn.
+      if (lastSeenUsername) {
+        const hd = await suggestMesaForUsername(lastSeenUsername);
+        if (hd && helpdeskSelect) {
+          selectOrAddHelpdeskOption(helpdeskSelect, hd.invgateId, hd.name);
+        }
+      }
+    });
 
     const roleDescriptions = {
       admin:
@@ -862,6 +939,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
           const userId = btn.getAttribute("data-user-id");
           const userRole = btn.getAttribute("data-user-role") || "agent";
           const userHelpdesk = btn.getAttribute("data-user-helpdesk") || "";
+          const userUsername = btn.getAttribute("data-user-username") || "";
+          lastSeenUsername = userUsername;
 
           if (userIdInput && roleSelect && modal && helpdeskSelect) {
             userIdInput.value = userId || "";
@@ -880,6 +959,14 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
               userRole,
             );
             modal.showModal();
+            // Sugerencia: al abrir con usuario sin mesa, llenar si InvGate lo resuelve.
+            if (!targetName && userUsername) {
+              suggestMesaForUsername(userUsername).then((hd) => {
+                if (hd && !helpdeskSelect.value) {
+                  selectOrAddHelpdeskOption(helpdeskSelect, hd.invgateId, hd.name);
+                }
+              });
+            }
           }
         });
       });
