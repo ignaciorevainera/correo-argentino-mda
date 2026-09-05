@@ -75,6 +75,8 @@ export async function hasRouteAccess(
   role: string,
   mesaId: number | null,
 ): Promise<boolean> {
+  // Politica: el rol admin siempre tiene acceso a todo (no revocable).
+  if (normalizeRole(role) === "admin") return true;
   await loadPermissionsCache();
   await loadRoutesIndex();
 

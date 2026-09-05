@@ -2,14 +2,22 @@
 import { describe, it, expect } from "vitest";
 import { hasPermission } from "../../../src/lib/rbac";
 
+// Politica vigente: default-deny para los roles editables. El rol admin es la
+// excepcion documentada: siempre tiene acceso a todo y no es revocable (ver
+// tests/unit/permissions/admin-always-access.test.ts).
+const EDITABLE_ROLES = ["agent", "referent", "team_leader", "supervisor"];
+
 describe("Default-Deny Permissions", () => {
-  it("should deny access to unknown routes by default", () => {
-    expect(hasPermission("/api/unknown-endpoint", "admin")).toBe(false);
+  it("should deny access to unknown routes by default (editable roles)", () => {
+    expect(hasPermission("/api/unknown-endpoint", "agent")).toBe(false);
   });
 
-  it("should deny access to unlisted routes for all roles", () => {
-    const roles = ["agent", "referent", "team_leader", "supervisor", "admin"];
-    for (const role of roles) {
+  it("should allow unknown routes to admin (policy exception)", () => {
+    expect(hasPermission("/api/unknown-endpoint", "admin")).toBe(true);
+  });
+
+  it("should deny access to unlisted routes for editable roles", () => {
+    for (const role of EDITABLE_ROLES) {
       expect(hasPermission("/api/new-feature", role)).toBe(false);
       expect(hasPermission("/some/new/page", role)).toBe(false);
     }
@@ -24,7 +32,6 @@ describe("Default-Deny Permissions", () => {
   });
 
   it("should still allow today's page route groups", () => {
-    const roles = ["agent", "referent", "team_leader", "supervisor", "admin"];
     const publicPages = [
       "/",
       "/login",
@@ -40,7 +47,7 @@ describe("Default-Deny Permissions", () => {
       "/recursos",
       "/titulos",
     ];
-    for (const role of roles) {
+    for (const role of [...EDITABLE_ROLES, "admin"]) {
       for (const page of publicPages) {
         expect(hasPermission(page, role), `${page} as ${role}`).toBe(true);
       }
@@ -48,7 +55,6 @@ describe("Default-Deny Permissions", () => {
   });
 
   it("should still allow today's API route groups for all roles", () => {
-    const roles = ["agent", "referent", "team_leader", "supervisor", "admin"];
     const apiGroups = [
       "/api/admin",
       "/api/aplicativos",
@@ -67,7 +73,7 @@ describe("Default-Deny Permissions", () => {
       "/api/titulos",
       "/api/usuarios",
     ];
-    for (const role of roles) {
+    for (const role of [...EDITABLE_ROLES, "admin"]) {
       for (const group of apiGroups) {
         expect(hasPermission(`${group}/x`, role), `${group} as ${role}`).toBe(true);
       }

@@ -24,9 +24,7 @@ export function isSectionVisibleSync(
   const lower = href.toLowerCase().replace(/\/$/, "");
 
   // Admin powers exist only for MDA TI; any other mesa (incl. Coord) has no admin.
-  if (normalizedRole === "admin" && helpdeskName === MDA_TI_HELPDESK) {
-    return true;
-  }
+  if (normalizedRole === "admin") return true; // Politica: acceso total sin importar la mesa.
 
   const isMdaTi = helpdeskName === MDA_TI_HELPDESK;
 

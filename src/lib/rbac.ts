@@ -135,6 +135,8 @@ export const routePermissions: RoutePermission[] = [
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
+  // Politica: el rol admin siempre tiene acceso a todo (no revocable).
+  if (normalizeRole(userRole) === "admin") return true;
   const role = normalizeRole(userRole);
   const normalizedPath = path.toLowerCase();
 
