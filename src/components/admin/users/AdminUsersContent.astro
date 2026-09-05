@@ -782,36 +782,30 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
       { value: "supervisor", label: "Supervisor" },
       { value: "admin", label: "Administrador" },
     ];
-    const ROLE_OPTIONS_LIMITED = [
-      { value: "agent", label: "Agente" },
-      { value: "supervisor", label: "Supervisor" },
-    ];
 
     const helpdeskSelect = document.getElementById(
       "change-role-helpdesk-select",
     ) as HTMLSelectElement | null;
 
     const rebuildRoleOptions = (
-      helpdeskName: string | undefined,
+      _helpdeskName: string | undefined,
       preferredRole?: string,
     ) => {
       if (!roleSelect) return;
-      const opts =
-        helpdeskName === MDA_TI_HELPDESK_NAME
-          ? ROLE_OPTIONS_FULL
-          : ROLE_OPTIONS_LIMITED;
+      // Politica: cualquier rol en cualquier mesa. El rol define permisos,
+      // la mesa no restringe roles. El rol actual siempre se preserva.
+      const opts = ROLE_OPTIONS_FULL;
       roleSelect.innerHTML = "";
-      let preferredValid = false;
       for (const o of opts) {
         const opt = document.createElement("option");
         opt.value = o.value;
         opt.textContent = o.label;
         roleSelect.appendChild(opt);
-        if (preferredRole && o.value === preferredRole) preferredValid = true;
       }
-      roleSelect.value = preferredValid
-        ? (preferredRole as string)
-        : opts[0].value;
+      roleSelect.value =
+        preferredRole && opts.some((o) => o.value === preferredRole)
+          ? preferredRole
+          : opts[0].value;
       updateDesc(roleSelect.value as keyof typeof roleDescriptions);
     };
 
