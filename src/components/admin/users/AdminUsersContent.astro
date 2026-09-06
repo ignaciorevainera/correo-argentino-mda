@@ -12,7 +12,7 @@ import ActionRoleButton from "@components/ui/ActionRoleButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
-import { ALLOWED_HELPDESK_NAMES } from "@lib/helpdeskAccess";
+import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, mesaHasParticipaciones } from "@lib/helpdeskAccess";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -62,6 +62,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
 ---
 
 <PageContainer width="xl">
+  <div data-participation-mesas={JSON.stringify(PARTICIPATION_HELPDESK_NAMES)}>
   <PageHeader
     title="Gestión de usuarios"
     description="Alta de operadores, asignación de roles y revisión de accesos activos en el portal."
@@ -229,7 +230,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                   </div>
 
                   <div class="flex items-center justify-end gap-2">
-                    {u.agentId && (
+                    {u.agentId && mesaHasParticipaciones(u.helpdeskName) && (
                       <button
                         type="button"
                         class="btn btn-ghost btn-xs"
@@ -269,42 +270,51 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                     />
                   </div>
 
-                  <Modal id={`modal-participaciones-${u.id}`}>
-                    <Fragment slot="content">
-                      <h3 class="text-base-content mb-1 text-base font-semibold">
-                        Participaciones
-                      </h3>
-                      <p class="text-base-content/60 mb-4 text-xs">
-                        Define dónde aparece{" "}
-                        <span class="font-mono font-semibold">{u.username}</span>.
-                        Desmarcar no borra historial.
-                      </p>
-                      <form method="POST" class="space-y-3" data-async-form>
-                        <input type="hidden" name="action" value="update-participaciones" />
-                        <input type="hidden" name="userId" value={u.id} />
-                        <label class="label cursor-pointer justify-start gap-3 py-1">
-                          <input type="checkbox" name="enCronograma" class="toggle toggle-sm toggle-secondary" checked={!!u.enCronograma} />
-                          <span class="text-base-content text-sm">Cronograma</span>
-                        </label>
-                        <label class="label cursor-pointer justify-start gap-3 py-1">
-                          <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableCubic} />
-                          <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
-                        </label>
-                        <label class="label cursor-pointer justify-start gap-3 py-1">
-                          <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" checked={!!u.incluidoCalidad} />
-                          <span class="text-base-content text-sm">Auditorías de calidad</span>
-                        </label>
-                        <label class="label cursor-pointer justify-start gap-3 py-1">
-                          <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableAgs} />
-                          <span class="text-base-content text-sm">Asignación AGS</span>
-                        </label>
-                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
-                          <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
-                          <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
-                        </div>
-                      </form>
-                    </Fragment>
-                  </Modal>
+                  {u.agentId && mesaHasParticipaciones(u.helpdeskName) && (
+                    <Modal id={`modal-participaciones-${u.id}`}>
+                      <Fragment slot="content">
+                        <h3 class="text-base-content mb-1 text-base font-semibold">
+                          Participaciones
+                        </h3>
+                        <p class="text-base-content/60 mb-4 text-xs">
+                          Define dónde aparece{" "}
+                          <span class="font-mono font-semibold">{u.username}</span>.
+                          Desmarcar no borra historial.
+                        </p>
+                        <form method="POST" class="space-y-3" data-async-form>
+                          <input type="hidden" name="action" value="update-participaciones" />
+                          <input type="hidden" name="userId" value={u.id} />
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input
+                              type="checkbox"
+                              name="enCronograma"
+                              class="toggle toggle-sm toggle-secondary"
+                              checked={!!u.enCronograma}
+                              disabled={u.role === "supervisor"}
+                              title="Un supervisor no figura en el cronograma como operador"
+                            />
+                            <span class="text-base-content text-sm">Cronograma</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableCubic} />
+                            <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" checked={!!u.incluidoCalidad} />
+                            <span class="text-base-content text-sm">Auditorías de calidad</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableAgs} />
+                            <span class="text-base-content text-sm">Asignación AGS</span>
+                          </label>
+                          <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
+                            <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
+                            <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
+                          </div>
+                        </form>
+                      </Fragment>
+                    </Modal>
+                  )}
                   <Modal id={`modal-nombre-${u.id}`}>
                     <Fragment slot="content">
                       <h3 class="text-base-content mb-1 text-base font-semibold">
@@ -504,7 +514,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
             helpText="Define el nivel de acceso a módulos del portal."
           />
 
-          <div class="space-y-2">
+          <div id="participaciones-fields" class="space-y-2">
             <p class="text-base-content/70 text-xs font-semibold uppercase">
               Participaciones
             </p>
@@ -554,6 +564,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
         </form>
       </SectionCard>
     </section>
+  </div>
   </div>
 </PageContainer>
 
@@ -991,7 +1002,9 @@ import { getCleanBase } from "@lib/baseUrl";
       if (!form) return;
       for (const [flagName, checked] of Object.entries(preset)) {
         const cb = form.querySelector<HTMLInputElement>(`input[name="${flagName}"]`);
-        if (cb) cb.checked = checked;
+        if (!cb) continue;
+        cb.checked = checked;
+        cb.disabled = role === "supervisor" && flagName === "enCronograma";
       }
     }
 
@@ -1000,6 +1013,19 @@ import { getCleanBase } from "@lib/baseUrl";
       applyPresets((e.target as HTMLSelectElement).value);
     });
     applyPresets(altaRoleSelect?.value || "agent");
+
+    // Participaciones solo visibles para mesas con secciones participativas.
+    const participationMesas: string[] = JSON.parse(
+      (document.querySelector<HTMLElement>("[data-participation-mesas]")?.dataset.participationMesas as string) || "[]",
+    );
+    const altaHelpdeskSelect = document.getElementById("admin-helpdesk") as HTMLSelectElement | null;
+    const participacionesFields = document.getElementById("participaciones-fields");
+    function refreshParticipacionesVisibility(): void {
+      const name = altaHelpdeskSelect?.selectedOptions[0]?.textContent?.trim() ?? "";
+      participacionesFields?.classList.toggle("hidden", !participationMesas.includes(name));
+    }
+    altaHelpdeskSelect?.addEventListener("change", refreshParticipacionesVisibility);
+    refreshParticipacionesVisibility();
 
     return true;
   }

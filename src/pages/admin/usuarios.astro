@@ -6,6 +6,7 @@ import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { isValidRole } from "@lib/rbac";
+import { mesaHasParticipaciones } from "@lib/helpdeskAccess";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
 
@@ -85,6 +86,12 @@ if (Astro.request.method === "POST") {
       if (!pwdValidation.success) {
         errorMsg = pwdValidation.error.issues[0].message;
       } else {
+        const finalParticipaciones = mesaHasParticipaciones(mesaRow?.name)
+          ? participaciones
+          : { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false };
+        // Un supervisor no figura en el cronograma como operador (forzado).
+        if (role === "supervisor") finalParticipaciones.enCronograma = false;
+
         try {
           const hashedPassword = await hashPassword(password);
           await db.transaction(async (tx) => {
@@ -104,20 +111,20 @@ if (Astro.request.method === "POST") {
             if (existingAgent) {
               await tx
                 .update(agents)
-                .set({ name, ...participaciones })
+                .set({ name, ...finalParticipaciones })
                 .where(eq(agents.id, existingAgent.id));
             } else {
               await tx.insert(agents).values({
                 name,
                 username,
-                ...participaciones,
+                ...finalParticipaciones,
               });
             }
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
           await logAdminFromAstro(
             Astro.locals,
-            `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${participaciones.enCronograma ? "sí" : "no"}, cubic=${participaciones.asignableCubic ? "sí" : "no"}, calidad=${participaciones.incluidoCalidad ? "sí" : "no"}, AGS=${participaciones.asignableAgs ? "sí" : "no"}`,
+            `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${finalParticipaciones.enCronograma ? "sí" : "no"}, cubic=${finalParticipaciones.asignableCubic ? "sí" : "no"}, calidad=${finalParticipaciones.incluidoCalidad ? "sí" : "no"}, AGS=${finalParticipaciones.asignableAgs ? "sí" : "no"}`,
           );
         } catch (e) {
           errorMsg = "Error: El nombre de usuario ya existe.";
@@ -126,13 +133,24 @@ if (Astro.request.method === "POST") {
     }
   } else if (action === "update-participaciones") {
     const userId = Number(formData.get("userId"));
-    const participaciones = {
-      enCronograma: formData.get("enCronograma") === "on",
-      asignableCubic: formData.get("asignableCubic") === "on",
-      incluidoCalidad: formData.get("incluidoCalidad") === "on",
-      asignableAgs: formData.get("asignableAgs") === "on",
-    };
-    if (userId) {
+    const [target] = await db
+      .select({ role: users.role, helpdeskName: users.helpdeskName })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!target) {
+      errorMsg = "Usuario no encontrado.";
+    } else if (!mesaHasParticipaciones(target.helpdeskName)) {
+      errorMsg = `La mesa "${(target.helpdeskName ?? "Sin mesa de ayuda").trim()}" no tiene secciones con participaciones.`;
+    } else {
+      const participaciones = {
+        // Un supervisor no figura en el cronograma como operador (forzado).
+        enCronograma:
+          target.role !== "supervisor" && formData.get("enCronograma") === "on",
+        asignableCubic: formData.get("asignableCubic") === "on",
+        incluidoCalidad: formData.get("incluidoCalidad") === "on",
+        asignableAgs: formData.get("asignableAgs") === "on",
+      };
       try {
         const [targetUser] = await db
           .select({ username: users.username })
