@@ -19,7 +19,25 @@ if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
   const action = formData.get("action")?.toString() ?? "create";
 
-  if (action === "create") {
+  // Politica: nadie edita su propio usuario (rol, mesa, nombre, username,
+  // participaciones). La única auto-modificación permitida es la contraseña,
+  // que se hace desde /profile. El rol admin además no es editable por nadie
+  // en el sistema de permisos (whitelist hardcoded, short-circuit en
+  // isSectionVisibleSync).
+  const SELF_EDIT_BLOCKED_ACTIONS = new Set([
+    "change-role",
+    "update-name",
+    "rename-username",
+    "update-participaciones",
+  ]);
+  const selfEditBlocked =
+    SELF_EDIT_BLOCKED_ACTIONS.has(action) &&
+    Number(formData.get("userId")) === Astro.locals.user.id;
+
+  if (selfEditBlocked) {
+    errorMsg =
+      "No podés editar tu propio usuario desde acá. Solo podés cambiar tu contraseña desde tu perfil.";
+  } else if (action === "create") {
     const username = formData.get("username")?.toString().trim().toLowerCase();
     const password = formData.get("password")?.toString();
     const role = formData.get("role")?.toString();
@@ -106,9 +124,7 @@ if (Astro.request.method === "POST") {
         }
       }
     }
-  }
-
-  if (action === "update-participaciones") {
+  } else if (action === "update-participaciones") {
     const userId = Number(formData.get("userId"));
     const participaciones = {
       enCronograma: formData.get("enCronograma") === "on",
@@ -150,9 +166,7 @@ if (Astro.request.method === "POST") {
         errorMsg = "Error al actualizar participaciones.";
       }
     }
-  }
-
-  if (action === "update-name") {
+  } else if (action === "update-name") {
     const userId = Number(formData.get("userId"));
     const newName = formData.get("newName")?.toString().trim();
     if (userId && newName) {
@@ -197,9 +211,7 @@ if (Astro.request.method === "POST") {
         errorMsg = "Error al actualizar el nombre. ¿Ya existe un agente con ese nombre?";
       }
     }
-  }
-
-  if (action === "reset-password") {
+  } else if (action === "reset-password") {
     const userId = Number(formData.get("userId"));
     const newPassword = formData.get("newPassword")?.toString();
     if (userId && newPassword) {
@@ -229,9 +241,7 @@ if (Astro.request.method === "POST") {
         }
       }
     }
-  }
-
-  if (action === "rename-username") {
+  } else if (action === "rename-username") {
     const userId = Number(formData.get("userId"));
     const newUsername = formData
       .get("newUsername")
@@ -265,9 +275,7 @@ if (Astro.request.method === "POST") {
         errorMsg = "Error: Ese nombre de usuario ya existe.";
       }
     }
-  }
-
-  if (action === "change-role") {
+  } else if (action === "change-role") {
     const userId = Number(formData.get("userId"));
     const newRole = formData.get("newRole")?.toString();
     const raw = formData.get("helpdesk")?.toString() ?? "";
