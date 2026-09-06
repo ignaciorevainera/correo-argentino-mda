@@ -42,6 +42,12 @@ const SECTION_LABELS: Array<{ label: string; href: string }> = [
 const user = Astro.locals.user;
 const permisosPerms = getModulePermissions("permisos", user.role);
 const canWrite = permisosPerms.canWrite;
+
+// El más reciente entre todas las mesas sincronizadas.
+const lastSyncedAt = mesaList.reduce<string | null>((acc, m) => {
+  const t = m.lastSyncedAt ?? null;
+  return !t || (acc && Date.parse(acc) >= Date.parse(t)) ? acc : t;
+}, null);
 ---
 
 <div
@@ -59,7 +65,7 @@ const canWrite = permisosPerms.canWrite;
     )}
     {mesaList.length > 0 && (
       <span class="text-base-content/60 text-xs">
-        Última sincronización: {mesaList[0]?.lastSyncedAt ?? "—"}
+        Última sincronización: {lastSyncedAt ?? "—"}
       </span>
     )}
   </div>
@@ -121,14 +127,17 @@ const canWrite = permisosPerms.canWrite;
       <div class="border-base-300 rounded-lg border p-3">
         <div class="font-mono mb-2 text-sm font-semibold">{mesaName}</div>
         <ul class="text-base-content/70 text-xs space-y-1">
-          {SECTION_LABELS.map((s) => (
-            <li class="flex items-center gap-2">
-              <span class:list={["badge badge-xs", isSectionVisibleSync(mesaName, "agent", s.href) ? "badge-success" : "badge-error"]}>
-                {isSectionVisibleSync(mesaName, "agent", s.href) ? "✓" : "✗"}
-              </span>
-              {s.label}
-            </li>
-          ))}
+          {SECTION_LABELS.map((s) => {
+            const visible = isSectionVisibleSync(mesaName, "agent", s.href);
+            return (
+              <li class="flex items-center gap-2">
+                <span class:list={["badge badge-xs", visible ? "badge-success" : "badge-error"]}>
+                  {visible ? "✓" : "✗"}
+                </span>
+                {s.label}
+              </li>
+            );
+          })}
         </ul>
       </div>
     ))}
