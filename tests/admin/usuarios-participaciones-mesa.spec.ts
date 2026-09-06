@@ -98,13 +98,13 @@ test.describe("Participaciones por mesa", () => {
 
   test("supervisor de MDA TI tiene enCronograma deshabilitado en el modal", async ({ page }) => {
     const uname = `sup_p_${Date.now()}`;
-    await seedUser(uname, "supervisor", "TI_GSM_MDA TI");
+    const uid = await seedUser(uname, "supervisor", "TI_GSM_MDA TI");
     await page.context().addCookies([
       { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
     ]);
     await page.goto("http://localhost:4321/admin/usuarios");
     await expect(page.locator(`[data-sort-username="${uname}"]`).first()).toBeVisible();
     await page.locator(`button[aria-label="Participaciones de ${uname}"]`).click();
-    await expect(page.locator("dialog input[name='enCronograma']")).toBeDisabled();
+    await expect(page.locator(`#modal-participaciones-${uid} input[name='enCronograma']`)).toBeDisabled();
   });
 });

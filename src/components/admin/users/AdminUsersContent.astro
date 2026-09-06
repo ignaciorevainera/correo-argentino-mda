@@ -838,7 +838,10 @@ import { getCleanBase } from "@lib/baseUrl";
       if (!username) return;
       if (adminHelpdeskSelect && !adminHelpdeskSelect.value) {
         const hd = await suggestMesaForUsername(username);
-        if (hd) selectOrAddHelpdeskOption(adminHelpdeskSelect, hd.invgateId, hd.name);
+        if (hd) {
+          selectOrAddHelpdeskOption(adminHelpdeskSelect, hd.invgateId, hd.name);
+          refreshParticipacionesVisibility();
+        }
       }
     });
 
@@ -1015,13 +1018,17 @@ import { getCleanBase } from "@lib/baseUrl";
     applyPresets(altaRoleSelect?.value || "agent");
 
     // Participaciones solo visibles para mesas con secciones participativas.
-    const participationMesas: string[] = JSON.parse(
-      (document.querySelector<HTMLElement>("[data-participation-mesas]")?.dataset.participationMesas as string) || "[]",
-    );
-    const altaHelpdeskSelect = document.getElementById("admin-helpdesk") as HTMLSelectElement | null;
+    let participationMesas: string[] = [];
+    try {
+      participationMesas = JSON.parse(
+        (document.querySelector<HTMLElement>("[data-participation-mesas]")?.dataset.participationMesas as string) || "[]",
+      );
+    } catch {
+      participationMesas = [];
+    }    const altaHelpdeskSelect = document.getElementById("admin-helpdesk") as HTMLSelectElement | null;
     const participacionesFields = document.getElementById("participaciones-fields");
     function refreshParticipacionesVisibility(): void {
-      const name = altaHelpdeskSelect?.selectedOptions[0]?.textContent?.trim() ?? "";
+      const name = altaHelpdeskSelect?.value?.split("|")[1]?.trim() ?? "";
       participacionesFields?.classList.toggle("hidden", !participationMesas.includes(name));
     }
     altaHelpdeskSelect?.addEventListener("change", refreshParticipacionesVisibility);
