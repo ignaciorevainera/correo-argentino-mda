@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isSectionVisibleSync,
+  resolveSessionMesa,
   isSuperiorRole,
   mesaHasParticipaciones,
   PARTICIPATION_HELPDESK_NAMES,
@@ -61,5 +62,44 @@ describe("isSuperiorRole", () => {
     expect(isSuperiorRole("supervisor")).toBe(true);
     expect(isSuperiorRole("agent")).toBe(false);
     expect(isSuperiorRole("referent")).toBe(false);
+  });
+});
+
+describe("resolveSessionMesa", () => {
+  const MD = "TI_GSM_MDA TI";
+
+  it("mesa activa con id y nombre → se conserva", () => {
+    expect(resolveSessionMesa({ helpdeskId: 500, helpdeskName: MD, mesaActive: true })).toEqual({
+      helpdeskId: 500,
+      helpdeskName: MD,
+    });
+  });
+
+  it("mesa inactiva (active=false) → sin mesa", () => {
+    expect(resolveSessionMesa({ helpdeskId: 500, helpdeskName: MD, mesaActive: false })).toEqual({
+      helpdeskId: null,
+      helpdeskName: null,
+    });
+  });
+
+  it("join vacío (mesa borrada, id null, nombre stale) → sin mesa", () => {
+    expect(resolveSessionMesa({ helpdeskId: null, helpdeskName: MD, mesaActive: null })).toEqual({
+      helpdeskId: null,
+      helpdeskName: null,
+    });
+  });
+
+  it("nombre vacío o solo espacios → sin mesa", () => {
+    expect(resolveSessionMesa({ helpdeskId: 500, helpdeskName: "  ", mesaActive: true })).toEqual({
+      helpdeskId: null,
+      helpdeskName: null,
+    });
+  });
+
+  it("mesaActive undefined (join no seleccionado) → sin mesa", () => {
+    expect(resolveSessionMesa({ helpdeskId: 500, helpdeskName: MD, mesaActive: undefined })).toEqual({
+      helpdeskId: null,
+      helpdeskName: null,
+    });
   });
 });

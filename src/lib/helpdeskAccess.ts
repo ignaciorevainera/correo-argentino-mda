@@ -21,6 +21,26 @@ export function mesaHasParticipaciones(
   return !!name && PARTICIPATION_HELPDESK_NAMES.includes(name);
 }
 
+// Mapea el row de usuarios+mesas del middleware a la sesión. Fail-closed:
+// solo una mesa ACTIVA con id y nombre confiables cuenta como asignada;
+// cualquier otro caso (mesa inactiva, borrada, join vacío, nombre vacío)
+// devuelve "sin mesa" (el usuario cae al default restrictivo).
+export function resolveSessionMesa(
+  dbUser: {
+    helpdeskId: number | null;
+    helpdeskName: string | null;
+    mesaActive: boolean | null | undefined;
+  },
+): { helpdeskId: number | null; helpdeskName: string | null } {
+  const active =
+    dbUser.helpdeskId != null &&
+    dbUser.mesaActive === true &&
+    !!dbUser.helpdeskName?.trim();
+  return active
+    ? { helpdeskId: dbUser.helpdeskId, helpdeskName: dbUser.helpdeskName }
+    : { helpdeskId: null, helpdeskName: null };
+}
+
 const SUPERIOR_ROLES = new Set(["team_leader", "supervisor"]);
 
 export function isSuperiorRole(role: string): boolean {

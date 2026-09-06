@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
 import { hasPermission } from "./lib/rbac";
 import { getIslandEffectivePathname } from "./lib/navigation";
-import { isSectionVisibleSync } from "./lib/helpdeskAccess";
+import { isSectionVisibleSync, resolveSessionMesa } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
@@ -178,22 +178,29 @@ export const onRequest = defineMiddleware(async (context, next) => {
             helpdeskId: users.helpdeskId,
             helpdeskName: users.helpdeskName,
             mesaActive: mesas.active,
+            mesaName: mesas.name,
           })
           .from(users)
           .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
           .where(eq(users.id, session.userId));
 
         if (dbUser) {
-          // Fail-closed: mesa desactivada o desconocida = usuario tratado
-          // como "sin mesa" (solo paginas comunes visibles) hasta que un
-          // admin le reasigne una mesa activa.
-          const mesaActive = dbUser.mesaActive !== false && dbUser.helpdeskName != null;
+          // Fail-closed: mesa desactivada, borrada o desconocida = usuario
+          // tratado como "sin mesa" (solo paginas comunes visibles) hasta que
+          // un admin le reasigne una mesa activa. resolveSessionMesa aplica
+          // la política; el nombre viene de la mesa real (join), no del
+          // campo denormalizado en users.
+          const mesa = resolveSessionMesa({
+            helpdeskId: dbUser.helpdeskId,
+            helpdeskName: dbUser.mesaName ?? null,
+            mesaActive: dbUser.mesaActive,
+          });
           currentUser = {
             id: dbUser.id,
             username: dbUser.username,
             role: dbUser.role,
-            helpdeskId: mesaActive ? dbUser.helpdeskId : null,
-            helpdeskName: mesaActive ? dbUser.helpdeskName : null,
+            helpdeskId: mesa.helpdeskId,
+            helpdeskName: mesa.helpdeskName,
           };
         }
       }
