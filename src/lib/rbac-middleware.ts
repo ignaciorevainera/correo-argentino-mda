@@ -1,8 +1,4 @@
-import {
-  getModulePermissionsAsync,
-  normalizeRole,
-  type Role,
-} from "./rbac";
+import { getModulePermissions } from "./rbac";
 import { jsonError } from "@lib/apiResponse";
 
 /**
@@ -19,7 +15,7 @@ export async function requireWriteAccess(
     return jsonError("Sesión no iniciada", 401);
   }
 
-  const perms = await getModulePermissionsAsync(moduleName, user.role, user.helpdeskId);
+  const perms = getModulePermissions(moduleName, user.role);
   if (!perms.canWrite) {
     return jsonError("Acceso denegado (requiere permisos de escritura)", 403);
   }
@@ -41,7 +37,7 @@ export async function requireReadAccess(
     return jsonError("Sesión no iniciada", 401);
   }
 
-  const perms = await getModulePermissionsAsync(moduleName, user.role, user.helpdeskId);
+  const perms = getModulePermissions(moduleName, user.role);
   if (!perms.canRead) {
     return jsonError("Acceso denegado (requiere permisos de lectura)", 403);
   }

@@ -4,7 +4,7 @@ import { routes, modules, mesas, routeAccess, moduleAccess, users } from "@db/sc
 import { sql, isNotNull } from "drizzle-orm";
 import { EDITABLE_ROLES } from "@lib/permissions/types";
 import { getCsrfTokenForSession } from "@lib/csrf";
-import { getModulePermissionsAsync } from "@lib/rbac";
+import { getModulePermissions } from "@lib/rbac";
 
 const [routeRows, moduleRows, mesaRows, routeAccessRows, moduleAccessRows, userCountRows] =
   await Promise.all([
@@ -106,7 +106,7 @@ function moduleBadgeTitle(flags: Record<string, boolean>): string {
 }
 
 const user = Astro.locals.user;
-const permisosPerms = await getModulePermissionsAsync("permisos", user.role, user.helpdeskId);
+const permisosPerms = getModulePermissions("permisos", user.role);
 const canWrite = permisosPerms.canWrite;
 ---
 

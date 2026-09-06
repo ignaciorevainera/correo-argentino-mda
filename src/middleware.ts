@@ -1,19 +1,16 @@
 import { defineMiddleware } from "astro:middleware";
 import { db } from "./db/index";
-import { users, sessions } from "./db/schema";
+import { users, sessions, mesas } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
-import { hasPermissionAsync } from "./lib/rbac";
+import { hasPermission } from "./lib/rbac";
 import { getIslandEffectivePathname } from "./lib/navigation";
 import { isSectionVisibleSync } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
-import { bootstrapPermissions } from "./lib/permissions/bootstrap";
 import { isFingerprintValid, computeFingerprint } from "./lib/sessionFingerprint";
-
-let bootstrapState: "idle" | "running" | "done" = "idle";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -114,18 +111,6 @@ function setSecurityHeaders(response: Response): Response {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (bootstrapState === "idle") {
-    bootstrapState = "running";
-    try {
-      await bootstrapPermissions();
-      bootstrapState = "done";
-    } catch (err) {
-      // Allow retry on the next request instead of permanently masking a
-      // failed/partial seed with a pre-set flag.
-      bootstrapState = "idle";
-      console.error("Permissions bootstrap failed:", err);
-    }
-  }
   const { cookies, url, redirect, locals } = context;
   const path = url.pathname;
 
@@ -192,12 +177,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
             role: users.role,
             helpdeskId: users.helpdeskId,
             helpdeskName: users.helpdeskName,
+            mesaActive: mesas.active,
           })
           .from(users)
+          .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
           .where(eq(users.id, session.userId));
 
         if (dbUser) {
-          currentUser = dbUser;
+          // Fail-closed: mesa desactivada o desconocida = usuario tratado
+          // como "sin mesa" (solo paginas comunes visibles) hasta que un
+          // admin le reasigne una mesa activa.
+          const mesaActive = dbUser.mesaActive !== false && dbUser.helpdeskName != null;
+          currentUser = {
+            id: dbUser.id,
+            username: dbUser.username,
+            role: dbUser.role,
+            helpdeskId: mesaActive ? dbUser.helpdeskId : null,
+            helpdeskName: mesaActive ? dbUser.helpdeskName : null,
+          };
         }
       }
     } else {
@@ -274,7 +271,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const role = (currentUser.role || "").toLowerCase().trim();
 
-  const allowed = await hasPermissionAsync(checkPath, role, currentUser.helpdeskId);
+  const allowed = hasPermission(checkPath, role);
   if (!allowed) {
     if (currentUser.id !== 0) {
       return redirect(
