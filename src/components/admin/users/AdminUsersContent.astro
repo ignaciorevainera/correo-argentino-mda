@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
-import { users, agents } from "@db/schema";
-import { sql } from "drizzle-orm";
+import { users, agents, mesas } from "@db/schema";
+import { sql, eq } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -49,6 +49,12 @@ const allUsers = await db
     sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
   );
 
+const usersConMesaInactiva = await db
+  .select({ username: users.username, mesaName: mesas.name })
+  .from(users)
+  .innerJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
+  .where(eq(mesas.active, false));
+
 const hdResult =
   await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
 const helpdeskOptions = (
@@ -67,6 +73,17 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
     title="Gestión de usuarios"
     description="Alta de operadores, asignación de roles y revisión de accesos activos en el portal."
   />
+
+  {usersConMesaInactiva.length > 0 && (
+    <div role="alert" class="alert alert-warning mb-4">
+      <Icon name="boxicons:x-circle" size={24} />
+      <span>
+        <strong>{usersConMesaInactiva.length}</strong> usuario(s) tienen una mesa
+        de ayuda desactivada y requieren reasignación:
+        {usersConMesaInactiva.map((u) => `${u.username} (${u.mesaName})`).join(", ")}.
+      </span>
+    </div>
+  )}
 
   <div class="mb-6 flex justify-start">
     <button

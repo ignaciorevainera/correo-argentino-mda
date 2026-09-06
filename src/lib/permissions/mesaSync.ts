@@ -1,6 +1,6 @@
 // src/lib/permissions/mesaSync.ts
 import { db } from "../../db";
-import { mesas } from "../../db/schema";
+import { mesas, users } from "../../db/schema";
 import { inArray, eq } from "drizzle-orm";
 import type { InvgateResult } from "@/types/invgate";
 
@@ -83,11 +83,14 @@ export async function fetchInvGateMesas(): Promise<InvGateMesa[]> {
   }));
 }
 
+export type AffectedUser = { username: string; helpdeskName: string | null };
+
 export async function syncMesas(): Promise<{
   added: number;
   updated: number;
   deactivated: number;
   total: number;
+  affectedUsers: AffectedUser[];
 }> {
   const invGateList = await fetchInvGateMesas();
 
@@ -140,10 +143,21 @@ export async function syncMesas(): Promise<{
     }
   });
 
+  // Usuarios cuya mesa quedó desactivada: requieren reasignación por un admin.
+  // Se consulta DESPUÉS del commit para leer el estado final.
+  let affectedUsers: AffectedUser[] = [];
+  if (diff.deactivated.length > 0) {
+    affectedUsers = await db
+      .select({ username: users.username, helpdeskName: users.helpdeskName })
+      .from(users)
+      .where(inArray(users.helpdeskId, diff.deactivated));
+  }
+
   return {
     added: diff.added.length,
     updated: diff.updated.length,
     deactivated: diff.deactivated.length,
     total: invGateList.length,
+    affectedUsers,
   };
 }

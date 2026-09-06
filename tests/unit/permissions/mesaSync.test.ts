@@ -1,5 +1,6 @@
 // tests/unit/permissions/mesaSync.test.ts
 import { describe, it, expect, vi } from "vitest";
+import { getTableName } from "drizzle-orm";
 import { diffMesas, fetchInvGateMesas, syncMesas } from "../../../src/lib/permissions/mesaSync";
 import { db } from "../../../src/db";
 import { invgateGet } from "../../../src/lib/invgateClient";
@@ -63,5 +64,48 @@ describe("syncMesas empty-list guard", () => {
     await expect(syncMesas()).rejects.toThrow(/0 mesas/);
     // Transaction must never be invoked on the empty guard path.
     expect(db.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncMesas affectedUsers", () => {
+  it("reporta usuarios cuya mesa qued� desactivada", async () => {
+    // La mesa "Vieja" (42) desaparece de InvGate, pero "Otra" (999) sigue:
+    // el guard de lista vac�a NO debe activarse y el diff desactiva solo Vieja.
+    (invgateGet as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: [{ id: 999, name: "Otra" }],
+    });
+
+    const rows: Record<string, unknown[]> = {
+      mesas: [
+        { id: 1, invgateId: 42, name: "Vieja", displayName: null, active: true, lastSyncedAt: "" },
+        { id: 2, invgateId: 999, name: "Otra", displayName: null, active: true, lastSyncedAt: "" },
+      ],
+      users: [{ username: "jperez", helpdeskName: "Vieja" }],
+    };
+
+    (db.select as any).mockImplementation(() => ({
+      from: (table: unknown) => {
+        const name = getTableName(table as any);
+        if (name === "users") {
+          // .select(...).from(users).where(...) — where resuelve la consulta.
+          return { where: () => Promise.resolve(rows.users) };
+        }
+        return Promise.resolve(rows[name] ?? []);
+      },
+    }));
+    // tx encadenable: insert().values().run(), update().set().where().run()
+    const chain: any = new Proxy(
+      {},
+      { get: () => () => chain },
+    );
+    (db.transaction as any).mockImplementation((fn: (tx: any) => void) => fn(chain));
+
+    const result = await syncMesas();
+    expect(result.deactivated).toBe(1);
+    expect(result.affectedUsers).toEqual([
+      { username: "jperez", helpdeskName: "Vieja" },
+    ]);
   });
 });
