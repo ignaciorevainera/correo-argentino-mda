@@ -2,7 +2,6 @@
 import { db } from "../../db";
 import { mesas } from "../../db/schema";
 import { inArray, eq } from "drizzle-orm";
-import { invalidatePermissionsCache } from "./cache";
 import type { InvgateResult } from "@/types/invgate";
 
 export type InvGateMesa = {
@@ -141,7 +140,6 @@ export async function syncMesas(): Promise<{
     }
   });
 
-  await invalidatePermissionsCache();
   return {
     added: diff.added.length,
     updated: diff.updated.length,

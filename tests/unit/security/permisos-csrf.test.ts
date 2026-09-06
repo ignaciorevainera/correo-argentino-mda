@@ -1,7 +1,5 @@
 // tests/unit/security/permisos-csrf.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST as routesPost } from "../../../src/pages/api/admin/permisos/routes";
-import { POST as modulesPost } from "../../../src/pages/api/admin/permisos/modules";
 import { POST as syncPost } from "../../../src/pages/api/admin/permisos/mesas/sync";
 import { generateCsrfToken } from "@lib/csrf";
 
@@ -20,10 +18,6 @@ vi.mock("../../../src/db/index", () => ({
 
 vi.mock("../../../src/lib/rbac-middleware", () => ({
   requireWriteAccess: vi.fn(async () => null),
-}));
-
-vi.mock("../../../src/lib/permissions/cache", () => ({
-  invalidatePermissionsCache: vi.fn(async () => {}),
 }));
 
 vi.mock("../../../src/lib/auditLogger", () => ({
@@ -53,46 +47,6 @@ const locals = { user: { id: 1, username: "admin", role: "admin" }, sessionId: C
 describe("permisos endpoints CSRF protection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe("POST /api/admin/permisos/routes", () => {
-    it("rejects request without CSRF token (403)", async () => {
-      const res = await routesPost({
-        request: makeRequest({ changes: [] }, false),
-        locals,
-      } as any);
-      expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.error).toContain("CSRF");
-    });
-
-    it("does not reject request with valid CSRF token", async () => {
-      const res = await routesPost({
-        request: makeRequest({ changes: [] }, true),
-        locals,
-      } as any);
-      expect(res.status).not.toBe(403);
-    });
-  });
-
-  describe("POST /api/admin/permisos/modules", () => {
-    it("rejects request without CSRF token (403)", async () => {
-      const res = await modulesPost({
-        request: makeRequest({ changes: [] }, false),
-        locals,
-      } as any);
-      expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.error).toContain("CSRF");
-    });
-
-    it("does not reject request with valid CSRF token", async () => {
-      const res = await modulesPost({
-        request: makeRequest({ changes: [] }, true),
-        locals,
-      } as any);
-      expect(res.status).not.toBe(403);
-    });
   });
 
   describe("POST /api/admin/permisos/mesas/sync", () => {

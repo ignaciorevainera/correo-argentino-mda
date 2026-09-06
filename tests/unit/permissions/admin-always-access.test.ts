@@ -1,55 +1,12 @@
 // tests/unit/permissions/admin-always-access.test.ts
 //
 // Politica: el rol admin tiene acceso SIEMPRE a todo, sin importar la mesa
-// de ayuda (helpdeskName puede ser null u otra mesa) y sin posibilidad de
-// revocacion (el rol admin no es editable en la matriz de permisos).
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { hasRouteAccess } from "../../../src/lib/permissions/resolve";
+// de ayuda (helpdeskName puede ser null u otra mesa). La visibilidad es
+// derivada de src/lib/helpdeskAccess.ts (hardcodeada, fuente unica).
+import { describe, it, expect } from "vitest";
 import { isSectionVisibleSync } from "../../../src/lib/helpdeskAccess";
-import {
-  loadPermissionsCache,
-  invalidatePermissionsCache,
-} from "../../../src/lib/permissions/cache";
-import { invalidateRoutesIndex } from "../../../src/lib/permissions/resolve";
-import { db } from "../../../src/db";
-import { getTableName } from "drizzle-orm";
-
-vi.mock("../../../src/db", () => ({
-  db: { select: vi.fn() },
-}));
-
-// Mismo patrón que resolve.test.ts: db.select().from(table) devuelve una
-// promesa (con .where) cuya respuesta depende del nombre de la tabla.
-function makeSelect(rowsByTable: Record<string, any[]> = {}) {
-  return () => ({
-    from: (table: any) => {
-      const name = table ? getTableName(table) : "";
-      const rows = rowsByTable[name] ?? [];
-      const p: any = Promise.resolve(rows);
-      p.where = () => Promise.resolve(rows);
-      return p;
-    },
-  });
-}
-
-beforeEach(async () => {
-  invalidatePermissionsCache(true);
-  invalidateRoutesIndex();
-  (db.select as any).mockImplementation(makeSelect());
-  await loadPermissionsCache(true);
-});
 
 describe("admin siempre tiene acceso (politica)", () => {
-  it("hasRouteAccess permite al admin cualquier ruta conocida o desconocida", async () => {
-    expect(await hasRouteAccess("/admin", "admin", null)).toBe(true);
-    expect(await hasRouteAccess("/admin/usuarios", "admin", null)).toBe(true);
-    expect(await hasRouteAccess("/supervision/cronograma", "admin", null)).toBe(true);
-    // Rutas NO whitelisteadas (default-deny para otros roles) siguen abiertas para admin:
-    expect(await hasRouteAccess("/alguna/ruta/futura", "admin", null)).toBe(true);
-    // Con mesa distinta a MDA TI tambien (mesa null u otra):
-    expect(await hasRouteAccess("/admin", "admin", 999)).toBe(true);
-  });
-
   it("isSectionVisibleSync permite al admin sin importar la mesa (incluye helpdeskName null)", () => {
     expect(isSectionVisibleSync(null, "admin", "/admin")).toBe(true);
     expect(isSectionVisibleSync(null, "admin", "/admin/usuarios")).toBe(true);

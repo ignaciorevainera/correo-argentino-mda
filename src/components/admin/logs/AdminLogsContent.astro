@@ -1,24 +1,16 @@
 ---
 import { db } from "@db/index";
-import { auditLogs, permissionAuditBatches } from "@db/schema";
+import { auditLogs } from "@db/schema";
 import { desc } from "drizzle-orm";
 import { Icon } from "astro-icon/components";
 import AuditLogsTimeline from "@components/admin/AuditLogsTimeline.astro";
-import PermissionAuditList from "./PermissionAuditList.astro";
 
 let logs: (typeof auditLogs.$inferSelect)[] = [];
-let batches: (typeof permissionAuditBatches.$inferSelect)[] = [];
 try {
   logs = await db
     .select()
     .from(auditLogs)
     .orderBy(desc(auditLogs.timestamp))
-    .limit(100);
-
-  batches = await db
-    .select()
-    .from(permissionAuditBatches)
-    .orderBy(desc(permissionAuditBatches.editedAt))
     .limit(100);
 } catch (error) {
   console.error("Error al obtener los logs de auditoría:", error);
@@ -45,6 +37,4 @@ try {
   </div>
 
   <AuditLogsTimeline logs={logs} />
-
-  <PermissionAuditList batches={batches} />
 </div>

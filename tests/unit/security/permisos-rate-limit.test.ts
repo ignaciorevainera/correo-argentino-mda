@@ -21,10 +21,6 @@ vi.mock("../../../src/lib/rbac-middleware", () => ({
   requireWriteAccess: vi.fn(async () => null),
 }));
 
-vi.mock("../../../src/lib/permissions/cache", () => ({
-  invalidatePermissionsCache: vi.fn(async () => {}),
-}));
-
 vi.mock("../../../src/lib/auditLogger", () => ({
   logAdminFromAstro: vi.fn(async () => {}),
 }));

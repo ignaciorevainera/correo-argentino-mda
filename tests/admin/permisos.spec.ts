@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { db } from "../../src/db/index";
-import { users, sessions, mesas, routeAccess, permissionAuditBatches } from "../../src/db/schema";
-import { eq, and } from "drizzle-orm";
+import { users, sessions, mesas } from "../../src/db/schema";
+import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
 
 const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
@@ -22,7 +22,6 @@ test.describe("Admin Permisos y Accesos", () => {
   let agentSession: string;
   let adminId: number;
   let agentId: number;
-  let testMesaId: number;
 
   test.beforeAll(async () => {
     const ts = Date.now();
@@ -46,36 +45,33 @@ test.describe("Admin Permisos y Accesos", () => {
     await db.insert(sessions).values({ id: agentSession, userId: agentId, expiresAt: Date.now() + 86400000 });
     adminCookie = sign(adminSession);
     agentCookie = sign(agentSession);
-
-    const [m] = await db
-      .insert(mesas)
-      .values({
-        invgateId: 990000 + (ts % 1000),
-        name: `PERM_TEST_MESA_${ts}`,
-        active: true,
-        lastSyncedAt: new Date().toISOString(),
-      })
-      .returning({ id: mesas.id });
-    testMesaId = m.id;
   });
 
   test.afterAll(async () => {
-    await db.delete(routeAccess).where(eq(routeAccess.mesaId, testMesaId));
-    await db.delete(permissionAuditBatches).where(eq(permissionAuditBatches.adminUsername, adminUsername));
-    await db.delete(mesas).where(eq(mesas.id, testMesaId));
     await db.delete(sessions).where(eq(sessions.id, adminSession));
     await db.delete(sessions).where(eq(sessions.id, agentSession));
     await db.delete(users).where(eq(users.id, adminId));
     await db.delete(users).where(eq(users.id, agentId));
   });
 
-  test("admin puede acceder a /admin/permisos", async ({ page, context }) => {
+  test("admin puede acceder a /admin/permisos y ve tabla de mesas", async ({ page, context }) => {
     await context.addCookies([
       { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
     ]);
     await page.goto(`${HOST}/admin/permisos`);
     await expect(page).not.toHaveURL(`${HOST}/`);
     await expect(page.locator("#global-toast-container")).not.toContainText("Acceso no autorizado");
+    await expect(page.locator("#permisos-root")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("#permisos-root table")).toBeVisible();
+  });
+
+  test("admin con canWrite ve botón de sincronización", async ({ page, context }) => {
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
+    ]);
+    await page.goto(`${HOST}/admin/permisos`);
+    await expect(page.locator("#mesas-sync")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("#permisos-root[data-can-write='1']")).toBeVisible();
   });
 
   test("agente es redirigido desde /admin/permisos", async ({ page, context }) => {
@@ -85,71 +81,5 @@ test.describe("Admin Permisos y Accesos", () => {
     await page.goto(`${HOST}/admin/permisos`);
     await expect(page).toHaveURL(`${HOST}/`);
     await expect(page.locator("#global-toast-container")).toContainText("Acceso no autorizado");
-  });
-
-  test("GET /api/admin/permisos/data requiere admin", async ({ request }) => {
-    const denied = await request.get(`${HOST}/api/admin/permisos/data`, {
-      headers: { cookie: `session_id=${agentCookie}` },
-    });
-    expect(denied.status()).toBe(403);
-
-    const allowed = await request.get(`${HOST}/api/admin/permisos/data`, {
-      headers: { cookie: `session_id=${adminCookie}` },
-    });
-    expect(allowed.status()).toBe(200);
-    const json = await allowed.json();
-    expect(Array.isArray(json.routes)).toBe(true);
-    expect(Array.isArray(json.modules)).toBe(true);
-    expect(Array.isArray(json.mesas)).toBe(true);
-  });
-
-  async function getCsrfToken(page: import("@playwright/test").Page): Promise<string> {
-    const csrf = await page
-      .locator("#permisos-root[data-csrf-token]")
-      .getAttribute("data-csrf-token", { timeout: 15000 });
-    expect(csrf).toBeTruthy();
-    return csrf as string;
-  }
-
-  test("admin guarda cambio de ruta via API y escribe auditoria", async ({ page, context }) => {
-    await context.addCookies([
-      { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
-    ]);
-    await page.goto(`${HOST}/admin/permisos`);
-    const csrf = await getCsrfToken(page);
-
-    const res = await page.request.post(`${HOST}/api/admin/permisos/routes`, {
-      headers: { cookie: `session_id=${adminCookie}`, "Content-Type": "application/json" },
-      data: {
-        csrf_token: csrf,
-        changes: [{ routeId: 1, role: "supervisor", mesaId: testMesaId, allowed: false }],
-      },
-    });
-    expect(res.status()).toBe(200);
-    const json = await res.json();
-    expect(json.changedCells).toBe(1);
-
-    const [row] = await db
-      .select()
-      .from(routeAccess)
-      .where(
-        and(
-          eq(routeAccess.routeId, 1),
-          eq(routeAccess.role, "supervisor"),
-          eq(routeAccess.mesaId, testMesaId),
-        ),
-      );
-    expect(row).toBeTruthy();
-    expect(row!.allowed).toBe(false);
-
-    const batches = await db
-      .select()
-      .from(permissionAuditBatches)
-      .where(eq(permissionAuditBatches.adminUsername, adminUsername));
-    expect(batches.length).toBeGreaterThan(0);
-    const last = batches[batches.length - 1];
-    const summary = JSON.parse(last.summary);
-    expect(Array.isArray(summary)).toBe(true);
-    expect(summary[0]).toHaveProperty("type", "route");
   });
 });
