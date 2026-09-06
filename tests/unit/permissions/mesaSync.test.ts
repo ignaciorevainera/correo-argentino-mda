@@ -68,7 +68,7 @@ describe("syncMesas empty-list guard", () => {
 });
 
 describe("syncMesas affectedUsers", () => {
-  it("reporta usuarios cuya mesa qued� desactivada", async () => {
+  it("reporta usuarios cuya mesa quedó desactivada", async () => {
     // La mesa "Vieja" (42) desaparece de InvGate, pero "Otra" (999) sigue:
     // el guard de lista vac�a NO debe activarse y el diff desactiva solo Vieja.
     (invgateGet as any).mockResolvedValue({
