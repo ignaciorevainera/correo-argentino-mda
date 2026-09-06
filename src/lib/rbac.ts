@@ -113,6 +113,7 @@ export const routePermissions: RoutePermission[] = [
   { path: "/oficinas", roles: ALL_ROLES },
   { path: "/recursos", roles: ALL_ROLES },
   { path: "/titulos", roles: ALL_ROLES },
+  { path: "/base-conocimiento", roles: ALL_ROLES },
   { path: "/api/admin", roles: ALL_ROLES },
   { path: "/api/aplicativos", roles: ALL_ROLES },
   { path: "/api/asistencia", roles: ALL_ROLES },
