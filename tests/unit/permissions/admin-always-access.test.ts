@@ -5,7 +5,7 @@
 // revocacion (el rol admin no es editable en la matriz de permisos).
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasRouteAccess } from "../../../src/lib/permissions/resolve";
-import { isSectionVisible } from "../../../src/lib/helpdeskAccess";
+import { isSectionVisibleSync } from "../../../src/lib/helpdeskAccess";
 import {
   loadPermissionsCache,
   invalidatePermissionsCache,
@@ -50,19 +50,19 @@ describe("admin siempre tiene acceso (politica)", () => {
     expect(await hasRouteAccess("/admin", "admin", 999)).toBe(true);
   });
 
-  it("isSectionVisible permite al admin sin importar la mesa (incluye helpdeskName null)", async () => {
-    expect(await isSectionVisible(null, "admin", "/admin")).toBe(true);
-    expect(await isSectionVisible(null, "admin", "/admin/usuarios")).toBe(true);
-    expect(await isSectionVisible(null, "admin", "/supervision/cronograma")).toBe(true);
+  it("isSectionVisibleSync permite al admin sin importar la mesa (incluye helpdeskName null)", () => {
+    expect(isSectionVisibleSync(null, "admin", "/admin")).toBe(true);
+    expect(isSectionVisibleSync(null, "admin", "/admin/usuarios")).toBe(true);
+    expect(isSectionVisibleSync(null, "admin", "/supervision/cronograma")).toBe(true);
     expect(
-      await isSectionVisible("TI_GSM_Mesa de Coord", "admin", "/admin"),
+      isSectionVisibleSync("TI_GSM_Mesa de Coord", "admin", "/admin"),
     ).toBe(true);
   });
 
-  it("el gating por mesa sigue aplicando a NO admins (regresion)", async () => {
-    expect(await isSectionVisible(null, "agent", "/admin")).toBe(false);
+  it("el gating por mesa sigue aplicando a NO admins (regresion)", () => {
+    expect(isSectionVisibleSync(null, "agent", "/admin")).toBe(false);
     expect(
-      await isSectionVisible("TI_GSM_Mesa de Coord", "agent", "/supervision/cronograma"),
+      isSectionVisibleSync("TI_GSM_Mesa de Coord", "agent", "/supervision/cronograma"),
     ).toBe(false);
   });
 });

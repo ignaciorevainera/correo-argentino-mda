@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { verifySessionId, deleteSessionCookie } from "./lib/session";
 import { hasPermissionAsync } from "./lib/rbac";
 import { getIslandEffectivePathname } from "./lib/navigation";
-import { isSectionVisible } from "./lib/helpdeskAccess";
+import { isSectionVisibleSync } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
@@ -286,12 +286,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return redirect(resolveUrl("/login"));
   }
 
-  const sectionVisible = await isSectionVisible(
-    currentUser.helpdeskName,
-    role,
-    checkPath,
-    currentUser.helpdeskId,
-  );
+  const sectionVisible = isSectionVisibleSync(currentUser.helpdeskName, role, checkPath);
   if (!sectionVisible) {
     if (relativePath.startsWith("/api/")) {
       return jsonError("Acceso no autorizado", 401);

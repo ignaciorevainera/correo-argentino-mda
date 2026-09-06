@@ -1,29 +1,29 @@
 import assert from "node:assert/strict";
-import { isSectionVisible } from "../src/lib/helpdeskAccess";
+import { isSectionVisibleSync } from "../src/lib/helpdeskAccess";
 
 // --- MDA TI ---
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "supervisor", "/supervision/cronograma"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "supervisor", "/supervision/cronograma"),
   true,
   "MDA TI + supervisor ve cronograma",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "agent", "/supervision/cronograma"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "agent", "/supervision/cronograma"),
   true,
   "MDA TI + agent ve cronograma (solo lectura)",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "agent", "/supervision/calidad-operadores"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "agent", "/supervision/calidad-operadores"),
   true,
   "MDA TI + agent ve su calidad (solo la propia)",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "agent", "/supervision/asistencia"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "agent", "/supervision/asistencia"),
   false,
   "MDA TI + agent NO ve asistencia",
 );
 assert.equal(
-  isSectionVisible(
+  isSectionVisibleSync(
     "TI_GSM_MDA TI",
     "agent",
     "/supervision/asignacion-autogestiones",
@@ -32,7 +32,7 @@ assert.equal(
   "MDA TI + agent ve AGS (escritura restringida por rol)",
 );
 assert.equal(
-  isSectionVisible(
+  isSectionVisibleSync(
     "TI_GSM_MDA TI",
     "referent",
     "/supervision/asignacion-autogestiones",
@@ -41,39 +41,39 @@ assert.equal(
   "MDA TI + referent ve AGS",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "agent", "/inventario-terminales/cubics"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "agent", "/inventario-terminales/cubics"),
   true,
   "MDA TI ve la solapa cúbics",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_MDA TI", "admin", "/supervision"),
+  isSectionVisibleSync("TI_GSM_MDA TI", "admin", "/supervision"),
   true,
   "admin MDA TI ve todo",
 );
 
 // --- Mesa de Coord (equivalente a anónimo, sin importar rol) ---
 assert.equal(
-  isSectionVisible("TI_GSM_Mesa de Coord", "supervisor", "/supervision/cronograma"),
+  isSectionVisibleSync("TI_GSM_Mesa de Coord", "supervisor", "/supervision/cronograma"),
   false,
   "Mesa de Coord NO ve cronograma",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_Mesa de Coord", "team_leader", "/supervision"),
+  isSectionVisibleSync("TI_GSM_Mesa de Coord", "team_leader", "/supervision"),
   false,
   "Mesa de Coord NO ve supervisión",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_Mesa de Coord", "admin", "/admin/usuarios"),
-  false,
-  "Mesa de Coord NO tiene poderes de admin",
+  isSectionVisibleSync("TI_GSM_Mesa de Coord", "admin", "/admin/usuarios"),
+  true,
+  "Politica: admin ve todo sin importar la mesa",
 );
 assert.equal(
-  isSectionVisible("TI_GSM_Mesa de Coord", "agent", "/titulos"),
+  isSectionVisibleSync("TI_GSM_Mesa de Coord", "agent", "/titulos"),
   true,
   "Mesa de Coord ve catálogo común",
 );
 assert.equal(
-  isSectionVisible(
+  isSectionVisibleSync(
     "TI_GSM_Mesa de Coord",
     "agent",
     "/inventario-terminales/cubics",
@@ -84,12 +84,12 @@ assert.equal(
 
 // --- Usuario sin mesa asignada ---
 assert.equal(
-  isSectionVisible(null, "agent", "/titulos"),
+  isSectionVisibleSync(null, "agent", "/titulos"),
   true,
   "Sin mesa ve catálogo común",
 );
 assert.equal(
-  isSectionVisible(null, "supervisor", "/supervision/cronograma"),
+  isSectionVisibleSync(null, "supervisor", "/supervision/cronograma"),
   false,
   "Sin mesa NO ve supervisión",
 );
