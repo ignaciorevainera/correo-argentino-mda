@@ -446,11 +446,16 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
         </h2>
 
         <script is:inline define:vars={{ successMsg, errorMsg }}>
-          if (successMsg || errorMsg) {
-            window.addEventListener("load", () => {
-              if (successMsg) window.showToast?.(successMsg, "alert-success");
-              if (errorMsg) window.showToast?.(errorMsg, "alert-error");
-            });
+          // La isla server:defer se inyecta después del evento load del documento:
+          // mostrar el toast de inmediato si load ya pasó.
+          const showToastMsg = () => {
+            if (successMsg) window.showToast?.(successMsg, "alert-success");
+            if (errorMsg) window.showToast?.(errorMsg, "alert-error");
+          };
+          if (document.readyState === "complete") {
+            showToastMsg();
+          } else {
+            window.addEventListener("load", showToastMsg);
           }
         </script>
 
@@ -529,13 +534,13 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
             name="helpdesk"
             label="Mesa de ayuda"
             options={[
+              { value: "", label: "Seleccioná una mesa (obligatorio)" },
               ...helpdeskOptions.map((hd) => ({
                 value: `${hd.id}|${hd.name}`,
                 label: hd.name,
               })),
-              { value: "", label: "Sin mesa de ayuda" },
             ]}
-            helpText="Mesa de InvGate que gobierna qué secciones ve el usuario."
+            helpText="Mesa de InvGate que gobierna qué secciones ve el usuario. Obligatoria."
           />
 
           <input type="hidden" name="action" value="create" />

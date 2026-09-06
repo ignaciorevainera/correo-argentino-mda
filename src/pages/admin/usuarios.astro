@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { users, agents, schedules } from "@db/schema";
+import { users, agents, schedules, mesas } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -43,11 +43,26 @@ if (Astro.request.method === "POST") {
       helpdeskName = hdName || null;
     }
 
+    // Task B3 usa mesaRow para sanitizar participaciones
+    let mesaRow: typeof mesas.$inferSelect | undefined;
     if (!username || !password || !role || !name) {
       errorMsg = "Nombre completo, nombre de red, contraseña y rol son obligatorios.";
     } else if (!isValidRole(role)) {
       errorMsg = `Rol inválido: "${role}".`;
+    } else if (helpdeskId == null || !helpdeskName) {
+      errorMsg = "La mesa de ayuda es obligatoria: seleccioná una de la lista.";
     } else {
+      const [row] = await db.select().from(mesas).where(eq(mesas.invgateId, helpdeskId));
+      mesaRow = row;
+      if (!mesaRow || !mesaRow.active) {
+        errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
+      } else {
+        // Nombre canónico desde DB, nunca del cliente.
+        helpdeskName = mesaRow.name;
+      }
+    }
+
+    if (!errorMsg) {
       const pwdValidation = passwordSchema.safeParse(password);
       if (!pwdValidation.success) {
         errorMsg = pwdValidation.error.issues[0].message;
