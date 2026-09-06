@@ -17,7 +17,7 @@ export const PARTICIPATION_HELPDESK_NAMES: string[] = [MDA_TI_HELPDESK];
 export function mesaHasParticipaciones(
   helpdeskName: string | null | undefined,
 ): boolean {
-  const name = (helpdeskName ?? "").trim();
+  const name = (helpdeskName ?? "").trim().replace(/\s+/g, " ");
   return !!name && PARTICIPATION_HELPDESK_NAMES.includes(name);
 }
 
@@ -35,8 +35,8 @@ export function isSectionVisibleSync(
   href: string,
 ): boolean {
   const normalizedRole = normalizeRole(role);
-  const lower = href.toLowerCase().replace(/\/$/, "");
-  const mesa = (helpdeskName ?? "").trim();
+  const lower = href.toLowerCase().replace(/\/+$/, "");
+  const mesa = (helpdeskName ?? "").trim().replace(/\s+/g, " ");
 
   // Politica: el rol admin siempre tiene acceso a todo (no revocable).
   if (normalizedRole === "admin") return true;

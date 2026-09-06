@@ -36,6 +36,14 @@ describe("isSectionVisibleSync", () => {
     expect(mesaHasParticipaciones(` ${MDA_TI_HELPDESK} `)).toBe(true);
   });
 
+  it("normaliza espacios internos y slashes múltiples", () => {
+    expect(isSectionVisibleSync("TI_GSM_MDA  TI", "agent", "/supervision/cronograma")).toBe(true);
+    expect(mesaHasParticipaciones("TI_GSM_MDA  TI")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/cronograma//")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/SUPERVISION/cronograma")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/cronograma/")).toBe(true);
+  });
+
   it("mesa desconocida/null → default restrictivo (como Coord)", () => {
     expect(isSectionVisibleSync(null, "agent", "/supervision/cronograma")).toBe(false);
     expect(isSectionVisibleSync("Mesa Futura", "agent", "/supervision/cronograma")).toBe(false);
