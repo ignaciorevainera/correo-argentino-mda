@@ -34,7 +34,7 @@ de operaciones logisticas y postales.
 - **Autenticacion:** Sesion cookie-based (HMAC firmada), middleware en `src/middleware.ts`
 - **RBAC:** 5 roles en jerarquia — `agent` < `referent` < `team_leader` < `supervisor` < `admin`
 - **Testing E2E:** Playwright (`tests/`), worker 1 serial, requiere dev server en localhost:4321
-- **Deploy:** PM2 con 3 procesos (Astro SSR, ping-worker, sync-legacy-inventory)
+- **Deploy:** PM2 con 5 procesos (Astro SSR, mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links)
 
 ### Dependencias principales
 
@@ -333,19 +333,22 @@ BaseLayout (flex flex-col min-h-screen)
 | Proceso               | Puerto | Descripcion                                           |
 | --------------------- | ------ | ----------------------------------------------------- |
 | Astro SSR             | 4321   | Servidor principal (node dist/server/entry.mjs)       |
-| ping-worker           | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)   |
+| mda-ping-cubics       | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)   |
 | sync-legacy-inventory | —      | Sincroniza inventario de terminales desde PHP externo |
+| sync-users            | —      | Sincronizacion de empleados via MidPoint (cron 02:00) |
+| sync-office-links     | —      | Sincronizacion de enlaces de oficinas (cron 03:00)    |
 
 ### Scripts clave (`scripts/`)
 
-| Script                     | Descripcion                                  |
-| -------------------------- | -------------------------------------------- |
-| `auto-deploy.bat`          | git pull → npm install → build → pm2 restart |
-| `backup-db.bat`            | Copia `database/mda.db` con timestamp        |
-| `ping-worker.ts`           | Worker PM2 de ping a cubics                  |
-| `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario   |
-| `sync-users.ts`            | Sincronizacion de empleados via MidPoint     |
-| `toggle-mode.ts`           | Script de alternancia de tema light/dark     |
+| Script                     | Descripcion                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `auto-deploy.bat`          | git pull → pm2 kill → npm install → build (verify) → pm2 start |
+| `backup-db.bat`            | Copia `database/mda.db` con timestamp                     |
+| `verify-build.mjs`         | Guard post-build: valida `rootDir` en `dist/server/entry.mjs` |
+| `ping-worker.ts`           | Worker PM2 de ping a cubics                               |
+| `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario                |
+| `sync-users.ts`            | Sincronizacion de empleados via MidPoint                  |
+| `toggle-mode.ts`           | Script de alternancia de tema light/dark                  |
 
 ### Base de datos
 
@@ -365,7 +368,7 @@ BaseLayout (flex flex-col min-h-screen)
 - Sistema de autenticacion con RBAC activo y middleware de sesion.
 - Base de datos SQLite con Drizzle ORM conectada y operativa.
 - Contrato del Header global completamente implementado y cerrado (sin gaps).
-- Infraestructura PM2 con 3 procesos activa en produccion.
+- Infraestructura PM2 con 5 procesos activa en produccion.
 - Testing E2E con Playwright disponible para validacion regresiva.
 - Convenciones de codigo documentadas en este archivo y en `docs/DESIGN.md`.
 - Errores historicos y sus soluciones registrados en `docs/lessons.md`.

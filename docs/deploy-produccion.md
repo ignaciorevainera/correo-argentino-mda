@@ -179,12 +179,36 @@ El proyecto incluye `scripts\auto-deploy.bat` con los pasos para actualizar desd
 @echo off
 cd C:\Projects\correo-argentino-mda
 git pull origin master
+call pm2 kill
 call npm install
 call npm run build
-call pm2 restart all
+call pm2 start ecosystem.config.cjs
 ```
 
-Podés ejecutarlo manualmente cada vez que haya cambios, o desde un webhook de GitHub.
+`pm2 kill` corre ANTES de `npm install`: con procesos Node/PM2 vivos, Windows no permite reemplazar binarios nativos (`.node`) y deja `node_modules` inconsistente → el build genera un manifest SSR sin `rootDir` → crash loop en runtime. `npm run build` incluye el guard `scripts/verify-build.mjs` que aborta si `rootDir` falta. Ver `docs/lessons.md` (2026-09-07).
+
+### Tarea programada (Windows)
+
+| Campo          | Valor                                                                 |
+| -------------- | --------------------------------------------------------------------- |
+| Nombre         | `Auto deploy correo-argentino-mda`                                    |
+| Accion         | `C:\Projects\correo-argentino-mda\scripts\auto-deploy.bat`            |
+| WorkingDirectory | `C:\Projects\correo-argentino-mda\scripts` (directorio, NO el .bat)   |
+| Programacion   | Diaria 03:00                                                          |
+| Logon          | Password (`esté o no conectado`, usuario `otomasi`)                   |
+| Estado         | Habilitada                                                            |
+
+La tarea se re-crea por PowerShell (schtasks no edita WorkingDirectory):
+
+```powershell
+$a = New-ScheduledTaskAction -Execute "C:\Projects\correo-argentino-mda\scripts\auto-deploy.bat" -WorkingDirectory "C:\Projects\correo-argentino-mda\scripts"
+$t = New-ScheduledTaskTrigger -Daily -At 3:00AM
+$p = New-ScheduledTaskPrincipal -UserId "CORREO\otomasi" -LogonType Password -RunLevel Highest
+Register-ScheduledTask -TaskName "Auto deploy correo-argentino-mda" -Action $a -Trigger $t -Principal $p -Force
+Set-ScheduledTask -TaskName "Auto deploy correo-argentino-mda" -Password "<contrasena-otomasi>"
+```
+
+Nota: en logon no interactivo, `npm`/`pm2` deben resolverse desde el PATH del usuario (`C:\Program Files\nodejs` y `%APPDATA%\npm`); si el run no interactivo falla por esto, fijar el PATH al inicio del `.bat`.
 
 ---
 
