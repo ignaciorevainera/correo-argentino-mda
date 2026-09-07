@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { db } from "../../src/db/index";
 import { users, sessions, feedback, auditLogs } from "../../src/db/schema";
@@ -120,7 +121,8 @@ test.describe("Feedback and Bug Reporting System", () => {
     // 2. Cargar página principal
     await page.goto("/");
 
-    // 3. Abrir el modal de feedback
+    // 3. Abrir el menu de usuario y luego el modal de feedback
+    await page.locator("nav.navbar .dropdown [role='button']").first().click();
     const openModalBtn = page.locator("[data-open-feedback-modal]").first();
     await expect(openModalBtn).toBeVisible();
     await openModalBtn.click();
@@ -137,7 +139,7 @@ test.describe("Feedback and Bug Reporting System", () => {
     );
 
     // 5. Enviar el formulario
-    const submitBtn = page.locator('#suggestion-form button[type="submit"]');
+    const submitBtn = page.locator("#btn-submit-sugerencia");
     await submitBtn.click();
 
     // 6. Verificar toast de éxito y que el modal se cierre

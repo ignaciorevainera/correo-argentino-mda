@@ -24,6 +24,13 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      watch: {
+        // Evita recargas del dev server mientras Playwright escribe reportes
+        // (provoca islands re-render a mitad de test -> flakiness).
+        ignored: ["**/playwright-report/**", "**/test-results/**"],
+      },
+    },
     optimizeDeps: {
       rolldownOptions: {
         transform: {

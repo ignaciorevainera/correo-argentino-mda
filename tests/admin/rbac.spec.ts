@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { db } from "../../src/db/index";
-import { users, sessions } from "../../src/db/schema";
+import { users, sessions, mesas } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
 
@@ -26,6 +26,31 @@ interface TestUser {
 const testUsers: Record<string, TestUser> = {};
 
 test.beforeAll(async () => {
+  // Los usuarios de prueba necesitan una mesa activa (fail-closed):
+  // sin mesa, isSectionVisibleSync cae al default restrictivo y bloquea
+  // /supervision para roles que deberian tener acceso (MDA TI).
+  const mesaName = "TI_GSM_MDA TI";
+  let [mesa] = await db
+    .select({ invgateId: mesas.invgateId })
+    .from(mesas)
+    .where(eq(mesas.name, mesaName));
+  if (!mesa) {
+    await db
+      .insert(mesas)
+      .values({
+        invgateId: 910001,
+        name: mesaName,
+        displayName: null,
+        active: true,
+        lastSyncedAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing();
+    [mesa] = await db
+      .select({ invgateId: mesas.invgateId })
+      .from(mesas)
+      .where(eq(mesas.name, mesaName));
+  }
+
   const roles = ["agent", "referent", "team_leader", "supervisor", "admin"];
   for (const role of roles) {
     const username = `${role}_test_e2e_${Date.now()}`;
@@ -38,6 +63,8 @@ test.beforeAll(async () => {
         username,
         password: "hashed_fake_password",
         role,
+        helpdeskId: mesa?.invgateId ?? null,
+        helpdeskName: mesa ? mesaName : null,
       })
       .returning({ id: users.id });
 
