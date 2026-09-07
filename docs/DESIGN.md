@@ -11,7 +11,7 @@ Generado el 2026-04-10. Ultima actualizacion: 2026-07-06.
 - Interactividad: React islands con `@astrojs/react`, `theme-change` para toggle de tema
 - Base de datos: SQLite con Drizzle ORM + `better-sqlite3`
 - Autenticacion: Sesion cookie-based HMAC + RBAC (5 roles: agent, referent, team_leader, supervisor, admin)
-- Deploy: Node standalone con PM2 (3 procesos: Astro SSR, ping-worker, sync-legacy-inventory)
+- Deploy: Node standalone con PM2 (5 procesos: Astro SSR, mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links)
 
 ## Contexto de producto
 

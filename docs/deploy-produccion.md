@@ -198,15 +198,15 @@ call pm2 start ecosystem.config.cjs
 | Logon          | Password (`esté o no conectado`, usuario `otomasi`)                   |
 | Estado         | Habilitada                                                            |
 
-La tarea se re-crea por PowerShell (schtasks no edita WorkingDirectory):
+La tarea se re-crea por PowerShell (schtasks no edita WorkingDirectory; el módulo ScheduledTasks viejo no acepta `-LogonType` — con `-User`/`-Password` el logon queda tipo Password):
 
 ```powershell
 $a = New-ScheduledTaskAction -Execute "C:\Projects\correo-argentino-mda\scripts\auto-deploy.bat" -WorkingDirectory "C:\Projects\correo-argentino-mda\scripts"
 $t = New-ScheduledTaskTrigger -Daily -At 3:00AM
-$p = New-ScheduledTaskPrincipal -UserId "CORREO\otomasi" -LogonType Password -RunLevel Highest
-Register-ScheduledTask -TaskName "Auto deploy correo-argentino-mda" -Action $a -Trigger $t -Principal $p -Force
-Set-ScheduledTask -TaskName "Auto deploy correo-argentino-mda" -Password "<contrasena-otomasi>"
+Register-ScheduledTask -TaskName "Auto deploy correo-argentino-mda" -Action $a -Trigger $t -User "CORREO\otomasi" -Password "<contrasena-otomasi>" -RunLevel Highest -Force
 ```
+
+Si `-RunLevel` tampoco existe en el módulo, omitirlo (queda Limited — suficiente para npm/pm2 del perfil usuario).
 
 Nota: en logon no interactivo, `npm`/`pm2` deben resolverse desde el PATH del usuario (`C:\Program Files\nodejs` y `%APPDATA%\npm`); si el run no interactivo falla por esto, fijar el PATH al inicio del `.bat`.
 

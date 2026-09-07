@@ -21,7 +21,7 @@ Cómo se conectan las piezas del sistema, qué hace cada una y por qué están d
            └─────────────────────┘
                         ↓
            ┌─────────────────────┐
-           │  PM2 (3 procesos)   │
+           │  PM2 (5 procesos)   │
            └─────────────────────┘
 ```
 
@@ -106,11 +106,13 @@ Carpeta con ~44 módulos. Se dividen en:
 ```
 ecosystem.config.cjs
 ├── correo-argentino-mda  → Astro SSR (puerto 4321)
-├── ping-worker           → Ping ICMP a terminales (batch 5→3, cada 3 min)
-└── sync-legacy-inventory → Sincroniza inventario desde PHP externo (2×/día)
+├── mda-ping-cubics       → Ping ICMP a cubics (batch 5→3, cada 3 min)
+├── sync-legacy-inventory → Sincroniza inventario desde PHP externo (2×/día)
+├── sync-users            → Sincronizacion de empleados via MidPoint (diario 02:00)
+└── sync-office-links     → Sincronizacion de enlaces de oficinas (diario 03:00)
 ```
 
-Los workers son scripts Node.js independientes. `ping-worker` y `sync-legacy-inventory` no pasan por Astro ni comparten puerto.
+Los workers son scripts Node.js independientes. `mda-ping-cubics` y los syncs no pasan por Astro ni comparten puerto.
 
 ---
 
