@@ -78,7 +78,13 @@ Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
 ### Mecanismos de control
 
 - **Middleware:** `src/middleware.ts` — verifica sesion activa via cookie HMAC, adjunta `locals.user` y `locals.role`
-- **Rutas protegidas:** Config en `src/lib/rbac.ts` — `routePermissions` y `hasPermission(href, role)`
+- **Rutas protegidas (rol):** `src/lib/rbac.ts` — `routePermissions` (whitelist default-deny, incluye `/_actions`) y `hasPermission(href, role)`
+- **Visibilidad por mesa (fuente unica):** `isSectionVisibleSync(helpdeskName, role, href)` en `src/lib/helpdeskAccess.ts` — sincronica, sin capa DB de permisos (el sistema DB routeAccess/moduleAccess fue eliminado). Usada por middleware, sidebar y dashboard. Admin short-circuit a allow.
+- **Politica admin:** `/admin/usuarios`, `/admin/permisos`, `/admin/feedback`, `/admin/auditoria` admin-only por whitelist hardcoded.
+- **Mesa obligatoria:** al crear usuario se exige mesa activa; nombre canonico desde `mesas.name`. Mesa inactiva/borrada/desconocida → fail-closed (`resolveSessionMesa`): usuario queda "sin mesa" (solo paginas comunes) hasta reasignacion.
+- **Participaciones:** solo mesas en `PARTICIPATION_HELPDESK_NAMES` (hoy MDA TI), via `mesaHasParticipaciones`. El supervisor no figura: `enCronograma` forzado a `false` server-side.
+- **`/admin/permisos`:** solo mesas — sync InvGate (CSRF + rate-limit, devuelve `affectedUsers` con banner de reasignacion en `/admin/usuarios`) + resumen read-only de visibilidad.
+- **Base de conocimiento:** `/base-conocimiento` ALL_ROLES; el contenido futuro se filtrara por `helpdeskId`.
 - **Permisos por modulo:** `src/lib/rolesMatrix.ts` — `isAllowed(feature, role)`: 16 features con read/write/viewAll/viewComments/viewTotals
 - **API routes:** `requireWriteAccess(locals)` / `requireReadAccess(locals)` desde `src/lib/rbac-middleware.ts`
 - **Template checks:** `can(user.role, "admin")` desde `@lib/roleConfig.ts` o `hasPermission(href, userRole)` desde `@lib/rbac.ts`
@@ -287,6 +293,7 @@ BaseLayout (flex flex-col min-h-screen)
 | `/admin/auditoria`           | Logs de auditoria                      |
 | `/admin/aplicativos`         | CRUD de aplicativos del catalogo       |
 | `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate           |
+| `/admin/permisos`            | Mesas: sync InvGate + resumen read-only de visibilidad |
 | `/admin/feedback`            | Formulario de feedback                 |
 
 ### Otras rutas
@@ -296,6 +303,7 @@ BaseLayout (flex flex-col min-h-screen)
 | `/login`   | Inicio de sesion  |
 | `/logout`  | Cierre de sesion  |
 | `/profile` | Perfil de usuario |
+| `/base-conocimiento` | Base de conocimiento por mesa (ALL_ROLES) |
 
 ---
 
@@ -354,6 +362,8 @@ BaseLayout (flex flex-col min-h-screen)
 - Config: `drizzle.config.ts` (sqlite dialect, schema `./src/db/schema.ts`, out `./drizzle`)
 - Conexion: `src/db/index.ts` via `better-sqlite3`
 - Despues de cambios de schema, ejecutar `npm run db:push`
+- Deploy en prod: correr `scripts/align-db-to-schema.mts` (hace backup) antes del restart de PM2; `drizzle-kit push` debe quedar limpio ("No changes detected")
+- Las tablas de permisos DB (routes, modules, route_access, module_access, permission_audit_batches) fueron eliminadas de schema y DB
 - Para explorar datos: `npm run db:studio`
 
 ---
