@@ -14,7 +14,8 @@
 - `npm run build` — Astro SSR build (`dist/`)
 - `npm run db:push` — push Drizzle schema to SQLite
 - `npm run db:studio` — Drizzle Studio GUI
-- **After `git pull` that changes `package.json`/`package-lock.json` (e.g. Astro upgrades): always run `npm install` before `npm run build`.** Stale/mismatched `node_modules` builds a broken `dist/server/entry.mjs` where the Astro SSR manifest gets `rootDir: undefined`, crashing at startup with `TypeError: Invalid URL` in `deserializeManifest`. `npm install` + rebuild fixes it; repo code is fine.
+- **Never run `npm install`/`npm audit fix` while PM2/Node processes are alive.** On Windows, native `.node` modules in use (e.g. `better-sqlite3.node`) can't be replaced (`EBUSY/EPERM`) → `node_modules` stays inconsistent → the next build ships a broken SSR manifest. `pm2 kill` (or stop the processes) before installing.
+- **Stale/mismatched `node_modules`** builds a broken `dist/server/entry.mjs` where the SSR manifest gets `rootDir: undefined`, crashing at startup with `TypeError: Invalid URL` (`input: 'undefined'`) in `deserializeManifest`. `npm run build` now runs `scripts/verify-build.mjs` after `astro build`, failing the build if `rootDir` is missing. Fix when it trips: stop Node, delete `node_modules`, `npm ci`, rebuild. See `docs/lessons.md` (2026-09-07) and `scripts/auto-deploy.bat`.
 
 ## Testing
 
@@ -90,6 +91,6 @@
 
 ## PM2 production
 
-- `ecosystem.config.cjs` — 3 processes: Astro SSR (port 4321), ping-worker, sync-legacy-inventory
-- `scripts/auto-deploy.bat` — git pull → npm install → build → pm2 restart
+- `ecosystem.config.cjs` — 5 processes: Astro SSR (port 4321), mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links
+- `scripts/auto-deploy.bat` — git pull → pm2 kill → npm install → build (verify-build) → pm2 start
 - `scripts/backup-db.bat` — copies `database/mda.db` to backup directory
