@@ -307,9 +307,15 @@ if (Astro.request.method === "POST") {
       const parsedId = Number(idStr);
       helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
       helpdeskName = name || null;
+      const [row] = await db.select().from(mesas).where(eq(mesas.invgateId, helpdeskId));
+      if (!row || !row.active) {
+        errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
+      } else {
+        helpdeskName = row.name;
+      }
     }
 
-    if (userId && newRole && isValidRole(newRole)) {
+    if (userId && newRole && isValidRole(newRole) && !errorMsg) {
       try {
         const [targetUser] = await db
           .select({
