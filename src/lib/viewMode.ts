@@ -53,3 +53,19 @@ export function getViewColumns(): ViewColumns {
 export function setViewColumns(columns: ViewColumns): void {
   safeSetItem(VIEW_COLUMNS_KEY, String(columns));
 }
+
+export function getHideDescriptions(): boolean {
+  try {
+    return localStorage.getItem("enlacesHideDescriptions") === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function setHideDescriptions(hide: boolean): void {
+  try {
+    localStorage.setItem("enlacesHideDescriptions", String(hide));
+  } catch {
+    // silently fail (private browsing)
+  }
+}

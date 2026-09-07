@@ -15,6 +15,7 @@ import type {
   CategoryViewModel,
 } from "@pages/recursos/_components/types";
 import { decrypt } from "@lib/encryption";
+import { getHideDescriptions } from "@/lib/viewMode";
 
 const isAuthenticated = Astro.locals.user && Astro.locals.user.id !== 0;
 
@@ -71,12 +72,11 @@ const cleanBase = getCleanBase();
 
   <SearchBar
     id="important-links-search"
-    label="Buscar enlaces y recursos"
     placeholder="Buscar por nombre, URL o descripción"
     class="max-w-md"
   />
 
-  <div class="flex flex-wrap items-center gap-4" data-view-controls>
+  <div class="flex items-center gap-4" data-view-controls>
     <div role="tablist" class="tabs tabs-boxed bg-base-200/50" aria-label="Tamaño de íconos">
       <button
         type="button"
@@ -144,6 +144,19 @@ const cleanBase = getCleanBase();
         <Icon name="boxicons:columns-4" size={16} aria-hidden="true" />
       </button>
     </div>
+    <label
+      class="flex items-center gap-2 cursor-pointer select-none"
+      title="Ocultar descripciones de enlaces"
+    >
+      <input
+        type="checkbox"
+        name="hide-descriptions"
+        checked={getHideDescriptions()}
+        class="checkbox checkbox-primary"
+        id="hide-descriptions-toggle"
+      />
+      <span>Ocultar descripciones</span>
+    </label>
   </div>
 
   <AnnouncementBanner
@@ -244,6 +257,11 @@ const cleanBase = getCleanBase();
   [data-link-item] .icon-container svg {
     width: var(--link-icon-size);
     height: var(--link-icon-size);
+  }
+
+  /* Hide descriptions when toggle is enabled */
+  #important-links-grid.hide-descriptions [class*="text-base-content/60"] {
+    display: none !important;
   }
 </style>
 
@@ -421,6 +439,23 @@ const cleanBase = getCleanBase();
       }
     });
   });
+
+  initViewColumns();
+
+  // Description hide toggle
+  const hideDescriptionsToggle = document.getElementById(
+    "hide-descriptions-toggle",
+  ) as HTMLInputElement | null;
+  if (hideDescriptionsToggle) {
+    hideDescriptionsToggle.addEventListener("change", () => {
+      const hideDescriptions = hideDescriptionsToggle.checked;
+      localStorage.setItem("enlacesHideDescriptions", String(hideDescriptions));
+      const grid = document.getElementById("important-links-grid") as HTMLElement | null;
+      if (grid) {
+        grid.classList.toggle("hide-descriptions", hideDescriptions);
+      }
+    });
+  }
 
   initViewColumns();
 </script>
