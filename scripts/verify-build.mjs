@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 const entryPath = process.argv[2] ?? "dist/server/entry.mjs";
 
@@ -7,8 +8,20 @@ if (!existsSync(entryPath)) {
   process.exit(1);
 }
 
-const source = readFileSync(entryPath, "utf8");
-const match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+let source = readFileSync(entryPath, "utf8");
+let match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+
+// entry.mjs puede ser un stub que re-exporta desde chunks/server_xxx.mjs
+if (!match) {
+  const reExportMatch = source.match(/from\s+['"]([^'"]+)['"]/);
+  if (reExportMatch) {
+    const chunkPath = resolve(dirname(entryPath), reExportMatch[1]);
+    if (existsSync(chunkPath)) {
+      source = readFileSync(chunkPath, "utf8");
+      match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+    }
+  }
+}
 
 if (!match || !match[1].trim()) {
   console.error(`[verify-build] ERROR: manifest SSR sin \`rootDir\` valido en ${entryPath}.`);

@@ -1,0 +1,305 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+import { db } from "@db/index";
+import { agents } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+const cleanBase = getCleanBase();
+const { id } = Astro.params;
+const agentId = parseInt(id || "");
+
+if (isNaN(agentId)) {
+  return Astro.redirect(`${cleanBase}supervision/asistencia/estadisticas`);
+}
+
+const agent = await db
+  .select()
+  .from(agents)
+  .where(eq(agents.id, agentId))
+  .limit(1)
+  .then((res) => res[0]);
+
+if (!agent) {
+  return Astro.redirect(`${cleanBase}supervision/asistencia/estadisticas`);
+}
+
+const currentYear = new Date().getFullYear();
+const years = [currentYear, currentYear - 1, currentYear - 2];
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <!-- Navegación superior -->
+    <a
+      href={`${cleanBase}supervision/asistencia/estadisticas`}
+      class="btn btn-ghost btn-sm mb-3 w-fit pl-2 transition-colors duration-200"
+    >
+      <Icon name="boxicons:chevron-left" size={16} />
+      Volver a Estadísticas
+    </a>
+
+    <!-- Header del Operador -->
+    <div
+      class="bg-base-100 border-base-300 mb-6 flex flex-col gap-4 rounded-2xl border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div class="flex items-center gap-4">
+        <div
+          class="bg-secondary/10 text-secondary flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-black"
+        >
+          {agent.avatarInitials || agent.name.substring(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base-content text-xl font-black">{agent.name}</h1>
+            <span class="badge badge-sm badge-outline font-bold">ID #{agent.id}</span>
+          </div>
+          <p class="text-base-content/60 text-xs font-medium">
+            Usuario: <span class="font-bold">{agent.username || "S/D"}</span> |
+            Sede: <span class="font-bold">{agent.location}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Métricas clave del período seleccionado (siempre sobre el período completo, no filtrado por estado) -->
+      <p class="text-xxs text-base-content/30 font-medium sm:hidden mb-1">Métricas del período completo</p>
+      <div class="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-3">
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Puntualidad</span
+          >
+          <span class="text-secondary text-lg font-black" id="kpi-rate">--%</span>
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Tardanzas</span
+          >
+          <span class="text-warning text-lg font-black" id="kpi-lates">--</span>
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Ausencias</span
+          >
+          <span class="text-lg font-black text-violet-500" id="kpi-absences">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div
+      class="bg-base-100 border-base-300 mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 shadow-sm"
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Selector Año -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Año:</span>
+          <select
+            id="filter-year"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            {years.map((y) => <option value={y}>{y}</option>)}
+          </select>
+        </div>
+
+        <!-- Selector Mes -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Mes:</span>
+          <select
+            id="filter-month"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            <option value="all">Todo el año (Consolidado)</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+
+        <!-- Selector Estado -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Estado:</span>
+          <select
+            id="filter-status"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="tardanza">Llegadas Tarde</option>
+            <option value="ausente">Ausencias / Licencias</option>
+            <option value="incumplio">Incumplió</option>
+            <option value="cumplio">Cumplió</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Indicador contador -->
+      <span
+        id="result-count"
+        class="badge badge-sm badge-ghost text-base-content/60 font-bold"
+      >
+        Cargando registros...
+      </span>
+    </div>
+
+    <!-- Tabla Cronológica de Registros -->
+    <div
+      class="bg-base-100 border-base-300 overflow-hidden rounded-2xl border shadow-sm"
+    >
+      <div class="overflow-x-auto">
+        <table class="table w-full">
+          <thead>
+            <tr class="bg-base-200/50 text-base-content/60 text-xs uppercase">
+              <th>Fecha</th>
+              <th>Horario Planificado</th>
+              <th>Entrada Real</th>
+              <th>Estado / Cumplimiento</th>
+              <th>Observación / Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody" class="text-xs">
+            <tr>
+              <td colspan="5" class="py-12 text-center font-bold">
+                <span class="loading loading-spinner loading-md text-secondary"></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<script is:inline define:vars={{ agentId, cleanBase }}>
+  const yearSelect = document.getElementById("filter-year");
+  const monthSelect = document.getElementById("filter-month");
+  const statusSelect = document.getElementById("filter-status");
+  const tbody = document.getElementById("history-tbody");
+  const countBadge = document.getElementById("result-count");
+
+  const kpiRate = document.getElementById("kpi-rate");
+  const kpiLates = document.getElementById("kpi-lates");
+  const kpiAbsences = document.getElementById("kpi-absences");
+
+  const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, "0");
+  if (monthSelect) monthSelect.value = currentMonthStr;
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function getBadgeClass(cumplimiento, ausencia) {
+    if (ausencia)
+      return "badge-ghost border-violet-500/40 text-violet-600 dark:text-violet-400 bg-violet-500/10";
+    if (cumplimiento === "Cumplió")
+      return "badge-ghost border-emerald-500/40 text-emerald-600 bg-emerald-500/10";
+    if (cumplimiento === "Llegada Tarde")
+      return "badge-ghost border-amber-500/40 text-amber-600 bg-amber-500/10";
+    if (cumplimiento === "Incumplió")
+      return "badge-ghost border-error/40 text-error bg-error/10";
+    return "badge-ghost text-base-content/50";
+  }
+
+  async function fetchHistory() {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center py-12">
+          <span class="loading loading-spinner loading-md text-secondary"></span>
+        </td>
+      </tr>
+    `;
+
+    const year = yearSelect.value;
+    const month = monthSelect.value;
+    const status = statusSelect.value;
+
+    try {
+      const res = await fetch(
+        `${cleanBase}api/asistencia/operador/${agentId}?year=${year}&month=${month}&status=${status}`,
+      );
+      if (!res.ok) throw new Error("Error al consultar datos");
+      const data = await res.json();
+
+      if (kpiRate) kpiRate.textContent = `${data.summary.punctualityRate}%`;
+      if (kpiLates) kpiLates.textContent = String(data.summary.lates);
+      if (kpiAbsences) kpiAbsences.textContent = String(data.summary.absences);
+
+      if (countBadge)
+        countBadge.textContent = `${data.records.length} registros`;
+
+      if (data.records.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-12 text-base-content/40 font-bold">
+              No se encontraron registros con los filtros seleccionados.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = data.records
+        .map((row) => {
+          const badgeClass = getBadgeClass(row.cumplimiento, row.ausencia);
+          const statusText = escapeHtml(row.ausencia || row.cumplimiento);
+          const [y, m, d] = row.date.split("-");
+          const dateFmt = `${d}/${m}/${y}`;
+          const detail = escapeHtml(row.detalle || row.motivoLoguin || "-");
+          const detailTitle = escapeHtml(row.detalle || "");
+
+          return `
+          <tr class="hover:bg-base-200/40 transition-colors">
+            <td class="font-black">${dateFmt}</td>
+            <td class="font-medium text-base-content/80">${escapeHtml(row.horarioEstipulado)}</td>
+            <td class="font-bold ${row.cumplimiento === "Llegada Tarde" ? "text-amber-500" : ""}">${escapeHtml(row.entradaReal)}</td>
+            <td>
+              <span class="badge badge-sm font-black ${badgeClass}">${statusText}</span>
+            </td>
+            <td class="text-base-content/80 text-sm font-medium max-w-xs truncate" title="${detailTitle}">
+              ${detail}
+            </td>
+          </tr>
+        `;
+        })
+        .join("");
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-12 text-error font-bold">
+            Ocurrió un error al cargar los datos históricos.
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  yearSelect?.addEventListener("change", fetchHistory);
+  monthSelect?.addEventListener("change", fetchHistory);
+  statusSelect?.addEventListener("change", fetchHistory);
+
+  fetchHistory();
+</script>
