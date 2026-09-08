@@ -151,18 +151,51 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         </div>
       </div>
 
-      <!-- Indicador contador -->
-      <span
-        id="result-count"
-        class="badge badge-sm badge-ghost text-base-content/60 font-bold"
-      >
-        Cargando registros...
-      </span>
+      <div class="flex items-center gap-3">
+        <!-- Indicador contador -->
+        <span
+          id="result-count"
+          class="badge badge-sm badge-ghost text-base-content/60 font-bold"
+        >
+          Cargando registros...
+        </span>
+
+        <!-- Selector de Vista -->
+        <div class="join border border-base-300 rounded-xl overflow-hidden shadow-xs">
+          <button id="view-calendar-btn" class="join-item btn btn-xs btn-active gap-1 font-bold" title="Vista Calendario">
+            <Icon name="boxicons:calendar" size={14} />
+            Calendario
+          </button>
+          <button id="view-table-btn" class="join-item btn btn-xs btn-ghost gap-1 font-bold text-base-content/60" title="Vista Tabla">
+            <Icon name="boxicons:table" size={14} />
+            Tabla
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vista Calendario Heatmap -->
+    <div id="calendar-view-container" class="w-full flex flex-col gap-3">
+      <!-- Cabecera de días Lunes a Domingo -->
+      <div class="hidden sm:grid grid-cols-7 gap-2 text-center text-xxs font-black tracking-wider uppercase text-base-content/50 px-1">
+        <div>Lunes</div>
+        <div>Martes</div>
+        <div>Miércoles</div>
+        <div>Jueves</div>
+        <div>Viernes</div>
+        <div>Sábado</div>
+        <div>Domingo</div>
+      </div>
+      <!-- Grilla de Celdas -->
+      <div id="calendar-grid" class="grid grid-cols-2 sm:grid-cols-7 gap-2 w-full">
+        <!-- Celdas generadas dinámicamente -->
+      </div>
     </div>
 
     <!-- Tabla Cronológica de Registros -->
     <div
-      class="bg-base-100 border-base-300 overflow-hidden rounded-2xl border shadow-sm"
+      id="table-view-container"
+      class="hidden bg-base-100 border-base-300 overflow-hidden rounded-2xl border shadow-sm"
     >
       <div class="overflow-x-auto">
         <table class="table w-full">
@@ -185,6 +218,49 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         </table>
       </div>
     </div>
+
+    <!-- Drawer Lateral de Detalle de Jornada -->
+    <div id="day-drawer-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden transition-opacity duration-200"></div>
+    <div id="day-drawer" class="fixed right-0 top-0 h-full w-full max-w-sm bg-base-100 border-l border-base-300 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+      <!-- Drawer Header -->
+      <div class="flex items-center justify-between p-4 border-b border-base-200">
+        <div>
+          <span class="text-xxs font-black uppercase tracking-wider text-base-content/40" id="drawer-dayname">Lunes</span>
+          <h3 class="text-base font-black text-base-content" id="drawer-date">14 de Agosto, 2026</h3>
+        </div>
+        <button id="drawer-close-btn" class="btn btn-sm btn-ghost btn-circle">✕</button>
+      </div>
+      <!-- Drawer Body -->
+      <div class="p-5 flex-1 overflow-y-auto space-y-4" id="drawer-body">
+        <!-- Estado y Badge -->
+        <div id="drawer-status-badge"></div>
+        <!-- Comparativa Horaria -->
+        <div class="bg-base-200/50 rounded-xl p-4 border border-base-300/40 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Horario Estipulado:</span>
+            <span class="font-black text-base-content" id="drawer-horario">08:00 - 17:00</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Entrada Real:</span>
+            <span class="font-black" id="drawer-entrada">08:19</span>
+          </div>
+          <div class="flex justify-between items-center text-xs border-t border-base-300/40 pt-2" id="drawer-delay-container">
+            <span class="text-base-content/50 font-bold">Desvío Puntualidad:</span>
+            <span class="font-black text-warning" id="drawer-delay">+19 min</span>
+          </div>
+        </div>
+        <!-- Observación / Detalle -->
+        <div class="bg-base-200/50 rounded-xl p-4 border border-base-300/40 space-y-1.5" id="drawer-comment-container">
+          <span class="text-xxs font-black uppercase tracking-wider text-base-content/40">Observaciones</span>
+          <p class="text-xs font-medium text-base-content/80 leading-relaxed" id="drawer-comment">-</p>
+        </div>
+        <!-- Enlace a Control Diario -->
+        <a id="drawer-goto-daily" href="#" class="btn btn-sm btn-outline btn-secondary w-full gap-2 mt-4 font-bold">
+          <Icon name="boxicons:arrow-up-right" size={14} />
+          Abrir en Control Diario
+        </a>
+      </div>
+    </div>
   </PageContainer>
 </BaseLayout>
 
@@ -199,12 +275,31 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const kpiLates = document.getElementById("kpi-lates");
   const kpiAbsences = document.getElementById("kpi-absences");
 
+  const viewCalendarBtn = document.getElementById("view-calendar-btn");
+  const viewTableBtn = document.getElementById("view-table-btn");
+  const calendarViewContainer = document.getElementById("calendar-view-container");
+  const tableViewContainer = document.getElementById("table-view-container");
+  const calendarGrid = document.getElementById("calendar-grid");
+
+  const drawer = document.getElementById("day-drawer");
+  const drawerBackdrop = document.getElementById("day-drawer-backdrop");
+  const drawerCloseBtn = document.getElementById("drawer-close-btn");
+  const drawerDayname = document.getElementById("drawer-dayname");
+  const drawerDate = document.getElementById("drawer-date");
+  const drawerStatusBadge = document.getElementById("drawer-status-badge");
+  const drawerHorario = document.getElementById("drawer-horario");
+  const drawerEntrada = document.getElementById("drawer-entrada");
+  const drawerDelayContainer = document.getElementById("drawer-delay-container");
+  const drawerDelay = document.getElementById("drawer-delay");
+  const drawerComment = document.getElementById("drawer-comment");
+  const drawerGotoDaily = document.getElementById("drawer-goto-daily");
+
   const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, "0");
   if (monthSelect) monthSelect.value = currentMonthStr;
 
   function escapeHtml(str) {
     if (!str) return "";
-    return str
+    return String(str)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -223,6 +318,346 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     return "badge-ghost text-base-content/50";
   }
 
+  // 1. Cálculo de desvío en minutos
+  function getDelayMinutes(entradaReal, horarioEstipulado) {
+    if (
+      !entradaReal ||
+      !horarioEstipulado ||
+      entradaReal === "--:--" ||
+      horarioEstipulado === "--:--"
+    ) {
+      return null;
+    }
+    const [eh, em] = entradaReal.split(":").map(Number);
+    if (isNaN(eh) || isNaN(em)) return null;
+
+    const clean = horarioEstipulado.toLowerCase().replace(/\s+/g, "");
+    const match = clean.match(/^(\d{1,2})(?::(\d{2}))?/);
+    if (!match) return null;
+    const sh = parseInt(match[1], 10);
+    const sm = match[2] ? parseInt(match[2], 10) : 0;
+
+    const realMinutes = eh * 60 + em;
+    const scheduledMinutes = sh * 60 + sm;
+    return realMinutes - scheduledMinutes;
+  }
+
+  // 2. Lógica de cambio de vista [Calendario | Tabla]
+  let currentView = "calendar";
+
+  function setView(view) {
+    if (view === "calendar" && monthSelect?.value === "all") {
+      view = "table";
+    }
+    currentView = view;
+
+    if (currentView === "calendar") {
+      calendarViewContainer?.classList.remove("hidden");
+      tableViewContainer?.classList.add("hidden");
+
+      viewCalendarBtn?.classList.add("btn-active");
+      viewCalendarBtn?.classList.remove("btn-ghost", "text-base-content/60");
+
+      viewTableBtn?.classList.remove("btn-active");
+      viewTableBtn?.classList.add("btn-ghost", "text-base-content/60");
+    } else {
+      calendarViewContainer?.classList.add("hidden");
+      tableViewContainer?.classList.remove("hidden");
+
+      viewCalendarBtn?.classList.remove("btn-active");
+      viewCalendarBtn?.classList.add("btn-ghost", "text-base-content/60");
+
+      viewTableBtn?.classList.add("btn-active");
+      viewTableBtn?.classList.remove("btn-ghost", "text-base-content/60");
+    }
+  }
+
+  viewCalendarBtn?.addEventListener("click", () => setView("calendar"));
+  viewTableBtn?.addEventListener("click", () => setView("table"));
+
+  function handleMonthChange() {
+    if (monthSelect?.value === "all") {
+      if (viewCalendarBtn) {
+        viewCalendarBtn.setAttribute("disabled", "true");
+        viewCalendarBtn.classList.add("opacity-50", "pointer-events-none");
+        viewCalendarBtn.title = "Seleccione un mes específico para ver el calendario";
+      }
+      setView("table");
+    } else {
+      if (viewCalendarBtn) {
+        viewCalendarBtn.removeAttribute("disabled");
+        viewCalendarBtn.classList.remove("opacity-50", "pointer-events-none");
+        viewCalendarBtn.title = "Vista Calendario";
+      }
+      setView("calendar");
+    }
+  }
+
+  // 3. Renderizado de Grilla Calendario Heatmap
+  function renderCalendar(records, year, month) {
+    if (!calendarGrid) return;
+    calendarGrid.innerHTML = "";
+
+    if (month === "all") {
+      calendarGrid.innerHTML = `
+        <div class="col-span-full py-12 text-center text-xs font-bold text-base-content/50">
+          La vista de calendario requiere seleccionar un mes específico.
+        </div>
+      `;
+      return;
+    }
+
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10);
+    if (isNaN(yearNum) || isNaN(monthNum)) return;
+
+    const totalDays = new Date(yearNum, monthNum, 0).getDate();
+    // Offset Lunes a Domingo (Lunes=0..Domingo=6)
+    const firstDayIndex = (new Date(yearNum, monthNum - 1, 1).getDay() + 6) % 7;
+
+    const recordsByDate = new Map();
+    if (Array.isArray(records)) {
+      records.forEach((r) => recordsByDate.set(r.date, r));
+    }
+
+    // Celdas de padding para días del mes anterior en pantallas sm:
+    for (let p = 0; p < firstDayIndex; p++) {
+      const padCell = document.createElement("div");
+      padCell.className =
+        "hidden sm:block min-h-[95px] rounded-xl border border-dashed border-base-300/30 bg-base-200/20 opacity-30 pointer-events-none";
+      calendarGrid.appendChild(padCell);
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const dayNamesAbbr = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+    // Renderizado celdas 1..totalDays
+    for (let day = 1; day <= totalDays; day++) {
+      const dayStr = String(day).padStart(2, "0");
+      const monthStr = String(monthNum).padStart(2, "0");
+      const dateStr = `${yearNum}-${monthStr}-${dayStr}`;
+      const log = recordsByDate.get(dateStr) || null;
+
+      const cellDate = new Date(yearNum, monthNum - 1, day);
+      const dayOfWeek = (cellDate.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+      const dayAbbr = dayNamesAbbr[dayOfWeek];
+      const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+      const isToday = dateStr === todayStr;
+
+      let schedDisplay = "--:--";
+      if (log && log.horarioEstipulado && log.horarioEstipulado !== "--:--") {
+        schedDisplay = log.horarioEstipulado;
+      } else if (isWeekend) {
+        schedDisplay = "Franco";
+      }
+
+      let centerHtml = "";
+      let cellBgClass = "bg-base-100 hover:bg-base-200/60 border-base-300";
+
+      if (log) {
+        if (log.ausencia) {
+          cellBgClass = "bg-violet-500/5 hover:bg-violet-500/10 border-violet-500/30";
+          centerHtml = `
+            <div class="my-auto py-1 w-full">
+              <span class="badge badge-xs font-black border-violet-500/40 text-violet-600 dark:text-violet-400 bg-violet-500/10 truncate max-w-full block text-center" title="${escapeHtml(log.ausencia)}">
+                ${escapeHtml(log.ausencia)}
+              </span>
+            </div>
+          `;
+        } else if (log.cumplimiento === "Llegada Tarde") {
+          cellBgClass = "bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/30";
+          const delay = getDelayMinutes(log.entradaReal, log.horarioEstipulado);
+          const delayBadge = delay && delay > 0 ? `+${delay} min` : "Tardanza";
+          centerHtml = `
+            <div class="flex flex-col items-start gap-0.5 my-auto py-1">
+              <span class="badge badge-xs font-black badge-warning text-warning-content shadow-2xs px-1.5 py-0.5">
+                ${delayBadge}
+              </span>
+              <span class="text-xs font-black text-warning pl-0.5">${escapeHtml(log.entradaReal)}</span>
+            </div>
+          `;
+        } else if (log.cumplimiento === "Incumplió") {
+          cellBgClass = "bg-error/5 hover:bg-error/10 border-error/30";
+          centerHtml = `
+            <div class="my-auto py-1">
+              <span class="badge badge-xs font-black badge-error text-error-content">Incumplió</span>
+            </div>
+          `;
+        } else if (log.cumplimiento === "Cumplió") {
+          cellBgClass = "bg-base-100 hover:bg-base-200/60 border-base-300 hover:border-emerald-500/40";
+          centerHtml = `
+            <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-xs my-auto py-1">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>${escapeHtml(log.entradaReal)}</span>
+            </div>
+          `;
+        } else {
+          centerHtml = `
+            <div class="my-auto py-1">
+              <span class="text-xxs font-medium text-base-content/40">Sin registro</span>
+            </div>
+          `;
+        }
+      } else if (isWeekend) {
+        cellBgClass = "bg-base-200/25 hover:bg-base-200/50 border-base-300/30 opacity-75";
+        centerHtml = `
+          <div class="my-auto py-1">
+            <span class="text-xxs font-semibold text-base-content/30 italic">Franco</span>
+          </div>
+        `;
+      } else {
+        cellBgClass = "bg-base-200/15 hover:bg-base-200/40 border-base-300/30 opacity-80";
+        centerHtml = `
+          <div class="my-auto py-1">
+            <span class="text-xxs font-medium text-base-content/30">Sin registro</span>
+          </div>
+        `;
+      }
+
+      if (isToday) {
+        cellBgClass += " ring-2 ring-primary/60";
+      }
+
+      const hasComment = Boolean(log && (log.detalle || log.motivoLoguin));
+      const commentTitle = hasComment ? escapeHtml(log.detalle || log.motivoLoguin) : "";
+      const shiftTypeText = escapeHtml(log?.shiftType || "");
+
+      const footerHtml = `
+        <div class="flex items-center justify-between w-full mt-1 pt-1 border-t border-base-300/30 text-xxs">
+          <span class="text-base-content/40 truncate max-w-[65px] sm:max-w-[75px]" title="${shiftTypeText}">${shiftTypeText}</span>
+          ${
+            hasComment
+              ? `<span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                  </svg>
+                </span>`
+              : ""
+          }
+        </div>
+      `;
+
+      const cell = document.createElement("div");
+      cell.className = `group relative flex flex-col justify-between p-2.5 rounded-xl border shadow-2xs transition-all duration-150 cursor-pointer min-h-[95px] select-none ${cellBgClass}`;
+      cell.setAttribute("data-date", dateStr);
+      cell.innerHTML = `
+        <div class="flex items-baseline justify-between gap-1 w-full">
+          <div class="flex items-baseline gap-1">
+            <span class="text-sm font-black ${isToday ? "text-primary" : "text-base-content"}">${day}</span>
+            <span class="text-xxs font-bold uppercase ${isWeekend ? "text-base-content/40" : "text-base-content/50"}">${dayAbbr}</span>
+          </div>
+          <span class="text-xxs font-semibold text-base-content/50 truncate max-w-[70px] sm:max-w-[80px]" title="${escapeHtml(schedDisplay)}">
+            ${escapeHtml(schedDisplay)}
+          </span>
+        </div>
+        ${centerHtml}
+        ${footerHtml}
+      `;
+
+      cell.addEventListener("click", () => {
+        openDrawer(dateStr, log);
+      });
+
+      calendarGrid.appendChild(cell);
+    }
+  }
+
+  // 4. Implementación del Drawer lateral
+  function openDrawer(dateStr, log) {
+    if (!drawer || !drawerBackdrop) return;
+
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    if (drawerDayname) drawerDayname.textContent = dayNames[dateObj.getDay()];
+    if (drawerDate) drawerDate.textContent = `${d} de ${monthNames[m - 1]}, ${y}`;
+
+    if (drawerStatusBadge) {
+      if (log) {
+        const badgeClass = getBadgeClass(log.cumplimiento, log.ausencia);
+        const text = escapeHtml(log.ausencia || log.cumplimiento || "Sin Registro");
+        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black ${badgeClass}">${text}</span>`;
+      } else {
+        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black badge-ghost text-base-content/50">Sin Registro</span>`;
+      }
+    }
+
+    const horario = log?.horarioEstipulado || "--:--";
+    const entrada = log?.entradaReal || "--:--";
+
+    if (drawerHorario) drawerHorario.textContent = horario;
+    if (drawerEntrada) {
+      drawerEntrada.textContent = entrada;
+      if (log?.cumplimiento === "Llegada Tarde") {
+        drawerEntrada.className = "font-black text-warning";
+      } else if (log?.cumplimiento === "Cumplió") {
+        drawerEntrada.className = "font-black text-emerald-600 dark:text-emerald-400";
+      } else {
+        drawerEntrada.className = "font-black text-base-content";
+      }
+    }
+
+    const delay = log ? getDelayMinutes(log.entradaReal, log.horarioEstipulado) : null;
+    if (drawerDelayContainer && drawerDelay) {
+      if (delay !== null) {
+        drawerDelayContainer.classList.remove("hidden");
+        if (delay > 0) {
+          drawerDelay.textContent = `+${delay} min`;
+          drawerDelay.className = "font-black text-warning";
+        } else if (delay === 0) {
+          drawerDelay.textContent = "0 min (Puntual)";
+          drawerDelay.className = "font-black text-emerald-600 dark:text-emerald-400";
+        } else {
+          drawerDelay.textContent = `${delay} min (Anticipado)`;
+          drawerDelay.className = "font-black text-emerald-600 dark:text-emerald-400";
+        }
+      } else {
+        drawerDelayContainer.classList.add("hidden");
+      }
+    }
+
+    const comment = log ? (log.detalle || log.motivoLoguin || "") : "";
+    if (drawerComment) {
+      drawerComment.textContent = comment.trim() || "Sin observaciones registradas.";
+    }
+
+    if (drawerGotoDaily) {
+      drawerGotoDaily.href = `${cleanBase}supervision/asistencia?date=${dateStr}`;
+    }
+
+    drawerBackdrop.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      drawer.classList.remove("translate-x-full");
+    });
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeDrawer() {
+    if (!drawer || !drawerBackdrop) return;
+    drawer.classList.add("translate-x-full");
+    setTimeout(() => {
+      drawerBackdrop.classList.add("hidden");
+      document.body.style.overflow = "";
+    }, 300);
+  }
+
+  drawerCloseBtn?.addEventListener("click", closeDrawer);
+  drawerBackdrop?.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !drawer?.classList.contains("translate-x-full")) {
+      closeDrawer();
+    }
+  });
+
+  // 5. Carga de datos históricos
   async function fetchHistory() {
     tbody.innerHTML = `
       <tr>
@@ -247,8 +682,15 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       if (kpiLates) kpiLates.textContent = String(data.summary.lates);
       if (kpiAbsences) kpiAbsences.textContent = String(data.summary.absences);
 
-      if (countBadge)
-        countBadge.textContent = `${data.records.length} registros`;
+      if (countBadge) {
+        if (month === "all") {
+          countBadge.textContent = `${data.records.length} registros · Vista anual (solo tabla)`;
+        } else {
+          countBadge.textContent = `${data.records.length} registros`;
+        }
+      }
+
+      renderCalendar(data.records, year, month);
 
       if (data.records.length === 0) {
         tbody.innerHTML = `
@@ -298,8 +740,12 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   }
 
   yearSelect?.addEventListener("change", fetchHistory);
-  monthSelect?.addEventListener("change", fetchHistory);
+  monthSelect?.addEventListener("change", () => {
+    handleMonthChange();
+    fetchHistory();
+  });
   statusSelect?.addEventListener("change", fetchHistory);
 
+  handleMonthChange();
   fetchHistory();
 </script>
