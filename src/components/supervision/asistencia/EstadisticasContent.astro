@@ -317,6 +317,7 @@ const initialData = await getAttendanceData(startDate, endDate);
   let rawLogs: any[] = [];
   let doughnutChartInstance: any = null;
   let barChartInstance: any = null;
+  let activeCategory: { label: string; color: string } | null = null;
 
   const monthInput = document.getElementById(
     "analytics-month",
@@ -651,11 +652,32 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   const complianceLabelsSet = new Set(["Llegada Tarde", "Incumplió"]);
 
-  function showEventualityDetail(label: string, color: string, index: number) {
+  function showEventualityDetail(
+    label: string,
+    color?: string,
+    index?: number,
+  ) {
+    let finalColor = color;
     if (doughnutChartInstance) {
+      if (index === undefined || index === -1) {
+        const foundIdx = doughnutChartInstance.data.labels.indexOf(label);
+        if (foundIdx !== -1) {
+          index = foundIdx;
+        }
+      }
+      if (
+        index !== undefined &&
+        index !== -1 &&
+        doughnutChartInstance.data.datasets[0].backgroundColor[index]
+      ) {
+        finalColor =
+          doughnutChartInstance.data.datasets[0].backgroundColor[index];
+      }
       const activeBorderColors =
         doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) =>
-          i === index ? color.replace("0.65", "1") : "rgba(150, 150, 150, 0.1)",
+          i === index
+            ? (finalColor ? finalColor.replace("0.65", "1") : "rgba(150, 150, 150, 1)")
+            : "rgba(150, 150, 150, 0.1)",
         );
       const activeBorderWidths =
         doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) =>
@@ -666,12 +688,18 @@ const initialData = await getAttendanceData(startDate, endDate);
       doughnutChartInstance.update();
     }
 
+    if (!finalColor) {
+      finalColor = "rgba(99, 102, 241, 0.65)";
+    }
+
+    activeCategory = { label, color: finalColor };
+
     const titleEl = document.getElementById("detail-title");
     const colorEl = document.getElementById("detail-color-indicator");
     if (titleEl) titleEl.textContent = `Detalle: ${label}`;
     if (colorEl) {
-      colorEl.style.backgroundColor = color;
-      colorEl.style.boxShadow = `0 0 12px ${color}`;
+      colorEl.style.backgroundColor = finalColor;
+      colorEl.style.boxShadow = `0 0 12px ${finalColor}`;
     }
 
     const isComplianceSlice = complianceLabelsSet.has(label);
@@ -713,7 +741,7 @@ const initialData = await getAttendanceData(startDate, endDate);
               dateGroups,
               group.logs,
               finalBase,
-              color,
+              finalColor!,
             );
           })
           .join("");
@@ -931,6 +959,14 @@ const initialData = await getAttendanceData(startDate, endDate);
     const punctualityKPI = document.getElementById("kpi-punctuality");
     if (punctualityKPI) punctualityKPI.textContent = "...";
 
+    if (activeCategory) {
+      const contentEl = document.getElementById("detail-content");
+      if (contentEl) {
+        contentEl.innerHTML =
+          '<div class="text-center py-12 text-base-content/40 font-bold animate-pulse">Cargando registros...</div>';
+      }
+    }
+
     const statsWindow = window as any;
     if (
       statsWindow.__STATS_INITIAL_DATA__ &&
@@ -942,6 +978,9 @@ const initialData = await getAttendanceData(startDate, endDate);
       processGlobalMetrics();
       populateOperatorDropdown();
       updateCharts();
+      if (activeCategory) {
+        showEventualityDetail(activeCategory.label, activeCategory.color);
+      }
       if (operatorSelect.value) {
         showOperatorDetails(parseInt(operatorSelect.value));
       }
@@ -958,6 +997,10 @@ const initialData = await getAttendanceData(startDate, endDate);
       processGlobalMetrics();
       populateOperatorDropdown();
       updateCharts();
+
+      if (activeCategory) {
+        showEventualityDetail(activeCategory.label, activeCategory.color);
+      }
 
       if (operatorSelect.value) {
         showOperatorDetails(parseInt(operatorSelect.value));
@@ -995,6 +1038,7 @@ const initialData = await getAttendanceData(startDate, endDate);
   monthInput?.addEventListener("change", loadData);
 
   document.getElementById("close-detail-btn")?.addEventListener("click", () => {
+    activeCategory = null;
     const wrapper = document.getElementById("slide-wrapper");
     if (wrapper) {
       wrapper.style.transform = "translateX(0)";
