@@ -18,7 +18,6 @@ import AddEntityButton from "@components/ui/AddEntityButton.astro";
 
 const cleanBase = getCleanBase();
 
-
 const q = Astro.url.searchParams.get("q")?.trim() || "";
 
 let uncategorizedDbId: number | null = null;
@@ -52,7 +51,10 @@ const links = await db
     sortOrder: resourceLinks.sortOrder,
   })
   .from(resourceLinks)
-  .leftJoin(resourceCategories, eq(resourceLinks.categoryId, resourceCategories.id))
+  .leftJoin(
+    resourceCategories,
+    eq(resourceLinks.categoryId, resourceCategories.id),
+  )
   .orderBy(resourceLinks.sortOrder, resourceLinks.title);
 
 const linksGridCols = "grid-cols-[40px_40px_minmax(0,1fr)_80px] gap-4";
@@ -77,19 +79,26 @@ links.forEach((link) => {
     uncategorizedCount++;
     categoryCounts.set("uncategorized", uncategorizedCount);
   } else {
-    categoryCounts.set(link.categoryId, (categoryCounts.get(link.categoryId) || 0) + 1);
+    categoryCounts.set(
+      link.categoryId,
+      (categoryCounts.get(link.categoryId) || 0) + 1,
+    );
   }
 });
 ---
 
 <PageContainer>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+  <div
+    class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+  >
     <PageHeader
       title="Gestión de Enlaces y Recursos"
       description="Refactorizá, reordená y organizá los accesos rápidos de soporte técnico."
     />
-    <div class="flex gap-2 shrink-0">
-      <AddCategoryButton href={resolveUrl("/admin/recursos/categoria/create")} />
+    <div class="flex shrink-0 gap-2">
+      <AddCategoryButton
+        href={resolveUrl("/admin/recursos/categoria/create")}
+      />
       <AddEntityButton
         id="btn-add-link"
         href={resolveUrl("/admin/recursos/enlace/create")}
@@ -99,30 +108,42 @@ links.forEach((link) => {
   </div>
 
   <!-- Contenedor Principal Split View -->
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-    
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-4">
     <!-- Panel Izquierdo: Categorías -->
-    <aside class="lg:col-span-1 bg-base-100 border border-base-300 rounded-box p-4 shadow-sm flex flex-col gap-3">
-      <div class="flex items-center justify-between border-b border-base-200 pb-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-base-content/60">Categorías</span>
+    <aside
+      class="bg-base-100 border-base-300 rounded-box flex flex-col gap-3 border p-4 shadow-sm lg:col-span-1"
+    >
+      <div
+        class="border-base-200 flex items-center justify-between border-b pb-2"
+      >
+        <span
+          class="text-base-content/60 text-xs font-bold tracking-wider uppercase"
+          >Categorías</span
+        >
       </div>
 
       <nav class="flex flex-col gap-1" id="categories-list">
         <div
-          class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+          class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
           data-category-id="all"
           data-category-tone="neutral"
           data-category-title="Todos"
         >
-          <div class="flex items-center gap-2.5 min-w-0 grow">
-            <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors.neutral}`}>
+          <div class="flex min-w-0 grow items-center gap-2.5">
+            <div
+              class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors.neutral}`}
+            >
               <Icon name="boxicons:grid-9-filled" size={18} />
             </div>
-            <span class="text-sm font-semibold truncate label-title">Todos</span>
+            <span class="label-title truncate text-sm font-semibold">Todos</span
+            >
           </div>
-          
-          <div class="flex items-center gap-1.5 shrink-0 ml-2">
-            <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={links.length}>
+
+          <div class="ml-2 flex shrink-0 items-center gap-1.5">
+            <span
+              class="badge badge-sm badge-ghost count-badge font-mono"
+              data-count={links.length}
+            >
               {links.length}
             </span>
           </div>
@@ -130,51 +151,63 @@ links.forEach((link) => {
 
         {
           categories.length === 0 ? (
-            <p class="text-xs text-base-content/50 py-4 text-center">No hay categorías registradas.</p>
+            <p class="text-base-content/50 py-4 text-center text-xs">
+              No hay categorías registradas.
+            </p>
           ) : (
             categories.map((cat) => {
               const count = categoryCounts.get(cat.id) || 0;
               return (
                 <div
-                  class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+                  class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
                   data-category-id={cat.id}
                   data-category-tone={cat.tone}
                   data-category-title={cat.title}
                   data-category-dropzone
                   draggable="true"
                 >
-                  <div class="flex items-center gap-2.5 min-w-0 grow">
-                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 cursor-grab active:cursor-grabbing text-base-content/20 hover:text-base-content/40 transition-colors opacity-0 group-hover:opacity-100 category-drag-handle">
+                  <div class="flex min-w-0 grow items-center gap-2.5">
+                    <div class="text-base-content/20 hover:text-base-content/40 category-drag-handle flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md opacity-0 transition-colors group-hover:opacity-100 active:cursor-grabbing">
                       <Icon name="boxicons:menu" size={18} />
                     </div>
-                    <div class={`flex items-center justify-center size-8 rounded-md shrink-0 border ${toneColors[cat.tone] || toneColors.primary}`}>
+                    <div
+                      class={`flex size-8 shrink-0 items-center justify-center rounded-md border ${toneColors[cat.tone] || toneColors.primary}`}
+                    >
                       <Icon name={cat.iconName} size={18} />
                     </div>
-                    <span class="text-sm font-semibold truncate label-title">{cat.title}</span>
+                    <span class="label-title truncate text-sm font-semibold">
+                      {cat.title}
+                    </span>
                   </div>
-                  
-                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
+
+                  <div class="ml-2 flex shrink-0 items-center gap-1.5">
+                    <span
+                      class="badge badge-sm badge-ghost count-badge font-mono"
+                      data-count={count}
+                    >
                       {count}
                     </span>
-                    {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
-                      <div class="hidden group-hover:flex items-center gap-0.5">
-                        <ActionEditButton
-                          href={resolveUrl(`/admin/recursos/categoria/edit/${cat.id}`)}
-                          size="xs"
-                          ariaLabel="Editar"
-                          title="Editar"
-                          onclick="event.stopPropagation();"
-                        />
-                        <ActionDeleteButton
-                          type="button"
-                          size="xs"
-                          ariaLabel="Eliminar"
-                          title="Eliminar"
-                          onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
-                        />
-                      </div>
-                    )}
+                    {cat.title.toLowerCase() !== "sin categoría" &&
+                      cat.title.toLowerCase() !== "sin categoria" && (
+                        <div class="hidden items-center gap-0.5 group-hover:flex">
+                          <ActionEditButton
+                            href={resolveUrl(
+                              `/admin/recursos/categoria/edit/${cat.id}`,
+                            )}
+                            size="xs"
+                            ariaLabel="Editar"
+                            title="Editar"
+                            onclick="event.stopPropagation();"
+                          />
+                          <ActionDeleteButton
+                            type="button"
+                            size="xs"
+                            ariaLabel="Eliminar"
+                            title="Eliminar"
+                            onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
+                          />
+                        </div>
+                      )}
                   </div>
                 </div>
               );
@@ -183,50 +216,72 @@ links.forEach((link) => {
         }
 
         {/* Sin categoría */}
-        {(() => {
-          const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
-          if (uncategorizedCount === 0) return null;
-          return (
-            <div
-              class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
-              data-category-id="uncategorized"
-              data-category-tone="warning"
-              data-category-title="Sin categoría"
-              data-category-dropzone
-            >
-              <div class="flex items-center gap-2.5 min-w-0 grow">
-                <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-warning/20 bg-warning/10 text-warning">
-                  <Icon name="boxicons:folder" size={18} />
+        {
+          (() => {
+            const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
+            if (uncategorizedCount === 0) return null;
+            return (
+              <div
+                class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
+                data-category-id="uncategorized"
+                data-category-tone="warning"
+                data-category-title="Sin categoría"
+                data-category-dropzone
+              >
+                <div class="flex min-w-0 grow items-center gap-2.5">
+                  <div class="border-warning/20 bg-warning/10 text-warning flex size-8 shrink-0 items-center justify-center rounded-md border">
+                    <Icon name="boxicons:folder" size={18} />
+                  </div>
+                  <span class="label-title truncate text-sm font-semibold">
+                    Sin categoría
+                  </span>
                 </div>
-                <span class="text-sm font-semibold truncate label-title">Sin categoría</span>
+                <div class="ml-2 flex shrink-0 items-center gap-1.5">
+                  <span
+                    class="badge badge-sm badge-ghost count-badge font-mono"
+                    data-count={uncategorizedCount}
+                  >
+                    {uncategorizedCount}
+                  </span>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={uncategorizedCount}>
-                  {uncategorizedCount}
-                </span>
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()
+        }
       </nav>
     </aside>
 
     <!-- Panel Derecho: Enlaces -->
-    <main class="lg:col-span-3 flex flex-col gap-4">
-      <div class="bg-base-100 border border-base-300 rounded-box p-4 shadow-sm">
-        
+    <main class="flex flex-col gap-4 lg:col-span-3">
+      <div class="bg-base-100 border-base-300 rounded-box border p-4 shadow-sm">
         <!-- Cabecera de Categoría Seleccionada y Buscador -->
-        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b border-base-200">
+        <div
+          class="border-base-200 mb-4 flex flex-col items-center justify-between gap-4 border-b pb-4 sm:flex-row"
+        >
           <div class="flex items-center gap-3">
-            <div id="active-category-icon-wrapper" class="flex items-center justify-center size-9 rounded-lg border text-primary bg-primary/10 border-primary/20">
-              <Icon id="active-category-icon" name="boxicons:folder" size={20} />
+            <div
+              id="active-category-icon-wrapper"
+              class="text-primary bg-primary/10 border-primary/20 flex size-9 items-center justify-center rounded-lg border"
+            >
+              <Icon
+                id="active-category-icon"
+                name="boxicons:folder"
+                size={20}
+              />
             </div>
             <div>
-              <h2 id="active-category-title" class="text-lg font-bold text-base-content">Cargando...</h2>
-              <p id="reorder-instructions" class="text-xs text-base-content/60">Arrastrá las filas para cambiar el orden del menú.</p>
+              <h2
+                id="active-category-title"
+                class="text-base-content text-lg font-bold"
+              >
+                Cargando...
+              </h2>
+              <p id="reorder-instructions" class="text-base-content/60 text-xs">
+                Arrastrá las filas para cambiar el orden del menú.
+              </p>
             </div>
           </div>
-          <div class="w-full sm:max-w-xs shrink-0">
+          <div class="w-full shrink-0 sm:max-w-xs">
             <SearchBar
               id="recursos-search"
               name="q"
@@ -245,21 +300,31 @@ links.forEach((link) => {
           rowGridClass={linksGridCols}
         >
           <Fragment slot="header">
-            <DataTableHeaderCell></DataTableHeaderCell>
+            <DataTableHeaderCell />
             <DataTableHeaderCell>Ícono</DataTableHeaderCell>
             <DataTableHeaderCell>Título</DataTableHeaderCell>
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
           </Fragment>
 
-          <div id="links-container" class="divide-y divide-base-200">
+          <div id="links-container" class="divide-base-200 divide-y">
             {
               links.length === 0 ? (
-                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50" id="empty-state">
-                  <div class="rounded-full bg-base-200/40 p-4">
-                    <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+                <div
+                  class="text-base-content/50 flex flex-col items-center gap-3 py-16"
+                  id="empty-state"
+                >
+                  <div class="bg-base-200/40 rounded-full p-4">
+                    <Icon
+                      name="boxicons:data"
+                      size={32}
+                      class="opacity-30"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div class="space-y-1 text-center">
-                    <p class="text-sm font-semibold">No hay enlaces registrados</p>
+                    <p class="text-sm font-semibold">
+                      No hay enlaces registrados
+                    </p>
                     <p class="text-xs">Comenzá agregando un nuevo sitio web.</p>
                   </div>
                 </div>
@@ -267,22 +332,26 @@ links.forEach((link) => {
                 links.map((link) => (
                   <div
                     class:list={[
-                      "group grid items-center px-4 py-3 transition-colors hover:bg-base-200/30 link-row",
+                      "group hover:bg-base-200/30 link-row grid items-center px-4 py-3 transition-colors",
                       linksGridCols,
-                      link.deprecated && "opacity-50"
+                      link.deprecated && "opacity-50",
                     ]}
                     data-table-row
                     data-link-row
                     data-link-id={link.id}
-                    data-link-category={(!link.categoryId || link.categoryId === uncategorizedDbId) ? "uncategorized" : link.categoryId}
+                    data-link-category={
+                      !link.categoryId || link.categoryId === uncategorizedDbId
+                        ? "uncategorized"
+                        : link.categoryId
+                    }
                     data-link-search={`${link.title} ${link.subtitle || ""} ${link.url}`.toLowerCase()}
                     draggable="true"
                   >
-                    <div class="flex items-center justify-center text-base-content/30 cursor-grab active:cursor-grabbing hover:text-base-content/70 transition-colors drag-handle">
+                    <div class="text-base-content/30 hover:text-base-content/70 drag-handle flex cursor-grab items-center justify-center transition-colors active:cursor-grabbing">
                       <Icon name="boxicons:menu" size={20} />
                     </div>
 
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
+                    <div class="border-base-300 bg-base-200 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border p-0.5">
                       {link.iconPath ? (
                         <img
                           src={`${cleanBase}api/icons/${link.iconPath}`}
@@ -290,28 +359,39 @@ links.forEach((link) => {
                           class="h-full w-full object-contain"
                         />
                       ) : (
-                        <Icon name="boxicons:link" class="h-5 w-5 text-base-content/40" />
+                        <Icon
+                          name="boxicons:link"
+                          class="text-base-content/40 h-5 w-5"
+                        />
                       )}
                     </div>
 
-                    <div class="min-w-0 truncate font-semibold flex items-center gap-2" title={link.title}>
-                      <span class="truncate" data-highlight-target>{link.title}</span>
+                    <div
+                      class="flex min-w-0 items-center gap-2 truncate font-semibold"
+                      title={link.title}
+                    >
+                      <span class="truncate" data-highlight-target>
+                        {link.title}
+                      </span>
                       {link.deprecated && (
-                        <span class="badge badge-neutral badge-xs font-semibold uppercase shrink-0">
+                        <span class="badge badge-neutral badge-xs shrink-0 font-semibold uppercase">
                           Obsoleto
                         </span>
                       )}
                     </div>
 
-
                     <div class="flex items-center justify-end gap-2">
                       <ActionEditButton
-                        href={resolveUrl(`/admin/recursos/enlace/edit/${link.id}`)}
+                        href={resolveUrl(
+                          `/admin/recursos/enlace/edit/${link.id}`,
+                        )}
                         ariaLabel={`Editar enlace ${link.title}`}
                       />
                       <form
                         method="POST"
-                        action={resolveUrl(`/admin/recursos/enlace/edit/${link.id}/eliminar`)}
+                        action={resolveUrl(
+                          `/admin/recursos/enlace/edit/${link.id}/eliminar`,
+                        )}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este enlace?');"
                       >
@@ -326,10 +406,13 @@ links.forEach((link) => {
             }
           </div>
         </DataTable>
-        
+
         <!-- Estado vacío de categoría sin elementos -->
-        <div id="category-empty-state" class="hidden flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200/40 p-4">
+        <div
+          id="category-empty-state"
+          class="text-base-content/50 hidden flex-col items-center gap-3 py-16"
+        >
+          <div class="bg-base-200/40 rounded-full p-4">
             <Icon name="boxicons:link" size={32} class="opacity-30" />
           </div>
           <div class="space-y-1 text-center">
@@ -337,7 +420,6 @@ links.forEach((link) => {
             <p class="text-xs">Arrastrá enlaces aquí o creá uno nuevo.</p>
           </div>
         </div>
-
       </div>
     </main>
   </div>
@@ -363,17 +445,26 @@ links.forEach((link) => {
 
   // State
   let activeCategoryId = "";
-  
+
   // Elements
   const categoriesList = document.getElementById("categories-list");
-  const categoryItems = Array.from(document.querySelectorAll<HTMLElement>(".category-item"));
-  const linkRows = Array.from(document.querySelectorAll<HTMLElement>(".link-row"));
+  const categoryItems = Array.from(
+    document.querySelectorAll<HTMLElement>(".category-item"),
+  );
+  const linkRows = Array.from(
+    document.querySelectorAll<HTMLElement>(".link-row"),
+  );
   const linksContainer = document.getElementById("links-container");
-  const searchInput = document.querySelector<HTMLInputElement>("#recursos-search");
-  
-  const activeIconWrapper = document.getElementById("active-category-icon-wrapper");
+  const searchInput =
+    document.querySelector<HTMLInputElement>("#recursos-search");
+
+  const activeIconWrapper = document.getElementById(
+    "active-category-icon-wrapper",
+  );
   const activeCategoryTitle = document.getElementById("active-category-title");
-  const btnAddLink = document.getElementById("btn-add-link") as HTMLAnchorElement | null;
+  const btnAddLink = document.getElementById(
+    "btn-add-link",
+  ) as HTMLAnchorElement | null;
   const generalEmptyState = document.getElementById("empty-state");
   const categoryEmptyState = document.getElementById("category-empty-state");
   const reorderSpinner = document.getElementById("reorder-spinner");
@@ -381,15 +472,27 @@ links.forEach((link) => {
   // Selection Handler
   const selectCategory = (categoryId: string) => {
     activeCategoryId = categoryId;
-    
+
     // Update Category visual classes in sidebar
-    categoryItems.forEach(item => {
+    categoryItems.forEach((item) => {
       const isSelected = item.dataset.categoryId === categoryId;
       const tone = item.dataset.categoryTone || "primary";
-      
+
       // Clean classes
-      item.classList.remove("bg-base-200/60", "border-base-300", "shadow-sm", "bg-primary/5", "bg-secondary/5", "bg-accent/5", "bg-info/5", "bg-success/5", "bg-warning/5", "bg-error/5", "bg-neutral/5");
-      
+      item.classList.remove(
+        "bg-base-200/60",
+        "border-base-300",
+        "shadow-sm",
+        "bg-primary/5",
+        "bg-secondary/5",
+        "bg-accent/5",
+        "bg-info/5",
+        "bg-success/5",
+        "bg-warning/5",
+        "bg-error/5",
+        "bg-neutral/5",
+      );
+
       if (isSelected) {
         item.classList.add(`bg-${tone}/5`, "border-base-300", "shadow-sm");
       } else {
@@ -398,16 +501,18 @@ links.forEach((link) => {
     });
 
     // Update Header of current selection
-    const selectedItem = categoryItems.find(item => item.dataset.categoryId === categoryId);
+    const selectedItem = categoryItems.find(
+      (item) => item.dataset.categoryId === categoryId,
+    );
     if (selectedItem && activeCategoryTitle && activeIconWrapper) {
       const title = selectedItem.dataset.categoryTitle || "";
       const tone = selectedItem.dataset.categoryTone || "primary";
-      
+
       activeCategoryTitle.textContent = title;
-      
+
       // Update icon tone classes
       activeIconWrapper.className = `flex items-center justify-center size-9 rounded-lg border ${toneColors[tone] || toneColors.primary}`;
-      
+
       // Update icon SVG
       const icon = selectedItem.querySelector("svg")?.cloneNode(true);
       const iconTarget = activeIconWrapper.querySelector("svg");
@@ -428,7 +533,7 @@ links.forEach((link) => {
     // Toggle reorder handle visibility based on "Todos" category selection
     const isAll = categoryId === "all";
     const dragHandles = Array.from(document.querySelectorAll(".drag-handle"));
-    dragHandles.forEach(h => {
+    dragHandles.forEach((h) => {
       if (isAll) {
         h.classList.add("invisible", "pointer-events-none");
       } else {
@@ -446,8 +551,10 @@ links.forEach((link) => {
   };
 
   // Initialize original text for highlighting
-  const highlightTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-highlight-target]"));
-  highlightTargets.forEach(el => {
+  const highlightTargets = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+  );
+  highlightTargets.forEach((el) => {
     el.dataset.originalText = el.textContent?.trim() || "";
   });
 
@@ -456,28 +563,38 @@ links.forEach((link) => {
     const query = searchInput?.value.trim().toLowerCase() || "";
     let visibleCount = 0;
 
-    linkRows.forEach(row => {
+    linkRows.forEach((row) => {
       const rowCategory = row.dataset.linkCategory || "";
       const searchContent = row.dataset.linkSearch || "";
-      
-      const matchesCategory = activeCategoryId === "all" || rowCategory === activeCategoryId;
+
+      const matchesCategory =
+        activeCategoryId === "all" || rowCategory === activeCategoryId;
       const matchesSearch = query === "" || searchContent.includes(query);
       const isVisible = matchesCategory && matchesSearch;
 
       row.classList.toggle("hidden", !isVisible);
       if (isVisible) {
         visibleCount++;
-        
+
         // Highlight matching terms
-        const targets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
-        targets.forEach(el => {
-          const original = el.dataset.originalText || el.textContent?.trim() || "";
+        const targets = Array.from(
+          row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+        );
+        targets.forEach((el) => {
+          const original =
+            el.dataset.originalText || el.textContent?.trim() || "";
           if (query === "") {
             el.textContent = original;
           } else {
-            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const escapedQuery = query.replace(
+              /[-\/\\^$*+?.()|[\]{}]/g,
+              "\\$&",
+            );
             const regex = new RegExp(`(${escapedQuery})`, "gi");
-            el.innerHTML = original.replace(regex, '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>');
+            el.innerHTML = original.replace(
+              regex,
+              '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>',
+            );
           }
         });
       }
@@ -485,7 +602,7 @@ links.forEach((link) => {
 
     // Handle Empty States
     if (generalEmptyState) generalEmptyState.classList.add("hidden");
-    
+
     if (visibleCount === 0) {
       categoryEmptyState?.classList.remove("hidden");
       categoryEmptyState?.classList.add("flex");
@@ -496,7 +613,7 @@ links.forEach((link) => {
   };
 
   // Add click handlers to Category menu items
-  categoryItems.forEach(item => {
+  categoryItems.forEach((item) => {
     item.addEventListener("click", () => {
       const id = item.dataset.categoryId;
       if (id) selectCategory(id);
@@ -517,7 +634,7 @@ links.forEach((link) => {
   // ----------------------------------------------------
   let draggedRow: HTMLElement | null = null;
 
-  linkRows.forEach(row => {
+  linkRows.forEach((row) => {
     row.addEventListener("dragstart", (e) => {
       if (activeCategoryId === "all") {
         e.preventDefault();
@@ -565,7 +682,7 @@ links.forEach((link) => {
   // ----------------------------------------------------
   // Drag and Drop: Move link to another category
   // ----------------------------------------------------
-  categoryItems.forEach(zone => {
+  categoryItems.forEach((zone) => {
     zone.addEventListener("dragover", (e) => {
       e.preventDefault();
       const targetCategoryId = zone.dataset.categoryId;
@@ -592,20 +709,22 @@ links.forEach((link) => {
       const linkId = e.dataTransfer?.getData("text/plain");
 
       if (!linkId || !targetCategoryId || !draggedRow) return;
-      
+
       const sourceCategoryId = draggedRow.dataset.linkCategory;
       if (sourceCategoryId === targetCategoryId) return;
 
       // Update in local state/DOM
       draggedRow.dataset.linkCategory = targetCategoryId;
-      
+
       // Update link badges if necessary (no badge in this layout, but filters are updated)
       filterLinks();
 
       // Update counters visually
-      const sourceBadge = categoryItems.find(item => item.dataset.categoryId === sourceCategoryId)?.querySelector(".count-badge");
+      const sourceBadge = categoryItems
+        .find((item) => item.dataset.categoryId === sourceCategoryId)
+        ?.querySelector(".count-badge");
       const targetBadge = zone.querySelector(".count-badge");
-      
+
       if (sourceBadge) {
         const count = Math.max(0, parseInt(sourceBadge.textContent || "0") - 1);
         sourceBadge.textContent = String(count);
@@ -626,27 +745,29 @@ links.forEach((link) => {
 
     try {
       // Gather all rows in their current DOM positions to build sequential orders
-      const allRows = Array.from(document.querySelectorAll<HTMLElement>(".link-row"));
-      
+      const allRows = Array.from(
+        document.querySelectorAll<HTMLElement>(".link-row"),
+      );
+
       // We group them by category to update order properly inside each category
       const categoryGroups: Record<string, HTMLElement[]> = {};
-      allRows.forEach(row => {
+      allRows.forEach((row) => {
         const catId = row.dataset.linkCategory || "";
         if (!categoryGroups[catId]) categoryGroups[catId] = [];
         categoryGroups[catId].push(row);
       });
 
       const items: any[] = [];
-      Object.keys(categoryGroups).forEach(catId => {
+      Object.keys(categoryGroups).forEach((catId) => {
         categoryGroups[catId].forEach((row, index) => {
           items.push({
             id: row.dataset.linkId,
             sortOrder: index * 10, // increments of 10
-            categoryId: catId
+            categoryId: catId,
           });
         });
       });
-      
+
       const response = await fetch(`${cleanBase}api/admin/recursos/reorder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -656,11 +777,17 @@ links.forEach((link) => {
       if (!response.ok) {
         throw new Error("Error de red al intentar guardar cambios");
       }
-      
-      (window as any).showToast?.("Menú y categorías sincronizadas con éxito", "alert-success");
+
+      (window as any).showToast?.(
+        "Menú y categorías sincronizadas con éxito",
+        "alert-success",
+      );
     } catch (err) {
       console.error(err);
-      (window as any).showToast?.("Error al guardar el nuevo orden del menú", "alert-error");
+      (window as any).showToast?.(
+        "Error al guardar el nuevo orden del menú",
+        "alert-error",
+      );
     } finally {
       if (reorderSpinner) reorderSpinner.classList.add("hidden");
     }
@@ -672,10 +799,12 @@ links.forEach((link) => {
   let draggedCategoryItem: HTMLElement | null = null;
 
   const categoryDragItems = Array.from(
-    document.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+    document.querySelectorAll<HTMLElement>(
+      ".category-item[data-category-dropzone]",
+    ),
   );
 
-  categoryDragItems.forEach(item => {
+  categoryDragItems.forEach((item) => {
     item.addEventListener("dragstart", (e) => {
       const catId = item.dataset.categoryId;
       if (catId === "all" || catId === "uncategorized") {
@@ -700,7 +829,13 @@ links.forEach((link) => {
       if (!draggedCategoryItem || draggedCategoryItem === item) return;
       const targetCatId = item.dataset.categoryId;
       const draggedCatId = draggedCategoryItem.dataset.categoryId;
-      if (targetCatId === "all" || targetCatId === "uncategorized" || draggedCatId === "all" || draggedCatId === "uncategorized") return;
+      if (
+        targetCatId === "all" ||
+        targetCatId === "uncategorized" ||
+        draggedCatId === "all" ||
+        draggedCatId === "uncategorized"
+      )
+        return;
 
       const bounding = item.getBoundingClientRect();
       const offset = e.clientY - bounding.top - bounding.height / 2;
@@ -727,13 +862,15 @@ links.forEach((link) => {
       if (!categoriesList) return;
 
       const categoryEls = Array.from(
-        categoriesList.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+        categoriesList.querySelectorAll<HTMLElement>(
+          ".category-item[data-category-dropzone]",
+        ),
       );
 
       const items: { id: number; sortOrder: number }[] = [];
       let index = 0;
 
-      categoryEls.forEach(el => {
+      categoryEls.forEach((el) => {
         const catId = el.dataset.categoryId;
         if (catId === "all" || catId === "uncategorized") return;
         const id = parseInt(catId || "0");
@@ -744,19 +881,26 @@ links.forEach((link) => {
 
       if (items.length === 0) return;
 
-      const response = await fetch(`${cleanBase}api/admin/recursos/reorder-categorias`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
+      const response = await fetch(
+        `${cleanBase}api/admin/recursos/reorder-categorias`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        },
+      );
 
       if (!response.ok) throw new Error("Error de red");
-      (window as any).showToast?.("Categorías reordenadas con éxito", "alert-success");
+      (window as any).showToast?.(
+        "Categorías reordenadas con éxito",
+        "alert-success",
+      );
     } catch (err) {
       console.error(err);
-      (window as any).showToast?.("Error al guardar el nuevo orden de categorías", "alert-error");
+      (window as any).showToast?.(
+        "Error al guardar el nuevo orden de categorías",
+        "alert-error",
+      );
     }
   };
-
-
 </script>

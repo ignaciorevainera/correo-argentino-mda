@@ -1,0 +1,183 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
+import { Icon } from "astro-icon/components";
+import { isAllowed } from "@lib/rolesMatrix";
+import {
+  getUnassignedEmployees,
+  getUnassignedEmployeesCount,
+} from "@lib/employeeQueries";
+
+const user = Astro.locals.user;
+const isAllowedAdmin = user
+  ? isAllowed("Administrar Contenido", user.role)
+  : false;
+
+// Control de acceso: Solo administradores
+if (!isAllowedAdmin) {
+  return Astro.redirect(`${import.meta.env.BASE_URL}oficinas`);
+}
+
+const unassignedCount = await getUnassignedEmployeesCount();
+
+// Inaccesible si no existen usuarios sin ubicación
+if (unassignedCount === 0) {
+  return Astro.redirect(`${import.meta.env.BASE_URL}oficinas`);
+}
+
+const limit = 30;
+const unassignedUsers = await getUnassignedEmployees({ offset: 0, limit });
+const hasMoreInitial = unassignedCount > limit;
+---
+
+<BaseLayout title="Usuarios sin Ubicación Asignada">
+  <PageContainer>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <PageHeader
+        title="Usuarios sin Ubicación Asignada"
+        description="Listado de personal registrado que no posee sucursal asignada en el sistema."
+      />
+      <a
+        href={`${import.meta.env.BASE_URL}oficinas`}
+        class="btn btn-ghost btn-sm gap-2"
+      >
+        <Icon name="boxicons:arrow-left-stroke-filled" size={18} />
+        Volver a Oficinas
+      </a>
+    </div>
+
+    <div class="alert alert-warning shadow-sm">
+      <Icon name="boxicons:info-circle" size={20} />
+      <span class="text-sm font-medium">
+        Se detectaron {unassignedCount} usuario{
+          unassignedCount !== 1 ? "s" : ""
+        } sin ubicación. Copia el usuario para asignarle la ubicación correspondiente
+        en InvGate.
+      </span>
+    </div>
+
+    <DataTable
+      ariaLabel="Usuarios sin ubicación"
+      headerGridClass="grid-cols-[160px_1.5fr_110px_1.5fr_80px] items-center gap-4"
+      rowGridClass="grid-cols-[160px_1.5fr_110px_1.5fr_80px] items-center gap-4 border-b border-base-200 hover:bg-base-200/40 px-4 py-3 last:border-b-0 text-sm"
+    >
+      <Fragment slot="header">
+        <DataTableHeaderCell>Usuario (Username)</DataTableHeaderCell>
+        <DataTableHeaderCell>Nombre completo</DataTableHeaderCell>
+        <DataTableHeaderCell>DNI</DataTableHeaderCell>
+        <DataTableHeaderCell>Cargo / Función</DataTableHeaderCell>
+        <DataTableHeaderCell>Acción</DataTableHeaderCell>
+      </Fragment>
+
+      <div id="users-list" class="flex flex-col">
+        {
+          unassignedUsers.map((emp) => (
+            <div class="border-base-200 hover:bg-base-200/40 grid grid-cols-[160px_1.5fr_110px_1.5fr_80px] gap-4 border-b px-4 py-3 text-sm last:border-b-0">
+              <div class="flex items-center gap-2">
+                <span class="text-base-content font-mono text-xs font-semibold">
+                  {emp.username}
+                </span>
+                <CopyButton
+                  value={emp.username}
+                  variant="icon"
+                  feedbackOnly={true}
+                  copiedLabel="Usuario copiado"
+                  size="xs"
+                  appearance="ghost"
+                  showTooltip={false}
+                />
+              </div>
+              <div class="text-sm font-medium">{emp.fullname}</div>
+              <div class="text-base-content/70 font-mono text-xs">
+                {emp.dni}
+              </div>
+              <div class="text-base-content/80 text-xs">
+                {emp.position || "—"}
+              </div>
+              <div class="place-self-center">
+                <OpenExternalUrlButton
+                  href={`https://correoargentino.sd.cloud.invgate.net/user/profile/public/id/${emp.invgateId}`}
+                  variant="icon"
+                  appearance="ghost"
+                  size="sm"
+                  ariaLabel={`Ver en InvGate a ${emp.fullname}`}
+                />
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      {
+        hasMoreInitial && (
+          <div id="scroll-sentinel" class="flex justify-center p-6">
+            <span class="loading loading-spinner loading-md text-primary" />
+          </div>
+        )
+      }
+    </DataTable>
+  </PageContainer>
+</BaseLayout>
+
+<script>
+  import { getCleanBase } from "@lib/baseUrl";
+
+  function setupInfiniteScroll() {
+    const sentinel = document.getElementById("scroll-sentinel");
+    const container = document.getElementById("users-list");
+    if (!sentinel || !container) return;
+
+    let offset = 30;
+    const limit = 30;
+    let loading = false;
+    let hasMore = true;
+
+    const observer = new IntersectionObserver(
+      async (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && !loading && hasMore) {
+          loading = true;
+          try {
+            const baseUrl = getCleanBase();
+            const res = await fetch(
+              `${baseUrl}api/admin/unassigned-users?offset=${offset}&limit=${limit}`,
+            );
+            if (res.ok) {
+              const html = await res.text();
+              const more = res.headers.get("X-Has-More") === "true";
+
+              if (html.trim()) {
+                container.insertAdjacentHTML("beforeend", html);
+                offset += limit;
+              }
+
+              if (!more) {
+                hasMore = false;
+                sentinel.remove();
+                observer.disconnect();
+              }
+            }
+          } catch (err) {
+            console.error("Error al cargar más usuarios:", err);
+          } finally {
+            loading = false;
+          }
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    observer.observe(sentinel);
+  }
+
+  setupInfiniteScroll();
+
+  document.addEventListener("astro:page-load", () => {
+    setupInfiniteScroll();
+  });
+</script>

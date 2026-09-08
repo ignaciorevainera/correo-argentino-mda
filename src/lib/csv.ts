@@ -34,9 +34,9 @@ export function streamCsv(
       buffer += headers.map(sanitizeCell).join(";") + "\r\n";
 
       for (const row of rowIter) {
-        const rowStr = headers
-          .map((_, i) => sanitizeCell(row[keyMap[i]]))
-          .join(";") + "\r\n";
+        const rowStr =
+          headers.map((_, i) => sanitizeCell(row[keyMap[i]])).join(";") +
+          "\r\n";
         buffer += rowStr;
         if (buffer.length >= chunkBytes) {
           await writer.write(encoder.encode(buffer));

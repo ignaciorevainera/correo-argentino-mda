@@ -2,7 +2,14 @@ import { defineAction, ActionError } from "astro:actions";
 import { z } from "astro:schema";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { db } from "@db/index";
-import { agents, qualityAudits, auditParameters, auditScores, monthlySummaries, feedback } from "@db/schema";
+import {
+  agents,
+  qualityAudits,
+  auditParameters,
+  auditScores,
+  monthlySummaries,
+  feedback,
+} from "@db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { calculateAuditScores } from "@lib/qualityCalculator";
 import { logAdminFromAstro } from "@lib/auditLogger";
@@ -10,13 +17,15 @@ import { logAdminFromAstro } from "@lib/auditLogger";
 export const server = {
   saveParameters: defineAction({
     input: z.object({
-      parameters: z.array(z.object({
-        id: z.number().optional().nullable(),
-        name: z.string().min(1, "El nombre es requerido"),
-        weight: z.number().min(0, "El peso debe ser mayor o igual a 0"),
-        category: z.string().min(1, "La categoría es requerida"),
-        isDeleted: z.boolean().optional().default(false),
-      }))
+      parameters: z.array(
+        z.object({
+          id: z.number().optional().nullable(),
+          name: z.string().min(1, "El nombre es requerido"),
+          weight: z.number().min(0, "El peso debe ser mayor o igual a 0"),
+          category: z.string().min(1, "La categoría es requerida"),
+          isDeleted: z.boolean().optional().default(false),
+        }),
+      ),
     }),
     handler: async (input, context) => {
       const denied = requireWriteAccess(context.locals, "calidad");
@@ -39,24 +48,28 @@ export const server = {
       };
 
       try {
-        const inputIds = input.parameters.map(p => p.id).filter((id): id is number => id !== null && id !== undefined);
+        const inputIds = input.parameters
+          .map((p) => p.id)
+          .filter((id): id is number => id !== null && id !== undefined);
 
         // 1. Pre-cargar datos si hay IDs existentes
         let existingParamsMap = new Map();
         let paramsWithScoresSet = new Set<number>();
 
         if (inputIds.length > 0) {
-          const existingParams = await db.select()
+          const existingParams = await db
+            .select()
             .from(auditParameters)
             .where(inArray(auditParameters.id, inputIds));
-            
-          existingParams.forEach(p => existingParamsMap.set(p.id, p));
 
-          const scores = await db.select({ parameterId: auditScores.parameterId })
+          existingParams.forEach((p) => existingParamsMap.set(p.id, p));
+
+          const scores = await db
+            .select({ parameterId: auditScores.parameterId })
             .from(auditScores)
             .where(inArray(auditScores.parameterId, inputIds));
-            
-          scores.forEach(s => paramsWithScoresSet.add(s.parameterId));
+
+          scores.forEach((s) => paramsWithScoresSet.add(s.parameterId));
         }
 
         // 2. Clasificar operaciones
@@ -76,10 +89,11 @@ export const server = {
             } else {
               const current = existingParamsMap.get(param.id);
               if (current) {
-                const changed = current.name !== param.name || 
-                                current.weight !== param.weight || 
-                                current.category !== param.category;
-                
+                const changed =
+                  current.name !== param.name ||
+                  current.weight !== param.weight ||
+                  current.category !== param.category;
+
                 if (changed) {
                   if (!paramsWithScoresSet.has(param.id)) {
                     // Update in-place
@@ -87,7 +101,7 @@ export const server = {
                       id: param.id,
                       name: param.name,
                       weight: param.weight,
-                      category: param.category
+                      category: param.category,
                     });
                   } else {
                     // Soft delete current and insert new version
@@ -97,7 +111,7 @@ export const server = {
                       name: param.name,
                       weight: param.weight,
                       category: param.category,
-                      active: true
+                      active: true,
                     });
                   }
                 }
@@ -110,7 +124,7 @@ export const server = {
               name: param.name,
               weight: param.weight,
               category: param.category,
-              active: true
+              active: true,
             });
           }
         }
@@ -118,28 +132,37 @@ export const server = {
         // 3. Ejecutar bloque transaccional rápido (Write-only)
         await db.transaction((tx) => {
           if (hardDeletes.length > 0) {
-            tx.delete(auditParameters).where(inArray(auditParameters.id, hardDeletes)).run();
+            tx.delete(auditParameters)
+              .where(inArray(auditParameters.id, hardDeletes))
+              .run();
           }
-          
+
           if (softDeletes.length > 0) {
-            tx.update(auditParameters).set({ active: false }).where(inArray(auditParameters.id, softDeletes)).run();
+            tx.update(auditParameters)
+              .set({ active: false })
+              .where(inArray(auditParameters.id, softDeletes))
+              .run();
           }
-          
+
           if (inserts.length > 0) {
             tx.insert(auditParameters).values(inserts).run();
           }
-          
+
           for (const up of updates) {
-            tx.update(auditParameters).set({
-              name: up.name,
-              weight: up.weight,
-              category: up.category
-            }).where(eq(auditParameters.id, up.id)).run();
+            tx.update(auditParameters)
+              .set({
+                name: up.name,
+                weight: up.weight,
+                category: up.category,
+              })
+              .where(eq(auditParameters.id, up.id))
+              .run();
           }
         });
-        
-        await logAdminFromAstro(context.locals,
-          `Actualizó la configuración de parámetros de calidad`
+
+        await logAdminFromAstro(
+          context.locals,
+          `Actualizó la configuración de parámetros de calidad`,
         );
 
         return { success: true };
@@ -147,22 +170,36 @@ export const server = {
         console.error("Error saving parameters:", error);
         throw new Error(error.message || "Error al guardar los parámetros");
       }
-    }
+    },
   }),
 
   saveAudit: defineAction({
     accept: "form",
-    input: z.object({
-      id: z.string().nullable().optional().transform(v => v ? parseInt(v, 10) : undefined),
-      agentId: z.string().transform(v => parseInt(v, 10)),
-      callId: z.string().min(1, "El ID de llamada es requerido"),
-      ticketId: z.string().min(1, "El ID de ticket es requerido"),
-      duration: z.string().min(1, "La duración es requerida"),
-      date: z.string().min(1, "La fecha es requerida"),
-      month: z.string().min(1, "El período es requerido"),
-      notes: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
-      isCriticalFailure: z.any().transform(v => v === "on" || v === true || v === "true" || v === 1 || v === "1"),
-    }).passthrough(),
+    input: z
+      .object({
+        id: z
+          .string()
+          .nullable()
+          .optional()
+          .transform((v) => (v ? parseInt(v, 10) : undefined)),
+        agentId: z.string().transform((v) => parseInt(v, 10)),
+        callId: z.string().min(1, "El ID de llamada es requerido"),
+        ticketId: z.string().min(1, "El ID de ticket es requerido"),
+        duration: z.string().min(1, "La duración es requerida"),
+        date: z.string().min(1, "La fecha es requerida"),
+        month: z.string().min(1, "El período es requerido"),
+        notes: z
+          .preprocess((v) => (v == null ? "" : String(v)), z.string())
+          .optional()
+          .default(""),
+        isCriticalFailure: z
+          .any()
+          .transform(
+            (v) =>
+              v === "on" || v === true || v === "true" || v === 1 || v === "1",
+          ),
+      })
+      .passthrough(),
     handler: async (input, context) => {
       const denied = requireWriteAccess(context.locals, "calidad");
       if (denied) {
@@ -174,21 +211,25 @@ export const server = {
       // 1. Obtener los parámetros correspondientes
       let allParams;
       if (input.id) {
-        const existingScores = await db.select()
+        const existingScores = await db
+          .select()
           .from(auditScores)
           .where(eq(auditScores.auditId, input.id));
-        const paramIds = existingScores.map(s => s.parameterId);
+        const paramIds = existingScores.map((s) => s.parameterId);
         if (paramIds.length > 0) {
-          allParams = await db.select()
+          allParams = await db
+            .select()
             .from(auditParameters)
             .where(inArray(auditParameters.id, paramIds));
         } else {
-          allParams = await db.select()
+          allParams = await db
+            .select()
             .from(auditParameters)
             .where(eq(auditParameters.active, true));
         }
       } else {
-        allParams = await db.select()
+        allParams = await db
+          .select()
           .from(auditParameters)
           .where(eq(auditParameters.active, true));
       }
@@ -198,7 +239,10 @@ export const server = {
       const checkedCodes = new Set<string>();
 
       for (const param of allParams) {
-        const isChecked = (input as any)[param.code] === "on" || (input as any)[param.code] === true || (input as any)[param.code] === "true";
+        const isChecked =
+          (input as any)[param.code] === "on" ||
+          (input as any)[param.code] === true ||
+          (input as any)[param.code] === "true";
         if (isChecked) {
           checkedCodes.add(param.code);
         }
@@ -212,7 +256,7 @@ export const server = {
       const { section1Score, section2Score, totalScore } = calculateAuditScores(
         allParams,
         checkedCodes,
-        input.isCriticalFailure
+        input.isCriticalFailure,
       );
 
       const auditData = {
@@ -246,22 +290,28 @@ export const server = {
               .run();
 
             // Actualizar scores (eliminar viejos e insertar nuevos)
-            tx.delete(auditScores).where(eq(auditScores.auditId, input.id!)).run();
+            tx.delete(auditScores)
+              .where(eq(auditScores.auditId, input.id!))
+              .run();
             if (scoresToInsert.length > 0) {
-              tx.insert(auditScores).values(
-                scoresToInsert.map(s => ({ auditId: input.id!, ...s }))
-              ).run();
+              tx.insert(auditScores)
+                .values(
+                  scoresToInsert.map((s) => ({ auditId: input.id!, ...s })),
+                )
+                .run();
             }
           });
-          await logAdminFromAstro(context.locals,
-            `Actualizó auditoría de calidad para "${agentName}" (call ${input.callId})`
+          await logAdminFromAstro(
+            context.locals,
+            `Actualizó auditoría de calidad para "${agentName}" (call ${input.callId})`,
           );
           return { success: true, id: input.id };
         } else {
           let insertedId: number;
           await db.transaction((tx) => {
             // Insertar nueva auditoría
-            const [inserted] = tx.insert(qualityAudits)
+            const [inserted] = tx
+              .insert(qualityAudits)
               .values(auditData)
               .returning({ id: qualityAudits.id })
               .all();
@@ -269,13 +319,16 @@ export const server = {
             insertedId = inserted.id;
 
             if (scoresToInsert.length > 0) {
-              tx.insert(auditScores).values(
-                scoresToInsert.map(s => ({ auditId: inserted.id, ...s }))
-              ).run();
+              tx.insert(auditScores)
+                .values(
+                  scoresToInsert.map((s) => ({ auditId: inserted.id, ...s })),
+                )
+                .run();
             }
           });
-          await logAdminFromAstro(context.locals,
-            `Guardó auditoría de calidad para "${agentName}" (call ${input.callId})`
+          await logAdminFromAstro(
+            context.locals,
+            `Guardó auditoría de calidad para "${agentName}" (call ${input.callId})`,
           );
           return { success: true, id: insertedId! };
         }
@@ -283,13 +336,13 @@ export const server = {
         console.error("Error saving audit:", error);
         throw new Error(error.message || "Error al guardar la auditoría");
       }
-    }
+    },
   }),
 
   deleteAudit: defineAction({
     accept: "form",
     input: z.object({
-      id: z.string().transform(v => parseInt(v, 10)),
+      id: z.string().transform((v) => parseInt(v, 10)),
     }),
     handler: async (input, context) => {
       const denied = requireWriteAccess(context.locals, "calidad");
@@ -301,12 +354,15 @@ export const server = {
       }
       try {
         const [auditToDelete] = await db
-          .select({ agentId: qualityAudits.agentId, callId: qualityAudits.callId })
+          .select({
+            agentId: qualityAudits.agentId,
+            callId: qualityAudits.callId,
+          })
           .from(qualityAudits)
           .where(eq(qualityAudits.id, input.id))
           .limit(1);
 
-        let agentName = `ID ${auditToDelete?.agentId || 'desconocido'}`;
+        let agentName = `ID ${auditToDelete?.agentId || "desconocido"}`;
         if (auditToDelete?.agentId) {
           const [agent] = await db
             .select({ name: agents.name })
@@ -318,8 +374,9 @@ export const server = {
 
         await db.delete(qualityAudits).where(eq(qualityAudits.id, input.id));
 
-        await logAdminFromAstro(context.locals,
-          `Eliminó auditoría de calidad de "${agentName}" (call ${auditToDelete?.callId || input.id})`
+        await logAdminFromAstro(
+          context.locals,
+          `Eliminó auditoría de calidad de "${agentName}" (call ${auditToDelete?.callId || input.id})`,
         );
 
         return { success: true };
@@ -327,15 +384,18 @@ export const server = {
         console.error("Error deleting audit:", error);
         throw new Error(error.message || "Error al eliminar la auditoría");
       }
-    }
+    },
   }),
 
   saveMonthSummary: defineAction({
     accept: "form",
     input: z.object({
-      agentId: z.string().transform(v => parseInt(v, 10)),
+      agentId: z.string().transform((v) => parseInt(v, 10)),
       month: z.string().min(1),
-      summary: z.preprocess(v => (v == null ? "" : String(v)), z.string()).optional().default(""),
+      summary: z
+        .preprocess((v) => (v == null ? "" : String(v)), z.string())
+        .optional()
+        .default(""),
     }),
     handler: async (input, context) => {
       const denied = requireWriteAccess(context.locals, "calidad");
@@ -354,19 +414,21 @@ export const server = {
         const agentName = agentForSummary?.name || `ID ${input.agentId}`;
 
         // We use insert with onConflictDoUpdate since we have a composite PK
-        await db.insert(monthlySummaries)
+        await db
+          .insert(monthlySummaries)
           .values({
             agentId: input.agentId,
             month: input.month,
-            summary: input.summary
+            summary: input.summary,
           })
           .onConflictDoUpdate({
             target: [monthlySummaries.agentId, monthlySummaries.month],
-            set: { summary: input.summary }
+            set: { summary: input.summary },
           });
 
-        await logAdminFromAstro(context.locals,
-          `Guardó observaciones de calidad de "${agentName}" (${input.month})`
+        await logAdminFromAstro(
+          context.locals,
+          `Guardó observaciones de calidad de "${agentName}" (${input.month})`,
         );
 
         return { success: true };
@@ -374,13 +436,15 @@ export const server = {
         console.error("Error saving month summary:", error);
         throw new Error(error.message || "Error al guardar el resumen del mes");
       }
-    }
+    },
   }),
   submitFeedback: defineAction({
     input: z.object({
       type: z.enum(["sugerencia", "bug"]),
       subject: z.string().min(3, "El asunto debe tener al menos 3 caracteres"),
-      description: z.string().min(10, "La descripción debe tener al menos 10 caracteres"),
+      description: z
+        .string()
+        .min(10, "La descripción debe tener al menos 10 caracteres"),
       category: z.string().min(1, "El área o categoría es requerida"),
       severity: z.string().optional().nullable(),
       steps: z.string().optional().nullable(),
@@ -437,8 +501,9 @@ export const server = {
           .where(eq(feedback.id, input.feedbackId))
           .run();
 
-        await logAdminFromAstro(context.locals,
-          `Actualizó el estado del reporte/sugerencia #${input.feedbackId} a "${input.newStatus}"`
+        await logAdminFromAstro(
+          context.locals,
+          `Actualizó el estado del reporte/sugerencia #${input.feedbackId} a "${input.newStatus}"`,
         );
 
         return { success: true };
@@ -482,5 +547,5 @@ export const server = {
         throw new Error(error.message || "Error al modificar la asignación.");
       }
     },
-  })
+  }),
 };

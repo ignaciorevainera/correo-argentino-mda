@@ -1,0 +1,107 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  icon: string;
+  label: string;
+  value?: string;
+  id?: string;
+  copyId?: string;
+  copyLabel?: string;
+  monospace?: boolean;
+  showCopy?: boolean;
+  badgeClass?: string;
+  fullWidth?: boolean;
+  compact?: boolean;
+}
+
+const {
+  icon,
+  label,
+  value = "-",
+  id,
+  copyId,
+  copyLabel = "",
+  monospace = false,
+  showCopy = true,
+  badgeClass,
+  fullWidth = false,
+  compact = false,
+} = Astro.props;
+
+const resolvedIcon = icon.endsWith("-filled") ? icon : `${icon}-filled`;
+---
+
+<div
+  class:list={[
+    "bg-base-200/50 border-base-300 group relative flex min-w-0 items-start gap-2 rounded-lg border",
+    compact ? "p-1.5" : "p-2",
+    fullWidth && "col-span-full",
+  ]}
+>
+  <div
+    class="bg-secondary/10 text-secondary flex size-10 shrink-0 items-center justify-center rounded-md"
+  >
+    <Icon name={resolvedIcon} size={24} />
+  </div>
+  <div class="min-w-0 flex-1">
+    <span
+      class="text-base-content/50 block truncate text-xs font-bold tracking-wider uppercase select-none"
+    >
+      {label}
+    </span>
+    {
+      badgeClass ? (
+        <div class="mt-0.5">
+          <span
+            id={id}
+            class:list={["badge badge-sm badge-soft font-semibold", badgeClass]}
+          >
+            {value}
+          </span>
+        </div>
+      ) : (
+        <div
+          id={id}
+          class:list={[
+            "text-base-content mt-0.5 truncate text-xs font-semibold",
+            monospace && "font-mono",
+          ]}
+          title={value}
+        >
+          {value}
+        </div>
+      )
+    }
+  </div>
+  {
+    showCopy && (
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs shrink-0 cursor-pointer p-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+        data-copy-control
+        data-copy-value={value}
+        data-copy-label-default={copyLabel || `Copiar ${label.toLowerCase()}`}
+        data-copy-label-success="Copiado"
+        data-copy-replace-label="false"
+        id={copyId}
+        title={copyLabel || `Copiar ${label.toLowerCase()}`}
+        aria-label={copyLabel || `Copiar ${label.toLowerCase()}`}
+      >
+        <Icon
+          name="boxicons:copy"
+          size={14}
+          data-copy-icon-default
+          class="transition-all duration-200"
+        />
+        <Icon
+          name="boxicons:check-filled"
+          size={14}
+          data-copy-icon-success
+          class="text-success hidden scale-75 opacity-0 transition-all duration-200"
+        />
+      </button>
+    )
+  }
+  <slot name="action" />
+</div>

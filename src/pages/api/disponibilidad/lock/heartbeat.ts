@@ -14,5 +14,7 @@ export const POST: APIRoute = async ({ locals }) => {
       await heartbeatLock(user.id);
     }
     return jsonResponse({ success: true });
-  } catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
+  } catch (error: any) {
+    return jsonResponse({ error: sanitizeError(error) }, 500);
+  }
 };

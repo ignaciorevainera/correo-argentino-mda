@@ -8,15 +8,13 @@ import {
   operatorAttendance,
 } from "@db/schema";
 import { eq, asc, and } from "drizzle-orm";
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
+import FormShell from "@components/ui/FormShell.astro";
 const cleanBase = getCleanBase();
 
 const { id } = Astro.params;
@@ -142,15 +140,20 @@ if (Astro.request.method === "POST") {
       }
 
       if (oldName && oldName !== cubicData.name) {
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Actualizó el ordenador de "${oldName}" a "${cubicData.name}"`,
         );
       } else {
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Actualizó el ordenador "${cubicData.name}"`,
         );
       }
-      return redirectWithToast("/inventario-terminales", "Cubic actualizado con éxito.");
+      return redirectWithToast(
+        "/inventario-terminales",
+        "Cubic actualizado con éxito.",
+      );
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")
@@ -213,230 +216,207 @@ for (const agent of allAgents) {
 }
 ---
 
-<BaseLayout title={pageTitle}>
-  <PageContainer width="xxl">
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <a
-        href={`${cleanBase}inventario-terminales`}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+<FormShell
+  backHref={`${cleanBase}inventario-terminales`}
+  title={pageTitle}
+  subtitle={`Estado: ${cubic.status} · IP: ${cubic.ip ?? "sin asignar"}`}
+  formId="cubic-form"
+  saveLabel="Guardar cambios"
+  cancelLabel="Volver al listado"
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <script>
+    document.getElementById("cubic-form")?.addEventListener("submit", (e) => {
+      if (
+        !confirm(
+          "¿Estás seguro de que deseas aplicar estas modificaciones sobre el Cubic?",
+        )
+      ) {
+        e.preventDefault();
+      }
+    });
+  </script>
+
+  <SectionCard class="shadow-md">
+    <h2 class="text-base-content flex items-center gap-2 text-sm font-semibold">
+      <span
+        class="bg-secondary/10 text-secondary inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
       >
-        <Icon name="boxicons:chevron-left" size={16} />
-        Terminales
-      </a>
-      <span>/</span>
-      <span class="text-base-content font-medium truncate">{pageTitle}</span>
+        <Icon name="boxicons:desktop-filled" size={15} />
+      </span>
+      Datos técnicos del equipo
+    </h2>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormField
+        id="input-name"
+        name="name"
+        label="Nombre de red"
+        required
+        value={cubic.name}
+        placeholder="b1842zacw2999.correo.local"
+        autocomplete="off"
+        inputClass="input-sm font-mono"
+      />
+
+      <FormField
+        id="input-ip"
+        name="ip"
+        label="Dirección IP"
+        value={cubic.ip ?? ""}
+        placeholder="10.254.59.62"
+        autocomplete="off"
+        inputClass="input-sm font-mono"
+        helpText="IPv4 asignada al equipo. Opcional."
+      />
+    </div>
+  </SectionCard>
+
+  <SectionCard class="shadow-md">
+    <div class="flex items-center justify-between">
+      <h2
+        class="text-base-content flex items-center gap-2 text-sm font-semibold"
+      >
+        <span
+          class="bg-warning/10 text-warning inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+        >
+          <Icon name="boxicons:group-filled" size={15} />
+        </span>
+        Operadores asignados
+      </h2>
+      <button
+        type="button"
+        id="btn-add-assignment"
+        class="btn btn-ghost btn-xs text-warning gap-1"
+      >
+        <Icon name="boxicons:plus-filled" size={14} />
+        Agregar
+      </button>
     </div>
 
-    <PageHeader
-      title={pageTitle}
-      description={`Estado: ${cubic.status} · IP: ${cubic.ip ?? "sin asignar"}`}
-    />
-
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
-    }
-
-    <form
-      method="POST"
-      id="cubic-form"
-      onsubmit="return confirm('¿Estás seguro de que deseas aplicar estas modificaciones sobre el Cubic?');"
-      class="space-y-4"
+    <div
+      id="assignments-container"
+      class="grid grid-cols-1 gap-4 md:grid-cols-2"
     >
-      <SectionCard class="shadow-md">
-          <h2
-            class="flex items-center gap-2 text-sm font-semibold text-base-content"
-          >
-            <span
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:desktop-filled" size={15} />
-            </span>
-            Datos técnicos del equipo
-          </h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="input-name"
-              name="name"
-              label="Nombre de red"
-              required
-              value={cubic.name}
-              placeholder="b1842zacw2999.correo.local"
-              autocomplete="off"
-              inputClass="input-sm font-mono"
-            />
-
-            <FormField
-              id="input-ip"
-              name="ip"
-              label="Dirección IP"
-              value={cubic.ip ?? ""}
-              placeholder="10.254.59.62"
-              autocomplete="off"
-              inputClass="input-sm font-mono"
-              helpText="IPv4 asignada al equipo. Opcional."
-            />
-          </div>
-      </SectionCard>
-
-      <SectionCard class="shadow-md">
-          <div class="flex items-center justify-between">
-            <h2
-              class="flex items-center gap-2 text-sm font-semibold text-base-content"
-            >
-              <span
-                class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning"
-              >
-                <Icon name="boxicons:group-filled" size={15} />
-              </span>
-              Operadores asignados
-            </h2>
-            <button
-              type="button"
-              id="btn-add-assignment"
-              class="btn btn-ghost btn-xs text-warning gap-1"
-            >
-              <Icon name="boxicons:plus" size={14} />
-              Agregar
-            </button>
-          </div>
-
+      {
+        cubic.assignments.map((a) => (
           <div
-            id="assignments-container"
-            class="grid grid-cols-1 md:grid-cols-2 gap-4"
+            class="assignment-row bg-base-200/50 border-base-300 relative rounded-lg border p-4"
+            data-mode="read"
           >
-            {
-              cubic.assignments.map((a) => (
-                <div
-                  class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300"
-                  data-mode="read"
-                >
-                  <div class="read-mode flex items-center justify-between w-full">
-                    <div class="flex items-center gap-3">
-                      <div class="avatar placeholder">
-                        <div class="bg-secondary/10 text-secondary rounded-xl w-8 h-8 border border-secondary/20 flex items-center justify-center">
-                          <span class="text-xs font-bold">
-                            {getInitials(a.agent.name)}
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <span class="font-bold text-base-content">
-                            {a.agent.name}
-                          </span>
-                          <span class="flex items-center gap-1 text-xxs text-base-content/60 bg-base-300/40 px-2 py-0.5 rounded border border-base-300 select-none">
-                            {agentShiftMap.get(a.agent.id) === "Diurno" ? (
-                              <Icon
-                                name="boxicons:sun"
-                                size={12}
-                                class="text-warning shrink-0"
-                              />
-                            ) : (
-                              <Icon
-                                name="boxicons:moon"
-                                size={12}
-                                class="text-info shrink-0"
-                              />
-                            )}
-                            <span>
-                              {agentShiftMap.get(a.agent.id) || "Diurno"}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs edit-row-btn text-warning"
-                      >
-                        <Icon name="boxicons:edit-alt" size={16} />
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs text-error remove-row-btn"
-                        aria-label="Quitar asignación"
-                      >
-                        <Icon name="boxicons:trash" size={16} />
-                        Quitar
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="edit-mode space-y-3 w-full">
-                    <div class="flex items-center justify-between">
-                      <span class="text-xs font-bold text-base-content/50">
-                        Modificar Asignación
-                      </span>
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs cancel-row-btn text-neutral"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-3">
-                      <SelectField
-                        id={`assign_agent_id-${a.agent.id}`}
-                        name="assign_agent_id"
-                        label="Operador"
-                        required
-                        selectClass="select-sm"
-                        options={allAgents.map((ag) => ({
-                          value: ag.id.toString(),
-                          label: ag.name,
-                        }))}
-                        value={a.agent.id.toString()}
-                      />
-                    </div>
+            <div class="read-mode flex w-full items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="avatar placeholder">
+                  <div class="bg-secondary/10 text-secondary border-secondary/20 flex h-8 w-8 items-center justify-center rounded-xl border">
+                    <span class="text-xs font-bold">
+                      {getInitials(a.agent.name)}
+                    </span>
                   </div>
                 </div>
-              ))
-            }
-          </div>
-          {
-            cubic.assignments.length === 0 && (
-              <p
-                id="no-assignments-msg"
-                class="text-xs text-base-content/40 text-center py-1"
-              >
-                Sin operadores asignados.
-              </p>
-            )
-          }
-      </SectionCard>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-base-content font-bold">
+                      {a.agent.name}
+                    </span>
+                    <span class="text-xxs text-base-content/60 bg-base-300/40 border-base-300 flex items-center gap-1 rounded border px-2 py-0.5 select-none">
+                      {agentShiftMap.get(a.agent.id) === "Diurno" ? (
+                        <Icon
+                          name="boxicons:sun-filled"
+                          size={12}
+                          class="text-warning shrink-0"
+                          is:inline
+                        />
+                      ) : (
+                        <Icon
+                          name="boxicons:moon-filled"
+                          size={12}
+                          class="text-info shrink-0"
+                          is:inline
+                        />
+                      )}
+                      <span>{agentShiftMap.get(a.agent.id) || "Diurno"}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs edit-row-btn text-warning"
+                >
+                  <Icon name="boxicons:edit-alt-filled" size={16} is:inline />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error remove-row-btn"
+                  aria-label="Quitar asignación"
+                >
+                  <Icon name="boxicons:trash-filled" size={16} is:inline />
+                  Quitar
+                </button>
+              </div>
+            </div>
 
-      <div class="flex items-center justify-between gap-3 pt-1">
-        <a
-          href={`${cleanBase}inventario-terminales`}
-          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
+            <div class="edit-mode w-full space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-base-content/50 text-xs font-bold">
+                  Modificar Asignación
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs cancel-row-btn text-neutral"
+                >
+                  Cancelar
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 gap-3">
+                <SelectField
+                  id={`assign_agent_id-${a.agent.id}`}
+                  name="assign_agent_id"
+                  label="Operador"
+                  required
+                  selectClass="select-sm"
+                  options={allAgents.map((ag) => ({
+                    value: ag.id.toString(),
+                    label: ag.name,
+                  }))}
+                  value={a.agent.id.toString()}
+                />
+              </div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+    {
+      cubic.assignments.length === 0 && (
+        <p
+          id="no-assignments-msg"
+          class="text-base-content/40 py-1 text-center text-xs"
         >
-          <Icon name="boxicons:arrow-left-filled" size={16} />
-          Volver al listado
-        </a>
-        <button type="submit" class="btn btn-secondary btn-sm gap-2">
-          <Icon name="boxicons:save-filled" size={16} />
-          Guardar cambios
-        </button>
-      </div>
-    </form>
-  </PageContainer>
-</BaseLayout>
+          Sin operadores asignados.
+        </p>
+      )
+    }
+  </SectionCard>
+</FormShell>
 
 <template id="tpl-assignment-row">
   <div
-    class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300"
+    class="assignment-row bg-base-200/50 border-base-300 relative rounded-lg border p-4"
     data-mode="edit"
   >
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-xs font-bold text-base-content/50"
+    <div class="mb-2 flex items-center justify-between">
+      <span class="text-base-content/50 text-xs font-bold"
         >Nueva Asignación</span
       >
       <button

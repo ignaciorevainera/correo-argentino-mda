@@ -25,8 +25,24 @@ export const employees = sqliteTable("employees", {
   telefono: text("telefono"),
   sucursal: text("sucursal"),
   invgateExists: integer("invgate_exists", { mode: "boolean" }).default(false),
+  invgateId: integer("invgate_id"),
+  position: text("position"),
   updatedAt: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`),
 });
+
+export const employeeOffices = sqliteTable(
+  "employee_offices",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    username: text("username").notNull(),
+    sucursal: text("sucursal").notNull(),
+  },
+  (table) => ({
+    uniqueUsernameSucursal: uniqueIndex(
+      "employee_offices_username_sucursal_idx",
+    ).on(table.username, table.sucursal),
+  }),
+);
 
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
@@ -36,72 +52,76 @@ export const sessions = sqliteTable("sessions", {
   expiresAt: integer("expiresAt").notNull(),
 });
 
-export const offices = sqliteTable("offices", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  provinceCode: text("provinceCode")
-    .notNull()
-    .references(() => provinces.code),
-  address: text("address"),
-  lat: real("lat"),
-  lng: real("lng"),
-  email: text("email"),
-  notes: text("notes"),
-  street: text("street"),
-  number: text("number"),
-  locality: text("locality"),
-  county: text("county"),
-  zone: text("zone"),
-  officeType: text("officeType"),
-  categoryClass: text("categoryClass"),
-  rubric: text("rubric"),
-  parentNis: text("parentNis"),
-  phone: text("phone"),
-  manager: text("manager"),
-  regionId: text("regionId"),
-  enRed: integer("enRed", { mode: "boolean" }).default(false),
-  paqarAdmision: integer("paqarAdmision", { mode: "boolean" }).default(false),
-  paqarEntrega: integer("paqarEntrega", { mode: "boolean" }).default(false),
-  payroll: integer("payroll", { mode: "boolean" }).default(false),
-  taxExempt: integer("tax_exempt", { mode: "boolean" }).default(false),
-  division: text("division"),
-  company: text("company"),
-  warehouse: text("warehouse"),
-  profitCenter: text("profit_center"),
-  cctAdminOffice: text("cct_admin_office"),
-  ccCommercial: text("cc_commercial"),
-  ccCommercialCorp: text("cc_commercial_corp"),
-  ccElectoral: text("cc_electoral"),
-  ccNetworkMgmt: text("cc_network_mgmt"),
-  ccOperations: text("cc_operations"),
-  ccOperational: text("cc_operational"),
-  ccHr: text("cc_hr"),
-  ccSecurity: text("cc_security"),
-  ccAdmin: text("cc_admin"),
-  ccAdmission: text("cc_admission"),
-  ccCtp: text("cc_ctp"),
-  ccCtt: text("cc_ctt"),
-  ccTransport: text("cc_transport"),
-  ccLogistics: text("cc_logistics"),
-  posAutoAuto: text("pos_auto_auto"),
-  posCurrentAccount: text("pos_current_account"),
-  posManual: text("pos_manual"),
-  posManualAuto: text("pos_manual_auto"),
-  posPlantaMg: text("pos_planta_mg"),
-  posVirtual: text("pos_virtual"),
-  posAutoAuto2: text("pos_auto_auto_2"),
-  posSapTerminal: text("pos_sap_terminal"),
-  searchableText: text("searchable_text"),
-  active: integer("active", { mode: "boolean" }).default(true),
-  closedReason: text("closed_reason"),
-}, (table) => ({
-  nameIdx: index("name_idx").on(table.name),
-  localityIdx: index("locality_idx").on(table.locality),
-  provinceIdx: index("province_idx").on(table.provinceCode),
-  typeIdx: index("type_idx").on(table.type),
-}));
+export const offices = sqliteTable(
+  "offices",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    provinceCode: text("provinceCode")
+      .notNull()
+      .references(() => provinces.code),
+    address: text("address"),
+    lat: real("lat"),
+    lng: real("lng"),
+    email: text("email"),
+    notes: text("notes"),
+    street: text("street"),
+    number: text("number"),
+    locality: text("locality"),
+    county: text("county"),
+    zone: text("zone"),
+    officeType: text("officeType"),
+    categoryClass: text("categoryClass"),
+    rubric: text("rubric"),
+    parentNis: text("parentNis"),
+    phone: text("phone"),
+    manager: text("manager"),
+    regionId: text("regionId"),
+    enRed: integer("enRed", { mode: "boolean" }).default(false),
+    paqarAdmision: integer("paqarAdmision", { mode: "boolean" }).default(false),
+    paqarEntrega: integer("paqarEntrega", { mode: "boolean" }).default(false),
+    payroll: integer("payroll", { mode: "boolean" }).default(false),
+    taxExempt: integer("tax_exempt", { mode: "boolean" }).default(false),
+    division: text("division"),
+    company: text("company"),
+    warehouse: text("warehouse"),
+    profitCenter: text("profit_center"),
+    cctAdminOffice: text("cct_admin_office"),
+    ccCommercial: text("cc_commercial"),
+    ccCommercialCorp: text("cc_commercial_corp"),
+    ccElectoral: text("cc_electoral"),
+    ccNetworkMgmt: text("cc_network_mgmt"),
+    ccOperations: text("cc_operations"),
+    ccOperational: text("cc_operational"),
+    ccHr: text("cc_hr"),
+    ccSecurity: text("cc_security"),
+    ccAdmin: text("cc_admin"),
+    ccAdmission: text("cc_admission"),
+    ccCtp: text("cc_ctp"),
+    ccCtt: text("cc_ctt"),
+    ccTransport: text("cc_transport"),
+    ccLogistics: text("cc_logistics"),
+    posAutoAuto: text("pos_auto_auto"),
+    posCurrentAccount: text("pos_current_account"),
+    posManual: text("pos_manual"),
+    posManualAuto: text("pos_manual_auto"),
+    posPlantaMg: text("pos_planta_mg"),
+    posVirtual: text("pos_virtual"),
+    posAutoAuto2: text("pos_auto_auto_2"),
+    posSapTerminal: text("pos_sap_terminal"),
+    searchableText: text("searchable_text"),
+    active: integer("active", { mode: "boolean" }).default(true),
+    closedReason: text("closed_reason"),
+  },
+  (table) => ({
+    nameIdx: index("name_idx").on(table.name),
+    localityIdx: index("locality_idx").on(table.locality),
+    provinceIdx: index("province_idx").on(table.provinceCode),
+    typeIdx: index("type_idx").on(table.type),
+  }),
+);
 
 export const contactCategories = sqliteTable("contact_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -193,7 +213,10 @@ export const officeInvgateLinks = sqliteTable("office_invgate_links", {
   invgateCc: text("invgate_cc"),
   invgateAddress: text("invgate_address"),
   invgateDuplicateCount: integer("invgate_duplicate_count").default(0),
-  lastSyncedAt: text("last_synced_at").notNull().default(sql`(datetime('now'))`),
+  invgateUserTotal: integer("invgate_user_total").default(0),
+  lastSyncedAt: text("last_synced_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
@@ -263,13 +286,15 @@ export const technologyReferents = sqliteTable("technology_referents", {
   lastName: text("lastName").notNull(),
 });
 
-export const technologyReferentsRelations = relations(technologyReferents, ({ one }) => ({
-  region: one(regions, {
-    fields: [technologyReferents.regionId],
-    references: [regions.id],
+export const technologyReferentsRelations = relations(
+  technologyReferents,
+  ({ one }) => ({
+    region: one(regions, {
+      fields: [technologyReferents.regionId],
+      references: [regions.id],
+    }),
   }),
-}));
-
+);
 
 export const cubics = sqliteTable("cubics", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -357,22 +382,26 @@ export const cubicAssignmentsRelations = relations(
 );
 
 // 8. TABLA DE SCHEDULES (Asistencia y modalidades de operadores)
-export const schedules = sqliteTable("schedules", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  agentName: text("agent_name").notNull(),
-  date: text("date").notNull(),
-  status: text("status").notNull(),
-  comment: text("comment"),
-  horario: text("horario"),
-  entradaReal: text("entrada_real"),
-  salidaReal: text("salida_real"),
-  breakInicio: text("break_inicio"),
-  breakFin: text("break_fin"),
-  isOverride: integer("is_override", { mode: "boolean" }).default(false),
-}, (table) => ({
-  agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
-  dateIdx: index("schedules_date_idx").on(table.date),
-}));
+export const schedules = sqliteTable(
+  "schedules",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentName: text("agent_name").notNull(),
+    date: text("date").notNull(),
+    status: text("status").notNull(),
+    comment: text("comment"),
+    horario: text("horario"),
+    entradaReal: text("entrada_real"),
+    salidaReal: text("salida_real"),
+    breakInicio: text("break_inicio"),
+    breakFin: text("break_fin"),
+    isOverride: integer("is_override", { mode: "boolean" }).default(false),
+  },
+  (table) => ({
+    agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
+    dateIdx: index("schedules_date_idx").on(table.date),
+  }),
+);
 
 // 9. RECURSOS Y ENLACES (Migración de JSON a BD)
 export const resourceCategories = sqliteTable("resource_categories", {
@@ -482,26 +511,30 @@ export const operatorSchedulesRelations = relations(
 );
 
 // 12. TABLA DE AUDITORIAS DE CALIDAD
-export const qualityAudits = sqliteTable("quality_audits", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-  callId: text("call_id").notNull(),
-  ticketId: text("ticket_id").notNull(),
-  duration: text("duration").notNull(),
-  date: text("date").notNull(),
-  month: text("month").notNull(),
-  totalScore: integer("total_score").notNull(),
-  section1Score: integer("section1_score").notNull(),
-  section2Score: integer("section2_score").notNull(),
-  notes: text("notes"),
-  isCriticalFailure: integer("is_critical_failure", { mode: "boolean" })
-    .notNull()
-    .default(false),
-}, (table) => ({
-  monthIdx: index("quality_audits_month_idx").on(table.month),
-}));
+export const qualityAudits = sqliteTable(
+  "quality_audits",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    callId: text("call_id").notNull(),
+    ticketId: text("ticket_id").notNull(),
+    duration: text("duration").notNull(),
+    date: text("date").notNull(),
+    month: text("month").notNull(),
+    totalScore: integer("total_score").notNull(),
+    section1Score: integer("section1_score").notNull(),
+    section2Score: integer("section2_score").notNull(),
+    notes: text("notes"),
+    isCriticalFailure: integer("is_critical_failure", { mode: "boolean" })
+      .notNull()
+      .default(false),
+  },
+  (table) => ({
+    monthIdx: index("quality_audits_month_idx").on(table.month),
+  }),
+);
 
 export const auditParameters = sqliteTable("audit_parameters", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -615,25 +648,29 @@ export const applicationsRelations = relations(applications, ({ one }) => ({
 }));
 
 // 14. INVENTARIO DE TERMINALES
-export const terminals = sqliteTable("terminals", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  hostname: text("hostname").notNull().unique(),
-  macAddress: text("mac_address"),
-  ipAddress: text("ip_address"),
-  operatingSystem: text("operating_system"),
-  osArchitecture: text("os_architecture"),
-  ram: text("ram"),
-  serialNumber: text("serial_number"),
-  manufacturer: text("manufacturer"),
-  model: text("model"),
-  nis: text("nis").references(() => offices.code),
-  nis2: text("nis2"),
-  lastContact: text("last_contact"),
-  syncedAt: text("synced_at"),
-  searchableText: text("searchable_text"),
-}, (table) => ({
-  nisIdx: index("terminals_nis_idx").on(table.nis),
-}));
+export const terminals = sqliteTable(
+  "terminals",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    hostname: text("hostname").notNull().unique(),
+    macAddress: text("mac_address"),
+    ipAddress: text("ip_address"),
+    operatingSystem: text("operating_system"),
+    osArchitecture: text("os_architecture"),
+    ram: text("ram"),
+    serialNumber: text("serial_number"),
+    manufacturer: text("manufacturer"),
+    model: text("model"),
+    nis: text("nis").references(() => offices.code),
+    nis2: text("nis2"),
+    lastContact: text("last_contact"),
+    syncedAt: text("synced_at"),
+    searchableText: text("searchable_text"),
+  },
+  (table) => ({
+    nisIdx: index("terminals_nis_idx").on(table.nis),
+  }),
+);
 
 export const terminalsRelations = relations(terminals, ({ one }) => ({
   office: one(offices, {
@@ -655,6 +692,13 @@ export const supportGuides = sqliteTable("support_guides", {
   searchableText: text("searchable_text"),
 });
 
+export const hiddenHelpdesks = sqliteTable("hidden_helpdesks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  invgateId: integer("invgate_id").notNull().unique(),
+  hiddenBy: text("hidden_by").notNull(),
+  hiddenAt: text("hidden_at").notNull(),
+});
+
 export const auditLogs = sqliteTable("audit_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull(),
@@ -663,25 +707,36 @@ export const auditLogs = sqliteTable("audit_logs", {
 });
 
 // 15. CONTROL DE ASISTENCIA (Horarios reales y eventualidades)
-export const operatorAttendance = sqliteTable("operator_attendance", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-  date: text("date").notNull(),
-  asistencia: text("asistencia"),
-  ausencia: text("ausencia"),
-  entradaReal: text("entrada_real"),
-  salidaReal: text("salida_real"),
-  cumplimiento: text("cumplimiento"),
-  cumplimientoForzado: integer("cumplimiento_forzado", { mode: "boolean" }).default(false),
-  motivoLoguin: text("motivo_loguin"),
-  detalle: text("detalle"),
-  shiftType: text("shift_type").notNull().default("normal"),
-}, (table) => ({
-  agentDateIdx: index("operator_attendance_agent_date_idx").on(table.agentId, table.date, table.shiftType),
-  dateIdx: index("operator_attendance_date_idx").on(table.date),
-}));
+export const operatorAttendance = sqliteTable(
+  "operator_attendance",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    asistencia: text("asistencia"),
+    ausencia: text("ausencia"),
+    entradaReal: text("entrada_real"),
+    salidaReal: text("salida_real"),
+    horarioEstipulado: text("horario_estipulado"),
+    cumplimiento: text("cumplimiento"),
+    cumplimientoForzado: integer("cumplimiento_forzado", {
+      mode: "boolean",
+    }).default(false),
+    motivoLoguin: text("motivo_loguin"),
+    detalle: text("detalle"),
+    shiftType: text("shift_type").notNull().default("normal"),
+  },
+  (table) => ({
+    agentDateIdx: index("operator_attendance_agent_date_idx").on(
+      table.agentId,
+      table.date,
+      table.shiftType,
+    ),
+    dateIdx: index("operator_attendance_date_idx").on(table.date),
+  }),
+);
 
 export const operatorAttendanceRelations = relations(
   operatorAttendance,
@@ -690,7 +745,7 @@ export const operatorAttendanceRelations = relations(
       fields: [operatorAttendance.agentId],
       references: [agents.id],
     }),
-  })
+  }),
 );
 
 export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
@@ -699,26 +754,37 @@ export const saturdayRotationConfig = sqliteTable("saturday_rotation_config", {
   rotationOrder: text("rotation_order").notNull().default("A,B,C,D"),
   startDate: text("start_date").notNull().default("2026-06-06"),
   startGroup: text("start_group").notNull().default("A"),
+  disabledGroups: text("disabled_groups").notNull().default(""),
 });
 
-export const agentSaturdayGroups = sqliteTable("agent_saturday_groups", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-  month: text("month").notNull(), // "YYYY-MM"
-  saturdayGroup: text("saturday_group"),
-  saturdayHorario: text("saturday_horario"),
-}, (table) => ({
-  agentMonthUniqueIdx: uniqueIndex("agent_month_unique_idx").on(table.agentId, table.month),
-}));
-
-export const agentSaturdayGroupsRelations = relations(agentSaturdayGroups, ({ one }) => ({
-  agent: one(agents, {
-    fields: [agentSaturdayGroups.agentId],
-    references: [agents.id],
+export const agentSaturdayGroups = sqliteTable(
+  "agent_saturday_groups",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    month: text("month").notNull(), // "YYYY-MM"
+    saturdayGroup: text("saturday_group"),
+    saturdayHorario: text("saturday_horario"),
+  },
+  (table) => ({
+    agentMonthUniqueIdx: uniqueIndex("agent_month_unique_idx").on(
+      table.agentId,
+      table.month,
+    ),
   }),
-}));
+);
+
+export const agentSaturdayGroupsRelations = relations(
+  agentSaturdayGroups,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [agentSaturdayGroups.agentId],
+      references: [agents.id],
+    }),
+  }),
+);
 
 export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -726,26 +792,35 @@ export const weekendOvertimeConfig = sqliteTable("weekend_overtime_config", {
   referente: text("referente").notNull(),
 });
 
-export const weekendOvertimeShifts = sqliteTable("weekend_overtime_shifts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  weekendStartDate: text("weekend_start_date").notNull(), // Sábado "YYYY-MM-DD"
-  agentId: integer("agent_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-  date: text("date").notNull(), // "YYYY-MM-DD" (Sábado o Domingo)
-  startTime: text("start_time").notNull(), // "HH:MM"
-  endTime: text("end_time").notNull(), // "HH:MM"
-}, (table) => ({
-  weekendStartIdx: index("overtime_shifts_weekend_start_idx").on(table.weekendStartDate),
-  agentIdx: index("overtime_shifts_agent_idx").on(table.agentId),
-}));
-
-export const weekendOvertimeShiftsRelations = relations(weekendOvertimeShifts, ({ one }) => ({
-  agent: one(agents, {
-    fields: [weekendOvertimeShifts.agentId],
-    references: [agents.id],
+export const weekendOvertimeShifts = sqliteTable(
+  "weekend_overtime_shifts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    weekendStartDate: text("weekend_start_date").notNull(), // Sábado "YYYY-MM-DD"
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    date: text("date").notNull(), // "YYYY-MM-DD" (Sábado o Domingo)
+    startTime: text("start_time").notNull(), // "HH:MM"
+    endTime: text("end_time").notNull(), // "HH:MM"
+  },
+  (table) => ({
+    weekendStartIdx: index("overtime_shifts_weekend_start_idx").on(
+      table.weekendStartDate,
+    ),
+    agentIdx: index("overtime_shifts_agent_idx").on(table.agentId),
   }),
-}));
+);
+
+export const weekendOvertimeShiftsRelations = relations(
+  weekendOvertimeShifts,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [weekendOvertimeShifts.agentId],
+      references: [agents.id],
+    }),
+  }),
+);
 
 export const holidays = sqliteTable("holidays", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -754,22 +829,31 @@ export const holidays = sqliteTable("holidays", {
 });
 
 // 17. GUARDIA PASIVA
-export const monthlyGuardiaPasivaOperator = sqliteTable("monthly_guardia_pasiva_operator", {
-  month: text("month").primaryKey(), // Formato "YYYY-MM"
-  operatorId: integer("operator_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-});
+export const monthlyGuardiaPasivaOperator = sqliteTable(
+  "monthly_guardia_pasiva_operator",
+  {
+    month: text("month").primaryKey(), // Formato "YYYY-MM"
+    operatorId: integer("operator_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+  },
+);
 
-export const weeklyGuardiaPasivaAssignments = sqliteTable("weekly_guardia_pasiva_assignments", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  startDate: text("start_date").notNull().unique(), // Lunes de la semana "YYYY-MM-DD"
-  endDate: text("end_date").notNull(),             // Domingo de la semana "YYYY-MM-DD"
-  supervisorName: text("supervisor_name").notNull(),// Nombre de texto libre
-  referenteId: integer("referente_id")
-    .notNull()
-    .references(() => agents.id, { onDelete: "cascade" }),
-});
+export const weeklyGuardiaPasivaAssignments = sqliteTable(
+  "weekly_guardia_pasiva_assignments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    startDate: text("start_date").notNull().unique(), // Lunes de la semana "YYYY-MM-DD"
+    endDate: text("end_date").notNull(), // Domingo de la semana "YYYY-MM-DD"
+    supervisorName: text("supervisor_name").notNull(), // Nombre de texto libre
+    referenteId: integer("referente_id").references(() => agents.id, {
+      onDelete: "cascade",
+    }),
+    operatorId: integer("operator_id").references(() => agents.id, {
+      onDelete: "cascade",
+    }),
+  },
+);
 
 export const monthlyGuardiaPasivaOperatorRelations = relations(
   monthlyGuardiaPasivaOperator,
@@ -778,7 +862,7 @@ export const monthlyGuardiaPasivaOperatorRelations = relations(
       fields: [monthlyGuardiaPasivaOperator.operatorId],
       references: [agents.id],
     }),
-  })
+  }),
 );
 
 export const weeklyGuardiaPasivaAssignmentsRelations = relations(
@@ -788,7 +872,11 @@ export const weeklyGuardiaPasivaAssignmentsRelations = relations(
       fields: [weeklyGuardiaPasivaAssignments.referenteId],
       references: [agents.id],
     }),
-  })
+    operator: one(agents, {
+      fields: [weeklyGuardiaPasivaAssignments.operatorId],
+      references: [agents.id],
+    }),
+  }),
 );
 
 export const feedback = sqliteTable("feedback", {
@@ -808,8 +896,9 @@ export const feedback = sqliteTable("feedback", {
   createdAt: integer("createdAt", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
-  updatedAt: integer("updatedAt", { mode: "timestamp" })
-    .$onUpdateFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdateFn(
+    () => new Date(),
+  ),
 });
 
 export const feedbackRelations = relations(feedback, ({ one }) => ({
@@ -837,7 +926,7 @@ export const titleCategory = sqliteTable("title_category", {
   name: text("name").notNull().unique(),
   icon: text("icon").notNull(),
   tone: text("tone").notNull(),
-})
+});
 
 export const titles = sqliteTable("titles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -851,8 +940,10 @@ export const titles = sqliteTable("titles", {
   deprecated: integer("deprecated", {
     mode: "boolean",
   }).default(false),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .$onUpdateFn(() => new Date()),
-})
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$onUpdateFn(
+    () => new Date(),
+  ),
+});

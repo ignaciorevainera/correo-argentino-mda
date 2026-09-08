@@ -27,7 +27,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       const pageSize = url.searchParams.get("page_size") || "10";
 
       const result = await invgateGet<InvgateByStatusResponse>(
-        `incidents.by.status?status_id=${statusId}&page=${page}&page_size=${pageSize}`
+        `incidents.by.status?status_id=${statusId}&page=${page}&page_size=${pageSize}`,
       );
 
       if (!result.ok) {

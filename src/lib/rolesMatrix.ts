@@ -37,7 +37,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     admin: true,
   },
   {
-    feature: "Ver Soportes",
+    feature: "Ver Mesas de Ayuda",
     icon: "boxicons:headphone",
     agent: true,
     referent: true,
@@ -158,5 +158,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
 export const isAllowed = (featureName: string, role: string) => {
   const feature = rolesMatrix.find((f) => f.feature === featureName);
   const normalizedRole = role.replace(/[- ]/g, "_");
-  return feature ? feature[normalizedRole as keyof typeof feature] === true : false;
+  return feature
+    ? feature[normalizedRole as keyof typeof feature] === true
+    : false;
 };

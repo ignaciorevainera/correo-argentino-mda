@@ -8,7 +8,9 @@ async function runTest() {
   await page.goto("http://localhost:4321/directorio-oficinas");
   await page.waitForSelector("[data-master-detail-sort-item]");
 
-  const initialRows = await page.locator("[data-master-detail-sort-item]").all();
+  const initialRows = await page
+    .locator("[data-master-detail-sort-item]")
+    .all();
   assert.ok(initialRows.length > 0);
 
   const regionSelect = page.locator("#regionFilter");
@@ -26,9 +28,9 @@ async function runTest() {
     console.log(`Selecting region: ${selectedRegionValue}`);
     await Promise.all([
       page.waitForNavigation(),
-      regionSelect.selectOption(selectedRegionValue)
+      regionSelect.selectOption(selectedRegionValue),
     ]);
-    
+
     const currentUrl = page.url();
     console.log(`Current URL after region selection: ${currentUrl}`);
     const urlObj = new URL(currentUrl);
@@ -37,26 +39,29 @@ async function runTest() {
     const selectedValue = await page.locator("#regionFilter").inputValue();
     assert.equal(selectedValue, selectedRegionValue);
 
-    const filteredRows = await page.locator("[data-master-detail-sort-item]").all();
+    const filteredRows = await page
+      .locator("[data-master-detail-sort-item]")
+      .all();
     console.log(`Filtered rows count: ${filteredRows.length}`);
   }
 
-  const tabButton = page.locator('.filter-tabs-box button[data-tab-value]').nth(1);
+  const tabButton = page
+    .locator(".filter-tabs-box button[data-tab-value]")
+    .nth(1);
   const hasTab = await tabButton.count();
   if (hasTab > 0) {
     const tabValue = await tabButton.getAttribute("data-tab-value");
     console.log(`Clicking tab: ${tabValue}`);
-    await Promise.all([
-      page.waitForNavigation(),
-      tabButton.click()
-    ]);
+    await Promise.all([page.waitForNavigation(), tabButton.click()]);
 
     const currentUrl = page.url();
     console.log(`Current URL after tab click: ${currentUrl}`);
     const urlObj = new URL(currentUrl);
     assert.equal(urlObj.searchParams.get("type"), tabValue);
 
-    const activeTab = page.locator('.filter-tabs-box button[aria-selected="true"]');
+    const activeTab = page.locator(
+      '.filter-tabs-box button[aria-selected="true"]',
+    );
     const activeTabValue = await activeTab.getAttribute("data-tab-value");
     assert.equal(activeTabValue, tabValue);
 
@@ -67,7 +72,7 @@ async function runTest() {
   const searchInput = page.locator("#office-search");
   await searchInput.fill("xyz-non-existent-office-name-123");
   await page.waitForTimeout(1000);
-  
+
   const noResultsState = page.locator("#no-results-state");
   const isVisible = await noResultsState.isVisible();
   assert.ok(isVisible);

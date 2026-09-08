@@ -13,9 +13,6 @@ import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
 import { getShiftType } from "@lib/cubics";
 import OperatorAvatar from "@components/cubics/OperatorAvatar.astro";
 
-
-
-
 const allCubics = await db.query.cubics.findMany({
   orderBy: [asc(cubics.name)],
   with: {
@@ -29,9 +26,9 @@ const allCubics = await db.query.cubics.findMany({
   },
 });
 
-const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
-
-
+const todayStr = new Date().toLocaleDateString("en-CA", {
+  timeZone: "America/Argentina/Buenos_Aires",
+});
 
 const allAgents = await db
   .select({
@@ -44,8 +41,8 @@ const allAgents = await db
     operatorAttendance,
     and(
       eq(operatorAttendance.agentId, agents.id),
-      eq(operatorAttendance.date, todayStr)
-    )
+      eq(operatorAttendance.date, todayStr),
+    ),
   );
 
 const agentShiftMap = new Map<number, "Diurno" | "Nocturno">();
@@ -65,18 +62,18 @@ const statusBadgeClass: Record<string, string> = {
 };
 
 function timeAgo(dateString: string | null) {
-  if (!dateString) return 'Nunca';
-  
+  if (!dateString) return "Nunca";
+
   const date = new Date(dateString);
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-  
-  if (seconds < 60) return 'Hace un momento';
+
+  if (seconds < 60) return "Hace un momento";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `Hace ${minutes} min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Hace ${hours} hr`;
   const days = Math.floor(hours / 24);
-  return `Hace ${days} día${days > 1 ? 's' : ''}`;
+  return `Hace ${days} día${days > 1 ? "s" : ""}`;
 }
 
 const cleanBase = getCleanBase();
@@ -90,22 +87,25 @@ const rowGridClass =
     description="Administración del parque de ordenadores de la Mesa de Ayuda, asignaciones y estado operativo."
   />
 
-
-
   {/* ── Toolbar ── */}
   <div class="flex items-center justify-between gap-4">
     <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-base-content">
+      <h2 class="text-base-content text-lg font-semibold">
         Ordenadores registrados
       </h2>
-      {allCubics.length > 0 && (
-        <span class="badge badge-neutral badge-sm font-mono">
-          {allCubics.length}
-        </span>
-      )}
+      {
+        allCubics.length > 0 && (
+          <span class="badge badge-neutral badge-sm font-mono">
+            {allCubics.length}
+          </span>
+        )
+      }
     </div>
 
-    <a href={`${cleanBase}admin/inventario-terminales/new`} class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+    <a
+      href={`${cleanBase}admin/inventario-terminales/new`}
+      class="btn btn-secondary focus-visible:outline-accent rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
       <Icon name="boxicons:plus" size={18} />
       Registrar nuevo cubic
     </a>
@@ -134,112 +134,118 @@ const rowGridClass =
       <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
     </div>
 
-    {allCubics.length === 0 ? (
-      <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-        <div class="rounded-full bg-base-200 p-4">
-          <Icon
-            name="boxicons:server-filled"
-            size={32}
-            class="opacity-30"
-            aria-hidden="true"
-          />
+    {
+      allCubics.length === 0 ? (
+        <div class="text-base-content/50 flex flex-col items-center gap-3 py-16">
+          <div class="bg-base-200 rounded-full p-4">
+            <Icon
+              name="boxicons:server-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <div class="space-y-1 text-center">
+            <p class="text-sm font-semibold">No hay ordenadores registrados</p>
+            <p class="text-xs">
+              Comenzá registrando el primer cubic desde el botón superior.
+            </p>
+          </div>
         </div>
-        <div class="space-y-1 text-center">
-          <p class="text-sm font-semibold">No hay ordenadores registrados</p>
-          <p class="text-xs">
-            Comenzá registrando el primer cubic desde el botón superior.
-          </p>
-        </div>
-      </div>
-    ) : (
-      allCubics.map((cubic) => {
-        return (
-          <article
-            data-table-row
-            data-sort-name={cubic.name}
-            data-sort-ip={cubic.ip ?? ""}
-            data-sort-status={cubic.status}
-            class:list={[
-              rowGridClass,
-              "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
-            ]}
-          >
-            {/* Terminal */}
-            <div class="min-w-0">
-              <p class="truncate font-mono text-sm font-semibold text-base-content">
-                {cubic.name}
-              </p>
-            </div>
+      ) : (
+        allCubics.map((cubic) => {
+          return (
+            <article
+              data-table-row
+              data-sort-name={cubic.name}
+              data-sort-ip={cubic.ip ?? ""}
+              data-sort-status={cubic.status}
+              class:list={[
+                rowGridClass,
+                "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
+              ]}
+            >
+              {/* Terminal */}
+              <div class="min-w-0">
+                <p class="text-base-content truncate font-mono text-sm font-semibold">
+                  {cubic.name}
+                </p>
+              </div>
 
-            {/* IP */}
-            <div>
-              <span class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm text-base-content/80">
-                {cubic.ip || <span class="text-base-content/30">&mdash;</span>}
-              </span>
-            </div>
-
-            {/* Estado */}
-            <div>
-              <div class="flex flex-col gap-1">
-                <span
-                  class:list={[
-                    "badge badge-sm font-bold uppercase tracking-wide",
-                    statusBadgeClass[cubic.status] ?? "badge-neutral",
-                    cubic.status === 'online' ? 'animate-pulse' : '',
-                  ]}
-                >
-                  {statusLabel[cubic.status] ?? cubic.status}
-                </span>
-                <span class="text-xs text-base-content/50">
-                  {timeAgo(cubic.lastPing)}
+              {/* IP */}
+              <div>
+                <span class="bg-base-200 text-base-content/80 rounded-md px-2 py-1 font-mono text-sm">
+                  {cubic.ip || (
+                    <span class="text-base-content/30">&mdash;</span>
+                  )}
                 </span>
               </div>
-            </div>
 
-            {/* Operadores */}
-            <div class="min-w-0">
-              {cubic.assignments.length > 0 ? (
-                <div class="flex flex-wrap items-center gap-1.5">
-                  {cubic.assignments.map((assignment) => {
-                    const shift = agentShiftMap.get(assignment.agent.id) || "Diurno";
-                    return (
-                      <OperatorAvatar
-                        name={`${assignment.agent.name} — ${shift}`}
-                        avatarInitials={assignment.agent.avatarInitials ?? assignment.agent.name.slice(0, 2).toUpperCase()}
-                        shiftType={shift}
-                        size="sm"
-                      />
-                    );
-                  })}
+              {/* Estado */}
+              <div>
+                <div class="flex flex-col gap-1">
+                  <span
+                    class:list={[
+                      "badge badge-sm font-bold tracking-wide uppercase",
+                      statusBadgeClass[cubic.status] ?? "badge-neutral",
+                      cubic.status === "online" ? "animate-pulse" : "",
+                    ]}
+                  >
+                    {statusLabel[cubic.status] ?? cubic.status}
+                  </span>
+                  <span class="text-base-content/50 text-xs">
+                    {timeAgo(cubic.lastPing)}
+                  </span>
                 </div>
-              ) : (
-                <span class="text-xs text-base-content/30">&mdash;</span>
-              )}
-            </div>
+              </div>
 
-            {/* Acciones */}
-            <div class="flex items-center justify-end gap-2">
-              <ActionEditButton
-                href={`${cleanBase}admin/inventario-terminales/${cubic.id}`}
-                ariaLabel={`Editar ${cubic.name}`}
-              />
+              {/* Operadores */}
+              <div class="min-w-0">
+                {cubic.assignments.length > 0 ? (
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    {cubic.assignments.map((assignment) => {
+                      const shift =
+                        agentShiftMap.get(assignment.agent.id) || "Diurno";
+                      return (
+                        <OperatorAvatar
+                          name={`${assignment.agent.name} — ${shift}`}
+                          avatarInitials={
+                            assignment.agent.avatarInitials ??
+                            assignment.agent.name.slice(0, 2).toUpperCase()
+                          }
+                          shiftType={shift}
+                          size="sm"
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span class="text-base-content/30 text-xs">&mdash;</span>
+                )}
+              </div>
 
-              <form
-                method="POST"
-                class="inline"
-                onsubmit="return confirm('¿Estás seguro de que deseas dar de baja este ordenador del sistema?')"
-              >
-                <input type="hidden" name="action" value="delete_cubic" />
-                <input type="hidden" name="cubicId" value={cubic.id} />
-                <ActionDeleteButton
-                  ariaLabel={`Eliminar ${cubic.name}`}
+              {/* Acciones */}
+              <div class="flex items-center justify-end gap-2">
+                <ActionEditButton
+                  href={`${cleanBase}admin/inventario-terminales/${cubic.id}`}
+                  ariaLabel={`Editar ${cubic.name}`}
                 />
-              </form>
-            </div>
-          </article>
-        );
-      })
-    )}
+
+                <form
+                  method="POST"
+                  class="inline"
+                  onsubmit="return confirm('¿Estás seguro de que deseas dar de baja este ordenador del sistema?')"
+                >
+                  <input type="hidden" name="action" value="delete_cubic" />
+                  <input type="hidden" name="cubicId" value={cubic.id} />
+                  <ActionDeleteButton ariaLabel={`Eliminar ${cubic.name}`} />
+                </form>
+              </div>
+            </article>
+          );
+        })
+      )
+    }
   </DataTable>
 </PageContainer>
 
@@ -248,4 +254,3 @@ const rowGridClass =
     window.location.reload();
   }, 300000);
 </script>
-

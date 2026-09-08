@@ -1,4 +1,5 @@
-export type Role = "admin" | "supervisor" | "team_leader" | "referent" | "agent";
+export type Role =
+  "admin" | "supervisor" | "team_leader" | "referent" | "agent";
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
   agent: 1,
@@ -12,7 +13,12 @@ export function normalizeRole(role: string): Role {
   const clean = role.toLowerCase().replace(/[-_]/g, " ").trim();
   if (clean === "admin") return "admin";
   if (clean === "supervisor") return "supervisor";
-  if (clean === "team leader" || clean === "team_leader" || clean === "team-leader") return "team_leader";
+  if (
+    clean === "team leader" ||
+    clean === "team_leader" ||
+    clean === "team-leader"
+  )
+    return "team_leader";
   if (clean === "referent" || clean === "referente") return "referent";
   return "agent";
 }
@@ -23,22 +29,47 @@ export interface RoutePermission {
 }
 
 export const routePermissions: RoutePermission[] = [
+  { path: "/admin/usuarios-sin-ubicacion", roles: ["admin"] },
   { path: "/admin/usuarios", roles: ["admin"] },
   { path: "/admin/auditoria", roles: ["admin"] },
-  { path: "/admin/invgate/ubicaciones", roles: ["admin", "supervisor", "team_leader"] },
+  {
+    path: "/admin/invgate/ubicaciones",
+    roles: ["admin", "supervisor", "team_leader"],
+  },
   { path: "/admin", roles: ["admin", "supervisor", "team_leader"] },
-  { path: "/supervision/asistencia", roles: ["admin", "supervisor", "team_leader"] },
-  { path: "/supervision/cronograma", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
-  { path: "/supervision/calidad-operadores", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
-  { path: "/supervision/asignacion-autogestiones", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
-  { path: "/supervision", roles: ["admin", "supervisor", "team_leader", "referent", "agent"] },
-  { path: "/soportes/create", roles: ["admin", "supervisor"] },
-  { path: "/soportes/edit", roles: ["admin", "supervisor"] },
-  { path: "/soportes/asignar", roles: ["admin", "supervisor"] },
+  {
+    path: "/supervision/asistencia",
+    roles: ["admin", "supervisor", "team_leader"],
+  },
+  {
+    path: "/supervision/cronograma",
+    roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
+  },
+  {
+    path: "/supervision/calidad-operadores",
+    roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
+  },
+  {
+    path: "/supervision/asignacion-autogestiones",
+    roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
+  },
+  {
+    path: "/supervision",
+    roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
+  },
+  { path: "/mesas-de-ayuda/create", roles: ["admin", "supervisor"] },
+  { path: "/mesas-de-ayuda/edit", roles: ["admin", "supervisor"] },
+  { path: "/mesas-de-ayuda/asignar", roles: ["admin", "supervisor"] },
   { path: "/oficinas/create", roles: ["admin", "supervisor"] },
   { path: "/oficinas/edit", roles: ["admin", "supervisor"] },
-  { path: "/inventario-terminales/cubics/create", roles: ["admin", "supervisor"] },
-  { path: "/inventario-terminales/cubics/edit", roles: ["admin", "supervisor"] },
+  {
+    path: "/inventario-terminales/cubics/create",
+    roles: ["admin", "supervisor"],
+  },
+  {
+    path: "/inventario-terminales/cubics/edit",
+    roles: ["admin", "supervisor"],
+  },
 ];
 
 export function hasPermission(path: string, userRole: string): boolean {
@@ -46,7 +77,7 @@ export function hasPermission(path: string, userRole: string): boolean {
   const normalizedPath = path.toLowerCase();
 
   const matchedRoute = routePermissions
-    .filter(route => normalizedPath.startsWith(route.path.toLowerCase()))
+    .filter((route) => normalizedPath.startsWith(route.path.toLowerCase()))
     .sort((a, b) => b.path.length - a.path.length)[0];
 
   if (!matchedRoute) {
@@ -54,7 +85,7 @@ export function hasPermission(path: string, userRole: string): boolean {
   }
 
   const userRank = ROLE_HIERARCHY[role] || 0;
-  return matchedRoute.roles.some(allowedRole => {
+  return matchedRoute.roles.some((allowedRole) => {
     const allowedRank = ROLE_HIERARCHY[allowedRole];
     return userRank >= allowedRank;
   });
@@ -63,12 +94,15 @@ export function hasPermission(path: string, userRole: string): boolean {
 export interface ModulePermission {
   canRead: boolean;
   canWrite: boolean;
-  canViewAll: boolean;      // Ver datos de todos los operadores
+  canViewAll: boolean; // Ver datos de todos los operadores
   canViewComments: boolean; // Ver comentarios detallados en Cronograma
-  canViewTotals: boolean;   // Ver columnas totales P/HO/L
+  canViewTotals: boolean; // Ver columnas totales P/HO/L
 }
 
-export function getModulePermissions(moduleName: string, userRole: string): ModulePermission {
+export function getModulePermissions(
+  moduleName: string,
+  userRole: string,
+): ModulePermission {
   const role = normalizeRole(userRole);
   const rank = ROLE_HIERARCHY[role] || 0;
 
@@ -111,6 +145,10 @@ export function getModulePermissions(moduleName: string, userRole: string): Modu
     // Leen: todos / Escriben: admin, supervisor, team_leader
     perm.canRead = true;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
+  } else if (moduleName === "usuarios") {
+    // Solo lectura por defecto, escritura solo para admin
+    perm.canRead = true;
+    perm.canWrite = rank >= ROLE_HIERARCHY.admin;
   }
 
   return perm;

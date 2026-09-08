@@ -62,8 +62,10 @@ if (!selectorMonthsList.includes(selectedMonth)) {
 }
 
 // Fetch all agents (small table, ~30 rows)
-const allAgents = await db.select({ id: agents.id, name: agents.name, username: agents.username })
-  .from(agents).orderBy(agents.name);
+const allAgents = await db
+  .select({ id: agents.id, name: agents.name, username: agents.username })
+  .from(agents)
+  .orderBy(agents.name);
 
 // Fetch all parameters (small table, ~20 rows)
 const allParameters = await db.select().from(auditParameters);
@@ -125,7 +127,8 @@ let agentNotFound = false;
 
 if (isAgent) {
   const matched = allAgents.find(
-    (a) => a.username?.toLowerCase().trim() === user.username.toLowerCase().trim()
+    (a) =>
+      a.username?.toLowerCase().trim() === user.username.toLowerCase().trim(),
   );
   if (matched) {
     finalAgents = [matched];
@@ -170,8 +173,8 @@ const operatorsQuality = finalAgents.map((agent) => {
     const section1Details: Record<string, boolean> = {};
     const section2Details: Record<string, boolean> = {};
 
-    auditScoresList.forEach(scoreObj => {
-      const param = allParameters.find(p => p.id === scoreObj.parameterId);
+    auditScoresList.forEach((scoreObj) => {
+      const param = allParameters.find((p) => p.id === scoreObj.parameterId);
       if (param) {
         if (param.category === "Interacción con Usuario") {
           section1Details[param.code] = scoreObj.score;
@@ -205,15 +208,20 @@ const operatorsQuality = finalAgents.map((agent) => {
   });
 
   const prevMonth = dynamicMonthsList[1];
-  const prevMonthAudits = prevMonth ? agentAudits.filter((a) => a.month === prevMonth) : [];
-  const prevAverageScore = prevMonthAudits.length > 0
-    ? Math.round(
-        prevMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
-          prevMonthAudits.length,
-      )
-    : 0;
+  const prevMonthAudits = prevMonth
+    ? agentAudits.filter((a) => a.month === prevMonth)
+    : [];
+  const prevAverageScore =
+    prevMonthAudits.length > 0
+      ? Math.round(
+          prevMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+            prevMonthAudits.length,
+        )
+      : 0;
   const prevCallsCount = prevMonthAudits.length;
-  const prevCriticalCount = prevMonthAudits.filter((a) => a.isCriticalFailure).length;
+  const prevCriticalCount = prevMonthAudits.filter(
+    (a) => a.isCriticalFailure,
+  ).length;
 
   return {
     id: agent.id.toString(),
@@ -285,16 +293,20 @@ const cleanBase = getCleanBase();
   class="hidden"
 >
 </div>
-<PageContainer class="max-w-7xl mx-auto" data-is-agent={isAgent} data-agent-not-found={agentNotFound}>
+<PageContainer
+  class="mx-auto max-w-7xl"
+  data-is-agent={isAgent}
+  data-agent-not-found={agentNotFound}
+>
   <PageHeader
     description="Evaluación de llamadas, métricas y validaciones de la calidad de atención del equipo de operaciones de Mesa de Ayuda."
   />
 
   <!-- Selector de Período -->
   <div
-    class="mt-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-base-200/50 p-4 rounded-xl border border-base-300 shadow-md"
+    class="bg-base-200/50 border-base-300 mt-4 mb-6 flex flex-col rounded-xl border p-4 shadow-md sm:flex-row sm:items-center sm:justify-between"
   >
-    <div class="flex items-center gap-2 text-base-content/80 mb-3 sm:mb-0">
+    <div class="text-base-content/80 mb-3 flex items-center gap-2 sm:mb-0">
       <Icon name="boxicons:calendar" size={24} class="text-primary" />
       <span class="font-semibold">Período de evaluación:</span>
     </div>
@@ -308,7 +320,7 @@ const cleanBase = getCleanBase();
       </button>
       <select
         id="month-selector"
-        class="select select-bordered select-sm w-full sm:w-48 bg-base-100 font-bold text-center"
+        class="select select-bordered select-sm bg-base-100 w-full text-center font-bold sm:w-48"
       >
         {
           selectorMonthsList.map((m) => (
@@ -326,598 +338,681 @@ const cleanBase = getCleanBase();
         <Icon name="boxicons:chevron-right" size={24} />
       </button>
       <div class="divider divider-horizontal mx-1 hidden sm:flex"></div>
-      {!isAgent && (
-        <button
-          id="btn-configure-parameters"
-          class="btn btn-sm btn-outline btn-secondary gap-1.5 font-bold uppercase text-xs"
-          title="Configurar Parámetros de Calidad"
-        >
-          <Icon name="boxicons:cog" size={18} />
-          <span>Parámetros</span>
-        </button>
-      )}
+      {
+        !isAgent && (
+          <button
+            id="btn-configure-parameters"
+            class="btn btn-sm btn-outline btn-secondary gap-1.5 text-xs font-bold uppercase"
+            title="Configurar Parámetros de Calidad"
+          >
+            <Icon name="boxicons:cog" size={18} />
+            <span>Parámetros</span>
+          </button>
+        )
+      }
     </div>
   </div>
 
   {
     agentNotFound ? (
-      <div class="alert alert-warning shadow-md rounded-2xl p-6 mb-6 flex gap-4">
-        <Icon name="boxicons:alert-circle-filled" size={24} class="shrink-0 text-amber-600" />
+      <div class="alert alert-warning mb-6 flex gap-4 rounded-2xl p-6 shadow-md">
+        <Icon
+          name="boxicons:alert-circle-filled"
+          size={24}
+          class="shrink-0 text-amber-600"
+        />
         <div>
-          <h3 class="font-bold text-sm uppercase tracking-wide">Ficha de Operador no encontrada</h3>
-          <p class="text-xs mt-1">
-            No se encontró tu ficha de operador vinculada a tu nombre de usuario (@{user.username}).
-            Por favor, solicita a tu supervisor que cree tu ficha en el sistema.
+          <h3 class="text-sm font-bold tracking-wide uppercase">
+            Ficha de Operador no encontrada
+          </h3>
+          <p class="mt-1 text-xs">
+            No se encontró tu ficha de operador vinculada a tu nombre de usuario
+            (@{user.username}). Por favor, solicita a tu supervisor que cree tu
+            ficha en el sistema.
           </p>
         </div>
       </div>
     ) : (
-      <div
-        class="mt-2 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative"
-      >
-    <!-- Panel Izquierdo: Lista Navegable -->
-    <aside
-      class:list={[
-        "flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]",
-        isAgent ? "hidden" : "lg:col-span-4"
-      ]}
-    >
-      <div
-        class="card border border-base-300 bg-base-100 shadow-md flex-1 flex flex-col overflow-hidden"
-      >
-        <div
-          class="p-4 border-b border-base-200 bg-base-200/30 flex flex-col gap-3"
+      <div class="relative mt-2 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        {/* Panel Izquierdo: Lista Navegable */}
+        <aside
+          class:list={[
+            "flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]",
+            isAgent ? "hidden" : "lg:col-span-4",
+          ]}
         >
-          <h2 class="font-bold text-base-content flex items-center gap-2">
-            <Icon name="boxicons:group" class="text-primary" size={24} />
-            Operadores Evaluados
-          </h2>
-          <div class="flex flex-col gap-2">
-            <SearchBar
-              id="operator-search"
-              label="Buscar operador"
-              placeholder="Buscar por nombre o legajo..."
-            />
-            <div class="flex gap-2">
-              <select
-                id="operator-sort"
-                class="select select-bordered select-sm w-full font-medium text-base-content/70"
-              >
-                <option value="name">Nombre: A → Z</option>
-                <option value="name-desc">Nombre: Z → A</option>
-                <option value="score-desc">Score: Mayor primero</option>
-                <option value="score-asc">Score: Menor primero</option>
-                <option value="calls-desc">Auditorías: Más evaluados</option>
-                <option value="calls-asc">Auditorías: Menos evaluados</option>
-                <option value="critical">Falla Crítica primero</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-2" id="operator-list">
-          {
-            operatorsQuality.map((op) => (
-              <button
-                class="operator-item group w-full text-left p-4 mb-2 rounded-xl bg-base-100 border border-base-200 border-l-4 border-l-transparent hover:border-l-secondary transition-colors flex items-center justify-between"
-                data-name={op.name.toLowerCase()}
-                data-id={op.id.toLowerCase()}
-                data-operator={JSON.stringify({
-                  id: op.id,
-                  name: op.name,
-                  averageScore: op.averageScore,
-                  callsCount: op.calls.length,
-                  hasCriticalFailure: op.calls.some(
-                    (c) => c.isCriticalFailure,
-                  ),
-                })}
-              >
-                <div class="flex items-center gap-4">
-                  <div class="relative">
-                    <div class="flex size-10 items-center justify-center rounded-full bg-base-200 group-hover:bg-secondary group-hover:text-secondary-content text-base-content/70 font-bold transition-colors shadow-sm">
-                      {op.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .substring(0, 2)}
-                    </div>
-                  </div>
-                  <div>
-                    <div class="font-bold text-sm text-base-content group-hover:text-base-content transition-colors tracking-tight flex items-center gap-1">
-                      {op.name}
-                      {op.averageScore >= 90 && (
-                        <Icon
-                          name="boxicons:badge-check"
-                          class="text-secondary"
-                          size={24}
-                          title="Insignia de Excelencia"
-                        />
-                      )}
-                    </div>
-                    <div class="font-mono text-xs lowercase text-base-content/50 mt-0.5">
-                      @{op.username || op.id}
-                    </div>
-                  </div>
+          <div class="card border-base-300 bg-base-100 flex flex-1 flex-col overflow-hidden border shadow-md">
+            <div class="border-base-200 bg-base-200/30 flex flex-col gap-3 border-b p-4">
+              <h2 class="text-base-content flex items-center gap-2 font-bold">
+                <Icon name="boxicons:group" class="text-primary" size={24} />
+                Operadores Evaluados
+              </h2>
+              <div class="flex flex-col gap-2">
+                <SearchBar
+                  id="operator-search"
+                  placeholder="Buscar por nombre o legajo..."
+                />
+                <div class="flex gap-2">
+                  <select
+                    id="operator-sort"
+                    class="select select-bordered select-sm text-base-content/70 w-full font-medium"
+                  >
+                    <option value="name">Nombre: A → Z</option>
+                    <option value="name-desc">Nombre: Z → A</option>
+                    <option value="score-desc">Score: Mayor primero</option>
+                    <option value="score-asc">Score: Menor primero</option>
+                    <option value="calls-desc">
+                      Auditorías: Más evaluados
+                    </option>
+                    <option value="calls-asc">
+                      Auditorías: Menos evaluados
+                    </option>
+                    <option value="critical">Falla Crítica primero</option>
+                  </select>
                 </div>
-                <div
-                  class={`text-sm font-black ${op.averageScore >= 90 ? "text-success" : op.averageScore >= 80 ? "text-warning" : "text-error"}`}
+              </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2" id="operator-list">
+              {operatorsQuality.map((op) => (
+                <button
+                  class="operator-item group bg-base-100 border-base-200 hover:border-l-secondary mb-2 flex w-full items-center justify-between rounded-xl border border-l-4 border-l-transparent p-4 text-left transition-colors"
+                  data-name={op.name.toLowerCase()}
+                  data-id={op.id.toLowerCase()}
+                  data-operator={JSON.stringify({
+                    id: op.id,
+                    name: op.name,
+                    averageScore: op.averageScore,
+                    callsCount: op.calls.length,
+                    hasCriticalFailure: op.calls.some(
+                      (c) => c.isCriticalFailure,
+                    ),
+                  })}
                 >
-                  {op.averageScore}%
-                </div>
-              </button>
-            ))
-          }
-          <div
-            id="no-results-msg"
-            class="hidden py-8 text-center text-base-content/50"
-          >
-            <Icon
-              name="boxicons:search"
-              class="mx-auto mb-2 opacity-40"
-              size={48}
-            />
-            <p class="text-sm font-medium">Sin resultados</p>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Panel Derecho: Información / Detalle -->
-    <main class:list={["h-full", isAgent ? "lg:col-span-12" : "lg:col-span-8"]}>
-      <!-- Estado 1: Información General (Default) -->
-      <div id="general-info-panel" class:list={["space-y-6 animate-fade-in", isAgent && "hidden"]}>
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Hero Stat: Promedio General (Takes 2 cols/2 rows) -->
-          <div
-            class="col-span-2 row-span-2 bg-secondary text-secondary-content rounded-3xl p-8 flex flex-col justify-between shadow-md relative overflow-hidden"
-          >
-            <div
-              class="absolute inset-0 opacity-5"
-              style="background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0); background-size: 24px 24px;"
-            >
-            </div>
-            <div
-              class="absolute -right-8 -top-8 opacity-10 transition-opacity duration-700"
-            >
-              <Icon name="boxicons:check-shield" size={256} />
-            </div>
-            <div class="flex justify-between items-start relative z-10">
-              <h3
-                class="font-bold uppercase tracking-widest text-xs opacity-80"
+                  <div class="flex items-center gap-4">
+                    <div class="relative">
+                      <div class="bg-base-200 group-hover:bg-secondary group-hover:text-secondary-content text-base-content/70 flex size-10 items-center justify-center rounded-full font-bold shadow-sm transition-colors">
+                        {op.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .substring(0, 2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-base-content group-hover:text-base-content flex items-center gap-1 text-sm font-bold tracking-tight transition-colors">
+                        {op.name}
+                        {op.averageScore >= 90 && (
+                          <Icon
+                            name="boxicons:badge-check"
+                            class="text-secondary"
+                            size={24}
+                            title="Insignia de Excelencia"
+                          />
+                        )}
+                      </div>
+                      <div class="text-base-content/50 mt-0.5 font-mono text-xs lowercase">
+                        @{op.username || op.id}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class={`text-sm font-black ${op.averageScore >= 90 ? "text-success" : op.averageScore >= 80 ? "text-warning" : "text-error"}`}
+                  >
+                    {op.averageScore}%
+                  </div>
+                </button>
+              ))}
+              <div
+                id="no-results-msg"
+                class="text-base-content/50 hidden py-8 text-center"
               >
-                Calidad Global
-              </h3>
-              <Icon
-                name="boxicons:chart-bar-columns"
-                size={24}
-                class="opacity-80"
+                <Icon
+                  name="boxicons:search"
+                  class="mx-auto mb-2 opacity-40"
+                  size={48}
+                />
+                <p class="text-sm font-medium">Sin resultados</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Panel Derecho: Información / Detalle */}
+        <main
+          class:list={["h-full", isAgent ? "lg:col-span-12" : "lg:col-span-8"]}
+        >
+          {/* Estado 1: Información General (Default) */}
+          <div
+            id="general-info-panel"
+            class:list={["animate-fade-in space-y-6", isAgent && "hidden"]}
+          >
+            {/* Stats Grid */}
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {/* Hero Stat: Promedio General (Takes 2 cols/2 rows) */}
+              <div class="bg-secondary text-secondary-content relative col-span-2 row-span-2 flex flex-col justify-between overflow-hidden rounded-3xl p-8 shadow-md">
+                <div
+                  class="absolute inset-0 opacity-5"
+                  style="background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0); background-size: 24px 24px;"
+                />
+                <div class="absolute -top-8 -right-8 opacity-10 transition-opacity duration-700">
+                  <Icon name="boxicons:check-shield" size={256} />
+                </div>
+                <div class="relative z-10 flex items-start justify-between">
+                  <h3 class="text-xs font-bold tracking-widest uppercase opacity-80">
+                    Calidad Global
+                  </h3>
+                  <Icon
+                    name="boxicons:chart-bar-columns"
+                    size={24}
+                    class="opacity-80"
+                  />
+                </div>
+                <div class="relative z-10 mt-12">
+                  <div class="text-7xl font-black tracking-tighter lg:text-8xl">
+                    {avgScore}
+                    <span class="ml-2 text-4xl opacity-70 lg:text-5xl">%</span>
+                  </div>
+                  <p class="mt-4 max-w-xs text-sm font-medium opacity-90">
+                    Promedio general del equipo de Mesa de Ayuda en el período
+                    seleccionado.
+                  </p>
+                </div>
+              </div>
+
+              <StatsCard
+                icon="group"
+                label="Evaluados"
+                value={totalOperators}
+                subtitle="Operadores activos"
+              />
+
+              <StatsCard
+                icon="phone-ring"
+                label="Auditorías"
+                value={totalCalls}
+                subtitle="Llamadas aleatorias"
+              />
+
+              <StatsCard
+                icon="star"
+                label="Excelencia"
+                value={excellentOperators}
+                subtitle="Operadores > 90%"
+                color="success"
+              />
+
+              <StatsCard
+                icon="alert-circle"
+                label="Alerta"
+                value={needsImprovement}
+                subtitle="Operadores < 80%"
+                color="error"
+              />
+
+              <StatsCard
+                icon="discussion"
+                label="Interacción"
+                value={`${avgSection1}%`}
+                subtitle="Trato al usuario y habilidades blandas"
+                class="col-span-2"
+              />
+
+              <StatsCard
+                icon="task"
+                label="Gestión"
+                value={`${avgSection2}%`}
+                subtitle="Eficiencia técnica y resolución de tickets"
+                class="col-span-2"
               />
             </div>
-            <div class="mt-12 relative z-10">
-              <div
-                class="text-7xl lg:text-8xl font-black tracking-tighter"
-              >
-                {avgScore}<span class="ml-2 text-4xl lg:text-5xl opacity-70"
-                  >%</span
-                >
+
+            {/* Empty State CTA */}
+            <div class="bg-base-200/50 border-base-300 mt-4 flex min-h-64 flex-1 flex-col items-center justify-center rounded-3xl border p-8 text-center shadow-inner">
+              <div class="bg-base-100 border-base-200 mb-6 rounded-full border p-6 shadow-sm">
+                <Icon
+                  name="boxicons:cursor-click"
+                  size={48}
+                  class="text-secondary/40"
+                />
               </div>
-              <p
-                class="text-sm font-medium opacity-90 mt-4 max-w-xs"
-              >
-                Promedio general del equipo de Mesa de Ayuda en el período
-                seleccionado.
+              <h3 class="text-base-content mb-3 text-2xl font-black tracking-tight">
+                Análisis Individual
+              </h3>
+              <p class="text-base-content/60 max-w-md text-sm font-medium">
+                Seleccione un operador de la lista lateral para visualizar su
+                rendimiento detallado y el desglose de cada llamada.
               </p>
             </div>
           </div>
 
-          <StatsCard icon="group" label="Evaluados" value={totalOperators} subtitle="Operadores activos" />
-
-          <StatsCard icon="phone-ring" label="Auditorías" value={totalCalls} subtitle="Llamadas aleatorias" />
-
-          <StatsCard icon="star" label="Excelencia" value={excellentOperators} subtitle="Operadores > 90%" color="success" />
-
-          <StatsCard icon="alert-circle" label="Alerta" value={needsImprovement} subtitle="Operadores < 80%" color="error" />
-
-          <StatsCard icon="discussion" label="Interacción" value={`${avgSection1}%`} subtitle="Trato al usuario y habilidades blandas" class="col-span-2" />
-
-          <StatsCard icon="task" label="Gestión" value={`${avgSection2}%`} subtitle="Eficiencia técnica y resolución de tickets" class="col-span-2" />
-        </div>
-
-        <!-- Empty State CTA -->
-        <div
-          class="rounded-3xl bg-base-200/50 flex-1 min-h-64 flex flex-col items-center justify-center text-center p-8 mt-4 border border-base-300 shadow-inner"
-        >
+          {/* Estado 2: Detalle del Operador (Oculto por defecto) */}
           <div
-            class="rounded-full bg-base-100 p-6 shadow-sm mb-6 border border-base-200"
+            id="operator-details-panel"
+            class:list={[
+              "animate-fade-in pb-8",
+              !isAgent && "hidden space-y-6",
+              isAgent && "grid grid-cols-1 items-start gap-6 lg:grid-cols-12",
+            ]}
           >
-            <Icon
-              name="boxicons:cursor-click"
-              size={48}
-              class="text-secondary/40"
-            />
-          </div>
-          <h3
-            class="text-2xl font-black text-base-content tracking-tight mb-3"
-          >
-            Análisis Individual
-          </h3>
-          <p
-            class="max-w-md text-sm text-base-content/60 font-medium"
-          >
-            Seleccione un operador de la lista lateral para visualizar su
-            rendimiento detallado y el desglose de cada llamada.
-          </p>
-        </div>
-      </div>
-
-      <!-- Estado 2: Detalle del Operador (Oculto por defecto) -->
-      <div
-        id="operator-details-panel"
-        class:list={[
-          "animate-fade-in pb-8",
-          !isAgent && "hidden space-y-6",
-          isAgent && "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
-        ]}
-      >
-        <div class:list={[isAgent ? "col-span-full" : "w-full"]}>
-          <div class="flex justify-between items-center mb-2 no-print">
-            <button
-              id="btn-back-to-summary"
-              class="btn btn-sm btn-ghost w-fit pl-2 text-base-content/70 hover:text-base-content hover:bg-base-200"
-            >
-              <Icon name="boxicons:arrow-to-left" size={18} />
-              Volver al resumen
-            </button>
-            <div class="flex items-center gap-2">
-              <button
-                id="btn-export-csv"
-                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
-                title="Exportar Reporte de Operador a CSV"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5 shrink-0">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                <span>Exportar CSV</span>
-              </button>
-              <button
-                class="btn btn-xs btn-outline btn-secondary gap-1.5 font-bold uppercase text-xxs"
-                onclick="window.print()"
-              >
-                <Icon name="boxicons:printer" size={14} />
-                Exportar Reporte
-              </button>
-            </div>
-          </div>
-
-          <!-- Header del Detalle -->
-          {isAgent ? (
-            <!-- Vista de Agente (Fila única original con métricas en el medio) -->
-            <div
-              class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-md border-y border-r border-base-200 mt-2"
-            >
-              <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-                <div
-                  class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
-                  id="detail-avatar"
+            <div class:list={[isAgent ? "col-span-full" : "w-full"]}>
+              <div class="no-print mb-2 flex items-center justify-between">
+                <button
+                  id="btn-back-to-summary"
+                  class="btn btn-sm btn-ghost text-base-content/70 hover:text-base-content hover:bg-base-200 w-fit pl-2"
                 >
-                  --
-                </div>
-                <div>
-                  <div
-                    class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
+                  <Icon name="boxicons:arrow-to-left" size={18} />
+                  Volver al resumen
+                </button>
+                <div class="flex items-center gap-2">
+                  <button
+                    id="btn-export-csv"
+                    class="btn btn-xs btn-outline btn-secondary text-xxs gap-1.5 font-bold uppercase"
+                    title="Exportar Reporte de Operador a CSV"
                   >
-                    Perfil del Operador
-                  </div>
-                  <h3
-                    class="text-4xl font-black text-base-content tracking-tighter"
-                    id="detail-name"
-                  >
-                    --
-                  </h3>
-                  <div
-                    class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
-                  >
-                    <span class="flex items-center gap-1"
-                      ><Icon
-                        name="boxicons:user-id-card"
-                        size={18}
-                        class="opacity-70"
-                      />
-                      <span id="detail-id" class="font-mono">--</span></span
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="2.5"
+                      stroke="currentColor"
+                      class="size-3.5 shrink-0"
                     >
-                    <span class="opacity-30">•</span>
-                    <span class="flex items-center gap-1"
-                      ><Icon
-                        name="boxicons:calendar"
-                        size={18}
-                        class="opacity-70"
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
                       />
-                      <span id="detail-month">--</span></span
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <!-- Stats in the middle -->
-              <div class="flex items-center gap-3 sm:gap-4 flex-wrap bg-base-200/20 p-3 sm:p-4 rounded-2xl border border-base-200 shadow-sm shrink-0">
-                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Score vs Mes Ant.</span>
-                  <span id="detail-stat-diff" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Duración Promedio</span>
-                  <span id="detail-stat-aht" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Interacción</span>
-                  <span id="detail-stat-interaction" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex flex-col px-2 sm:px-3">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Gestión</span>
-                  <span id="detail-stat-management" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-              </div>
-
-              <!-- Score Card -->
-              <div
-                class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200 shrink-0 w-full sm:w-fit sm:min-w-[140px]"
-              >
-                <div
-                  class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
-                >
-                  Score Mensual
-                </div>
-                <div
-                  class="text-5xl font-black tracking-tighter text-secondary"
-                  id="detail-score"
-                >
-                  --%
-                </div>
-              </div>
-            </div>
-          ) : (
-            <!-- Vista de Supervisor/Admin/Referente (Bloque de métricas abajo) -->
-            <div
-              class="bg-base-100 border-l-4 border-l-secondary rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-md border-y border-r border-base-200 mt-2"
-            >
-              <!-- Top section: Avatar, Name and Monthly Score -->
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-                  <div
-                    class="flex size-20 items-center justify-center rounded-2xl bg-base-200 text-base-content/60 text-3xl font-black shadow-inner border border-base-300"
-                    id="detail-avatar"
+                    </svg>
+                    <span>Exportar CSV</span>
+                  </button>
+                  <button
+                    class="btn btn-xs btn-outline btn-secondary text-xxs gap-1.5 font-bold uppercase"
+                    onclick="window.print()"
                   >
-                    --
-                  </div>
-                  <div>
+                    <Icon name="boxicons:printer" size={14} />
+                    Exportar Reporte
+                  </button>
+                </div>
+              </div>
+
+              {isAgent ? (
+                <div class="bg-base-100 border-l-secondary border-base-200 mt-2 flex flex-col gap-6 rounded-2xl border-y border-r border-l-4 p-6 shadow-md sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+                  <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
                     <div
-                      class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
-                    >
-                      Perfil del Operador
-                    </div>
-                    <h3
-                      class="text-4xl font-black text-base-content tracking-tighter"
-                      id="detail-name"
+                      class="bg-base-200 text-base-content/60 border-base-300 flex size-20 items-center justify-center rounded-2xl border text-3xl font-black shadow-inner"
+                      id="detail-avatar"
                     >
                       --
-                    </h3>
+                    </div>
+                    <div>
+                      <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
+                        Perfil del Operador
+                      </div>
+                      <h3
+                        class="text-base-content text-4xl font-black tracking-tighter"
+                        id="detail-name"
+                      >
+                        --
+                      </h3>
+                      <div class="text-base-content/60 mt-2 flex flex-wrap items-center gap-3 text-xs font-medium">
+                        <span class="flex items-center gap-1">
+                          <Icon
+                            name="boxicons:user-id-card"
+                            size={18}
+                            class="opacity-70"
+                          />
+                          <span id="detail-id" class="font-mono">
+                            --
+                          </span>
+                        </span>
+                        <span class="opacity-30">•</span>
+                        <span class="flex items-center gap-1">
+                          <Icon
+                            name="boxicons:calendar"
+                            size={18}
+                            class="opacity-70"
+                          />
+                          <span id="detail-month">--</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats in the middle */}
+                  <div class="bg-base-200/20 border-base-200 flex shrink-0 flex-wrap items-center gap-3 rounded-2xl border p-3 shadow-sm sm:gap-4 sm:p-4">
+                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Score vs Mes Ant.
+                      </span>
+                      <span
+                        id="detail-stat-diff"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Duración Promedio
+                      </span>
+                      <span
+                        id="detail-stat-aht"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Interacción
+                      </span>
+                      <span
+                        id="detail-stat-interaction"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="flex flex-col px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Gestión
+                      </span>
+                      <span
+                        id="detail-stat-management"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Score Card */}
+                  <div class="bg-base-200/50 border-base-200 w-full shrink-0 rounded-2xl border p-4 sm:w-fit sm:min-w-35 sm:text-right">
+                    <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
+                      Score Mensual
+                    </div>
                     <div
-                      class="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-base-content/60"
+                      class="text-secondary text-5xl font-black tracking-tighter"
+                      id="detail-score"
                     >
-                      <span class="flex items-center gap-1"
-                        ><Icon
-                          name="boxicons:user-id-card"
-                          size={18}
-                          class="opacity-70"
-                        />
-                        <span id="detail-id" class="font-mono">--</span></span
-                      >
-                      <span class="opacity-30">•</span>
-                      <span class="flex items-center gap-1"
-                        ><Icon
-                          name="boxicons:calendar"
-                          size={18}
-                          class="opacity-70"
-                        />
-                        <span id="detail-month">--</span></span
-                      >
+                      --%
                     </div>
                   </div>
                 </div>
+              ) : (
+                <div class="bg-base-100 border-l-secondary border-base-200 mt-2 flex flex-col gap-6 rounded-2xl border-y border-r border-l-4 p-6 shadow-md sm:p-8">
+                  {/* Top section: Avatar, Name and Monthly Score */}
+                  <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                      <div
+                        class="bg-base-200 text-base-content/60 border-base-300 flex size-20 items-center justify-center rounded-2xl border text-3xl font-black shadow-inner"
+                        id="detail-avatar"
+                      >
+                        --
+                      </div>
+                      <div>
+                        <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
+                          Perfil del Operador
+                        </div>
+                        <h3
+                          class="text-base-content text-4xl font-black tracking-tighter"
+                          id="detail-name"
+                        >
+                          --
+                        </h3>
+                        <div class="text-base-content/60 mt-2 flex flex-wrap items-center gap-3 text-xs font-medium">
+                          <span class="flex items-center gap-1">
+                            <Icon
+                              name="boxicons:user-id-card"
+                              size={18}
+                              class="opacity-70"
+                            />
+                            <span id="detail-id" class="font-mono">
+                              --
+                            </span>
+                          </span>
+                          <span class="opacity-30">•</span>
+                          <span class="flex items-center gap-1">
+                            <Icon
+                              name="boxicons:calendar"
+                              size={18}
+                              class="opacity-70"
+                            />
+                            <span id="detail-month">--</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                <!-- Score Card -->
+                    {/* Score Card */}
+                    <div class="bg-base-200/50 border-base-200 w-full shrink-0 rounded-2xl border p-4 sm:w-fit sm:min-w-35 sm:text-right">
+                      <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
+                        Score Mensual
+                      </div>
+                      <div
+                        class="text-secondary text-5xl font-black tracking-tighter"
+                        id="detail-score"
+                      >
+                        --%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom section: Stats block */}
+                  <div class="bg-base-200/20 border-base-200 flex w-full flex-wrap items-center gap-3 rounded-2xl border p-3 shadow-sm sm:gap-4 sm:p-4">
+                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Score vs Mes Ant.
+                      </span>
+                      <span
+                        id="detail-stat-diff"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Duración Promedio
+                      </span>
+                      <span
+                        id="detail-stat-aht"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Interacción
+                      </span>
+                      <span
+                        id="detail-stat-interaction"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                    <div class="flex min-w-30 flex-1 flex-col px-2 sm:px-3">
+                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                        Gestión
+                      </span>
+                      <span
+                        id="detail-stat-management"
+                        class="text-base-content text-lg font-black sm:text-xl"
+                      >
+                        --
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Insights y Tendencia */}
+            <div
+              class:list={[
+                isAgent
+                  ? "col-span-full flex flex-col gap-6 lg:col-span-4"
+                  : "mt-6 grid gap-6 sm:grid-cols-2",
+              ]}
+            >
+              {/* Tendencia */}
+              <div class="bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md">
+                <h4 class="text-base-content/70 mb-4 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                  <Icon name="boxicons:chart-line" size={18} />
+                  Tendencia (Últimos 6 meses)
+                </h4>
                 <div
-                  class="sm:text-right bg-base-200/50 p-4 rounded-2xl border border-base-200 shrink-0 w-full sm:w-fit sm:min-w-[140px]"
+                  class="flex h-20 items-end justify-between gap-2"
+                  id="detail-history-chart"
                 >
-                  <div
-                    class="text-xs font-bold uppercase tracking-widest text-base-content/50 mb-1"
-                  >
-                    Score Mensual
-                  </div>
-                  <div
-                    class="text-5xl font-black tracking-tighter text-secondary"
-                    id="detail-score"
-                  >
-                    --%
-                  </div>
+                  {/* dynamic bars */}
                 </div>
               </div>
 
-              <!-- Bottom section: Stats block -->
-              <div class="flex items-center gap-3 sm:gap-4 flex-wrap bg-base-200/20 p-3 sm:p-4 rounded-2xl border border-base-200 shadow-sm w-full">
-                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Score vs Mes Ant.</span>
-                  <span id="detail-stat-diff" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Duración Promedio</span>
-                  <span id="detail-stat-aht" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3 border-r border-base-200">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Interacción</span>
-                  <span id="detail-stat-interaction" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-                <div class="flex-1 min-w-[120px] flex flex-col px-2 sm:px-3">
-                  <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40">Gestión</span>
-                  <span id="detail-stat-management" class="text-lg sm:text-xl font-black text-base-content">--</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <!-- Insights y Tendencia -->
-        <div class:list={[isAgent ? "col-span-full lg:col-span-4 flex flex-col gap-6" : "grid sm:grid-cols-2 gap-6 mt-6"]}>
-          <!-- Tendencia -->
-          <div
-            class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md"
-          >
-            <h4
-              class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2 mb-4"
-            >
-              <Icon name="boxicons:chart-line" size={18} />
-              Tendencia (Últimos 6 meses)
-            </h4>
-            <div
-              class="flex items-end justify-between h-20 gap-2"
-              id="detail-history-chart"
-            >
-              <!-- dynamic bars -->
-            </div>
-          </div>
-
-          <!-- Áreas de Mejora -->
-          <div
-            class="bg-base-100 rounded-2xl border border-warning/30 p-6 shadow-md"
-          >
-            <h4
-              class="font-bold uppercase tracking-wider text-xs text-warning-content/70 flex items-center gap-2 mb-4"
-            >
-              <Icon
-                name="boxicons:alert-octagon"
-                z-200
-                size={24}
-                class="text-warning"
-              />
-              Áreas de Mejora Detectadas
-            </h4>
-            <ul
-              class="space-y-2 text-sm font-medium text-base-content/80"
-              id="detail-insights"
-            >
-              <!-- dynamic insights -->
-            </ul>
-          </div>
-
-          <!-- Observaciones del Mes (Para Agentes en la columna izquierda) -->
-          {isAgent && (
-            <div class="bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md">
-              <div class="flex justify-between items-center mb-4">
-                <h4
-                  class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
-                >
-                  <Icon name="boxicons:note" size={18} />
-                  Observaciones del Mes
+              {/* Áreas de Mejora */}
+              <div class="bg-base-100 border-warning/30 rounded-2xl border p-6 shadow-md">
+                <h4 class="text-warning-content/70 mb-4 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                  <Icon
+                    name="boxicons:alert-octagon"
+                    z-200
+                    size={24}
+                    class="text-warning"
+                  />
+                  Áreas de Mejora Detectadas
                 </h4>
-              </div>
-              <p
-                id="detail-month-summary"
-                class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
-              >
-                <!-- dynamic summary -->
-              </p>
-              <p
-                id="detail-month-summary-empty"
-                class="text-sm font-medium text-base-content/40 italic"
-              >
-                No hay observaciones para este mes.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div class:list={[isAgent ? "col-span-full lg:col-span-8 flex flex-col gap-6" : "space-y-6"]}>
-          <!-- Observaciones del Mes (Para Supervisores/Admins en el flujo principal) -->
-          {!isAgent && (
-            <div
-              class:list={["bg-base-100 rounded-2xl border border-base-200 p-6 shadow-md", !isAgent && "mt-6"]}
-            >
-              <div class="flex justify-between items-center mb-4">
-                <h4
-                  class="font-bold uppercase tracking-wider text-xs text-base-content/70 flex items-center gap-2"
+                <ul
+                  class="text-base-content/80 space-y-2 text-sm font-medium"
+                  id="detail-insights"
                 >
-                  <Icon name="boxicons:note" size={18} />
-                  Observaciones del Mes
-                </h4>
-                <button
-                  id="btn-edit-month-summary"
-                  class="btn btn-sm btn-ghost btn-square"
-                  title="Editar observaciones"
-                >
-                  <Icon name="boxicons:edit-alt" size={18} />
-                </button>
+                  {/* dynamic insights */}
+                </ul>
               </div>
-              <p
-                id="detail-month-summary"
-                class="text-sm font-medium text-base-content/80 whitespace-pre-line empty:hidden"
-              >
-                <!-- dynamic summary -->
-              </p>
-              <p
-                id="detail-month-summary-empty"
-                class="text-sm font-medium text-base-content/40 italic"
-              >
-                No hay observaciones para este mes.
-              </p>
-            </div>
-          )}
 
-          <!-- Section Titulo -->
-          <div
-            class:list={["flex items-center justify-between border-b border-base-300 pb-2", !isAgent && "mt-8"]}
-          >
-            <h4
-              class="font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
-            >
-              <Icon name="boxicons:headphone" size={24} />
-              Desglose de Llamadas
-            </h4>
-            <div class="flex items-center gap-2">
-              <span
-                id="calls-count-badge"
-                class="text-xs font-medium text-base-content/50 badge badge-ghost"
-                >-- Aleatorias</span
-              >
-              {
-                !isAgent && (
-                  <button
-                    id="btn-new-audit"
-                    class="btn btn-sm btn-primary rounded-lg font-bold text-xs uppercase"
+              {/* Observaciones del Mes (Para Agentes en la columna izquierda) */}
+              {isAgent && (
+                <div class="bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md">
+                  <div class="mb-4 flex items-center justify-between">
+                    <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                      <Icon name="boxicons:note" size={18} />
+                      Observaciones del Mes
+                    </h4>
+                  </div>
+                  <p
+                    id="detail-month-summary"
+                    class="text-base-content/80 text-sm font-medium whitespace-pre-line empty:hidden"
                   >
-                    <Icon name="boxicons:plus" size={16} />
-                    Nueva Auditoría
-                  </button>
-                )
-              }
+                    {/* dynamic summary */}
+                  </p>
+                  <p
+                    id="detail-month-summary-empty"
+                    class="text-base-content/40 text-sm font-medium italic"
+                  >
+                    No hay observaciones para este mes.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              class:list={[
+                isAgent
+                  ? "col-span-full flex flex-col gap-6 lg:col-span-8"
+                  : "space-y-6",
+              ]}
+            >
+              {/* Observaciones del Mes (Para Supervisores/Admins en el flujo principal) */}
+              {!isAgent && (
+                <div
+                  class:list={[
+                    "bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md",
+                    !isAgent && "mt-6",
+                  ]}
+                >
+                  <div class="mb-4 flex items-center justify-between">
+                    <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                      <Icon name="boxicons:note" size={18} />
+                      Observaciones del Mes
+                    </h4>
+                    <button
+                      id="btn-edit-month-summary"
+                      class="btn btn-sm btn-ghost btn-square"
+                      title="Editar observaciones"
+                    >
+                      <Icon name="boxicons:edit-alt" size={18} />
+                    </button>
+                  </div>
+                  <p
+                    id="detail-month-summary"
+                    class="text-base-content/80 text-sm font-medium whitespace-pre-line empty:hidden"
+                  >
+                    {/* dynamic summary */}
+                  </p>
+                  <p
+                    id="detail-month-summary-empty"
+                    class="text-base-content/40 text-sm font-medium italic"
+                  >
+                    No hay observaciones para este mes.
+                  </p>
+                </div>
+              )}
+
+              {/* Section Titulo */}
+              <div
+                class:list={[
+                  "border-base-300 flex items-center justify-between border-b pb-2",
+                  !isAgent && "mt-8",
+                ]}
+              >
+                <h4 class="text-base-content/70 flex items-center gap-2 font-bold tracking-wider uppercase">
+                  <Icon name="boxicons:headphone" size={24} />
+                  Desglose de Llamadas
+                </h4>
+                <div class="flex items-center gap-2">
+                  <span
+                    id="calls-count-badge"
+                    class="text-base-content/50 badge badge-ghost text-xs font-medium"
+                  >
+                    -- Aleatorias
+                  </span>
+                  {!isAgent && (
+                    <button
+                      id="btn-new-audit"
+                      class="btn btn-sm btn-primary rounded-lg text-xs font-bold uppercase"
+                    >
+                      <Icon name="boxicons:plus" size={16} />
+                      Nueva Auditoría
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid de Llamadas */}
+              <div class="grid gap-6" id="detail-calls-container">
+                {/* Renderizado dinámico vía JS */}
+              </div>
             </div>
           </div>
-
-          <!-- Grid de Llamadas -->
-          <div class="grid gap-6" id="detail-calls-container">
-            <!-- Renderizado dinámico vía JS -->
-          </div>
-        </div>
-      </div>
-    </main>
+        </main>
       </div>
     )
   }
 </PageContainer>
 
-<Modal id="audit-modal" size="3xl" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="w-11/12">
+<Modal
+  id="audit-modal"
+  size="3xl"
+  titleClass="font-black text-lg uppercase tracking-tight"
+  zIndex="z-200"
+  class="w-11/12"
+>
   <Fragment slot="content">
-    <h3 id="modal-title" class="font-black text-lg mb-4 text-base-content uppercase tracking-tight flex items-center gap-2">
+    <h3
+      id="modal-title"
+      class="text-base-content mb-4 flex items-center gap-2 text-lg font-black tracking-tight uppercase"
+    >
       <Icon name="boxicons:task" class="text-primary" size={22} />
       Nueva Auditoría de Calidad
     </h3>
@@ -926,113 +1021,161 @@ const cleanBase = getCleanBase();
       <input type="hidden" name="agentId" id="form-agent-id" />
       <input type="hidden" name="month" id="form-month" value={selectedMonth} />
 
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <FormField id="form-call-id" name="callId" label="ID Llamada" placeholder="CALL-XXXXXX" required size="sm" inputClass="font-mono font-bold" />
-        <FormField id="form-ticket-id" name="ticketId" label="ID Ticket" placeholder="INC-XXXXXXX" required size="sm" inputClass="font-mono font-bold" />
-        <FormField id="form-duration" name="duration" label="Duración" placeholder="05:30" required size="sm" inputClass="font-mono font-bold" />
-        <FormField id="form-date" name="date" label="Fecha" type="date" required size="sm" inputClass="font-bold" />
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <FormField
+          id="form-call-id"
+          name="callId"
+          label="ID Llamada"
+          placeholder="CALL-XXXXXX"
+          required
+          size="sm"
+          inputClass="font-mono font-bold"
+        />
+        <FormField
+          id="form-ticket-id"
+          name="ticketId"
+          label="ID Ticket"
+          placeholder="INC-XXXXXXX"
+          required
+          size="sm"
+          inputClass="font-mono font-bold"
+        />
+        <FormField
+          id="form-duration"
+          name="duration"
+          label="Duración"
+          placeholder="05:30"
+          required
+          size="sm"
+          inputClass="font-mono font-bold"
+        />
+        <FormField
+          id="form-date"
+          name="date"
+          label="Fecha"
+          type="date"
+          required
+          size="sm"
+          inputClass="font-bold"
+        />
       </div>
 
       <div class="divider my-2"></div>
 
       <!-- Realtime Score Preview -->
       <div
-        class="bg-base-200/50 p-4 rounded-2xl border border-base-300 flex justify-between items-center"
+        class="bg-base-200/50 border-base-300 flex items-center justify-between rounded-2xl border p-4"
       >
         <div>
-          <span class="font-bold text-sm text-base-content/70"
+          <span class="text-base-content/70 text-sm font-bold"
             >Score Estimado:</span
           >
-          <p class="text-xs text-base-content/50">
+          <p class="text-base-content/50 text-xs">
             Se calcula en base a los criterios cumplidos.
           </p>
         </div>
-        <div class="flex items-center gap-4 flex-wrap">
-          <div class="text-center border-r border-base-300 pr-4">
-            <div class="text-xs font-bold text-base-content/40 uppercase">
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="border-base-300 border-r pr-4 text-center">
+            <div class="text-base-content/40 text-xs font-bold uppercase">
               Sección 1
             </div>
-            <div id="preview-s1" class="font-black text-lg text-secondary">
+            <div id="preview-s1" class="text-secondary text-lg font-black">
               0%
             </div>
           </div>
-          <div class="text-center border-r border-base-300 pr-4">
-            <div class="text-xs font-bold text-base-content/40 uppercase">
+          <div class="border-base-300 border-r pr-4 text-center">
+            <div class="text-base-content/40 text-xs font-bold uppercase">
               Sección 2
             </div>
-            <div id="preview-s2" class="font-black text-lg text-secondary">
+            <div id="preview-s2" class="text-secondary text-lg font-black">
               0%
             </div>
           </div>
           <div class="text-center">
-            <div class="text-xs font-bold text-base-content/40 uppercase">
+            <div class="text-base-content/40 text-xs font-bold uppercase">
               Total
             </div>
-            <div id="preview-total" class="font-black text-2xl text-error">
+            <div id="preview-total" class="text-error text-2xl font-black">
               0%
             </div>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
         <!-- Section 1 Checklist -->
-        <div class="bg-base-200/20 p-4 rounded-2xl border border-base-300/50">
+        <div class="bg-base-200/20 border-base-300/50 rounded-2xl border p-4">
           <h4
-            class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between"
+            class="text-base-content/80 border-base-300 mb-3 flex justify-between border-b pb-1 text-sm font-bold"
           >
             <span>1. Interacción con Usuario</span>
-            <span class="text-xs text-base-content/50 font-normal"
+            <span class="text-base-content/50 text-xs font-normal"
               >Máx: 100</span
             >
           </h4>
-          <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
-            {allParameters
-              .filter((p) => p.category === "Interacción con Usuario")
-              .map((p) => (
-                <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg audit-parameter-row" data-param-id={p.id} data-active={p.active ? "true" : "false"}>
-                  <input
-                    type="checkbox"
-                    name={p.code}
-                    class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+          <div class="max-h-64 space-y-2 overflow-x-hidden overflow-y-auto">
+            {
+              allParameters
+                .filter((p) => p.category === "Interacción con Usuario")
+                .map((p) => (
+                  <label
+                    class="label hover:bg-base-200 audit-parameter-row cursor-pointer justify-start gap-3 rounded-lg p-1.5"
                     data-param-id={p.id}
-                  />
-                  <span class="label-text text-sm font-medium">
-                    {p.name}
-                    <span class="text-xs opacity-50 font-normal ml-1">({p.weight})</span>
-                  </span>
-                </label>
-              ))}
+                    data-active={p.active ? "true" : "false"}
+                  >
+                    <input
+                      type="checkbox"
+                      name={p.code}
+                      class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+                      data-param-id={p.id}
+                    />
+                    <span class="label-text text-sm font-medium">
+                      {p.name}
+                      <span class="ml-1 text-xs font-normal opacity-50">
+                        ({p.weight})
+                      </span>
+                    </span>
+                  </label>
+                ))
+            }
           </div>
         </div>
 
         <!-- Section 2 Checklist -->
-        <div class="bg-base-200/20 p-4 rounded-2xl border border-base-300/50">
+        <div class="bg-base-200/20 border-base-300/50 rounded-2xl border p-4">
           <h4
-            class="font-bold text-sm text-base-content/80 mb-3 border-b border-base-300 pb-1 flex justify-between"
+            class="text-base-content/80 border-base-300 mb-3 flex justify-between border-b pb-1 text-sm font-bold"
           >
             <span>2. Gestión del Ticket</span>
-            <span class="text-xs text-base-content/50 font-normal"
+            <span class="text-base-content/50 text-xs font-normal"
               >Máx: 100</span
             >
           </h4>
-          <div class="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
-            {allParameters
-              .filter((p) => p.category === "Gestión del Ticket")
-              .map((p) => (
-                <label class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg audit-parameter-row" data-param-id={p.id} data-active={p.active ? "true" : "false"}>
-                  <input
-                    type="checkbox"
-                    name={p.code}
-                    class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+          <div class="max-h-64 space-y-2 overflow-x-hidden overflow-y-auto">
+            {
+              allParameters
+                .filter((p) => p.category === "Gestión del Ticket")
+                .map((p) => (
+                  <label
+                    class="label hover:bg-base-200 audit-parameter-row cursor-pointer justify-start gap-3 rounded-lg p-1.5"
                     data-param-id={p.id}
-                  />
-                  <span class="label-text text-sm font-medium">
-                    {p.name}
-                    <span class="text-xs opacity-50 font-normal ml-1">({p.weight})</span>
-                  </span>
-                </label>
-              ))}
+                    data-active={p.active ? "true" : "false"}
+                  >
+                    <input
+                      type="checkbox"
+                      name={p.code}
+                      class="checkbox checkbox-primary checkbox-sm audit-checkbox"
+                      data-param-id={p.id}
+                    />
+                    <span class="label-text text-sm font-medium">
+                      {p.name}
+                      <span class="ml-1 text-xs font-normal opacity-50">
+                        ({p.weight})
+                      </span>
+                    </span>
+                  </label>
+                ))
+            }
           </div>
         </div>
       </div>
@@ -1040,10 +1183,10 @@ const cleanBase = getCleanBase();
       <!-- Additional Fields: Notes, Month Summary, Critical Failure -->
       <div class="divider my-2"></div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+      <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="form-control sm:col-span-2">
           <label
-            class="label cursor-pointer justify-start gap-3 p-1.5 hover:bg-base-200 rounded-lg w-fit"
+            class="label hover:bg-base-200 w-fit cursor-pointer justify-start gap-3 rounded-lg p-1.5"
           >
             <input
               type="checkbox"
@@ -1051,14 +1194,21 @@ const cleanBase = getCleanBase();
               id="form-is-critical-failure"
               class="checkbox checkbox-error checkbox-sm"
             />
-            <span class="label-text text-sm font-bold text-error uppercase"
+            <span class="label-text text-error text-sm font-bold uppercase"
               >Falla Crítica de Proceso</span
             >
           </label>
         </div>
 
         <div class="sm:col-span-2">
-          <FormTextarea id="form-notes" name="notes" label="Notas / Observaciones" placeholder="Observaciones de esta llamada..." rows={3} textareaClass="textarea-sm font-bold" />
+          <FormTextarea
+            id="form-notes"
+            name="notes"
+            label="Notas / Observaciones"
+            placeholder="Observaciones de esta llamada..."
+            rows={3}
+            textareaClass="textarea-sm font-bold"
+          />
         </div>
       </div>
     </form>
@@ -1069,7 +1219,7 @@ const cleanBase = getCleanBase();
         <button
           type="button"
           id="btn-delete-audit"
-          class="btn btn-sm btn-error btn-outline hidden uppercase text-xs font-black"
+          class="btn btn-sm btn-error btn-outline hidden text-xs font-black uppercase"
         >
           Eliminar
         </button>
@@ -1094,7 +1244,14 @@ const cleanBase = getCleanBase();
   </Fragment>
 </Modal>
 
-<Modal id="month-summary-modal" title="Observaciones del Mes" icon="boxicons:note" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="max-w-lg">
+<Modal
+  id="month-summary-modal"
+  title="Observaciones del Mes"
+  icon="boxicons:note"
+  titleClass="font-black text-lg uppercase tracking-tight"
+  zIndex="z-200"
+  class="max-w-lg"
+>
   <Fragment slot="content">
     <form id="month-summary-form" method="POST" class="space-y-4">
       <input type="hidden" name="agentId" id="summary-agent-id" />
@@ -1105,7 +1262,14 @@ const cleanBase = getCleanBase();
         value={selectedMonth}
       />
 
-      <FormTextarea id="summary-content" name="summary" label="Resumen general" placeholder="Escriba aquí las observaciones del mes..." rows={5} textareaClass="textarea-sm font-bold" />
+      <FormTextarea
+        id="summary-content"
+        name="summary"
+        label="Resumen general"
+        placeholder="Escriba aquí las observaciones del mes..."
+        rows={5}
+        textareaClass="textarea-sm font-bold"
+      />
     </form>
   </Fragment>
   <Fragment slot="actions">
@@ -1128,39 +1292,57 @@ const cleanBase = getCleanBase();
   </Fragment>
 </Modal>
 
-<Modal id="parameters-modal" title="Configuración de Parámetros de Calidad" icon="boxicons:cog" titleClass="font-black text-lg uppercase tracking-tight" size="2xl" zIndex="z-200" class="flex flex-col h-[80vh] sm:h-[600px] w-11/12">
+<Modal
+  id="parameters-modal"
+  title="Configuración de Parámetros de Calidad"
+  icon="boxicons:cog"
+  titleClass="font-black text-lg uppercase tracking-tight"
+  size="2xl"
+  zIndex="z-200"
+  class="flex h-[80vh] w-11/12 flex-col sm:h-150"
+>
   <Fragment slot="content">
     <!-- Tabs Header -->
-    <div class="tabs tabs-boxed mb-4 shrink-0 bg-base-200/50 p-1 rounded-xl">
-      <button type="button" class="tab tab-active flex-1 font-bold text-xs uppercase parameter-tab" data-tab="s1">
+    <div class="tabs tabs-boxed bg-base-200/50 mb-4 shrink-0 rounded-xl p-1">
+      <button
+        type="button"
+        class="tab tab-active parameter-tab flex-1 text-xs font-bold uppercase"
+        data-tab="s1"
+      >
         Interacción con Usuario
       </button>
-      <button type="button" class="tab flex-1 font-bold text-xs uppercase parameter-tab" data-tab="s2">
+      <button
+        type="button"
+        class="tab parameter-tab flex-1 text-xs font-bold uppercase"
+        data-tab="s2"
+      >
         Gestión del Ticket
       </button>
     </div>
 
     <!-- Lists Container -->
-    <div class="flex-1 overflow-y-auto space-y-4 pr-1 min-h-0">
+    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
       <!-- Section 1 List (Interacción con Usuario) -->
-      <div id="param-list-s1" class="space-y-3 parameter-list-pane">
+      <div id="param-list-s1" class="parameter-list-pane space-y-3">
         <!-- populated dynamically -->
       </div>
 
       <!-- Section 2 List (Gestión del Ticket) -->
-      <div id="param-list-s2" class="space-y-3 parameter-list-pane hidden">
+      <div id="param-list-s2" class="parameter-list-pane hidden space-y-3">
         <!-- populated dynamically -->
       </div>
     </div>
   </Fragment>
   <Fragment slot="actions">
     <!-- Action Buttons -->
-    <div class="modal-action mt-6 flex justify-between shrink-0 border-t border-base-200 pt-4">
+    <div
+      class="modal-action border-base-200 mt-6 flex shrink-0 justify-between border-t pt-4"
+    >
       <div class="flex gap-2">
         <button
           type="button"
           id="btn-add-param-s1"
-          class="btn btn-sm btn-primary gap-1 text-xs font-black uppercase add-param-btn"
+          class="btn btn-sm btn-primary add-param-btn gap-1 text-xs font-black uppercase"
         >
           <Icon name="boxicons:plus" size={16} />
           Agregar a Interacción
@@ -1168,7 +1350,7 @@ const cleanBase = getCleanBase();
         <button
           type="button"
           id="btn-add-param-s2"
-          class="btn btn-sm btn-primary gap-1 text-xs font-black uppercase add-param-btn hidden"
+          class="btn btn-sm btn-primary add-param-btn hidden gap-1 text-xs font-black uppercase"
         >
           <Icon name="boxicons:plus" size={16} />
           Agregar a Gestión
@@ -1213,7 +1395,6 @@ const cleanBase = getCleanBase();
 </style>
 
 <style>
-
   /* Animaciones útiles para las transiciones de estado */
   @media print {
     body * {
@@ -1281,7 +1462,10 @@ const cleanBase = getCleanBase();
   };
 
   function renderCallCard(call: QualityCall, index: number) {
-    const isUserAgent = document.querySelector("[data-is-agent]")?.getAttribute("data-is-agent") === "true";
+    const isUserAgent =
+      document
+        .querySelector("[data-is-agent]")
+        ?.getAttribute("data-is-agent") === "true";
     const s1ScoreColor =
       call.section1.score >= 90
         ? "text-success"
@@ -1303,8 +1487,16 @@ const cleanBase = getCleanBase();
 
     // Filtrar parámetros dinámicos
     const params: AuditParameter[] = getAuditParameters();
-    const s1Params = params.filter((p) => p.category === "Interacción con Usuario" && call.section1.details.hasOwnProperty(p.code));
-    const s2Params = params.filter((p) => p.category === "Gestión del Ticket" && call.section2.details.hasOwnProperty(p.code));
+    const s1Params = params.filter(
+      (p) =>
+        p.category === "Interacción con Usuario" &&
+        call.section1.details.hasOwnProperty(p.code),
+    );
+    const s2Params = params.filter(
+      (p) =>
+        p.category === "Gestión del Ticket" &&
+        call.section2.details.hasOwnProperty(p.code),
+    );
 
     const s1ListHTML = s1Params
       .map((param) => {
@@ -1388,7 +1580,10 @@ const cleanBase = getCleanBase();
                 ${call.totalScore}%
               </div>
             </div>
-            ${isUserAgent ? "" : `
+            ${
+              isUserAgent
+                ? ""
+                : `
             <button 
               class="btn btn-circle btn-ghost btn-sm text-base-content/50 hover:text-secondary ml-2 edit-audit-btn" 
               data-call-id="${call.id}"
@@ -1396,7 +1591,8 @@ const cleanBase = getCleanBase();
             >
               <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"></path></svg>
             </button>
-            `}
+            `
+            }
             <button 
               class="btn btn-circle btn-ghost btn-sm text-base-content/50 hover:text-base-content hover:bg-base-200 ml-1" 
               onclick="this.closest('.call-card-container').querySelector('.call-card-details').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180');"
@@ -1671,12 +1867,18 @@ const cleanBase = getCleanBase();
       formAgentId.value = agentId;
 
       // Filter parameter checkboxes based on mode
-      const rows = auditForm.querySelectorAll(".audit-parameter-row") as NodeListOf<HTMLElement>;
+      const rows = auditForm.querySelectorAll(
+        ".audit-parameter-row",
+      ) as NodeListOf<HTMLElement>;
       if (callData) {
-        rows.forEach(row => {
-          const input = row.querySelector("input[type='checkbox']") as HTMLInputElement;
+        rows.forEach((row) => {
+          const input = row.querySelector(
+            "input[type='checkbox']",
+          ) as HTMLInputElement;
           const code = input ? input.name : "";
-          const hasAnswer = callData.section1.details.hasOwnProperty(code) || callData.section2.details.hasOwnProperty(code);
+          const hasAnswer =
+            callData.section1.details.hasOwnProperty(code) ||
+            callData.section2.details.hasOwnProperty(code);
           if (hasAnswer) {
             row.classList.remove("hidden");
           } else {
@@ -1684,7 +1886,7 @@ const cleanBase = getCleanBase();
           }
         });
       } else {
-        rows.forEach(row => {
+        rows.forEach((row) => {
           const isActive = row.getAttribute("data-active") === "true";
           if (isActive) {
             row.classList.remove("hidden");
@@ -1693,7 +1895,7 @@ const cleanBase = getCleanBase();
           }
         });
       }
-      
+
       if (callData) {
         // Edit mode
         modalTitle!.innerHTML = `<svg class="size-6 text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor; margin-right: 0.5rem;"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"></path></svg> Editar Auditoría de Calidad`;
@@ -1799,11 +2001,17 @@ const cleanBase = getCleanBase();
           url.searchParams.set("toast_type", "success");
           window.location.href = url.toString();
         } else {
-          (window as any).showToast?.("Error al guardar la auditoría.", "alert-error");
+          (window as any).showToast?.(
+            "Error al guardar la auditoría.",
+            "alert-error",
+          );
         }
       } catch (error) {
         console.error(error);
-        (window as any).showToast?.("Ocurrió un error inesperado al guardar la auditoría.", "alert-error");
+        (window as any).showToast?.(
+          "Ocurrió un error inesperado al guardar la auditoría.",
+          "alert-error",
+        );
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = originalText;
@@ -1845,7 +2053,8 @@ const cleanBase = getCleanBase();
       // Ensure summary is always present (even if textarea is empty)
       if (!formData.has("summary")) {
         formData.set("summary", "");
-      }      try {
+      }
+      try {
         const result = await actions.saveMonthSummary(formData);
         if (result.error) {
           console.error("Validation error:", result.error);
@@ -1855,15 +2064,24 @@ const cleanBase = getCleanBase();
           if (activeAgentId) {
             url.searchParams.set("agentId", activeAgentId);
           }
-          url.searchParams.set("toast_msg", "Observaciones del mes guardadas con éxito.");
+          url.searchParams.set(
+            "toast_msg",
+            "Observaciones del mes guardadas con éxito.",
+          );
           url.searchParams.set("toast_type", "success");
           window.location.href = url.toString();
         } else {
-          (window as any).showToast?.("Error al guardar el resumen.", "alert-error");
+          (window as any).showToast?.(
+            "Error al guardar el resumen.",
+            "alert-error",
+          );
         }
       } catch (error) {
         console.error(error);
-        (window as any).showToast?.("Ocurrió un error inesperado al guardar el resumen.", "alert-error");
+        (window as any).showToast?.(
+          "Ocurrió un error inesperado al guardar el resumen.",
+          "alert-error",
+        );
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = originalText;
@@ -1895,13 +2113,19 @@ const cleanBase = getCleanBase();
             url.searchParams.set("toast_type", "success");
             window.location.href = url.toString();
           } else {
-            (window as any).showToast?.("Error al eliminar la auditoría.", "alert-error");
+            (window as any).showToast?.(
+              "Error al eliminar la auditoría.",
+              "alert-error",
+            );
             btnDeleteAudit.disabled = false;
             btnDeleteAudit.innerHTML = originalText;
           }
         } catch (error) {
           console.error(error);
-          (window as any).showToast?.("Ocurrió un error inesperado al eliminar la auditoría.", "alert-error");
+          (window as any).showToast?.(
+            "Ocurrió un error inesperado al eliminar la auditoría.",
+            "alert-error",
+          );
           btnDeleteAudit.disabled = false;
           btnDeleteAudit.innerHTML = originalText;
         }
@@ -2136,7 +2360,7 @@ const cleanBase = getCleanBase();
             const currentScore = operator.averageScore;
             const prevScore = operator.prevAverageScore || 0;
             const hasPrevAudits = (operator.prevCallsCount ?? 0) > 0;
-            
+
             if (hasPrevAudits) {
               const diff = currentScore - prevScore;
               if (diff > 0) {
@@ -2173,7 +2397,11 @@ const cleanBase = getCleanBase();
                 const s = Math.round(totalSecs % 60);
                 return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
               };
-              const totalSecs = calls.reduce((acc: number, c: any) => acc + parseDurationToSeconds(c.duration), 0);
+              const totalSecs = calls.reduce(
+                (acc: number, c: any) =>
+                  acc + parseDurationToSeconds(c.duration),
+                0,
+              );
               const avgSecs = totalSecs / calls.length;
               dStatAht.textContent = formatSecondsToDuration(avgSecs);
               dStatAht.className = "text-xl font-black text-base-content";
@@ -2186,24 +2414,36 @@ const cleanBase = getCleanBase();
           if (dStatInteraction) {
             const calls = operator.calls || [];
             if (calls.length > 0) {
-              const avgS1 = Math.round(calls.reduce((acc: number, c: any) => acc + c.section1.score, 0) / calls.length);
+              const avgS1 = Math.round(
+                calls.reduce(
+                  (acc: number, c: any) => acc + c.section1.score,
+                  0,
+                ) / calls.length,
+              );
               dStatInteraction.textContent = `${avgS1}%`;
               dStatInteraction.className = `text-xl font-black ${avgS1 >= 90 ? "text-success" : avgS1 >= 80 ? "text-warning" : "text-error"}`;
             } else {
               dStatInteraction.textContent = "--";
-              dStatInteraction.className = "text-xl font-black text-base-content/40";
+              dStatInteraction.className =
+                "text-xl font-black text-base-content/40";
             }
           }
 
           if (dStatManagement) {
             const calls = operator.calls || [];
             if (calls.length > 0) {
-              const avgS2 = Math.round(calls.reduce((acc: number, c: any) => acc + c.section2.score, 0) / calls.length);
+              const avgS2 = Math.round(
+                calls.reduce(
+                  (acc: number, c: any) => acc + c.section2.score,
+                  0,
+                ) / calls.length,
+              );
               dStatManagement.textContent = `${avgS2}%`;
               dStatManagement.className = `text-xl font-black ${avgS2 >= 90 ? "text-success" : avgS2 >= 80 ? "text-warning" : "text-error"}`;
             } else {
               dStatManagement.textContent = "--";
-              dStatManagement.className = "text-xl font-black text-base-content/40";
+              dStatManagement.className =
+                "text-xl font-black text-base-content/40";
             }
           }
 
@@ -2342,51 +2582,60 @@ const cleanBase = getCleanBase();
     });
 
     // --- PARAMETERS CONFIGURATION MODAL ---
-    const parametersModal = document.getElementById("parameters-modal") as HTMLDialogElement;
-    const btnConfigureParameters = document.getElementById("btn-configure-parameters");
-    const btnCloseParametersModal = document.getElementById("btn-close-parameters-modal");
+    const parametersModal = document.getElementById(
+      "parameters-modal",
+    ) as HTMLDialogElement;
+    const btnConfigureParameters = document.getElementById(
+      "btn-configure-parameters",
+    );
+    const btnCloseParametersModal = document.getElementById(
+      "btn-close-parameters-modal",
+    );
     const btnAddParamS1 = document.getElementById("btn-add-param-s1");
     const btnAddParamS2 = document.getElementById("btn-add-param-s2");
-    
+
     let localParams: any[] = [];
-    
+
     if (btnConfigureParameters) {
       btnConfigureParameters.addEventListener("click", () => {
-        localParams = getAuditParameters().map((p: any) => ({ ...p, isDeleted: false }));
-        
+        localParams = getAuditParameters().map((p: any) => ({
+          ...p,
+          isDeleted: false,
+        }));
+
         // Reset tabs to S1
         const tabs = document.querySelectorAll(".parameter-tab");
-        tabs.forEach(t => t.classList.remove("tab-active"));
+        tabs.forEach((t) => t.classList.remove("tab-active"));
         tabs[0]?.classList.add("tab-active");
-        
+
         document.getElementById("param-list-s1")?.classList.remove("hidden");
         document.getElementById("param-list-s2")?.classList.add("hidden");
         document.getElementById("btn-add-param-s1")?.classList.remove("hidden");
         document.getElementById("btn-add-param-s2")?.classList.add("hidden");
-        
+
         renderParametersList();
         parametersModal.showModal();
       });
     }
-    
+
     if (btnCloseParametersModal) {
       btnCloseParametersModal.addEventListener("click", () => {
         parametersModal.close();
       });
     }
-    
+
     if (btnAddParamS1) {
       btnAddParamS1.addEventListener("click", () => {
         handleAddParam("Interacción con Usuario");
       });
     }
-    
+
     if (btnAddParamS2) {
       btnAddParamS2.addEventListener("click", () => {
         handleAddParam("Gestión del Ticket");
       });
     }
-    
+
     const handleAddParam = (category: string) => {
       localParams.push({
         id: null,
@@ -2394,26 +2643,37 @@ const cleanBase = getCleanBase();
         weight: 1.0,
         category: category,
         active: true,
-        isDeleted: false
+        isDeleted: false,
       });
       renderParametersList();
 
-      const paneId = category === "Interacción con Usuario" ? "param-list-s1" : "param-list-s2";
+      const paneId =
+        category === "Interacción con Usuario"
+          ? "param-list-s1"
+          : "param-list-s2";
       const pane = document.getElementById(paneId);
       if (pane) {
         setTimeout(() => {
           pane.lastElementChild?.scrollIntoView({ behavior: "smooth" });
-          (pane.lastElementChild?.querySelector(".param-input-name") as HTMLElement)?.focus();
+          (
+            pane.lastElementChild?.querySelector(
+              ".param-input-name",
+            ) as HTMLElement
+          )?.focus();
         }, 50);
       }
     };
-    
-    function renderParameterRow(param: any, actualIndex: number, displayIndex: number) {
+
+    function renderParameterRow(
+      param: any,
+      actualIndex: number,
+      displayIndex: number,
+    ) {
       const isDeleted = param.isDeleted;
       const isNew = !param.id;
-      
+
       return `
-        <div class="flex items-center gap-3 bg-base-200/40 p-2 rounded-xl border border-base-300 transition-colors ${isDeleted ? 'opacity-40 bg-error/5 border-error/20 line-through' : ''}" data-index="${actualIndex}">
+        <div class="flex items-center gap-3 bg-base-200/40 p-2 rounded-xl border border-base-300 transition-colors ${isDeleted ? "opacity-40 bg-error/5 border-error/20 line-through" : ""}" data-index="${actualIndex}">
           <div class="flex items-center justify-center size-8 rounded-lg bg-base-100 font-mono text-xs text-base-content/50 border border-base-200 shrink-0">
             ${isNew ? '<span class="text-success font-black">+</span>' : displayIndex}
           </div>
@@ -2422,7 +2682,7 @@ const cleanBase = getCleanBase();
             value="${escapeHtml(param.name)}" 
             placeholder="Nombre del criterio..."
             class="input input-bordered input-sm flex-1 font-semibold bg-base-100 focus:outline-none focus:border-primary param-input-name"
-            ${isDeleted ? 'disabled' : ''}
+            ${isDeleted ? "disabled" : ""}
             data-index="${actualIndex}"
           />
           <div class="flex items-center gap-1 shrink-0">
@@ -2433,64 +2693,92 @@ const cleanBase = getCleanBase();
               min="0"
               value="${param.weight}" 
               class="input input-bordered input-sm w-16 text-center font-bold bg-base-100 focus:outline-none focus:border-primary param-input-weight"
-              ${isDeleted ? 'disabled' : ''}
+              ${isDeleted ? "disabled" : ""}
               data-index="${actualIndex}"
             />
           </div>
           <div class="shrink-0">
-            ${isDeleted ? `
+            ${
+              isDeleted
+                ? `
               <button type="button" class="btn btn-sm btn-circle btn-ghost text-success param-btn-restore animate-fade-in" data-index="${actualIndex}" title="Restaurar">
                 <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
               </button>
-            ` : `
+            `
+                : `
               <button type="button" class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10 param-btn-delete animate-fade-in" data-index="${actualIndex}" title="Eliminar">
                 <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m20.37 5.91-1 .92a2 2 0 0 1-1.39.57H6A2 2 0 0 1 4.6 6.84l-1-.93L2.24 7.27l1 .93a4 4 0 0 0 2.76 1.14h12A4 4 0 0 0 20.76 8.2l1-.93zm-3.5 4v9a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-9h-2v9a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-9zM8.5 3h7V1h-7z"/></svg>
               </button>
-            `}
+            `
+            }
           </div>
         </div>
       `;
     }
-    
+
     function renderParametersList() {
       const s1Container = document.getElementById("param-list-s1");
       const s2Container = document.getElementById("param-list-s2");
       if (!s1Container || !s2Container) return;
-      
+
       let s1Count = 0;
       const s1Html = localParams
         .map((p, i) => ({ p, i }))
-        .filter(item => item.p.category === "Interacción con Usuario" && (item.p.active || !item.p.id || item.p.isDeleted))
-        .map(item => {
+        .filter(
+          (item) =>
+            item.p.category === "Interacción con Usuario" &&
+            (item.p.active || !item.p.id || item.p.isDeleted),
+        )
+        .map((item) => {
           s1Count++;
           return renderParameterRow(item.p, item.i, s1Count);
         })
         .join("");
-        
+
       let s2Count = 0;
       const s2Html = localParams
         .map((p, i) => ({ p, i }))
-        .filter(item => item.p.category === "Gestión del Ticket" && (item.p.active || !item.p.id || item.p.isDeleted))
-        .map(item => {
+        .filter(
+          (item) =>
+            item.p.category === "Gestión del Ticket" &&
+            (item.p.active || !item.p.id || item.p.isDeleted),
+        )
+        .map((item) => {
           s2Count++;
           return renderParameterRow(item.p, item.i, s2Count);
         })
         .join("");
-        
-      s1Container.innerHTML = s1Html || '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
-      s2Container.innerHTML = s2Html || '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
-      
+
+      s1Container.innerHTML =
+        s1Html ||
+        '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
+      s2Container.innerHTML =
+        s2Html ||
+        '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría.</p>';
+
       // Attach input change listeners
-      s1Container.querySelectorAll(".param-input-name, .param-input-weight").forEach(attachInputListeners);
-      s2Container.querySelectorAll(".param-input-name, .param-input-weight").forEach(attachInputListeners);
-      
+      s1Container
+        .querySelectorAll(".param-input-name, .param-input-weight")
+        .forEach(attachInputListeners);
+      s2Container
+        .querySelectorAll(".param-input-name, .param-input-weight")
+        .forEach(attachInputListeners);
+
       // Attach delete/restore button listeners
-      s1Container.querySelectorAll(".param-btn-delete").forEach(btn => btn.addEventListener("click", handleDeleteParam));
-      s1Container.querySelectorAll(".param-btn-restore").forEach(btn => btn.addEventListener("click", handleRestoreParam));
-      s2Container.querySelectorAll(".param-btn-delete").forEach(btn => btn.addEventListener("click", handleDeleteParam));
-      s2Container.querySelectorAll(".param-btn-restore").forEach(btn => btn.addEventListener("click", handleRestoreParam));
+      s1Container
+        .querySelectorAll(".param-btn-delete")
+        .forEach((btn) => btn.addEventListener("click", handleDeleteParam));
+      s1Container
+        .querySelectorAll(".param-btn-restore")
+        .forEach((btn) => btn.addEventListener("click", handleRestoreParam));
+      s2Container
+        .querySelectorAll(".param-btn-delete")
+        .forEach((btn) => btn.addEventListener("click", handleDeleteParam));
+      s2Container
+        .querySelectorAll(".param-btn-restore")
+        .forEach((btn) => btn.addEventListener("click", handleRestoreParam));
     }
-    
+
     function attachInputListeners(input: Element) {
       input.addEventListener("input", (e) => {
         const target = e.target as HTMLInputElement;
@@ -2502,36 +2790,36 @@ const cleanBase = getCleanBase();
         }
       });
     }
-    
+
     function handleDeleteParam(e: Event) {
-      const target = (e.currentTarget as HTMLElement);
+      const target = e.currentTarget as HTMLElement;
       const idx = parseInt(target.getAttribute("data-index") || "0", 10);
       localParams[idx].isDeleted = true;
       renderParametersList();
     }
-    
+
     function handleRestoreParam(e: Event) {
-      const target = (e.currentTarget as HTMLElement);
+      const target = e.currentTarget as HTMLElement;
       const idx = parseInt(target.getAttribute("data-index") || "0", 10);
       localParams[idx].isDeleted = false;
       renderParametersList();
     }
-    
+
     // Tab switching in parameters modal
     const paramTabs = document.querySelectorAll(".parameter-tab");
-    paramTabs.forEach(tab => {
+    paramTabs.forEach((tab) => {
       tab.addEventListener("click", (e) => {
         const target = e.currentTarget as HTMLElement;
         const tabName = target.getAttribute("data-tab");
-        
-        paramTabs.forEach(t => t.classList.remove("tab-active"));
+
+        paramTabs.forEach((t) => t.classList.remove("tab-active"));
         target.classList.add("tab-active");
-        
+
         const paneS1 = document.getElementById("param-list-s1");
         const paneS2 = document.getElementById("param-list-s2");
         const btnAddS1 = document.getElementById("btn-add-param-s1");
         const btnAddS2 = document.getElementById("btn-add-param-s2");
-        
+
         if (tabName === "s1") {
           paneS1?.classList.remove("hidden");
           paneS2?.classList.add("hidden");
@@ -2545,30 +2833,33 @@ const cleanBase = getCleanBase();
         }
       });
     });
-    
+
     const btnSaveParams = document.getElementById("btn-save-parameters");
     btnSaveParams?.addEventListener("click", async () => {
-      const emptyParams = localParams.filter(p => !p.isDeleted && !p.name.trim());
+      const emptyParams = localParams.filter(
+        (p) => !p.isDeleted && !p.name.trim(),
+      );
       if (emptyParams.length > 0) {
         alert("Por favor, complete el nombre de todos los parámetros.");
         return;
       }
-      
+
       const originalText = btnSaveParams.innerHTML;
       btnSaveParams.setAttribute("disabled", "true");
-      btnSaveParams.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando…';
-      
+      btnSaveParams.innerHTML =
+        '<span class="loading loading-spinner loading-xs"></span> Guardando…';
+
       try {
         const payload = {
-          parameters: localParams.map(p => ({
+          parameters: localParams.map((p) => ({
             id: p.id,
             name: p.name.trim(),
             weight: p.weight,
             category: p.category,
-            isDeleted: p.isDeleted
-          }))
+            isDeleted: p.isDeleted,
+          })),
         };
-        
+
         const result = await actions.saveParameters(payload);
         if (result.error) {
           console.error(result.error);
@@ -2607,7 +2898,9 @@ const cleanBase = getCleanBase();
           return;
         }
 
-        const monthSelector = document.getElementById("month-selector") as HTMLSelectElement;
+        const monthSelector = document.getElementById(
+          "month-selector",
+        ) as HTMLSelectElement;
         const monthStr = monthSelector ? monthSelector.value : "calidad";
 
         // Obtener todos los parámetros configurados en el sistema
@@ -2625,7 +2918,7 @@ const cleanBase = getCleanBase();
           "Puntaje Secc. 1 (Interaccion)",
           "Puntaje Secc. 2 (Gestion)",
           "Puntaje Total",
-          "Falla Critica"
+          "Falla Critica",
         ];
 
         // Añadir una columna por cada parámetro dinámico
@@ -2650,20 +2943,32 @@ const cleanBase = getCleanBase();
             call.section1.score,
             call.section2.score,
             call.totalScore,
-            call.isCriticalFailure ? "Si" : "No"
+            call.isCriticalFailure ? "Si" : "No",
           ];
 
           // Determinar cumplimiento para cada parámetro dinámico
           params.forEach((param: any) => {
             let compliance = "N/A";
-            
+
             // Buscar en detalles de Sección 1 (Interacción)
-            if (call.section1 && call.section1.details && call.section1.details.hasOwnProperty(param.code)) {
-              compliance = call.section1.details[param.code] ? "Cumple" : "No cumple";
+            if (
+              call.section1 &&
+              call.section1.details &&
+              call.section1.details.hasOwnProperty(param.code)
+            ) {
+              compliance = call.section1.details[param.code]
+                ? "Cumple"
+                : "No cumple";
             }
             // Buscar en detalles de Sección 2 (Gestión)
-            else if (call.section2 && call.section2.details && call.section2.details.hasOwnProperty(param.code)) {
-              compliance = call.section2.details[param.code] ? "Cumple" : "No cumple";
+            else if (
+              call.section2 &&
+              call.section2.details &&
+              call.section2.details.hasOwnProperty(param.code)
+            ) {
+              compliance = call.section2.details[param.code]
+                ? "Cumple"
+                : "No cumple";
             }
 
             row.push(compliance);
@@ -2672,9 +2977,14 @@ const cleanBase = getCleanBase();
           // Agregar la observación al final de la fila
           row.push(call.notes || "");
 
-          const escapedRow = row.map(val => {
+          const escapedRow = row.map((val) => {
             const valStr = typeof val === "string" ? val : String(val);
-            if (valStr.includes(";") || valStr.includes("\n") || valStr.includes("\r") || valStr.includes('"')) {
+            if (
+              valStr.includes(";") ||
+              valStr.includes("\n") ||
+              valStr.includes("\r") ||
+              valStr.includes('"')
+            ) {
               return `"${valStr.replace(/"/g, '""')}"`;
             }
             return valStr;
@@ -2684,7 +2994,9 @@ const cleanBase = getCleanBase();
 
         // Add UTF-8 BOM so Excel displays accents correctly
         const csvContent = "\uFEFF" + csvRows.join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
@@ -2701,10 +3013,13 @@ const cleanBase = getCleanBase();
     const urlParams = new URLSearchParams(window.location.search);
     const urlAgentId = urlParams.get("agentId");
     const rbacContainer = document.querySelector("[data-is-agent]");
-    const isUserAgent = rbacContainer && rbacContainer.getAttribute("data-is-agent") === "true";
+    const isUserAgent =
+      rbacContainer && rbacContainer.getAttribute("data-is-agent") === "true";
 
     if (isUserAgent) {
-      const firstOpBtn = document.querySelector(".operator-item") as HTMLButtonElement | null;
+      const firstOpBtn = document.querySelector(
+        ".operator-item",
+      ) as HTMLButtonElement | null;
       if (firstOpBtn) {
         firstOpBtn.click();
       }

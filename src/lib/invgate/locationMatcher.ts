@@ -30,8 +30,10 @@ export interface LocationComparisonResult {
   stats: LocationComparisonStats;
 }
 
-export function parseInvgateLocationName(name: string): Omit<ParsedInvgateLocation, "id" | "name"> {
-  let displayName = name.split('(')[0].trim();
+export function parseInvgateLocationName(
+  name: string,
+): Omit<ParsedInvgateLocation, "id" | "name"> {
+  let displayName = name.split("(")[0].trim();
   let nis: string | null = null;
   let cp: string | null = null;
   let cc: string | null = null;
@@ -60,9 +62,9 @@ export function parseInvgateLocationName(name: string): Omit<ParsedInvgateLocati
   }
 
   let address: string | null = null;
-  const firstCloseParen = name.indexOf(')');
+  const firstCloseParen = name.indexOf(")");
   if (firstCloseParen !== -1) {
-    const nextOpenParen = name.indexOf('(', firstCloseParen + 1);
+    const nextOpenParen = name.indexOf("(", firstCloseParen + 1);
     if (nextOpenParen !== -1) {
       const sliced = name.slice(firstCloseParen + 1, nextOpenParen).trim();
       if (sliced.length > 0) {
@@ -85,7 +87,7 @@ export function parseInvgateLocationName(name: string): Omit<ParsedInvgateLocati
 
 export function matchLocations(
   invgateLocations: InvgateLocation[],
-  allOfficeCodes: Map<string, { name: string; address: string }>
+  allOfficeCodes: Map<string, { name: string; address: string }>,
 ): LocationComparisonResult {
   const results: LocationMatch[] = [];
   let matchedCount = 0;
@@ -101,7 +103,7 @@ export function matchLocations(
   // Filter to keep only leaf locations with a NIS (e.g. "(B0373)")
   const nisRegex = /\([A-Z]\d{4}\s*\)/;
   const relevantLocations = invgateLocations.filter(
-    loc => !parentIds.has(loc.id) && nisRegex.test(loc.name)
+    (loc) => !parentIds.has(loc.id) && nisRegex.test(loc.name),
   );
 
   for (const loc of relevantLocations) {
@@ -153,7 +155,7 @@ export function matchLocations(
  * Returns a Map of nis → count (only includes nis with count > 1).
  */
 export function findDuplicateNis(
-  invgateLocations: InvgateLocation[]
+  invgateLocations: InvgateLocation[],
 ): Map<string, number> {
   const nisCount = new Map<string, number>();
   for (const loc of invgateLocations) {

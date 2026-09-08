@@ -1,0 +1,176 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import { Icon } from "astro-icon/components";
+import FormLegend from "@components/ui/forms/FormLegend.astro";
+
+interface Props extends HTMLAttributes<"div"> {
+  id: string;
+  name: string;
+  label: string;
+  tags?: string[];
+  helpText?: string;
+  required?: boolean;
+  placeholder?: string;
+}
+
+const {
+  id,
+  name,
+  label,
+  tags = [],
+  helpText,
+  required = false,
+  placeholder = "Escribí y presioná Enter…",
+  class: className = "",
+} = Astro.props;
+---
+
+<fieldset class:list={["fieldset", className]} data-taginput-root data-name={name}>
+  <FormLegend class="font-bold tracking-wider">
+    {label}
+    {required && <span class="text-error">*</span>}
+  </FormLegend>
+
+  <div class="flex flex-wrap gap-1.5" data-taginput-chips>
+    {tags.map((t) => (
+      <span class="badge badge-secondary badge-soft uppercase" data-taginput-chip data-value={t}>
+        {t}
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-circle"
+          data-taginput-remove={t}
+          aria-label={`Quitar ${t}`}
+        >
+          <Icon name="boxicons:x" size={12} />
+        </button>
+        <input type="hidden" name={name} value={t} />
+      </span>
+    ))}
+  </div>
+
+  <input
+    type="text"
+    id={id}
+    class="input input-bordered input-sm mt-2 w-full"
+    data-taginput-input
+    placeholder={placeholder}
+    autocomplete="off"
+  />
+
+  {
+    helpText && (
+      <p class="fieldset-label text-base-content/50 text-xs">{helpText}</p>
+    )
+  }
+</fieldset>
+
+<template data-taginput-chip-tpl>
+  <span class="badge badge-secondary badge-soft uppercase" data-taginput-chip>
+    <span data-taginput-chip-label></span>
+    <button
+      type="button"
+      class="btn btn-ghost btn-xs btn-circle"
+      data-taginput-remove
+      aria-label="Quitar"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        data-icon="boxicons:x-filled"
+      >
+        <path
+          fill="currentColor"
+          d="m9.88 12.71l-4.95 4.95l1.41 1.41l2.83-2.83L12 13.41l2.12 2.13l3.54 3.53l1.41-1.41l-4.95-4.95l-.71-.71l5.66-5.66l-1.41-1.41L12 10.59L6.34 4.93L4.93 6.34L10.59 12z"></path>
+      </svg>
+    </button>
+    <input type="hidden" data-taginput-hidden />
+  </span>
+</template>
+
+<script>
+  function initTagInput(root: HTMLElement) {
+    if (root.dataset.initialized === "true") return;
+    root.dataset.initialized = "true";
+
+    const name = root.dataset.name || "";
+    const chips = root.querySelector<HTMLElement>("[data-taginput-chips]");
+    const input = root.querySelector<HTMLInputElement>("[data-taginput-input]");
+    const tpl = document.querySelector<HTMLTemplateElement>(
+      "[data-taginput-chip-tpl]",
+    );
+    if (!chips || !input) return;
+
+    const tags = new Set<string>();
+
+    chips.querySelectorAll<HTMLElement>("[data-taginput-chip]").forEach((chip) => {
+      const v = chip.dataset.value || "";
+      if (v) tags.add(v);
+    });
+
+    function renderChips() {
+      chips.replaceChildren();
+      tags.forEach((t) => {
+        const chip = tpl
+          ? (tpl.content.firstElementChild?.cloneNode(true) as HTMLElement)
+          : null;
+        if (!chip) return;
+        chip.dataset.value = t;
+        const labelEl = chip.querySelector<HTMLElement>("[data-taginput-chip-label]");
+        if (labelEl) labelEl.textContent = t;
+        const removeBtn = chip.querySelector<HTMLButtonElement>(
+          "[data-taginput-remove]",
+        );
+        if (removeBtn) {
+          removeBtn.dataset.taginputRemove = t;
+          removeBtn.setAttribute("aria-label", `Quitar ${t}`);
+        }
+        const hidden = chip.querySelector<HTMLInputElement>("[data-taginput-hidden]");
+        if (hidden) {
+          hidden.name = name;
+          hidden.value = t;
+        }
+        chips.appendChild(chip);
+      });
+    }
+
+    function addTag(raw: string) {
+      const value = raw.trim().toUpperCase();
+      if (!value || tags.has(value)) return;
+      tags.add(value);
+      renderChips();
+    }
+
+    function removeTag(t: string) {
+      if (!tags.has(t)) return;
+      tags.delete(t);
+      renderChips();
+    }
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addTag(input.value);
+        input.value = "";
+      }
+    });
+
+    chips.addEventListener("click", (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-taginput-remove]",
+      );
+      if (!btn || !chips.contains(btn)) return;
+      removeTag(btn.dataset.taginputRemove || "");
+    });
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-taginput-root]")
+    .forEach(initTagInput);
+  document.addEventListener("astro:page-load", () => {
+    document
+      .querySelectorAll<HTMLElement>("[data-taginput-root]")
+      .forEach(initTagInput);
+  });
+</script>

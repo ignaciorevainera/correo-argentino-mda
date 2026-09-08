@@ -67,10 +67,7 @@ for (const [path, expectedCount] of migratedFiles) {
   );
 
   const matches = source.match(/<FormLegend/g);
-  assert.ok(
-    matches,
-    `${path} should have FormLegend usage`,
-  );
+  assert.ok(matches, `${path} should have FormLegend usage`);
   assert.equal(
     matches.length,
     expectedCount,

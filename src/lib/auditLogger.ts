@@ -10,13 +10,16 @@ import { auditLogs } from "@db/schema";
  */
 export async function logAdminFromAstro(
   locals: App.Locals,
-  message: string
+  message: string,
 ): Promise<void> {
   const username = locals.user?.username || "Sistema";
   await logAdminAction(username, message);
 }
 
-export async function logAdminAction(username: string, action: string): Promise<void> {
+export async function logAdminAction(
+  username: string,
+  action: string,
+): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
     await db.insert(auditLogs).values({

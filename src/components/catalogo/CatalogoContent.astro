@@ -48,7 +48,13 @@ try {
     );
 
   allApps = rawApps as AppRow[];
-  categories = await db.select().from(applicationCategories).orderBy(asc(applicationCategories.sortOrder), asc(applicationCategories.title)) as any;
+  categories = (await db
+    .select()
+    .from(applicationCategories)
+    .orderBy(
+      asc(applicationCategories.sortOrder),
+      asc(applicationCategories.title),
+    )) as any;
 } catch (error: any) {
   errorMsg = "No se pudo cargar el catálogo. Intentá de nuevo más tarde.";
 }
@@ -62,9 +68,13 @@ const isBundleCategory = (title: string | null) => {
 const bundleApps = allApps.filter((app) => isBundleCategory(app.categoryTitle));
 const bundle = bundleApps.length > 0 ? bundleApps[0] : null;
 
-const regularApps = allApps.filter((app) => !isBundleCategory(app.categoryTitle));
+const regularApps = allApps.filter(
+  (app) => !isBundleCategory(app.categoryTitle),
+);
 
-const displayCategories = categories.filter((cat) => !isBundleCategory(cat.title));
+const displayCategories = categories.filter(
+  (cat) => !isBundleCategory(cat.title),
+);
 
 const appsByCategory = new Map<number, AppRow[]>();
 const uncategorized: AppRow[] = [];
@@ -88,11 +98,7 @@ for (const app of regularApps) {
   {
     errorMsg && (
       <div role="alert" class="alert alert-error alert-soft text-sm">
-        <Icon
-          name="boxicons:alert-circle-filled"
-          size={20}
-          class="shrink-0"
-        />
+        <Icon name="boxicons:alert-circle-filled" size={20} class="shrink-0" />
         <span>{errorMsg}</span>
       </div>
     )
@@ -131,7 +137,11 @@ for (const app of regularApps) {
       if (apps.length === 0) return null;
 
       return (
-        <section class="space-y-3" aria-labelledby={`cat-${cat.id}`} data-catalog-section>
+        <section
+          class="space-y-3"
+          aria-labelledby={`cat-${cat.id}`}
+          data-catalog-section
+        >
           <div class="flex items-center gap-2">
             <Icon
               name="boxicons:folder-filled"
@@ -141,7 +151,7 @@ for (const app of regularApps) {
             />
             <h2
               id={`cat-${cat.id}`}
-              class="text-lg font-semibold text-base-content"
+              class="text-base-content text-lg font-semibold"
               data-highlight-target
             >
               {cat.title}
@@ -149,7 +159,7 @@ for (const app of regularApps) {
             <span class="badge badge-sm badge-ghost">{apps.length}</span>
           </div>
 
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
+          <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
             {apps.map((app) => (
               <CatalogAppCard
                 id={app.id}
@@ -171,7 +181,11 @@ for (const app of regularApps) {
 
   {
     uncategorized.length > 0 && (
-      <section class="space-y-3" aria-labelledby="cat-otros" data-catalog-section>
+      <section
+        class="space-y-3"
+        aria-labelledby="cat-otros"
+        data-catalog-section
+      >
         <div class="flex items-center gap-2">
           <Icon
             name="boxicons:folder-filled"
@@ -179,27 +193,29 @@ for (const app of regularApps) {
             class="text-base-content/70"
             aria-hidden="true"
           />
-          <h2 id="cat-otros" class="text-lg font-semibold text-base-content" data-highlight-target>
+          <h2
+            id="cat-otros"
+            class="text-base-content text-lg font-semibold"
+            data-highlight-target
+          >
             Otros
           </h2>
-          <span class="badge badge-sm badge-ghost">
-            {uncategorized.length}
-          </span>
+          <span class="badge badge-sm badge-ghost">{uncategorized.length}</span>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
+        <div class="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
           {uncategorized.map((app) => (
-              <CatalogAppCard
-                id={app.id}
-                title={app.title}
-                description={app.description}
-                version={app.version}
-                filePath={app.filePath}
-                categoryTitle={null}
-                iconPath={app.iconPath}
-                metadata={app.metadata}
-                instructionPdfPath={app.instructionPdfPath}
-              />
+            <CatalogAppCard
+              id={app.id}
+              title={app.title}
+              description={app.description}
+              version={app.version}
+              filePath={app.filePath}
+              categoryTitle={null}
+              iconPath={app.iconPath}
+              metadata={app.metadata}
+              instructionPdfPath={app.instructionPdfPath}
+            />
           ))}
         </div>
       </section>
@@ -208,11 +224,11 @@ for (const app of regularApps) {
 
   {
     !errorMsg && regularApps.length === 0 && !bundle && (
-      <div class="card bg-base-100 border border-base-300 p-12 text-center">
+      <div class="card bg-base-100 border-base-300 border p-12 text-center">
         <Icon
           name="boxicons:archive-in"
           size={48}
-          class="mx-auto text-base-content/30 mb-3"
+          class="text-base-content/30 mx-auto mb-3"
         />
         <p class="text-base-content/60 text-sm">
           No hay aplicativos disponibles todavía.
@@ -223,10 +239,17 @@ for (const app of regularApps) {
 </PageContainer>
 
 <script>
-  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+  import {
+    matchesSearchQuery,
+    highlightSearchTargets,
+  } from "@lib/clientSearch";
 
-  const searchInput = document.getElementById("catalog-search") as HTMLInputElement | null;
-  const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-catalog-section]"));
+  const searchInput = document.getElementById(
+    "catalog-search",
+  ) as HTMLInputElement | null;
+  const sections = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-catalog-section]"),
+  );
   const emptyState = document.getElementById("catalog-empty-state");
 
   let isFiltered = false;
@@ -242,8 +265,12 @@ for (const app of regularApps) {
     let visibleApps = 0;
 
     sections.forEach((section) => {
-      const sectionTitle = section.querySelector<HTMLElement>("[data-highlight-target]");
-      const cards = Array.from(section.querySelectorAll<HTMLElement>("[data-app-card]"));
+      const sectionTitle = section.querySelector<HTMLElement>(
+        "[data-highlight-target]",
+      );
+      const cards = Array.from(
+        section.querySelectorAll<HTMLElement>("[data-app-card]"),
+      );
       let visibleCards = 0;
 
       cards.forEach((card) => {

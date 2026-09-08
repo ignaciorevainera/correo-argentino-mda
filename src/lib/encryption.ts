@@ -7,7 +7,7 @@ const MASTER_KEY = import.meta.env.ENCRYPTION_KEY;
 if (!MASTER_KEY) {
   throw new Error(
     "[encryption] ENCRYPTION_KEY no está configurada. " +
-    "El cifrado de credenciales no funcionará sin esta variable de entorno."
+      "El cifrado de credenciales no funcionará sin esta variable de entorno.",
   );
 }
 
@@ -18,18 +18,18 @@ if (!MASTER_KEY) {
 export function encryptData(text: string): string {
   if (!text) return "";
   const masterKey = MASTER_KEY;
-  
+
   // Deriva una clave de 32 bytes usando SHA-256
   const key = crypto.createHash("sha256").update(masterKey).digest();
-  
+
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  
+
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
-  
+
   const authTag = cipher.getAuthTag().toString("hex");
-  
+
   return `${iv.toString("hex")}:${authTag}:${encrypted}`;
 }
 
@@ -38,33 +38,39 @@ export function encryptData(text: string): string {
  */
 export function decryptData(encryptedText: string): string {
   if (!encryptedText) return "";
-  
+
   const parts = encryptedText.split(":");
   if (parts.length !== 3) {
     // Si no tiene el formato iv:tag:data, asumimos que es texto plano (graceful degradation)
     return encryptedText;
   }
-  
+
   const [ivHex, tagHex, encryptedHex] = parts;
   if (!ivHex || !tagHex || !encryptedHex) {
     return encryptedText;
   }
-  
+
   try {
     const masterKey = MASTER_KEY;
     const key = crypto.createHash("sha256").update(masterKey).digest();
     const iv = Buffer.from(ivHex, "hex");
     const authTag = Buffer.from(tagHex, "hex");
-    
+
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(Buffer.from(encryptedHex, "hex"), undefined, "utf8");
+
+    let decrypted = decipher.update(
+      Buffer.from(encryptedHex, "hex"),
+      undefined,
+      "utf8",
+    );
     decrypted += decipher.final("utf8");
-    
+
     return decrypted;
   } catch (error: any) {
-    console.error(`[Decryption Error] No se pudo descifrar el texto: ${error.message}`);
+    console.error(
+      `[Decryption Error] No se pudo descifrar el texto: ${error.message}`,
+    );
     return encryptedText; // Retorna el texto original en caso de error
   }
 }

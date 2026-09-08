@@ -51,15 +51,12 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 
   <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
     <!-- ─── Table: Usuarios registrados ─── -->
-    <section
-      class="lg:order-1"
-      aria-labelledby="tabla-usuarios"
-    >
+    <section class="lg:order-1" aria-labelledby="tabla-usuarios">
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between gap-4">
           <h2
             id="tabla-usuarios"
-            class="text-lg font-semibold text-base-content"
+            class="text-base-content text-lg font-semibold"
           >
             Usuarios registrados
           </h2>
@@ -79,8 +76,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           rowGridClass={rowGridClass}
         >
           <div slot="header">
-            <DataTableHeaderCell sortKey="username"
-              >Usuario</DataTableHeaderCell
+            <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell
             >
           </div>
           <div slot="header">
@@ -92,8 +88,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 
           {
             allUsers.length === 0 ? (
-              <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-                <div class="rounded-full bg-base-200 p-4">
+              <div class="text-base-content/50 flex flex-col items-center gap-3 py-16">
+                <div class="bg-base-200 rounded-full p-4">
                   <Icon
                     name="boxicons:group-filled"
                     size={32}
@@ -118,7 +114,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                   data-sort-role={u.role}
                   class:list={[
                     rowGridClass,
-                    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+                    "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
                   ]}
                 >
                   <div class="min-w-0">
@@ -130,7 +126,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                             ? "bg-error text-error-content"
                             : u.role === "supervisor"
                               ? "bg-info text-info-content"
-                              : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                              : u.role === "team_leader" ||
+                                  u.role === "team-leader" ||
+                                  u.role === "team leader"
                                 ? "bg-accent text-accent-content"
                                 : u.role === "referent"
                                   ? "bg-warning text-warning-content"
@@ -140,21 +138,23 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                       >
                         {u.username.slice(0, 2).toUpperCase()}
                       </div>
-                      <span class="font-medium font-mono text-base-content truncate">
+                      <span class="text-base-content truncate font-mono font-medium">
                         {u.username}
                       </span>
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-2 min-w-0">
+                  <div class="flex min-w-0 items-center gap-2">
                     <span
                       class:list={[
-                        "badge badge-sm font-bold uppercase tracking-wide whitespace-nowrap",
+                        "badge badge-sm font-bold tracking-wide whitespace-nowrap uppercase",
                         u.role === "admin"
                           ? "badge-error"
                           : u.role === "supervisor"
                             ? "badge-info"
-                            : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                            : u.role === "team_leader" ||
+                                u.role === "team-leader" ||
+                                u.role === "team leader"
                               ? "badge-accent"
                               : u.role === "referent"
                                 ? "badge-warning"
@@ -165,7 +165,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                         ? "Admin"
                         : u.role === "supervisor"
                           ? "Supervisor"
-                          : u.role === "team_leader" || u.role === "team-leader" || u.role === "team leader"
+                          : u.role === "team_leader" ||
+                              u.role === "team-leader" ||
+                              u.role === "team leader"
                             ? "Team Leader"
                             : u.role === "referent"
                               ? "Referente"
@@ -195,10 +197,10 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                   {/* ── Modales (Fuera del flujo visual de la fila) ── */}
                   <Modal id={`modal-rename-${u.id}`}>
                     <Fragment slot="content">
-                      <h3 class="mb-1 text-base font-semibold text-base-content">
+                      <h3 class="text-base-content mb-1 text-base font-semibold">
                         Renombrar usuario
                       </h3>
-                      <p class="mb-4 text-xs text-base-content/60">
+                      <p class="text-base-content/60 mb-4 text-xs">
                         Usuario actual:{" "}
                         <span class="font-mono font-semibold">
                           {u.username}
@@ -220,32 +222,30 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           autocomplete="off"
                           inputClass="input-sm"
                         />
-                        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
-                          <button
-                            type="submit"
-                            class="btn btn-secondary btn-sm gap-1"
-                          >
-                            <Icon name="boxicons:check-filled" size={14} />
-                            Guardar
-                          </button>
-                          <button
+                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
+                          <ActionCancelButton
                             type="button"
-                            class="btn btn-ghost btn-sm"
+                            label="Cancelar"
+                            icon="boxicons:x-filled"
+                            variant="error"
                             onclick="this.closest('dialog').close()"
-                          >
-                            Cancelar
-                          </button>
+                          />
+                          <ActionConfirmButton
+                            type="submit"
+                            color="btn-secondary"
+                            label="Guardar"
+                            icon="boxicons:check-filled"
+                          />
                         </div>
                       </form>
                     </Fragment>
                   </Modal>
-
                   <Modal id={`modal-reset-${u.id}`}>
                     <Fragment slot="content">
-                      <h3 class="mb-1 text-base font-semibold text-base-content">
+                      <h3 class="text-base-content mb-1 text-base font-semibold">
                         Blanquear contraseña
                       </h3>
-                      <p class="mb-4 text-xs text-base-content/60">
+                      <p class="text-base-content/60 mb-4 text-xs">
                         Establece una nueva contraseña para{" "}
                         <span class="font-mono font-semibold">
                           {u.username}
@@ -269,24 +269,20 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                           autocomplete="new-password"
                           inputClass="input-sm"
                         />
-                        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
-                          <button
-                            type="submit"
-                            class="btn btn-warning btn-sm gap-1"
-                          >
-                            <Icon
-                              name="boxicons:lock-open-filled"
-                              size={14}
-                            />
-                            Blanquear
-                          </button>
-                          <button
+                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
+                          <ActionCancelButton
                             type="button"
-                            class="btn btn-ghost btn-sm"
+                            label="Cancelar"
+                            icon="boxicons:x-filled"
+                            variant="error"
                             onclick="this.closest('dialog').close()"
-                          >
-                            Cancelar
-                          </button>
+                          />
+                          <ActionConfirmButton
+                            type="submit"
+                            color="btn-warning"
+                            label="Blanquear"
+                            icon="boxicons:lock-open-filled"
+                          />
                         </div>
                       </form>
                     </Fragment>
@@ -302,26 +298,24 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     <!-- ─── Form: Nuevo usuario ─── -->
     <section class="lg:order-2" aria-labelledby="form-nuevo-usuario">
       <SectionCard class="shadow-md lg:sticky lg:top-24">
-        <h2 id="form-nuevo-usuario" class="card-title text-base gap-2">
+        <h2 id="form-nuevo-usuario" class="card-title gap-2 text-base">
           <div
             aria-hidden="true"
-            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/10 text-secondary"
+            class="bg-secondary/10 text-secondary inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
           >
             <Icon name="boxicons:user-plus-filled" size={18} />
           </div>
           Nuevo usuario
         </h2>
 
-        {
-          (successMsg || errorMsg) && (
-            <script is:inline define:vars={{ successMsg, errorMsg }}>
-              window.addEventListener('load', () => {
-                if (successMsg) window.showToast?.(successMsg, "alert-success");
-                if (errorMsg) window.showToast?.(errorMsg, "alert-error");
-              });
-            </script>
-          )
-        }
+        <script is:inline define:vars={{ successMsg, errorMsg }}>
+          if (successMsg || errorMsg) {
+            window.addEventListener("load", () => {
+              if (successMsg) window.showToast?.(successMsg, "alert-success");
+              if (errorMsg) window.showToast?.(errorMsg, "alert-error");
+            });
+          }
+        </script>
 
         <form method="POST" class="space-y-4" data-async-form>
           <FormField
@@ -353,7 +347,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
               { value: "referent", label: "Referente" },
               { value: "team_leader", label: "Team Leader" },
               { value: "supervisor", label: "Supervisor" },
-              { value: "admin", label: "Administrador" }
+              { value: "admin", label: "Administrador" },
             ]}
             helpText="Define el nivel de acceso a módulos del portal."
           />
@@ -364,7 +358,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
             color="btn-secondary"
             label="Dar de alta"
             icon="boxicons:user-check-filled"
-            class="w-full mt-2"
+            class="mt-2 w-full"
           />
         </form>
       </SectionCard>
@@ -374,10 +368,10 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
 
 <Modal id="modal-change-role">
   <Fragment slot="content">
-    <h3 class="mb-1 text-base font-semibold text-base-content">
+    <h3 class="text-base-content mb-1 text-base font-semibold">
       Cambiar rol de usuario
     </h3>
-    <p class="mb-4 text-xs text-base-content/60">
+    <p class="text-base-content/60 mb-4 text-xs">
       Modifica el rol del usuario en el sistema.
     </p>
     <form method="POST" class="space-y-4" data-async-form>
@@ -393,49 +387,55 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           { value: "referent", label: "Referente" },
           { value: "team_leader", label: "Team Leader" },
           { value: "supervisor", label: "Supervisor" },
-          { value: "admin", label: "Administrador" }
+          { value: "admin", label: "Administrador" },
         ]}
       />
 
       <div
         id="role-desc-container"
-        class="p-3 bg-base-200 border border-base-300 rounded-lg text-xs space-y-1 transition-all duration-300"
+        class="bg-base-200 border-base-300 space-y-1 rounded-lg border p-3 text-xs transition-all duration-300"
       >
-        <span class="font-bold text-base-content block"
-          >Permisos del rol:</span
-        >
+        <span class="text-base-content block font-bold">Permisos del rol:</span>
         <p id="role-permissions-desc" class="text-base-content/70">
           Selecciona un rol para ver sus permisos.
         </p>
       </div>
 
-      <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
+      <div
+        class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3"
+      >
+        <ActionCancelButton
+          type="button"
+          label="Cancelar"
+          icon="boxicons:x-filled"
+          variant="error"
+          onclick="this.closest('dialog').close()"
+        />
         <ActionConfirmButton
           type="submit"
           color="btn-primary"
           label="Guardar"
           icon="boxicons:check-filled"
-          size="sm"
-        />
-        <ActionCancelButton
-          type="button"
-          label="Cancelar"
-          size="sm"
-          onclick="this.closest('dialog').close()"
         />
       </div>
     </form>
   </Fragment>
 </Modal>
 
-<Modal id="modal-permissions-matrix" title="Matriz de permisos por rol" icon="boxicons:universal-access-filled" size="full" class="!w-fit max-w-[calc(100vw-1rem)] !p-3 sm:!p-4">
+<Modal
+  id="modal-permissions-matrix"
+  title="Matriz de permisos por rol"
+  icon="boxicons:universal-access-filled"
+  size="full"
+  class="!w-fit max-w-[calc(100vw-1rem)] !p-3 sm:!p-4"
+>
   <Fragment slot="content">
-    <p class="mb-4 text-xs text-base-content/60">
-      Detalle comparativo de las acciones y accesos permitidos para cada rol
-      en la plataforma.
+    <p class="text-base-content/60 mb-4 text-xs">
+      Detalle comparativo de las acciones y accesos permitidos para cada rol en
+      la plataforma.
     </p>
     <div>
-      <table class="table table-xs md:table-sm w-full">
+      <table class="table-xs md:table-sm table w-full">
         <thead>
           <tr class="text-base-content/70">
             <th class="bg-base-200/30">Funcionalidad / Ruta</th>
@@ -460,7 +460,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
           {
             rolesMatrix.map((row) => (
               <tr class="hover:bg-base-200/20 transition-colors">
-                <td class="font-medium text-base-content/80 text-xs md:text-sm whitespace-nowrap flex items-center gap-2 py-3">
+                <td class="text-base-content/80 flex items-center gap-2 py-3 text-xs font-medium whitespace-nowrap md:text-sm">
                   <Icon
                     name={row.icon}
                     size={16}
@@ -468,77 +468,77 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
                   />
                   <span>{row.feature}</span>
                 </td>
-                <td class="text-center bg-base-200/5">
+                <td class="bg-base-200/5 text-center">
                   {row.agent ? (
                     <Icon
-                      name="boxicons:check"
-                      class="inline-block text-success"
+                      name="boxicons:check-filled"
+                      class="text-success inline-block"
                       size={24}
                     />
                   ) : (
                     <Icon
-                      name="boxicons:x"
-                      class="inline-block text-error"
+                      name="boxicons:x-filled"
+                      class="text-error inline-block"
                       size={24}
                     />
                   )}
                 </td>
-                <td class="text-center bg-warning/5">
+                <td class="bg-warning/5 text-center">
                   {row.referent ? (
                     <Icon
-                      name="boxicons:check"
-                      class="inline-block text-success"
+                      name="boxicons:check-filled"
+                      class="text-success inline-block"
                       size={24}
                     />
                   ) : (
                     <Icon
-                      name="boxicons:x"
-                      class="inline-block text-error"
+                      name="boxicons:x-filled"
+                      class="text-error inline-block"
                       size={24}
                     />
                   )}
                 </td>
-                <td class="text-center bg-accent/5">
+                <td class="bg-accent/5 text-center">
                   {row.team_leader ? (
                     <Icon
-                      name="boxicons:check"
-                      class="inline-block text-success"
+                      name="boxicons:check-filled"
+                      class="text-success inline-block"
                       size={24}
                     />
                   ) : (
                     <Icon
-                      name="boxicons:x"
-                      class="inline-block text-error"
+                      name="boxicons:x-filled"
+                      class="text-error inline-block"
                       size={24}
                     />
                   )}
                 </td>
-                <td class="text-center bg-info/5">
+                <td class="bg-info/5 text-center">
                   {row.supervisor ? (
                     <Icon
-                      name="boxicons:check"
-                      class="inline-block text-success"
+                      name="boxicons:check-filled"
+                      class="text-success inline-block"
                       size={24}
                     />
                   ) : (
                     <Icon
-                      name="boxicons:x"
-                      class="inline-block text-error"
+                      name="boxicons:x-filled"
+                      class="text-error inline-block"
                       size={24}
                     />
                   )}
                 </td>
-                <td class="text-center bg-error/5">
+                <td class="bg-error/5 text-center">
                   {row.admin ? (
                     <Icon
-                      name="boxicons:check"
-                      class="inline-block text-success"
+                      name="boxicons:check-filled"
+                      class="text-success inline-block"
                       size={24}
                     />
                   ) : (
                     <Icon
-                      name="boxicons:x"
-                      class="inline-block text-error"
+                      name="boxicons:x-filled"
+                      class="text-error inline-block"
                       size={24}
                     />
                   )}
@@ -558,7 +558,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
-    const roleSelect = document.getElementById("change-role-select") as HTMLSelectElement | null;
+    const roleSelect = document.getElementById(
+      "change-role-select",
+    ) as HTMLSelectElement | null;
     if (!roleSelect) return false;
 
     const roleDescriptions = {
@@ -574,8 +576,12 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
         "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
     };
 
-    const modal = document.getElementById("modal-change-role") as HTMLDialogElement | null;
-    const userIdInput = document.getElementById("change-role-user-id") as HTMLInputElement | null;
+    const modal = document.getElementById(
+      "modal-change-role",
+    ) as HTMLDialogElement | null;
+    const userIdInput = document.getElementById(
+      "change-role-user-id",
+    ) as HTMLInputElement | null;
     const descEl = document.getElementById("role-permissions-desc");
     const containerEl = document.getElementById("role-desc-container");
 
@@ -602,7 +608,8 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
     };
 
     roleSelect?.addEventListener("change", (e) => {
-      const val = (e.target as HTMLSelectElement).value as keyof typeof roleDescriptions;
+      const val = (e.target as HTMLSelectElement)
+        .value as keyof typeof roleDescriptions;
       updateDesc(val);
     });
 
@@ -611,7 +618,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_320px] items-center gap-4";
       .forEach((btn) => {
         btn.addEventListener("click", () => {
           const userId = btn.getAttribute("data-user-id");
-          const userRole = btn.getAttribute("data-user-role") as keyof typeof roleDescriptions;
+          const userRole = btn.getAttribute(
+            "data-user-role",
+          ) as keyof typeof roleDescriptions;
 
           if (userIdInput && roleSelect && modal) {
             userIdInput.value = userId || "";

@@ -109,7 +109,7 @@ Consola CRUD exclusiva para la gestión integral de base de datos (usuarios, cub
 La arquitectura está construida sobre las siguientes tecnologías:
 
 - **Frontend & Server (SSR):**
-  - ![Astro](https://img.shields.io/badge/Astro-BC52EE?style=for-the-badge&logo=astro&logoColor=white) v5/v6 en modo `output: 'server'` con el adaptador `@astrojs/node` en ejecución independiente (_standalone_).
+  - ![Astro](https://img.shields.io/badge/Astro-BC52EE?style=for-the-badge&logo=astro&logoColor=white) v7 en modo `output: 'server'` con el adaptador `@astrojs/node` en ejecución independiente (_standalone_).
   - ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) v4 y ![DaisyUI](https://img.shields.io/badge/DaisyUI-FF9903?style=for-the-badge&logo=daisyui&logoColor=white) v5 para una interfaz altamente densa, responsiva y adaptable con soporte nativo para alternancia de temas claros/oscuros (`theme-change`).
   - **React (islas interactivas):** Para componentes interactivos complejos de renderizado dinámico en cliente.
 - **Backend & Database:**

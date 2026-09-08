@@ -5,15 +5,36 @@ import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 ---
 
-<div id="new-month-modal" class="modal modal-bottom sm:modal-middle z-[200]">
-  <div class="modal-box w-11/12 sm:w-full max-w-md p-4 sm:p-5">
-    <h3 class="flex items-center gap-2 mb-3 text-base-content font-black text-lg uppercase tracking-tight">
-      <Icon name="boxicons:calendar-plus" class="text-primary shrink-0" size={22} />
+<div id="new-month-modal" class="modal modal-bottom sm:modal-middle z-200">
+  <div class="modal-box w-11/12 max-w-md p-4 sm:w-full sm:p-5">
+    <h3
+      class="text-base-content mb-3 flex items-center gap-2 text-lg font-black tracking-tight uppercase"
+    >
+      <Icon
+        name="boxicons:calendar-plus-filled"
+        class="text-primary shrink-0"
+        size={22}
+      />
       Agregar Nuevo Mes
     </h3>
     <div class="space-y-4">
-      <FormField id="new-month-year" name="new-month-year" label="Seleccionar Año" type="number" value="2026" min="2020" max="2035" size="sm" inputClass="font-mono" />
-      <SelectField id="new-month-month" name="new-month-month" label="Seleccionar Mes" size="sm">
+      <FormField
+        id="new-month-year"
+        name="new-month-year"
+        label="Seleccionar Año"
+        type="number"
+        value="2026"
+        min="2020"
+        max="2035"
+        size="sm"
+        inputClass="font-mono"
+      />
+      <SelectField
+        id="new-month-month"
+        name="new-month-month"
+        label="Seleccionar Mes"
+        size="sm"
+      >
         <option value="0">Enero</option>
         <option value="1">Febrero</option>
         <option value="2">Marzo</option>
@@ -29,65 +50,91 @@ import SelectField from "@components/ui/forms/SelectField.astro";
       </SelectField>
     </div>
     <div class="modal-action mt-6 flex justify-end gap-2">
-      <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id="cancel-new-month" type="button">Cancelar</button>
-      <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="confirm-new-month" type="button">Agregar Mes</button>
+      <button
+        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+        id="cancel-new-month"
+        type="button">Cancelar</button
+      >
+      <button
+        class="btn btn-sm btn-secondary text-xs font-black uppercase"
+        id="confirm-new-month"
+        type="button">Agregar Mes</button
+      >
     </div>
   </div>
   <div class="modal-backdrop">
-    <button id="new-month-backdrop" type="button" class="cursor-default">close</button>
+    <button id="new-month-backdrop" type="button" class="cursor-default"
+      >close</button
+    >
   </div>
 </div>
 
 <script>
-  import { createMonth } from '../lib/api';
-  import { state } from '../lib/state';
-  import { showToast } from '../lib/notifications';
+  import { createMonth } from "../lib/api";
+  import { state } from "../lib/state";
+  import { showToast } from "../lib/notifications";
 
-  const modal = document.getElementById('new-month-modal') as HTMLElement | null;
+  const modal = document.getElementById(
+    "new-month-modal",
+  ) as HTMLElement | null;
   if (modal) {
-    const yearInput = document.getElementById('new-month-year') as HTMLInputElement | null;
-    const monthSelect = document.getElementById('new-month-month') as HTMLSelectElement | null;
-    const cancelBtn = document.getElementById('cancel-new-month');
-    const confirmBtn = document.getElementById('confirm-new-month') as HTMLButtonElement | null;
-    const backdrop = document.getElementById('new-month-backdrop');
+    const yearInput = document.getElementById(
+      "new-month-year",
+    ) as HTMLInputElement | null;
+    const monthSelect = document.getElementById(
+      "new-month-month",
+    ) as HTMLSelectElement | null;
+    const cancelBtn = document.getElementById("cancel-new-month");
+    const confirmBtn = document.getElementById(
+      "confirm-new-month",
+    ) as HTMLButtonElement | null;
+    const backdrop = document.getElementById("new-month-backdrop");
 
     function closeModal() {
-      modal.classList.remove('modal-open');
+      modal?.classList.remove("modal-open");
     }
 
-    backdrop?.addEventListener('click', closeModal);
+    backdrop?.addEventListener("click", closeModal);
 
-    cancelBtn?.addEventListener('click', () => {
-      if (yearInput) yearInput.value = '2026';
-      if (monthSelect) monthSelect.value = '0';
+    cancelBtn?.addEventListener("click", () => {
+      if (yearInput) yearInput.value = "2026";
+      if (monthSelect) monthSelect.value = "0";
       closeModal();
     });
 
-    confirmBtn?.addEventListener('click', async (e) => {
+    confirmBtn?.addEventListener("click", async (e) => {
       e.preventDefault();
       if (!yearInput || !monthSelect) return;
 
       const year = parseInt(yearInput.value, 10);
       const month = parseInt(monthSelect.value, 10);
-      
-      const newMonthStr = `${year}-${(month + 1).toString().padStart(2, '0')}`;
+
+      const newMonthStr = `${year}-${(month + 1).toString().padStart(2, "0")}`;
       const uniqueMonths = state.uniqueMonths;
-      
+
       if (uniqueMonths.includes(newMonthStr)) {
-        showToast("El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.", "error");
+        showToast(
+          "El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.",
+          "error",
+        );
         return;
       }
       confirmBtn.disabled = true;
       try {
         await createMonth(year, month);
         closeModal();
-        
-        document.dispatchEvent(new CustomEvent('cronograma:month-created', {
-          detail: { year, month }
-        }));
+
+        document.dispatchEvent(
+          new CustomEvent("cronograma:month-created", {
+            detail: { year, month },
+          }),
+        );
       } catch (err: unknown) {
         console.error("Error creating month:", err);
-        const msg = err instanceof Error ? err.message : "Error al intentar crear el mes.";
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Error al intentar crear el mes.";
         showToast(msg, "error");
       } finally {
         confirmBtn.disabled = false;

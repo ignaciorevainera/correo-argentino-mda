@@ -52,21 +52,28 @@ const isWebUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 
 const rawPath = filePath?.trim() || "";
 const isExternal = isWebUrl(rawPath);
-const itemUrl = isExternal ? rawPath : (rawPath ? resolveUrl(rawPath) : "");
+const itemUrl = isExternal ? rawPath : rawPath ? resolveUrl(rawPath) : "";
 const hasItemUrl = itemUrl.length > 0;
 
 const iconUrl = iconPath ? `${cleanBase}api/icons/${iconPath}` : null;
-const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""].join(" ").toLowerCase();
+const searchText = [
+  title,
+  description ?? "",
+  categoryTitle ?? "",
+  version ?? "",
+]
+  .join(" ")
+  .toLowerCase();
 ---
 
 <article
   data-app-card
   data-search-text={searchText}
-  class="card h-full border border-base-300 bg-base-100 shadow-md transition-colors hover:border-secondary/40"
+  class="card border-base-300 bg-base-100 hover:border-secondary/40 h-full border shadow-md transition-colors"
 >
   <div class="card-body flex-row items-start gap-4 p-4 sm:p-5">
     <div
-      class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-box border border-base-300 bg-base-200 p-1"
+      class="rounded-box border-base-300 bg-base-200 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border p-1"
     >
       {
         iconUrl ? (
@@ -78,7 +85,7 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
             decoding="async"
           />
         ) : (
-          <Icon name="boxicons:cube" class="h-8 w-8 text-base-content/40" />
+          <Icon name="boxicons:cube" class="text-base-content/40 h-8 w-8" />
         )
       }
     </div>
@@ -86,7 +93,10 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
     <div class="flex min-w-0 flex-1 flex-col gap-4 self-stretch">
       <div class="min-w-0 space-y-2">
         <div class="flex items-start justify-between gap-3">
-          <h3 class="text-base font-semibold text-base-content" data-highlight-target>
+          <h3
+            class="text-base-content text-base font-semibold"
+            data-highlight-target
+          >
             {title}
           </h3>
           {
@@ -99,7 +109,7 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
         </div>
         {
           description && (
-            <p class="text-sm text-base-content/70" data-highlight-target>
+            <p class="text-base-content/70 text-sm" data-highlight-target>
               {description}
             </p>
           )
@@ -108,7 +118,7 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
         {
           hasSensitiveData && (
             <details class="group/creds mt-1.5 w-full">
-              <summary class="list-none btn btn-xs w-full justify-start select-none">
+              <summary class="btn btn-xs w-full list-none justify-start select-none">
                 <Icon name="boxicons:key" size={14} class="shrink-0" />
                 <span class="group-open/creds:hidden">
                   Mostrar credenciales
@@ -117,12 +127,12 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
                   Ocultar credenciales
                 </span>
               </summary>
-              <div class="mt-2 space-y-1.5 bg-base-200 p-2 rounded text-xs w-full">
+              <div class="bg-base-200 mt-2 w-full space-y-1.5 rounded p-2 text-xs">
                 {decryptedMetaList.map((meta, idx) => {
                   return (
                     <div class="flex items-center justify-between gap-3">
                       <span
-                        class="text-base-content/50 flex items-center gap-1 shrink-0 font-semibold"
+                        class="text-base-content/50 flex shrink-0 items-center gap-1 font-semibold"
                         title={meta.label}
                       >
                         <Icon
@@ -130,16 +140,16 @@ const searchText = [title, description ?? "", categoryTitle ?? "", version ?? ""
                           size={14}
                           aria-hidden="true"
                         />
-                        <span class="max-w-[80px] sm:max-w-[120px] truncate">
+                        <span class="max-w-[80px] truncate sm:max-w-[120px]">
                           {meta.label}
                         </span>
                       </span>
-                      <div class="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                      <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
                         <input
                           type="password"
                           value={meta.value}
                           readonly
-                          class="input input-xs font-mono bg-base-300 border-none flex-1 min-w-0 text-base-content text-right font-bold pr-1"
+                          class="input input-xs bg-base-300 text-base-content min-w-0 flex-1 border-none pr-1 text-right font-mono font-bold"
                           data-password-input
                         />
                         <button

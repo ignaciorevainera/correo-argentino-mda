@@ -4,12 +4,7 @@ import { getAppsDir, ensureDir } from "@lib/storage";
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
-const ALLOWED_EXTENSIONS = new Set<string>([
-  ".zip",
-  ".exe",
-  ".msi",
-  ".rar",
-]);
+const ALLOWED_EXTENSIONS = new Set<string>([".zip", ".exe", ".msi", ".rar"]);
 
 const ALLOWED_MIME_TYPES = new Set<string>([
   "application/zip",

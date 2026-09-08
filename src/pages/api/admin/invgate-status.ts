@@ -23,6 +23,8 @@ export const GET: APIRoute = async ({ locals }) => {
     status: result.status,
     message: result.ok
       ? "Conexión exitosa"
-      : ("message" in result ? result.message : "Fallo de conexión"),
+      : "message" in result
+        ? result.message
+        : "Fallo de conexión",
   });
 };

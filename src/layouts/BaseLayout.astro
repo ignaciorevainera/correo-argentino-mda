@@ -12,6 +12,7 @@ import {
   type NavItem,
 } from "@lib/navigation";
 import { normalizeRole, hasPermission } from "@lib/rbac";
+import { getUnassignedFeedbackCount } from "@lib/getUnassignedFeedbackCount";
 
 // Components
 import { Navbar, DrawerContent } from "./_components";
@@ -75,6 +76,11 @@ const isActiveRoute = (href: string) =>
 const user = Astro.locals.user;
 const normalizedUserRole = normalizeRole(user.role);
 
+let unassignedFeedbackCount = 0;
+if (normalizedUserRole === "admin") {
+  unassignedFeedbackCount = await getUnassignedFeedbackCount();
+}
+
 const isRouteLocked = (href: string): boolean => {
   const lowerHref = href.toLowerCase();
   if (
@@ -122,8 +128,9 @@ const globalFontFaceCss = `
 ---
 
 <html lang="es">
-  <meta charset="utf-8" />
   <head>
+    <meta charset="utf-8" />
+
     <script is:inline>
       (() => {
         const savedTheme = localStorage.getItem("theme");
@@ -150,20 +157,7 @@ const globalFontFaceCss = `
       crossorigin
     />
 
-    <link
-      rel="icon"
-      type="image/png"
-      href={`${cleanBase}favicon-96x96.png`}
-      sizes="96x96"
-    />
-    
     <link rel="icon" type="image/svg+xml" href={`${cleanBase}favicon.svg`} />
-    <link rel="shortcut icon" href={`${cleanBase}favicon.ico`} />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href={`${cleanBase}apple-touch-icon.png`}
-    />
 
     <meta name="apple-mobile-web-app-title" content="MDA" />
     <meta name="viewport" content="width=device-width" />
@@ -173,7 +167,9 @@ const globalFontFaceCss = `
     <title>{inferredTitle}</title>
   </head>
 
-  <body class="min-h-screen max-w-full overflow-x-hidden bg-base-100 text-base-content">
+  <body
+    class="bg-base-100 text-base-content min-h-screen max-w-full overflow-x-hidden"
+  >
     <div class="drawer lg:drawer-open h-screen overflow-hidden">
       <input
         id="main-drawer"
@@ -181,12 +177,16 @@ const globalFontFaceCss = `
         class="drawer-toggle"
         aria-label="toggle sidebar"
       />
-      <div class="drawer-content flex h-screen max-w-full flex-col overflow-hidden">
+      <div
+        class="drawer-content flex h-screen max-w-full flex-col overflow-hidden"
+      >
         <!-- Navbar -->
-        <Navbar user={user} normalizedUserRole={normalizedUserRole}/>
+        <Navbar user={user} normalizedUserRole={normalizedUserRole} />
 
         <!-- Main content -->
-        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 [scrollbar-gutter:stable_both-edges]">
+        <main
+          class="flex-1 overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable_both-edges] md:p-6"
+        >
           <slot />
         </main>
       </div>
@@ -196,6 +196,7 @@ const globalFontFaceCss = `
         visibleNavSections={visibleNavSections}
         isActiveRoute={isActiveRoute}
         isRouteLocked={isRouteLocked}
+        unassignedFeedbackCount={unassignedFeedbackCount}
       />
     </div>
   </body>

@@ -45,8 +45,10 @@ const list = await db
   .orderBy(desc(feedback.createdAt));
 
 const countAll = list.length;
-const countSugerencias = list.filter(item => item.type === "sugerencia").length;
-const countBugs = list.filter(item => item.type === "bug").length;
+const countSugerencias = list.filter(
+  (item) => item.type === "sugerencia",
+).length;
+const countBugs = list.filter((item) => item.type === "bug").length;
 
 const formatDateTime = (date: Date) => {
   return new Intl.DateTimeFormat("es-AR", {
@@ -64,22 +66,48 @@ const formatDateTime = (date: Date) => {
     />
 
     {/* Tarjeta de Contenido Principal */}
-    <SectionCard class="shadow-md mb-6">
+    <SectionCard class="mb-6 shadow-md">
       {/* Controles de Filtros */}
-      <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+      <div
+        class="mb-6 flex flex-col items-center justify-between gap-4 md:flex-row"
+      >
         <div class="flex flex-wrap gap-2">
-          <button type="button" class="btn btn-sm btn-primary rounded-md active-filter" data-filter-type="all">
-            Todos <span class="badge badge-sm bg-primary-content/20 border-none ml-1">{countAll}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-primary active-filter rounded-md"
+            data-filter-type="all"
+          >
+            Todos <span
+              class="badge badge-sm bg-primary-content/20 ml-1 border-none"
+              >{countAll}</span
+            >
           </button>
-          <button type="button" class="btn btn-sm btn-outline rounded-md" data-filter-type="sugerencia">
-            Sugerencias <span class="badge badge-sm badge-ghost ml-1">{countSugerencias}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline rounded-md"
+            data-filter-type="sugerencia"
+          >
+            Sugerencias <span class="badge badge-sm badge-ghost ml-1"
+              >{countSugerencias}</span
+            >
           </button>
-          <button type="button" class="btn btn-sm btn-outline rounded-md" data-filter-type="bug">
-            Bugs <span class="badge badge-sm badge-ghost ml-1">{countBugs}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline rounded-md"
+            data-filter-type="bug"
+          >
+            Bugs <span class="badge badge-sm badge-ghost ml-1">{countBugs}</span
+            >
           </button>
         </div>
-        <div class="w-full md:w-auto flex justify-end md:pr-4">
-          <SelectField id="filter-status" name="filter-status" label="Filtrar por estado" size="sm" selectClass="rounded-md w-full md:w-48">
+        <div class="flex w-full justify-end md:w-auto md:pr-4">
+          <SelectField
+            id="filter-status"
+            name="filter-status"
+            label="Filtrar por estado"
+            size="sm"
+            selectClass="rounded-md w-full md:w-48"
+          >
             <option value="all">Cualquier Estado</option>
             <option value="pendiente">Pendiente</option>
             <option value="en_revision">En Revisión</option>
@@ -90,187 +118,332 @@ const formatDateTime = (date: Date) => {
       </div>
 
       {/* Listado */}
-      {list.length === 0 ? (
-        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200 p-4">
-            <Icon name="boxicons:mail-open" size={32} class="opacity-30" />
-          </div>
-          <p class="text-sm font-semibold">No hay sugerencias ni bugs reportados todavía.</p>
-        </div>
-      ) : (
-        <DataTable
-          ariaLabel="Listado de sugerencias y reportes"
-          minWidthClass="min-w-200"
-          headerGridClass="grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center"
-          rowGridClass="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4"
-        >
-          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>ID</DataTableHeaderCell></div>
-          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Tipo</DataTableHeaderCell></div>
-          <div slot="header" class="flex items-center h-full pl-4"><DataTableHeaderCell>Asunto / Usuario</DataTableHeaderCell></div>
-          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Fecha</DataTableHeaderCell></div>
-          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Asignado</DataTableHeaderCell></div>
-          <div slot="header" class="flex items-center h-full"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
-          <div slot="header" class="text-right flex items-center justify-end h-full pr-4"><DataTableHeaderCell align="right">Acción</DataTableHeaderCell></div>
-
-          {list.map((item) => (
-            <div
-              data-table-row
-              data-type={item.type}
-              data-status={item.status}
-              class="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4 border-b border-base-300 px-4 py-3 hover:bg-base-200/50 last:border-b-0"
-            >
-              <span class="font-mono text-xs text-base-content/60">#{item.id}</span>
-              <div>
-                <span
-                  class:list={[
-                    "badge badge-sm font-bold uppercase",
-                    item.type === "bug" ? "badge-error" : "badge-info"
-                  ]}
-                >
-                  {item.type === "bug" ? "BUG" : "IDEA"}
-                </span>
-              </div>
-              <div class="truncate pl-4">
-                <div class="font-semibold text-sm text-base-content truncate">{item.subject}</div>
-                <div class="text-xs text-base-content/70 font-mono mt-0.5">Por: {item.username}</div>
-              </div>
-              <span class="text-xs text-base-content/75">{formatDateTime(item.createdAt)}</span>
-              <div class="truncate">
-                {item.assignedToUsername ? (
-                  <span class="badge badge-sm badge-neutral font-semibold truncate max-w-full" title={`Asignado a ${item.assignedToUsername}`}>
-                     {item.assignedToUsername}
-                  </span>
-                ) : (
-                  <span class="badge badge-sm badge-outline border-dashed border-base-content/30 text-base-content/50 font-medium truncate max-w-full">
-                     Sin asignar
-                  </span>
-                )}
-              </div>
-              <div>
-                <span
-                  class:list={[
-                    "badge badge-sm",
-                    item.status === "pendiente" && "badge-neutral",
-                    item.status === "en_revision" && "badge-warning",
-                    item.status === "resuelto" && "badge-success",
-                    item.status === "descartado" && "badge-ghost"
-                  ]}
-                >
-                  {item.status === "pendiente" && "Pendiente"}
-                  {item.status === "en_revision" && "En Revisión"}
-                  {item.status === "resuelto" && "Resuelto"}
-                  {item.status === "descartado" && "Descartado"}
-                </span>
-              </div>
-              <div class="text-right pr-4">
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-xs cursor-pointer rounded-md"
-                  data-action="view-details"
-                  data-id={item.id}
-                  data-item={JSON.stringify(item)}
-                >
-                  Ver detalles
-                </button>
-              </div>
+      {
+        list.length === 0 ? (
+          <div class="text-base-content/50 flex flex-col items-center gap-3 py-16">
+            <div class="bg-base-200 rounded-full p-4">
+              <Icon name="boxicons:mail-open" size={32} class="opacity-30" />
             </div>
-          ))}
-        </DataTable>
-      )}
+            <p class="text-sm font-semibold">
+              No hay sugerencias ni bugs reportados todavía.
+            </p>
+          </div>
+        ) : (
+          <DataTable
+            ariaLabel="Listado de sugerencias y reportes"
+            minWidthClass="min-w-200"
+            headerGridClass="grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center"
+            rowGridClass="grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4"
+          >
+            <div slot="header" class="flex h-full items-center">
+              <DataTableHeaderCell>ID</DataTableHeaderCell>
+            </div>
+            <div slot="header" class="flex h-full items-center">
+              <DataTableHeaderCell>Tipo</DataTableHeaderCell>
+            </div>
+            <div slot="header" class="flex h-full items-center pl-4">
+              <DataTableHeaderCell>Asunto / Usuario</DataTableHeaderCell>
+            </div>
+            <div slot="header" class="flex h-full items-center">
+              <DataTableHeaderCell>Fecha</DataTableHeaderCell>
+            </div>
+            <div slot="header" class="flex h-full items-center">
+              <DataTableHeaderCell>Asignado</DataTableHeaderCell>
+            </div>
+            <div slot="header" class="flex h-full items-center">
+              <DataTableHeaderCell>Estado</DataTableHeaderCell>
+            </div>
+            <div
+              slot="header"
+              class="flex h-full items-center justify-end pr-4 text-right"
+            >
+              <DataTableHeaderCell align="right">Acción</DataTableHeaderCell>
+            </div>
+
+            {list.map((item) => (
+              <div
+                data-table-row
+                data-type={item.type}
+                data-status={item.status}
+                class="border-base-300 hover:bg-base-200/50 grid grid-cols-[60px_90px_1fr_120px_130px_120px_100px] items-center gap-4 border-b px-4 py-3 last:border-b-0"
+              >
+                <span class="text-base-content/60 font-mono text-xs">
+                  #{item.id}
+                </span>
+                <div>
+                  <span
+                    class:list={[
+                      "badge badge-sm font-bold uppercase",
+                      item.type === "bug" ? "badge-error" : "badge-info",
+                    ]}
+                  >
+                    {item.type === "bug" ? "BUG" : "IDEA"}
+                  </span>
+                </div>
+                <div class="truncate pl-4">
+                  <div class="text-base-content truncate text-sm font-semibold">
+                    {item.subject}
+                  </div>
+                  <div class="text-base-content/70 mt-0.5 font-mono text-xs">
+                    Por: {item.username}
+                  </div>
+                </div>
+                <span class="text-base-content/75 text-xs">
+                  {formatDateTime(item.createdAt)}
+                </span>
+                <div class="truncate">
+                  {item.assignedToUsername ? (
+                    <span
+                      class="badge badge-sm badge-neutral max-w-full truncate font-semibold"
+                      title={`Asignado a ${item.assignedToUsername}`}
+                    >
+                      {item.assignedToUsername}
+                    </span>
+                  ) : (
+                    <span class="badge badge-sm badge-outline border-base-content/30 text-base-content/50 max-w-full truncate border-dashed font-medium">
+                      Sin asignar
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <span
+                    class:list={[
+                      "badge badge-sm",
+                      item.status === "pendiente" && "badge-neutral",
+                      item.status === "en_revision" && "badge-warning",
+                      item.status === "resuelto" && "badge-success",
+                      item.status === "descartado" && "badge-ghost",
+                    ]}
+                  >
+                    {item.status === "pendiente" && "Pendiente"}
+                    {item.status === "en_revision" && "En Revisión"}
+                    {item.status === "resuelto" && "Resuelto"}
+                    {item.status === "descartado" && "Descartado"}
+                  </span>
+                </div>
+                <div class="pr-4 text-right">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs cursor-pointer rounded-md"
+                    data-action="view-details"
+                    data-id={item.id}
+                    data-item={JSON.stringify(item)}
+                  >
+                    Ver detalles
+                  </button>
+                </div>
+              </div>
+            ))}
+          </DataTable>
+        )
+      }
     </SectionCard>
 
-    <span id="modal-details-user-id" data-user-id={user.id} class="hidden"></span>
-    <Modal id="modal-details" size="3xl" class="p-6 relative">
+    <span id="modal-details-user-id" data-user-id={user.id} class="hidden"
+    ></span>
+    <Modal id="modal-details" size="3xl" class="relative p-6">
       <Fragment slot="content">
-        <button type="button" class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 z-10" onclick="document.getElementById('modal-details').close()">
+        <button
+          type="button"
+          class="btn btn-sm btn-circle btn-ghost absolute top-4 right-4 z-10"
+          onclick="document.getElementById('modal-details').close()"
+        >
           <Icon name="boxicons:x" size={20} />
         </button>
 
         <!-- Cabecera limpia -->
         <div class="mb-6">
-          <h3 class="text-xl font-bold text-base-content flex items-center gap-2">
-            <span id="detail-id" class="text-base-content/80 font-semibold"></span>
+          <h3
+            class="text-base-content flex items-center gap-2 text-xl font-bold"
+          >
+            <span id="detail-id" class="text-base-content/80 font-semibold"
+            ></span>
           </h3>
         </div>
 
         <!-- Contenido principal: Grid de 2 Columnas -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           <!-- Columna Izquierda: Asunto y Descripción (Ancho 2/3) -->
-          <div class="md:col-span-2 space-y-6">
+          <div class="space-y-6 md:col-span-2">
             <div>
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-1">Asunto</span>
-              <p id="detail-subject" class="text-lg font-semibold text-base-content"></p>
+              <span
+                class="text-xxs text-base-content/50 mb-1 block font-bold tracking-wider uppercase"
+                >Asunto</span
+              >
+              <p
+                id="detail-subject"
+                class="text-base-content text-lg font-semibold"
+              >
+              </p>
             </div>
-            <div class="border-t border-base-200 pt-4">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Descripción / Propuesta</span>
-              <p id="detail-description" class="text-sm text-base-content whitespace-pre-wrap pl-1"></p>
+            <div class="border-base-200 border-t pt-4">
+              <span
+                class="text-xxs text-base-content/50 mb-2 block font-bold tracking-wider uppercase"
+                >Descripción / Propuesta</span
+              >
+              <p
+                id="detail-description"
+                class="text-base-content pl-1 text-sm whitespace-pre-wrap"
+              >
+              </p>
             </div>
-            <div id="detail-bug-steps-container" class="hidden border-t border-base-200 pt-4">
-              <span class="text-xxs font-bold uppercase tracking-wider text-base-content/50 block mb-2">Pasos para reproducir</span>
-              <p id="detail-steps" class="text-sm text-base-content whitespace-pre-wrap pl-1"></p>
+            <div
+              id="detail-bug-steps-container"
+              class="border-base-200 hidden border-t pt-4"
+            >
+              <span
+                class="text-xxs text-base-content/50 mb-2 block font-bold tracking-wider uppercase"
+                >Pasos para reproducir</span
+              >
+              <p
+                id="detail-steps"
+                class="text-base-content pl-1 text-sm whitespace-pre-wrap"
+              >
+              </p>
             </div>
           </div>
 
           <!-- Columna Derecha: Metadatos y Gestión (Ancho 1/3, barra lateral) -->
-          <div class="space-y-6 bg-base-200/40 p-6 rounded-2xl border border-base-200">
+          <div
+            class="bg-base-200/40 border-base-200 space-y-6 rounded-2xl border p-6"
+          >
             <!-- Detalles Técnicos -->
             <div id="detail-useragent-container" class="hidden space-y-2">
-              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">DETALLES TÉCNICOS</span>
-              <div class="bg-base-200/60 p-4 rounded-xl border border-base-300 font-mono text-xxs space-y-2">
+              <span
+                class="text-xxs text-base-content/50 block font-black tracking-wider uppercase"
+                >DETALLES TÉCNICOS</span
+              >
+              <div
+                class="bg-base-200/60 border-base-300 text-xxs space-y-2 rounded-xl border p-4 font-mono"
+              >
                 <div class="flex items-center gap-1.5">
-                  <Icon name="boxicons:terminal" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
-                  <div><strong>Ruta:</strong> <span id="detail-tech-route" class="font-bold text-base-content"></span></div>
+                  <Icon
+                    name="boxicons:terminal"
+                    class="text-base-content h-3.5 w-3.5 shrink-0 opacity-60"
+                  />
+                  <div>
+                    <strong>Ruta:</strong>
+                    <span
+                      id="detail-tech-route"
+                      class="text-base-content font-bold"></span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <Icon name="boxicons:laptop" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
-                  <div><strong>Sistema Operativo:</strong> <span id="detail-tech-os" class="font-bold text-base-content"></span></div>
+                  <Icon
+                    name="boxicons:laptop"
+                    class="text-base-content h-3.5 w-3.5 shrink-0 opacity-60"
+                  />
+                  <div>
+                    <strong>Sistema Operativo:</strong>
+                    <span
+                      id="detail-tech-os"
+                      class="text-base-content font-bold"></span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  <Icon name="boxicons:globe" class="w-3.5 h-3.5 opacity-60 shrink-0 text-base-content" />
-                  <div><strong>Navegador:</strong> <span id="detail-tech-browser" class="font-bold text-base-content"></span></div>
+                  <Icon
+                    name="boxicons:globe"
+                    class="text-base-content h-3.5 w-3.5 shrink-0 opacity-60"
+                  />
+                  <div>
+                    <strong>Navegador:</strong>
+                    <span
+                      id="detail-tech-browser"
+                      class="text-base-content font-bold"></span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Metadata Rows -->
-            <div class="border-t border-base-200 pt-4 space-y-3.5">
+            <div class="border-base-200 space-y-3.5 border-t pt-4">
               <div class="flex items-center justify-between">
-                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">TIPO:</span>
-                <span id="detail-type-badge" class="badge badge-sm font-bold uppercase tracking-wide"></span>
+                <span
+                  class="text-xxs text-base-content/50 font-black tracking-wider uppercase"
+                  >TIPO:</span
+                >
+                <span
+                  id="detail-type-badge"
+                  class="badge badge-sm font-bold tracking-wide uppercase"
+                ></span>
               </div>
-              <div id="detail-category-container" class="flex items-center justify-between hidden">
-                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">CATEGORÍA:</span>
-                <span id="detail-category" class="badge badge-sm font-semibold"></span>
+              <div
+                id="detail-category-container"
+                class="hidden items-center justify-between [&:not(.hidden)]:flex"
+              >
+                <span
+                  class="text-xxs text-base-content/50 font-black tracking-wider uppercase"
+                  >CATEGORÍA:</span
+                >
+                <span id="detail-category" class="badge badge-sm font-semibold"
+                ></span>
               </div>
-              <div id="detail-severity-container" class="flex items-center justify-between hidden">
-                <span class="text-xxs font-black uppercase tracking-wider text-base-content/50">GRAVEDAD:</span>
-                <span id="detail-severity" class="badge badge-sm font-semibold uppercase"></span>
+              <div
+                id="detail-severity-container"
+                class="hidden items-center justify-between [&:not(.hidden)]:flex"
+              >
+                <span
+                  class="text-xxs text-base-content/50 font-black tracking-wider uppercase"
+                  >GRAVEDAD:</span
+                >
+                <span
+                  id="detail-severity"
+                  class="badge badge-sm font-semibold uppercase"></span>
               </div>
             </div>
 
             <!-- Reporte Info -->
-            <div class="border-t border-base-200 pt-4 space-y-2.5">
-              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">REPORTE INFO</span>
+            <div class="border-base-200 space-y-2.5 border-t pt-4">
+              <span
+                class="text-xxs text-base-content/50 block font-black tracking-wider uppercase"
+                >REPORTE INFO</span
+              >
               <div>
-                <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/40 block mb-1">ENVIADO POR:</span>
+                <span
+                  class="text-xxs text-base-content/40 mb-1 block font-semibold tracking-wider uppercase"
+                  >ENVIADO POR:</span
+                >
                 <div class="flex items-center gap-2">
-                  <div id="detail-avatar" class="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center text-xxs font-bold text-base-content/60 shadow-sm">
+                  <div
+                    id="detail-avatar"
+                    class="bg-base-300 text-xxs text-base-content/60 flex h-6 w-6 items-center justify-center rounded-full font-bold shadow-sm"
+                  >
                   </div>
-                  <div class="text-sm font-bold text-base-content" id="detail-username"></div>
+                  <div
+                    class="text-base-content text-sm font-bold"
+                    id="detail-username"
+                  >
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Asignación -->
-            <div class="border-t border-base-200 pt-4 space-y-2">
-              <span class="text-xxs font-black uppercase tracking-wider text-base-content/50 block">ASIGNACIÓN</span>
-              <div class="flex items-center gap-2 mt-2 flex-wrap">
-                <div id="detail-assigned-to" class="text-base font-black text-base-content">Sin asignar</div>
-                <div class="ms-auto shrink-0 flex items-center gap-1">
-                  <button type="button" id="btn-assign-self" class="btn btn-sm btn-warning rounded-lg font-bold shadow-sm px-3">
+            <div class="border-base-200 space-y-2 border-t pt-4">
+              <span
+                class="text-xxs text-base-content/50 block font-black tracking-wider uppercase"
+                >ASIGNACIÓN</span
+              >
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <div
+                  id="detail-assigned-to"
+                  class="text-base-content text-base font-black"
+                >
+                  Sin asignar
+                </div>
+                <div class="ms-auto flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    id="btn-assign-self"
+                    class="btn btn-sm btn-warning rounded-lg px-3 font-bold shadow-sm"
+                  >
                     Asignarme Caso
                   </button>
-                  <button type="button" id="btn-unassign-self" class="btn btn-sm btn-neutral rounded-lg font-bold hidden shadow-sm px-3">
+                  <button
+                    type="button"
+                    id="btn-unassign-self"
+                    class="btn btn-sm btn-neutral hidden rounded-lg px-3 font-bold shadow-sm"
+                  >
                     Liberar Caso
                   </button>
                 </div>
@@ -281,9 +454,21 @@ const formatDateTime = (date: Date) => {
       </Fragment>
       <Fragment slot="actions">
         <input type="hidden" id="detail-feedback-id" />
-        <button type="button" class="btn btn-sm btn-outline btn-warning font-semibold" data-status-btn="en_revision">En Revisión</button>
-        <button type="button" class="btn btn-sm btn-success text-success-content font-semibold" data-status-btn="resuelto">Resolver</button>
-        <button type="button" class="btn btn-sm btn-outline btn-error font-semibold" data-status-btn="descartado">Descartar</button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline btn-warning font-semibold"
+          data-status-btn="en_revision">En Revisión</button
+        >
+        <button
+          type="button"
+          class="btn btn-sm btn-success text-success-content font-semibold"
+          data-status-btn="resuelto">Resolver</button
+        >
+        <button
+          type="button"
+          class="btn btn-sm btn-outline btn-error font-semibold"
+          data-status-btn="descartado">Descartar</button
+        >
       </Fragment>
     </Modal>
   </PageContainer>
@@ -295,7 +480,9 @@ const formatDateTime = (date: Date) => {
 
   function initFeedbackAdmin() {
     const typeButtons = document.querySelectorAll("[data-filter-type]");
-    const statusSelect = document.getElementById("filter-status") as HTMLSelectElement | null;
+    const statusSelect = document.getElementById(
+      "filter-status",
+    ) as HTMLSelectElement | null;
     const roleAvatarClasses: Record<string, string> = {
       admin: "bg-error text-error-content",
       supervisor: "bg-info text-info-content",
@@ -314,7 +501,9 @@ const formatDateTime = (date: Date) => {
     }
 
     const rows = document.querySelectorAll("[data-table-row]");
-    const detailsModal = document.getElementById("modal-details") as HTMLDialogElement | null;
+    const detailsModal = document.getElementById(
+      "modal-details",
+    ) as HTMLDialogElement | null;
 
     let currentTypeFilter = "all";
     let currentStatusFilter = "all";
@@ -325,8 +514,10 @@ const formatDateTime = (date: Date) => {
         const type = row.getAttribute("data-type") || "";
         const status = row.getAttribute("data-status") || "";
 
-        const matchesType = currentTypeFilter === "all" || type === currentTypeFilter;
-        const matchesStatus = currentStatusFilter === "all" || status === currentStatusFilter;
+        const matchesType =
+          currentTypeFilter === "all" || type === currentTypeFilter;
+        const matchesStatus =
+          currentStatusFilter === "all" || status === currentStatusFilter;
 
         if (matchesType && matchesStatus) {
           row.classList.remove("hidden");
@@ -372,9 +563,10 @@ const formatDateTime = (date: Date) => {
         const typeBadge = document.getElementById("detail-type-badge");
         if (typeBadge) {
           typeBadge.textContent = item.type === "bug" ? "BUG" : "SUGERENCIA";
-          typeBadge.className = item.type === "bug"
-            ? "badge badge-error badge-sm font-bold uppercase"
-            : "badge badge-info badge-sm font-bold uppercase";
+          typeBadge.className =
+            item.type === "bug"
+              ? "badge badge-error badge-sm font-bold uppercase"
+              : "badge badge-info badge-sm font-bold uppercase";
         }
 
         // Rellenar campos comunes
@@ -390,14 +582,24 @@ const formatDateTime = (date: Date) => {
           setAvatar(item.username, item.role);
         }
 
-        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        const feedbackIdEl = document.getElementById(
+          "detail-feedback-id",
+        ) as HTMLInputElement | null;
         if (feedbackIdEl) feedbackIdEl.value = item.id.toString();
 
         // Mostrar/Ocultar campos condicionales
-        const categoryContainer = document.getElementById("detail-category-container");
-        const severityContainer = document.getElementById("detail-severity-container");
-        const useragentContainer = document.getElementById("detail-useragent-container");
-        const bugStepsContainer = document.getElementById("detail-bug-steps-container");
+        const categoryContainer = document.getElementById(
+          "detail-category-container",
+        );
+        const severityContainer = document.getElementById(
+          "detail-severity-container",
+        );
+        const useragentContainer = document.getElementById(
+          "detail-useragent-container",
+        );
+        const bugStepsContainer = document.getElementById(
+          "detail-bug-steps-container",
+        );
 
         // Category/Area is available for both types
         if (categoryContainer) {
@@ -408,7 +610,6 @@ const formatDateTime = (date: Date) => {
             categoryEl.className = "badge badge-neutral badge-sm font-semibold";
           }
         }
-
 
         if (item.type === "sugerencia") {
           if (severityContainer) severityContainer.classList.add("hidden");
@@ -429,7 +630,8 @@ const formatDateTime = (date: Date) => {
           }
 
           const stepsEl = document.getElementById("detail-steps");
-          if (stepsEl) stepsEl.textContent = item.steps || "No se indicaron pasos.";
+          if (stepsEl)
+            stepsEl.textContent = item.steps || "No se indicaron pasos.";
         }
 
         // Mostrar detalles técnicos (userAgent) si están disponibles para ambos tipos
@@ -443,23 +645,28 @@ const formatDateTime = (date: Date) => {
           const rawUA = item.userAgent;
           let ruta = "No disponible";
           let rest = rawUA;
-          
+
           if (rawUA.startsWith("Ruta: ")) {
             const parts = rawUA.split(" | ");
             ruta = parts[0].replace("Ruta: ", "").trim();
             rest = parts.slice(1).join(" | ");
           }
-          
+
           let os = "Desconocido";
           const osMatch = rest.match(/\(([^)]+)\)/);
           if (osMatch && osMatch[1]) {
             const osParts = osMatch[1].split(";");
             os = osParts[0].trim();
-            if (osParts[1] && (osParts[1].includes("Android") || osParts[1].includes("Linux") || osParts[1].includes("iPhone"))) {
+            if (
+              osParts[1] &&
+              (osParts[1].includes("Android") ||
+                osParts[1].includes("Linux") ||
+                osParts[1].includes("iPhone"))
+            ) {
               os = osParts[1].trim();
             }
           }
-          
+
           let browserClean = rest;
           if (rest.includes("Chrome/") && rest.includes("Safari/")) {
             const chromeVer = rest.match(/Chrome\/([0-9.]+)/);
@@ -482,10 +689,16 @@ const formatDateTime = (date: Date) => {
               browserClean = `Edge ${edgVer[1]}`;
             }
           }
-          
-          browserClean = browserClean.replace(/^Mozilla\/[0-9.]+\s*\(.*?\)\s*/, "");
-          browserClean = browserClean.replace(/AppleWebKit\/[0-9.]+\s*\(KHTML,\s*like\s*Gecko\)\s*/i, "");
-          
+
+          browserClean = browserClean.replace(
+            /^Mozilla\/[0-9.]+\s*\(.*?\)\s*/,
+            "",
+          );
+          browserClean = browserClean.replace(
+            /AppleWebKit\/[0-9.]+\s*\(KHTML,\s*like\s*Gecko\)\s*/i,
+            "",
+          );
+
           if (techRouteEl) techRouteEl.textContent = ruta;
           if (techOsEl) techOsEl.textContent = os;
           if (techBrowserEl) techBrowserEl.textContent = browserClean;
@@ -497,10 +710,16 @@ const formatDateTime = (date: Date) => {
         const assignedToEl = document.getElementById("detail-assigned-to");
         const btnAssign = document.getElementById("btn-assign-self");
         const btnUnassign = document.getElementById("btn-unassign-self");
-        const currentUserId = Number(document.getElementById("modal-details-user-id")?.getAttribute("data-user-id") || 0);
+        const currentUserId = Number(
+          document
+            .getElementById("modal-details-user-id")
+            ?.getAttribute("data-user-id") || 0,
+        );
 
         if (assignedToEl) {
-          assignedToEl.textContent = item.assignedToUsername ? item.assignedToUsername : "Sin asignar";
+          assignedToEl.textContent = item.assignedToUsername
+            ? item.assignedToUsername
+            : "Sin asignar";
         }
 
         if (btnAssign && btnUnassign) {
@@ -523,7 +742,9 @@ const formatDateTime = (date: Date) => {
     // 3. Modificación del Estado mediante Astro Action
     document.querySelectorAll("[data-status-btn]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+        const feedbackIdEl = document.getElementById(
+          "detail-feedback-id",
+        ) as HTMLInputElement | null;
         const status = btn.getAttribute("data-status-btn") as any;
 
         if (!feedbackIdEl || !status) return;
@@ -563,7 +784,9 @@ const formatDateTime = (date: Date) => {
 
     const handleAssignClick = (assign: boolean) => async (e: Event) => {
       const btn = e.currentTarget as HTMLButtonElement;
-      const feedbackIdEl = document.getElementById("detail-feedback-id") as HTMLInputElement | null;
+      const feedbackIdEl = document.getElementById(
+        "detail-feedback-id",
+      ) as HTMLInputElement | null;
       if (!feedbackIdEl) return;
       const feedbackId = Number(feedbackIdEl.value);
 
@@ -579,7 +802,10 @@ const formatDateTime = (date: Date) => {
         if (error) {
           showToast(`Error: ${error.message}`, "alert-error");
         } else if (data?.success) {
-          showToast(assign ? "¡Te has asignado el caso!" : "¡Caso liberado!", "alert-success");
+          showToast(
+            assign ? "¡Te has asignado el caso!" : "¡Caso liberado!",
+            "alert-success",
+          );
           detailsModal?.close();
           setTimeout(() => {
             window.location.reload();

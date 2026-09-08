@@ -12,7 +12,10 @@ const USER_AGENT =
 
 const STATUS_PATH = resolve("src/data/last-sync-status.json");
 
-import { parseJsonPayload, type TerminalRecord } from "../src/lib/inventory/legacyParser";
+import {
+  parseJsonPayload,
+  type TerminalRecord,
+} from "../src/lib/inventory/legacyParser";
 
 async function upsertRecord(
   record: TerminalRecord,
@@ -22,7 +25,10 @@ async function upsertRecord(
   if (record.osArchitecture) {
     if (record.osArchitecture.includes("64")) {
       displayArch = "64 bits";
-    } else if (record.osArchitecture.includes("32") || record.osArchitecture.includes("86")) {
+    } else if (
+      record.osArchitecture.includes("32") ||
+      record.osArchitecture.includes("86")
+    ) {
       displayArch = "32 bits";
     } else {
       displayArch = record.osArchitecture;
@@ -39,8 +45,10 @@ async function upsertRecord(
     record.operatingSystem,
     record.osArchitecture,
     displayArch,
-    record.ram
-  ].filter(Boolean).join(" ");
+    record.ram,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const searchableText = normalizeSearchValue(textToSearch);
 
   await db
@@ -81,7 +89,9 @@ async function upsertRecord(
     });
 }
 
-async function fetchRemoteRecords(validNisSet: Set<string>): Promise<TerminalRecord[]> {
+async function fetchRemoteRecords(
+  validNisSet: Set<string>,
+): Promise<TerminalRecord[]> {
   const response = await fetch(LEGACY_URL, {
     headers: { "User-Agent": USER_AGENT },
   });
@@ -100,7 +110,10 @@ async function fetchRemoteRecords(validNisSet: Set<string>): Promise<TerminalRec
   return records;
 }
 
-async function writeSyncStatus(status: "success" | "error", errorDetail: string | null = null): Promise<void> {
+async function writeSyncStatus(
+  status: "success" | "error",
+  errorDetail: string | null = null,
+): Promise<void> {
   const data = {
     lastExecution: new Date().toISOString(),
     status,
@@ -109,21 +122,28 @@ async function writeSyncStatus(status: "success" | "error", errorDetail: string 
   try {
     await writeFile(STATUS_PATH, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
-    console.error("[Sync] Error al escribir el archivo de estado de sincronización:", err);
+    console.error(
+      "[Sync] Error al escribir el archivo de estado de sincronización:",
+      err,
+    );
   }
 }
 
 function cleanupOrphanFtsTriggers(): void {
   const sqlite = new Database("database/mda.db");
   try {
-    const triggers = sqlite.prepare(
-      "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE '%_fts_%'",
-    ).all() as { name: string }[];
+    const triggers = sqlite
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE '%_fts_%'",
+      )
+      .all() as { name: string }[];
     if (triggers.length > 0) {
       for (const { name } of triggers) {
         sqlite.exec(`DROP TRIGGER IF EXISTS "${name}"`);
       }
-      console.log(`[Sync] Triggers FTS huérfanos eliminados: ${triggers.length}`);
+      console.log(
+        `[Sync] Triggers FTS huérfanos eliminados: ${triggers.length}`,
+      );
     }
   } finally {
     sqlite.close();
@@ -140,14 +160,17 @@ async function syncLegacyInventory(): Promise<void> {
 
   const officesList = await db.select({ code: offices.code }).from(offices);
   const validNisSet = new Set<string>(officesList.map((o) => o.code));
-  console.log(`[Sync] Códigos NIS (oficinas) cargados en memoria: ${validNisSet.size}`);
+  console.log(
+    `[Sync] Códigos NIS (oficinas) cargados en memoria: ${validNisSet.size}`,
+  );
 
   let records: TerminalRecord[];
 
   try {
     records = await fetchRemoteRecords(validNisSet);
   } catch (fetchError) {
-    const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+    const errorMsg =
+      fetchError instanceof Error ? fetchError.message : String(fetchError);
     console.error(`[Sync] Error al obtener registros remotos: ${errorMsg}`);
     await writeSyncStatus("error", errorMsg);
     process.exit(1);
@@ -155,7 +178,10 @@ async function syncLegacyInventory(): Promise<void> {
 
   if (records.length === 0) {
     console.error("[Sync] No se obtuvieron registros de ninguna fuente.");
-    await writeSyncStatus("error", "No se obtuvieron registros de la API remota.");
+    await writeSyncStatus(
+      "error",
+      "No se obtuvieron registros de la API remota.",
+    );
     process.exit(1);
   }
 

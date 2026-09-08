@@ -13,10 +13,15 @@ export interface TerminalRecord {
   lastContact: string | null;
 }
 
-export function mapRecord(raw: Record<string, unknown>, validNisSet: Set<string>): TerminalRecord | null {
+export function mapRecord(
+  raw: Record<string, unknown>,
+  validNisSet: Set<string>,
+): TerminalRecord | null {
   const rawHostname =
-    typeof raw.hostname === "string" ? raw.hostname : String(raw.hostname ?? "");
-  
+    typeof raw.hostname === "string"
+      ? raw.hostname
+      : String(raw.hostname ?? "");
+
   const hostname = rawHostname.replace(/<[^>]+>/g, "").trim();
 
   if (!hostname) return null;
@@ -53,7 +58,10 @@ export function mapRecord(raw: Record<string, unknown>, validNisSet: Set<string>
   };
 }
 
-export function parseJsonPayload(data: unknown, validNisSet: Set<string>): TerminalRecord[] {
+export function parseJsonPayload(
+  data: unknown,
+  validNisSet: Set<string>,
+): TerminalRecord[] {
   let payload = data;
 
   if (data && typeof data === "object" && "data" in data) {

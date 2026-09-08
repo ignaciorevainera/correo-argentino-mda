@@ -1,0 +1,495 @@
+---
+import { getCleanBase } from "@lib/baseUrl";
+import FormShell from "@components/ui/FormShell.astro";
+import FormTextarea from "@components/ui/forms/FormTextarea.astro";
+import SectionCard from "@components/ui/SectionCard.astro";
+import MultiSelectField from "@components/ui/forms/MultiSelectField.astro";
+import TagInputField from "@components/ui/forms/TagInputField.astro";
+import { Icon } from "astro-icon/components";
+import { db } from "@db/index";
+import { supportGuides } from "@db/schema";
+import { eq, isNull } from "drizzle-orm";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { invgateGet } from "@lib/invgateClient";
+import { parseCategoryIds, parseTopics } from "@lib/supportGuides";
+import type { InvgateHelpdeskAndLevel, InvgateCategory } from "@/types/invgate";
+
+const cleanBase = getCleanBase();
+const invgateIdRaw = Astro.url.searchParams.get("invgate_id");
+const invgateId = invgateIdRaw ? Number(invgateIdRaw) : NaN;
+
+if (!invgateIdRaw || isNaN(invgateId)) {
+  return Astro.redirect(`${cleanBase}mesas-de-ayuda`);
+}
+
+let errorMsg = "";
+
+const hdResult =
+  await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+const allItems: InvgateHelpdeskAndLevel[] =
+  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
+const linkedHd = allItems.find((h) => h.id === invgateId && !h.level_order);
+
+const catResult = await invgateGet<InvgateCategory[]>(
+  "categories?page_size=500",
+);
+let categoryOptions: { value: string; label: string }[] = [];
+if (catResult.ok) {
+  const cats = Array.isArray(catResult.data)
+    ? catResult.data
+    : (catResult.data as { data?: InvgateCategory[] })?.data;
+  if (Array.isArray(cats)) {
+    const parentIds = new Set(
+      cats
+        .map((c) => c.parent_category_id)
+        .filter((v): v is number => v != null),
+    );
+    categoryOptions = cats
+      .filter((c) => c && c.id != null && c.name && !parentIds.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => ({ value: String(c.id), label: c.name }));
+  }
+}
+
+const linkedRecords = await db.query.supportGuides.findMany({
+  where: eq(supportGuides.invgate_id, invgateId),
+});
+
+const displayNameOf = (r: { id: number; legacyName: string | null }) =>
+  r.legacyName || `Registro #${r.id}`;
+const byDisplayName = (
+  a: { id: number; legacyName: string | null },
+  b: { id: number; legacyName: string | null },
+) => displayNameOf(a).localeCompare(displayNameOf(b), "es", { sensitivity: "base" });
+
+const first = linkedRecords[0];
+
+linkedRecords.sort(byDisplayName);
+
+const selectedCategories = parseCategoryIds(first?.categories).map(String);
+const topicTags = parseTopics(first?.topics);
+
+const unassignedRecords = await db.query.supportGuides.findMany({
+  where: isNull(supportGuides.invgate_id),
+});
+
+unassignedRecords.sort(byDisplayName);
+
+const linkedJson = JSON.stringify(
+  linkedRecords.map((r) => ({
+    id: r.id,
+    helpDeskName: displayNameOf(r),
+    legacyName: r.legacyName,
+  })),
+);
+
+const unassignedJson = JSON.stringify(
+  unassignedRecords.map((r) => ({
+    id: r.id,
+    helpDeskName: displayNameOf(r),
+    legacyName: r.legacyName,
+  })),
+);
+
+if (Astro.request.method === "POST") {
+  try {
+    const data = await Astro.request.formData();
+    const categoryIds = data
+      .getAll("categories")
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    const categories =
+      categoryIds.length > 0 ? JSON.stringify(categoryIds) : null;
+    const route = categories;
+    const topicsArr = data
+      .getAll("topics")
+      .map((v) => v.toString().trim())
+      .filter(Boolean);
+    const topics = topicsArr.length > 0 ? JSON.stringify(topicsArr) : null;
+    const notes = data.get("notes")?.toString() || null;
+
+    if (linkedRecords.length > 0) {
+      for (const record of linkedRecords) {
+        await db
+          .update(supportGuides)
+          .set({
+            categories,
+            route,
+            topics,
+            notes,
+          })
+          .where(eq(supportGuides.id, record.id));
+      }
+    } else {
+      await db.insert(supportGuides).values({
+        invgate_id: invgateId,
+        categories,
+        route,
+        topics,
+        notes,
+      });
+    }
+
+    const label = linkedHd?.name || `ID ${invgateId}`;
+    await logAdminFromAstro(
+      Astro.locals,
+      `Actualizo los datos de la mesa de ayuda "${label}"`,
+    );
+    return redirectWithToast(
+      "/mesas-de-ayuda",
+      "Mesa de ayuda actualizada con exito.",
+    );
+  } catch (err) {
+    console.error("Error saving helpdesk metadata:", err);
+    errorMsg = "Ocurrio un error al guardar los datos.";
+  }
+}
+
+const hdName = linkedHd?.name || `Helpdesk #${invgateId}`;
+const pageTitle = `Editar: ${hdName}`;
+---
+
+<FormShell
+  backHref={`${cleanBase}mesas-de-ayuda`}
+  title={pageTitle}
+  subtitle="Modifica la metadata local vinculada a esta mesa de ayuda de InvGate."
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <div class="bg-base-200/50 border-base-300 rounded-lg border p-4">
+    <p
+      class="text-base-content/70 mb-2 flex items-center gap-1 text-sm font-bold"
+    >
+      <Icon name="boxicons:git-merge-filled" size={16} />
+      Mesas SM vinculadas
+    </p>
+
+    <div id="linked-sm-list" class="mb-3 flex flex-wrap gap-2">
+      {
+        linkedRecords.length > 0 ? (
+          linkedRecords.map((rec) => (
+            <div
+              class="badge badge-neutral gap-2 py-4 pr-2 pl-3"
+              data-linked-id={rec.id}
+            >
+              <Icon name="boxicons:server-filled" size={16} class="shrink-0" />
+              <span>{displayNameOf(rec)}</span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle unlink-btn"
+                data-record-id={rec.id}
+              >
+                <Icon name="boxicons:x-filled" size={16} />
+              </button>
+            </div>
+          ))
+        ) : (
+          <p
+            id="empty-linked-message"
+            class="text-base-content/40 text-sm italic"
+          >
+            Sin mesas SM vinculadas a esta helpdesk.
+          </p>
+        )
+      }
+    </div>
+
+    <div
+      id="assign-chain"
+      data-invgate-id={invgateId}
+      data-unassigned={unassignedJson}
+      data-linked={linkedJson}
+    >
+      {
+        unassignedRecords.length > 0 && (
+          <div class="assign-row flex items-center gap-2">
+            <select class="select select-bordered assign-select flex-1">
+              <option value="">Seleccionar mesa SM...</option>
+              {unassignedRecords.map((rec) => (
+                <option value={rec.id}>
+                  {rec.legacyName || `Registro #${rec.id}`}
+                </option>
+              ))}
+            </select>
+            <button type="button" class="btn btn-primary assign-btn">
+              Vincular
+            </button>
+          </div>
+        )
+      }
+    </div>
+    <p class="text-base-content/40 mt-2 flex items-center gap-1 text-xs">
+      <Icon name="boxicons:info-circle-filled" size={12} />
+      Selecciona una mesa SM y haz clic en Vincular para asociarla.
+    </p>
+  </div>
+
+  <SectionCard
+    title="Metadata de derivación"
+    icon="boxicons:tag-filled"
+    class="shadow-md"
+  >
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <MultiSelectField
+        id="categories"
+        name="categories"
+        label="Categorías de derivación"
+        options={categoryOptions}
+        selected={selectedCategories}
+        placeholder="Escribí al menos 3 letras…"
+        helpText="Categorías finales de InvGate (sin subcategorías). Buscá con 3+ letras."
+      />
+
+      <TagInputField
+        id="topics"
+        name="topics"
+        label="Tópicos"
+        tags={topicTags}
+        helpText="Escribí un tópico y presioná Enter para agregarlo."
+      />
+    </div>
+
+    <FormTextarea
+      id="notes"
+      name="notes"
+      label="Notas"
+      rows={4}
+      value={first?.notes || ""}
+    />
+  </SectionCard>
+</FormShell>
+
+<template id="linked-sm-chip-tpl">
+  <div class="badge badge-neutral gap-2 py-4 pr-2 pl-3" data-linked-id="">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      data-icon="boxicons:server-filled"
+      class="shrink-0"
+    >
+      <path
+        fill="currentColor"
+        d="M20 13H4c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2m-5 5h-2v-2h2zm4 0h-2v-2h2zm1-15H4c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-5 5h-2V6h2zm4 0h-2V6h2z"></path>
+    </svg>
+    <span data-chip-label></span>
+    <button
+      type="button"
+      class="btn btn-ghost btn-xs btn-circle unlink-btn"
+      data-record-id=""
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        data-icon="boxicons:x-filled"
+      >
+        <path
+          fill="currentColor"
+          d="m9.88 12.71l-4.95 4.95l1.41 1.41l2.83-2.83L12 13.41l2.12 2.13l3.54 3.53l1.41-1.41l-4.95-4.95l-.71-.71l5.66-5.66l-1.41-1.41L12 10.59L6.34 4.93L4.93 6.34L10.59 12z"></path>
+      </svg>
+    </button>
+  </div>
+</template>
+
+<script>
+  import { getCleanBase } from "@lib/baseUrl";
+  const cleanBase = getCleanBase();
+
+  const chain = document.getElementById("assign-chain");
+  if (!chain) throw new Error("assign-chain not found");
+
+  const invgateId = Number(chain.dataset.invgateId);
+  let unassigned: {
+    id: number;
+    helpDeskName: string;
+    legacyName: string | null;
+  }[] = [];
+  let linked: {
+    id: number;
+    helpDeskName: string;
+    legacyName: string | null;
+  }[] = [];
+  try {
+    unassigned = JSON.parse(chain.dataset.unassigned || "[]");
+  } catch {}
+  try {
+    linked = JSON.parse(chain.dataset.linked || "[]");
+  } catch {}
+
+  const list = document.getElementById("linked-sm-list");
+  const chipTpl = document.getElementById("linked-sm-chip-tpl");
+
+  function updateAssignChainUI() {
+    if (!chain) return;
+    if (unassigned.length === 0) {
+      chain.innerHTML = "";
+      return;
+    }
+
+    let row = chain.querySelector(".assign-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "assign-row flex items-center gap-2";
+      row.innerHTML = `
+        <select class="select select-sm select-bordered flex-1 assign-select">
+          <option value="">Seleccionar mesa SM...</option>
+        </select>
+        <button type="button" class="btn btn-xs btn-primary assign-btn">
+          Vincular
+        </button>
+      `;
+      chain.appendChild(row);
+      row
+        .querySelector(".assign-btn")
+        ?.addEventListener("click", () => handleAssign());
+    }
+
+    const select = row.querySelector(".assign-select");
+    if (select) {
+      select.innerHTML = `
+        <option value="">Seleccionar mesa SM...</option>
+        ${unassigned
+          .map(
+            (r) =>
+              `<option value="${r.id}">${r.legacyName || "Registro #" + r.id}</option>`,
+          )
+          .join("")}
+      `;
+    }
+  }
+
+  function handleAssign() {    const select = chain?.querySelector<HTMLSelectElement>(".assign-select");
+    const btn = chain?.querySelector<HTMLButtonElement>(".assign-btn");
+    const recordId = Number(select?.value);
+    if (!recordId || !btn) return;
+
+    btn.disabled = true;
+    const originalText = btn.textContent || "Vincular";
+    btn.textContent = "...";
+
+    fetch(`${cleanBase}api/support-guides/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId, invgate_id: invgateId }),
+    })
+      .then((r) =>
+        r.ok
+          ? r.json()
+          : r.json().then((e) => Promise.reject(new Error(e.error))),
+      )
+      .then(() => {
+        const itemIndex = unassigned.findIndex((r) => r.id === recordId);
+        if (itemIndex > -1) {
+          const item = unassigned[itemIndex];
+          unassigned.splice(itemIndex, 1);
+          linked.push(item);
+
+          const emptyMsg = document.getElementById("empty-linked-message");
+          if (emptyMsg) {
+            emptyMsg.remove();
+          }
+
+          if (list && chipTpl) {
+            const chip = chipTpl.content.firstElementChild?.cloneNode(true) as
+              | HTMLElement
+              | undefined;
+            if (chip) {
+              chip.setAttribute("data-linked-id", item.id.toString());
+              const label = chip.querySelector("[data-chip-label]");
+              if (label) label.textContent = item.helpDeskName;
+              const unlinkBtn = chip.querySelector(".unlink-btn");
+              if (unlinkBtn)
+                unlinkBtn.setAttribute("data-record-id", item.id.toString());
+              list.appendChild(chip);
+            }
+          }
+        }
+
+        updateAssignChainUI();
+        btn.disabled = false;
+        btn.textContent = originalText;
+        (window as any).showToast?.(
+          "Mesa SM vinculada correctamente",
+          "alert-success",
+        );
+      })
+      .catch((err: any) => {
+        (window as any).showToast?.(
+          err.message || "Error al vincular",
+          "alert-error",
+        );
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
+  }
+
+  const initialBtn = chain.querySelector(".assign-btn");
+  if (initialBtn) {
+    initialBtn.addEventListener("click", () => handleAssign());
+  }
+
+  list?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest(".unlink-btn") as HTMLButtonElement | null;
+    if (!btn) return;
+
+    const recordId = Number(btn.getAttribute("data-record-id"));
+    if (!recordId || isNaN(recordId)) return;
+
+    btn.disabled = true;
+    const originalText = btn.textContent || "✕";
+    btn.textContent = "...";
+
+    fetch(`${cleanBase}api/support-guides/unassign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId }),
+    })
+      .then((r) =>
+        r.ok
+          ? r.json()
+          : r.json().then((e) => Promise.reject(new Error(e.error))),
+      )
+      .then(() => {
+        const itemIndex = linked.findIndex((r) => r.id === recordId);
+        if (itemIndex > -1) {
+          const item = linked[itemIndex];
+          linked.splice(itemIndex, 1);
+          unassigned.push(item);
+
+          const chip = list.querySelector(`[data-linked-id="${recordId}"]`);
+          if (chip) {
+            chip.remove();
+          }
+
+          if (linked.length === 0) {
+            list.innerHTML = `<p id="empty-linked-message" class="text-sm italic text-base-content/40">Sin mesas SM vinculadas a esta helpdesk.</p>`;
+          }
+        }
+
+        updateAssignChainUI();
+        (window as any).showToast?.(
+          "Mesa SM desvinculada correctamente",
+          "alert-success",
+        );
+      })
+      .catch((err: any) => {
+        (window as any).showToast?.(
+          err.message || "Error al desvincular",
+          "alert-error",
+        );
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
+  });
+</script>

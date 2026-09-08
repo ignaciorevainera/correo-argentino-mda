@@ -22,7 +22,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Case-insensitive lookup
-    const agent = await db.select({ id: agents.id })
+    const agent = await db
+      .select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);

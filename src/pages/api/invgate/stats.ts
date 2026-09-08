@@ -21,6 +21,9 @@ export const GET: APIRoute = async ({ locals }) => {
     return jsonResponse(data.stats);
   } catch (error: any) {
     console.error("[Stats API] Error:", error);
-    return jsonResponse({ error: sanitizeError(error) || "Error interno del servidor" }, 500);
+    return jsonResponse(
+      { error: sanitizeError(error) || "Error interno del servidor" },
+      500,
+    );
   }
 };

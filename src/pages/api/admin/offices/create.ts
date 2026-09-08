@@ -18,7 +18,16 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   try {
     const body = await request.json();
-    const { code, name, type, officeType, provinceCode, address, cc, invgateLink } = body;
+    const {
+      code,
+      name,
+      type,
+      officeType,
+      provinceCode,
+      address,
+      cc,
+      invgateLink,
+    } = body;
 
     let finalType = type;
     let finalOfficeType = officeType || null;
@@ -48,7 +57,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     const searchableText = normalizeSearchValue(
       [parsed.data.code, parsed.data.name, parsed.data.address]
         .filter(Boolean)
-        .join(" ")
+        .join(" "),
     );
 
     const insertValues = {
@@ -63,7 +72,12 @@ export const POST: APIRoute = async ({ locals, request }) => {
     const officeId = Number(result.lastInsertRowid);
 
     if (invgateLink && typeof invgateLink === "object" && officeId > 0) {
-      const { invgateLocationId, invgateDisplayName, invgateCp, invgateAddress } = invgateLink;
+      const {
+        invgateLocationId,
+        invgateDisplayName,
+        invgateCp,
+        invgateAddress,
+      } = invgateLink;
       if (invgateLocationId) {
         const syncedAt = new Date().toISOString();
         await db.insert(officeInvgateLinks).values({
@@ -79,15 +93,22 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
     clearCache();
 
-    await logAdminFromAstro(locals,
-      `Creó la oficina "${parsed.data.name}" (NIS ${parsed.data.code}) desde la sincronización de ubicaciones`
+    await logAdminFromAstro(
+      locals,
+      `Creó la oficina "${parsed.data.name}" (NIS ${parsed.data.code}) desde la sincronización de ubicaciones`,
     );
 
     return jsonResponse({ success: true });
   } catch (error: any) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    if (errorMsg.includes("UNIQUE constraint failed") || errorMsg.includes("UNIQUE")) {
-      return jsonResponse({ error: "El NIS o Código ya existe en la base de datos" }, 400);
+    if (
+      errorMsg.includes("UNIQUE constraint failed") ||
+      errorMsg.includes("UNIQUE")
+    ) {
+      return jsonResponse(
+        { error: "El NIS o Código ya existe en la base de datos" },
+        400,
+      );
     }
     return jsonResponse({ error: sanitizeError(error) }, 500);
   }

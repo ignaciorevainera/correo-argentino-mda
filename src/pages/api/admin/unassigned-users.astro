@@ -1,0 +1,60 @@
+---
+export const partial = true;
+import { isAllowed } from "@lib/rolesMatrix";
+import {
+  getUnassignedEmployees,
+  getUnassignedEmployeesCount,
+} from "@lib/employeeQueries";
+import CopyButton from "@components/ui/CopyButton.astro";
+import OpenExternalUrlButton from "@components/ui/OpenExternalUrlButton.astro";
+import { Icon } from "astro-icon/components";
+
+const user = Astro.locals.user;
+if (!user || !isAllowed("Administrar Contenido", user.role)) {
+  return new Response("Unauthorized", { status: 403 });
+}
+
+const offset = Number(Astro.url.searchParams.get("offset") || "0");
+const limit = Number(Astro.url.searchParams.get("limit") || "30");
+
+const [unassignedCount, unassignedUsers] = await Promise.all([
+  getUnassignedEmployeesCount(),
+  getUnassignedEmployees({ offset, limit }),
+]);
+
+const hasMore = offset + limit < unassignedCount;
+Astro.response.headers.set("X-Total-Count", unassignedCount.toString());
+Astro.response.headers.set("X-Has-More", hasMore.toString());
+---
+
+{
+  unassignedUsers.map((emp) => (
+    <div class="border-base-200 hover:bg-base-200/40 grid grid-cols-[160px_1.5fr_110px_1.5fr_80px] items-center gap-4 border-b px-4 py-3 text-sm last:border-b-0">
+      <div class="flex items-center gap-2">
+        <span class="text-base-content font-mono text-xs font-semibold">
+          {emp.username}
+        </span>
+        <CopyButton
+          value={emp.username}
+          variant="icon"
+          feedbackOnly={true}
+          copiedLabel="Usuario copiado"
+          size="xs"
+          appearance="ghost"
+        />
+      </div>
+      <div class="font-medium">{emp.fullname}</div>
+      <div class="text-base-content/70 font-mono text-xs">{emp.dni}</div>
+      <div class="text-base-content/80 text-xs">{emp.position || "—"}</div>
+      <div class="place-self-center">
+        <OpenExternalUrlButton
+          href={`https://correoargentino.sd.cloud.invgate.net/user/profile/public/id/${emp.invgateId}`}
+          variant="icon"
+          appearance="ghost"
+          size="sm"
+          ariaLabel={`Ver en InvGate a ${emp.fullname}`}
+        />
+      </div>
+    </div>
+  ))
+}

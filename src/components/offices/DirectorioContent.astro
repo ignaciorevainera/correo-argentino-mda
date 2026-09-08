@@ -8,11 +8,11 @@ import SearchBar from "@components/ui/SearchBar.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
 import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
-import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
-import { getOffices } from "@lib/officeQueries";
+import { getOffices, hasClosedOffices } from "@lib/officeQueries";
+import { getUnassignedEmployeesCount } from "@lib/employeeQueries";
 import OfficeRow from "@components/offices/OfficeRow.astro";
-import Modal from "@components/ui/Modal.astro";
+import AgentsTicketModal from "@components/offices/AgentsTicketModal.astro";
 import {
   officeTypeLabelByType,
   officeTypeTabActiveClassByType,
@@ -20,7 +20,7 @@ import {
 } from "@lib/officeHelpers";
 import { db } from "@db/index";
 import { provinces, regions, offices } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { isAllowed } from "@lib/rolesMatrix";
 import { can } from "@lib/roleConfig";
@@ -31,6 +31,12 @@ const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
 const canViewInvgateStats = user ? can(user.role, "team_leader") : false;
+const canExport = user ? can(user.role, "team_leader") : false;
+
+let unassignedUsersCount = 0;
+if (isAllowedAdmin) {
+  unassignedUsersCount = await getUnassignedEmployeesCount();
+}
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
@@ -41,6 +47,8 @@ const zoneFilter = searchParams.get("zone") || "all";
 const paqarFilter = searchParams.get("paqar") || "all";
 const hasParentFilter = searchParams.get("hasParent") === "true";
 const isHeadquarterFilter = searchParams.get("isHeadquarter") === "true";
+const noAddressFilter = searchParams.get("noAddress") === "true";
+const statusFilter = searchParams.get("status") || "all";
 const searchFilter = searchParams.get("search") || "";
 
 const allProvincesWithRegion = await db
@@ -71,17 +79,17 @@ if (regionFilter !== "all" && provinceFilter !== "all") {
 }
 
 const sortBy = (searchParams.get("sortBy") || undefined) as
-  | "code"
-  | "name"
-  | "parent-nis"
-  | "address"
-  | undefined;
+  "code" | "name" | "parent-nis" | "address" | undefined;
 const sortOrder = (searchParams.get("sortOrder") || undefined) as
-  | "asc"
-  | "desc"
-  | undefined;
+  "asc" | "desc" | undefined;
 
-const { data: officeDirectoryItems, count: totalOffices, hasMore } = await getOffices({
+const showClosedToggle = await hasClosedOffices();
+
+const {
+  data: officeDirectoryItems,
+  count: totalOffices,
+  hasMore,
+} = await getOffices({
   page: 1,
   limit: 100,
   type: typeFilter,
@@ -91,6 +99,8 @@ const { data: officeDirectoryItems, count: totalOffices, hasMore } = await getOf
   paqar: paqarFilter,
   hasParent: hasParentFilter,
   isHeadquarter: isHeadquarterFilter,
+  noAddress: noAddressFilter,
+  status: statusFilter as "all" | "active" | "closed",
   search: searchFilter,
   sortBy,
   sortOrder,
@@ -188,6 +198,15 @@ const uniqueZones = allZonesRaw
   .filter((z): z is string => Boolean(z))
   .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 
+let hasNoAddressOffices = false;
+if (isAllowedAdmin) {
+  const noAddressCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(offices)
+    .where(or(sql`${offices.address} IS NULL`, sql`${offices.address} = ''`));
+  hasNoAddressOffices = noAddressCount[0].count > 0;
+}
+
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
   : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
@@ -209,19 +228,53 @@ const mainTabs = [
     activeValue="directory"
     name="main_view_tabs"
     id="main-view-switcher"
-    class="w-full grid grid-cols-2"
+    class="grid w-full grid-cols-2"
     containerClass="w-full"
   />
   <!-- Contenedor de Directorio -->
   <div id="main-view-directory" class="space-y-6">
-    <div id="provinces-data" data-provinces={JSON.stringify(provincesByRegion)} class="hidden"></div>
+    <div
+      id="provinces-data"
+      data-provinces={JSON.stringify(provincesByRegion)}
+      class="hidden"
+    >
+    </div>
+    {
+      isAllowedAdmin && unassignedUsersCount > 0 && (
+        <div
+          class="alert alert-warning flex items-center justify-between shadow-sm"
+          id="unassigned-users-banner"
+        >
+          <div class="flex items-center gap-2">
+            <Icon name="boxicons:info-circle" class="size-5 shrink-0" />
+            <span class="text-sm font-medium">
+              Se detectaron {unassignedUsersCount} usuario
+              {unassignedUsersCount !== 1 ? "s" : ""} sin ubicación asignada.
+            </span>
+          </div>
+          <a
+            href={`${import.meta.env.BASE_URL}admin/usuarios-sin-ubicacion`}
+            class="btn btn-sm btn-soft btn-neutral"
+            aria-label="Ver usuarios sin ubicación"
+          >
+            Ver usuarios
+            <Icon name="boxicons:chevron-right" class="size-4" />
+          </a>
+        </div>
+      )
+    }
     <form
       method="GET"
-      class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
+      class="rounded-box border-base-300 bg-base-100 flex flex-col gap-4 border p-4 shadow-md"
       aria-label="Filtros del directorio"
     >
       <div class="w-full">
-        <input type="hidden" name="type" id="filter-tabs-hidden-type" value={typeFilter} />
+        <input
+          type="hidden"
+          name="type"
+          id="filter-tabs-hidden-type"
+          value={typeFilter}
+        />
         <FilterTabsBox
           tabs={officeTypeTabs.map((tab) => ({
             value: tab.type,
@@ -231,17 +284,17 @@ const mainTabs = [
           activeValue={typeFilter}
           name="type"
           activeClasses={officeTypeTabActiveClassByType}
-          class="flex-wrap bg-base-200/50 p-2"
+          class="bg-base-200/50 flex-wrap p-2"
           submitOnChange={false}
         />
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 w-full">
-        <div class="form-control grow">
+      <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="form-control">
           <select
             name="region"
             id="regionFilter"
-            class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
             aria-label="Filtrar por región"
           >
             <option value="all" selected={regionFilter === "all"}
@@ -257,11 +310,11 @@ const mainTabs = [
           </select>
         </div>
 
-        <div class="form-control grow">
+        <div class="form-control">
           <select
             name="province"
             id="provinceFilter"
-            class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
             aria-label="Filtrar por provincia"
             disabled={regionFilter === "all"}
           >
@@ -282,11 +335,11 @@ const mainTabs = [
           </select>
         </div>
 
-        <div class="form-control grow">
+        <div class="form-control">
           <select
             name="zone"
             id="zoneFilter"
-            class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
             aria-label="Filtrar por zona"
           >
             <option value="all" selected={zoneFilter === "all"}
@@ -302,11 +355,11 @@ const mainTabs = [
           </select>
         </div>
 
-        <div class="form-control grow">
+        <div class="form-control">
           <select
             name="paqar"
             id="paqarFilter"
-            class="select border-base-300 w-full focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
             aria-label="Filtrar por servicios Paq.AR"
           >
             <option value="all" selected={paqarFilter === "all"}
@@ -323,20 +376,79 @@ const mainTabs = [
             >
           </select>
         </div>
-        <div class="flex items-center gap-4 px-2">
+      </div>
+
+      <div class="flex w-full flex-wrap items-stretch justify-between gap-4">
+        <div
+          class="bg-base-200/50 flex flex-wrap items-center gap-4 rounded-lg px-3 py-1.5"
+        >
           <label class="label cursor-pointer gap-2 p-0">
-            <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Depende de otra</span>
-            <input type="checkbox" name="hasParent" value="true" class="toggle toggle-sm toggle-primary" checked={hasParentFilter} aria-label="Mostrar solo oficinas que dependen de otra" />
+            <span
+              class="label-text text-base-content/80 text-xs font-medium sm:text-sm"
+              >Depende de otra</span
+            >
+            <input
+              type="checkbox"
+              name="hasParent"
+              value="true"
+              class="toggle toggle-sm toggle-primary"
+              checked={hasParentFilter}
+              aria-label="Mostrar solo oficinas que dependen de otra"
+            />
           </label>
           <label class="label cursor-pointer gap-2 p-0">
-            <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Solo Cabeceras</span>
-            <input type="checkbox" name="isHeadquarter" value="true" class="toggle toggle-sm toggle-primary" checked={isHeadquarterFilter} aria-label="Mostrar solo oficinas cabecera" />
+            <span
+              class="label-text text-base-content/80 text-xs font-medium sm:text-sm"
+              >Solo Cabeceras</span
+            >
+            <input
+              type="checkbox"
+              name="isHeadquarter"
+              value="true"
+              class="toggle toggle-sm toggle-primary"
+              checked={isHeadquarterFilter}
+              aria-label="Mostrar solo oficinas cabecera"
+            />
           </label>
+          {
+            isAllowedAdmin && hasNoAddressOffices && (
+              <label class="label cursor-pointer gap-2 p-0">
+                <span class="label-text text-base-content/80 text-xs font-medium sm:text-sm">
+                  Sin domicilio
+                </span>
+                <input
+                  type="checkbox"
+                  name="noAddress"
+                  value="true"
+                  class="toggle toggle-sm toggle-primary"
+                  checked={noAddressFilter}
+                  aria-label="Mostrar solo oficinas sin domicilio registrado"
+                />
+              </label>
+            )
+          }
+          {
+            showClosedToggle && (
+              <label class="label cursor-pointer gap-2 p-0">
+                <span class="label-text text-base-content/80 text-xs font-medium sm:text-sm">
+                  Mostrar solo inoperativas
+                </span>
+                <input
+                  type="checkbox"
+                  name="status"
+                  value="closed"
+                  class="toggle toggle-sm toggle-primary"
+                  checked={statusFilter === "closed"}
+                  aria-label="Mostrar solo oficinas inoperativas"
+                />
+              </label>
+            )
+          }
         </div>
         <button
           type="button"
           id="clear-filters-btn"
-          class="btn btn-outline btn-error font-semibold gap-2"
+          class="btn btn-outline btn-error ml-auto gap-2 self-center font-semibold"
           aria-label="Limpiar todos los filtros"
           title="Limpiar todos los filtros"
         >
@@ -345,7 +457,7 @@ const mainTabs = [
         </button>
       </div>
 
-      <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+      <div class="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap">
         <div class="w-full">
           <SearchBar
             id="office-search"
@@ -356,15 +468,20 @@ const mainTabs = [
           <Icon name="boxicons:eye-filled" size={16} />
           <span id="total-count-badge">{totalOffices} resultados</span>
         </div>
-        <ExportCsvButton
-          href={import.meta.env.BASE_URL + "api/export/offices"}
-          ariaLabel="Exportar directorio a CSV"
-        />
+        {
+          canExport && (
+            <ExportCsvButton
+              id="export-csv-btn"
+              href={import.meta.env.BASE_URL + "api/export/offices"}
+              ariaLabel="Exportar directorio a CSV"
+            />
+          )
+        }
         {
           isAllowedAdmin && (
             <a
               href={`${import.meta.env.BASE_URL}oficinas/create`}
-              class="btn btn-secondary font-semibold shadow-sm shrink-0 gap-2"
+              class="btn btn-secondary shrink-0 gap-2 font-semibold shadow-sm"
               aria-label="Registrar nueva oficina"
             >
               <Icon name="boxicons:plus" class="size-5" />
@@ -375,9 +492,16 @@ const mainTabs = [
         }
         {
           canViewInvgateStats && (
-            <button id="sync-invgate-btn" type="button" class="btn btn-neutral btn-soft gap-2">
+            <button
+              id="sync-invgate-btn"
+              type="button"
+              class="btn btn-neutral btn-soft gap-2"
+            >
               <span id="sync-btn-text">Sincronizar ahora</span>
-              <span id="sync-btn-spinner" class="loading loading-spinner loading-sm hidden"></span>
+              <span
+                id="sync-btn-spinner"
+                class="loading loading-spinner loading-sm hidden"
+              />
             </button>
           )
         }
@@ -386,27 +510,58 @@ const mainTabs = [
 
     {
       canViewInvgateStats && (
-        <div id="invgate-stats-bar" class="rounded-box border border-base-300 bg-base-100 p-4 shadow-md">
+        <div
+          id="invgate-stats-bar"
+          class="rounded-box border-base-300 bg-base-100 border p-4 shadow-md"
+        >
           <div id="stats-cards" class="flex flex-wrap items-center gap-4">
-            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
-              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Total MDA</span>
-              <span id="stat-totalMda" class="text-xl font-bold mt-0.5 text-base-content">—</span>
+            <div class="card bg-base-100 border-base-200 min-w-35 border p-3 shadow-sm">
+              <span class="text-xxs text-base-content/60 font-semibold tracking-wider uppercase">
+                Total MDA
+              </span>
+              <span
+                id="stat-totalMda"
+                class="text-base-content mt-0.5 text-xl font-bold"
+              >
+                —
+              </span>
             </div>
-            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
-              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Matcheadas</span>
-              <span id="stat-matched" class="text-xl font-bold mt-0.5 text-success">—</span>
+            <div class="card bg-base-100 border-base-200 min-w-35 border p-3 shadow-sm">
+              <span class="text-xxs text-base-content/60 font-semibold tracking-wider uppercase">
+                Matcheadas
+              </span>
+              <span
+                id="stat-matched"
+                class="text-success mt-0.5 text-xl font-bold"
+              >
+                —
+              </span>
             </div>
-            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
-              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
-              <span id="stat-unmatchedMda" class="text-xl font-bold mt-0.5 text-warning">—</span>
+            <div class="card bg-base-100 border-base-200 min-w-35 border p-3 shadow-sm">
+              <span class="text-xxs text-base-content/60 font-semibold tracking-wider uppercase">
+                Solo en MDA
+              </span>
+              <span
+                id="stat-unmatchedMda"
+                class="text-warning mt-0.5 text-xl font-bold"
+              >
+                —
+              </span>
             </div>
-            <div class="card bg-base-100 shadow-sm border border-base-200 p-3 min-w-[140px]">
-              <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
-              <span id="stat-unmatchedInvgate" class="text-xl font-bold mt-0.5 text-error">—</span>
+            <div class="card bg-base-100 border-base-200 min-w-35 border p-3 shadow-sm">
+              <span class="text-xxs text-base-content/60 font-semibold tracking-wider uppercase">
+                Solo en InvGate
+              </span>
+              <span
+                id="stat-unmatchedInvgate"
+                class="text-error mt-0.5 text-xl font-bold"
+              >
+                —
+              </span>
             </div>
             <a
               href={`${import.meta.env.BASE_URL}admin/invgate/ubicaciones?sync=true`}
-              class="btn btn-primary btn-sm gap-1.5 ml-auto shrink-0"
+              class="btn btn-primary btn-sm ml-auto shrink-0 gap-1.5"
             >
               <Icon name="boxicons:pie-chart-filled" size={16} />
               Ver comparativa
@@ -450,8 +605,7 @@ const mainTabs = [
             >
           </div>
           <div slot="header">
-            <DataTableHeaderCell sortKey="cost-center"
-              >CECO</DataTableHeaderCell
+            <DataTableHeaderCell sortKey="cost-center">CECO</DataTableHeaderCell
             >
           </div>
           {
@@ -478,7 +632,7 @@ const mainTabs = [
       <div
         id="scroll-sentinel"
         class:list={[
-          "py-8 text-center flex justify-center",
+          "flex justify-center py-8 text-center",
           !hasMore && "hidden",
         ]}
         data-has-more={hasMore ? "true" : "false"}
@@ -493,29 +647,23 @@ const mainTabs = [
   <!-- Contenedor de Mapa -->
   <div id="main-view-map" class="hidden space-y-6">
     <div id="views-wrapper" class="relative">
-      <div class="flex flex-col lg:flex-row gap-6">
+      <div class="flex flex-col gap-6 lg:flex-row">
         <!-- Vista Mapa -->
         <section
           id="view-map"
-          class="flex-1 min-w-0 bg-base-100 rounded-xl shadow-lg border border-base-content/10 overflow-hidden relative z-0 transition-all duration-500"
+          class="bg-base-100 border-base-content/10 relative z-0 min-w-0 flex-1 overflow-hidden rounded-xl border shadow-lg transition-all duration-500"
         >
-          <div
-            id="map-loading"
-            class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-base-100/80 backdrop-blur-sm"
-            style="display: none;"
-          >
-            <span class="loading loading-spinner loading-lg text-primary"
-            ></span>
-            <p class="mt-4 font-semibold text-base-content/70">
-              Cargando datos geográficos...
-            </p>
-          </div>
-          <div id="mapa-sucursales" class="h-[600px] w-full z-0 relative"></div>
+          <div id="mapa-sucursales" class="relative z-0 h-150 w-full"></div>
         </section>
 
         <!-- Controles del Mapa -->
-        <div id="map-controls" class="flex flex-col gap-2 shrink-0 lg:w-64 w-full">
-          <div class="rounded-box border border-base-300 bg-base-200/30 p-3 flex flex-col gap-2">
+        <div
+          id="map-controls"
+          class="flex w-full shrink-0 flex-col gap-2 lg:w-64"
+        >
+          <div
+            class="rounded-box border-base-300 bg-base-200/30 flex flex-col gap-2 border p-3"
+          >
             <label class="label cursor-pointer justify-start gap-3 p-0">
               <input
                 type="checkbox"
@@ -523,7 +671,7 @@ const mainTabs = [
                 checked
                 id="chk-polygons"
               />
-              <span class="label-text font-medium text-xs">Regiones</span>
+              <span class="label-text text-xs font-medium">Regiones</span>
             </label>
             <label class="label cursor-pointer justify-start gap-3 p-0">
               <input
@@ -532,7 +680,7 @@ const mainTabs = [
                 checked
                 id="chk-labels"
               />
-              <span class="label-text font-medium text-xs">Códigos</span>
+              <span class="label-text text-xs font-medium">Códigos</span>
             </label>
           </div>
 
@@ -542,20 +690,20 @@ const mainTabs = [
             {
               allRegions.map((r) => (
                 <div
-                  class="legend-item-group border border-base-300 rounded-lg bg-base-100 transition-colors duration-150 overflow-hidden"
+                  class="legend-item-group border-base-300 bg-base-100 overflow-hidden rounded-lg border transition-colors duration-150"
                   data-region={r.name}
                 >
-                  <div class="legend-item flex items-center justify-between px-3 py-2 gap-2 cursor-pointer hover:bg-base-200/50 transition-colors">
+                  <div class="legend-item hover:bg-base-200/50 flex cursor-pointer items-center justify-between gap-2 px-3 py-2 transition-colors">
                     <div class="flex items-center gap-3">
                       <span
-                        class="size-4 rounded-sm shrink-0"
+                        class="size-4 shrink-0 rounded-sm"
                         style={`background-color: ${r.color}`}
                       />
                       <span class="text-sm font-semibold">{r.name}</span>
                     </div>
                     <button
                       type="button"
-                      class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 btn-toggle-referents shrink-0"
+                      class="border-base-300 bg-base-200 text-base-content/70 hover:bg-base-300 focus-visible:ring-primary/50 btn-toggle-referents inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
                       data-region-id={r.id}
                       data-region-name={r.name}
                       aria-label="Ver tecnológicos regionales"
@@ -574,23 +722,17 @@ const mainTabs = [
                       />
                     </button>
                   </div>
-                  <div 
-                    class="referents-collapse-content hidden px-3 pb-3 pt-1.5 border-t border-base-200 bg-base-200/20 text-xs" 
-                    data-region-id={r.id} 
+                  <div
+                    class="referents-collapse-content border-base-200 bg-base-200/20 hidden border-t px-3 pt-1.5 pb-3 text-xs"
+                    data-region-id={r.id}
                   >
-                    <div class="flex items-center justify-between border-b border-base-300 pb-1">
-                      <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Tecnológicos</span>
-                      {isAllowedAdmin && (
-                        <ActionEditButton
-                          class="btn-edit-region"
-                          size="xs"
-                          data-region-id={r.id}
-                          ariaLabel={`Editar tecnológicos de ${r.name}`}
-                        />
-                      )}
+                    <div class="border-base-300 flex items-center justify-between border-b pb-1">
+                      <span class="text-base-content/50 text-xs font-semibold tracking-wider uppercase">
+                        Tecnológicos
+                      </span>
                     </div>
-                    <div class="referents-list-container flex flex-col gap-1.5 mt-2">
-                      <!-- JS will inject the list here -->
+                    <div class="referents-list-container mt-2 flex flex-col gap-1.5">
+                      {/* JS will inject the list here */}
                     </div>
                   </div>
                 </div>
@@ -601,14 +743,7 @@ const mainTabs = [
       </div>
     </div>
   </div>
-  <Modal id="region-referents-modal" zIndex="z-9999" class="max-w-md shadow-xl">
-    <Fragment slot="content">
-      <form method="dialog">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Cerrar modal">✕</button>
-      </form>
-      <div id="modal-region-content"></div>
-    </Fragment>
-  </Modal>
+  <AgentsTicketModal />
 </PageContainer>
 
 <script>
@@ -652,8 +787,6 @@ const mainTabs = [
   let currentSortOrder: "asc" | "desc" | null =
     (urlParams.get("sortOrder") as "asc" | "desc") || null;
 
-
-
   const syncFiltersToURL = () => {
     const params = new URLSearchParams();
     if (form) {
@@ -676,7 +809,9 @@ const mainTabs = [
     window.history.replaceState({}, "", newUrl);
 
     // Update export CSV href
-    const exportBtn = document.getElementById("export-csv-btn") as HTMLAnchorElement | null;
+    const exportBtn = document.getElementById(
+      "export-csv-btn",
+    ) as HTMLAnchorElement | null;
     if (exportBtn) {
       const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       exportBtn.href = `${baseUrl}/api/export/offices${queryString ? "?" + queryString : ""}`;
@@ -698,13 +833,33 @@ const mainTabs = [
     }
   }
 
-  const regionSelect = document.getElementById("regionFilter") as HTMLSelectElement | null;
-  const provinceSelect = document.getElementById("provinceFilter") as HTMLSelectElement | null;
-  const zoneSelect = document.getElementById("zoneFilter") as HTMLSelectElement | null;
-  const paqarSelect = document.getElementById("paqarFilter") as HTMLSelectElement | null;
-  const hasParentToggle = document.querySelector<HTMLInputElement>('input[name="hasParent"]');
-  const isHeadquarterToggle = document.querySelector<HTMLInputElement>('input[name="isHeadquarter"]');
-  const typeHiddenInput = document.getElementById("filter-tabs-hidden-type") as HTMLInputElement | null;
+  const regionSelect = document.getElementById(
+    "regionFilter",
+  ) as HTMLSelectElement | null;
+  const provinceSelect = document.getElementById(
+    "provinceFilter",
+  ) as HTMLSelectElement | null;
+  const zoneSelect = document.getElementById(
+    "zoneFilter",
+  ) as HTMLSelectElement | null;
+  const paqarSelect = document.getElementById(
+    "paqarFilter",
+  ) as HTMLSelectElement | null;
+  const hasParentToggle = document.querySelector<HTMLInputElement>(
+    'input[name="hasParent"]',
+  );
+  const isHeadquarterToggle = document.querySelector<HTMLInputElement>(
+    'input[name="isHeadquarter"]',
+  );
+  const noAddressToggle = document.querySelector<HTMLInputElement>(
+    'input[name="noAddress"]',
+  );
+  const statusToggle = document.querySelector<HTMLInputElement>(
+    'input[name="status"]',
+  );
+  const typeHiddenInput = document.getElementById(
+    "filter-tabs-hidden-type",
+  ) as HTMLInputElement | null;
   const typeTabsContainer = document.querySelector(".filter-tabs-box");
 
   const handleFilterChange = () => {
@@ -719,7 +874,8 @@ const mainTabs = [
       if (region === "all") {
         provinceSelect.value = "all";
         provinceSelect.disabled = true;
-        provinceSelect.innerHTML = '<option value="all">Provincias (Todas)</option>';
+        provinceSelect.innerHTML =
+          '<option value="all">Provincias (Todas)</option>';
       } else {
         provinceSelect.disabled = false;
         const regionProvinces = provincesByRegion[region] || [];
@@ -739,10 +895,15 @@ const mainTabs = [
   paqarSelect?.addEventListener("change", handleFilterChange);
   hasParentToggle?.addEventListener("change", handleFilterChange);
   isHeadquarterToggle?.addEventListener("change", handleFilterChange);
+  noAddressToggle?.addEventListener("change", handleFilterChange);
+  statusToggle?.addEventListener("change", handleFilterChange);
 
   // Tab buttons click listeners
   if (typeTabsContainer) {
-    const tabButtons = typeTabsContainer.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+    const tabButtons =
+      typeTabsContainer.querySelectorAll<HTMLButtonElement>(
+        'button[role="tab"]',
+      );
     tabButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
         const val = btn.getAttribute("data-tab-value") || "all";
@@ -783,6 +944,31 @@ const mainTabs = [
       const toggleRow = (): void => {
         const isExpanded = masterRow.getAttribute("aria-expanded") === "true";
         const newExpanded = !isExpanded;
+
+        if (newExpanded) {
+          // Accordion: close any other open row in the same view.
+          document
+            .querySelectorAll<HTMLElement>(
+              '[data-office-master-row][aria-expanded="true"]',
+            )
+            .forEach((row) => {
+              if (row.dataset.officeId === officeId) return;
+              const otherId = row.dataset.officeId ?? "";
+              row.classList.remove("bg-base-200/70");
+              row.setAttribute("aria-expanded", "false");
+              row
+                .querySelector<HTMLElement>("[data-chevron-open]")
+                ?.classList.add("hidden");
+              row
+                .querySelector<HTMLElement>("[data-chevron-closed]")
+                ?.classList.remove("hidden");
+              document
+                .querySelector<HTMLElement>(
+                  `[data-office-detail-row][data-office-id="${otherId}"]`,
+                )
+                ?.classList.add("hidden");
+            });
+        }
 
         masterRow.classList.toggle("bg-base-200/70", newExpanded);
         masterRow.setAttribute("aria-expanded", newExpanded ? "true" : "false");
@@ -912,18 +1098,15 @@ const mainTabs = [
     const L = (await import("leaflet")).default;
     const { feature } = await import("topojson-client");
 
-    const mapLoading = document.getElementById("map-loading");
-    if (mapLoading) mapLoading.style.display = "flex";
-
     let dataMap = [];
     let provincesData = {};
     const regionColorMap: Record<string, string> = {};
 
     try {
       const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${baseUrl}/api/offices-map-data`);
-      if (res.ok) {
-        const json = await res.json();
+      const mapRes = await fetch(`${baseUrl}/api/offices-map-data`);
+      if (mapRes.ok) {
+        const json = await mapRes.json();
         dataMap = json.sucursales || [];
         provincesData = json.provincesByRegion || {};
         regionsDataCache = json.regions || [];
@@ -931,10 +1114,31 @@ const mainTabs = [
           regionColorMap[r.name] = r.color;
         }
       }
+
+      fetch(`${baseUrl}/api/invgate/region-tech-members`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((techJson) => {
+          if (!techJson) return;
+          const membersByRegion = new Map(
+            (techJson.regions || []).map((r: any) => [r.regionId, r.members]),
+          );
+          for (const r of regionsDataCache) {
+            r.techMembers = membersByRegion.get(r.id) || [];
+          }
+          document
+            .querySelectorAll<HTMLElement>(
+              ".referents-collapse-content:not(.hidden)",
+            )
+            .forEach((el) => {
+              const rid = el.getAttribute("data-region-id");
+              if (rid) renderRegionDetailsInline(rid);
+            });
+        })
+        .catch((err) => {
+          console.error("Error fetching tech members:", err);
+        });
     } catch (err) {
       console.error("Error fetching map data:", err);
-    } finally {
-      if (mapLoading) mapLoading.style.display = "none";
     }
 
     const provinceToRegion: Record<string, string> = {};
@@ -1079,7 +1283,10 @@ const mainTabs = [
     fetch("/data/argentina_provincias.topojson")
       .then((res) => res.json())
       .then((topoData) => {
-        const geoData = feature(topoData, topoData.objects.argentina_provincias);
+        const geoData = feature(
+          topoData,
+          topoData.objects.argentina_provincias,
+        );
         L.geoJSON(geoData, {
           style: function (feature: any) {
             const name = feature.properties.nombre;
@@ -1103,7 +1310,6 @@ const mainTabs = [
               `<div class='text-center p-1'><b style='color: ${color};'>${name}</b><br/><span class='text-xs text-base-content/60'>${regionName}</span></div>`,
               { className: "custom-popup" },
             );
-
 
             const letter = provinceLetters[name];
             if (letter) {
@@ -1149,7 +1355,9 @@ const mainTabs = [
           };
 
           legendEl.addEventListener("mouseover", (e) => {
-            const item = (e.target as HTMLElement).closest(".legend-item-group");
+            const item = (e.target as HTMLElement).closest(
+              ".legend-item-group",
+            );
             if (!item) return;
             highlightRegion(
               item.getAttribute("data-region") ?? undefined,
@@ -1158,7 +1366,9 @@ const mainTabs = [
           });
 
           legendEl.addEventListener("mouseout", (e) => {
-            const item = (e.target as HTMLElement).closest(".legend-item-group");
+            const item = (e.target as HTMLElement).closest(
+              ".legend-item-group",
+            );
             if (!item) return;
             highlightRegion(
               item.getAttribute("data-region") ?? undefined,
@@ -1176,19 +1386,6 @@ const mainTabs = [
               const regionId = toggleBtn.getAttribute("data-region-id");
               if (regionId) {
                 toggleRegionReferents(regionId, toggleBtn as HTMLButtonElement);
-              }
-              return;
-            }
-
-            const editBtn = target.closest(".btn-edit-region");
-            if (editBtn) {
-              e.preventDefault();
-              e.stopPropagation();
-              const regionId = editBtn.getAttribute("data-region-id");
-              if (regionId) {
-                renderRegionEditModal(regionId);
-                const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
-                if (modal) modal.showModal();
               }
               return;
             }
@@ -1271,7 +1468,8 @@ const mainTabs = [
 
     if (regionSelect) regionSelect.value = "all";
     if (provinceSelect) {
-      provinceSelect.innerHTML = '<option value="all">Provincias (Todas)</option>';
+      provinceSelect.innerHTML =
+        '<option value="all">Provincias (Todas)</option>';
       provinceSelect.value = "all";
       provinceSelect.disabled = true;
     }
@@ -1280,14 +1478,22 @@ const mainTabs = [
 
     if (hasParentToggle) hasParentToggle.checked = false;
     if (isHeadquarterToggle) isHeadquarterToggle.checked = false;
+    if (noAddressToggle) noAddressToggle.checked = false;
 
     if (typeHiddenInput) typeHiddenInput.value = "all";
     if (typeTabsContainer) {
-      const tabButtons = typeTabsContainer.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+      const tabButtons =
+        typeTabsContainer.querySelectorAll<HTMLButtonElement>(
+          'button[role="tab"]',
+        );
       tabButtons.forEach((b) => {
         b.setAttribute("aria-selected", "false");
         b.classList.remove("tab-active");
-        if (b.getAttribute("data-tab-value") === "all" || (!b.getAttribute("data-tab-value") && b.textContent?.trim() === "Todas")) {
+        if (
+          b.getAttribute("data-tab-value") === "all" ||
+          (!b.getAttribute("data-tab-value") &&
+            b.textContent?.trim() === "Todas")
+        ) {
           b.setAttribute("aria-selected", "true");
           b.classList.add("tab-active");
         }
@@ -1299,10 +1505,33 @@ const mainTabs = [
 
   bindRowEvents();
 
+  // Agents ticket: delegate click on buttons with data-agents-ticket-trigger
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const trigger = target.closest(
+      "[data-agents-ticket-trigger]",
+    ) as HTMLElement | null;
+    if (!trigger) return;
+
+    const officeName = trigger.getAttribute("data-office-name") || "";
+    const officeCode = trigger.getAttribute("data-office-code") || "";
+    if (!officeName || !officeCode) return;
+
+    const openFn = (window as any).openAgentsTicketModal;
+    if (typeof openFn === "function") {
+      openFn(officeName, officeCode);
+    }
+  });
+
   tableRoot?.addEventListener("master-detail-sort-change", (e: any) => {
     const { sortKey, direction } = e.detail;
     currentSortBy = direction === "none" ? null : sortKey;
-    currentSortOrder = direction === "ascending" ? "asc" : direction === "descending" ? "desc" : null;
+    currentSortOrder =
+      direction === "ascending"
+        ? "asc"
+        : direction === "descending"
+          ? "desc"
+          : null;
     currentPage = 1;
     fetchOffices(true, false); // isNewSearch = true, showLoadingUI = false
     syncFiltersToURL();
@@ -1313,32 +1542,45 @@ const mainTabs = [
     tableRoot.dataset.masterDetailSortKey = currentSortBy;
     tableRoot.dataset.masterDetailSortDirection = dir;
 
-    const control = tableRoot.querySelector(`[data-table-sort-key="${currentSortBy}"]`);
+    const control = tableRoot.querySelector(
+      `[data-table-sort-key="${currentSortBy}"]`,
+    );
     if (control) {
       control.setAttribute("data-table-sort-direction", dir);
       control.setAttribute("aria-sort", dir);
-      control.querySelectorAll("[data-table-sort-icon]").forEach((icon: any) => {
-        const shouldShow = icon.dataset.tableSortIcon === dir;
-        icon.classList.toggle("hidden", !shouldShow);
-        icon.classList.toggle("opacity-0", !shouldShow);
-      });
+      control
+        .querySelectorAll("[data-table-sort-icon]")
+        .forEach((icon: any) => {
+          const shouldShow = icon.dataset.tableSortIcon === dir;
+          icon.classList.toggle("hidden", !shouldShow);
+          icon.classList.toggle("opacity-0", !shouldShow);
+        });
     }
   }
 
-  const toggleRegionReferents = (regionId: string, toggleBtn: HTMLButtonElement) => {
-    const collapseContent = document.querySelector(`.referents-collapse-content[data-region-id="${regionId}"]`) as HTMLElement | null;
+  const toggleRegionReferents = (
+    regionId: string,
+    toggleBtn: HTMLButtonElement,
+  ) => {
+    const collapseContent = document.querySelector(
+      `.referents-collapse-content[data-region-id="${regionId}"]`,
+    ) as HTMLElement | null;
     if (!collapseContent) return;
 
     const isHidden = collapseContent.classList.contains("hidden");
 
     if (isHidden) {
       // close all other accordions first
-      const openCollapses = document.querySelectorAll(".referents-collapse-content:not(.hidden)");
+      const openCollapses = document.querySelectorAll(
+        ".referents-collapse-content:not(.hidden)",
+      );
       openCollapses.forEach((el) => {
         el.classList.add("hidden");
         const rId = el.getAttribute("data-region-id");
         if (rId) {
-          const btn = document.querySelector(`.btn-toggle-referents[data-region-id="${rId}"]`);
+          const btn = document.querySelector(
+            `.btn-toggle-referents[data-region-id="${rId}"]`,
+          );
           if (btn) {
             btn.setAttribute("aria-expanded", "false");
             const openIcon = btn.querySelector("[data-chevron-open]");
@@ -1367,204 +1609,49 @@ const mainTabs = [
   };
 
   const renderRegionDetailsInline = (regionId: string) => {
-    const collapseContent = document.querySelector(`.referents-collapse-content[data-region-id="${regionId}"]`) as HTMLElement | null;
+    const collapseContent = document.querySelector(
+      `.referents-collapse-content[data-region-id="${regionId}"]`,
+    ) as HTMLElement | null;
     if (!collapseContent) return;
 
-    const listContainer = collapseContent.querySelector(".referents-list-container") as HTMLElement | null;
+    const listContainer = collapseContent.querySelector(
+      ".referents-list-container",
+    ) as HTMLElement | null;
     if (!listContainer) return;
 
     const region = regionsDataCache.find((r) => r.id === regionId);
     if (!region) return;
 
-    if (!region.referents || region.referents.length === 0) {
-      listContainer.innerHTML = `<p class="text-xs text-base-content/60 italic">Sin referentes asignados</p>`;
-    } else {
+    const techMembers = region.techMembers;
+    const referents = region.referents;
+
+    if (Array.isArray(techMembers) && techMembers.length > 0) {
       listContainer.innerHTML = `
         <ul class="list-disc list-inside space-y-1">
-          ${region.referents
+          ${techMembers
             .map(
-              (ref: any) => `
-            <li class="text-xs font-medium text-base-content">${escapeHTML(ref.firstName)} ${escapeHTML(ref.lastName)}</li>
-          `
+              (m: any) => `
+            <li class="text-xs font-medium text-base-content">${escapeHTML(m.name)}</li>
+          `,
             )
             .join("")}
         </ul>
       `;
-    }
-  };
-
-  const renderRegionEditModal = (regionId: string) => {
-    const modalContent = document.getElementById("modal-region-content");
-    if (!modalContent) return;
-
-    const region = regionsDataCache.find((r) => r.id === regionId);
-    if (!region) return;
-
-    let localReferents = region.referents ? [...region.referents] : [];
-
-    const renderForm = () => {
-      let rowsHtml = "";
-      if (localReferents.length === 0) {
-        rowsHtml = `<p class="text-xs text-base-content/60 italic my-2">No hay referentes asignados. Podés agregar uno.</p>`;
-      } else {
-        rowsHtml = localReferents
-          .map(
-            (ref: any, idx: number) => `
-          <div class="flex items-center gap-1.5 referent-row" data-index="${idx}">
-            <input type="text" placeholder="Nombre" class="input input-bordered input-sm w-full font-medium input-name" value="${escapeHTML(ref.firstName || "")}" required />
-            <input type="text" placeholder="Apellido" class="input input-bordered input-sm w-full font-medium input-lastname" value="${escapeHTML(ref.lastName || "")}" required />
-            <button type="button" class="btn btn-sm btn-circle btn-ghost text-error btn-remove-referent" data-index="${idx}" title="Eliminar referente">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
-            </button>
-          </div>
-        `
-          )
-          .join("");
-      }
-
-      modalContent.innerHTML = `
-        <div class="flex flex-col gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-base-content">Editar Tecnológicos de ${escapeHTML(region.name)}</h3>
-            <p class="text-xs text-base-content/60">Modificá la lista de tecnológicos para esta región.</p>
-          </div>
-          <form class="flex flex-col gap-3 edit-referents-form">
-            <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Editar Tecnológicos</span>
-            <div class="flex flex-col gap-2 referents-rows-container">
-              ${rowsHtml}
-            </div>
-            <button type="button" class="btn btn-sm btn-outline gap-1 text-xs self-start btn-add-referent">
-              + Agregar Tecnológico
-            </button>
-            <div class="text-xs text-error hidden form-error-msg"></div>
-            <div class="flex items-center justify-end gap-2 mt-4">
-              <button type="button" class="btn btn-sm btn-ghost btn-cancel-edit">Cancelar</button>
-              <button type="submit" class="btn btn-sm btn-primary btn-save-edit">Guardar</button>
-            </div>
-          </form>
-        </div>
+    } else if (referents && referents.length > 0) {
+      listContainer.innerHTML = `
+        <ul class="list-disc list-inside space-y-1">
+          ${referents
+            .map(
+              (ref: any) => `
+            <li class="text-xs font-medium text-base-content">${escapeHTML(ref.firstName)} ${escapeHTML(ref.lastName)}</li>
+          `,
+            )
+            .join("")}
+        </ul>
       `;
-
-      const addBtn = modalContent.querySelector(".btn-add-referent");
-      if (addBtn) {
-        addBtn.addEventListener("click", () => {
-          updateLocalReferentsFromDOM();
-          localReferents.push({ firstName: "", lastName: "" });
-          renderForm();
-        });
-      }
-
-      const removeBtns = modalContent.querySelectorAll(".btn-remove-referent");
-      removeBtns.forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          const target = e.currentTarget as HTMLElement;
-          const idx = parseInt(target.getAttribute("data-index") || "0", 10);
-          updateLocalReferentsFromDOM();
-          localReferents.splice(idx, 1);
-          renderForm();
-        });
-      });
-
-      const cancelBtn = modalContent.querySelector(".btn-cancel-edit");
-      if (cancelBtn) {
-        cancelBtn.addEventListener("click", () => {
-          const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
-          if (modal) modal.close();
-        });
-      }
-
-      const form = modalContent.querySelector(".edit-referents-form") as HTMLFormElement | null;
-      if (form) {
-        form.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          updateLocalReferentsFromDOM();
-
-          const sanitized: { firstName: string; lastName: string }[] = [];
-          for (const ref of localReferents) {
-            const fName = (ref.firstName || "").trim();
-            const lName = (ref.lastName || "").trim();
-            if (!fName || !lName) {
-              const errorMsg = modalContent.querySelector(".form-error-msg") as HTMLElement | null;
-              if (errorMsg) {
-                errorMsg.textContent = "El nombre y apellido no pueden estar vacíos";
-                errorMsg.classList.remove("hidden");
-              }
-              return;
-            }
-            sanitized.push({ firstName: fName, lastName: lName });
-          }
-
-          const saveBtn = modalContent.querySelector(".btn-save-edit") as HTMLButtonElement | null;
-          const cancelBtnEl = modalContent.querySelector(".btn-cancel-edit") as HTMLButtonElement | null;
-          const addBtnEl = modalContent.querySelector(".btn-add-referent") as HTMLButtonElement | null;
-          if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Guardando...';
-          }
-          if (cancelBtnEl) cancelBtnEl.disabled = true;
-          if (addBtnEl) addBtnEl.disabled = true;
-
-          const errorMsg = modalContent.querySelector(".form-error-msg") as HTMLElement | null;
-          if (errorMsg) errorMsg.classList.add("hidden");
-
-          try {
-            const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-            const res = await fetch(`${baseUrl}/api/technology-referents`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                regionId,
-                referents: sanitized,
-              }),
-            });
-
-            if (!res.ok) {
-              const errData = await res.json();
-              throw new Error(errData.error || "Error al guardar los referentes");
-            }
-
-            region.referents = sanitized;
-
-            const modal = document.getElementById("region-referents-modal") as HTMLDialogElement | null;
-            if (modal) modal.close();
-
-            renderRegionDetailsInline(regionId);
-          } catch (err: any) {
-            console.error("Error saving referents:", err);
-            if (saveBtn) {
-              saveBtn.disabled = false;
-              saveBtn.textContent = "Guardar";
-            }
-            if (cancelBtnEl) cancelBtnEl.disabled = false;
-            if (addBtnEl) addBtnEl.disabled = false;
-
-            if (errorMsg) {
-              errorMsg.textContent = err.message || "Error al guardar los referentes";
-              errorMsg.classList.remove("hidden");
-            }
-          }
-        });
-      }
-    };
-
-    const updateLocalReferentsFromDOM = () => {
-      const rows = modalContent.querySelectorAll(".referent-row");
-      rows.forEach((row) => {
-        const idx = parseInt(row.getAttribute("data-index") || "0", 10);
-        const nameInput = row.querySelector(".input-name") as HTMLInputElement | null;
-        const lastnameInput = row.querySelector(".input-lastname") as HTMLInputElement | null;
-        if (localReferents[idx]) {
-          localReferents[idx].firstName = nameInput ? nameInput.value : "";
-          localReferents[idx].lastName = lastnameInput ? lastnameInput.value : "";
-        }
-      });
-    };
-
-    renderForm();
+    } else {
+      listContainer.innerHTML = `<p class="text-xs text-base-content/60 italic">Sin técnicos asignados</p>`;
+    }
   };
 
   let isInvgateSyncing = false;
@@ -1573,20 +1660,30 @@ const mainTabs = [
     if (isInvgateSyncing) return;
     isInvgateSyncing = true;
 
-    const btn = document.getElementById("sync-invgate-btn") as HTMLButtonElement | null;
+    const btn = document.getElementById(
+      "sync-invgate-btn",
+    ) as HTMLButtonElement | null;
     const text = document.getElementById("sync-btn-text");
     const spinner = document.getElementById("sync-btn-spinner");
-    if (!btn || !text || !spinner) { isInvgateSyncing = false; return; }
+    if (!btn || !text || !spinner) {
+      isInvgateSyncing = false;
+      return;
+    }
 
     text.textContent = "Sincronizando...";
     spinner.classList.remove("hidden");
 
     try {
       const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${baseUrl}/api/admin/invgate/locations/sync`, { method: "POST" });
+      const res = await fetch(`${baseUrl}/api/admin/invgate/locations/sync`, {
+        method: "POST",
+      });
       const data = await res.json();
       if (data.ok) {
-        showToast(`Sincronización completada: ${data.matched} oficinas vinculadas`, "alert-success");
+        showToast(
+          `Sincronización completada: ${data.matched} oficinas vinculadas`,
+          "alert-success",
+        );
         setTimeout(() => window.location.reload(), 1500);
       } else {
         showToast(data.error || "Error al sincronizar", "alert-error");
@@ -1600,7 +1697,9 @@ const mainTabs = [
     }
   };
 
-  document.getElementById("sync-invgate-btn")?.addEventListener("click", handleInvgateSync);
+  document
+    .getElementById("sync-invgate-btn")
+    ?.addEventListener("click", handleInvgateSync);
 
   // Load InvGate comparison stats
   const statsCards = document.getElementById("stats-cards");

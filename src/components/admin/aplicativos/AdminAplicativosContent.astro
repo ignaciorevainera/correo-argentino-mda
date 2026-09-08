@@ -18,10 +18,6 @@ import AddEntityButton from "@components/ui/AddEntityButton.astro";
 
 const cleanBase = getCleanBase();
 
-
-let deleteSuccess = false;
-let deleteError = "";
-
 interface Category {
   id: number;
   title: string;
@@ -49,7 +45,10 @@ try {
   const dbCategories = await db
     .select()
     .from(applicationCategories)
-    .orderBy(asc(applicationCategories.sortOrder), asc(applicationCategories.title));
+    .orderBy(
+      asc(applicationCategories.sortOrder),
+      asc(applicationCategories.title),
+    );
 
   dbCategories.forEach((cat) => {
     const t = cat.title.toLowerCase();
@@ -82,7 +81,6 @@ try {
   console.error(
     `[aplicativos] Error al consultar la base de datos: ${dbError.message}`,
   );
-  deleteError = deleteError || "No se pudieron cargar los aplicativos.";
 }
 
 const appsGridCols = "grid-cols-[40px_50px_1fr_100px] gap-4";
@@ -96,7 +94,10 @@ allApps.forEach((app) => {
     uncategorizedCount++;
     categoryCounts.set("uncategorized", uncategorizedCount);
   } else {
-    categoryCounts.set(app.categoryId, (categoryCounts.get(app.categoryId) || 0) + 1);
+    categoryCounts.set(
+      app.categoryId,
+      (categoryCounts.get(app.categoryId) || 0) + 1,
+    );
   }
 });
 
@@ -110,13 +111,17 @@ const truncatePath = (filePath: string | null) => {
 ---
 
 <PageContainer>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+  <div
+    class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+  >
     <PageHeader
       title="Gestión de Aplicativos"
       description="Gestión de los aplicativos disponibles para descarga y distribución interna."
     />
-    <div class="flex gap-2 shrink-0">
-      <AddCategoryButton href={resolveUrl("/admin/aplicativos/categorias/create")} />
+    <div class="flex shrink-0 gap-2">
+      <AddCategoryButton
+        href={resolveUrl("/admin/aplicativos/categorias/create")}
+      />
       <AddEntityButton
         id="btn-add-app"
         href={resolveUrl("/admin/aplicativos/create")}
@@ -125,45 +130,42 @@ const truncatePath = (filePath: string | null) => {
     </div>
   </div>
 
-  {
-    deleteSuccess && (
-      <script is:inline>
-        window.showToast?.("Aplicativo eliminado con éxito.", "alert-success");
-      </script>
-    )
-  }
-  {
-    deleteError && (
-      <script is:inline define:vars={{ deleteError }}>
-        window.showToast?.(deleteError, "alert-error");
-      </script>
-    )
-  }
-
   <!-- Split View layout -->
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-    
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-4">
     <!-- Sidebar: Categorías -->
-    <aside class="lg:col-span-1 bg-base-100 border border-base-300 rounded-box p-4 shadow-sm flex flex-col gap-3">
-      <div class="flex items-center justify-between border-b border-base-200 pb-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-base-content/60">Categorías</span>
+    <aside
+      class="bg-base-100 border-base-300 rounded-box flex flex-col gap-3 border p-4 shadow-sm lg:col-span-1"
+    >
+      <div
+        class="border-base-200 flex items-center justify-between border-b pb-2"
+      >
+        <span
+          class="text-base-content/60 text-xs font-bold tracking-wider uppercase"
+          >Categorías</span
+        >
       </div>
 
       <nav class="flex flex-col gap-1" id="categories-list">
         <div
-          class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+          class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
           data-category-id="all"
           data-category-title="Todos"
         >
-          <div class="flex items-center gap-2.5 min-w-0 grow">
-            <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-neutral/20 bg-neutral/10 text-neutral">
+          <div class="flex min-w-0 grow items-center gap-2.5">
+            <div
+              class="border-neutral/20 bg-neutral/10 text-neutral flex size-8 shrink-0 items-center justify-center rounded-md border"
+            >
               <Icon name="boxicons:grid-9-filled" size={18} />
             </div>
-            <span class="text-sm font-semibold truncate label-title">Todos</span>
+            <span class="label-title truncate text-sm font-semibold">Todos</span
+            >
           </div>
-          
-          <div class="flex items-center gap-1.5 shrink-0 ml-2">
-            <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={allApps.length}>
+
+          <div class="ml-2 flex shrink-0 items-center gap-1.5">
+            <span
+              class="badge badge-sm badge-ghost count-badge font-mono"
+              data-count={allApps.length}
+            >
               {allApps.length}
             </span>
           </div>
@@ -171,51 +173,61 @@ const truncatePath = (filePath: string | null) => {
 
         {
           categories.length === 0 ? (
-            <p class="text-xs text-base-content/50 py-4 text-center">No hay categorías registradas.</p>
+            <p class="text-base-content/50 py-4 text-center text-xs">
+              No hay categorías registradas.
+            </p>
           ) : (
             categories.map((cat) => {
               const count = categoryCounts.get(cat.id) || 0;
               return (
                 <div
-                  class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
+                  class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
                   data-category-id={cat.id}
                   data-category-title={cat.title}
                   data-category-sortorder={cat.sortOrder}
                   data-category-dropzone
                   draggable="true"
                 >
-                  <div class="flex items-center gap-2.5 min-w-0 grow">
-                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 cursor-grab active:cursor-grabbing text-base-content/20 hover:text-base-content/40 transition-colors opacity-0 group-hover:opacity-100 category-drag-handle">
+                  <div class="flex min-w-0 grow items-center gap-2.5">
+                    <div class="text-base-content/20 hover:text-base-content/40 category-drag-handle flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md opacity-0 transition-colors group-hover:opacity-100 active:cursor-grabbing">
                       <Icon name="boxicons:menu" size={18} />
                     </div>
-                    <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-primary/20 bg-primary/10 text-primary">
+                    <div class="border-primary/20 bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-md border">
                       <Icon name="boxicons:folder" size={18} />
                     </div>
-                    <span class="text-sm font-semibold truncate label-title">{cat.title}</span>
+                    <span class="label-title truncate text-sm font-semibold">
+                      {cat.title}
+                    </span>
                   </div>
-                  
-                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={count}>
+
+                  <div class="ml-2 flex shrink-0 items-center gap-1.5">
+                    <span
+                      class="badge badge-sm badge-ghost count-badge font-mono"
+                      data-count={count}
+                    >
                       {count}
                     </span>
-                    {cat.title.toLowerCase() !== "sin categoría" && cat.title.toLowerCase() !== "sin categoria" && (
-                      <div class="hidden group-hover:flex items-center gap-0.5">
-                        <ActionEditButton
-                          href={resolveUrl(`/admin/aplicativos/categorias/edit/${cat.id}`)}
-                          size="xs"
-                          ariaLabel="Editar"
-                          title="Editar"
-                          onclick="event.stopPropagation();"
-                        />
-                        <ActionDeleteButton
-                          type="button"
-                          size="xs"
-                          ariaLabel="Eliminar"
-                          title="Eliminar"
-                          onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
-                        />
-                      </div>
-                    )}
+                    {cat.title.toLowerCase() !== "sin categoría" &&
+                      cat.title.toLowerCase() !== "sin categoria" && (
+                        <div class="hidden items-center gap-0.5 group-hover:flex">
+                          <ActionEditButton
+                            href={resolveUrl(
+                              `/admin/aplicativos/categorias/edit/${cat.id}`,
+                            )}
+                            size="xs"
+                            ariaLabel="Editar"
+                            title="Editar"
+                            onclick="event.stopPropagation();"
+                          />
+                          <ActionDeleteButton
+                            type="button"
+                            size="xs"
+                            ariaLabel="Eliminar"
+                            title="Eliminar"
+                            onclick={`event.stopPropagation(); window.openDeleteCategoryModal('${cat.id}')`}
+                          />
+                        </div>
+                      )}
                   </div>
                 </div>
               );
@@ -224,49 +236,71 @@ const truncatePath = (filePath: string | null) => {
         }
 
         {/* Sin categoría */}
-        {(() => {
-          const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
-          if (uncategorizedCount === 0) return null;
-          return (
-            <div
-              class="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-transparent hover:bg-base-200/60 transition-all cursor-pointer select-none category-item"
-              data-category-id="uncategorized"
-              data-category-title="Sin categoría"
-              data-category-dropzone
-            >
-              <div class="flex items-center gap-2.5 min-w-0 grow">
-                <div class="flex items-center justify-center size-8 rounded-md shrink-0 border border-warning/20 bg-warning/10 text-warning">
-                  <Icon name="boxicons:folder" size={18} />
+        {
+          (() => {
+            const uncategorizedCount = categoryCounts.get("uncategorized") || 0;
+            if (uncategorizedCount === 0) return null;
+            return (
+              <div
+                class="group hover:bg-base-200/60 category-item flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-3 py-2.5 transition-all select-none"
+                data-category-id="uncategorized"
+                data-category-title="Sin categoría"
+                data-category-dropzone
+              >
+                <div class="flex min-w-0 grow items-center gap-2.5">
+                  <div class="border-warning/20 bg-warning/10 text-warning flex size-8 shrink-0 items-center justify-center rounded-md border">
+                    <Icon name="boxicons:folder" size={18} />
+                  </div>
+                  <span class="label-title truncate text-sm font-semibold">
+                    Sin categoría
+                  </span>
                 </div>
-                <span class="text-sm font-semibold truncate label-title">Sin categoría</span>
+                <div class="ml-2 flex shrink-0 items-center gap-1.5">
+                  <span
+                    class="badge badge-sm badge-ghost count-badge font-mono"
+                    data-count={uncategorizedCount}
+                  >
+                    {uncategorizedCount}
+                  </span>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0 ml-2">
-                <span class="badge badge-sm badge-ghost font-mono count-badge" data-count={uncategorizedCount}>
-                  {uncategorizedCount}
-                </span>
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()
+        }
       </nav>
     </aside>
 
     <!-- Main Content Panel: Aplicativos -->
-    <main class="lg:col-span-3 flex flex-col gap-4">
-      <div class="bg-base-100 border border-base-300 rounded-box p-4 shadow-sm">
-        
+    <main class="flex flex-col gap-4 lg:col-span-3">
+      <div class="bg-base-100 border-base-300 rounded-box border p-4 shadow-sm">
         <!-- Header & Search -->
-        <div class="flex flex-col sm:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b border-base-200">
+        <div
+          class="border-base-200 mb-4 flex flex-col items-center justify-between gap-4 border-b pb-4 sm:flex-row"
+        >
           <div class="flex items-center gap-3">
-            <div id="active-category-icon-wrapper" class="flex items-center justify-center size-9 rounded-lg border text-primary bg-primary/10 border-primary/20">
-              <Icon id="active-category-icon" name="boxicons:folder" size={20} />
+            <div
+              id="active-category-icon-wrapper"
+              class="text-primary bg-primary/10 border-primary/20 flex size-9 items-center justify-center rounded-lg border"
+            >
+              <Icon
+                id="active-category-icon"
+                name="boxicons:folder"
+                size={20}
+              />
             </div>
             <div>
-              <h2 id="active-category-title" class="text-lg font-bold text-base-content font-sans">Cargando...</h2>
-              <p id="reorder-instructions" class="text-xs text-base-content/60">Arrastrá las filas para cambiar el orden de los aplicativos.</p>
+              <h2
+                id="active-category-title"
+                class="text-base-content font-sans text-lg font-bold"
+              >
+                Cargando...
+              </h2>
+              <p id="reorder-instructions" class="text-base-content/60 text-xs">
+                Arrastrá las filas para cambiar el orden de los aplicativos.
+              </p>
             </div>
           </div>
-          <div class="w-full sm:max-w-xs shrink-0">
+          <div class="w-full shrink-0 sm:max-w-xs">
             <SearchBar
               id="aplicativos-search"
               label="Buscar aplicativo"
@@ -283,43 +317,59 @@ const truncatePath = (filePath: string | null) => {
           rowGridClass={appsGridCols}
         >
           <Fragment slot="header">
-            <DataTableHeaderCell></DataTableHeaderCell>
+            <DataTableHeaderCell />
             <DataTableHeaderCell>Ícono</DataTableHeaderCell>
             <DataTableHeaderCell>Nombre</DataTableHeaderCell>
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
           </Fragment>
 
-          <div id="apps-container" class="divide-y divide-base-200">
+          <div id="apps-container" class="divide-base-200 divide-y">
             {
               allApps.length === 0 ? (
-                <div class="flex flex-col items-center gap-3 py-16 text-base-content/50" id="empty-state">
-                  <div class="rounded-full bg-base-200/40 p-4">
-                    <Icon name="boxicons:data" size={32} class="opacity-30" aria-hidden="true" />
+                <div
+                  class="text-base-content/50 flex flex-col items-center gap-3 py-16"
+                  id="empty-state"
+                >
+                  <div class="bg-base-200/40 rounded-full p-4">
+                    <Icon
+                      name="boxicons:data"
+                      size={32}
+                      class="opacity-30"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div class="space-y-1 text-center">
-                    <p class="text-sm font-semibold">No hay aplicativos registrados</p>
-                    <p class="text-xs">Comenzá cargando el primer aplicativo.</p>
+                    <p class="text-sm font-semibold">
+                      No hay aplicativos registrados
+                    </p>
+                    <p class="text-xs">
+                      Comenzá cargando el primer aplicativo.
+                    </p>
                   </div>
                 </div>
               ) : (
                 allApps.map((app) => (
                   <div
                     class:list={[
-                      "group grid items-center px-4 py-3 transition-colors hover:bg-base-200/30 app-row",
-                      appsGridCols
+                      "group hover:bg-base-200/30 app-row grid items-center px-4 py-3 transition-colors",
+                      appsGridCols,
                     ]}
                     data-table-row
                     data-app-row
                     data-app-id={app.id}
-                    data-app-category={(!app.categoryId || app.categoryId === uncategorizedDbId) ? "uncategorized" : app.categoryId}
+                    data-app-category={
+                      !app.categoryId || app.categoryId === uncategorizedDbId
+                        ? "uncategorized"
+                        : app.categoryId
+                    }
                     data-app-search={`${app.title} ${app.filePath || ""}`.toLowerCase()}
                     draggable="true"
                   >
-                    <div class="flex items-center justify-center text-base-content/30 cursor-grab active:cursor-grabbing hover:text-base-content/70 transition-colors drag-handle">
+                    <div class="text-base-content/30 hover:text-base-content/70 drag-handle flex cursor-grab items-center justify-center transition-colors active:cursor-grabbing">
                       <Icon name="boxicons:menu" size={20} />
                     </div>
 
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-base-300 bg-base-200 p-0.5">
+                    <div class="border-base-300 bg-base-200 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border p-0.5">
                       {app.iconPath ? (
                         <img
                           src={`${cleanBase}api/icons/${app.iconPath}`}
@@ -327,18 +377,28 @@ const truncatePath = (filePath: string | null) => {
                           class="h-full w-full object-contain"
                         />
                       ) : (
-                        <Icon name="boxicons:cube" class="h-5 w-5 text-base-content/40" />
+                        <Icon
+                          name="boxicons:cube"
+                          class="text-base-content/40 h-5 w-5"
+                        />
                       )}
                     </div>
 
-                    <div class="min-w-0 truncate font-semibold" title={app.title}>
-                      <span class="truncate" data-highlight-target>{app.title}</span>
+                    <div
+                      class="min-w-0 truncate font-semibold"
+                      title={app.title}
+                    >
+                      <span class="truncate" data-highlight-target>
+                        {app.title}
+                      </span>
                       {app.version && (
-                        <span class="ml-1 text-xs font-mono text-base-content/50">v{app.version}</span>
+                        <span class="text-base-content/50 ml-1 font-mono text-xs">
+                          v{app.version}
+                        </span>
                       )}
                     </div>
 
-                    <!-- Actions -->
+                    {/* Actions */}
                     <div class="flex items-center justify-end gap-2">
                       <ActionEditButton
                         href={resolveUrl(`/admin/aplicativos/edit/${app.id}`)}
@@ -346,7 +406,9 @@ const truncatePath = (filePath: string | null) => {
                       />
                       <form
                         method="POST"
-                        action={resolveUrl(`/admin/aplicativos/edit/${app.id}/eliminar`)}
+                        action={resolveUrl(
+                          `/admin/aplicativos/edit/${app.id}/eliminar`,
+                        )}
                         class="inline"
                         onsubmit="return confirm('¿Estás seguro de que deseas eliminar este aplicativo?');"
                       >
@@ -363,8 +425,11 @@ const truncatePath = (filePath: string | null) => {
         </DataTable>
 
         <!-- Category Empty State -->
-        <div id="category-empty-state" class="hidden flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200/40 p-4">
+        <div
+          id="category-empty-state"
+          class="text-base-content/50 hidden flex-col items-center gap-3 py-16"
+        >
+          <div class="bg-base-200/40 rounded-full p-4">
             <Icon name="boxicons:box" size={32} class="opacity-30" />
           </div>
           <div class="space-y-1 text-center">
@@ -393,27 +458,37 @@ const truncatePath = (filePath: string | null) => {
 
   // State
   let activeCategoryId = "";
-  
+
   // Elements
-  const categoryItems = Array.from(document.querySelectorAll<HTMLElement>(".category-item"));
-  const appRows = Array.from(document.querySelectorAll<HTMLElement>(".app-row"));
+  const categoryItems = Array.from(
+    document.querySelectorAll<HTMLElement>(".category-item"),
+  );
+  const appRows = Array.from(
+    document.querySelectorAll<HTMLElement>(".app-row"),
+  );
   const appsContainer = document.getElementById("apps-container");
-  const searchInput = document.querySelector<HTMLInputElement>("#aplicativos-search");
-  
-  const activeIconWrapper = document.getElementById("active-category-icon-wrapper");
+  const searchInput = document.querySelector<HTMLInputElement>(
+    "#aplicativos-search",
+  );
+
+  const activeIconWrapper = document.getElementById(
+    "active-category-icon-wrapper",
+  );
   const activeCategoryTitle = document.getElementById("active-category-title");
-  const btnAddApp = document.getElementById("btn-add-app") as HTMLAnchorElement | null;
+  const btnAddApp = document.getElementById(
+    "btn-add-app",
+  ) as HTMLAnchorElement | null;
   const generalEmptyState = document.getElementById("empty-state");
   const categoryEmptyState = document.getElementById("category-empty-state");
 
   // Selection Handler
   const selectCategory = (categoryId: string) => {
     activeCategoryId = categoryId;
-    
+
     // Update Category visual classes in sidebar
-    categoryItems.forEach(item => {
+    categoryItems.forEach((item) => {
       const isSelected = item.dataset.categoryId === categoryId;
-      
+
       item.classList.remove("bg-primary/5", "border-base-300", "shadow-sm");
       if (isSelected) {
         item.classList.add("bg-primary/5", "border-base-300", "shadow-sm");
@@ -423,11 +498,13 @@ const truncatePath = (filePath: string | null) => {
     });
 
     // Update Header
-    const selectedItem = categoryItems.find(item => item.dataset.categoryId === categoryId);
+    const selectedItem = categoryItems.find(
+      (item) => item.dataset.categoryId === categoryId,
+    );
     if (selectedItem && activeCategoryTitle && activeIconWrapper) {
       const title = selectedItem.dataset.categoryTitle || "";
       activeCategoryTitle.textContent = title;
-      
+
       const icon = selectedItem.querySelector("svg")?.cloneNode(true);
       const iconTarget = activeIconWrapper.querySelector("svg");
       if (icon && iconTarget) {
@@ -447,7 +524,7 @@ const truncatePath = (filePath: string | null) => {
     // Reorder instructions and drag handles display based on 'all'
     const isAll = categoryId === "all";
     const dragHandles = Array.from(document.querySelectorAll(".drag-handle"));
-    dragHandles.forEach(h => {
+    dragHandles.forEach((h) => {
       if (isAll) {
         h.classList.add("invisible", "pointer-events-none");
       } else {
@@ -464,8 +541,10 @@ const truncatePath = (filePath: string | null) => {
   };
 
   // Initialize original text for highlighting
-  const highlightTargets = Array.from(document.querySelectorAll<HTMLElement>("[data-highlight-target]"));
-  highlightTargets.forEach(el => {
+  const highlightTargets = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+  );
+  highlightTargets.forEach((el) => {
     el.dataset.originalText = el.textContent?.trim() || "";
   });
 
@@ -474,34 +553,44 @@ const truncatePath = (filePath: string | null) => {
     const query = searchInput?.value.trim().toLowerCase() || "";
     let visibleCount = 0;
 
-    appRows.forEach(row => {
+    appRows.forEach((row) => {
       const rowCategory = row.dataset.appCategory || "uncategorized";
       const searchContent = row.dataset.appSearch || "";
-      
-      const matchesCategory = activeCategoryId === "all" || rowCategory === activeCategoryId;
+
+      const matchesCategory =
+        activeCategoryId === "all" || rowCategory === activeCategoryId;
       const matchesSearch = query === "" || searchContent.includes(query);
       const isVisible = matchesCategory && matchesSearch;
 
       row.classList.toggle("hidden", !isVisible);
       if (isVisible) {
         visibleCount++;
-        
-        const targets = Array.from(row.querySelectorAll<HTMLElement>("[data-highlight-target]"));
-        targets.forEach(el => {
-          const original = el.dataset.originalText || el.textContent?.trim() || "";
+
+        const targets = Array.from(
+          row.querySelectorAll<HTMLElement>("[data-highlight-target]"),
+        );
+        targets.forEach((el) => {
+          const original =
+            el.dataset.originalText || el.textContent?.trim() || "";
           if (query === "") {
             el.textContent = original;
           } else {
-            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const escapedQuery = query.replace(
+              /[-\/\\^$*+?.()|[\]{}]/g,
+              "\\$&",
+            );
             const regex = new RegExp(`(${escapedQuery})`, "gi");
-            el.innerHTML = original.replace(regex, '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>');
+            el.innerHTML = original.replace(
+              regex,
+              '<mark class="bg-warning/30 text-warning-content rounded-sm px-0.5">$1</mark>',
+            );
           }
         });
       }
     });
 
     if (generalEmptyState) generalEmptyState.classList.add("hidden");
-    
+
     if (visibleCount === 0) {
       categoryEmptyState?.classList.remove("hidden");
       categoryEmptyState?.classList.add("flex");
@@ -512,7 +601,7 @@ const truncatePath = (filePath: string | null) => {
   };
 
   // Click on categories
-  categoryItems.forEach(item => {
+  categoryItems.forEach((item) => {
     item.addEventListener("click", () => {
       const id = item.dataset.categoryId;
       if (id) selectCategory(id);
@@ -530,7 +619,7 @@ const truncatePath = (filePath: string | null) => {
   // Drag & drop sorting
   let draggedRow: HTMLElement | null = null;
 
-  appRows.forEach(row => {
+  appRows.forEach((row) => {
     row.addEventListener("dragstart", (e) => {
       if (activeCategoryId === "all") {
         e.preventDefault();
@@ -576,7 +665,7 @@ const truncatePath = (filePath: string | null) => {
   });
 
   // Drag to Category
-  categoryItems.forEach(zone => {
+  categoryItems.forEach((zone) => {
     zone.addEventListener("dragover", (e) => {
       e.preventDefault();
       const targetCategoryId = zone.dataset.categoryId;
@@ -602,16 +691,19 @@ const truncatePath = (filePath: string | null) => {
 
       const appId = e.dataTransfer?.getData("text/plain");
       if (!appId || !targetCategoryId || !draggedRow) return;
-      
-      const sourceCategoryId = draggedRow.dataset.appCategory || "uncategorized";
+
+      const sourceCategoryId =
+        draggedRow.dataset.appCategory || "uncategorized";
       if (sourceCategoryId === targetCategoryId) return;
 
       draggedRow.dataset.appCategory = targetCategoryId;
       filterApps();
 
-      const sourceBadge = categoryItems.find(item => item.dataset.categoryId === sourceCategoryId)?.querySelector(".count-badge");
+      const sourceBadge = categoryItems
+        .find((item) => item.dataset.categoryId === sourceCategoryId)
+        ?.querySelector(".count-badge");
       const targetBadge = zone.querySelector(".count-badge");
-      
+
       if (sourceBadge) {
         const count = Math.max(0, parseInt(sourceBadge.textContent || "0") - 1);
         sourceBadge.textContent = String(count);
@@ -627,31 +719,36 @@ const truncatePath = (filePath: string | null) => {
 
   const saveReorderedApps = async () => {
     try {
-      const allRows = Array.from(document.querySelectorAll<HTMLElement>(".app-row"));
+      const allRows = Array.from(
+        document.querySelectorAll<HTMLElement>(".app-row"),
+      );
       const categoryGroups: Record<string, HTMLElement[]> = {};
-      
-      allRows.forEach(row => {
+
+      allRows.forEach((row) => {
         const catId = row.dataset.appCategory || "uncategorized";
         if (!categoryGroups[catId]) categoryGroups[catId] = [];
         categoryGroups[catId].push(row);
       });
 
       const items: any[] = [];
-      Object.keys(categoryGroups).forEach(catId => {
+      Object.keys(categoryGroups).forEach((catId) => {
         categoryGroups[catId].forEach((row, index) => {
           items.push({
             id: parseInt(row.dataset.appId || "0"),
             sortOrder: index * 10,
-            categoryId: catId
+            categoryId: catId,
           });
         });
       });
-      
-      const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder`, {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ items }),
-      });
+
+      const response = await fetch(
+        `${cleanBase}api/admin/aplicativos/reorder`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        },
+      );
 
       if (!response.ok) throw new Error("Error de red");
       showToast("Aplicativos sincronizados con éxito", "alert-success");
@@ -667,10 +764,12 @@ const truncatePath = (filePath: string | null) => {
   let draggedCategoryItem: HTMLElement | null = null;
 
   const categoryDragItems = Array.from(
-    document.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+    document.querySelectorAll<HTMLElement>(
+      ".category-item[data-category-dropzone]",
+    ),
   );
 
-  categoryDragItems.forEach(item => {
+  categoryDragItems.forEach((item) => {
     item.addEventListener("dragstart", (e) => {
       const catId = item.dataset.categoryId;
       if (catId === "all" || catId === "uncategorized") {
@@ -695,7 +794,13 @@ const truncatePath = (filePath: string | null) => {
       if (!draggedCategoryItem || draggedCategoryItem === item) return;
       const targetCatId = item.dataset.categoryId;
       const draggedCatId = draggedCategoryItem.dataset.categoryId;
-      if (targetCatId === "all" || targetCatId === "uncategorized" || draggedCatId === "all" || draggedCatId === "uncategorized") return;
+      if (
+        targetCatId === "all" ||
+        targetCatId === "uncategorized" ||
+        draggedCatId === "all" ||
+        draggedCatId === "uncategorized"
+      )
+        return;
 
       const bounding = item.getBoundingClientRect();
       const offset = e.clientY - bounding.top - bounding.height / 2;
@@ -722,13 +827,15 @@ const truncatePath = (filePath: string | null) => {
       if (!categoriesList) return;
 
       const categoryEls = Array.from(
-        categoriesList.querySelectorAll<HTMLElement>(".category-item[data-category-dropzone]")
+        categoriesList.querySelectorAll<HTMLElement>(
+          ".category-item[data-category-dropzone]",
+        ),
       );
 
       const items: { id: number; sortOrder: number }[] = [];
       let index = 0;
 
-      categoryEls.forEach(el => {
+      categoryEls.forEach((el) => {
         const catId = el.dataset.categoryId;
         if (catId === "all" || catId === "uncategorized") return;
         const id = parseInt(catId || "0");
@@ -739,11 +846,14 @@ const truncatePath = (filePath: string | null) => {
 
       if (items.length === 0) return;
 
-      const response = await fetch(`${cleanBase}api/admin/aplicativos/reorder-categorias`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
+      const response = await fetch(
+        `${cleanBase}api/admin/aplicativos/reorder-categorias`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        },
+      );
 
       if (!response.ok) throw new Error("Error de red");
       showToast("Categorías reordenadas con éxito", "alert-success");
@@ -763,6 +873,4 @@ const truncatePath = (filePath: string | null) => {
     const newUrl = window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
   }
-
-
 </script>

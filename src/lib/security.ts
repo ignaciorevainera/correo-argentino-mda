@@ -8,10 +8,17 @@ const pwdRegex = {
   hasNumber: /[0-9]/,
 };
 
-export const passwordSchema = z.string()
+export const passwordSchema = z
+  .string()
   .min(8, "La contraseña debe tener al menos 8 caracteres.")
-  .regex(pwdRegex.hasUpper, "La contraseña debe contener al menos una mayúscula.")
-  .regex(pwdRegex.hasLower, "La contraseña debe contener al menos una minúscula.")
+  .regex(
+    pwdRegex.hasUpper,
+    "La contraseña debe contener al menos una mayúscula.",
+  )
+  .regex(
+    pwdRegex.hasLower,
+    "La contraseña debe contener al menos una minúscula.",
+  )
   .regex(pwdRegex.hasNumber, "La contraseña debe contener al menos un número.");
 
 export const hashPassword = async (password: string): Promise<string> => {

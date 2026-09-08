@@ -1,4 +1,4 @@
-import type { OperatorData, WeekendOvertimeConfig } from './types';
+import type { OperatorData, WeekendOvertimeConfig } from "./types";
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
@@ -24,9 +24,13 @@ export interface CronogramaPayload {
   activeMonth?: string;
 }
 
-
-export async function fetchCronogramaFullData(month?: string): Promise<CronogramaPayload> {
-  if (typeof window !== 'undefined' && (window as any).__CRONOGRAMA_INITIAL_DATA__) {
+export async function fetchCronogramaFullData(
+  month?: string,
+): Promise<CronogramaPayload> {
+  if (
+    typeof window !== "undefined" &&
+    (window as any).__CRONOGRAMA_INITIAL_DATA__
+  ) {
     const data = (window as any).__CRONOGRAMA_INITIAL_DATA__;
     delete (window as any).__CRONOGRAMA_INITIAL_DATA__;
     if (Array.isArray(data)) {
@@ -34,11 +38,13 @@ export async function fetchCronogramaFullData(month?: string): Promise<Cronogram
     }
     return data as CronogramaPayload;
   }
-  const url = month ? `/api/cronograma?month=${month}` : '/api/cronograma';
+  const url = month ? `/api/cronograma?month=${month}` : "/api/cronograma";
   return fetchJSON<CronogramaPayload>(url);
 }
 
-export async function fetchCronogramaData(month?: string): Promise<OperatorData[]> {
+export async function fetchCronogramaData(
+  month?: string,
+): Promise<OperatorData[]> {
   const payload = await fetchCronogramaFullData(month);
   return payload.operators;
 }
@@ -56,31 +62,39 @@ export interface EditPayload {
 }
 
 export async function saveEdits(edits: EditPayload[]): Promise<void> {
-  await fetchJSON<void>('/api/cronograma', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetchJSON<void>("/api/cronograma", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ edits }),
   });
 }
 
-export async function fetchNotes(agentName: string): Promise<{ notes: string }> {
+export async function fetchNotes(
+  agentName: string,
+): Promise<{ notes: string }> {
   return fetchJSON<{ notes: string }>(
-    `/api/cronograma/notes?agentName=${encodeURIComponent(agentName)}`
+    `/api/cronograma/notes?agentName=${encodeURIComponent(agentName)}`,
   );
 }
 
-export async function saveNotes(agentName: string, notes: string): Promise<void> {
-  await fetchJSON<void>('/api/cronograma/notes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+export async function saveNotes(
+  agentName: string,
+  notes: string,
+): Promise<void> {
+  await fetchJSON<void>("/api/cronograma/notes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agentName, notes }),
   });
 }
 
-export async function saveLocation(agentName: string, location: string): Promise<void> {
-  await fetchJSON<void>('/api/cronograma/location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+export async function saveLocation(
+  agentName: string,
+  location: string,
+): Promise<void> {
+  await fetchJSON<void>("/api/cronograma/location", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agentName, location }),
   });
 }
@@ -88,11 +102,11 @@ export async function saveLocation(agentName: string, location: string): Promise
 export async function saveOperatorRules(
   agentName: string,
   minPWeek: number | null,
-  maxConsecutiveHO: number | null
+  maxConsecutiveHO: number | null,
 ): Promise<void> {
-  await fetchJSON<void>('/api/cronograma/rules', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetchJSON<void>("/api/cronograma/rules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ agentName, minPWeek, maxConsecutiveHO }),
   });
 }
@@ -106,41 +120,44 @@ export interface OperatorPayload {
 }
 
 export async function createOperator(operator: OperatorPayload): Promise<any> {
-  return fetchJSON<any>('/api/cronograma/operators', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return fetchJSON<any>("/api/cronograma/operators", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(operator),
   });
 }
 
-export async function editOperator(operator: Required<Pick<OperatorPayload, 'originalName' | 'name'>> & OperatorPayload): Promise<any> {
-  return fetchJSON<any>('/api/cronograma/operators', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+export async function editOperator(
+  operator: Required<Pick<OperatorPayload, "originalName" | "name">> &
+    OperatorPayload,
+): Promise<any> {
+  return fetchJSON<any>("/api/cronograma/operators", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(operator),
   });
 }
 
 export async function deleteOperator(name: string): Promise<any> {
-  return fetchJSON<any>('/api/cronograma/operators', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+  return fetchJSON<any>("/api/cronograma/operators", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
   });
 }
 
 export async function createMonth(year: number, month: number): Promise<void> {
-  await fetchJSON<void>('/api/cronograma/months', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetchJSON<void>("/api/cronograma/months", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ year, month }),
   });
 }
 
 export async function deleteMonth(year: number, month: number): Promise<void> {
-  await fetchJSON<void>('/api/cronograma/months', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+  await fetchJSON<void>("/api/cronograma/months", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ year, month }),
   });
 }
@@ -155,11 +172,11 @@ export interface WeeklySchedulePayload {
 
 export async function saveWeeklySchedules(
   weeklySchedules: WeeklySchedulePayload[],
-  edits?: EditPayload[]
+  edits?: EditPayload[],
 ): Promise<void> {
-  await fetchJSON<void>('/api/cronograma', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetchJSON<void>("/api/cronograma", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ weeklySchedules, edits }),
   });
 }

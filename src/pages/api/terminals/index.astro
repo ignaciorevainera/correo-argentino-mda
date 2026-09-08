@@ -1,6 +1,7 @@
 ---
 import TerminalRow from "@components/inventario/TerminalRow.astro";
-import { getTerminals } from "@lib/terminalQueries";
+import TerminalVmRow from "@components/inventario/TerminalVmRow.astro";
+import { getTerminals, getTTGroups } from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 
 const searchParams = Astro.url.searchParams;
@@ -14,31 +15,77 @@ const brand = searchParams.get("brand") || "all";
 const ram = searchParams.get("ram") || "all";
 const status = searchParams.get("status") || "all";
 const model = searchParams.get("model") || "all";
-const sortBy = (searchParams.get("sortBy") || undefined) as TerminalSortKey | undefined;
-const sortOrder = (searchParams.get("sortOrder") || undefined) as SortOrder | undefined;
+const sortBy = (searchParams.get("sortBy") || undefined) as
+  | TerminalSortKey
+  | undefined;
+const sortOrder = (searchParams.get("sortOrder") || undefined) as
+  | SortOrder
+  | undefined;
 const isMediterranea = searchParams.get("isMediterranea") === "true";
 const mediterraneaType = searchParams.get("mediterraneaType") || "all";
+const isTT = searchParams.get("isTT") === "true";
+const ttType = (searchParams.get("ttType") || "all") as
+  | "all"
+  | "tyt"
+  | "sts";
+const vmFilter = (searchParams.get("vmFilter") || "all") as
+  | "all"
+  | "with"
+  | "without";
+const duplicates = searchParams.get("duplicates") === "true";
+const orphans = searchParams.get("orphans") === "true";
 
-const { data: terminals, count, hasMore } = await getTerminals({
-  page,
-  limit,
-  search,
-  os,
-  osVariant,
-  architecture,
-  brand,
-  ram,
-  status,
-  model,
-  sortBy,
-  sortOrder,
-  isMediterranea,
-  mediterraneaType,
-});
+const ttResult = isTT
+  ? await getTTGroups({
+      page,
+      limit,
+      search,
+      status,
+      sortBy,
+      sortOrder,
+      ttType,
+      vmFilter,
+    })
+  : null;
+const regular = !isTT
+  ? await getTerminals({
+      page,
+      limit,
+      search,
+      os,
+      osVariant,
+      architecture,
+      brand,
+      ram,
+      status,
+      model,
+      sortBy,
+      sortOrder,
+      isMediterranea,
+      mediterraneaType,
+      duplicates,
+      orphans,
+    })
+  : null;
+
+const count = ttResult ? ttResult.count : regular!.count;
+const hasMore = ttResult ? ttResult.hasMore : regular!.hasMore;
 
 Astro.response.headers.set("X-Total-Count", count.toString());
 Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
 Astro.response.headers.set("Cache-Control", "private, max-age=300");
 ---
 
-{terminals.map((terminal) => <TerminalRow terminal={terminal} />)}
+{ttResult &&
+  ttResult.groups.map((group) => (
+    <>
+      <TerminalRow
+        terminal={group.displayPrimary}
+        pairState={group.pairState}
+        paired={!!group.vm}
+      />
+      {group.vm && <TerminalVmRow terminal={group.vm} base={group.base} />}
+    </>
+  ))}
+
+{regular && regular.data.map((terminal) => <TerminalRow terminal={terminal} />)}

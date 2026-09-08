@@ -22,10 +22,10 @@ export const POST = createDeleteHandler({
     await db.delete(applications).where(eq(applications.id, id));
     return existing as Record<string, unknown>;
   },
-  successMessage: (d) => d
-    ? `Aplicativo "${(d as any).title}" eliminado con éxito.`
-    : "Aplicativo eliminado con éxito.",
-  logMessage: (d) => d
-    ? `Eliminó el aplicativo "${(d as any).title}"`
-    : undefined,
+  successMessage: (d) =>
+    d
+      ? `Aplicativo "${(d as any).title}" eliminado con éxito.`
+      : "Aplicativo eliminado con éxito.",
+  logMessage: (d) =>
+    d ? `Eliminó el aplicativo "${(d as any).title}"` : undefined,
 });

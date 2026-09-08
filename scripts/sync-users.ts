@@ -16,7 +16,10 @@ const MIDPOINT_PASS = process.env.MIDPOINT_PASS || "";
 
 const STATUS_PATH = resolve("src/data/last-sync-users-status.json");
 
-async function writeSyncStatus(status: "success" | "error", errorDetail: string | null = null): Promise<void> {
+async function writeSyncStatus(
+  status: "success" | "error",
+  errorDetail: string | null = null,
+): Promise<void> {
   const data = {
     lastExecution: new Date().toISOString(),
     status,
@@ -31,16 +34,23 @@ async function writeSyncStatus(status: "success" | "error", errorDetail: string 
 
 async function syncUsers(): Promise<void> {
   const startTime = new Date();
-  console.log(`[SyncUsers] Sincronización iniciada: ${startTime.toISOString()}`);
+  console.log(
+    `[SyncUsers] Sincronización iniciada: ${startTime.toISOString()}`,
+  );
 
   // Load already-processed usernames from SQLite for resumability
   const existingUsers = await db
     .select({ username: employees.username })
     .from(employees);
   const processedUsernames = new Set(existingUsers.map((u) => u.username));
-  console.log(`[SyncUsers] Usuarios existentes en BD: ${processedUsernames.size}`);
+  console.log(
+    `[SyncUsers] Usuarios existentes en BD: ${processedUsernames.size}`,
+  );
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-startup-window", "--disable-gpu", "--silent"],
+  });
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -52,7 +62,9 @@ async function syncUsers(): Promise<void> {
     await page.fill('input[name="username"]', MIDPOINT_USER);
     await page.fill('input[name="password"]', MIDPOINT_PASS);
     await page.keyboard.press("Enter");
-    await page.waitForURL((url) => !url.toString().includes("/login"), { timeout: 30000 });
+    await page.waitForURL((url) => !url.toString().includes("/login"), {
+      timeout: 30000,
+    });
     console.log("[SyncUsers] Login completado.");
 
     // Navigate to users table
@@ -70,14 +82,16 @@ async function syncUsers(): Promise<void> {
 
       const rows = page.locator("tbody tr");
       const rowCount = await rows.count();
-      console.log(`[SyncUsers] Filas encontradas en página ${pageNum}: ${rowCount}`);
+      console.log(
+        `[SyncUsers] Filas encontradas en página ${pageNum}: ${rowCount}`,
+      );
 
       for (let i = 0; i < rowCount; i++) {
         const row = rows.nth(i);
 
         // Check if user is disabled
         const disabledIcon = row.locator(
-          'td.composited-icon [title*="deshabilitado"], td.composited-icon i.fa-ban.red'
+          'td.composited-icon [title*="deshabilitado"], td.composited-icon i.fa-ban.red',
         );
         const isDisabled = (await disabledIcon.count()) > 0;
 
@@ -90,8 +104,7 @@ async function syncUsers(): Promise<void> {
 
         if (isDisabled) {
           // Delete disabled user from SQLite
-          await db.delete(employees)
-            .where(eq(employees.username, username));
+          await db.delete(employees).where(eq(employees.username, username));
           totalDeleted++;
           console.log(`[SyncUsers] Eliminado (inhabilitado): ${username}`);
           continue;
@@ -120,7 +133,9 @@ async function syncUsers(): Promise<void> {
               if (!label) continue;
               const text = (label as HTMLElement).innerText;
               const val = row.querySelector(".prism-property-value");
-              const valText = val ? (val as HTMLElement).innerText.trim() : null;
+              const valText = val
+                ? (val as HTMLElement).innerText.trim()
+                : null;
 
               if (text.includes("Número de documento")) {
                 result.doc = valText;
@@ -166,7 +181,9 @@ async function syncUsers(): Promise<void> {
       }
 
       // Check for next page
-      const nextBtn = page.locator("xpath=//a[contains(@class, 'page-link') and normalize-space()='>']");
+      const nextBtn = page.locator(
+        "xpath=//a[contains(@class, 'page-link') and normalize-space()='>']",
+      );
       const nextBtnCount = await nextBtn.count();
 
       if (nextBtnCount === 0) {
@@ -175,7 +192,7 @@ async function syncUsers(): Promise<void> {
       }
 
       const isDisabled = await nextBtn.evaluate(
-        (node) => node.parentElement?.classList.contains("disabled") ?? false
+        (node) => node.parentElement?.classList.contains("disabled") ?? false,
       );
 
       if (isDisabled) {
@@ -191,7 +208,7 @@ async function syncUsers(): Promise<void> {
     const elapsed = ((Date.now() - startTime.getTime()) / 1000).toFixed(2);
     console.log(
       `[SyncUsers] Sincronización de MidPoint finalizada en ${elapsed}s. ` +
-      `Procesados: ${totalProcessed}, Eliminados: ${totalDeleted}`
+        `Procesados: ${totalProcessed}, Eliminados: ${totalDeleted}`,
     );
 
     // Sincronizar ubicaciones e invgateExists desde InvGate utilizando el servicio compartido

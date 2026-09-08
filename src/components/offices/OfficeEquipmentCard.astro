@@ -1,0 +1,109 @@
+---
+import { Icon } from "astro-icon/components";
+import CopyButton from "@components/ui/CopyButton.astro";
+import type { OfficeAsset, OfficeTerminal } from "@/types/offices";
+import {
+  assetColorByType,
+  assetIconByType,
+  assetLabelByType,
+} from "@lib/officeHelpers";
+import {
+  getTerminalColorClass,
+  getTerminalTypeLabel,
+} from "@lib/terminalHelpers";
+
+interface Props {
+  terminal?: OfficeTerminal;
+  asset?: OfficeAsset;
+  compact?: boolean;
+  isTelegrafia?: boolean;
+}
+
+const { terminal, asset, compact = false, isTelegrafia = false } = Astro.props;
+const isTerminal = Boolean(terminal);
+
+const iconClass = isTerminal
+  ? getTerminalColorClass(terminal!.operatingSystem, isTelegrafia)
+  : assetColorByType[asset!.type];
+const iconName = isTerminal
+  ? "boxicons:desktop-filled"
+  : assetIconByType[asset!.type] || "boxicons:info-circle";
+const typeLabel = isTerminal
+  ? getTerminalTypeLabel(terminal!.operatingSystem)
+  : assetLabelByType[asset!.type];
+const hostname = isTerminal ? terminal!.hostname : asset!.hostname;
+const ip = isTerminal ? terminal!.ipAddress : asset!.ip;
+const showHostname = compact && (isTerminal || asset!.type !== "printer");
+---
+
+{
+  compact ? (
+    <div class="office-equipment-card-compact border-base-300 bg-base-100 flex min-w-0 items-start gap-2.5 rounded-lg border p-2.5 shadow-sm">
+      <span
+        class:list={[
+          "inline-flex size-8 shrink-0 items-center justify-center rounded-lg border",
+          iconClass,
+        ]}
+        aria-hidden="true"
+      >
+        <Icon name={iconName} size={16} />
+      </span>
+      <div class="min-w-0 flex-1 space-y-1">
+        <p class="text-xxs text-base-content/60 truncate font-medium">
+          {typeLabel}
+        </p>
+        {showHostname && (
+          <p class="text-base-content truncate font-mono text-xs font-semibold">
+            {hostname}
+          </p>
+        )}
+        <div class="pt-0.5">
+          <CopyButton
+            value={ip}
+            variant="value"
+            monospace={true}
+            size="xs"
+            appearance="surface"
+            class="text-xxs font-medium"
+          />
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div class="border-base-300 bg-base-100 flex min-w-0 items-center gap-3 rounded-lg border p-3 shadow-sm transition-shadow hover:shadow-md">
+      <span
+        class:list={[
+          "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
+          iconClass,
+        ]}
+        aria-hidden="true"
+      >
+        <Icon name={iconName} size={18} />
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-xxs text-base-content/60 truncate font-medium">
+          {typeLabel}
+        </p>
+        <p class="text-base-content truncate font-mono text-xs font-semibold">
+          {hostname}
+        </p>
+      </div>
+      <div class="shrink-0 text-right">
+        <CopyButton
+          value={ip}
+          variant="value"
+          monospace={true}
+          size="xs"
+          appearance="surface"
+          class="text-xxs font-medium"
+        />
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .office-equipment-card-compact :global([data-copy-label]) {
+    font-size: 10px;
+  }
+</style>

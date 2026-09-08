@@ -10,10 +10,16 @@ export const POST: APIRoute = async ({ locals }) => {
   try {
     const success = await rejectRelease(locals.user.id);
     if (!success) {
-      return jsonError("No podés rechazar una solicitud que no te pertenece", 403);
+      return jsonError(
+        "No podés rechazar una solicitud que no te pertenece",
+        403,
+      );
     }
     return jsonResponse({ success: true });
   } catch (error: any) {
-    return jsonError(sanitizeError(error) || "Error al rechazar liberación", 500);
+    return jsonError(
+      sanitizeError(error) || "Error al rechazar liberación",
+      500,
+    );
   }
 };

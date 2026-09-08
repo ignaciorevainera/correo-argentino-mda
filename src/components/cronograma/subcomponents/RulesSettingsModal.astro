@@ -1,51 +1,127 @@
 ---
 import Modal from "@components/ui/Modal.astro";
 import FormField from "@components/ui/forms/FormField.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 ---
 
-<Modal id="rules-settings-modal" title="Parámetros del Cronograma" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="w-11/12">
+<Modal
+  id="rules-settings-modal"
+  title="Parámetros del Cronograma"
+  titleClass="font-black text-lg uppercase tracking-tight"
+  zIndex="z-200"
+  class="w-11/12"
+>
   <Fragment slot="content">
     <div class="space-y-6">
       <div class="form-control">
         <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Cobertura Presencial Mínima (%)</span>
-          <span class="label-text-alt font-black text-secondary text-sm" id="min-coverage-val">40%</span>
+          <span
+            class="label-text text-base-content/60 text-xs font-bold uppercase"
+            >Cobertura Presencial Mínima (%)</span
+          >
+          <span
+            class="label-text-alt text-secondary text-sm font-black"
+            id="min-coverage-val">40%</span
+          >
         </label>
-        <input type="range" id="min-coverage-input" min="0" max="100" value="40" class="range range-secondary range-xs" />
+        <input
+          type="range"
+          id="min-coverage-input"
+          min="0"
+          max="100"
+          value="40"
+          class="range range-secondary range-xs"
+        />
         <label class="label">
-          <span class="label-text-alt text-base-content/50">Si la presencialidad cae por debajo de este valor, el día se marcará en rojo.</span>
+          <span class="label-text-alt text-base-content/50"
+            >Si la presencialidad cae por debajo de este valor, el día se
+            marcará en rojo.</span
+          >
         </label>
       </div>
 
-      <FormField id="max-ho-input" name="max-ho-input" label="Límite HO Consecutivos" type="number" value="5" min="1" max="10" size="sm" helpText="Máximo de días seguidos de Home Office permitidos antes de generar alerta." />
+      <FormField
+        id="max-ho-input"
+        name="max-ho-input"
+        label="Límite HO Consecutivos"
+        type="number"
+        value="5"
+        min="1"
+        max="10"
+        size="sm"
+        helpText="Máximo de días seguidos de Home Office permitidos antes de generar alerta."
+      />
 
-      <FormField id="min-p-week-input" name="min-p-week-input" label="Días Presenciales Mínimos (Por Semana)" type="number" value="2" min="0" max="7" size="sm" helpText="Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila." />
+      <FormField
+        id="min-p-week-input"
+        name="min-p-week-input"
+        label="Días Presenciales Mínimos (Por Semana)"
+        type="number"
+        value="2"
+        min="0"
+        max="7"
+        size="sm"
+        helpText="Si el operador asiste menos de esta cantidad a la oficina en 7 días, se marcará la alerta en su fila."
+      />
 
-      <FormField id="max-license-overlap-input" name="max-license-overlap-input" label="Límite de Solapamiento de Licencias" type="number" value="2" min="1" max="10" size="sm" helpText="Número máximo de operadores permitidos de Licencia/Vacaciones el mismo día antes de marcar alerta." />
+      <FormField
+        id="max-license-overlap-input"
+        name="max-license-overlap-input"
+        label="Límite de Solapamiento de Licencias"
+        type="number"
+        value="2"
+        min="1"
+        max="10"
+        size="sm"
+        helpText="Número máximo de operadores permitidos de Licencia/Vacaciones el mismo día antes de marcar alerta."
+      />
     </div>
   </Fragment>
   <Fragment slot="actions">
     <div class="modal-action">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id="save-rules-btn" type="button">Guardar Reglas</button>
-      </form>
+      <div class="flex justify-end gap-2">
+        <ActionCancelButton
+          type="button"
+          label="Cancelar"
+          icon="boxicons:x-filled"
+          variant="error"
+          onclick="this.closest('dialog')?.close()"
+        />
+        <ActionConfirmButton
+          type="button"
+          id="save-rules-btn"
+          color="btn-secondary"
+          label="Guardar Reglas"
+          icon="boxicons:save-filled"
+        />
+      </div>
     </div>
   </Fragment>
 </Modal>
 
 <script>
-  import { state } from '../lib/state';
+  import { state } from "../lib/state";
 
-  const modal = document.getElementById('rules-settings-modal') as HTMLDialogElement | null;
-  const openBtn = document.getElementById('open-rules-settings');
-  const saveBtn = document.getElementById('save-rules-btn');
+  const modal = document.getElementById(
+    "rules-settings-modal",
+  ) as HTMLDialogElement | null;
+  const openBtn = document.getElementById("open-rules-settings");
+  const saveBtn = document.getElementById("save-rules-btn");
 
-  const minCovInput = document.getElementById('min-coverage-input') as HTMLInputElement | null;
-  const minCovVal = document.getElementById('min-coverage-val');
-  const maxHoInput = document.getElementById('max-ho-input') as HTMLInputElement | null;
-  const minPWeekInput = document.getElementById('min-p-week-input') as HTMLInputElement | null;
-  const maxLicenseOverlapInput = document.getElementById('max-license-overlap-input') as HTMLInputElement | null;
+  const minCovInput = document.getElementById(
+    "min-coverage-input",
+  ) as HTMLInputElement | null;
+  const minCovVal = document.getElementById("min-coverage-val");
+  const maxHoInput = document.getElementById(
+    "max-ho-input",
+  ) as HTMLInputElement | null;
+  const minPWeekInput = document.getElementById(
+    "min-p-week-input",
+  ) as HTMLInputElement | null;
+  const maxLicenseOverlapInput = document.getElementById(
+    "max-license-overlap-input",
+  ) as HTMLInputElement | null;
 
   const updateMinCovDisplay = (val: string) => {
     if (minCovVal) {
@@ -55,7 +131,7 @@ import FormField from "@components/ui/forms/FormField.astro";
     }
   };
 
-  openBtn?.addEventListener('click', () => {
+  openBtn?.addEventListener("click", () => {
     if (minCovInput) {
       minCovInput.value = state.minCoveragePercent.toString();
       updateMinCovDisplay(minCovInput.value);
@@ -72,11 +148,11 @@ import FormField from "@components/ui/forms/FormField.astro";
     modal?.showModal();
   });
 
-  minCovInput?.addEventListener('input', (e) => {
+  minCovInput?.addEventListener("input", (e) => {
     updateMinCovDisplay((e.target as HTMLInputElement).value);
   });
 
-  saveBtn?.addEventListener('click', () => {
+  saveBtn?.addEventListener("click", () => {
     if (minCovInput) {
       state.minCoveragePercent = parseInt(minCovInput.value, 10);
     }
@@ -90,6 +166,6 @@ import FormField from "@components/ui/forms/FormField.astro";
       state.maxLicenseOverlapLimit = parseInt(maxLicenseOverlapInput.value, 10);
     }
     modal?.close();
-    document.dispatchEvent(new CustomEvent('cronograma:rules-changed'));
+    document.dispatchEvent(new CustomEvent("cronograma:rules-changed"));
   });
 </script>

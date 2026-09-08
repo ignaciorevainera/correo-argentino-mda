@@ -1,0 +1,65 @@
+---
+import { Icon } from "astro-icon/components";
+import type { OfficeContact } from "@/types/offices";
+
+interface Props {
+  contacts: OfficeContact[];
+  dense?: boolean;
+}
+
+const { contacts, dense = false } = Astro.props;
+---
+
+<section class="min-w-0 space-y-3">
+  <h2
+    class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wide uppercase"
+  >
+    <Icon
+      name="boxicons:user-filled"
+      size={16}
+      class="text-secondary"
+      aria-hidden="true"
+    />
+    Contactos
+  </h2>
+
+  <div
+    class={dense
+      ? "grid gap-3"
+      : "grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3"}
+  >
+    {
+      contacts.map((contact) => (
+        <article class="border-base-300 bg-base-100/50 rounded-lg border p-3 shadow-sm">
+          <h3 class="text-base-content truncate text-sm font-semibold">
+            {contact.name}
+          </h3>
+          <div class="text-base-content/70 mt-3 space-y-2 text-xs">
+            {contact.timeSlot && (
+              <p class="flex items-center gap-2">
+                <Icon
+                  name="boxicons:clock-filled"
+                  size={14}
+                  class="text-base-content/50 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>{contact.timeSlot}</span>
+              </p>
+            )}
+            {contact.phone && (
+              <p class="flex items-center gap-2">
+                <Icon
+                  name="boxicons:phone-filled"
+                  size={14}
+                  class="text-base-content/50 shrink-0"
+                  aria-hidden="true"
+                />
+                <span class="font-mono">{contact.phone}</span>
+              </p>
+            )}
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>

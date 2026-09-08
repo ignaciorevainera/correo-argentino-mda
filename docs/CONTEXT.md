@@ -26,7 +26,7 @@ de operaciones logisticas y postales.
 
 ## Stack tecnologico
 
-- **Framework:** Astro v6 (output: `server` / SSR) con adaptador `@astrojs/node` standalone
+- **Framework:** Astro v7 (output: `server` / SSR) con adaptador `@astrojs/node` standalone
 - **Estilos:** Tailwind CSS v4 + DaisyUI v5
 - **Tipografia:** `Geist Variable` (UI) y `Geist Mono Variable` (datos tecnicos) via Fontsource
 - **Interactividad:** React islands via `@astrojs/react`, iconos con `astro-icon` + `@iconify-json/boxicons`, `theme-change` para toggle de tema
@@ -34,7 +34,7 @@ de operaciones logisticas y postales.
 - **Autenticacion:** Sesion cookie-based (HMAC firmada), middleware en `src/middleware.ts`
 - **RBAC:** 5 roles en jerarquia — `agent` < `referent` < `team_leader` < `supervisor` < `admin`
 - **Testing E2E:** Playwright (`tests/`), worker 1 serial, requiere dev server en localhost:4321
-- **Deploy:** PM2 con 3 procesos (Astro SSR, ping-worker, sync-legacy-inventory)
+- **Deploy:** PM2 con 5 procesos (Astro SSR, mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links)
 
 ### Dependencias principales
 
@@ -45,12 +45,18 @@ de operaciones logisticas y postales.
 ### Variables de entorno requeridas
 
 ```
-SESSION_SECRET          — 64-char hex para firmar cookies de sesion
-ENCRYPTION_KEY          — 32-char hex para AES-256-GCM de credenciales
-INVGATE_API_KEY         — API key de InvGate Service Management
-INVGATE_BASE_URL        — URL base de InvGate API
-INVGATE_API_USERNAME    — Usuario para autenticacion InvGate
-EXTERNAL_STORAGE_DIR    — Directorio raiz para archivos subidos (apps, iconos, PDFs)
+SESSION_SECRET              — 64-char hex para firmar cookies de sesion
+ENCRYPTION_KEY              — 32-char hex para AES-256-GCM de credenciales
+INVGATE_API_KEY             — API key de InvGate Service Management
+INVGATE_BASE_URL            — URL base de InvGate API
+INVGATE_API_USERNAME        — Usuario para autenticacion InvGate
+INVGATE_QA_API_KEY          — API key de InvGate QA (test environment)
+INVGATE_QA_BASE_URL         — URL base de InvGate QA (servidor separado)
+INVGATE_QA_API_USERNAME     — Usuario para autenticacion InvGate QA
+WISE_CX_API_KEY             — API key de Wise CX
+WISE_CX_BASE_URL            — URL base de Wise CX API
+WISE_CX_API_USER            — Usuario para autenticacion Wise CX
+EXTERNAL_STORAGE_DIR        — Directorio raiz para archivos subidos (apps, iconos, PDFs)
 ```
 
 Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
@@ -61,13 +67,13 @@ Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
 
 ### Roles (jerarquia ascendente)
 
-| Role          | Nivel | Acceso tipico                                   |
-| ------------- | ----- | ----------------------------------------------- |
-| `agent`       | 1     | Operador N1/N2, vistas operativas basicas       |
-| `referent`    | 2     | Referente, puede ver mas datos                  |
-| `team_leader` | 3     | Lider de equipo, gestion de operadores          |
-| `supervisor`  | 4     | Supervisor, paneles de supervision y calidad     |
-| `admin`       | 5     | Administracion completa, CRUD y auditoria       |
+| Role          | Nivel | Acceso tipico                                |
+| ------------- | ----- | -------------------------------------------- |
+| `agent`       | 1     | Operador N1/N2, vistas operativas basicas    |
+| `referent`    | 2     | Referente, puede ver mas datos               |
+| `team_leader` | 3     | Lider de equipo, gestion de operadores       |
+| `supervisor`  | 4     | Supervisor, paneles de supervision y calidad |
+| `admin`       | 5     | Administracion completa, CRUD y auditoria    |
 
 ### Mecanismos de control
 
@@ -87,9 +93,9 @@ Ver `docs/lessons.md` para el historial de errores y sus soluciones.
 ### 1. URL base — SIEMPRE usar `@lib/baseUrl`
 
 ```typescript
-import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl"
-const cleanBase = getCleanBase()     // con trailing slash: "/mda/"
-const baseNoSlash = getBaseNoSlash() // sin trailing slash: "/mda"
+import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
+const cleanBase = getCleanBase(); // con trailing slash: "/mda/"
+const baseNoSlash = getBaseNoSlash(); // sin trailing slash: "/mda"
 ```
 
 - `cleanBase` se concatena con `api/...` → `` `${cleanBase}api/oficinas` ``
@@ -100,8 +106,8 @@ const baseNoSlash = getBaseNoSlash() // sin trailing slash: "/mda"
 ### 2. Resolucion de URLs — `@lib/url.ts`
 
 ```typescript
-import { resolveUrl } from "@lib/url"
-resolveUrl("/oficinas") // → "/mda/oficinas"
+import { resolveUrl } from "@lib/url";
+resolveUrl("/oficinas"); // → "/mda/oficinas"
 ```
 
 Pasa URLs absolutas (http, mailto, tel) intactas.
@@ -118,9 +124,9 @@ Toda pagina de listado/contenido usa este patron:
 **Regla critica:** En componentes diferidos, `Astro.url.pathname` y `Astro.url.searchParams` apuntan a `/_server-islands/...` (pierden la URL real). Usar siempre los helpers de `@lib/navigation.ts`:
 
 ```typescript
-import { getResolvedPathname, getResolvedSearchParams } from "@lib/navigation"
-const resolvedPath = getResolvedPathname(Astro.request, Astro.url)
-const resolvedParams = getResolvedSearchParams(Astro.request, Astro.url)
+import { getResolvedPathname, getResolvedSearchParams } from "@lib/navigation";
+const resolvedPath = getResolvedPathname(Astro.request, Astro.url);
+const resolvedParams = getResolvedSearchParams(Astro.request, Astro.url);
 ```
 
 ### 4. Toast system
@@ -134,15 +140,17 @@ Los toasts se comunican via query params en redirects del servidor:
 `toast_type` admite: `success`, `error`, `warning`, `info`.
 
 En API routes, usar helpers de `@lib/api/`:
+
 ```typescript
-import { toastResponse } from "@lib/api/toastResponse"
-import { redirectWithToast } from "@lib/api/redirectWithToast"
+import { toastResponse } from "@lib/api/toastResponse";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
 ```
 
 En cliente:
+
 ```typescript
-import { showToast } from "@lib/toastClient"
-showToast("Mensaje", "success")
+import { showToast } from "@lib/toastClient";
+showToast("Mensaje", "success");
 ```
 
 ### 5. Auditoria en CRUDs
@@ -150,7 +158,7 @@ showToast("Mensaje", "success")
 Toda mutation admin DEBE llamar a `logAdminAction()` o `logAdminFromAstro()`:
 
 ```typescript
-import { logAdminAction, logAdminFromAstro } from "@lib/auditLogger"
+import { logAdminAction, logAdminFromAstro } from "@lib/auditLogger";
 ```
 
 Los templates de mensajes estan en `@lib/auditDictionary.ts`.
@@ -202,6 +210,15 @@ BaseLayout (flex flex-col min-h-screen)
 
 `PageHeader` resuelve el titulo automaticamente via `getSectionTitle()` + `getResolvedPathname()`.
 
+### 13. API routes (endpoints en `src/pages/api/`)
+
+- Devolver siempre `jsonResponse(data, status?)` / `jsonError(msg, status?)` desde `@lib/apiResponse`. En produccion envolver errores internos con `sanitizeError(err)` para no filtrar detalles.
+- Control de acceso: invocar `requireWriteAccess(locals, "modulo")` / `requireReadAccess(locals, "modulo")` desde `@lib/rbac-middleware`. Retorna `null` si OK, o un `Response` 401/403 si denegado — hacer `return denied` temprano.
+- El nombre de modulo (`"cronograma"`, `"asistencia"`, `"usuarios"`, `"asignacion_ag"`, etc.) debe coincidir con `getModulePermissions` en `src/lib/rbac.ts`.
+- Toda mutacion debe auditar con `logAdminFromAstro(locals, msg)` (`@lib/auditLogger`).
+- Reordenamiento masivo: usar `handleReorder(request, locals, table, auditMsg)` desde `@lib/reorderHandler` (ya hace transaccion + auditoria).
+- Escrituras batch: envolver en `db.transaction(tx => { ... })` de Drizzle. Validar siempre el body antes de tocar la DB.
+
 ---
 
 ## Sistema de diseno y UX aprobado
@@ -236,64 +253,64 @@ BaseLayout (flex flex-col min-h-screen)
 
 ### Vistas operativas
 
-| # | Ruta                        | Descripcion                                              |
-| - | --------------------------- | -------------------------------------------------------- |
-| 1 | `/`                         | Dashboard principal con acceso rapido por rol            |
-| 2 | `/titulos`                  | Tipificacion de tickets con copia rapida                 |
-| 3 | `/soportes`                 | Matriz de derivacion por tema y area de soporte          |
-| 4 | `/usuarios`                 | Busqueda de personal y validacion de usuarios            |
-| 5 | `/generador-firmas`         | Creador de firmas institucionales                        |
-| 6 | `/contactos`                | Directorio de numeros y correos utiles                   |
-| 7 | `/recursos`                 | Hub de accesos a recursos externos e internos            |
-| 8 | `/recursos/aplicativos`     | Catalogo de aplicativos con descargas                    |
-| 9 | `/oficinas`                 | Directorio de oficinas, activos de red y datos tecnicos  |
-| 10 | `/inventario-terminales`    | Consulta y estado del parque de terminales               |
+| #   | Ruta                     | Descripcion                                             |
+| --- | ------------------------ | ------------------------------------------------------- |
+| 1   | `/`                      | Dashboard principal con acceso rapido por rol           |
+| 2   | `/titulos`               | Tipificacion de tickets con copia rapida                |
+| 3   | `/mesas-de-ayuda`        | Matriz de derivacion por tema y area de soporte         |
+| 4   | `/buscador-usuarios`     | Busqueda de personal y validacion de usuarios           |
+| 5   | `/generador-firmas`      | Creador de firmas institucionales                       |
+| 6   | `/contactos`             | Directorio de numeros y correos utiles                  |
+| 7   | `/recursos`              | Hub de accesos a recursos externos e internos           |
+| 8   | `/recursos/aplicativos`  | Catalogo de aplicativos con descargas                   |
+| 9   | `/oficinas`              | Directorio de oficinas, activos de red y datos tecnicos |
+| 10  | `/inventario-terminales` | Consulta y estado del parque de terminales              |
 
 ### Supervision (sub-rutas)
 
-| Ruta                                   | Descripcion                                     |
-| -------------------------------------- | ----------------------------------------------- |
-| `/supervision`                         | Redirecciona al dashboard                       |
-| `/supervision/cronograma`              | Gestion de cronograma y horarios                |
-| `/supervision/asistencia`              | Control de asistencia y cumplimiento            |
-| `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones        |
-| `/supervision/calidad-operadores`      | Auditoria y puntuacion de calidad               |
+| Ruta                                    | Descripcion                             |
+| --------------------------------------- | --------------------------------------- |
+| `/supervision`                          | Redirecciona al dashboard               |
+| `/supervision/cronograma`               | Gestion de cronograma y horarios        |
+| `/supervision/asistencia`               | Control de asistencia y cumplimiento    |
+| `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones |
+| `/supervision/calidad-operadores`       | Auditoria y puntuacion de calidad       |
 
 ### Administracion (sub-rutas)
 
-| Ruta                       | Descripcion                               |
-| -------------------------- | ----------------------------------------- |
-| `/admin`                   | Dashboard admin con resumen de sistema    |
-| `/admin/usuarios`          | CRUD de usuarios del sistema              |
-| `/admin/contactos`         | CRUD de contactos y categorias            |
-| `/admin/recursos`          | CRUD de enlaces y categorias              |
-| `/admin/auditoria`         | Logs de auditoria                         |
-| `/admin/operadores`        | CRUD de operadores N1/N2                  |
-| `/admin/aplicativos`       | CRUD de aplicativos del catalogo          |
-| `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate            |
-| `/admin/feedback`          | Formulario de feedback                    |
+| Ruta                         | Descripcion                            |
+| ---------------------------- | -------------------------------------- |
+| `/admin`                     | Dashboard admin con resumen de sistema |
+| `/admin/usuarios`            | CRUD de usuarios del sistema           |
+| `/admin/contactos`           | CRUD de contactos y categorias         |
+| `/admin/recursos`            | CRUD de enlaces y categorias           |
+| `/admin/auditoria`           | Logs de auditoria                      |
+| `/admin/operadores`          | CRUD de operadores N1/N2               |
+| `/admin/aplicativos`         | CRUD de aplicativos del catalogo       |
+| `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate           |
+| `/admin/feedback`            | Formulario de feedback                 |
 
 ### Otras rutas
 
-| Ruta        | Descripcion                   |
-| ----------- | ----------------------------- |
-| `/login`    | Inicio de sesion              |
-| `/logout`   | Cierre de sesion              |
-| `/profile`  | Perfil de usuario             |
+| Ruta       | Descripcion       |
+| ---------- | ----------------- |
+| `/login`   | Inicio de sesion  |
+| `/logout`  | Cierre de sesion  |
+| `/profile` | Perfil de usuario |
 
 ---
 
 ## Estado actual del Header
 
-| Aspecto                          | Objetivo                                                                    | Estado actual                                | Gap        |
-| -------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------- | ---------- |
-| Rol estructural                  | Header critico para orientacion global y quick actions                      | Barra global unificada                       | Cerrado    |
-| Comportamiento base              | Sticky, delgado y minimamente invasivo                                      | Sticky + responsive activo                   | Cerrado    |
-| Zona izquierda                   | Nombre dinamico de ruta; oculto en mobile                                   | Titulo dinamico, oculto en mobile            | Cerrado    |
-| Zona derecha A (busqueda)        | Command palette con atajo Ctrl+K                                            | Modal operativo con Ctrl+K                   | Cerrado    |
-| Zona derecha B (preferencias)    | Toggle dark/light con icono dinamico                                        | Swap icon con persistencia                   | Cerrado    |
-| Zona derecha C (alertas/sistema) | Dialogo "Acerca del proyecto" con version y autores                         | Modal implementado                           | Cerrado    |
-| Jerarquia visual                 | Botones ghost, divisores, tokens semanticos light/dark                      | Estructura limpia con tokens                 | Cerrado    |
+| Aspecto                          | Objetivo                                               | Estado actual                     | Gap     |
+| -------------------------------- | ------------------------------------------------------ | --------------------------------- | ------- |
+| Rol estructural                  | Header critico para orientacion global y quick actions | Barra global unificada            | Cerrado |
+| Comportamiento base              | Sticky, delgado y minimamente invasivo                 | Sticky + responsive activo        | Cerrado |
+| Zona izquierda                   | Nombre dinamico de ruta; oculto en mobile              | Titulo dinamico, oculto en mobile | Cerrado |
+| Zona derecha A (busqueda)        | Command palette con atajo Ctrl+K                       | Modal operativo con Ctrl+K        | Cerrado |
+| Zona derecha B (preferencias)    | Toggle dark/light con icono dinamico                   | Swap icon con persistencia        | Cerrado |
+| Zona derecha C (alertas/sistema) | Dialogo "Acerca del proyecto" con version y autores    | Modal implementado                | Cerrado |
+| Jerarquia visual                 | Botones ghost, divisores, tokens semanticos light/dark | Estructura limpia con tokens      | Cerrado |
 
 ---
 
@@ -313,23 +330,25 @@ BaseLayout (flex flex-col min-h-screen)
 
 ### PM2 Ecosystem (`ecosystem.config.cjs`)
 
-| Proceso               | Puerto | Descripcion                                          |
-| --------------------- | ------ | ---------------------------------------------------- |
-| Astro SSR             | 4321   | Servidor principal (node dist/server/entry.mjs)      |
-| ping-worker           | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)  |
+| Proceso               | Puerto | Descripcion                                           |
+| --------------------- | ------ | ----------------------------------------------------- |
+| Astro SSR             | 4321   | Servidor principal (node dist/server/entry.mjs)       |
+| mda-ping-cubics       | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)   |
 | sync-legacy-inventory | —      | Sincroniza inventario de terminales desde PHP externo |
+| sync-users            | —      | Sincronizacion de empleados via MidPoint (cron 02:00) |
+| sync-office-links     | —      | Sincronizacion de enlaces de oficinas (cron 03:00)    |
 
 ### Scripts clave (`scripts/`)
 
-| Script                              | Descripcion                                          |
-| ----------------------------------- | ---------------------------------------------------- |
-| `auto-deploy.bat`                   | git pull → npm install → build → pm2 restart         |
-| `backup-db.bat`                     | Copia `database/mda.db` con timestamp                |
-| `ping-worker.ts`                    | Worker PM2 de ping a cubics                          |
-| `sync-legacy-inventory.ts`          | Worker PM2 de sincronizacion de inventario           |
-| `sync-users.ts`                     | Sincronizacion de empleados via MidPoint             |
-| `toggle-mode.ts`                    | Script de alternancia de tema light/dark             |
-| `migrate-users-mysql-to-sqlite.ts`  | Migracion one-shot MySQL → SQLite                    |
+| Script                     | Descripcion                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `auto-deploy.bat`          | git pull → pm2 kill → npm install → build (verify) → pm2 start |
+| `backup-db.bat`            | Copia `database/mda.db` con timestamp                     |
+| `verify-build.mjs`         | Guard post-build: valida `rootDir` en `dist/server/entry.mjs` |
+| `ping-worker.ts`           | Worker PM2 de ping a cubics                               |
+| `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario                |
+| `sync-users.ts`            | Sincronizacion de empleados via MidPoint                  |
+| `toggle-mode.ts`           | Script de alternancia de tema light/dark                  |
 
 ### Base de datos
 
@@ -340,7 +359,6 @@ BaseLayout (flex flex-col min-h-screen)
 - Conexion: `src/db/index.ts` via `better-sqlite3`
 - Despues de cambios de schema, ejecutar `npm run db:push`
 - Para explorar datos: `npm run db:studio`
-- Si hay desajuste de migraciones: `npx tsx scripts/fix-drizzle-mismatch.ts`
 
 ---
 
@@ -350,7 +368,7 @@ BaseLayout (flex flex-col min-h-screen)
 - Sistema de autenticacion con RBAC activo y middleware de sesion.
 - Base de datos SQLite con Drizzle ORM conectada y operativa.
 - Contrato del Header global completamente implementado y cerrado (sin gaps).
-- Infraestructura PM2 con 3 procesos activa en produccion.
+- Infraestructura PM2 con 5 procesos activa en produccion.
 - Testing E2E con Playwright disponible para validacion regresiva.
 - Convenciones de codigo documentadas en este archivo y en `docs/DESIGN.md`.
 - Errores historicos y sus soluciones registrados en `docs/lessons.md`.

@@ -3,16 +3,20 @@
 import Modal from "@components/ui/Modal.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 
 interface Props {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
 }
 
 const { mode } = Astro.props;
-const isEdit = mode === 'edit';
+const isEdit = mode === "edit";
 
 const dialogId = isEdit ? "edit-operator-modal" : "new-operator-modal";
-const titleIcon = isEdit ? "boxicons:edit-alt" : "boxicons:user-plus";
+const titleIcon = isEdit
+  ? "boxicons:edit-alt-filled"
+  : "boxicons:user-plus-filled";
 const titleText = isEdit ? "Editar Operador" : "Agregar Nuevo Operador";
 const confirmBtnId = isEdit ? "confirm-edit-op" : "confirm-new-op";
 const cancelBtnId = isEdit ? "cancel-edit-op" : "cancel-new-op";
@@ -22,13 +26,38 @@ const locationSelectId = isEdit ? "edit-op-location" : "new-op-location";
 const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
 ---
 
-<Modal id={dialogId} title={titleText} icon={titleIcon} titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-[200]" class="max-w-md">
+<Modal
+  id={dialogId}
+  title={titleText}
+  icon={titleIcon}
+  titleClass="font-black text-lg uppercase tracking-tight"
+  zIndex="z-[200]"
+  class="max-w-md"
+>
   <Fragment slot="content">
     {isEdit && <input type="hidden" id="edit-op-original-name" />}
     <div class="space-y-4">
-      <FormField id={nameInputId} name={nameInputId} label="Nombre Completo" placeholder="Ej: Juan Pérez" size="sm" />
-      <FormField id={usernameInputId} name={usernameInputId} label="Nombre de Usuario (Red)" placeholder="Ej: jperez" size="sm" inputClass="font-mono" />
-      <SelectField id={locationSelectId} name={locationSelectId} label="Sede Principal" size="sm">
+      <FormField
+        id={nameInputId}
+        name={nameInputId}
+        label="Nombre Completo"
+        placeholder="Ej: Juan Pérez"
+        size="sm"
+      />
+      <FormField
+        id={usernameInputId}
+        name={usernameInputId}
+        label="Nombre de Usuario (Red)"
+        placeholder="Ej: jperez"
+        size="sm"
+        inputClass="font-mono"
+      />
+      <SelectField
+        id={locationSelectId}
+        name={locationSelectId}
+        label="Sede Principal"
+        size="sm"
+      >
         <option value="Monte Grande">Monte Grande</option>
         <option value="Parque Patricios">Parque Patricios</option>
       </SelectField>
@@ -36,10 +65,20 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
   </Fragment>
   <Fragment slot="actions">
     <div class="modal-action mt-6 flex justify-end gap-2">
-      <form method="dialog" class="flex gap-2">
-        <button class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" id={cancelBtnId} type="button">Cancelar</button>
-        <button class="btn btn-sm btn-secondary text-xs font-black uppercase" id={confirmBtnId} type="button">{confirmBtnText}</button>
-      </form>
+      <ActionCancelButton
+        type="button"
+        id={cancelBtnId}
+        label="Cancelar"
+        icon="boxicons:x-filled"
+        variant="error"
+      />
+      <ActionConfirmButton
+        type="button"
+        id={confirmBtnId}
+        color="btn-secondary"
+        label={confirmBtnText}
+        icon="boxicons:check-filled"
+      />
     </div>
   </Fragment>
 </Modal>
@@ -49,26 +88,38 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
   import { showToast } from "../lib/notifications";
 
   // --- NEW OPERATOR LOGIC ---
-  const newModal = document.getElementById('new-operator-modal') as HTMLDialogElement | null;
+  const newModal = document.getElementById(
+    "new-operator-modal",
+  ) as HTMLDialogElement | null;
   if (newModal) {
-    const nameInput = document.getElementById('new-op-name') as HTMLInputElement | null;
-    const usernameInput = document.getElementById('new-op-username') as HTMLInputElement | null;
-    const locationSelect = document.getElementById('new-op-location') as HTMLSelectElement | null;
-    const confirmBtn = document.getElementById('confirm-new-op') as HTMLButtonElement | null;
-    const cancelBtn = document.getElementById('cancel-new-op') as HTMLButtonElement | null;
+    const nameInput = document.getElementById(
+      "new-op-name",
+    ) as HTMLInputElement | null;
+    const usernameInput = document.getElementById(
+      "new-op-username",
+    ) as HTMLInputElement | null;
+    const locationSelect = document.getElementById(
+      "new-op-location",
+    ) as HTMLSelectElement | null;
+    const confirmBtn = document.getElementById(
+      "confirm-new-op",
+    ) as HTMLButtonElement | null;
+    const cancelBtn = document.getElementById(
+      "cancel-new-op",
+    ) as HTMLButtonElement | null;
 
-    cancelBtn?.addEventListener('click', () => {
-      if (nameInput) nameInput.value = '';
-      if (usernameInput) usernameInput.value = '';
-      if (locationSelect) locationSelect.value = 'Monte Grande';
+    cancelBtn?.addEventListener("click", () => {
+      if (nameInput) nameInput.value = "";
+      if (usernameInput) usernameInput.value = "";
+      if (locationSelect) locationSelect.value = "Monte Grande";
       newModal.close();
     });
 
-    confirmBtn?.addEventListener('click', async () => {
+    confirmBtn?.addEventListener("click", async () => {
       const name = nameInput?.value?.trim();
-      const username = usernameInput?.value?.trim() || '';
-      const location = locationSelect?.value || 'Monte Grande';
-      const horarioDefault = '';
+      const username = usernameInput?.value?.trim() || "";
+      const location = locationSelect?.value || "Monte Grande";
+      const horarioDefault = "";
 
       if (!name) {
         showToast("El nombre completo es requerido.", "warning");
@@ -78,14 +129,17 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
       confirmBtn.disabled = true;
       try {
         await createOperator({ name, username, location, horarioDefault });
-        if (nameInput) nameInput.value = '';
-        if (usernameInput) usernameInput.value = '';
-        if (locationSelect) locationSelect.value = 'Monte Grande';
+        if (nameInput) nameInput.value = "";
+        if (usernameInput) usernameInput.value = "";
+        if (locationSelect) locationSelect.value = "Monte Grande";
         newModal.close();
-        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+        document.dispatchEvent(new CustomEvent("cronograma:data-changed"));
       } catch (err: unknown) {
         console.error("Error creating operator:", err);
-        const msg = err instanceof Error ? err.message : "Error al intentar crear operador.";
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Error al intentar crear operador.";
         showToast(msg, "error");
       } finally {
         confirmBtn.disabled = false;
@@ -94,25 +148,39 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
   }
 
   // --- EDIT OPERATOR LOGIC ---
-  const editModal = document.getElementById('edit-operator-modal') as HTMLDialogElement | null;
+  const editModal = document.getElementById(
+    "edit-operator-modal",
+  ) as HTMLDialogElement | null;
   if (editModal) {
-    const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement | null;
-    const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
-    const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
-    const locationSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
-    const confirmBtn = document.getElementById('confirm-edit-op') as HTMLButtonElement | null;
-    const cancelBtn = document.getElementById('cancel-edit-op') as HTMLButtonElement | null;
+    const originalNameInput = document.getElementById(
+      "edit-op-original-name",
+    ) as HTMLInputElement | null;
+    const nameInput = document.getElementById(
+      "edit-op-name",
+    ) as HTMLInputElement | null;
+    const usernameInput = document.getElementById(
+      "edit-op-username",
+    ) as HTMLInputElement | null;
+    const locationSelect = document.getElementById(
+      "edit-op-location",
+    ) as HTMLSelectElement | null;
+    const confirmBtn = document.getElementById(
+      "confirm-edit-op",
+    ) as HTMLButtonElement | null;
+    const cancelBtn = document.getElementById(
+      "cancel-edit-op",
+    ) as HTMLButtonElement | null;
 
-    cancelBtn?.addEventListener('click', () => {
+    cancelBtn?.addEventListener("click", () => {
       editModal.close();
     });
 
-    confirmBtn?.addEventListener('click', async () => {
+    confirmBtn?.addEventListener("click", async () => {
       const originalName = originalNameInput?.value?.trim();
       const name = nameInput?.value?.trim();
-      const username = usernameInput?.value?.trim() || '';
-      const location = locationSelect?.value || 'Monte Grande';
-      const horarioDefault = '';
+      const username = usernameInput?.value?.trim() || "";
+      const location = locationSelect?.value || "Monte Grande";
+      const horarioDefault = "";
 
       if (!name || !originalName) {
         showToast("El nombre completo es requerido.", "warning");
@@ -121,12 +189,21 @@ const confirmBtnText = isEdit ? "Guardar Cambios" : "Agregar Operador";
 
       confirmBtn.disabled = true;
       try {
-        await editOperator({ originalName, name, username, location, horarioDefault });
+        await editOperator({
+          originalName,
+          name,
+          username,
+          location,
+          horarioDefault,
+        });
         editModal.close();
-        document.dispatchEvent(new CustomEvent('cronograma:data-changed'));
+        document.dispatchEvent(new CustomEvent("cronograma:data-changed"));
       } catch (err: unknown) {
         console.error("Error editing operator:", err);
-        const msg = err instanceof Error ? err.message : "Error al intentar modificar operador.";
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Error al intentar modificar operador.";
         showToast(msg, "error");
       } finally {
         confirmBtn.disabled = false;

@@ -14,43 +14,56 @@ import NewMonthModal from "./subcomponents/NewMonthModal.astro";
 import OperatorFormModal from "./subcomponents/OperatorFormModal.astro";
 import HolidaysModal from "./subcomponents/HolidaysModal.astro";
 import GroupCard from "./subcomponents/GroupCard.astro";
-
+import CronoCardHeader from "./subcomponents/CronoCardHeader.astro";
+import CronoDatePicker from "./subcomponents/CronoDatePicker.astro";
+import { STATUS_FILTER_OPTIONS } from "./lib/filters";
 
 interface Props {
   userRole?: string;
+  currentUser?: { id?: number; username?: string; role?: string };
 }
 
-const { userRole = "agent" } = Astro.props;
+const { userRole = "agent", currentUser = Astro.locals.user } = Astro.props;
+const currentUsername = currentUser?.username
+  ? currentUser.username.toLowerCase()
+  : "";
+const currentUserId = currentUser?.id ? String(currentUser.id) : "";
 ---
 
-<div id="cronograma-app-container" data-user-role={userRole} class="flex-1 flex flex-col min-h-0 w-full">
+<div
+  id="cronograma-app-container"
+  data-user-role={userRole}
+  data-current-username={currentUsername}
+  data-current-user-id={currentUserId}
+  class="flex min-h-0 w-full flex-1 flex-col"
+>
   <div
     id="cronograma-container"
-    class="animate-in fade-in duration-700 w-full flex-1 flex flex-col min-h-0 pb-2"
+    class="animate-in fade-in scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-auto pb-2 duration-500"
   >
-    <div class="w-full flex-1 flex flex-col min-h-0 gap-4">
+    <div class="flex min-h-0 w-full flex-1 flex-col">
       <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        class="bg-base-100/95 sticky top-0 z-40 flex shrink-0 flex-col justify-between pb-4 backdrop-blur-sm md:flex-row md:items-center"
       >
         <div
           id="view-switcher"
-          class="flex flex-wrap items-center gap-3 shrink-0"
+          class="flex shrink-0 flex-wrap items-center gap-3"
         >
           <!-- Vistas de Calendario -->
           <div
-            class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0"
+            class="bg-base-200/60 border-base-300 flex shrink-0 rounded-xl border p-1 shadow-sm"
           >
             <button
               type="button"
               id="switch-to-monthly-btn"
-              class="btn btn-xs btn-secondary font-black uppercase tracking-widest text-tiny px-3.5 h-7 rounded-lg shadow-sm shadow-secondary/15 transition-all duration-200"
+              class="btn btn-xs btn-secondary text-tiny shadow-secondary/15 h-7 rounded-lg px-3.5 font-black tracking-widest uppercase shadow-sm transition-all duration-200"
             >
               Mensual
             </button>
             <button
               type="button"
               id="switch-to-daily-btn"
-              class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-tiny px-3.5 h-7 rounded-lg transition-all duration-200"
+              class="btn btn-xs btn-outline text-base-content/60 hover:bg-base-200/50 text-tiny h-7 rounded-lg border-transparent px-3.5 font-black tracking-widest uppercase"
             >
               Diario
             </button>
@@ -58,93 +71,66 @@ const { userRole = "agent" } = Astro.props;
 
           <!-- Vistas de Configuración y Turnos -->
           <div
-            class="flex bg-base-200/60 p-1 rounded-xl border border-base-300 shadow-sm shrink-0"
+            class="bg-base-200/60 border-base-300 flex shrink-0 rounded-xl border p-1 shadow-sm"
           >
             <button
               type="button"
               id="switch-to-groups-btn"
-              class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-tiny px-3.5 h-7 rounded-lg transition-all duration-200"
+              class="btn btn-xs btn-outline text-base-content/60 hover:bg-base-200/50 text-tiny h-7 rounded-lg border-transparent px-3.5 font-black tracking-widest uppercase"
             >
               Grupos
             </button>
             <button
               type="button"
               id="switch-to-overtime-btn"
-              class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-tiny px-3.5 h-7 rounded-lg transition-all duration-200"
+              class="btn btn-xs btn-outline text-base-content/60 hover:bg-base-200/50 text-tiny h-7 rounded-lg border-transparent px-3.5 font-black tracking-widest uppercase"
             >
               Extras
             </button>
             <button
               type="button"
               id="switch-to-pasiva-btn"
-              class="btn btn-xs btn-outline border-transparent text-base-content/60 hover:bg-base-200/50 font-black uppercase tracking-widest text-tiny px-3.5 h-7 rounded-lg transition-all duration-200"
+              class="btn btn-xs btn-outline text-base-content/60 hover:bg-base-200/50 text-tiny h-7 rounded-lg border-transparent px-3.5 font-black tracking-widest uppercase"
             >
               Pasivas
             </button>
           </div>
         </div>
 
-        <!-- Date Picker (hidden by default) -->
-        <div
+        <CronoDatePicker
           id="date-picker-container"
-          class="relative min-w-40 items-center gap-2.5 bg-base-100 px-4 py-2.5 rounded-xl border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 hidden is-faded"
-        >
-          <Icon
-            name="boxicons:calendar"
-            size={18}
-            class="text-base-content/40"
-          />
-          <label for="date-input" class="sr-only">Seleccionar fecha</label>
-          <span
-            id="date-input-display"
-            class="text-sm font-semibold tabular-nums text-base-content pointer-events-none"
-          >
-          </span>
-          <input
-            type="date"
-            id="date-input"
-            class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
-          />
-        </div>
+          displayId="date-input-display"
+          inputId="date-input"
+          variant="top"
+          minW="min-w-40"
+          class="hidden"
+        />
       </div>
 
       <!-- Daily View Section (Hidden by default) -->
-      <div
-        id="daily-view"
-        class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden flex-1 min-h-0"
-      >
+      <div id="daily-view" class="hidden min-h-0 flex-1">
         <div
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md h-full flex flex-col overflow-hidden"
+          class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden rounded-2xl border shadow-md"
         >
-          <div class="relative z-60 bg-base-200 border-b border-base-300">
+          <div class="bg-base-200 border-base-300 relative z-60 border-b">
             <div
-              class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6"
+              class="flex flex-col justify-between gap-3 px-6 py-3 lg:flex-row lg:items-center"
             >
-              <!-- Left: Title -->
-              <div class="flex items-center gap-3 shrink-0 flex-wrap">
-                <h3
-                  class="text-sm flex items-center gap-2.5 font-bold uppercase tracking-wide text-base-content select-none"
-                >
-                  <Icon name="boxicons:group" size={18} />
-                  Estado de operadores
-                </h3>
-              </div>
-
               <!-- Center: Search & Sort inputs -->
-              <div class="flex-1 max-w-md w-full mx-0 lg:mx-4 flex gap-2">
-                <SearchBar id="daily-search" />
+              <div class="mx-0 flex w-full max-w-xs flex-1 gap-2 lg:mx-4">
+                <SearchBar id="daily-search" class="min-w-48 flex-1" />
                 <SortDropdown id="daily-sort" current="alphabetical" />
               </div>
 
               <!-- Right: Date Display & Maximize button -->
               <div
-                class="flex flex-wrap items-center gap-2.5 justify-start lg:justify-end shrink-0"
+                class="flex shrink-0 flex-wrap items-center justify-start gap-2.5 lg:justify-end"
               >
                 <div
-                  class="flex items-center gap-2 bg-base-100 px-3.5 py-1 rounded-lg border border-base-300 shadow-sm text-base-content/75 h-7"
+                  class="bg-base-100 border-base-300 text-base-content/75 flex h-7 items-center gap-2 rounded-lg border px-3.5 py-1 shadow-sm"
                 >
                   <Icon
-                    name="boxicons:calendar-check"
+                    name="boxicons:calendar-check-filled"
                     size={16}
                     class="text-secondary"
                   />
@@ -157,66 +143,69 @@ const { userRole = "agent" } = Astro.props;
               </div>
             </div>
           </div>
-          <div class="p-3 flex-1 min-h-0 flex flex-col">
+          <div class="flex min-h-0 flex-1 flex-col p-1.5">
             <div
-              class="overflow-x-auto flex-1 min-h-0 overflow-y-auto scrollbar-thin rounded-xl border border-base-200 bg-base-100"
+              class="scrollbar-thin border-base-200 bg-base-100 min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border"
             >
               <!-- Simplified container skeleton -- removed by renderDaily() on first call -->
-              <div id="daily-view-skeleton" class="skeleton-debounced flex flex-col gap-2 p-4">
+              <div
+                id="daily-view-skeleton"
+                class="skeleton-debounced flex flex-col gap-2 p-4"
+              >
                 <div class="flex items-center gap-3">
-                  <div class="h-10 w-10 skeleton rounded-full shrink-0"></div>
-                  <div class="flex flex-col gap-1.5 flex-1">
-                    <div class="h-3.5 w-28 skeleton rounded"></div>
-                    <div class="h-2.5 w-16 skeleton rounded opacity-60"></div>
+                  <div class="skeleton h-10 w-10 shrink-0 rounded-full"></div>
+                  <div class="flex flex-1 flex-col gap-1.5">
+                    <div class="skeleton h-3.5 w-28 rounded"></div>
+                    <div class="skeleton h-2.5 w-16 rounded opacity-60"></div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3 opacity-70">
-                  <div class="h-10 w-10 skeleton rounded-full shrink-0"></div>
-                  <div class="flex flex-col gap-1.5 flex-1">
-                    <div class="h-3.5 w-32 skeleton rounded"></div>
-                    <div class="h-2.5 w-20 skeleton rounded opacity-60"></div>
+                  <div class="skeleton h-10 w-10 shrink-0 rounded-full"></div>
+                  <div class="flex flex-1 flex-col gap-1.5">
+                    <div class="skeleton h-3.5 w-32 rounded"></div>
+                    <div class="skeleton h-2.5 w-20 rounded opacity-60"></div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3 opacity-50">
-                  <div class="h-10 w-10 skeleton rounded-full shrink-0"></div>
-                  <div class="flex flex-col gap-1.5 flex-1">
-                    <div class="h-3.5 w-28 skeleton rounded"></div>
-                    <div class="h-2.5 w-18 skeleton rounded opacity-60"></div>
+                  <div class="skeleton h-10 w-10 shrink-0 rounded-full"></div>
+                  <div class="flex flex-1 flex-col gap-1.5">
+                    <div class="skeleton h-3.5 w-28 rounded"></div>
+                    <div class="skeleton h-2.5 w-18 rounded opacity-60"></div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3 opacity-70">
-                  <div class="h-10 w-10 skeleton rounded-full shrink-0"></div>
-                  <div class="flex flex-col gap-1.5 flex-1">
-                    <div class="h-3.5 w-32 skeleton rounded"></div>
-                    <div class="h-2.5 w-16 skeleton rounded opacity-60"></div>
+                  <div class="skeleton h-10 w-10 shrink-0 rounded-full"></div>
+                  <div class="flex flex-1 flex-col gap-1.5">
+                    <div class="skeleton h-3.5 w-32 rounded"></div>
+                    <div class="skeleton h-2.5 w-16 rounded opacity-60"></div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3 opacity-50">
-                  <div class="h-10 w-10 skeleton rounded-full shrink-0"></div>
-                  <div class="flex flex-col gap-1.5 flex-1">
-                    <div class="h-3.5 w-28 skeleton rounded"></div>
-                    <div class="h-2.5 w-20 skeleton rounded opacity-60"></div>
+                  <div class="skeleton h-10 w-10 shrink-0 rounded-full"></div>
+                  <div class="flex flex-1 flex-col gap-1.5">
+                    <div class="skeleton h-3.5 w-28 rounded"></div>
+                    <div class="skeleton h-2.5 w-20 rounded opacity-60"></div>
                   </div>
                 </div>
               </div>
               <table
-                class="w-full text-sm text-left border-separate border-spacing-0"
+                class="w-full border-separate border-spacing-0 text-left text-sm"
               >
                 <thead
-                  class="sticky top-0 z-50 bg-base-100/98 backdrop-blur-sm shadow-sm text-xs uppercase font-bold text-base-content/50 tracking-widest border-b border-base-300"
+                  class="bg-base-100/98 text-base-content/50 border-base-300 sticky top-0 z-50 border-b text-xs font-bold tracking-widest uppercase shadow-sm backdrop-blur-sm"
                 >
                   <tr>
                     <th
-                      class="sticky left-0 bg-base-100 z-50 w-64 min-w-[16rem] py-3 px-6 border-r border-b border-base-200/70"
+                      class="bg-base-100 border-base-200/70 sticky left-0 z-50 w-64 min-w-[16rem] border-r border-b px-6 py-3"
                       >Operador</th
                     >
                     <th
-                      class="sticky left-64 bg-base-100 z-50 w-44 min-w-44 py-3 px-4 border-r border-b border-base-200/70 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]"
+                      class="bg-base-100 border-base-200/70 sticky left-64 z-50 w-44 min-w-44 border-r border-b px-4 py-3 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]"
                       >Modalidad</th
                     >
-                    <th class="py-3 px-6 border-b border-base-200/70">
+                    <th class="border-base-200/70 border-b px-6 py-3">
                       <div
-                        class="flex justify-between w-full text-xxs font-black text-base-content/40 px-2 select-none"
+                        class="text-xxs text-base-content/40 flex w-full justify-between px-2 font-black select-none"
                       >
                         <span>00:00</span>
                         <span>02:00</span>
@@ -237,7 +226,7 @@ const { userRole = "agent" } = Astro.props;
                 </thead>
                 <tbody
                   id="operators-table-body"
-                  class="divide-y divide-base-200 bg-base-100"
+                  class="divide-base-200 bg-base-100 divide-y"
                 >
                 </tbody>
               </table>
@@ -245,19 +234,13 @@ const { userRole = "agent" } = Astro.props;
           </div>
           <!-- Daily View Footer / Status Filters -->
           <div
-            class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print"
+            class="bg-base-200/40 border-base-300 no-print flex shrink-0 flex-col items-start justify-between gap-3 border-t px-6 py-3 lg:min-h-16 lg:flex-row lg:items-center"
           >
             <div class="flex flex-wrap items-center gap-4">
               <!-- Status Filters -->
               <FilterButtonBar
                 id="filter-daily-status"
-                options={[
-                  { value: "Presencial Monte Grande", label: "Presencial MG", color: "primary", dotColor: "bg-amber-500" },
-                  { value: "Presencial Parque Patricios", label: "Presencial PP", color: "primary", dotColor: "bg-purple-500" },
-                  { value: "Home Office", label: "HO", color: "secondary", dotColor: "bg-secondary" },
-                  { value: "Licencia", label: "Licencia", color: "error", dotColor: "bg-error" },
-                  { value: "Vacaciones", label: "Vacaciones", color: "success", dotColor: "bg-success" },
-                ]}
+                options={STATUS_FILTER_OPTIONS}
                 prefix="Estado:"
                 allLabel="Todos"
                 attribute="data-filter"
@@ -268,8 +251,8 @@ const { userRole = "agent" } = Astro.props;
               <FilterButtonBar
                 id="filter-daily-location"
                 options={[
-                  { value: "Monte Grande", label: "Monte Grande" },
-                  { value: "Parque Patricios", label: "Parque Patricios" },
+                  { value: "Monte Grande", label: "MG" },
+                  { value: "Parque Patricios", label: "PP" },
                 ]}
                 prefix="Sede:"
                 allLabel="Todas"
@@ -281,21 +264,20 @@ const { userRole = "agent" } = Astro.props;
       </div>
 
       <!-- Monthly View Section (Shown by default) -->
-      <div
-        id="monthly-view"
-        class="animate-in slide-in-from-bottom-2 fade-in duration-500 flex-1 min-h-0"
-      >
+      <div id="monthly-view" class="min-h-0 flex-1">
         <div
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md h-full flex flex-col overflow-hidden"
+          class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden rounded-2xl border shadow-md"
         >
-          <div class="relative z-60 bg-base-200 border-b border-base-300">
+          <div
+            class="bg-base-200 border-base-300 relative z-60 shrink-0 border-b"
+          >
             <div
-              class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-3.5 px-6"
+              class="flex flex-col justify-between gap-3 px-6 py-3 lg:flex-row lg:items-center"
             >
               <!-- Left: Title, Navigation & Maximize button -->
-              <div class="flex items-center gap-3 shrink-0 flex-wrap">
+              <div class="flex shrink-0 flex-wrap items-center gap-3">
                 <!-- Month Navigator -->
-                <div class="flex items-center gap-1 ml-2">
+                <div class="ml-2 flex items-center gap-1">
                   <button
                     type="button"
                     id="prev-month-btn"
@@ -303,7 +285,7 @@ const { userRole = "agent" } = Astro.props;
                     title="Mes anterior"
                     aria-label="Mes anterior"
                   >
-                    <Icon name="boxicons:chevron-left" size={14} />
+                    <Icon name="boxicons:chevron-left-filled" size={14} />
                   </button>
                   <MonthSelect id="month-selector" />
                   <button
@@ -313,58 +295,93 @@ const { userRole = "agent" } = Astro.props;
                     title="Mes siguiente"
                     aria-label="Mes siguiente"
                   >
-                    <Icon name="boxicons:chevron-right" size={14} />
+                    <Icon name="boxicons:chevron-right-filled" size={14} />
                   </button>
                 </div>
 
                 <!-- Agregar nuevo mes -->
-                <ActionButton id="add-month-btn" icon="boxicons:calendar-plus" label="Agregar nuevo mes" title="Agregar nuevo mes" class="ml-2" />
+                <ActionButton
+                  id="add-month-btn"
+                  icon="boxicons:calendar-plus-filled"
+                  label="Agregar nuevo mes"
+                  title="Agregar nuevo mes"
+                  size="md"
+                  iconSize={18}
+                  class="ml-2 [&_span]:hidden xl:[&_span]:inline"
+                />
 
                 <!-- Borrar mes actual -->
-                <ActionButton id="delete-month-btn" icon="boxicons:calendar-minus" label="Borrar mes actual" title="Borrar mes actual" color="btn-error" class="ml-2" />
+                <ActionButton
+                  id="delete-month-btn"
+                  icon="boxicons:calendar-minus-filled"
+                  label="Borrar mes actual"
+                  title="Borrar mes actual"
+                  color="btn-error"
+                  size="md"
+                  iconSize={18}
+                  class="ml-2 [&_span]:hidden xl:[&_span]:inline"
+                />
               </div>
 
               <!-- Center: Search & Sort inputs -->
-              <div class="flex-1 max-w-md w-full mx-0 lg:mx-4 flex gap-2">
-                <SearchBar id="monthly-search" />
+              <div class="mx-0 flex w-full max-w-md flex-1 gap-2 lg:mx-4">
+                <SearchBar id="monthly-search" class="min-w-48 flex-1" />
                 <SortDropdown id="monthly-sort" current="alphabetical" />
               </div>
 
               <div
-                class="flex flex-wrap items-center gap-2.5 justify-start lg:justify-end shrink-0"
+                class="flex shrink-0 flex-wrap items-center justify-start gap-2.5 lg:justify-end"
               >
                 <!-- Edit Mode Button -->
-                <ActionButton id="toggle-edit-mode-btn" icon="boxicons:edit-alt" label="Editar" labelId="edit-mode-text" title="Modo Edición" />
+                <ActionButton
+                  id="toggle-edit-mode-btn"
+                  icon="boxicons:edit-alt-filled"
+                  label="Editar"
+                  labelId="edit-mode-text"
+                  title="Modo Edición"
+                  size="md"
+                  iconSize={18}
+                />
 
                 <!-- Maximize Button Removed -->
               </div>
             </div>
           </div>
-          <div class="p-3 flex-1 min-h-0 flex flex-col">
+          <div class="flex min-h-0 flex-1 flex-col p-1.5">
             <div
-              class="overflow-x-auto flex-1 min-h-0 overflow-y-auto scrollbar-thin rounded-xl border border-base-200 bg-base-100"
+              id="monthly-scroll-area"
+              class="scrollbar-thin border-base-200 bg-base-100 min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border"
             >
               <!-- Simplified container skeleton -- removed by renderMonthly() on first call -->
-              <div id="monthly-view-skeleton" class="skeleton-debounced flex flex-col gap-2 p-4">
-                <div class="h-8 w-full skeleton rounded-lg"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-70"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-50"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-70"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-50"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-70"></div>
-                <div class="h-12 w-full skeleton rounded-lg opacity-50"></div>
+              <div
+                id="monthly-view-skeleton"
+                class="skeleton-debounced flex flex-col gap-2 p-4"
+              >
+                <div class="skeleton h-8 w-full rounded-lg"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-70"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-50"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-70"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-50"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-70"></div>
+                <div class="skeleton h-12 w-full rounded-lg opacity-50"></div>
               </div>
               <table
-                class="w-full text-sm text-left border-separate border-spacing-0"
+                class="w-full border-separate border-spacing-0 text-left text-sm"
                 id="monthly-table"
               >
-                <thead class="bg-base-100" id="monthly-thead">
-                </thead>
-                <tbody id="monthly-tbody">
+                <thead class="bg-base-100" id="monthly-thead"> </thead>
+                <tbody id="monthly-tbody"> </tbody>
+                <!-- Invisible filler: JS sizes it so the coverage summary
+                     (tfoot) stays pinned to the bottom when there are few
+                     rows, without stretching data rows. -->
+                <tbody id="monthly-filler-row" aria-hidden="true">
+                  <tr>
+                    <td class="border-0 p-0"></td>
+                  </tr>
                 </tbody>
                 <tfoot
                   id="monthly-tfoot"
-                  class="sticky bottom-0 z-40 bg-base-100/95 backdrop-blur-md border-t-2 border-base-300"
+                  class="bg-base-100/95 border-base-300 sticky bottom-0 z-40 border-t-2 backdrop-blur-sm"
                 >
                   <!-- Coverage stats injected here -->
                 </tfoot>
@@ -372,19 +389,13 @@ const { userRole = "agent" } = Astro.props;
             </div>
           </div>
           <div
-            class="bg-base-200/40 border-t border-base-300 px-6 py-3 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 no-print"
+            class="bg-base-200/40 border-base-300 no-print flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 lg:min-h-16 lg:flex-row lg:items-center"
           >
             <div class="flex flex-wrap items-center gap-4">
               <!-- Status Filters Container -->
               <FilterButtonBar
                 id="filter-monthly-status"
-                options={[
-                  { value: "Presencial Monte Grande", label: "Presencial MG", color: "primary", dotColor: "bg-amber-500" },
-                  { value: "Presencial Parque Patricios", label: "Presencial PP", color: "primary", dotColor: "bg-purple-500" },
-                  { value: "Home Office", label: "HO", color: "secondary", dotColor: "bg-secondary" },
-                  { value: "Licencia", label: "Licencia", color: "error", dotColor: "bg-error" },
-                  { value: "Vacaciones", label: "Vacaciones", color: "success", dotColor: "bg-success" },
-                ]}
+                options={STATUS_FILTER_OPTIONS}
                 prefix="Estado:"
                 allLabel="Todos"
                 attribute="data-filter"
@@ -395,8 +406,8 @@ const { userRole = "agent" } = Astro.props;
               <FilterButtonBar
                 id="filter-monthly-location"
                 options={[
-                  { value: "Monte Grande", label: "Monte Grande" },
-                  { value: "Parque Patricios", label: "Parque Patricios" },
+                  { value: "Monte Grande", label: "MG" },
+                  { value: "Parque Patricios", label: "PP" },
                 ]}
                 prefix="Sede:"
                 allLabel="Todas"
@@ -404,7 +415,7 @@ const { userRole = "agent" } = Astro.props;
               />
             </div>
             <div
-              class="flex flex-wrap gap-2 justify-start xl:justify-end shrink-0"
+              class="flex shrink-0 flex-wrap justify-start gap-2 lg:justify-end"
             >
               <div class="relative">
                 <input
@@ -413,82 +424,79 @@ const { userRole = "agent" } = Astro.props;
                   accept=".csv"
                   class="hidden"
                 />
-                <ActionButton id="import-csv-btn" icon="boxicons:folder-up-arrow" label="Importar CSV" />
+                <ActionButton
+                  id="import-csv-btn"
+                  icon="boxicons:folder-up-arrow-filled"
+                  label="Importar CSV"
+                  shortLabel="I.CSV"
+                  title="Importar CSV"
+                  size="md"
+                  iconSize={18}
+                />
               </div>
-              <ActionButton id="export-csv-btn" icon="boxicons:file" label="Exportar CSV" />
-              <ActionButton id="export-image-btn" icon="boxicons:image" label="Exportar Imagen (PNG)" color="btn-primary" />
+              <ActionButton
+                id="export-csv-btn"
+                icon="boxicons:file-filled"
+                label="Exportar CSV"
+                shortLabel="E.CSV"
+                title="Exportar CSV"
+                size="md"
+                iconSize={18}
+              />
+              <ActionButton
+                id="export-image-btn"
+                icon="boxicons:image-filled"
+                label="Exportar Imagen (PNG)"
+                shortLabel="PNG"
+                title="Exportar Imagen (PNG)"
+                size="md"
+                iconSize={18}
+                color="btn-success"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <div
-        id="groups-view"
-        class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden"
-      >
+      <div id="groups-view" class="hidden">
         <div
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6"
+          class="bg-base-100 border-base-300 space-y-6 rounded-2xl border p-6 shadow-md"
         >
-          <div
-            class="flex items-center justify-between border-b border-base-300 pb-3"
+          <CronoCardHeader
+            icon="boxicons:group-filled"
+            title="Configuración de Grupos"
+            subtitle="Establece la rotación y horarios de sábados aplicados únicamente al mes seleccionado."
           >
-            <div>
-              <h2
-                class="text-base font-black text-base-content uppercase tracking-wide"
-              >
-                Configuración de Grupos
-              </h2>
-              <p class="text-xs text-base-content/50">
-                Establece la rotación y horarios de sábados aplicados únicamente
-                al mes seleccionado.
-              </p>
-            </div>
             <MonthSelect id="groups-month-selector" class="shrink-0" />
-          </div>
+          </CronoCardHeader>
           <!-- Configuration form -->
           <div
             id="rotation-config-card"
-            class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60 shadow-sm"
+            class="bg-base-200/50 border-base-300/60 flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm lg:flex-row lg:items-end"
           >
             <form
               id="rotation-config-form"
-              class="w-full flex flex-col md:flex-row md:items-end gap-4"
+              class="flex w-full flex-col gap-4 md:flex-row md:items-end"
             >
-              <div class="flex flex-col gap-1.5 shrink-0">
-                <label
-                  class="label-xxs text-base-content/40"
+              <div class="flex shrink-0 flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40"
                   >Fecha de Inicio (Sábado)</label
                 >
-                <div
+                <CronoDatePicker
                   id="rotation-start-date-wrapper"
-                  class="relative flex h-8 min-w-36 items-center gap-2 bg-base-100 px-3 py-1.5 rounded-lg border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 cursor-pointer"
-                >
-                  <Icon
-                    name="boxicons:calendar"
-                    size={14}
-                    class="text-base-content/40 pointer-events-none"
-                  />
-                  <span
-                    id="rotation-start-date-display"
-                    class="text-xs font-semibold tabular-nums text-base-content pointer-events-none"
-                    >dd/mm/yy</span
-                  >
-                  <input
-                    type="date"
-                    id="rotation-start-date"
-                    class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
-                    required
-                  />
-                </div>
+                  displayId="rotation-start-date-display"
+                  inputId="rotation-start-date"
+                  placeholder="dd/mm/yy"
+                  required
+                />
               </div>
-              <div class="flex flex-col gap-1.5 shrink-0">
-                <label
-                  class="label-xxs text-base-content/40"
+              <div class="flex shrink-0 flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40"
                   >Grupo Inicial</label
                 >
                 <select
                   id="rotation-start-group"
-                  class="select select-sm select-bordered font-bold cursor-pointer text-base-content"
+                  class="select select-sm select-bordered text-base-content cursor-pointer font-bold"
                   required
                 >
                   <option value="A">Grupo A</option>
@@ -497,32 +505,32 @@ const { userRole = "agent" } = Astro.props;
                   <option value="D">Grupo D</option>
                 </select>
               </div>
-              <div class="flex flex-col gap-1.5 flex-1">
-                <label
-                  class="label-xxs text-base-content/40"
+              <div class="flex flex-1 flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40"
                   >Orden de Rotación (Ej: A,B,C,D o D,C,B,A)</label
                 >
                 <input
                   type="text"
                   id="rotation-order"
-                  class="input input-sm input-bordered font-bold text-base-content"
+                  class="input input-sm input-bordered text-base-content font-bold"
                   placeholder="A,B,C,D"
                   required
                 />
               </div>
-              <button
+              <ActionButton
                 type="submit"
                 id="save-rotation-config-btn"
-                class="btn btn-sm btn-primary shrink-0 gap-1.5 uppercase font-bold text-xxs"
-              >
-                <Icon name="boxicons:save" size={14} />
-                Guardar Configuración
-              </button>
+                icon="boxicons:save-filled"
+                label="Guardar Configuración"
+                color="btn-primary"
+                size="md"
+                class="shrink-0"
+              />
             </form>
           </div>
 
           <!-- Groups Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             <GroupCard letter="A" color="success" />
             <GroupCard letter="B" color="error" />
             <GroupCard letter="C" color="warning" />
@@ -533,142 +541,105 @@ const { userRole = "agent" } = Astro.props;
         <!-- Saturday Rotation Timeline Card -->
         <div
           id="saturday-rotation-card"
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6 mt-6"
+          class="bg-base-100 border-base-300 mt-6 space-y-6 rounded-2xl border p-6 shadow-md"
         >
-          <div
-            class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+          <CronoCardHeader
+            icon="boxicons:calendar-filled"
+            title="Horarios de Guardia – Sábados 7 a 13"
+            subtitle="Línea de tiempo de guardias del grupo activo"
           >
-            <div class="flex items-center gap-3">
-              <div
-                class="w-8 h-8 rounded-xl bg-secondary/15 flex items-center justify-center"
+            <div class="no-export flex flex-col gap-1">
+              <span class="label-xxs text-base-content/40 select-none"
+                >&nbsp;</span
               >
-                <Icon
-                  name="boxicons:calendar"
-                  size={18}
-                  class="text-secondary"
-                />
-              </div>
-              <div>
-                <h2
-                  class="font-black text-sm uppercase tracking-wider text-base-content"
-                >
-                  Horarios de Guardia – Sábados 7 a 13
-                </h2>
-                <p class="text-small text-base-content/50">
-                  Línea de tiempo de guardias del grupo activo
-                </p>
-              </div>
+              <ActionButton
+                id="copy-rotation-image-btn"
+                icon="boxicons:clipboard-filled"
+                label="Copiar Tabla"
+                title="Copiar tabla de guardia al portapapeles como imagen"
+                size="md"
+                iconSize={18}
+                color="btn-secondary"
+              />
             </div>
 
-            <!-- Saturday selector + Active group display -->
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-              <!-- New Copy to Clipboard Button -->
-              <div class="flex flex-col gap-1 no-export">
-                <span class="label-xxs text-base-content/40 select-none">&nbsp;</span>
-                <button
-                  type="button"
-                  id="copy-rotation-image-btn"
-                  class="btn btn-sm btn-outline btn-secondary gap-2 h-8 min-h-8 px-3 cursor-pointer"
-                  title="Copiar tabla de guardia al portapapeles como imagen"
-                >
-                  <Icon name="boxicons:clipboard" size={14} />
-                  <span>Copiar Tabla</span>
-                </button>
-              </div>
+            <div class="flex flex-col gap-1">
+              <label class="label-xxs text-base-content/40"
+                >Sábado de Guardia</label
+              >
+              <CronoDatePicker
+                id="rotation-timeline-date-wrapper"
+                displayId="rotation-timeline-date-display"
+                inputId="rotation-timeline-date"
+                placeholder="Seleccionar sábado..."
+                minW="min-w-44"
+              />
+            </div>
 
-              <div class="flex flex-col gap-1">
-                <label
-                  class="label-xxs text-base-content/40"
-                  >Sábado de Guardia</label
-                >
-                <div
-                  id="rotation-timeline-date-wrapper"
-                  class="relative flex h-8 min-w-44 items-center gap-2 bg-base-100 px-3 py-1.5 rounded-lg border border-base-300 shadow-sm hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20 cursor-pointer"
-                >
-                  <Icon
-                    name="boxicons:calendar"
-                    size={14}
-                    class="text-base-content/40 pointer-events-none"
-                  />
-                  <span
-                    id="rotation-timeline-date-display"
-                    class="text-xs font-semibold tabular-nums text-base-content pointer-events-none"
-                    >Seleccionar sábado...</span
-                  >
-                  <input
-                    type="date"
-                    id="rotation-timeline-date"
-                    class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
-                  />
-                </div>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <label
-                  class="label-xxs text-base-content/40"
-                  >Grupo Activo</label
-                >
-                <div
-                  class="flex h-8 items-center px-3 py-1.5 rounded-lg bg-secondary/10 border border-secondary/20 font-bold text-xs text-secondary shadow-sm select-none"
-                  id="rotation-active-group-display"
-                >
-                  Grupo -
-                </div>
+            <div class="flex flex-col gap-1">
+              <label class="label-xxs text-base-content/40"
+                >Grupo Activo</label
+              >
+              <div
+                class="bg-secondary/10 border-secondary/20 text-secondary flex h-8 items-center rounded-lg border px-3 py-1.5 text-xs font-bold shadow-sm select-none"
+                id="rotation-active-group-display"
+              >
+                Grupo -
               </div>
             </div>
-          </div>
+          </CronoCardHeader>
 
           <!-- Visual timeline grid -->
           <div class="space-y-2">
             <div
               id="rotation-timeline-wrapper"
-              class="overflow-x-auto rounded-xl border border-base-300 bg-base-200/30"
+              class="border-base-300 bg-base-200/30 overflow-x-auto rounded-xl border"
             >
               <table
-                class="table table-compact w-full min-w-[600px] border-collapse"
+                class="table-compact table w-full min-w-150 table-fixed border-collapse"
                 id="rotation-timeline-table"
               >
                 <thead>
-                  <tr class="bg-base-200/60 border-b border-base-300">
+                  <tr class="bg-base-200/60 border-base-300 border-b">
                     <th
-                      class="w-44 px-3 py-2 label-xxs text-base-content/40 border-r border-base-300 text-left"
+                      class="text-base-content/80 border-base-300 w-44 border-r px-3 py-2.5 text-left text-xs font-bold tracking-wider uppercase"
                     >
                       Operador
                     </th>
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 border-r border-base-300 text-center w-24"
+                      class="text-base-content/80 border-base-300 w-24 border-r px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >7:00 hs</th
                     >
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 border-r border-base-300 text-center w-24"
+                      class="text-base-content/80 border-base-300 w-24 border-r px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >8:00 hs</th
                     >
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 border-r border-base-300 text-center w-24"
+                      class="text-base-content/80 border-base-300 w-24 border-r px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >9:00 hs</th
                     >
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 border-r border-base-300 text-center w-24"
+                      class="text-base-content/80 border-base-300 w-24 border-r px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >10:00 hs</th
                     >
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 border-r border-base-300 text-center w-24"
+                      class="text-base-content/80 border-base-300 w-24 border-r px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >11:00 hs</th
                     >
                     <th
-                      class="px-2 py-2 label-xxs text-base-content/40 text-center w-24"
+                      class="text-base-content/80 w-24 px-2 py-2.5 text-center text-xs font-bold tracking-wide"
                       >12:00 hs</th
                     >
                   </tr>
                 </thead>
                 <tbody
                   id="rotation-timeline-body"
-                  class="divide-y divide-base-300/40"
+                  class="divide-base-300/40 divide-y"
                 >
                   <tr>
                     <td
                       colspan="7"
-                      class="text-center py-8 text-xs text-base-content/30 font-bold uppercase tracking-wider"
+                      class="text-base-content/30 py-8 text-center text-xs font-bold tracking-wider uppercase"
                     >
                       Seleccioná un sábado para ver la línea de tiempo
                     </td>
@@ -679,303 +650,274 @@ const { userRole = "agent" } = Astro.props;
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- ===== OVERTIME VIEW ===== -->
-  <div
-    id="overtime-view"
-    class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden"
-  >
-    <div
-      id="overtime-card"
-      class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 space-y-6"
-    >
-      <!-- Header -->
-      <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
-      >
-        <div class="flex items-center gap-3">
+      <!-- ===== OVERTIME VIEW ===== -->
+      <div id="overtime-view" class="hidden">
+        <div
+          id="overtime-card"
+          class="bg-base-100 border-base-300 space-y-6 rounded-2xl border p-6 shadow-md"
+        >
+          <CronoCardHeader
+            icon="boxicons:clock-5-filled"
+            title="Horas Extras – Fin de Semana"
+            subtitle="Sábado y Domingo — 24 hs"
+            iconBg="bg-warning/15"
+            iconColor="text-warning"
+          />
+
+          <!-- Weekend selector + referente config -->
           <div
-            class="w-8 h-8 rounded-xl bg-warning/15 flex items-center justify-center"
+            class="bg-base-200/50 border-base-300/60 flex flex-col justify-between gap-4 rounded-xl border p-4 lg:flex-row lg:items-end"
           >
-            <Icon name="boxicons:clock-5" size={18} class="text-warning" />
-          </div>
-          <div>
-            <h2
-              class="font-black text-sm uppercase tracking-wider text-base-content"
+            <div
+              class="flex flex-1 flex-col items-start gap-3 sm:flex-row sm:items-end"
             >
-              Horas Extras – Fin de Semana
-            </h2>
-            <p class="text-small text-base-content/50">
-              Sábado 13:00 hs hasta el fin del Domingo
+              <div class="flex shrink-0 flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40"
+                  >Fin de Semana</label
+                >
+                <button
+                  type="button"
+                  id="preview-month-btn"
+                  class="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 text-base-content w-56 justify-between font-bold shadow-sm"
+                  title="Seleccionar fin de semana..."
+                >
+                  <span class="flex min-w-0 items-center gap-2">
+                    <Icon
+                      name="boxicons:calendar-filled"
+                      size={14}
+                      class="text-warning shrink-0"
+                    />
+                    <span
+                      id="overtime-weekend-date-display"
+                      class="truncate text-xs tabular-nums"
+                      >Seleccionar fin de semana...</span
+                    >
+                  </span>
+                  <Icon
+                    name="boxicons:chevron-down-filled"
+                    size={14}
+                    class="text-base-content/40 shrink-0"
+                  />
+                </button>
+              </div>
+
+              <div class="flex min-w-40 flex-col gap-1.5">
+                <label class="label-xxs text-base-content/40">Referente</label>
+                <select
+                  id="overtime-referente-select"
+                  class="select select-sm select-bordered text-base-content w-full cursor-pointer font-bold"
+                >
+                  <option value="">Sin asignar</option>
+                </select>
+                <span
+                  id="overtime-referente-text"
+                  class="text-base-content bg-base-200/50 border-base-300 flex hidden min-h-9 items-center rounded-xl border px-3 py-2 text-xs font-bold"
+                ></span>
+              </div>
+            </div>
+
+            <div class="flex shrink-0 items-end gap-2">
+              <ActionButton
+                id="copy-overtime-image-btn"
+                icon="boxicons:clipboard-filled"
+                label="Copiar Tabla"
+                title="Copiar horas extras al portapapeles como imagen"
+                size="md"
+                iconSize={18}
+                color="btn-secondary"
+                class="no-export shrink-0"
+              />
+
+              <ActionButton
+                type="button"
+                id="save-overtime-referente-btn"
+                icon="boxicons:save-filled"
+                label="Guardar Configuración"
+                color="btn-warning"
+                size="md"
+                class="no-export shrink-0"
+              />
+            </div>
+          </div>
+
+          <!-- Visual timeline -->
+          <div class="space-y-2">
+            <p class="label-xxs text-base-content/40">
+              Línea de Tiempo del Fin de Semana
             </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Weekend selector + referente config -->
-      <div
-        class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 p-4 bg-base-200/50 rounded-xl border border-base-300/60"
-      >
-        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3 flex-1">
-          <div class="flex flex-col gap-1.5 shrink-0">
-            <label class="label-xxs text-base-content/40">Fin de Semana</label>
-            <button
-              type="button"
-              id="preview-month-btn"
-              class="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 text-base-content justify-between w-56 font-bold shadow-sm"
-              title="Seleccionar fin de semana..."
-            >
-              <span class="flex items-center gap-2 min-w-0">
-                <Icon name="boxicons:calendar" size={14} class="text-warning shrink-0" />
-                <span id="overtime-weekend-date-display" class="tabular-nums truncate text-xs">Seleccionar fin de semana...</span>
-              </span>
-              <Icon name="boxicons:chevron-down" size={14} class="text-base-content/40 shrink-0" />
-            </button>
-          </div>
-
-          <div class="flex flex-col gap-1.5 min-w-40">
-            <label
-              class="label-xxs text-base-content/40"
-              >Referente</label
-            >
-            <select
-              id="overtime-referente-select"
-              class="select select-sm select-bordered font-bold cursor-pointer text-base-content w-full"
-            >
-              <option value="">Sin asignar</option>
-            </select>
-            <span
-              id="overtime-referente-text"
-              class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
-            ></span>
-          </div>
-        </div>
-
-        <div class="flex items-end gap-2 shrink-0">
-          <button
-            type="button"
-            id="copy-overtime-image-btn"
-            class="btn btn-sm btn-ghost shrink-0 gap-1.5 font-bold no-export cursor-pointer"
-            title="Copiar horas extras al portapapeles como imagen"
-          >
-            <Icon name="boxicons:clipboard" size={14} />
-            Copiar Tabla
-          </button>
-
-          <button
-            type="button"
-            id="save-overtime-referente-btn"
-            class="btn btn-sm btn-warning shrink-0 gap-1.5 font-bold no-export"
-          >
-            <Icon name="boxicons:save" size={14} />
-            Guardar Configuración
-          </button>
-        </div>
-      </div>
-
-      <!-- Visual timeline -->
-      <div class="space-y-2">
-        <p
-          class="label-xxs text-base-content/40"
-        >
-          Línea de Tiempo del Fin de Semana
-        </p>
-        <div
-          id="overtime-timeline-wrapper"
-          class="relative overflow-x-auto rounded-xl border border-base-300 bg-base-200/30 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          <!-- Time header labels row -->
-          <div
-            id="overtime-timeline-header"
-            class="flex min-w-[1200px] border-b border-base-300 bg-base-200/60"
-          >
             <div
-              class="w-36 shrink-0 px-3 py-2 label-xxs text-base-content/40 border-r border-base-300"
+              id="overtime-timeline-wrapper"
+              class="border-base-300 bg-base-200/30 scrollbar-thin relative overflow-x-auto rounded-xl border pb-1"
             >
-              Operador
-            </div>
-            <div id="overtime-timeline-hours" class="flex flex-1 relative">
-              <!-- JS renders hour labels here -->
-            </div>
-          </div>
-          <!-- Timeline body -->
-          <div
-            id="overtime-timeline-body"
-            class="min-w-[1200px] divide-y divide-base-300/40"
-          >
-            <div
-              id="overtime-timeline-placeholder"
-              class="flex items-center justify-center py-12 text-base-content/30 text-xs font-bold uppercase tracking-wider gap-2"
-            >
-              <Icon name="boxicons:calendar-x" size={20} />
-              Seleccioná un sábado para ver la línea de tiempo
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Gestión de Turnos (form + lista side-by-side) -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 no-export">
-        <!-- Columna 1: Formulario -->
-        <div class="bg-base-200/40 rounded-xl border border-base-300/60 p-4 space-y-4 self-start">
-          <p class="text-xxs font-black uppercase tracking-wider text-base-content/50 pb-2 border-b border-base-300/50">
-            Gestión de Turnos
-          </p>
-          <form id="overtime-shift-form" class="flex flex-col gap-3">
-            <div class="flex flex-col gap-1.5">
-              <label class="label-xxs text-base-content/40">Operador</label>
-              <select id="overtime-shift-agent" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
-                <option value="">Seleccionar operador...</option>
-              </select>
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <label class="label-xxs text-base-content/40">Día</label>
-              <select id="overtime-shift-day" class="select select-sm select-bordered font-bold cursor-pointer text-base-content" required>
-                <option value="saturday">Sábado (tarde)</option>
-                <option value="sunday">Domingo</option>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="flex flex-col gap-1.5">
-                <label class="label-xxs text-base-content/40">Inicio</label>
-                <input type="time" id="overtime-shift-start" class="input input-sm input-bordered font-mono font-bold" required />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="label-xxs text-base-content/40">Fin</label>
-                <input type="time" id="overtime-shift-end" class="input input-sm input-bordered font-mono font-bold" required />
-              </div>
-            </div>
-            <input type="hidden" id="overtime-shift-edit-id" value="" />
-            <div class="flex justify-between items-center mt-2">
-              <button type="button" id="overtime-shift-cancel-btn" class="btn btn-xs btn-ghost font-bold hidden">
-                Cancelar
-              </button>
-              <div class="flex gap-2 ml-auto">
-                <button type="button" id="overtime-shift-delete-btn" class="btn btn-xs btn-ghost text-error gap-1 font-bold hidden">
-                  <Icon name="boxicons:trash" size={12} />
-                  Eliminar
-                </button>
-                <button type="submit" id="overtime-shift-submit-btn" class="btn btn-sm btn-warning gap-1.5 font-bold">
-                  <Icon name="boxicons:plus-circle" size={14} />
-                  Agregar Turno
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-
-        <!-- Columna 2+3: Lista compacta -->
-        <div class="lg:col-span-2 bg-base-200/40 rounded-xl border border-base-300/60 p-4 space-y-3">
-          <p class="text-xxs font-black uppercase tracking-wider text-base-content/50 pb-2 border-b border-base-300/50">
-            Turnos Guardados
-          </p>
-          <div id="overtime-shifts-list">
-            <div class="flex flex-col items-center justify-center py-10 text-base-content/20 gap-2">
-              <Icon name="boxicons:briefcase-alt-2" size={32} />
-              <p class="text-xs font-bold uppercase tracking-wider">No hay turnos guardados</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== PASIVA VIEW ===== -->
-  <div
-    id="pasiva-view"
-    class="animate-in slide-in-from-bottom-2 fade-in duration-500 hidden"
-  >
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Columna Izquierda: Operador del Mes -->
-      <div class="lg:col-span-4 flex flex-col gap-6">
-        <div
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4"
-        >
-          <div class="flex items-center gap-2.5 pb-2 border-b border-base-200">
-            <div
-              class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center"
-            >
-              <Icon name="boxicons:user-filled" size={18} />
-            </div>
-            <div>
-              <h3
-                class="text-xs font-black uppercase tracking-wider text-base-content"
+              <!-- Time header labels row -->
+              <div
+                id="overtime-timeline-header"
+                class="border-base-300 bg-base-200/60 flex min-w-300 border-b"
               >
-                Operador del Mes
-              </h3>
-              <p class="text-xxs text-base-content/50">
-                Asignación pasiva mensual
+                <div
+                  class="text-base-content/80 border-base-300 flex w-36 shrink-0 items-center border-r px-3 py-2 text-xs font-bold tracking-wider uppercase"
+                >
+                  Operador
+                </div>
+                <div id="overtime-timeline-hours" class="relative flex flex-1">
+                  <!-- JS renders hour labels here -->
+                </div>
+              </div>
+              <!-- Timeline body -->
+              <div
+                id="overtime-timeline-body"
+                class="divide-base-300/40 min-w-300 divide-y"
+              >
+                <div
+                  id="overtime-timeline-placeholder"
+                  class="text-base-content/30 flex items-center justify-center gap-2 py-12 text-xs font-bold tracking-wider uppercase"
+                >
+                  <Icon name="boxicons:calendar-x-filled" size={20} />
+                  Seleccioná un sábado para ver la línea de tiempo
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestión de Turnos (form + lista side-by-side) -->
+          <div class="no-export grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <!-- Columna 1: Formulario -->
+            <div
+              class="bg-base-200/40 border-base-300/60 space-y-4 self-start rounded-xl border p-4"
+            >
+              <p
+                class="text-xxs text-base-content/50 border-base-300/50 border-b pb-2 font-black tracking-wider uppercase"
+              >
+                Gestión de Turnos
               </p>
-            </div>
-          </div>
-
-          <div class="form-control w-full">
-            <label class="label py-1">
-              <span
-                class="label-text text-xxs font-black uppercase tracking-wider text-base-content/50"
-                >Seleccionar Operador</span
-              >
-            </label>
-            <select
-              id="pasiva-monthly-operator-select"
-              class="select select-bordered select-sm rounded-xl font-bold text-xs h-9 w-full bg-base-100 focus:outline-none focus:border-secondary"
-            >
-              <option value="">SIN OPERADOR</option>
-            </select>
-            <span
-              id="pasiva-monthly-operator-text"
-              class="text-xs font-bold text-base-content px-3 py-2 bg-base-200/50 rounded-xl border border-base-300 hidden min-h-9 flex items-center"
-            ></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Columna Derecha: Tabla Semanal -->
-      <div class="lg:col-span-8">
-        <div
-          class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden"
-        >
-          <div
-            class="bg-base-200 border-b border-base-300 px-6 py-4 flex items-center gap-2.5"
-          >
-            <div
-              class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center"
-            >
-              <Icon name="boxicons:calendar" size={18} />
-            </div>
-            <div>
-              <h3
-                class="text-xs font-black uppercase tracking-wider text-base-content"
-              >
-                Supervisión & Referentes
-              </h3>
-              <p class="text-xxs text-base-content/50">
-                Planificación por semanas
-              </p>
-            </div>
-          </div>
-
-          <div class="p-6">
-            <div class="overflow-x-auto">
-              <table
-                class="w-full text-left border-separate border-spacing-y-2.5"
-              >
-                <thead>
-                  <tr
-                    class="label-xxs tracking-widest text-base-content/40"
+              <form id="overtime-shift-form" class="flex flex-col gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <label class="label-xxs text-base-content/40">Operador</label>
+                  <select
+                    id="overtime-shift-agent"
+                    class="select select-sm select-bordered text-base-content cursor-pointer font-bold"
+                    required
                   >
-                    <th class="pb-1 pl-2">Semana</th>
-                    <th class="pb-1">Supervisor</th>
-                    <th class="pb-1">Referente</th>
-                  </tr>
-                </thead>
-                <tbody id="pasiva-weeks-tbody">
-                  <!-- Injected dynamically -->
-                </tbody>
-              </table>
+                    <option value="">Seleccionar operador...</option>
+                  </select>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="label-xxs text-base-content/40">Día</label>
+                  <select
+                    id="overtime-shift-day"
+                    class="select select-sm select-bordered text-base-content cursor-pointer font-bold"
+                    required
+                  >
+                    <option value="saturday">Sábado</option>
+                    <option value="sunday">Domingo</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="label-xxs text-base-content/40">Inicio</label>
+                    <input
+                      type="time"
+                      id="overtime-shift-start"
+                      class="input input-sm input-bordered font-mono font-bold"
+                      required
+                    />
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="label-xxs text-base-content/40">Fin</label>
+                    <input
+                      type="time"
+                      id="overtime-shift-end"
+                      class="input input-sm input-bordered font-mono font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+                <input type="hidden" id="overtime-shift-edit-id" value="" />
+                <div class="mt-2 flex items-center justify-between">
+                  <ActionButton
+                    id="overtime-shift-cancel-btn"
+                    label="Cancelar"
+                    size="md"
+                    ghost
+                    class="hidden"
+                  />
+                  <div class="ml-auto flex gap-2">
+                    <ActionButton
+                      id="overtime-shift-delete-btn"
+                      icon="boxicons:trash-filled"
+                      label="Eliminar"
+                      size="md"
+                      ghost
+                      class="text-error hidden"
+                    />
+                    <ActionButton
+                      type="submit"
+                      id="overtime-shift-submit-btn"
+                      icon="boxicons:plus-circle-filled"
+                      label="Agregar Turno"
+                      color="btn-warning"
+                      size="md"
+                    />
+                  </div>
+                </div>
+              </form>
             </div>
+
+            <!-- Columna 2+3: Lista compacta -->
+            <div
+              class="bg-base-200/40 border-base-300/60 space-y-3 rounded-xl border p-4 lg:col-span-2"
+            >
+              <p
+                class="text-xxs text-base-content/50 border-base-300/50 border-b pb-2 font-black tracking-wider uppercase"
+              >
+                Turnos Guardados
+              </p>
+              <div id="overtime-shifts-list">
+                <div
+                  class="text-base-content/20 flex flex-col items-center justify-center gap-2 py-10"
+                >
+                  <Icon name="boxicons:briefcase-alt-2-filled" size={32} />
+                  <p class="text-xs font-bold tracking-wider uppercase">
+                    No hay turnos guardados
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PASIVA VIEW ===== -->
+      <div id="pasiva-view" class="hidden">
+        <div
+          class="bg-base-100 border-base-300 space-y-6 rounded-2xl border p-6 shadow-md"
+        >
+          <CronoCardHeader
+            icon="boxicons:shield-filled"
+            title="Guardia Pasiva Semanal"
+            subtitle="Planificación de supervisores, referentes y operadores por semana"
+            iconBg="bg-info/15"
+            iconColor="text-info"
+          >
+            <MonthSelect id="pasiva-month-selector" class="shrink-0" />
+          </CronoCardHeader>
+          <div class="overflow-x-auto">
+            <table
+              class="w-full table-fixed border-separate border-spacing-y-2.5 text-left"
+            >
+              <thead>
+                <tr class="label-xxs text-base-content/40 tracking-widest">
+                  <th class="w-44 pb-1 pl-2">Semana</th>
+                  <th class="w-1/3 pb-1">Supervisor</th>
+                  <th class="w-1/3 pb-1">Referente</th>
+                  <th class="w-1/3 pr-2 pb-1">Operador de la Semana</th>
+                </tr>
+              </thead>
+              <tbody id="pasiva-weeks-tbody">
+                <!-- Injected dynamically -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -985,11 +927,11 @@ const { userRole = "agent" } = Astro.props;
   <!-- Quick Edit Context Menu -->
   <div
     id="quick-edit-menu"
-    class="fixed z-100 hidden min-w-[160px] bg-base-100/90 backdrop-blur-xl border border-base-300 rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
+    class="bg-base-100/90 border-base-300 animate-in fade-in zoom-in-95 fixed z-100 hidden min-w-40 rounded-xl border p-1.5 shadow-2xl backdrop-blur-xl duration-100"
   >
-    <div class="px-3 py-2 border-b border-base-200 mb-1">
+    <div class="border-base-200 mb-1 border-b px-3 py-2">
       <p
-        class="label-xxs tracking-widest text-base-content/40"
+        class="label-xxs text-base-content/40 tracking-widest"
         id="quick-edit-target-name"
       >
         Cambiar Estado
@@ -998,39 +940,39 @@ const { userRole = "agent" } = Astro.props;
     <div class="space-y-0.5" id="quick-edit-options">
       <button
         data-status="Presencial Monte Grande"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-xs font-bold text-base-content/70 group"
+        class="hover:bg-primary/10 text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors hover:text-amber-600 dark:hover:text-amber-400"
       >
-        <div class="w-2 h-2 rounded-full bg-amber-500"></div> Presencial Monte Grande
+        <div class="h-2 w-2 rounded-full bg-amber-500"></div> Presencial Monte Grande
       </button>
       <button
         data-status="Presencial Parque Patricios"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400 transition-colors text-xs font-bold text-base-content/70 group"
+        class="text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400"
       >
-        <div class="w-2 h-2 rounded-full bg-purple-500"></div> Presencial Parque Patricios
+        <div class="h-2 w-2 rounded-full bg-purple-500"></div> Presencial Parque Patricios
       </button>
       <button
         data-status="Home Office"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary/10 hover:text-secondary transition-colors text-xs font-bold text-base-content/70 group"
+        class="hover:bg-secondary/10 hover:text-secondary text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors"
       >
-        <div class="w-2 h-2 rounded-full bg-secondary"></div> Home Office
+        <div class="bg-secondary h-2 w-2 rounded-full"></div> Home Office
       </button>
       <button
         data-status="Licencia"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-error/10 hover:text-error transition-colors text-xs font-bold text-base-content/70 group"
+        class="hover:bg-error/10 hover:text-error text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors"
       >
-        <div class="w-2 h-2 rounded-full bg-error"></div> Licencia
+        <div class="bg-error h-2 w-2 rounded-full"></div> Licencia
       </button>
       <button
         data-status="Vacaciones"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-success/10 hover:text-success transition-colors text-xs font-bold text-base-content/70 group"
+        class="hover:bg-success/10 hover:text-success text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors"
       >
-        <div class="w-2 h-2 rounded-full bg-success"></div> Vacaciones
+        <div class="bg-success h-2 w-2 rounded-full"></div> Vacaciones
       </button>
       <button
         data-status="Franco"
-        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-base-300 transition-colors text-xs font-bold text-base-content/70 group"
+        class="hover:bg-base-300 text-base-content/70 group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-bold transition-colors"
       >
-        <div class="w-2 h-2 rounded-full bg-base-300"></div> Franco
+        <div class="bg-base-300 h-2 w-2 rounded-full"></div> Franco
       </button>
     </div>
   </div>
@@ -1038,23 +980,23 @@ const { userRole = "agent" } = Astro.props;
   <!-- Floating Save Alert (Warning Reminder) -->
   <div
     id="save-indicator"
-    class="fixed bottom-6 right-6 z-50 hidden animate-in slide-in-from-right-10 fade-in duration-300"
+    class="animate-in slide-in-from-right-10 fade-in fixed right-6 bottom-6 z-50 hidden duration-300"
   >
     <div
-      class="bg-warning/10 border-2 border-warning/30 backdrop-blur-xl text-base-content px-6 py-4 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-5 min-w-[380px] max-w-md"
+      class="bg-warning/10 border-warning/30 text-base-content flex max-w-md min-w-95 items-center gap-5 rounded-3xl border-2 px-6 py-4 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] backdrop-blur-xl"
     >
       <div
-        class="w-10 h-10 rounded-2xl bg-warning/15 flex items-center justify-center text-warning shrink-0 animate-pulse border border-warning/20"
+        class="bg-warning/15 text-warning border-warning/20 flex h-10 w-10 shrink-0 animate-pulse items-center justify-center rounded-2xl border"
       >
-        <Icon name="boxicons:alert-triangle" size={22} />
+        <Icon name="boxicons:alert-triangle-filled" size={22} />
       </div>
-      <div class="flex-1 min-w-0">
-        <span class="text-xxs font-black uppercase tracking-wider text-warning"
+      <div class="min-w-0 flex-1">
+        <span class="text-xxs text-warning font-black tracking-wider uppercase"
           >Cambios Pendientes</span
         >
         <h4
           id="save-indicator-text"
-          class="text-xs font-black text-base-content uppercase tracking-tight mt-0.5"
+          class="text-base-content mt-0.5 text-xs font-black tracking-tight uppercase"
         >
           Tienes cambios sin guardar
         </h4>
@@ -1062,11 +1004,11 @@ const { userRole = "agent" } = Astro.props;
           Activa el modo edición para poder guardarlos o descartarlos.
         </p>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex shrink-0 items-center gap-2">
         <button
           type="button"
           id="reactivate-edit-mode-btn"
-          class="btn btn-xs btn-warning text-xxs font-black uppercase tracking-wider rounded-lg px-4 shadow-lg shadow-warning/15 transition-all"
+          class="btn btn-xs btn-warning text-xxs shadow-warning/15 rounded-lg px-4 font-black tracking-wider uppercase shadow-lg transition-all"
         >
           Activar Edición
         </button>
@@ -1081,26 +1023,26 @@ const { userRole = "agent" } = Astro.props;
   <!-- Edit Mode Toolbar -->
   <div
     id="edit-mode-toolbar"
-    class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-3 z-100 transition-all duration-500 translate-y-32 opacity-0 pointer-events-none max-w-[calc(100vw-2rem)] overflow-x-auto"
+    class="bg-base-100 border-base-300 pointer-events-none fixed bottom-6 left-1/2 z-100 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 translate-y-32 flex-wrap items-center justify-center gap-2 rounded-2xl border p-2 opacity-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500"
   >
     <!-- Brush Tools -->
     <div
-      class="flex items-center gap-1.5 bg-base-200/50 p-1.5 rounded-xl border border-base-300/50"
+      class="bg-base-200/50 border-base-300/50 flex items-center gap-1 rounded-xl border p-1"
     >
       <div
-        class="label-xxs tracking-widest text-base-content/50 px-2 select-none"
+        class="label-xxs text-base-content/50 hidden px-1.5 tracking-widest select-none sm:block"
       >
         Pincel:
       </div>
 
       <button
-        class="brush-btn btn btn-xs btn-ghost hover:bg-amber-500/20 hover:text-amber-500 opacity-50 transition-all"
+        class="brush-btn btn btn-xs btn-ghost opacity-50 transition-all hover:bg-amber-500/20 hover:text-amber-500"
         data-brush="Presencial Monte Grande"
         data-active-class="bg-amber-500 text-white shadow-lg ring-2 ring-amber-500/50"
         >MG</button
       >
       <button
-        class="brush-btn btn btn-xs btn-ghost hover:bg-purple-500/20 hover:text-purple-500 opacity-50 transition-all"
+        class="brush-btn btn btn-xs btn-ghost opacity-50 transition-all hover:bg-purple-500/20 hover:text-purple-500"
         data-brush="Presencial Parque Patricios"
         data-active-class="bg-purple-500 text-white shadow-lg ring-2 ring-purple-500/50"
         >PP</button
@@ -1131,91 +1073,90 @@ const { userRole = "agent" } = Astro.props;
       >
     </div>
 
-    <div class="w-px h-8 bg-base-300/60"></div>
+    <div class="divider divider-horizontal m-0"></div>
 
     <!-- Settings Trigger -->
-    <button
+    <ActionButton
       id="open-rules-settings"
-      class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors"
-    >
-      <Icon name="boxicons:cog" size={14} />
-      Parámetros
-    </button>
+      icon="boxicons:cog-filled"
+      ariaLabel="Parámetros"
+      title="Parámetros"
+      size="sm"
+    />
 
-    <div class="w-px h-8 bg-base-300/60"></div>
+    <div class="divider divider-horizontal m-0"></div>
 
     <!-- Add Operator Trigger -->
-    <button
+    <ActionButton
       id="open-new-op-modal"
-      class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors"
-      type="button"
-    >
-      <Icon name="boxicons:user-plus" size={14} class="text-secondary" />
-      Agregar Operador
-    </button>
+      icon="boxicons:user-plus-filled"
+      ariaLabel="Agregar Operador"
+      title="Agregar Operador"
+      size="sm"
+    />
 
-    <div class="w-px h-8 bg-base-300/60"></div>
+    <div class="divider divider-horizontal m-0"></div>
 
     <!-- Manage Holidays Trigger -->
-    <button
+    <ActionButton
       id="open-holidays-modal"
-      class="btn btn-xs btn-ghost text-base-content/60 gap-1.5 hover:text-base-content transition-colors"
-      type="button"
-    >
-      <Icon name="boxicons:calendar-star" size={14} class="text-secondary" />
-      Feriados
-    </button>
+      icon="boxicons:calendar-star-filled"
+      label="Feriados"
+      size="sm"
+    />
 
-    <div class="w-px h-8 bg-base-300/60"></div>
+    <div class="divider divider-horizontal m-0"></div>
 
     <!-- Save/Discard -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5">
       <span
         id="pending-edits-count"
-        class="text-xxs font-bold text-base-content/50 w-16 text-center select-none"
+        class="text-xxs text-base-content/50 w-16 text-center font-bold select-none"
         >0 cambios</span
       >
-      <button
+      <ActionButton
         id="discard-edits-btn"
-        class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200"
-        disabled>Descartar</button
-      >
-      <button id="save-edits-btn" class="btn btn-xs btn-primary gap-1" disabled
-        >Guardar</button
-      >
+        label="Descartar"
+        size="sm"
+        disabled
+      />
+      <ActionButton
+        id="save-edits-btn"
+        label="Guardar"
+        color="btn-primary"
+        size="sm"
+        disabled
+      />
     </div>
   </div>
 
   <!-- Pasiva Edit Mode Toolbar -->
   <div
     id="pasiva-edit-toolbar"
-    class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-base-300 p-3 flex items-center gap-3 z-100 transition-all duration-500 translate-y-32 opacity-0 pointer-events-none max-w-[calc(100vw-2rem)]"
+    class="bg-base-100 border-base-300 pointer-events-none fixed bottom-6 left-1/2 z-100 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 translate-y-32 flex-wrap items-center justify-center gap-2 rounded-2xl border p-2 opacity-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-500"
   >
     <div class="flex items-center gap-2 px-1">
       <Icon
-        name="boxicons:info-circle"
+        name="boxicons:info-circle-filled"
         class="text-secondary shrink-0"
         size={16}
       />
       <span
-        class="text-xxs font-black uppercase tracking-wider text-base-content/70 select-none"
+        class="text-xxs text-base-content/70 font-black tracking-wider uppercase select-none"
         >Cambios en Pasivas</span
       >
     </div>
 
-    <div class="w-px h-6 bg-base-300/60"></div>
+    <div class="bg-base-300/60 h-6 w-px"></div>
 
     <div class="flex items-center gap-2">
-      <button
-        id="pasiva-discard-btn"
-        class="btn btn-xs btn-outline border-base-300 text-base-content/50 hover:bg-base-200"
-        type="button">Descartar</button
-      >
-      <button
+      <ActionButton id="pasiva-discard-btn" label="Descartar" size="md" />
+      <ActionButton
         id="pasiva-save-btn"
-        class="btn btn-xs btn-primary gap-1"
-        type="button">Guardar</button
-      >
+        label="Guardar"
+        color="btn-primary"
+        size="md"
+      />
     </div>
   </div>
 
@@ -1227,15 +1168,15 @@ const { userRole = "agent" } = Astro.props;
 
   <dialog id="edit-saturday-schedule-modal" class="modal">
     <div
-      class="modal-box max-w-sm rounded-3xl border border-base-300 shadow-2xl p-6 bg-base-100"
+      class="modal-box border-base-300 bg-base-100 max-w-sm rounded-3xl border p-6 shadow-2xl"
     >
       <h3
-        class="font-black text-sm uppercase tracking-wider text-base-content mb-4 flex items-center gap-2"
+        class="text-base-content mb-4 flex items-center gap-2 text-sm font-black tracking-wider uppercase"
       >
-        <Icon name="boxicons:clock" size={18} class="text-secondary" />
+        <Icon name="boxicons:clock-filled" size={18} class="text-secondary" />
         Horario Sábado
       </h3>
-      <p class="text-xs text-base-content/75 mb-4">
+      <p class="text-base-content/75 mb-4 text-xs">
         Establece el sub-horario del sábado para <strong id="modal-agent-name"
         ></strong>. Debe estar dentro de la franja general de 07:00 a 13:00 hs.
       </p>
@@ -1244,10 +1185,7 @@ const { userRole = "agent" } = Astro.props;
         <input type="hidden" id="modal-agent-group" />
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-1.5">
-            <label
-              class="label-xxs text-base-content/40"
-              >Inicio</label
-            >
+            <label class="label-xxs text-base-content/40">Inicio</label>
             <input
               type="time"
               id="modal-schedule-start"
@@ -1258,10 +1196,7 @@ const { userRole = "agent" } = Astro.props;
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label
-              class="label-xxs text-base-content/40"
-              >Fin</label
-            >
+            <label class="label-xxs text-base-content/40">Fin</label>
             <input
               type="time"
               id="modal-schedule-end"
@@ -1287,7 +1222,8 @@ const { userRole = "agent" } = Astro.props;
 </div>
 
 <style is:global>
-  #monthly-view, #daily-view {
+  #monthly-view,
+  #daily-view {
     content-visibility: auto;
     contain-intrinsic-size: 1000px;
   }
@@ -1303,11 +1239,103 @@ const { userRole = "agent" } = Astro.props;
   .mx-auto.max-w-7xl {
     max-width: 98% !important;
     width: 98% !important;
-    margin-top: 1.5rem !important;
   }
 
   #cronograma-container {
-    padding-bottom: 2rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  .tooltip::before {
+    white-space: pre-line !important;
+  }
+
+  /* Tooltip de dia feriado: fondo naranja representativo, opaco */
+  .tooltip.tooltip-holiday {
+    --tt-bg: var(--color-orange-500);
+  }
+  .tooltip.tooltip-holiday[data-tip]::before,
+  .tooltip.tooltip-holiday > .tooltip-content {
+    color: var(--color-orange-950);
+  }
+
+  .overtime-custom-tooltip {
+    position: fixed;
+    z-index: 9999;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 6px;
+    background: var(--color-neutral);
+    color: var(--color-neutral-content);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Flecha abajo (tooltip arriba de la barra) */
+  .overtime-custom-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--color-neutral);
+  }
+
+  /* Flecha arriba (tooltip abajo de la barra - near top) */
+  .overtime-custom-tooltip.tooltip-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--color-neutral);
+  }
+
+  /* Barra seleccionada: anillo secondary */
+  .overtime-timeline-bar.selected > div {
+    box-shadow:
+      0 0 0 2px var(--color-secondary),
+      0 0 0 4px color-mix(in srgb, var(--color-secondary) 25%, transparent);
+  }
+
+  .overtime-custom-tooltip {
+    position: fixed;
+    z-index: 9999;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 6px;
+    background: var(--color-neutral);
+    color: var(--color-neutral-content);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Flecha abajo (tooltip arriba de la barra) */
+  .overtime-custom-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--color-neutral);
+  }
+
+  /* Flecha arriba (tooltip abajo de la barra - near top) */
+  .overtime-custom-tooltip.tooltip-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--color-neutral);
+  }
+
+  /* Barra seleccionada: anillo secondary */
+  .overtime-timeline-bar.selected > div {
+    box-shadow:
+      0 0 0 2px var(--color-secondary),
+      0 0 0 4px color-mix(in srgb, var(--color-secondary) 25%, transparent);
   }
 
   #date-picker-container {
@@ -1320,10 +1348,6 @@ const { userRole = "agent" } = Astro.props;
 
   #date-picker-container.hidden {
     display: none !important;
-  }
-
-  #date-picker-container.is-faded {
-    opacity: 0;
   }
 
   /* Prevent browser native date input text, highlights, or selection fields from showing */
@@ -1527,15 +1551,15 @@ const { userRole = "agent" } = Astro.props;
   tr.highlighted-row td {
     background-color: color-mix(
       in oklab,
-      var(--color-secondary) 8%,
-      transparent
+      var(--color-secondary) 10%,
+      var(--color-base-100)
     ) !important;
   }
   tr.highlighted-row:hover td {
     background-color: color-mix(
       in oklab,
-      var(--color-secondary) 14%,
-      transparent
+      var(--color-secondary) 16%,
+      var(--color-base-100)
     ) !important;
   }
   tr.highlighted-row .op-row-dot {
@@ -1587,25 +1611,6 @@ const { userRole = "agent" } = Astro.props;
     border-right-width: 2px;
     border-bottom-width: 2px;
     transform: translateX(-50%) rotate(45deg);
-  }
-
-  .scrollbar-thin {
-    overscroll-behavior: contain;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: color-mix(
-      in oklab,
-      var(--color-base-content) 20%,
-      transparent
-    );
-    border-radius: 20px;
   }
 
   /* Gantt Layout Styles */
@@ -1878,9 +1883,38 @@ const { userRole = "agent" } = Astro.props;
   #overtime-card.exporting-image {
     padding-bottom: 2.5rem !important;
   }
+
+  #rotation-timeline-table th:first-child,
+  #rotation-timeline-table td:first-child {
+    width: 11rem;
+    min-width: 11rem;
+    max-width: 11rem;
+  }
+
+  /* Prevent whole-section horizontal shift when switching views
+     toggles the page scrollbar */
+  @media (min-width: 768px) {
+    html {
+      scrollbar-gutter: stable;
+    }
+  }
+
+  /* Full-cell hover tint for monthly day cells (rows are JS-injected, so
+     this must be global). Background-only: no border tint, so no outline
+     effect around the cell. */
+  #monthly-tbody td:has(.monthly-cell-button):hover {
+    background-color: color-mix(
+      in oklab,
+      var(--color-secondary) 8%,
+      transparent
+    );
+  }
 </style>
 
-<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script
+  is:inline
+  src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+></script>
 
 <script>
   import "./lib/dashboard-client";

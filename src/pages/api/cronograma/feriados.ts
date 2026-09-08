@@ -25,12 +25,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const body = await request.json();
     const { feriados } = body;
     if (!feriados || typeof feriados !== "object") {
-      return jsonResponse({ error: "Invalid payload: 'feriados' must be an object" }, 400);
+      return jsonResponse(
+        { error: "Invalid payload: 'feriados' must be an object" },
+        400,
+      );
     }
 
     await db.transaction((tx) => {
       tx.delete(holidays).run();
-      
+
       const insertData = Object.entries(feriados).map(([date, name]) => ({
         date,
         name: String(name),

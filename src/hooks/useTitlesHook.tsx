@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useDebounce } from "./useDebounce";
-import { showToast } from "@lib/toastClient"
+import { showToast } from "@lib/toastClient";
 import type { ModulePermission } from "@/lib/rbac";
 
 declare const chrome: any;
@@ -14,7 +14,7 @@ export interface Title {
   tone: string;
   route: string | null;
   description: string | null;
-  articleOnKdb: string | null
+  articleOnKdb: string | null;
 }
 
 export interface TitleFormData {
@@ -33,7 +33,7 @@ export interface TitleCategory {
 }
 
 interface Props {
-  permissions: ModulePermission
+  permissions: ModulePermission;
 }
 export function useTitles({ permissions }: Props) {
   const [titles, setTitles] = useState<Title[]>([]);
@@ -49,15 +49,14 @@ export function useTitles({ permissions }: Props) {
     }
     const saved = localStorage.getItem("favorites");
     return saved ? JSON.parse(saved) : [];
-  })
-
+  });
 
   // Debounce
   const debouncedSearch = useDebounce(searchQuery, 200);
 
   // Fetch
   useEffect(() => {
-    setLoading(true)
+    setLoading(true);
     const fetchTitles = async () => {
       try {
         const res = await fetch("/api/titulos");
@@ -65,14 +64,14 @@ export function useTitles({ permissions }: Props) {
           throw new Error("Error obteniendo títulos");
         }
         const data: Title[] = await res.json();
-        setTitles(data)
+        setTitles(data);
       } catch (error) {
         console.error("Error loading titles:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchTitles()
+    };
+    fetchTitles();
   }, []);
 
   const refreshTitles = useCallback(async () => {
@@ -85,24 +84,17 @@ export function useTitles({ permissions }: Props) {
       }
 
       const data: Title[] = await res.json();
-      setTitles(data)
-        ;
+      setTitles(data);
     } catch (error) {
       console.error(error);
-      showToast(
-        "No se pudieron obtener los títulos",
-        "alert-error",
-        3000
-      )
+      showToast("No se pudieron obtener los títulos", "alert-error", 3000);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   const refreshCategories = useCallback(async () => {
-
     try {
-
       const res = await fetch("/api/titulos/categorias");
 
       if (!res.ok) throw new Error();
@@ -110,13 +102,9 @@ export function useTitles({ permissions }: Props) {
       const data: TitleCategory[] = await res.json();
 
       setCategories(data);
-
     } catch (err) {
-
       console.error(err);
-
     }
-
   }, []);
 
   useEffect(() => {
@@ -126,12 +114,11 @@ export function useTitles({ permissions }: Props) {
 
   const createTitle = async (title: TitleFormData) => {
     try {
-
       if (!permissions.canWrite) {
         showToast(
           "No tenés permisos para realizar esta acción.",
           "alert-error",
-          3000
+          3000,
         );
 
         return false;
@@ -148,37 +135,24 @@ export function useTitles({ permissions }: Props) {
         throw new Error();
       }
 
-      showToast(
-        "Título creado correctamente.",
-        "alert-success",
-        3000
-      )
+      showToast("Título creado correctamente.", "alert-success", 3000);
 
       await refreshTitles();
       await refreshCategories();
       return true;
-
     } catch (error) {
-      showToast(
-        "No se pudo crear el título",
-        "alert-error",
-        3000
-      );
+      showToast("No se pudo crear el título", "alert-error", 3000);
       return false;
     }
-  }
+  };
 
-  const updateTitle = async (
-    id: number,
-    title: TitleFormData
-  ) => {
+  const updateTitle = async (id: number, title: TitleFormData) => {
     try {
-
       if (!permissions.canWrite) {
         showToast(
           "No tenés permisos para realizar esta acción.",
           "alert-error",
-          3000
+          3000,
         );
 
         return false;
@@ -195,78 +169,49 @@ export function useTitles({ permissions }: Props) {
         throw new Error();
       }
 
-      showToast(
-        "Título actualizado",
-        "alert-success",
-        3000
-      );
+      showToast("Título actualizado", "alert-success", 3000);
 
       await refreshTitles();
       await refreshCategories();
       return true;
-
     } catch (error) {
-      showToast(
-        "Error actualizando título",
-        "alert-error",
-        3000
-      );
+      showToast("Error actualizando título", "alert-error", 3000);
 
       return false;
     }
-  }
+  };
 
-  const deleteTitle = async (
-    id: number
-  ) => {
-
+  const deleteTitle = async (id: number) => {
     try {
-
       if (!permissions.canWrite) {
         showToast(
           "No tenés permisos para realizar esta acción.",
           "alert-error",
-          3000
+          3000,
         );
 
         return false;
       }
 
       const res = await fetch(`/api/titulos/${id}`, {
-
         method: "DELETE",
-
       });
 
       if (!res.ok) {
         throw new Error();
       }
 
-      showToast(
-        "Título eliminado",
-        "alert-success",
-        3000
-      );
+      showToast("Título eliminado", "alert-success", 3000);
 
       await refreshTitles();
 
       return true;
-
     } catch {
-
-      showToast(
-        "No se pudo eliminar",
-        "alert-error",
-        3000
-      );
+      showToast("No se pudo eliminar", "alert-error", 3000);
 
       return false;
-
     }
-
   };
-
-
 
   // Favoritos
   useEffect(() => {
@@ -276,12 +221,18 @@ export function useTitles({ permissions }: Props) {
   const toggleFavorite = (title: string) => {
     setFavorites((prev) => {
       if (prev.includes(title)) {
-        showToast(`Título "${title}" eliminado de favoritos.`, 'alert-info', 3000);
-        return prev.filter(
-          (item) => item !== title
+        showToast(
+          `Título "${title}" eliminado de favoritos.`,
+          "alert-info",
+          3000,
         );
+        return prev.filter((item) => item !== title);
       }
-      showToast(`Título "${title}" agregado a favoritos.`, 'alert-success', 3000);
+      showToast(
+        `Título "${title}" agregado a favoritos.`,
+        "alert-success",
+        3000,
+      );
       return [...prev, title];
     });
   };
@@ -301,41 +252,29 @@ export function useTitles({ permissions }: Props) {
 
     // Filtro de búsqueda
     if (term) {
-      result = result.filter((title) =>
-        normalize(title.name).includes(term) ||
-        normalize(title.description ?? "").includes(term) ||
-        normalize(title.route ?? "").includes(term)
+      result = result.filter(
+        (title) =>
+          normalize(title.name).includes(term) ||
+          normalize(title.description ?? "").includes(term) ||
+          normalize(title.route ?? "").includes(term),
       );
     }
 
     // Filtro de favoritos y categorías
     if (activeFilter === "Favoritos") {
-      result = result.filter((title) =>
-        favorites.includes(title.name)
-      );
-    }
-
-    else if (activeFilter !== "Todos") {
+      result = result.filter((title) => favorites.includes(title.name));
+    } else if (activeFilter !== "Todos") {
       result = result.filter(
-        (title) =>
-          normalize(title.category) === normalize(activeFilter)
+        (title) => normalize(title.category) === normalize(activeFilter),
       );
     }
     return result;
-  }, [titles, favorites, debouncedSearch, activeFilter])
+  }, [titles, favorites, debouncedSearch, activeFilter]);
 
   const filters = useMemo(() => {
-    const categories = [
-      ...new Set(
-        titles.map((t) => t.category)
-      ),
-    ].sort();
+    const categories = [...new Set(titles.map((t) => t.category))].sort();
 
-    return [
-      "Todos",
-      "Favoritos",
-      ...categories,
-    ];
+    return ["Todos", "Favoritos", ...categories];
   }, [titles]);
 
   const copyToClipboard = useCallback(async (text: string) => {
@@ -343,9 +282,16 @@ export function useTitles({ permissions }: Props) {
       await copyText(text);
       setTimeout(() => setCopiedIndex(null), 2000);
 
-      showToast(`Titulo "${text}" copiado al portapapeles.`, 'alert-success', 3000);
+      showToast(
+        `Titulo "${text}" copiado al portapapeles.`,
+        "alert-success",
+        3000,
+      );
       if (typeof chrome !== "undefined" && chrome.tabs) {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
 
         chrome.tabs.sendMessage(tab.id!, {
           type: "SET_SUBJECT",
@@ -353,7 +299,7 @@ export function useTitles({ permissions }: Props) {
         });
       }
     } catch (err) {
-      showToast("Error al copiar al portapapeles", 'alert-error', 3000);
+      showToast("Error al copiar al portapapeles", "alert-error", 3000);
       console.error("Error copying to clipboard:", err);
     }
   }, []);
@@ -376,7 +322,7 @@ export function useTitles({ permissions }: Props) {
 
     updateTitle,
     createTitle,
-    deleteTitle
+    deleteTitle,
   };
 }
 

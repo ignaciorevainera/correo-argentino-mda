@@ -3,28 +3,28 @@ import { getCleanBase } from "@lib/baseUrl";
 import { db } from "@db/index";
 import {
   offices,
-  contacts,
-  officeContacts,
   officeAssets,
   provinces,
   regions,
 } from "@db/schema";
-import { eq, and, isNull } from "drizzle-orm";
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
-import { Icon } from "astro-icon/components";
-import { logAdminFromAstro } from "@lib/auditLogger";
-import { redirectWithToast } from "@lib/api/redirectWithToast";
+import { eq } from "drizzle-orm";
+import FormShell from "@components/ui/FormShell.astro";
 import OfficeForm from "@components/admin/OfficeForm.astro";
 import { officeFormSchema } from "@lib/validations";
 import { normalizeSearchValue } from "@lib/clientSearch";
+import {
+  normalizeOfficeAddress,
+  isSameBuildingConfirmed,
+} from "@lib/officeAddress";
+import { findOfficeAddressMatches } from "@lib/officeQueries";
+import { logAdminFromAstro } from "@lib/auditLogger";
+import { redirectWithToast } from "@lib/api/redirectWithToast";
+import type { ToastType } from "@lib/toastClient";
 
 const cleanBase = getCleanBase();
 
-const isNew = true;
-let successMsg = "";
 let errorMsg = "";
+let toastType: ToastType = "alert-error";
 
 if (Astro.request.method === "POST") {
   try {
@@ -53,7 +53,7 @@ if (Astro.request.method === "POST") {
       type: type,
       officeType: officeType,
       provinceCode: valStr("provinceCode") ?? "",
-      address: valStr("address"),
+      address: normalizeOfficeAddress(valStr("address")),
       locality: valStr("locality"),
       county: valStr("county"),
       zone: valStr("zone"),
@@ -104,123 +104,86 @@ if (Astro.request.method === "POST") {
       const officeData = parsed.data;
       let officeId: number;
 
-      const activeCostCenter = [
-        officeData.cctAdminOffice,
-        officeData.ccCommercial,
-        officeData.ccCommercialCorp,
-        officeData.ccElectoral,
-        officeData.ccNetworkMgmt,
-        officeData.ccOperations,
-        officeData.ccOperational,
-        officeData.ccHr,
-        officeData.ccSecurity,
-        officeData.ccAdmin,
-        officeData.ccAdmission,
-        officeData.ccCtp,
-        officeData.ccCtt,
-        officeData.ccTransport,
-        officeData.ccLogistics
-      ].find((val) => val && val.trim() !== "");
+      const addressMatches = officeData.address
+        ? await findOfficeAddressMatches({
+            address: officeData.address,
+            provinceCode: officeData.provinceCode,
+          })
+        : [];
 
-      const nextSearchableText = normalizeSearchValue(
-        [
-          officeData.code,
-          officeData.name,
-          officeData.locality,
-          officeData.parentNis,
-          officeData.address,
-          activeCostCenter,
-        ]
-          .filter(Boolean)
-          .join(" ")
-      );
+      if (
+        addressMatches.length > 0 &&
+        !isSameBuildingConfirmed(fd.get("sameBuildingConfirmed")?.toString())
+      ) {
+        errorMsg =
+          "Confirmá si la nueva oficina comparte sitio con las oficinas listadas.";
+        toastType = "alert-warning";
+      } else {
+        const activeCostCenter = [
+          officeData.cctAdminOffice,
+          officeData.ccCommercial,
+          officeData.ccCommercialCorp,
+          officeData.ccElectoral,
+          officeData.ccNetworkMgmt,
+          officeData.ccOperations,
+          officeData.ccOperational,
+          officeData.ccHr,
+          officeData.ccSecurity,
+          officeData.ccAdmin,
+          officeData.ccAdmission,
+          officeData.ccCtp,
+          officeData.ccCtt,
+          officeData.ccTransport,
+          officeData.ccLogistics,
+        ].find((val) => val && val.trim() !== "");
 
-      const [created] = await db
-        .insert(offices)
-        .values({
-          ...officeData,
-          searchableText: nextSearchableText,
-        })
-        .returning({ id: offices.id });
-      officeId = created.id;
+        const nextSearchableText = normalizeSearchValue(
+          [
+            officeData.code,
+            officeData.name,
+            officeData.locality,
+            officeData.parentNis,
+            officeData.address,
+            activeCostCenter,
+          ]
+            .filter(Boolean)
+            .join(" "),
+        );
 
-      await db.delete(officeAssets).where(eq(officeAssets.officeId, officeId));
+        const [created] = await db
+          .insert(offices)
+          .values({
+            ...officeData,
+            searchableText: nextSearchableText,
+          })
+          .returning({ id: offices.id });
+        officeId = created.id;
 
-      const assetTypes = fd.getAll("asset_type");
-      const assetHostnames = fd.getAll("asset_hostname");
-      const assetIps = fd.getAll("asset_ip");
+        await db
+          .delete(officeAssets)
+          .where(eq(officeAssets.officeId, officeId));
 
-      for (let i = 0; i < assetTypes.length; i++) {
-        const aType = assetTypes[i]?.toString().trim();
-        if (!aType) continue;
-        await db.insert(officeAssets).values({
-          officeId,
-          type: aType,
-          hostname: assetHostnames[i]?.toString().trim() || null,
-          ip: assetIps[i]?.toString().trim() || null,
-        });
-      }
+        const assetTypes = fd.getAll("asset_type");
+        const assetHostnames = fd.getAll("asset_hostname");
+        const assetIps = fd.getAll("asset_ip");
 
-      await db
-        .delete(officeContacts)
-        .where(eq(officeContacts.officeId, officeId));
-
-      const cIds = fd.getAll("contact_id");
-      const cNames = fd.getAll("contact_name");
-      const cPhones = fd.getAll("contact_phone");
-      const cRoles = fd.getAll("contact_role");
-      const cTimeSlots = fd.getAll("contact_timeslot");
-
-      for (let i = 0; i < cNames.length; i++) {
-        const cIdStr = cIds[i]?.toString().trim();
-        const cName = cNames[i]?.toString().trim();
-        if (!cName) continue;
-        const cPhone = cPhones[i]?.toString().trim() || null;
-
-        let contactId: number;
-        if (cIdStr) {
-          contactId = Number(cIdStr);
-          await db
-            .update(contacts)
-            .set({ name: cName, phone: cPhone })
-            .where(eq(contacts.id, contactId));
-        } else {
-          let existing;
-          if (cPhone) {
-            [existing] = await db
-              .select()
-              .from(contacts)
-              .where(and(eq(contacts.name, cName), eq(contacts.phone, cPhone)));
-          } else {
-            [existing] = await db
-              .select()
-              .from(contacts)
-              .where(and(eq(contacts.name, cName), isNull(contacts.phone)));
-          }
-
-          if (existing) {
-            contactId = existing.id;
-          } else {
-            const [created] = await db
-              .insert(contacts)
-              .values({ name: cName, phone: cPhone })
-              .returning({ id: contacts.id });
-            contactId = created.id;
-          }
+        for (let i = 0; i < assetTypes.length; i++) {
+          const aType = assetTypes[i]?.toString().trim();
+          if (!aType) continue;
+          await db.insert(officeAssets).values({
+            officeId,
+            type: aType,
+            hostname: assetHostnames[i]?.toString().trim() || null,
+            ip: assetIps[i]?.toString().trim() || null,
+          });
         }
 
-        try {
-          await db.insert(officeContacts).values({
-            officeId,
-            contactId,
-            role: cRoles[i]?.toString().trim() || null,
-            timeSlot: cTimeSlots[i]?.toString().trim() || null,
-          });
-        } catch (e: any) {}
+        await logAdminFromAstro(
+          Astro.locals,
+          `Creó la oficina "${officeData.name}" (${officeData.code})`,
+        );
+        return redirectWithToast("/oficinas", "Oficina creada con éxito.");
       }
-
-      await logAdminFromAstro(Astro.locals, `Creó la oficina "${officeData.name}" (${officeData.code})`);
-      return redirectWithToast("/oficinas", "Oficina creada con éxito.");
     }
   } catch (e: any) {
     console.error("[CreateOffice] Error guardando la oficina:", e);
@@ -253,33 +216,20 @@ const groupedProvinces = Array.from(
 const pageTitle = "Nueva sucursal";
 ---
 
-<BaseLayout title={pageTitle}>
-  <PageContainer width="xxl">
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <a
-        href={`${cleanBase}oficinas`}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
-      >
-        <Icon name="boxicons:chevron-left" size={16} />
-        Oficinas
-      </a>
-      <span>/</span>
-      <span class="text-base-content font-medium truncate">{pageTitle}</span>
-    </div>
-
-    <PageHeader
-      title={pageTitle}
-      description="Completá los datos para registrar una nueva sucursal."
-    />
-
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
+<FormShell
+  backHref={`${cleanBase}oficinas`}
+  title={pageTitle}
+  subtitle="Completá los datos para registrar una nueva sucursal."
+  formId="office-form"
+  saveLabel="Crear sucursal"
+>
+  <script is:inline define:vars={{ errorMsg, toastType }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, toastType),
+      );
     }
+  </script>
 
-    <OfficeForm office={null} groupedProvinces={groupedProvinces} isNew={isNew} />
-  </PageContainer>
-</BaseLayout>
+  <OfficeForm office={null} groupedProvinces={groupedProvinces} />
+</FormShell>

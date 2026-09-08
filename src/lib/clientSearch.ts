@@ -111,7 +111,9 @@ export const highlightSearchTarget = (
   let currentIndex = 0;
 
   matchRanges.forEach((range) => {
-    highlightedText += escapeHtml(originalText.slice(currentIndex, range.start));
+    highlightedText += escapeHtml(
+      originalText.slice(currentIndex, range.start),
+    );
     highlightedText += `<mark class="${HIGHLIGHT_CLASS}">${escapeHtml(
       originalText.slice(range.start, range.end),
     )}</mark>`;

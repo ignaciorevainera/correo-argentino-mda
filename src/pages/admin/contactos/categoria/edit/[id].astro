@@ -1,10 +1,6 @@
 ---
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
-import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { contactCategories } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -13,10 +9,9 @@ import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
-import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
-import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
+import FormShell from "@components/ui/FormShell.astro";
 
 const { id } = Astro.params;
 
@@ -33,7 +28,11 @@ if (id && !isNaN(parsedId)) {
       existingCategory.title.toLowerCase() === "sin categoría" ||
       existingCategory.title.toLowerCase() === "sin categoria"
     ) {
-      return redirectWithToast("/admin/contactos", "No se puede modificar la categoría por defecto", "warning");
+      return redirectWithToast(
+        "/admin/contactos",
+        "No se puede modificar la categoría por defecto",
+        "warning",
+      );
     }
     category = existingCategory as any;
   } else {
@@ -45,7 +44,7 @@ const PREDEFINED_ICONS = [
   { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
   { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
   { value: "boxicons:group-filled", label: "Grupo (Usuarios / RRHH)" },
-  { value: "boxicons:building-filled", label: "Edificio (Intranet)" },
+  { value: "boxicons:building-house-filled", label: "Edificio (Intranet)" },
   { value: "boxicons:chip-filled", label: "Microchip (Hardware)" },
   { value: "boxicons:spanner-filled", label: "Llave (Herramientas)" },
   { value: "boxicons:check-shield-filled", label: "Escudo (Seguridad / VPN)" },
@@ -67,7 +66,9 @@ if (category.icon && !iconExistsInPredefined) {
 }
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const formData = await Astro.request.formData();
     const title = formData.get("title")?.toString().trim();
@@ -91,11 +92,13 @@ if (Astro.request.method === "POST") {
         })
         .where(eq(contactCategories.id, parsedId));
       if (oldTitle && oldTitle !== title) {
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Actualizó la categoría de contactos de "${oldTitle}" a "${title}"`,
         );
       } else {
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Actualizó la categoría de contactos "${title}"`,
         );
       }
@@ -103,187 +106,162 @@ if (Astro.request.method === "POST") {
 
     const successMsg = "Categoría actualizada con éxito.";
     if (isAjax) {
-      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/contactos") });
+      return toastResponse({
+        success: true,
+        message: successMsg,
+        redirectUrl: resolveUrl("/admin/contactos"),
+      });
     }
     return redirectWithToast("/admin/contactos", successMsg);
   } catch (error: any) {
     if (isAjax) {
-      return toastResponse({ success: false, error: error.message || "Error al guardar la categoría." });
+      return toastResponse({
+        success: false,
+        error: error.message || "Error al guardar la categoría.",
+      });
     }
     errorMsg = error.message || "Error al guardar la categoría.";
   }
 }
 ---
 
-<BaseLayout title="Editar categoría de Contactos">
-  <PageContainer>
-    <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
-        <a
-          href={resolveUrl("/admin/contactos")}
-          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
-        >
-          <Icon name="boxicons:chevron-left" size={16} />
-          Contactos
-        </a>
-        <span>/</span>
-        <span class="text-base-content font-medium truncate">Editar categoría</span>
+<FormShell
+  backHref={resolveUrl("/admin/contactos")}
+  title="Editar categoría de Contactos"
+  subtitle="Definí cómo se agruparán y visualizarán los contactos."
+  formId="categoria-form"
+  containerWidth="2xl"
+  saveColor="btn-secondary"
+  saveLabel="Guardar"
+  async
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <SectionCard>
+    <div class="p-6 sm:p-8">
+      <div class="grid grid-cols-1 gap-y-5">
+        <FormField
+          id="input-title"
+          name="title"
+          label="Título de la Categoría"
+          required
+          value={category.title}
+          placeholder="Ej: Proveedores de red"
+          inputClass="font-medium"
+        />
+
+        <SelectField
+          id="select-icon"
+          name="icon"
+          label="Ícono Visual"
+          selectClass="font-medium"
+          options={iconsList}
+          value={currentIcon}
+        />
+
+        <fieldset class="fieldset">
+          <FormLegend class="mb-2">Color de Identificación (Tono)</FormLegend>
+          <div
+            class="bg-base-200/50 border-base-300 flex w-full flex-col gap-2.5 rounded-xl border p-4"
+          >
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="primary"
+                class="radio radio-primary radio-sm"
+                checked={category.tone === "primary" || !category.tone}
+              />
+              <span class="text-sm font-medium">Amarillo (Principal)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="secondary"
+                class="radio radio-secondary radio-sm"
+                checked={category.tone === "secondary"}
+              />
+              <span class="text-sm font-medium">Azul (Secundario)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="accent"
+                class="radio radio-accent radio-sm"
+                checked={category.tone === "accent"}
+              />
+              <span class="text-sm font-medium">Celeste (Acento)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="success"
+                class="radio radio-success radio-sm"
+                checked={category.tone === "success"}
+              />
+              <span class="text-sm font-medium">Verde (Éxito)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="info"
+                class="radio radio-info radio-sm"
+                checked={category.tone === "info"}
+              />
+              <span class="text-sm font-medium">Azul claro (Info)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="warning"
+                class="radio radio-warning radio-sm"
+                checked={category.tone === "warning"}
+              />
+              <span class="text-sm font-medium">Naranja (Alerta)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="error"
+                class="radio radio-error radio-sm"
+                checked={category.tone === "error"}
+              />
+              <span class="text-sm font-medium">Rojo (Error)</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="neutral"
+                class="radio radio-neutral radio-sm"
+                checked={category.tone === "neutral"}
+              />
+              <span class="text-sm font-medium">Gris (Neutral)</span>
+            </label>
+          </div>
+        </fieldset>
       </div>
-
-      <PageHeader
-        title="Editar categoría de Contactos"
-        description="Definí cómo se agruparán y visualizarán los contactos."
-      />
-
-      {
-        errorMsg && (
-          <script is:inline define:vars={{ errorMsg }}>
-            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-          </script>
-        )
-      }
-
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-
-          <form method="POST" data-async-form class="space-y-5">
-            <div class="grid grid-cols-1 gap-y-5">
-              <FormField
-                id="input-title"
-                name="title"
-                label="Título de la Categoría"
-                required
-                value={category.title}
-                placeholder="Ej: Proveedores de red"
-                inputClass="font-medium"
-              />
-
-              <SelectField
-                id="select-icon"
-                name="icon"
-                label="Ícono Visual"
-                selectClass="font-medium"
-                options={iconsList}
-                value={currentIcon}
-              />
-
-              <fieldset class="fieldset">
-                <FormLegend class="mb-2"
-                  >Color de Identificación (Tono)</FormLegend
-                >
-                <div
-                  class="flex flex-col gap-2.5 bg-base-200/50 p-4 rounded-xl border border-base-300 w-full"
-                >
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="primary"
-                      class="radio radio-primary radio-sm"
-                      checked={category.tone === "primary" || !category.tone}
-                    />
-                    <span class="text-sm font-medium">Amarillo (Principal)</span
-                    >
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="secondary"
-                      class="radio radio-secondary radio-sm"
-                      checked={category.tone === "secondary"}
-                    />
-                    <span class="text-sm font-medium">Azul (Secundario)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="accent"
-                      class="radio radio-accent radio-sm"
-                      checked={category.tone === "accent"}
-                    />
-                    <span class="text-sm font-medium">Celeste (Acento)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="success"
-                      class="radio radio-success radio-sm"
-                      checked={category.tone === "success"}
-                    />
-                    <span class="text-sm font-medium">Verde (Éxito)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="info"
-                      class="radio radio-info radio-sm"
-                      checked={category.tone === "info"}
-                    />
-                    <span class="text-sm font-medium">Azul claro (Info)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="warning"
-                      class="radio radio-warning radio-sm"
-                      checked={category.tone === "warning"}
-                    />
-                    <span class="text-sm font-medium">Naranja (Alerta)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="error"
-                      class="radio radio-error radio-sm"
-                      checked={category.tone === "error"}
-                    />
-                    <span class="text-sm font-medium">Rojo (Error)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="neutral"
-                      class="radio radio-neutral radio-sm"
-                      checked={category.tone === "neutral"}
-                    />
-                    <span class="text-sm font-medium">Gris (Neutral)</span>
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-
-            <div
-              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
-            >
-              <ActionCancelButton
-                href={resolveUrl("/admin/contactos")}
-                label="Cancelar"
-              />
-              <ActionConfirmButton
-                type="submit"
-                color="btn-primary"
-                label="Guardar"
-                icon="boxicons:save"
-              />
-            </div>
-          </form>
-        </div>
-      </SectionCard>
     </div>
-  </PageContainer>
-  <AsyncFormScript />
-</BaseLayout>
+  </SectionCard>
+</FormShell>
+
+<AsyncFormScript />

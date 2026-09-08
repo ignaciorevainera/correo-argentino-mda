@@ -17,7 +17,10 @@ export function startSync(date: string, intervalMs = 5000) {
         if (!localRec) return;
 
         // Skip if there are unsaved local changes or the user is currently editing the row
-        if (store.dirtyKeys.has(newRec.rowId) || dom.isRowBeingEdited(newRec.rowId)) {
+        if (
+          store.dirtyKeys.has(newRec.rowId) ||
+          dom.isRowBeingEdited(newRec.rowId)
+        ) {
           return;
         }
 
@@ -26,10 +29,11 @@ export function startSync(date: string, intervalMs = 5000) {
           "asistencia",
           "ausencia",
           "entradaReal",
+          "horarioEstipulado",
           "cumplimiento",
           "cumplimientoForzado",
           "motivoLoguin",
-          "detalle"
+          "detalle",
         ];
 
         let hasDiff = false;

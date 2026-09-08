@@ -9,10 +9,13 @@ import path from "node:path";
 export const GET: APIRoute = async ({ params, locals }) => {
   // Verificar que el usuario esté autenticado
   if (!locals.user || locals.user.id === 0) {
-    return new Response("No autorizado. Inicie sesión para descargar este recurso.", {
-      status: 401,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return new Response(
+      "No autorizado. Inicie sesión para descargar este recurso.",
+      {
+        status: 401,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      },
+    );
   }
 
   const { id } = params;
@@ -37,10 +40,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
       .limit(1);
 
     if (!app || !app.instructionPdfPath) {
-      return new Response("El instructivo PDF no existe para este aplicativo.", {
-        status: 444, // Custom status or 404
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      });
+      return new Response(
+        "El instructivo PDF no existe para este aplicativo.",
+        {
+          status: 444, // Custom status or 404
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        },
+      );
     }
 
     const pdfsDir = getPdfsDir();
@@ -49,16 +55,21 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
     // Verificar si el archivo físico existe
     if (!fs.existsSync(filePath)) {
-      console.error(`[PDF Endpoint] Archivo no encontrado en el servidor: ${filePath}`);
-      return new Response("El archivo físico del instructivo no se encuentra en el servidor.", {
-        status: 404,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      });
+      console.error(
+        `[PDF Endpoint] Archivo no encontrado en el servidor: ${filePath}`,
+      );
+      return new Response(
+        "El archivo físico del instructivo no se encuentra en el servidor.",
+        {
+          status: 404,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        },
+      );
     }
 
     // Leer el archivo y transmitirlo
     const fileBuffer = fs.readFileSync(filePath);
-    
+
     // Generar un nombre de archivo seguro para la descarga
     const safeTitle = app.title.replace(/[^a-zA-Z0-9_\-]/g, "_");
     const downloadName = `${safeTitle}_instructivo.pdf`;
@@ -74,6 +85,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
     });
   } catch (error: any) {
     console.error(`[PDF Endpoint] Error al servir PDF: ${error.message}`);
-    return new Response("Error interno del servidor al procesar el PDF.", { status: 500 });
+    return new Response("Error interno del servidor al procesar el PDF.", {
+      status: 500,
+    });
   }
 };

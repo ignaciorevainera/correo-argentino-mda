@@ -18,7 +18,7 @@ export const POST: APIRoute = async ({ locals }) => {
     if (!result.ok) {
       return jsonResponse(
         { error: result.error || "Error al sincronizar con InvGate" },
-        500
+        500,
       );
     }
 
@@ -28,6 +28,9 @@ export const POST: APIRoute = async ({ locals }) => {
     });
   } catch (error: any) {
     console.error("[SyncInvGate] Error:", error);
-    return jsonError(sanitizeError(error) || "Error al sincronizar con InvGate", 500);
+    return jsonError(
+      sanitizeError(error) || "Error al sincronizar con InvGate",
+      500,
+    );
   }
 };

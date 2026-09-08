@@ -53,6 +53,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import AdminFeriadosContent from "@components/admin/feriados/AdminFeriadosContent.astro";
 import AdminFeriadosSkeleton from "@components/admin/feriados/AdminFeriadosSkeleton.astro";
 ---
+
 <BaseLayout>
   <AdminFeriadosContent server:defer>
     <AdminFeriadosSkeleton slot="fallback" />
@@ -89,8 +90,7 @@ const allHolidays = await db
   .orderBy(asc(holidays.date));
 
 const headerGridClass = "grid-cols-[80px_1fr_1.5fr_100px] gap-4";
-const rowGridClass =
-  "grid grid-cols-[80px_1fr_1.5fr_100px] items-center gap-4";
+const rowGridClass = "grid grid-cols-[80px_1fr_1.5fr_100px] items-center gap-4";
 ---
 
 <PageContainer>
@@ -100,10 +100,10 @@ const rowGridClass =
   />
 
   <div
-    class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+    class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
   >
     <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-base-content">
+      <h2 class="text-base-content text-lg font-semibold">
         Feriados registrados
       </h2>
       {
@@ -118,7 +118,7 @@ const rowGridClass =
       }
     </div>
 
-    <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+    <div class="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
       <SearchBar
         id="admin-holiday-search"
         label="Buscar feriado"
@@ -127,7 +127,7 @@ const rowGridClass =
       />
       <a
         href={`${cleanBase}admin/feriados/create`}
-        class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent w-full sm:w-auto"
+        class="btn btn-secondary focus-visible:outline-accent w-full rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
       >
         <Icon name="boxicons:plus" size={18} />
         Nuevo feriado
@@ -160,8 +160,8 @@ const rowGridClass =
 
     {
       allHolidays.length === 0 ? (
-        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200 p-4">
+        <div class="text-base-content/50 flex flex-col items-center gap-3 py-16">
+          <div class="bg-base-200 rounded-full p-4">
             <Icon
               name="boxicons:calendar-filled"
               size={32}
@@ -187,13 +187,11 @@ const rowGridClass =
               data-search-text={`${h.id} ${h.date} ${h.name}`.toLowerCase()}
               class:list={[
                 rowGridClass,
-                "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+                "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
               ]}
             >
               <div>
-                <span
-                  class="rounded-md bg-base-200 px-2 py-1 font-mono text-sm font-semibold text-base-content"
-                >
+                <span class="bg-base-200 text-base-content rounded-md px-2 py-1 font-mono text-sm font-semibold">
                   {h.id}
                 </span>
               </div>
@@ -201,7 +199,7 @@ const rowGridClass =
               <div class="min-w-0">
                 <span
                   data-highlight-target
-                  class="truncate text-sm font-semibold text-base-content"
+                  class="text-base-content truncate text-sm font-semibold"
                 >
                   {h.date}
                 </span>
@@ -210,7 +208,7 @@ const rowGridClass =
               <div class="min-w-0">
                 <span
                   data-highlight-target
-                  class="truncate text-sm text-base-content/70"
+                  class="text-base-content/70 truncate text-sm"
                 >
                   {h.name}
                 </span>
@@ -228,9 +226,7 @@ const rowGridClass =
                   class="inline"
                   onsubmit="return confirm('¿Estás seguro de que querés eliminar este feriado?')"
                 >
-                  <ActionDeleteButton
-                    ariaLabel={`Eliminar ${h.name}`}
-                  />
+                  <ActionDeleteButton ariaLabel={`Eliminar ${h.name}`} />
                 </form>
               </div>
             </article>
@@ -295,6 +291,7 @@ const rowGridClass =
 ```
 
 Puntos clave:
+
 - `headerGridClass` y `rowGridClass` usan las mismas columnas
 - Cada fila tiene `data-sort-id`, `data-sort-date`, `data-sort-name` y `data-search-text`
 - El `<script>` de búsqueda es copia exacta del patrón usado en otros admin CRUDs
@@ -311,8 +308,7 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 
 const headerGridClass = "grid-cols-[80px_1fr_1.5fr_100px] gap-4";
-const rowGridClass =
-  "grid grid-cols-[80px_1fr_1.5fr_100px] items-center gap-4";
+const rowGridClass = "grid grid-cols-[80px_1fr_1.5fr_100px] items-center gap-4";
 ---
 
 <PageContainer>
@@ -323,18 +319,20 @@ const rowGridClass =
     />
 
     <div
-      class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+      class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
     >
       <div class="flex items-center gap-3">
-        <h2 class="text-lg font-semibold text-base-content">
+        <h2 class="text-base-content text-lg font-semibold">
           Feriados registrados
         </h2>
-        <div class="h-5 w-8 skeleton rounded-full"></div>
+        <div class="skeleton h-5 w-8 rounded-full"></div>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-        <div class="h-10 w-full sm:w-64 skeleton rounded-lg"></div>
-        <div class="h-10 w-full sm:w-36 skeleton rounded-lg"></div>
+      <div
+        class="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row"
+      >
+        <div class="skeleton h-10 w-full rounded-lg sm:w-64"></div>
+        <div class="skeleton h-10 w-full rounded-lg sm:w-36"></div>
       </div>
     </div>
 
@@ -363,15 +361,15 @@ const rowGridClass =
           <div
             class:list={[
               rowGridClass,
-              "border-b border-base-300 px-4 py-4 last:border-b-0",
+              "border-base-300 border-b px-4 py-4 last:border-b-0",
             ]}
           >
-            <div class="h-6 w-12 skeleton rounded-md" />
-            <div class="h-4 w-28 skeleton rounded" />
-            <div class="h-4 w-40 skeleton rounded" />
+            <div class="skeleton h-6 w-12 rounded-md" />
+            <div class="skeleton h-4 w-28 rounded" />
+            <div class="skeleton h-4 w-40 rounded" />
             <div class="flex justify-end gap-2">
-              <div class="h-7 w-16 skeleton rounded-lg" />
-              <div class="h-7 w-16 skeleton rounded-lg" />
+              <div class="skeleton h-7 w-16 rounded-lg" />
+              <div class="skeleton h-7 w-16 rounded-lg" />
             </div>
           </div>
         ))
@@ -408,7 +406,9 @@ import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 let errorMsg = "";
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const fd = await Astro.request.formData();
     const date = fd.get("date")?.toString().trim() ?? "";
@@ -418,11 +418,18 @@ if (Astro.request.method === "POST") {
       errorMsg = "La fecha y el nombre son obligatorios.";
     } else {
       await db.insert(holidays).values({ date, name });
-      await logAdminFromAstro(Astro.locals, `Creó el feriado "${name}" (${date})`);
+      await logAdminFromAstro(
+        Astro.locals,
+        `Creó el feriado "${name}" (${date})`,
+      );
 
       const toastMessage = "Feriado creado con éxito.";
       if (isAjax) {
-        return toastResponse({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/feriados") });
+        return toastResponse({
+          success: true,
+          message: toastMessage,
+          redirectUrl: resolveUrl("/admin/feriados"),
+        });
       }
       return redirectWithToast("/admin/feriados", toastMessage);
     }
@@ -441,16 +448,16 @@ if (Astro.request.method === "POST") {
 
 <BaseLayout title="Nuevo feriado">
   <PageContainer>
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
+    <div class="text-base-content/60 flex items-center gap-2 text-sm">
       <a
         href={resolveUrl("/admin/feriados")}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        class="hover:text-base-content flex items-center gap-1.5 transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
         Feriados
       </a>
       <span>/</span>
-      <span class="text-base-content font-medium truncate">Nuevo feriado</span>
+      <span class="text-base-content truncate font-medium">Nuevo feriado</span>
     </div>
 
     <PageHeader
@@ -458,46 +465,46 @@ if (Astro.request.method === "POST") {
       description="Agregá una fecha al calendario de feriados."
     />
 
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
-    }
+    <script is:inline define:vars={{ errorMsg }}>
+      if (errorMsg) {
+        window.addEventListener("load", () =>
+          window.showToast?.(errorMsg, "alert-error"),
+        );
+      }
+    </script>
 
     <form method="POST" data-async-form class="space-y-4">
       <SectionCard class="shadow-md">
-          <h2
-            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+        <h2
+          class="text-base-content flex items-center gap-2 text-sm font-semibold"
+        >
+          <span
+            class="bg-secondary/10 text-secondary inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
           >
-            <span
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:calendar-filled" size={15} />
-            </span>
-            Datos del feriado
-          </h2>
+            <Icon name="boxicons:calendar-filled" size={15} />
+          </span>
+          Datos del feriado
+        </h2>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="input-date"
-              name="date"
-              type="date"
-              label="Fecha"
-              required
-              autofocus
-            />
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField
+            id="input-date"
+            name="date"
+            type="date"
+            label="Fecha"
+            required
+            autofocus
+          />
 
-            <FormField
-              id="input-name"
-              name="name"
-              label="Nombre"
-              required
-              placeholder="ej: Día de la Independencia"
-              autocomplete="off"
-            />
-          </div>
+          <FormField
+            id="input-name"
+            name="name"
+            label="Nombre"
+            required
+            placeholder="ej: Día de la Independencia"
+            autocomplete="off"
+          />
+        </div>
       </SectionCard>
 
       <div class="flex items-center justify-between gap-3 pt-1">
@@ -520,6 +527,7 @@ if (Astro.request.method === "POST") {
 ```
 
 Notas sobre el patrón:
+
 - El POST handler está al inicio del frontmatter
 - Maneja respuesta dual: JSON (AJAX) o redirect (formulario tradicional)
 - `logAdminFromAstro` se llama después del `db.insert()` exitoso
@@ -565,7 +573,9 @@ if (!holiday) {
 }
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const fd = await Astro.request.formData();
     const date = fd.get("date")?.toString().trim() ?? "";
@@ -579,16 +589,29 @@ if (Astro.request.method === "POST") {
         .set({ date, name })
         .where(eq(holidays.id, Number(id)));
 
-      await logAdminFromAstro(Astro.locals, `Actualizó el feriado "${name}" (${date})`);
+      await logAdminFromAstro(
+        Astro.locals,
+        `Actualizó el feriado "${name}" (${date})`,
+      );
 
       if (isAjax) {
-        return toastResponse({ success: true, message: "Feriado actualizado con éxito.", redirectUrl: resolveUrl("/admin/feriados") });
+        return toastResponse({
+          success: true,
+          message: "Feriado actualizado con éxito.",
+          redirectUrl: resolveUrl("/admin/feriados"),
+        });
       }
-      return redirectWithToast("/admin/feriados", "Feriado actualizado con éxito.");
+      return redirectWithToast(
+        "/admin/feriados",
+        "Feriado actualizado con éxito.",
+      );
     }
   } catch (e: any) {
     if (isAjax) {
-      return toastResponse({ success: false, error: e.message || "Error al actualizar." });
+      return toastResponse({
+        success: false,
+        error: e.message || "Error al actualizar.",
+      });
     }
     errorMsg = "Error al actualizar el feriado.";
   }
@@ -597,16 +620,18 @@ if (Astro.request.method === "POST") {
 
 <BaseLayout title={`Editar: ${holiday.name}`}>
   <PageContainer>
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
+    <div class="text-base-content/60 flex items-center gap-2 text-sm">
       <a
         href={resolveUrl("/admin/feriados")}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+        class="hover:text-base-content flex items-center gap-1.5 transition-colors"
       >
         <Icon name="boxicons:chevron-left" size={16} />
         Feriados
       </a>
       <span>/</span>
-      <span class="text-base-content font-medium truncate">Editar: {holiday.name}</span>
+      <span class="text-base-content truncate font-medium"
+        >Editar: {holiday.name}</span
+      >
     </div>
 
     <PageHeader
@@ -614,47 +639,47 @@ if (Astro.request.method === "POST") {
       description={`ID de base de datos: ${holiday.id}`}
     />
 
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
-    }
+    <script is:inline define:vars={{ errorMsg }}>
+      if (errorMsg) {
+        window.addEventListener("load", () =>
+          window.showToast?.(errorMsg, "alert-error"),
+        );
+      }
+    </script>
 
     <form method="POST" data-async-form class="space-y-4">
       <SectionCard class="shadow-md">
-          <h2
-            class="flex items-center gap-2 text-sm font-semibold text-base-content"
+        <h2
+          class="text-base-content flex items-center gap-2 text-sm font-semibold"
+        >
+          <span
+            class="bg-secondary/10 text-secondary inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
           >
-            <span
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:calendar-filled" size={15} />
-            </span>
-            Datos del feriado
-          </h2>
+            <Icon name="boxicons:calendar-filled" size={15} />
+          </span>
+          Datos del feriado
+        </h2>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="input-date"
-              name="date"
-              type="date"
-              label="Fecha"
-              required
-              value={holiday.date}
-            />
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField
+            id="input-date"
+            name="date"
+            type="date"
+            label="Fecha"
+            required
+            value={holiday.date}
+          />
 
-            <FormField
-              id="input-name"
-              name="name"
-              label="Nombre"
-              required
-              value={holiday.name}
-              placeholder="ej: Día de la Independencia"
-              autocomplete="off"
-            />
-          </div>
+          <FormField
+            id="input-name"
+            name="name"
+            label="Nombre"
+            required
+            value={holiday.name}
+            placeholder="ej: Día de la Independencia"
+            autocomplete="off"
+          />
+        </div>
       </SectionCard>
 
       <div class="flex items-center justify-between gap-3 pt-1">
@@ -677,6 +702,7 @@ if (Astro.request.method === "POST") {
 ```
 
 Diferencias clave con Create:
+
 - Tiene un `SELECT` inicial para pre-fill del formulario (`holiday.date`, `holiday.name`)
 - Si el registro no existe, redirige al listado
 - Usa `db.update()` en vez de `db.insert()`
@@ -704,12 +730,14 @@ export const POST = createDeleteHandler({
       .returning({ name: holidays.name, date: holidays.date });
     return deleted ?? null;
   },
-  successMessage: (d) => d
-    ? `Feriado "${(d as any).name}" (${(d as any).date}) eliminado con éxito.`
-    : "Feriado eliminado con éxito.",
-  logMessage: (d) => d
-    ? `Eliminó el feriado "${(d as any).name}" (${(d as any).date})`
-    : undefined,
+  successMessage: (d) =>
+    d
+      ? `Feriado "${(d as any).name}" (${(d as any).date}) eliminado con éxito.`
+      : "Feriado eliminado con éxito.",
+  logMessage: (d) =>
+    d
+      ? `Eliminó el feriado "${(d as any).name}" (${(d as any).date})`
+      : undefined,
 });
 ```
 

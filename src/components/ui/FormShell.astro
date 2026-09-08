@@ -1,0 +1,70 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+
+interface Props {
+  backHref: string;
+  title: string;
+  subtitle?: string;
+  formId?: string;
+  containerWidth?: "default" | "md" | "2xl" | "xl" | "xxl" | "full";
+  async?: boolean;
+  enctype?: string;
+  cancelLabel?: string;
+  cancelIcon?: string;
+  saveLabel?: string;
+  saveIcon?: string;
+  saveColor?: string;
+  class?: string;
+}
+
+const {
+  backHref,
+  title,
+  subtitle,
+  formId = "editor-form",
+  containerWidth = "xxl",
+  async = false,
+  enctype,
+  cancelLabel = "Cancelar",
+  cancelIcon = "boxicons:arrow-big-left-filled",
+  saveLabel = "Guardar cambios",
+  saveIcon = "boxicons:save-filled",
+  saveColor = "btn-secondary",
+  class: className = "",
+} = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <PageContainer width={containerWidth}>
+    <PageHeader title={title} description={subtitle} />
+
+    <form
+      id={formId}
+      method="POST"
+      class:list={["mt-4 space-y-4", className]}
+      {...async ? { "data-async-form": "" } : {}}
+      {...enctype ? { enctype } : {}}
+    >
+      <slot />
+
+      <div class="flex items-center justify-end gap-3 pt-4">
+        <ActionCancelButton
+          href={backHref}
+          label={cancelLabel}
+          icon={cancelIcon}
+          variant="error"
+        />
+        <ActionConfirmButton
+          type="submit"
+          color={saveColor}
+          label={saveLabel}
+          icon={saveIcon}
+        />
+      </div>
+    </form>
+  </PageContainer>
+</BaseLayout>

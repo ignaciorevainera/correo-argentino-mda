@@ -15,7 +15,9 @@ export const POST = createDeleteHandler({
   },
   afterDelete: async ({ deleted }) => {
     if (deleted) {
-      await db.delete(schedules).where(eq(schedules.agentName, (deleted as any).name));
+      await db
+        .delete(schedules)
+        .where(eq(schedules.agentName, (deleted as any).name));
     }
   },
   successMessage: () => "Operador eliminado con éxito.",

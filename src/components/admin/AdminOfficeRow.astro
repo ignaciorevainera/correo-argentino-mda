@@ -24,7 +24,8 @@ const rowGridClass =
 const cleanBase = getCleanBase();
 
 // For search data attribute
-const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${office.region} ${office.provinceName} ${officeTypeLabelByType[mappedType] ?? mappedType} ${office.parentNis ?? ""} ${office.costCenter}`.toLowerCase();
+const searchText =
+  `${office.code} ${office.name} ${office.address ?? ""} ${office.region} ${office.provinceName} ${officeTypeLabelByType[mappedType] ?? mappedType} ${office.parentNis ?? ""} ${office.costCenter}`.toLowerCase();
 ---
 
 <article
@@ -38,7 +39,7 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
   data-search-text={searchText}
   class:list={[
     rowGridClass,
-    "border-b border-base-300 px-4 py-3 transition-colors hover:bg-base-200/50 last:border-b-0",
+    "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
   ]}
 >
   {/* Código */}
@@ -58,32 +59,36 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
   <div class="min-w-0">
     <p
       data-highlight-target
-      class="truncate text-sm font-semibold text-base-content"
+      class="text-base-content truncate text-sm font-semibold"
     >
       {office.name}
     </p>
-    {office.address && (
-      <p
-        data-highlight-target
-        class="mt-0.5 truncate text-xs text-base-content/50"
-      >
-        {office.address}
-      </p>
-    )}
+    {
+      office.address && (
+        <p
+          data-highlight-target
+          class="text-base-content/50 mt-0.5 truncate text-xs"
+        >
+          {office.address}
+        </p>
+      )
+    }
   </div>
 
   {/* NIS Padre */}
   <div class="min-w-0">
-    {office.parentNis ? (
-      <span
-        data-highlight-target
-        class="inline-flex px-2 py-1 font-mono text-sm font-semibold office-type-chip bg-base-300 text-base-content border-base-400"
-      >
-        {office.parentNis}
-      </span>
-    ) : (
-      <span class="text-base-content/30">&mdash;</span>
-    )}
+    {
+      office.parentNis ? (
+        <span
+          data-highlight-target
+          class="office-type-chip bg-base-300 text-base-content border-base-400 inline-flex px-2 py-1 font-mono text-sm font-semibold"
+        >
+          {office.parentNis}
+        </span>
+      ) : (
+        <span class="text-base-content/30">&mdash;</span>
+      )
+    }
   </div>
 
   {/* Tipo */}
@@ -91,7 +96,7 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
     <span
       data-highlight-target
       class:list={[
-        "inline-flex px-2 py-1 text-xs font-bold uppercase tracking-wide",
+        "inline-flex px-2 py-1 text-xs font-bold tracking-wide uppercase",
         officeTypeChipClassByType[mappedType] || defaultChipClass,
       ]}
     >
@@ -101,19 +106,16 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
 
   {/* Provincia / Región */}
   <div class="min-w-0">
-    <span
-      data-highlight-target
-      class="truncate text-sm text-base-content/70"
-    >
-      {office.provinceName || (
-        <span class="text-base-content/30">&mdash;</span>
-      )}
+    <span data-highlight-target class="text-base-content/70 truncate text-sm">
+      {office.provinceName || <span class="text-base-content/30">&mdash;</span>}
     </span>
-    {office.region && (
-      <p class="mt-0.5 truncate text-xs text-base-content/50">
-        {office.region}
-      </p>
-    )}
+    {
+      office.region && (
+        <p class="text-base-content/50 mt-0.5 truncate text-xs">
+          {office.region}
+        </p>
+      )
+    }
   </div>
 
   {/* Acciones */}
@@ -130,9 +132,7 @@ const searchText = `${office.code} ${office.name} ${office.address ?? ""} ${offi
     >
       <input type="hidden" name="action" value="delete_office" />
       <input type="hidden" name="officeId" value={office.dbId} />
-      <ActionDeleteButton
-        ariaLabel={`Eliminar ${office.name}`}
-      />
+      <ActionDeleteButton ariaLabel={`Eliminar ${office.name}`} />
     </form>
   </div>
 </article>

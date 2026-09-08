@@ -2,7 +2,9 @@
 import { Icon } from "astro-icon/components";
 import { getAttendanceData } from "@lib/attendance";
 
-const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+const todayStr = new Date().toLocaleDateString("en-CA", {
+  timeZone: "America/Argentina/Buenos_Aires",
+});
 const [y, m] = todayStr.split("-");
 const defaultMonth = `${y}-${m}`;
 
@@ -18,73 +20,147 @@ const initialData = await getAttendanceData(startDate, endDate);
   window.__STATS_INITIAL_DATA_MONTH__ = defaultMonth;
 </script>
 
-<div class="flex flex-col gap-6 w-full pb-24 animate-in fade-in duration-500">
+<div class="animate-in fade-in flex w-full flex-col gap-6 pb-24 duration-500">
   <!-- Controls & Filters Bar -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm">
+  <div
+    class="bg-base-100 border-base-300 flex flex-col justify-between gap-4 rounded-2xl border p-4 shadow-sm md:flex-row md:items-center"
+  >
     <div class="flex items-center gap-3">
-      <span class="text-sm font-bold text-base-content/70">Seleccionar Mes:</span>
-      <input 
-        type="month" 
+      <span class="text-base-content/70 text-sm font-bold"
+        >Seleccionar Mes:</span
+      >
+      <input
+        type="month"
         id="analytics-month"
         value={defaultMonth}
-        class="bg-base-200 border border-base-300 rounded-xl px-4 py-2 text-sm font-bold text-base-content outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all cursor-pointer"
+        class="bg-base-200 border-base-300 text-base-content focus:ring-secondary/20 focus:border-secondary cursor-pointer rounded-xl border px-4 py-2 text-sm font-bold transition-all outline-none focus:ring-2"
         onclick="this.showPicker()"
       />
     </div>
   </div>
 
   <!-- KPI Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full" id="kpi-container">
-    <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
-      <span class="text-xxs text-base-content/40 uppercase font-black tracking-wider">Tasa Puntualidad</span>
-      <span class="text-2xl font-black text-secondary" id="kpi-punctuality">--%</span>
+  <div
+    class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    id="kpi-container"
+  >
+    <div
+      class="bg-base-100 border-base-300 flex flex-col gap-1 rounded-2xl border p-4 shadow-sm"
+    >
+      <span
+        class="text-xxs text-base-content/40 font-black tracking-wider uppercase"
+        >Tasa Puntualidad</span
+      >
+      <span class="text-secondary text-2xl font-black" id="kpi-punctuality"
+        >--%</span
+      >
     </div>
-    <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
-      <span class="text-xxs text-base-content/40 uppercase font-black tracking-wider">Asistencias Totales</span>
-      <span class="text-2xl font-black text-emerald-500" id="kpi-total">--</span>
+    <div
+      class="bg-base-100 border-base-300 flex flex-col gap-1 rounded-2xl border p-4 shadow-sm"
+    >
+      <span
+        class="text-xxs text-base-content/40 font-black tracking-wider uppercase"
+        >Asistencias Totales</span
+      >
+      <span class="text-2xl font-black text-emerald-500" id="kpi-total">--</span
+      >
     </div>
-    <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
-      <span class="text-xxs text-base-content/40 uppercase font-black tracking-wider">Total Ausencias</span>
-      <span class="text-2xl font-black text-error" id="kpi-absences">--</span>
+    <div
+      class="bg-base-100 border-base-300 flex flex-col gap-1 rounded-2xl border p-4 shadow-sm"
+    >
+      <span
+        class="text-xxs text-base-content/40 font-black tracking-wider uppercase"
+        >Total Ausencias</span
+      >
+      <span class="text-error text-2xl font-black" id="kpi-absences">--</span>
     </div>
-    <div class="bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1">
-      <span class="text-xxs text-base-content/40 uppercase font-black tracking-wider">Mayor Ausencia</span>
-      <span class="text-lg font-black text-base-content truncate" id="kpi-top-reason">--</span>
+    <div
+      class="bg-base-100 border-base-300 flex flex-col gap-1 rounded-2xl border p-4 shadow-sm"
+    >
+      <span
+        class="text-xxs text-base-content/40 font-black tracking-wider uppercase"
+        >Mayor Ausencia</span
+      >
+      <span
+        class="text-base-content truncate text-lg font-black"
+        id="kpi-top-reason">--</span
+      >
     </div>
   </div>
 
   <!-- Charts Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+  <div class="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
     <!-- Doughnut Chart -->
-    <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4">
-      <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Distribución de Incidencias</h3>
-      <div class="relative w-full h-[220px] flex items-center justify-center">
+    <div
+      class="bg-base-100 border-base-300 flex flex-col gap-4 rounded-2xl border p-5 shadow-sm"
+    >
+      <h3
+        class="text-base-content/70 text-xs font-black tracking-wider uppercase"
+      >
+        Distribución de Incidencias
+      </h3>
+      <div class="relative flex h-55 w-full items-center justify-center">
         <canvas id="doughnut-chart"></canvas>
       </div>
     </div>
     <!-- Bar Chart & Details Panel Container -->
-    <div class="bg-base-100 rounded-2xl border border-base-300 shadow-sm overflow-hidden lg:col-span-2 relative">
-      <div id="slide-wrapper" class="flex w-[200%] transition-transform duration-500 ease-in-out">
+    <div
+      class="bg-base-100 border-base-300 relative overflow-hidden rounded-2xl border shadow-sm lg:col-span-2"
+    >
+      <div
+        id="slide-wrapper"
+        class="flex w-[200%] transition-transform duration-500 ease-in-out"
+      >
         <!-- Panel A: Bar Chart -->
-        <div class="w-1/2 p-5 flex flex-col gap-4 shrink-0">
-          <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Tendencia Semanal de Puntualidad</h3>
-          <div class="relative w-full h-[220px]">
+        <div class="flex w-1/2 shrink-0 flex-col gap-4 p-5">
+          <h3
+            class="text-base-content/70 text-xs font-black tracking-wider uppercase"
+          >
+            Tendencia Semanal de Puntualidad
+          </h3>
+          <div class="relative h-55 w-full">
             <canvas id="bar-chart"></canvas>
           </div>
         </div>
         <!-- Panel B: Eventuality Details -->
-        <div class="w-1/2 p-5 flex flex-col gap-4 shrink-0 bg-base-50/50">
-          <div class="flex items-center justify-between border-b border-base-200 pb-2">
+        <div class="bg-base-50/50 flex w-1/2 shrink-0 flex-col gap-4 p-5">
+          <div
+            class="border-base-200 flex items-center justify-between border-b pb-2"
+          >
             <div class="flex items-center gap-2">
-              <span id="detail-color-indicator" class="w-3 h-3 rounded-full"></span>
-              <h3 id="detail-title" class="text-xs font-black uppercase tracking-wider text-base-content/80">Detalle de Eventualidad</h3>
+              <span id="detail-color-indicator" class="h-3 w-3 rounded-full"
+              ></span>
+              <h3
+                id="detail-title"
+                class="text-base-content/80 text-xs font-black tracking-wider uppercase"
+              >
+                Detalle de Eventualidad
+              </h3>
             </div>
-            <button id="close-detail-btn" class="btn btn-xs btn-ghost gap-1 font-bold text-base-content/60 hover:text-base-content hover:bg-base-200">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            <button
+              id="close-detail-btn"
+              class="btn btn-xs btn-ghost text-base-content/60 hover:text-base-content hover:bg-base-200 gap-1 font-bold"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-arrow-left"
+                ><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg
+              >
               Volver al Gráfico
             </button>
           </div>
-          <div id="detail-content" class="overflow-y-auto max-h-[220px] pr-2 space-y-2 text-xs font-semibold text-base-content/85">
+          <div
+            id="detail-content"
+            class="text-base-content/85 max-h-55 space-y-2 overflow-y-auto pr-2 text-xs font-semibold"
+          >
             <!-- Dynamically populated list of operators & dates -->
           </div>
         </div>
@@ -93,61 +169,143 @@ const initialData = await getAttendanceData(startDate, endDate);
   </div>
 
   <!-- Operator Details Sheet -->
-  <div class="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-4 w-full">
-      <div class="flex items-center justify-between border-b border-base-200 pb-3">
-        <h3 class="text-xs font-black uppercase tracking-wider text-base-content/70">Ficha del Operador</h3>
-        <select id="operator-select" class="select select-sm select-bordered rounded-xl max-w-[200px] w-full text-xs font-bold">
-          <option value="">Seleccione operador...</option>
-        </select>
+  <div
+    class="bg-base-100 border-base-300 flex w-full flex-col gap-4 rounded-2xl border p-5 shadow-sm"
+  >
+    <div
+      class="border-base-200 flex items-center justify-between border-b pb-3"
+    >
+      <h3
+        class="text-base-content/70 text-xs font-black tracking-wider uppercase"
+      >
+        Ficha del Operador
+      </h3>
+      <select
+        id="operator-select"
+        class="select select-sm select-bordered w-full max-w-50 rounded-xl text-xs font-bold"
+      >
+        <option value="">Seleccione operador...</option>
+      </select>
+    </div>
+
+    <!-- Operator Stats Block -->
+    <div
+      id="operator-stats"
+      class="animate-in fade-in flex hidden flex-col gap-4 duration-300"
+    >
+      <div class="grid grid-cols-2 gap-3 min-[640px]:grid-cols-5">
+        <div
+          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
+        >
+          <span
+            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
+            >Puntualidad</span
+          >
+          <span
+            class="text-secondary text-base font-black"
+            id="op-kpi-punctuality">--%</span
+          >
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
+        >
+          <span
+            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
+            >Cumplió</span
+          >
+          <span class="text-base font-black text-emerald-500" id="op-kpi-worked"
+            >--</span
+          >
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
+        >
+          <span
+            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
+            >Tarde / Retiro</span
+          >
+          <span class="text-warning text-base font-black" id="op-kpi-lates"
+            >--</span
+          >
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
+        >
+          <span
+            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
+            >Incumplió</span
+          >
+          <span class="text-error/80 text-base font-black" id="op-kpi-failed"
+            >--</span
+          >
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
+        >
+          <span
+            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
+            >Ausencias / Eventualidades</span
+          >
+          <span
+            class="text-base font-black text-violet-500 dark:text-violet-400"
+            id="op-kpi-absences">--</span
+          >
+        </div>
       </div>
 
-      <!-- Operator Stats Block -->
-      <div id="operator-stats" class="hidden flex flex-col gap-4 animate-in fade-in duration-300">
-        <div class="grid grid-cols-2 min-[640px]:grid-cols-5 gap-3">
-          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Puntualidad</span>
-            <span class="text-base font-black text-secondary" id="op-kpi-punctuality">--%</span>
+      <!-- GitHub-Style Contribution Calendar -->
+      <div>
+        <h4
+          class="text-xxs text-base-content/40 mb-2 font-bold tracking-wider uppercase"
+        >
+          Cuadrícula Mensual de Asistencia
+        </h4>
+        <div
+          class="bg-base-200/30 border-base-300/40 flex flex-wrap justify-start gap-1.5 rounded-xl border p-3"
+          id="op-calendar-grid"
+        >
+          <!-- Casillas 1..31 -->
+        </div>
+        <!-- Grid Legend -->
+        <div
+          class="text-tiny text-base-content/40 mt-3 flex items-center gap-3 font-bold select-none"
+        >
+          <div class="flex items-center gap-1">
+            <span
+              class="h-2.5 w-2.5 rounded border border-emerald-500/30 bg-emerald-500/20"
+            ></span> Cumplió
           </div>
-          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Cumplió</span>
-            <span class="text-base font-black text-emerald-500" id="op-kpi-worked">--</span>
+          <div class="flex items-center gap-1">
+            <span
+              class="h-2.5 w-2.5 rounded border border-amber-500/30 bg-amber-500/20"
+            ></span> Tarde / Retiro
           </div>
-          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Tarde / Retiro</span>
-            <span class="text-base font-black text-warning" id="op-kpi-lates">--</span>
+          <div class="flex items-center gap-1">
+            <span class="bg-error/15 border-error/30 h-2.5 w-2.5 rounded border"
+            ></span> Incumplió
           </div>
-          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Incumplió</span>
-            <span class="text-base font-black text-error/80" id="op-kpi-failed">--</span>
+          <div class="flex items-center gap-1">
+            <span
+              class="h-2.5 w-2.5 rounded border border-violet-500/30 bg-violet-500/20"
+            ></span> Ausencia / Eventualidad
           </div>
-          <div class="bg-base-200/50 p-3 rounded-xl border border-base-300/40 text-center">
-            <span class="text-micro text-base-content/40 uppercase font-black tracking-wider block">Ausencias / Eventualidades</span>
-            <span class="text-base font-black text-violet-500 dark:text-violet-400" id="op-kpi-absences">--</span>
+          <div class="flex items-center gap-1">
+            <span
+              class="bg-base-200/50 border-base-300/40 h-2.5 w-2.5 rounded border"
+            ></span> Franco
           </div>
         </div>
-
-        <!-- GitHub-Style Contribution Calendar -->
-        <div>
-          <h4 class="text-xxs font-bold text-base-content/40 uppercase tracking-wider mb-2">Cuadrícula Mensual de Asistencia</h4>
-          <div class="flex flex-wrap gap-1.5 p-3 bg-base-200/30 rounded-xl border border-base-300/40 justify-start" id="op-calendar-grid">
-            <!-- Casillas 1..31 -->
-          </div>
-          <!-- Grid Legend -->
-          <div class="flex items-center gap-3 mt-3 text-tiny font-bold text-base-content/40 select-none">
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/30"></span> Cumplió</div>
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500/20 border border-amber-500/30"></span> Tarde / Retiro</div>
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-error/15 border border-error/30"></span> Incumplió</div>
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-violet-500/20 border border-violet-500/30"></span> Ausencia / Eventualidad</div>
-            <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-base-200/50 border border-base-300/40"></span> Franco</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty state when no operator is selected -->
-      <div id="operator-empty-state" class="py-12 text-center text-base-content/40 font-medium">
-        Seleccione un operador en el menú superior para ver su ficha estadística.
       </div>
     </div>
+
+    <!-- Empty state when no operator is selected -->
+    <div
+      id="operator-empty-state"
+      class="text-base-content/40 py-12 text-center font-medium"
+    >
+      Seleccione un operador en el menú superior para ver su ficha estadística.
+    </div>
+  </div>
 
   <!-- Chart.js CDN Link -->
   <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
@@ -160,19 +318,33 @@ const initialData = await getAttendanceData(startDate, endDate);
   let doughnutChartInstance: any = null;
   let barChartInstance: any = null;
 
-  const monthInput = document.getElementById('analytics-month') as HTMLInputElement;
-  const operatorSelect = document.getElementById('operator-select') as HTMLSelectElement;
+  const monthInput = document.getElementById(
+    "analytics-month",
+  ) as HTMLInputElement;
+  const operatorSelect = document.getElementById(
+    "operator-select",
+  ) as HTMLSelectElement;
 
   function processGlobalMetrics() {
-    const schedulesWithTime = rawLogs.filter(log => log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro");
+    const schedulesWithTime = rawLogs.filter(
+      (log) =>
+        log.horarioEstipulado &&
+        log.horarioEstipulado !== "Franco" &&
+        log.cumplimiento &&
+        log.cumplimiento !== "Sin Registro",
+    );
     const totalSchedules = schedulesWithTime.length;
-    
-    const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
-    const totalAsistencias = rawLogs.filter(log => log.asistenciaId).length;
-    const totalAusencias = rawLogs.filter(log => log.ausencia && log.ausencia !== "").length;
+
+    const punctuals = schedulesWithTime.filter(
+      (log) => log.cumplimiento === "Cumplió",
+    ).length;
+    const totalAsistencias = rawLogs.filter((log) => log.asistenciaId).length;
+    const totalAusencias = rawLogs.filter(
+      (log) => log.ausencia && log.ausencia !== "",
+    ).length;
 
     const absenceReasons: Record<string, number> = {};
-    rawLogs.forEach(log => {
+    rawLogs.forEach((log) => {
       if (log.ausencia && log.ausencia !== "") {
         absenceReasons[log.ausencia] = (absenceReasons[log.ausencia] || 0) + 1;
       }
@@ -186,27 +358,43 @@ const initialData = await getAttendanceData(startDate, endDate);
       }
     });
 
-    const kpiPunctuality = document.getElementById('kpi-punctuality');
-    const kpiTotal = document.getElementById('kpi-total');
-    const kpiAbsences = document.getElementById('kpi-absences');
-    const kpiTopReason = document.getElementById('kpi-top-reason');
+    const kpiPunctuality = document.getElementById("kpi-punctuality");
+    const kpiTotal = document.getElementById("kpi-total");
+    const kpiAbsences = document.getElementById("kpi-absences");
+    const kpiTopReason = document.getElementById("kpi-top-reason");
 
-    if (kpiPunctuality) kpiPunctuality.textContent = totalSchedules > 0 ? `${Math.round((punctuals / totalSchedules) * 100)}%` : '0%';
+    if (kpiPunctuality)
+      kpiPunctuality.textContent =
+        totalSchedules > 0
+          ? `${Math.round((punctuals / totalSchedules) * 100)}%`
+          : "0%";
     if (kpiTotal) kpiTotal.textContent = String(totalAsistencias);
     if (kpiAbsences) kpiAbsences.textContent = String(totalAusencias);
     if (kpiTopReason) kpiTopReason.textContent = topReason;
 
-    const agentStats: Record<number, { name: string; total: number; punctuals: number; lates: number }> = {};
-    rawLogs.forEach(log => {
+    const agentStats: Record<
+      number,
+      { name: string; total: number; punctuals: number; lates: number }
+    > = {};
+    rawLogs.forEach((log) => {
       if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
       if (!log.cumplimiento || log.cumplimiento === "Sin Registro") return;
       if (!agentStats[log.agentId]) {
-        agentStats[log.agentId] = { name: log.nombre, total: 0, punctuals: 0, lates: 0 };
+        agentStats[log.agentId] = {
+          name: log.nombre,
+          total: 0,
+          punctuals: 0,
+          lates: 0,
+        };
       }
       const stats = agentStats[log.agentId];
       stats.total++;
       if (log.cumplimiento === "Cumplió") stats.punctuals++;
-      if (log.cumplimiento && log.cumplimiento !== "Cumplió" && log.cumplimiento !== "Sin Registro") {
+      if (
+        log.cumplimiento &&
+        log.cumplimiento !== "Cumplió" &&
+        log.cumplimiento !== "Sin Registro"
+      ) {
         stats.lates++;
       }
     });
@@ -214,46 +402,56 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   function updateCharts() {
     const incidenceData: Record<string, number> = {};
-    rawLogs.forEach(log => {
+    rawLogs.forEach((log) => {
       if (log.ausencia && log.ausencia !== "") {
         incidenceData[log.ausencia] = (incidenceData[log.ausencia] || 0) + 1;
       }
-      if (log.cumplimiento === "Llegada Tarde" || log.cumplimiento === "Incumplió") {
-        incidenceData[log.cumplimiento] = (incidenceData[log.cumplimiento] || 0) + 1;
+      if (
+        log.cumplimiento === "Llegada Tarde" ||
+        log.cumplimiento === "Incumplió"
+      ) {
+        incidenceData[log.cumplimiento] =
+          (incidenceData[log.cumplimiento] || 0) + 1;
       }
     });
     const doughnutLabels = Object.keys(incidenceData);
     const doughnutValues = Object.values(incidenceData);
 
-    const doughnutCtx = (document.getElementById('doughnut-chart') as HTMLCanvasElement).getContext('2d');
+    const doughnutCtx = (
+      document.getElementById("doughnut-chart") as HTMLCanvasElement
+    ).getContext("2d");
     if (doughnutChartInstance) doughnutChartInstance.destroy();
-    
+
     if (doughnutLabels.length > 0 && doughnutCtx) {
       doughnutChartInstance = new (window as any).Chart(doughnutCtx, {
-        type: 'doughnut',
+        type: "doughnut",
         data: {
           labels: doughnutLabels,
-          datasets: [{
-            data: doughnutValues,
-            backgroundColor: (() => {
-              const palette = [
-                'rgba(245, 158, 11, 0.65)',   // amber-500
-                'rgba(239, 68, 68, 0.65)',    // red-500
-                'rgba(99, 102, 241, 0.65)',   // indigo-500
-                'rgba(236, 72, 153, 0.65)',   // pink-500
-                'rgba(14, 165, 233, 0.65)',   // sky-500
-                'rgba(20, 184, 166, 0.65)',   // teal-500
-                'rgba(168, 85, 247, 0.65)',   // purple-500
-                'rgba(249, 115, 22, 0.65)',    // orange-500
-                'rgba(217, 70, 239, 0.65)',   // fuchsia-500
-                'rgba(244, 63, 94, 0.65)',     // rose-500
-                'rgba(100, 116, 139, 0.65)'   // slate-500 (gris)
-              ];
-              return doughnutLabels.map((_, i) => palette[i % palette.length]);
-            })(),
-            borderColor: 'rgba(150, 150, 150, 0.1)',
-            borderWidth: 1.5
-          }]
+          datasets: [
+            {
+              data: doughnutValues,
+              backgroundColor: (() => {
+                const palette = [
+                  "rgba(245, 158, 11, 0.65)", // amber-500
+                  "rgba(239, 68, 68, 0.65)", // red-500
+                  "rgba(99, 102, 241, 0.65)", // indigo-500
+                  "rgba(236, 72, 153, 0.65)", // pink-500
+                  "rgba(14, 165, 233, 0.65)", // sky-500
+                  "rgba(20, 184, 166, 0.65)", // teal-500
+                  "rgba(168, 85, 247, 0.65)", // purple-500
+                  "rgba(249, 115, 22, 0.65)", // orange-500
+                  "rgba(217, 70, 239, 0.65)", // fuchsia-500
+                  "rgba(244, 63, 94, 0.65)", // rose-500
+                  "rgba(100, 116, 139, 0.65)", // slate-500 (gris)
+                ];
+                return doughnutLabels.map(
+                  (_, i) => palette[i % palette.length],
+                );
+              })(),
+              borderColor: "rgba(150, 150, 150, 0.1)",
+              borderWidth: 1.5,
+            },
+          ],
         },
         options: {
           responsive: true,
@@ -262,37 +460,42 @@ const initialData = await getAttendanceData(startDate, endDate);
             if (elements.length > 0) {
               const elementIndex = elements[0].index;
               const label = chart.data.labels[elementIndex];
-              const color = chart.data.datasets[0].backgroundColor[elementIndex];
+              const color =
+                chart.data.datasets[0].backgroundColor[elementIndex];
               showEventualityDetail(label, color, elementIndex);
             }
           },
           onHover: (event: any, chartElement: any[]) => {
             if (event && event.native && event.native.target) {
-              (event.native.target as HTMLElement).style.cursor = chartElement.length ? 'pointer' : 'default';
+              (event.native.target as HTMLElement).style.cursor =
+                chartElement.length ? "pointer" : "default";
             }
           },
           plugins: {
             legend: {
-              position: 'bottom',
+              position: "bottom",
               labels: {
                 boxWidth: 13,
-                font: { family: 'Geist', size: 12, weight: 'bold' },
-                color: 'gray'
-              }
-            }
-          }
-        }
+                font: { family: "Geist", size: 12, weight: "bold" },
+                color: "gray",
+              },
+            },
+          },
+        },
       });
     }
 
-    const weeklySchedules: Record<string, { total: number; punctuals: number }> = {
+    const weeklySchedules: Record<
+      string,
+      { total: number; punctuals: number }
+    > = {
       "Semana 1": { total: 0, punctuals: 0 },
       "Semana 2": { total: 0, punctuals: 0 },
       "Semana 3": { total: 0, punctuals: 0 },
-      "Semana 4": { total: 0, punctuals: 0 }
+      "Semana 4": { total: 0, punctuals: 0 },
     };
 
-    rawLogs.forEach(log => {
+    rawLogs.forEach((log) => {
       if (!log.horarioEstipulado || log.horarioEstipulado === "Franco") return;
       if (!log.cumplimiento || log.cumplimiento === "Sin Registro") return;
       const day = parseInt(log.date.substring(8, 10));
@@ -308,24 +511,30 @@ const initialData = await getAttendanceData(startDate, endDate);
     });
 
     const barLabels = Object.keys(weeklySchedules);
-    const barValues = Object.values(weeklySchedules).map(w => w.total > 0 ? Math.round((w.punctuals / w.total) * 100) : 0);
+    const barValues = Object.values(weeklySchedules).map((w) =>
+      w.total > 0 ? Math.round((w.punctuals / w.total) * 100) : 0,
+    );
 
-    const barCtx = (document.getElementById('bar-chart') as HTMLCanvasElement).getContext('2d');
+    const barCtx = (
+      document.getElementById("bar-chart") as HTMLCanvasElement
+    ).getContext("2d");
     if (barChartInstance) barChartInstance.destroy();
 
     if (barCtx) {
       barChartInstance = new (window as any).Chart(barCtx, {
-        type: 'bar',
+        type: "bar",
         data: {
           labels: barLabels,
-          datasets: [{
-            label: '% Puntualidad',
-            data: barValues,
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderColor: 'rgba(59, 130, 246, 0.9)',
-            borderWidth: 1,
-            borderRadius: 6
-          }]
+          datasets: [
+            {
+              label: "% Puntualidad",
+              data: barValues,
+              backgroundColor: "rgba(59, 130, 246, 0.7)",
+              borderColor: "rgba(59, 130, 246, 0.9)",
+              borderWidth: 1,
+              borderRadius: 6,
+            },
+          ],
         },
         options: {
           responsive: true,
@@ -334,36 +543,49 @@ const initialData = await getAttendanceData(startDate, endDate);
             y: {
               beginAtZero: true,
               max: 100,
-              grid: { color: 'rgba(150, 150, 150, 0.05)' },
-              ticks: { font: { family: 'Geist', size: 9 } }
+              grid: { color: "rgba(150, 150, 150, 0.05)" },
+              ticks: { font: { family: "Geist", size: 9 } },
             },
             x: {
               grid: { display: false },
-              ticks: { font: { family: 'Geist', size: 9, weight: 'bold' } }
-            }
+              ticks: { font: { family: "Geist", size: 9, weight: "bold" } },
+            },
           },
           plugins: {
-            legend: { display: false }
-          }
-        }
+            legend: { display: false },
+          },
+        },
       });
     }
   }
 
   function rgbaToRgbStr(rgba: string): string {
     const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (!m) return '';
+    if (!m) return "";
     return `${m[1]}, ${m[2]}, ${m[3]}`;
   }
 
-  function renderGroupedCard(nombre: string, dateGroups: string[][], logs: any[], baseUrl: string, sliceColor: string) {
-    const initials = nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+  function renderGroupedCard(
+    nombre: string,
+    dateGroups: string[][],
+    logs: any[],
+    baseUrl: string,
+    sliceColor: string,
+  ) {
+    const initials = nombre
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
     const totalDays = dateGroups.reduce((sum, g) => sum + g.length, 0);
     const allDates = dateGroups.flat().sort();
     const rgb = rgbaToRgbStr(sliceColor);
 
     const dateToComment: Record<string, string> = {};
-    logs.forEach(log => { if (log.detalle) dateToComment[log.date] = log.detalle; });
+    logs.forEach((log) => {
+      if (log.detalle) dateToComment[log.date] = log.detalle;
+    });
 
     return `
       <div class="eventuality-detail-card flex flex-col p-3.5 bg-base-100 dark:bg-base-200/50 rounded-xl border border-base-300/40 shadow-sm transition-all duration-200">
@@ -375,19 +597,20 @@ const initialData = await getAttendanceData(startDate, endDate);
             <span class="font-bold text-sm text-base-content truncate">${nombre}</span>
           </div>
           <span class="text-xs font-bold bg-base-200/80 px-3 py-1.5 rounded-lg text-base-content/80 tracking-wider shadow-sm shrink-0 whitespace-nowrap">
-            ${totalDays} ${totalDays === 1 ? 'día' : 'días'}
+            ${totalDays} ${totalDays === 1 ? "día" : "días"}
           </span>
         </div>
         <div class="flex flex-wrap gap-1.5 mt-2.5">
-          ${allDates.map(date => {
-            const parts = date.split('-');
-            const display = `${parts[2]}/${parts[1]}`;
-            const comment = dateToComment[date];
-            const hasComment = !!comment;
-            const tipText = hasComment
-              ? comment.replace(/"/g, '&quot;')
-              : `Ir a ${display}`;
-            return `
+          ${allDates
+            .map((date) => {
+              const parts = date.split("-");
+              const display = `${parts[2]}/${parts[1]}`;
+              const comment = dateToComment[date];
+              const hasComment = !!comment;
+              const tipText = hasComment
+                ? comment.replace(/"/g, "&quot;")
+                : `Ir a ${display}`;
+              return `
               <div class="js-portal-tooltip" data-tip="${tipText}">
                 <a href="${baseUrl}supervision/asistencia?date=${date}"
                    class="relative px-2.5 py-1 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer block"
@@ -395,11 +618,12 @@ const initialData = await getAttendanceData(startDate, endDate);
                    onmouseover="this.style.background='rgba(${rgb},0.22)';this.style.borderColor='rgba(${rgb},0.5)'"
                    onmouseout="this.style.background='rgba(${rgb},0.12)';this.style.borderColor='rgba(${rgb},0.28)'">
                   ${display}
-                  ${hasComment ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-base-100 shadow-sm"></span>' : ''}
+                  ${hasComment ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-base-100 shadow-sm"></span>' : ""}
                 </a>
               </div>
             `;
-          }).join('')}
+            })
+            .join("")}
         </div>
       </div>
     `;
@@ -412,7 +636,8 @@ const initialData = await getAttendanceData(startDate, endDate);
     for (let i = 1; i < sorted.length; i++) {
       const prev = new Date(sorted[i - 1] + "T12:00:00");
       const curr = new Date(sorted[i] + "T12:00:00");
-      const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+      const diffDays =
+        (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
       if (diffDays === 1) {
         current.push(sorted[i]);
       } else {
@@ -428,19 +653,21 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   function showEventualityDetail(label: string, color: string, index: number) {
     if (doughnutChartInstance) {
-      const activeBorderColors = doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) => 
-        i === index ? color.replace('0.65', '1') : 'rgba(150, 150, 150, 0.1)'
-      );
-      const activeBorderWidths = doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) => 
-        i === index ? 4 : 1.5
-      );
+      const activeBorderColors =
+        doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) =>
+          i === index ? color.replace("0.65", "1") : "rgba(150, 150, 150, 0.1)",
+        );
+      const activeBorderWidths =
+        doughnutChartInstance.data.datasets[0].data.map((_: any, i: number) =>
+          i === index ? 4 : 1.5,
+        );
       doughnutChartInstance.data.datasets[0].borderColor = activeBorderColors;
       doughnutChartInstance.data.datasets[0].borderWidth = activeBorderWidths;
       doughnutChartInstance.update();
     }
 
-    const titleEl = document.getElementById('detail-title');
-    const colorEl = document.getElementById('detail-color-indicator');
+    const titleEl = document.getElementById("detail-title");
+    const colorEl = document.getElementById("detail-color-indicator");
     if (titleEl) titleEl.textContent = `Detalle: ${label}`;
     if (colorEl) {
       colorEl.style.backgroundColor = color;
@@ -448,21 +675,26 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
 
     const isComplianceSlice = complianceLabelsSet.has(label);
-    const filterField = isComplianceSlice ? 'cumplimiento' : 'ausencia';
+    const filterField = isComplianceSlice ? "cumplimiento" : "ausencia";
 
-    const matchingLogs = rawLogs.filter(log => log[filterField] === label)
+    const matchingLogs = rawLogs
+      .filter((log) => log[filterField] === label)
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const contentEl = document.getElementById('detail-content');
+    const contentEl = document.getElementById("detail-content");
     if (contentEl) {
       if (matchingLogs.length === 0) {
-        contentEl.innerHTML = '<div class="text-center py-12 text-base-content/40 font-bold">No hay registros de esta incidencia en este mes.</div>';
+        contentEl.innerHTML =
+          '<div class="text-center py-12 text-base-content/40 font-bold">No hay registros de esta incidencia en este mes.</div>';
       } else {
         const baseUrl = import.meta.env.BASE_URL || "/";
         const finalBase = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
 
-        const groupedByOperator: Record<string, { logs: any[]; dates: string[] }> = {};
-        matchingLogs.forEach(log => {
+        const groupedByOperator: Record<
+          string,
+          { logs: any[]; dates: string[] }
+        > = {};
+        matchingLogs.forEach((log) => {
           if (!groupedByOperator[log.nombre]) {
             groupedByOperator[log.nombre] = { logs: [], dates: [] };
           }
@@ -471,63 +703,91 @@ const initialData = await getAttendanceData(startDate, endDate);
         });
 
         const sortedOperators = Object.keys(groupedByOperator).sort();
-        contentEl.innerHTML = sortedOperators.map(nombre => {
-          const group = groupedByOperator[nombre];
-          const uniqueDates = [...new Set(group.dates)].sort();
-          const dateGroups = groupConsecutiveDates(uniqueDates);
-          return renderGroupedCard(nombre, dateGroups, group.logs, finalBase, color);
-        }).join('');
+        contentEl.innerHTML = sortedOperators
+          .map((nombre) => {
+            const group = groupedByOperator[nombre];
+            const uniqueDates = [...new Set(group.dates)].sort();
+            const dateGroups = groupConsecutiveDates(uniqueDates);
+            return renderGroupedCard(
+              nombre,
+              dateGroups,
+              group.logs,
+              finalBase,
+              color,
+            );
+          })
+          .join("");
       }
     }
 
-    const wrapper = document.getElementById('slide-wrapper');
+    const wrapper = document.getElementById("slide-wrapper");
     if (wrapper) {
-      wrapper.style.transform = 'translateX(-50%)';
+      wrapper.style.transform = "translateX(-50%)";
     }
   }
 
   function showOperatorDetails(agentId: number) {
-    const opLogs = rawLogs.filter(log => log.agentId === agentId);
+    const opLogs = rawLogs.filter((log) => log.agentId === agentId);
     if (opLogs.length === 0) return;
 
-    const emptyState = document.getElementById('operator-empty-state');
-    const statsBlock = document.getElementById('operator-stats');
-    if (emptyState) emptyState.classList.add('hidden');
-    if (statsBlock) statsBlock.classList.remove('hidden');
+    const emptyState = document.getElementById("operator-empty-state");
+    const statsBlock = document.getElementById("operator-stats");
+    if (emptyState) emptyState.classList.add("hidden");
+    if (statsBlock) statsBlock.classList.remove("hidden");
 
-    const schedulesWithTime = opLogs.filter(log => 
-      (log.horarioEstipulado && log.horarioEstipulado !== "Franco" && log.cumplimiento && log.cumplimiento !== "Sin Registro") ||
-      (log.cumplimientoForzado && log.cumplimiento && log.cumplimiento !== "Sin Registro")
+    const schedulesWithTime = opLogs.filter(
+      (log) =>
+        (log.horarioEstipulado &&
+          log.horarioEstipulado !== "Franco" &&
+          log.cumplimiento &&
+          log.cumplimiento !== "Sin Registro") ||
+        (log.cumplimientoForzado &&
+          log.cumplimiento &&
+          log.cumplimiento !== "Sin Registro"),
     );
     const totalSchedules = schedulesWithTime.length;
-    
-    const punctuals = schedulesWithTime.filter(log => log.cumplimiento === "Cumplió").length;
-    const complied = opLogs.filter(log => log.cumplimiento === "Cumplió").length;
-    const lates = opLogs.filter(log => 
-      log.cumplimiento === "Llegada Tarde"
+
+    const punctuals = schedulesWithTime.filter(
+      (log) => log.cumplimiento === "Cumplió",
     ).length;
-    const failed = opLogs.filter(log => log.cumplimiento === "Incumplió").length;
-    const absences = opLogs.filter(log => log.ausencia && log.ausencia !== "").length;
+    const complied = opLogs.filter(
+      (log) => log.cumplimiento === "Cumplió",
+    ).length;
+    const lates = opLogs.filter(
+      (log) => log.cumplimiento === "Llegada Tarde",
+    ).length;
+    const failed = opLogs.filter(
+      (log) => log.cumplimiento === "Incumplió",
+    ).length;
+    const absences = opLogs.filter(
+      (log) => log.ausencia && log.ausencia !== "",
+    ).length;
 
-    const opKpiPunctuality = document.getElementById('op-kpi-punctuality');
-    const opKpiWorked = document.getElementById('op-kpi-worked');
-    const opKpiLates = document.getElementById('op-kpi-lates');
-    const opKpiFailed = document.getElementById('op-kpi-failed');
-    const opKpiAbsences = document.getElementById('op-kpi-absences');
+    const opKpiPunctuality = document.getElementById("op-kpi-punctuality");
+    const opKpiWorked = document.getElementById("op-kpi-worked");
+    const opKpiLates = document.getElementById("op-kpi-lates");
+    const opKpiFailed = document.getElementById("op-kpi-failed");
+    const opKpiAbsences = document.getElementById("op-kpi-absences");
 
-    if (opKpiPunctuality) opKpiPunctuality.textContent = totalSchedules > 0 ? `${Math.round((punctuals / totalSchedules) * 100)}%` : '100%';
+    if (opKpiPunctuality)
+      opKpiPunctuality.textContent =
+        totalSchedules > 0
+          ? `${Math.round((punctuals / totalSchedules) * 100)}%`
+          : "100%";
     if (opKpiWorked) opKpiWorked.textContent = String(complied);
     if (opKpiLates) opKpiLates.textContent = String(lates);
     if (opKpiFailed) opKpiFailed.textContent = String(failed);
     if (opKpiAbsences) opKpiAbsences.textContent = String(absences);
 
-    const grid = document.getElementById('op-calendar-grid');
+    const grid = document.getElementById("op-calendar-grid");
     if (grid) {
-      grid.innerHTML = '';
-      const sortedLogs = [...opLogs].sort((a, b) => a.date.localeCompare(b.date));
+      grid.innerHTML = "";
+      const sortedLogs = [...opLogs].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
 
       const consolidatedMap = new Map();
-      sortedLogs.forEach(log => {
+      sortedLogs.forEach((log) => {
         const existing = consolidatedMap.get(log.date);
         if (!existing) {
           consolidatedMap.set(log.date, { ...log });
@@ -544,84 +804,111 @@ const initialData = await getAttendanceData(startDate, endDate);
             existing.cumplimiento = log.cumplimiento;
           }
           if (log.entradaReal) {
-            existing.entradaReal = existing.entradaReal ? `${existing.entradaReal} / ${log.entradaReal}` : log.entradaReal;
+            existing.entradaReal = existing.entradaReal
+              ? `${existing.entradaReal} / ${log.entradaReal}`
+              : log.entradaReal;
           }
           if (log.horarioEstipulado) {
-            existing.horarioEstipulado = existing.horarioEstipulado ? `${existing.horarioEstipulado} / ${log.horarioEstipulado}` : log.horarioEstipulado;
+            existing.horarioEstipulado = existing.horarioEstipulado
+              ? `${existing.horarioEstipulado} / ${log.horarioEstipulado}`
+              : log.horarioEstipulado;
           }
           if (log.asistencia) {
-            existing.asistencia = existing.asistencia ? `${existing.asistencia} / ${log.asistencia}` : log.asistencia;
+            existing.asistencia = existing.asistencia
+              ? `${existing.asistencia} / ${log.asistencia}`
+              : log.asistencia;
           }
           if (log.ausencia) {
-            existing.ausencia = existing.ausencia ? `${existing.ausencia} / ${log.ausencia}` : log.ausencia;
+            existing.ausencia = existing.ausencia
+              ? `${existing.ausencia} / ${log.ausencia}`
+              : log.ausencia;
           }
           if (log.detalle) {
-            existing.detalle = existing.detalle ? `${existing.detalle} | ${log.detalle}` : log.detalle;
+            existing.detalle = existing.detalle
+              ? `${existing.detalle} | ${log.detalle}`
+              : log.detalle;
           }
         }
       });
 
       const consolidatedLogs = Array.from(consolidatedMap.values());
-      
-      consolidatedLogs.forEach(log => {
+
+      consolidatedLogs.forEach((log) => {
         const day = parseInt(log.date.substring(8, 10));
-        const cell = document.createElement('div');
-        
-        let colorClass = 'bg-base-200/50 border border-base-300/40 text-base-content/40';
+        const cell = document.createElement("div");
+
+        let colorClass =
+          "bg-base-200/50 border border-base-300/40 text-base-content/40";
         if (log.cumplimiento && log.cumplimiento !== "Sin Registro") {
           if (log.cumplimiento === "Cumplió") {
-            colorClass = 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30';
+            colorClass =
+              "bg-emerald-500/20 text-emerald-600 border border-emerald-500/30";
           } else if (log.cumplimiento === "Llegada Tarde") {
-            colorClass = 'bg-amber-500/20 text-amber-600 border border-amber-500/30';
+            colorClass =
+              "bg-amber-500/20 text-amber-600 border border-amber-500/30";
           } else if (log.cumplimiento === "Incumplió") {
-            colorClass = 'bg-error/15 text-error border border-error/30';
+            colorClass = "bg-error/15 text-error border border-error/30";
           }
         }
-        
+
         cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-xxs font-black cursor-pointer shadow-sm transition-transform duration-200 hover:scale-110 hover:z-10 relative ${colorClass}`;
         cell.textContent = String(day);
 
         // Highlight absences with a red dot indicator (filtering out obsolete/invalid types)
         const validAusencias = [
-          "Tramite", "Demorado", "Se reporta enfermo", "Ausente Justificado", 
-          "Ausente con Permiso", "Ausente No Justificado", "Ausencia sin aviso", 
-          "Lic. Estudio", "Lic. Medica", "Lic. Anual", "Lic. UI", "Lic. Gremial", 
-          "Lic. Paternidad", "Lic. Maternidad", "Lic. Fallecimiento", "ART"
+          "Tramite",
+          "Demorado",
+          "Se reporta enfermo",
+          "Ausente Justificado",
+          "Ausente con Permiso",
+          "Ausente No Justificado",
+          "Ausencia sin aviso",
+          "Lic. Estudio",
+          "Lic. Medica",
+          "Lic. Anual",
+          "Lic. UI",
+          "Lic. Gremial",
+          "Lic. Paternidad",
+          "Lic. Maternidad",
+          "Lic. Fallecimiento",
+          "ART",
         ];
         if (log.ausencia && validAusencias.includes(log.ausencia)) {
-          const dot = document.createElement('span');
-          dot.className = 'absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-base-100';
+          const dot = document.createElement("span");
+          dot.className =
+            "absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-base-100";
           cell.appendChild(dot);
         }
-        
+
         // Click redirects to attendance control with date
-        cell.addEventListener('click', () => {
+        cell.addEventListener("click", () => {
           window.location.href = `${getCleanBase()}supervision/asistencia?date=${log.date}`;
         });
-        
+
         const tooltipParts = [
           `Fecha: ${log.date}`,
-          `Planificado: ${log.horarioEstipulado || 'Franco'}`,
-          `Asistencia: ${log.asistencia || 'Sin registro'}`,
-          `Cumplimiento: ${log.cumplimiento || 'Sin registro'}`
+          `Planificado: ${log.horarioEstipulado || "Franco"}`,
+          `Asistencia: ${log.asistencia || "Sin registro"}`,
+          `Cumplimiento: ${log.cumplimiento || "Sin registro"}`,
         ];
-        if (log.entradaReal) tooltipParts.push(`Entrada Real: ${log.entradaReal}`);
+        if (log.entradaReal)
+          tooltipParts.push(`Entrada Real: ${log.entradaReal}`);
         if (log.ausencia) tooltipParts.push(`Ausencia: ${log.ausencia}`);
         if (log.detalle) tooltipParts.push(`Comentario: ${log.detalle}`);
 
-        cell.title = tooltipParts.join('\n');
+        cell.title = tooltipParts.join("\n");
         grid.appendChild(cell);
       });
     }
   }
 
-  operatorSelect?.addEventListener('change', () => {
+  operatorSelect?.addEventListener("change", () => {
     const val = operatorSelect.value;
     if (!val) {
-      const emptyState = document.getElementById('operator-empty-state');
-      const statsBlock = document.getElementById('operator-stats');
-      if (emptyState) emptyState.classList.remove('hidden');
-      if (statsBlock) statsBlock.classList.add('hidden');
+      const emptyState = document.getElementById("operator-empty-state");
+      const statsBlock = document.getElementById("operator-stats");
+      if (emptyState) emptyState.classList.remove("hidden");
+      if (statsBlock) statsBlock.classList.add("hidden");
     } else {
       showOperatorDetails(parseInt(val));
     }
@@ -633,19 +920,22 @@ const initialData = await getAttendanceData(startDate, endDate);
 
   async function loadData() {
     if (!monthInput || !monthInput.value) return;
-    const [yearStr, monthStr] = monthInput.value.split('-');
+    const [yearStr, monthStr] = monthInput.value.split("-");
     const year = parseInt(yearStr);
     const month = parseInt(monthStr);
     const totalDays = getDaysInMonth(year, month);
 
     const startDate = `${yearStr}-${monthStr}-01`;
-    const endDate = `${yearStr}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
+    const endDate = `${yearStr}-${monthStr}-${String(totalDays).padStart(2, "0")}`;
 
-    const punctualityKPI = document.getElementById('kpi-punctuality');
-    if (punctualityKPI) punctualityKPI.textContent = '...';
+    const punctualityKPI = document.getElementById("kpi-punctuality");
+    if (punctualityKPI) punctualityKPI.textContent = "...";
 
     const statsWindow = window as any;
-    if (statsWindow.__STATS_INITIAL_DATA__ && statsWindow.__STATS_INITIAL_DATA_MONTH__ === monthInput.value) {
+    if (
+      statsWindow.__STATS_INITIAL_DATA__ &&
+      statsWindow.__STATS_INITIAL_DATA_MONTH__ === monthInput.value
+    ) {
       rawLogs = statsWindow.__STATS_INITIAL_DATA__;
       delete statsWindow.__STATS_INITIAL_DATA__;
       delete statsWindow.__STATS_INITIAL_DATA_MONTH__;
@@ -659,14 +949,16 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
 
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL || "/"}api/asistencia?startDate=${startDate}&endDate=${endDate}`);
+      const response = await fetch(
+        `${import.meta.env.BASE_URL || "/"}api/asistencia?startDate=${startDate}&endDate=${endDate}`,
+      );
       if (!response.ok) throw new Error("Failed to fetch statistics data");
       rawLogs = await response.json();
 
       processGlobalMetrics();
       populateOperatorDropdown();
       updateCharts();
-      
+
       if (operatorSelect.value) {
         showOperatorDetails(parseInt(operatorSelect.value));
       }
@@ -678,18 +970,21 @@ const initialData = await getAttendanceData(startDate, endDate);
   function populateOperatorDropdown() {
     if (!operatorSelect) return;
     const currentSelection = operatorSelect.value;
-    operatorSelect.innerHTML = '<option value="">Seleccione operador...</option>';
-    
+    operatorSelect.innerHTML =
+      '<option value="">Seleccione operador...</option>';
+
     const operatorsMap = new Map();
-    rawLogs.forEach(log => {
+    rawLogs.forEach((log) => {
       if (!operatorsMap.has(log.agentId)) {
         operatorsMap.set(log.agentId, log.nombre);
       }
     });
 
-    const sortedOps = Array.from(operatorsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    const sortedOps = Array.from(operatorsMap.entries()).sort((a, b) =>
+      a[1].localeCompare(b[1]),
+    );
     sortedOps.forEach(([id, name]) => {
-      const opt = document.createElement('option');
+      const opt = document.createElement("option");
       opt.value = String(id);
       opt.textContent = name;
       if (String(id) === currentSelection) opt.selected = true;
@@ -697,35 +992,40 @@ const initialData = await getAttendanceData(startDate, endDate);
     });
   }
 
-  monthInput?.addEventListener('change', loadData);
+  monthInput?.addEventListener("change", loadData);
 
-  document.getElementById('close-detail-btn')?.addEventListener('click', () => {
-    const wrapper = document.getElementById('slide-wrapper');
+  document.getElementById("close-detail-btn")?.addEventListener("click", () => {
+    const wrapper = document.getElementById("slide-wrapper");
     if (wrapper) {
-      wrapper.style.transform = 'translateX(0)';
+      wrapper.style.transform = "translateX(0)";
     }
     if (doughnutChartInstance) {
-      doughnutChartInstance.data.datasets[0].borderColor = 'rgba(150, 150, 150, 0.1)';
+      doughnutChartInstance.data.datasets[0].borderColor =
+        "rgba(150, 150, 150, 0.1)";
       doughnutChartInstance.data.datasets[0].borderWidth = 1.5;
       doughnutChartInstance.update();
     }
-    const portal = document.getElementById('daisy-tooltip-portal');
+    const portal = document.getElementById("daisy-tooltip-portal");
     if (portal) {
-      portal.style.display = 'none';
-      portal.className = '';
+      portal.style.display = "none";
+      portal.className = "";
     }
   });
 
-  document.getElementById('detail-content')?.addEventListener('click', (event) => {
-    const card = (event.target as HTMLElement).closest('.eventuality-detail-card');
-    if (!card) return;
-    
-    // If click is on a link, don't toggle expansion
-    if ((event.target as HTMLElement).closest('a')) return;
-    
-    card.classList.toggle('is-expanded');
-  });
-  
+  document
+    .getElementById("detail-content")
+    ?.addEventListener("click", (event) => {
+      const card = (event.target as HTMLElement).closest(
+        ".eventuality-detail-card",
+      );
+      if (!card) return;
+
+      // If click is on a link, don't toggle expansion
+      if ((event.target as HTMLElement).closest("a")) return;
+
+      card.classList.toggle("is-expanded");
+    });
+
   // Wait for Chart.js to load via CDN before running the data processing
   function safeInit() {
     if ((window as any).Chart) {
@@ -738,43 +1038,49 @@ const initialData = await getAttendanceData(startDate, endDate);
   safeInit();
 
   // Tooltip Portal Logic to fix clipping inside overflow containers
-  const portal = document.createElement('div');
-  portal.id = 'daisy-tooltip-portal';
-  portal.style.display = 'none';
+  const portal = document.createElement("div");
+  portal.id = "daisy-tooltip-portal";
+  portal.style.display = "none";
   document.body.appendChild(portal);
 
-  document.addEventListener('mouseover', (e) => {
-    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
+  document.addEventListener("mouseover", (e) => {
+    const target = (e.target as HTMLElement).closest(".js-portal-tooltip");
     if (target) {
       const rect = target.getBoundingClientRect();
-      const tipText = target.getAttribute('data-tip');
-      portal.style.display = 'block';
-      portal.style.top = rect.top + 'px';
-      portal.style.left = rect.left + 'px';
-      portal.style.width = rect.width + 'px';
-      portal.style.height = rect.height + 'px';
-      portal.setAttribute('data-tip', tipText || '');
-      
+      const tipText = target.getAttribute("data-tip");
+      portal.style.display = "block";
+      portal.style.top = rect.top + "px";
+      portal.style.left = rect.left + "px";
+      portal.style.width = rect.width + "px";
+      portal.style.height = rect.height + "px";
+      portal.setAttribute("data-tip", tipText || "");
+
       // Prevent hiding below browser viewport
       const spaceAbove = rect.top;
-      const posClass = spaceAbove < 80 ? 'tooltip-bottom' : 'tooltip-top';
+      const posClass = spaceAbove < 80 ? "tooltip-bottom" : "tooltip-top";
 
       portal.className = `tooltip tooltip-open fixed z-[99999] pointer-events-none ${posClass}`;
     }
   });
 
-  document.addEventListener('mouseout', (e) => {
-    const target = (e.target as HTMLElement).closest('.js-portal-tooltip');
-    const related = (e.relatedTarget as HTMLElement)?.closest('.js-portal-tooltip');
+  document.addEventListener("mouseout", (e) => {
+    const target = (e.target as HTMLElement).closest(".js-portal-tooltip");
+    const related = (e.relatedTarget as HTMLElement)?.closest(
+      ".js-portal-tooltip",
+    );
     if (target && target !== related) {
-      portal.style.display = 'none';
-      portal.className = '';
+      portal.style.display = "none";
+      portal.className = "";
     }
   });
 
-  document.addEventListener('scroll', () => {
-    portal.style.display = 'none';
-  }, { capture: true });
+  document.addEventListener(
+    "scroll",
+    () => {
+      portal.style.display = "none";
+    },
+    { capture: true },
+  );
 </script>
 
 <style is:global>

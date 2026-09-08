@@ -2,88 +2,79 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { parse } from "csv-parse/sync";
-import { db } from "./index"
+import { db } from "./index";
 import { titles, titleCategory } from "./schema";
 
 const filePath = path.join(process.cwd(), "src/data/titulos.csv");
 const csv = fs.readFileSync(filePath, "utf8");
 
 type CsvRow = {
-    name: string;
-    category: string;
-    icon: string;
-    tone: string;
-}
+  name: string;
+  category: string;
+  icon: string;
+  tone: string;
+};
 
 async function seedTitles() {
+  console.log("Iniciando inserción de títulos...");
+  const rows = parse(csv, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  }) as CsvRow[];
 
-    console.log("Iniciando inserción de títulos...");
-    const rows = parse(csv, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-    }) as CsvRow[];
-
-    const uniqueCategories = new Map<
-        string,
-        {
-            icon: string;
-            tone: string;
-        }
-    >();
-
-    for (const row of rows) {
-        if (!uniqueCategories.has(row.category)) {
-            uniqueCategories.set(row.category, {
-                icon: row.icon,
-                tone: row.tone,
-            });
-        }
+  const uniqueCategories = new Map<
+    string,
+    {
+      icon: string;
+      tone: string;
     }
+  >();
 
-    for (const [name, values] of uniqueCategories) {
-        await db
-            .insert(titleCategory)
-            .values({
-                name,
-                icon: values.icon,
-                tone: values.tone,
-            })
-            .onConflictDoNothing();
+  for (const row of rows) {
+    if (!uniqueCategories.has(row.category)) {
+      uniqueCategories.set(row.category, {
+        icon: row.icon,
+        tone: row.tone,
+      });
     }
+  }
 
-    const categories = await db
-        .select()
-        .from(titleCategory);
+  for (const [name, values] of uniqueCategories) {
+    await db
+      .insert(titleCategory)
+      .values({
+        name,
+        icon: values.icon,
+        tone: values.tone,
+      })
+      .onConflictDoNothing();
+  }
 
-    const categoryMap = new Map(
-        categories.map(c => [
-            c.name,
-            c.id
-        ])
-    );
+  const categories = await db.select().from(titleCategory);
 
-    for (const row of rows) {
+  const categoryMap = new Map(categories.map((c) => [c.name, c.id]));
 
-        const categoryId = categoryMap.get(row.category);
+  for (const row of rows) {
+    const categoryId = categoryMap.get(row.category);
 
-        if (!categoryId) continue;
+    if (!categoryId) continue;
 
-        await db.insert(titles).values({
+    await db
+      .insert(titles)
+      .values({
+        name: row.name,
 
-            name: row.name,
+        categoryId,
 
-            categoryId,
+        route: null,
 
-            route: null,
+        description: null,
 
-            description: null,
-
-            articleOnKdb: null,
-    
-
-        }).onConflictDoNothing();
-    }
+        articleOnKdb: null,
+      })
+      .onConflictDoNothing();
+  }
 }
 
 seedTitles();

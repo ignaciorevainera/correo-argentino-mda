@@ -12,7 +12,9 @@ let successMsg = "";
 let errorMsg = "";
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   const formData = await Astro.request.formData();
   const action = formData.get("action")?.toString() ?? "create";
 
@@ -34,7 +36,8 @@ if (Astro.request.method === "POST") {
             role: role as any,
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
-          await logAdminFromAstro(Astro.locals,
+          await logAdminFromAstro(
+            Astro.locals,
             `Creó al usuario "${username}" con rol ${role}`,
           );
         } catch (e) {
@@ -65,7 +68,8 @@ if (Astro.request.method === "POST") {
             .set({ password: hashedPassword })
             .where(eq(users.id, userId));
           successMsg = "Contraseña actualizada con éxito.";
-          await logAdminFromAstro(Astro.locals,
+          await logAdminFromAstro(
+            Astro.locals,
             `Blanqueó la contraseña de "${targetUsername}"`,
           );
         } catch (e) {
@@ -95,7 +99,8 @@ if (Astro.request.method === "POST") {
           .set({ username: newUsername })
           .where(eq(users.id, userId));
         successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Renombró al usuario de "${oldUsername}" a "${newUsername}"`,
         );
       } catch (e) {
@@ -121,7 +126,8 @@ if (Astro.request.method === "POST") {
           .set({ role: newRole as any })
           .where(eq(users.id, userId));
         successMsg = "Rol de usuario actualizado con éxito.";
-        await logAdminFromAstro(Astro.locals,
+        await logAdminFromAstro(
+          Astro.locals,
           `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}"`,
         );
       } catch (e) {
@@ -132,10 +138,20 @@ if (Astro.request.method === "POST") {
 
   if (isAjax) {
     if (errorMsg) {
-      return new Response(JSON.stringify({ success: false, error: errorMsg }), { status: 400, headers: {"Content-Type": "application/json"} });
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     // For forms in modals, we probably want them to reload to see the updated table, so redirectUrl: Astro.url.href
-    return new Response(JSON.stringify({ success: true, message: successMsg, redirectUrl: Astro.url.href }), { status: 200, headers: {"Content-Type": "application/json"} });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: successMsg,
+        redirectUrl: Astro.url.href,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 ---

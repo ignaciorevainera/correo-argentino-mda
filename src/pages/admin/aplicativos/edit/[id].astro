@@ -1,7 +1,4 @@
 ---
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -18,10 +15,9 @@ import { processAppFileUpload } from "@lib/appFileUpload";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
-import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
-import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
+import FormShell from "@components/ui/FormShell.astro";
 
 const { id } = Astro.params;
 
@@ -81,20 +77,23 @@ let formExternalUrl = "";
 let formSnapshot: FormData | null = null;
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const formData = await Astro.request.formData();
     formSnapshot = formData;
 
     const title = formData.get("title")?.toString().trim();
     const categoryIdRaw = formData.get("categoryId")?.toString().trim();
-    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
+    const categoryId =
+      categoryIdRaw && !isNaN(Number(categoryIdRaw))
+        ? Number(categoryIdRaw)
+        : null;
     const description = formData.get("description")?.toString().trim() || null;
     const version = formData.get("version")?.toString().trim() || null;
     const uploadType = formData.get("uploadType")?.toString() as
-      | "local"
-      | "external"
-      | null;
+      "local" | "external" | null;
 
     if (!title) {
       throw new Error("El título es obligatorio.");
@@ -177,10 +176,7 @@ if (Astro.request.method === "POST") {
 
         // Si existía un archivo viejo, borrarlo
         if (app.instructionPdfPath) {
-          const oldAbsPath = path.join(
-            pdfsDir,
-            app.instructionPdfPath,
-          );
+          const oldAbsPath = path.join(pdfsDir, app.instructionPdfPath);
           if (fs.existsSync(oldAbsPath)) {
             fs.unlinkSync(oldAbsPath);
           }
@@ -210,23 +206,35 @@ if (Astro.request.method === "POST") {
       })
       .where(eq(applications.id, app.id));
     if (oldTitle && oldTitle !== title) {
-      await logAdminFromAstro(Astro.locals,
+      await logAdminFromAstro(
+        Astro.locals,
         `Actualizó el aplicativo de "${oldTitle}" a "${title}"`,
       );
     } else {
-      await logAdminFromAstro(Astro.locals,
+      await logAdminFromAstro(
+        Astro.locals,
         `Actualizó el aplicativo "${title}"`,
       );
     }
 
     if (isAjax) {
-      return toastResponse({ success: true, message: "Aplicativo actualizado con éxito.", redirectUrl: resolveUrl("/admin/aplicativos") });
+      return toastResponse({
+        success: true,
+        message: "Aplicativo actualizado con éxito.",
+        redirectUrl: resolveUrl("/admin/aplicativos"),
+      });
     }
 
-    return redirectWithToast("/admin/aplicativos", "Aplicativo actualizado con éxito.");
+    return redirectWithToast(
+      "/admin/aplicativos",
+      "Aplicativo actualizado con éxito.",
+    );
   } catch (error: any) {
     if (isAjax) {
-      return toastResponse({ success: false, error: error.message || "Error al guardar el aplicativo." });
+      return toastResponse({
+        success: false,
+        error: error.message || "Error al guardar el aplicativo.",
+      });
     }
     errorMsg = error.message || "Error al guardar el aplicativo.";
     if (formSnapshot) {
@@ -252,325 +260,300 @@ const isExternal = formUploadType
   : /^https?:\/\//i.test(app.filePath);
 ---
 
-<BaseLayout title="Editar aplicativo">
-  <PageContainer>
-    <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
-        <a
-          href={resolveUrl("/admin/aplicativos")}
-          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+<FormShell
+  async
+  enctype="multipart/form-data"
+  backHref={resolveUrl("/admin/aplicativos")}
+  title="Editar aplicativo"
+  subtitle="Modificá los datos del aplicativo seleccionado."
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <SectionCard>
+    <div class="space-y-6 p-6 sm:p-8">
+      <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-3">
+        <FormField
+          id="input-title"
+          name="title"
+          label="Título"
+          required
+          value={app.title}
+          placeholder="Ej: ShareX"
+          maxlength={50}
+        />
+
+        <SelectField
+          id="select-categoryId"
+          name="categoryId"
+          label="Categoría"
+          selectClass="font-medium"
         >
-          <Icon name="boxicons:chevron-left" size={16} />
-          Aplicativos
-        </a>
-        <span>/</span>
-        <span class="text-base-content font-medium truncate">Editar aplicativo</span>
+          <option value="" selected={!app.categoryId}> Sin categoría </option>
+          {
+            categories.map((cat) => (
+              <option
+                value={cat.id}
+                selected={Number(cat.id) === Number(app.categoryId)}
+              >
+                {cat.title}
+              </option>
+            ))
+          }
+        </SelectField>
+
+        <FormField
+          id="input-version"
+          name="version"
+          label="Versión"
+          value={app.version}
+          placeholder="Ej: 1.2.0"
+          inputClass="font-mono text-sm"
+          helpText="(Opcional)"
+        />
       </div>
 
-      <PageHeader
-        title="Editar aplicativo"
-        description="Modificá los datos del aplicativo seleccionado."
-      />
-
-      {
-        errorMsg && (
-          <script is:inline define:vars={{ errorMsg }}>
-            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-          </script>
-        )
-      }
-
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-          <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <FormField
-                id="input-title"
-                name="title"
-                label="Título"
-                required
-                value={app.title}
-                placeholder="Ej: ShareX"
-                maxlength={50}
-              />
-
-              <SelectField
-                id="select-categoryId"
-                name="categoryId"
-                label="Categoría"
-                selectClass="font-medium"
-              >
-                <option value="" selected={!app.categoryId}>
-                  Sin categoría
-                </option>
-                {
-                  categories.map((cat) => (
-                    <option value={cat.id} selected={Number(cat.id) === Number(app.categoryId)}>
-                      {cat.title}
-                    </option>
-                  ))
-                }
-              </SelectField>
-
-              <FormField
-                id="input-version"
-                name="version"
-                label="Versión"
-                value={app.version}
-                placeholder="Ej: 1.2.0"
-                inputClass="font-mono text-sm"
-                helpText="(Opcional)"
-              />
-            </div>
-
-            <FormField
-              type="file"
-              id="input-icon"
-              name="icon"
-              label="Ícono"
-              accept="image/png, image/jpeg, image/svg+xml, .ico"
-              helpText="(Opcional, .png, .jpg, .svg, .ico)"
-            >
-              {
-                app.iconPath && (
-                  <div slot="preview" class="w-12 h-12 shrink-0 rounded-box border border-base-300 bg-base-200 flex items-center justify-center overflow-hidden p-1">
-                    <img
-                      src={resolveUrl(`api/icons/${app.iconPath}`)}
-                      alt="Preview del ícono"
-                      class="w-full h-full object-contain"
-                    />
-                  </div>
-                )
-              }
-            </FormField>
-
-            <fieldset class="fieldset">
-              <FormLegend class="mb-2">
-                Origen del archivo
-              </FormLegend>
-              <div
-                class="flex gap-1 rounded-lg bg-base-200/60 p-1"
-                role="radiogroup"
-                aria-label="Tipo de subida"
-              >
-                <label
-                  class:list={[
-                    "flex-1 flex items-center justify-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
-                    !isExternal
-                      ? "bg-base-100 shadow-sm text-base-content"
-                      : "text-base-content/50 hover:text-base-content/80",
-                  ]}
-                >
-                  <input
-                    type="radio"
-                    name="uploadType"
-                    value="local"
-                    checked={!isExternal}
-                    class="hidden"
-                    id="radio-local"
-                  />
-                  <Icon
-                    name="boxicons:arrow-in-up-square-half-filled"
-                    size={16}
-                    class="shrink-0"
-                  />
-                  Archivo local
-                </label>
-                <label
-                  class:list={[
-                    "flex-1 flex items-center justify-center gap-2 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
-                    isExternal
-                      ? "bg-base-100 shadow-sm text-base-content"
-                      : "text-base-content/50 hover:text-base-content/80",
-                  ]}
-                >
-                  <input
-                    type="radio"
-                    name="uploadType"
-                    value="external"
-                    checked={isExternal}
-                    class="hidden"
-                    id="radio-external"
-                  />
-                  <Icon
-                    name="boxicons:arrow-out-up-right-square-filled"
-                    size={16}
-                    class="shrink-0"
-                  />
-                  Enlace externo
-                </label>
-              </div>
-            </fieldset>
-
-            <div id="localUploadGroup" class:list={[isExternal && "hidden"]}>
-              <FormField
-                type="file"
-                id="input-file"
-                name="file"
-                label="Archivo"
-                accept=".zip,.exe,.msi,.rar"
-                helpText="Formatos: .zip, .exe, .msi, .rar"
-              />
-            </div>
-
-            <div id="externalUrlGroup" class:list={[!isExternal && "hidden"]}>
-              <FormField
-                id="input-externalUrl"
-                name="externalUrl"
-                label="URL externa"
-                type="url"
-                value={formExternalUrl || (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
-                placeholder="https://ejemplo.com/descarga/archivo.zip"
-                inputClass="font-mono"
-              />
-            </div>
-
-            {
-              app.filePath && (
-                <div class="flex items-center gap-3 rounded-lg bg-success/10 border border-success/20 px-4 py-3">
-                  <Icon
-                    name={
-                      isExternal
-                        ? "boxicons:arrow-out-up-right-square-filled"
-                        : "boxicons:file-filled"
-                    }
-                    size={20}
-                    class="text-success shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-base-content">
-                      {isExternal ? "Enlace actual" : "Archivo actual cargado"}
-                    </p>
-                    <p class="text-xs text-base-content/60 font-mono truncate">
-                      {app.filePath}
-                    </p>
-                  </div>
-                  <a
-                    href={app.filePath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="btn btn-ghost btn-xs gap-1"
-                  >
-                    <Icon
-                      name={
-                        isExternal
-                          ? "boxicons:arrow-to-right"
-                          : "boxicons:arrow-in-down-square-half-filled"
-                      }
-                      size={14}
-                    />
-                    {isExternal ? "Abrir" : "Descargar"}
-                  </a>
-                </div>
-              )
-            }
-
-            <FormField
-              type="file"
-              id="input-instruction-pdf"
-              name="instructionPdf"
-              label="Instructivo PDF"
-              accept=".pdf"
-              helpText="(Opcional, archivo .pdf confidencial)"
-            />
-
-            {
-              app.instructionPdfPath && (
-                <div class="flex items-center gap-3 rounded-lg bg-info/10 border border-info/20 px-4 py-3">
-                  <Icon
-                    name="boxicons:file-detail-filled"
-                    size={20}
-                    class="text-info shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-base-content">
-                      Instructivo PDF actual cargado
-                    </p>
-                    <p class="text-xs text-base-content/60 font-mono truncate">
-                      {app.instructionPdfPath}
-                    </p>
-                  </div>
-                  <a
-                    href={resolveUrl(`api/aplicativos/pdf/${app.id}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="btn btn-ghost btn-xs gap-1"
-                  >
-                    <Icon
-                      name="boxicons:arrow-in-down-square-half-filled"
-                      size={14}
-                    />
-                    Descargar
-                  </a>
-                </div>
-              )
-            }
-
-            <fieldset
-              class="fieldset border border-base-300 rounded-box p-4 bg-base-200/30"
-            >
-              <FormLegend class="px-2">
-                Credenciales / Metadatos Sensibles
-              </FormLegend>
-              <p class="text-xs text-base-content/60 mb-3 px-2">
-                Agregá credenciales o información confidencial (ej. Entorno:
-                Contraseña). Se almacenarán cifradas.
-              </p>
-
-              <div id="metadata-rows" class="space-y-3 px-2">
-                <!-- Se poblará dinámicamente con JS -->
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  id="btn-add-meta"
-                  class="btn btn-sm btn-outline gap-2 mt-4 ml-2"
-                >
-                  <Icon name="boxicons:plus" size={16} />
-                  Agregar credencial
-                </button>
-              </div>
-
-              <input
-                type="hidden"
-                name="metadata"
-                id="input-metadata-json"
-                value={JSON.stringify(app.metadata || [])}
-              />
-            </fieldset>
-
-            <FormTextarea
-              id="input-description"
-              name="description"
-              label="Descripción (Opcional)"
-              value={app.description}
-              placeholder="Breve descripción del aplicativo y su uso operativo."
-              rows={3}
-              maxlength={150}
-            />
-
+      <FormField
+        type="file"
+        id="input-icon"
+        name="icon"
+        label="Ícono"
+        accept="image/png, image/jpeg, image/svg+xml, .ico"
+        helpText="(Opcional, .png, .jpg, .svg, .ico)"
+      >
+        {
+          app.iconPath && (
             <div
-              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
+              slot="preview"
+              class="rounded-box border-base-300 bg-base-200 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border p-1"
             >
-              <ActionCancelButton
-                href={resolveUrl("/admin/aplicativos")}
-                label="Cancelar"
-              />
-              <ActionConfirmButton
-                type="submit"
-                color="btn-primary"
-                label="Guardar cambios"
-                icon="boxicons:save"
+              <img
+                src={resolveUrl(`api/icons/${app.iconPath}`)}
+                alt="Preview del ícono"
+                class="h-full w-full object-contain"
               />
             </div>
-          </form>
+          )
+        }
+      </FormField>
+
+      <div class="space-y-4">
+        <fieldset class="fieldset">
+          <FormLegend class="mb-2"> Origen del archivo </FormLegend>
+          <div
+            class="bg-base-200/60 flex gap-1 rounded-lg p-1"
+            role="radiogroup"
+            aria-label="Tipo de subida"
+          >
+            <label
+              class:list={[
+                "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
+                !isExternal
+                  ? "bg-base-100 text-base-content shadow-sm"
+                  : "text-base-content/50 hover:text-base-content/80",
+              ]}
+            >
+              <input
+                type="radio"
+                name="uploadType"
+                value="local"
+                checked={!isExternal}
+                class="hidden"
+                id="radio-local"
+              />
+              <Icon
+                name="boxicons:arrow-in-up-square-half-filled"
+                size={16}
+                class="shrink-0"
+              />
+              Archivo local
+            </label>
+            <label
+              class:list={[
+                "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
+                isExternal
+                  ? "bg-base-100 text-base-content shadow-sm"
+                  : "text-base-content/50 hover:text-base-content/80",
+              ]}
+            >
+              <input
+                type="radio"
+                name="uploadType"
+                value="external"
+                checked={isExternal}
+                class="hidden"
+                id="radio-external"
+              />
+              <Icon
+                name="boxicons:arrow-out-up-right-square-filled"
+                size={16}
+                class="shrink-0"
+              />
+              Enlace externo
+            </label>
+          </div>
+        </fieldset>
+
+        <div id="localUploadGroup" class:list={[isExternal && "hidden"]}>
+          <FormField
+            type="file"
+            id="input-file"
+            name="file"
+            label="Archivo"
+            accept=".zip,.exe,.msi,.rar"
+            helpText="Formatos: .zip, .exe, .msi, .rar"
+          />
         </div>
-      </SectionCard>
+
+        <div id="externalUrlGroup" class:list={[!isExternal && "hidden"]}>
+          <FormField
+            id="input-externalUrl"
+            name="externalUrl"
+            label="URL externa"
+            type="url"
+            value={formExternalUrl ||
+              (/^https?:\/\//i.test(app.filePath) ? app.filePath : "")}
+            placeholder="https://ejemplo.com/descarga/archivo.zip"
+            inputClass="font-mono"
+          />
+        </div>
+
+        {
+          app.filePath && (
+            <div class="bg-success/10 border-success/20 flex items-center gap-3 rounded-lg border px-4 py-3">
+              <Icon
+                name={
+                  isExternal
+                    ? "boxicons:arrow-out-up-right-square-filled"
+                    : "boxicons:file-filled"
+                }
+                size={20}
+                class="text-success shrink-0"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="text-base-content text-sm font-medium">
+                  {isExternal ? "Enlace actual" : "Archivo actual cargado"}
+                </p>
+                <p class="text-base-content/60 truncate font-mono text-xs">
+                  {app.filePath}
+                </p>
+              </div>
+              <a
+                href={app.filePath}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-ghost btn-xs gap-1"
+              >
+                <Icon
+                  name={
+                    isExternal
+                      ? "boxicons:arrow-to-right"
+                      : "boxicons:arrow-in-down-square-half-filled"
+                  }
+                  size={14}
+                />
+                {isExternal ? "Abrir" : "Descargar"}
+              </a>
+            </div>
+          )
+        }
+      </div>
+
+      <div class="space-y-4">
+        <FormField
+          type="file"
+          id="input-instruction-pdf"
+          name="instructionPdf"
+          label="Instructivo PDF"
+          accept=".pdf"
+          helpText="(Opcional, archivo .pdf confidencial)"
+        />
+
+        {
+          app.instructionPdfPath && (
+            <div class="bg-info/10 border-info/20 flex items-center gap-3 rounded-lg border px-4 py-3">
+              <Icon
+                name="boxicons:file-detail-filled"
+                size={20}
+                class="text-info shrink-0"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="text-base-content text-sm font-medium">
+                  Instructivo PDF actual cargado
+                </p>
+                <p class="text-base-content/60 truncate font-mono text-xs">
+                  {app.instructionPdfPath}
+                </p>
+              </div>
+              <a
+                href={resolveUrl(`api/aplicativos/pdf/${app.id}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-ghost btn-xs gap-1"
+              >
+                <Icon
+                  name="boxicons:arrow-in-down-square-half-filled"
+                  size={14}
+                />
+                Descargar
+              </a>
+            </div>
+          )
+        }
+      </div>
+
+      <fieldset
+        class="fieldset border-base-300 rounded-box bg-base-200/30 border p-4"
+      >
+        <FormLegend class="px-2">
+          Credenciales / Metadatos Sensibles
+        </FormLegend>
+        <p class="text-base-content/60 mb-3 px-2 text-xs">
+          Agregá credenciales o información confidencial (ej. Entorno:
+          Contraseña). Se almacenarán cifradas.
+        </p>
+
+        <div id="metadata-rows" class="space-y-3 px-2">
+          <!-- Se poblará dinámicamente con JS -->
+        </div>
+
+        <div>
+          <button
+            type="button"
+            id="btn-add-meta"
+            class="btn btn-sm btn-outline mt-4 ml-2 gap-2"
+          >
+            <Icon name="boxicons:plus-filled" size={16} />
+            Agregar credencial
+          </button>
+        </div>
+
+        <input
+          type="hidden"
+          name="metadata"
+          id="input-metadata-json"
+          value={JSON.stringify(app.metadata || [])}
+        />
+      </fieldset>
+
+      <FormTextarea
+        id="input-description"
+        name="description"
+        label="Descripción (Opcional)"
+        value={app.description}
+        placeholder="Breve descripción del aplicativo y su uso operativo."
+        rows={3}
+        maxlength={150}
+      />
     </div>
-  </PageContainer>
-  <AsyncFormScript />
-</BaseLayout>
+  </SectionCard>
+</FormShell>
+<AsyncFormScript />
 
 <script>
   const radios = document.querySelectorAll<HTMLInputElement>(

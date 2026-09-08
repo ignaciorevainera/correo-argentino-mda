@@ -61,7 +61,7 @@ export const navSections: NavSection[] = [
       {
         href: "/oficinas",
         label: "Oficinas",
-        icon: "boxicons:building-filled",
+        icon: "boxicons:building-house-filled",
       },
       {
         href: "/inventario-terminales",
@@ -86,9 +86,9 @@ export const navSections: NavSection[] = [
         icon: "boxicons:phone-filled",
       },
       {
-        href: "/soportes",
-        label: "Soportes",
-        icon: "boxicons:group-alt-filled",
+        href: "/mesas-de-ayuda",
+        label: "Mesas de Ayuda",
+        icon: "boxicons:headphone-mic",
       },
     ],
   },
@@ -97,7 +97,7 @@ export const navSections: NavSection[] = [
     label: "Herramientas",
     items: [
       {
-        href: "/usuarios",
+        href: "/buscador-usuarios",
         label: "Buscador de usuarios",
         icon: "boxicons:user-search-filled",
       },
@@ -146,6 +146,11 @@ export const navSections: NavSection[] = [
             href: "/admin/invgate/ubicaciones",
             label: "Ubicaciones InvGate",
             icon: "boxicons:location-alt-filled",
+          },
+          {
+            href: "/admin/feedback",
+            label: "Sugerencias y Reportes",
+            icon: "boxicons:mail-open-filled",
           },
         ],
       },

@@ -15,7 +15,8 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     // Lookup agent in database case-insensitively
-    const agent = await db.select({ id: agents.id })
+    const agent = await db
+      .select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
@@ -35,10 +36,18 @@ export const GET: APIRoute = async ({ request }) => {
         notes: "",
       });
 
-      return jsonResponse({ notes: "" }, 200, "no-store, no-cache, must-revalidate");
+      return jsonResponse(
+        { notes: "" },
+        200,
+        "no-store, no-cache, must-revalidate",
+      );
     }
 
-    return jsonResponse({ notes: agent[0].notes || "" }, 200, "no-store, no-cache, must-revalidate");
+    return jsonResponse(
+      { notes: agent[0].notes || "" },
+      200,
+      "no-store, no-cache, must-revalidate",
+    );
   } catch (error: any) {
     console.error("GET Notes API Error:", error);
     return jsonResponse({ error: sanitizeError(error) }, 500);
@@ -58,17 +67,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Case-insensitive lookup
-    const agent = await db.select({ id: agents.id })
+    const agent = await db
+      .select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
 
     if (agent.length > 0) {
       // Update by primary key ID for safety
-      await db
-        .update(agents)
-        .set({ notes })
-        .where(eq(agents.id, agent[0].id));
+      await db.update(agents).set({ notes }).where(eq(agents.id, agent[0].id));
     } else {
       // Create new agent with these notes
       const parts = agentName.trim().split(/\s+/);

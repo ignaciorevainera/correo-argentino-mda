@@ -37,7 +37,7 @@ export function triggerAutoSave(date: string) {
     }
 
     try {
-      const rowIds = edits.map(e => e.rowId as string);
+      const rowIds = edits.map((e) => e.rowId as string);
       await saveEdits(date, edits);
       store.markClean(rowIds);
       dom.showSyncStatus("saved");

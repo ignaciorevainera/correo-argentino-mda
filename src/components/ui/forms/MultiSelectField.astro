@@ -1,0 +1,288 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import { Icon } from "astro-icon/components";
+import FormLegend from "@components/ui/forms/FormLegend.astro";
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface Props extends HTMLAttributes<"div"> {
+  id: string;
+  name: string;
+  label: string;
+  options?: Option[];
+  selected?: string[];
+  helpText?: string;
+  required?: boolean;
+  placeholder?: string;
+}
+
+const {
+  id,
+  name,
+  label,
+  options = [],
+  selected = [],
+  helpText,
+  required = false,
+  placeholder = "Buscar…",
+  class: className = "",
+} = Astro.props;
+
+const selectedSet = new Set(selected);
+---
+
+<fieldset
+  class:list={["fieldset", className]}
+  data-multiselect-root
+  data-name={name}
+>
+  <FormLegend class="font-bold tracking-wider">
+    {label}
+    {required && <span class="text-error">*</span>}
+  </FormLegend>
+
+  <div class="flex flex-wrap gap-1.5" data-multiselect-chips>
+    {
+      options
+        .filter((o) => selectedSet.has(o.value))
+        .map((o) => (
+          <span class="badge badge-neutral gap-1" data-multiselect-chip data-value={o.value}>
+            <span data-multiselect-chip-label>{o.label}</span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-circle"
+              data-multiselect-remove={o.value}
+              aria-label={`Quitar ${o.label}`}
+            >
+              <Icon name="boxicons:x-filled" size={12} />
+            </button>
+            <input type="hidden" name={name} value={o.value} />
+          </span>
+        ))
+    }
+  </div>
+
+  <div class="relative mt-2">
+    <input
+      type="text"
+      id={id}
+      class="input input-bordered input-sm w-full"
+      data-multiselect-search
+      placeholder={placeholder}
+      autocomplete="off"
+    />
+    <ul
+      class="menu bg-base-100 border-base-300 absolute top-full z-50 mt-1 hidden w-full overflow-x-hidden overflow-y-auto rounded-box border shadow-lg"
+      data-multiselect-list
+      role="listbox"
+    >
+      {options.map((o) => (
+        <li data-multiselect-option data-value={o.value} data-label={o.label} hidden>
+          <button
+            type="button"
+            role="option"
+            data-value={o.value}
+            class="block whitespace-normal text-left break-words"
+          >
+            {o.label}
+          </button>
+        </li>
+      ))}
+      <li data-multiselect-empty hidden class="pointer-events-none">
+        <span class="text-base-content/50 text-sm italic">Sin resultados</span>
+      </li>
+    </ul>
+  </div>
+
+  {
+    helpText && (
+      <p class="fieldset-label text-base-content/50 text-xs">{helpText}</p>
+    )
+  }
+</fieldset>
+
+<template data-multiselect-chip-tpl>
+  <span class="badge badge-neutral gap-1" data-multiselect-chip>
+    <span data-multiselect-chip-label></span>
+    <button
+      type="button"
+      class="btn btn-ghost btn-xs btn-circle"
+      data-multiselect-remove
+      aria-label="Quitar"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        data-icon="boxicons:x-filled"
+      >
+        <path
+          fill="currentColor"
+          d="m9.88 12.71l-4.95 4.95l1.41 1.41l2.83-2.83L12 13.41l2.12 2.13l3.54 3.53l1.41-1.41l-4.95-4.95l-.71-.71l5.66-5.66l-1.41-1.41L12 10.59L6.34 4.93L4.93 6.34L10.59 12z"></path>
+      </svg>
+    </button>
+    <input type="hidden" data-multiselect-hidden />
+  </span>
+</template>
+
+<script>
+  function initMultiSelect(root: HTMLElement) {
+    if (root.dataset.initialized === "true") return;
+    root.dataset.initialized = "true";
+
+    const name = root.dataset.name || "";
+    const chips = root.querySelector<HTMLElement>("[data-multiselect-chips]");
+    const search = root.querySelector<HTMLInputElement>(
+      "[data-multiselect-search]",
+    );
+    const list = root.querySelector<HTMLElement>("[data-multiselect-list]");
+    const tpl = document.querySelector<HTMLTemplateElement>(
+      "[data-multiselect-chip-tpl]",
+    );
+    if (!chips || !search || !list) return;
+
+    const selected = new Set<string>();
+    const labelMap = new Map<string, string>();
+    const optionEls = new Map<string, HTMLElement>();
+
+    list.querySelectorAll<HTMLElement>("[data-multiselect-option]").forEach((li) => {
+      const v = li.dataset.value || "";
+      optionEls.set(v, li);
+      labelMap.set(v, li.dataset.label || v);
+    });
+
+    chips.querySelectorAll<HTMLElement>("[data-multiselect-chip]").forEach((chip) => {
+      const v = chip.dataset.value || "";
+      if (v) selected.add(v);
+    });
+
+    let query = "";
+
+    const MIN_QUERY = 3;
+    const MAX_RESULTS = 5;
+
+    function renderOptions() {
+      let visible = 0;
+      const active = query.length >= MIN_QUERY;
+      optionEls.forEach((li, v) => {
+        const label = (labelMap.get(v) || "").toLowerCase();
+        const matches = active && label.includes(query);
+        const show = matches && !selected.has(v) && visible < MAX_RESULTS;
+        if (show) visible++;
+        li.hidden = !show;
+      });
+      const empty = list.querySelector<HTMLElement>(
+        "[data-multiselect-empty]",
+      );
+      if (empty) empty.hidden = !(active && visible === 0);
+    }
+
+    function renderChips() {
+      chips.replaceChildren();
+      selected.forEach((v) => {
+        const chip = tpl
+          ? (tpl.content.firstElementChild?.cloneNode(true) as HTMLElement)
+          : null;
+        if (!chip) return;
+        chip.dataset.value = v;
+        const labelEl = chip.querySelector<HTMLElement>(
+          "[data-multiselect-chip-label]",
+        );
+        if (labelEl) labelEl.textContent = labelMap.get(v) || v;
+        const removeBtn = chip.querySelector<HTMLButtonElement>(
+          "[data-multiselect-remove]",
+        );
+        if (removeBtn) {
+          removeBtn.dataset.multiselectRemove = v;
+          removeBtn.setAttribute("aria-label", `Quitar ${labelMap.get(v) || v}`);
+        }
+        const hidden = chip.querySelector<HTMLInputElement>(
+          "[data-multiselect-hidden]",
+        );
+        if (hidden) {
+          hidden.name = name;
+          hidden.value = v;
+        }
+        chips.appendChild(chip);
+      });
+    }
+
+    function select(v: string) {
+      if (selected.has(v)) return;
+      selected.add(v);
+      renderChips();
+      renderOptions();
+    }
+
+    function remove(v: string) {
+      if (!selected.has(v)) return;
+      selected.delete(v);
+      renderChips();
+      renderOptions();
+    }
+
+    search.addEventListener("input", () => {
+      query = search.value.trim().toLowerCase();
+      renderOptions();
+      if (query.length >= MIN_QUERY) {
+        open();
+      } else {
+        close();
+      }
+    });
+
+    function open() {
+      list.classList.remove("hidden");
+    }
+
+    function close() {
+      list.classList.add("hidden");
+    }
+
+    document.addEventListener("click", (event) => {
+      if (event.target instanceof Node && root.contains(event.target)) return;
+      close();
+    });
+
+    list.addEventListener("click", (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-value]",
+      );
+      if (!btn || !list.contains(btn)) return;
+      const v = btn.dataset.value || "";
+      select(v);
+      search.value = "";
+      query = "";
+      renderOptions();
+      close();
+      search.focus();
+    });
+
+    chips.addEventListener("click", (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-multiselect-remove]",
+      );
+      if (!btn || !chips.contains(btn)) return;
+      remove(btn.dataset.multiselectRemove || "");
+    });
+
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") close();
+    });
+
+    renderOptions();
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-multiselect-root]")
+    .forEach(initMultiSelect);
+  document.addEventListener("astro:page-load", () => {
+    document
+      .querySelectorAll<HTMLElement>("[data-multiselect-root]")
+      .forEach(initMultiSelect);
+  });
+</script>

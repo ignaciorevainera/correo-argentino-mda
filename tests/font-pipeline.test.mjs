@@ -23,10 +23,7 @@ assert.match(
   /--font-sans:"Geist Variable",\s*ui-sans-serif,\s*system-ui,\s*sans-serif/,
 );
 
-assert.match(
-  builtCss,
-  /--default-font-family:var\(--font-sans\)/,
-);
+assert.match(builtCss, /--default-font-family:var\(--font-sans\)/);
 
 assert.match(
   builtCss,

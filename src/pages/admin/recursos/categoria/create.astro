@@ -1,10 +1,6 @@
 ---
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
-import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories } from "@db/schema";
 import { logAdminFromAstro } from "@lib/auditLogger";
@@ -12,10 +8,9 @@ import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
-import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
-import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
+import FormShell from "@components/ui/FormShell.astro";
 
 let errorMsg = "";
 let category = { id: "", title: "", iconName: "", tone: "primary" };
@@ -24,7 +19,7 @@ const PREDEFINED_ICONS = [
   { value: "boxicons:star-filled", label: "Estrella (Destacados)" },
   { value: "boxicons:file-detail-filled", label: "Documento (Normativas)" },
   { value: "boxicons:group-filled", label: "Grupo (Usuarios / RRHH)" },
-  { value: "boxicons:building-filled", label: "Edificio (Intranet)" },
+  { value: "boxicons:building-house-filled", label: "Edificio (Intranet)" },
   { value: "boxicons:chip-filled", label: "Microchip (Hardware)" },
   { value: "boxicons:spanner-filled", label: "Llave (Herramientas)" },
   { value: "boxicons:check-shield-filled", label: "Escudo (Seguridad / VPN)" },
@@ -36,7 +31,9 @@ const PREDEFINED_ICONS = [
 const iconsList = [...PREDEFINED_ICONS];
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const formData = await Astro.request.formData();
     const title = formData.get("title")?.toString().trim();
@@ -46,8 +43,13 @@ if (Astro.request.method === "POST") {
       throw new Error("El título y el icono son obligatorios.");
     }
 
-    if (title.toLowerCase() === "sin categoría" || title.toLowerCase() === "sin categoria") {
-      throw new Error("No se puede crear una categoría con este nombre reservado.");
+    if (
+      title.toLowerCase() === "sin categoría" ||
+      title.toLowerCase() === "sin categoria"
+    ) {
+      throw new Error(
+        "No se puede crear una categoría con este nombre reservado.",
+      );
     }
 
     const tone = formData.get("tone")?.toString().trim() || "primary";
@@ -57,11 +59,18 @@ if (Astro.request.method === "POST") {
       iconName,
       tone,
     });
-    await logAdminFromAstro(Astro.locals, `Creó la categoría de recursos "${title}"`);
+    await logAdminFromAstro(
+      Astro.locals,
+      `Creó la categoría de recursos "${title}"`,
+    );
 
     const successMsg = "Categoría creada con éxito.";
     if (isAjax) {
-      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") });
+      return toastResponse({
+        success: true,
+        message: successMsg,
+        redirectUrl: resolveUrl("/admin/recursos"),
+      });
     }
     return redirectWithToast("/admin/recursos", successMsg);
   } catch (error: any) {
@@ -74,169 +83,137 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<BaseLayout title="Nueva categoría de recursos">
-  <PageContainer>
-    <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
-        <a
-          href={resolveUrl("/admin/recursos")}
-          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
-        >
-          <Icon name="boxicons:chevron-left" size={16} />
-          Recursos
-        </a>
-        <span>/</span>
-        <span class="text-base-content font-medium truncate">Nueva categoría</span>
+<FormShell
+  backHref={resolveUrl("/admin/recursos")}
+  title="Nueva categoría de recursos"
+  subtitle="Definí cómo se agruparán y visualizarán los enlaces."
+  formId="categoria-form"
+  containerWidth="2xl"
+  saveColor="btn-secondary"
+  saveLabel="Guardar"
+  async
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <SectionCard>
+    <div class="p-6 sm:p-8">
+      <div class="grid grid-cols-1 gap-y-5">
+        <FormField
+          id="input-title"
+          name="title"
+          label="Título de la Categoría"
+          required
+          value={category.title}
+          placeholder="Ej: Sistemas operativos"
+          inputClass="font-medium"
+          autofocus
+        />
+
+        <SelectField
+          id="select-iconName"
+          name="iconName"
+          label="Ícono Visual"
+          selectClass="font-medium"
+          options={iconsList}
+          value="boxicons:star-filled"
+        />
+
+        <fieldset class="fieldset">
+          <FormLegend class="mb-2">Color de Identificación (Tono)</FormLegend>
+          <div
+            class="bg-base-200/50 border-base-300 flex w-full flex-col gap-2.5 rounded-xl border p-4"
+          >
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="primary"
+                class="radio radio-primary radio-sm"
+                checked
+              />
+              <span class="text-sm font-medium">Amarillo</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="secondary"
+                class="radio radio-secondary radio-sm"
+              />
+              <span class="text-sm font-medium">Azul</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="accent"
+                class="radio radio-accent radio-sm"
+              />
+              <span class="text-sm font-medium">Celeste</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="success"
+                class="radio radio-success radio-sm"
+              />
+              <span class="text-sm font-medium">Verde</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="info"
+                class="radio radio-info radio-sm"
+              />
+              <span class="text-sm font-medium">Azul claro</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="warning"
+                class="radio radio-warning radio-sm"
+              />
+              <span class="text-sm font-medium">Naranja</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="error"
+                class="radio radio-error radio-sm"
+              />
+              <span class="text-sm font-medium">Rojo</span>
+            </label>
+
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="tone"
+                value="neutral"
+                class="radio radio-neutral radio-sm"
+              />
+              <span class="text-sm font-medium">Gris</span>
+            </label>
+          </div>
+        </fieldset>
       </div>
-
-      <PageHeader
-        title="Nueva categoría de recursos"
-        description="Definí cómo se agruparán y visualizarán los enlaces."
-      />
-
-      {
-        errorMsg && (
-          <script is:inline define:vars={{ errorMsg }}>
-            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-          </script>
-        )
-      }
-
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-
-          <form method="POST" class="space-y-5" data-async-form>
-            <div class="grid grid-cols-1 gap-y-5">
-              <FormField
-                id="input-title"
-                name="title"
-                label="Título de la Categoría"
-                required
-                value={category.title}
-                placeholder="Ej: Sistemas operativos"
-                inputClass="font-medium"
-                autofocus
-              />
-
-              <SelectField
-                id="select-iconName"
-                name="iconName"
-                label="Ícono Visual"
-                selectClass="font-medium"
-                options={iconsList}
-                value="boxicons:star-filled"
-              />
-
-              <fieldset class="fieldset">
-                <FormLegend class="mb-2"
-                  >Color de Identificación (Tono)</FormLegend
-                >
-                <div
-                  class="flex flex-col gap-2.5 bg-base-200/50 p-4 rounded-xl border border-base-300 w-full"
-                >
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="primary"
-                      class="radio radio-primary radio-sm"
-                      checked
-                    />
-                    <span class="text-sm font-medium">Amarillo (Principal)</span
-                    >
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="secondary"
-                      class="radio radio-secondary radio-sm"
-                    />
-                    <span class="text-sm font-medium">Azul (Secundario)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="accent"
-                      class="radio radio-accent radio-sm"
-                    />
-                    <span class="text-sm font-medium">Celeste (Acento)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="success"
-                      class="radio radio-success radio-sm"
-                    />
-                    <span class="text-sm font-medium">Verde (Éxito)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="info"
-                      class="radio radio-info radio-sm"
-                    />
-                    <span class="text-sm font-medium">Azul claro (Info)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="warning"
-                      class="radio radio-warning radio-sm"
-                    />
-                    <span class="text-sm font-medium">Naranja (Alerta)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="error"
-                      class="radio radio-error radio-sm"
-                    />
-                    <span class="text-sm font-medium">Rojo (Error)</span>
-                  </label>
-
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tone"
-                      value="neutral"
-                      class="radio radio-neutral radio-sm"
-                    />
-                    <span class="text-sm font-medium">Gris (Neutral)</span>
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-
-            <div
-              class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200"
-            >
-              <ActionCancelButton
-                href={resolveUrl("/admin/recursos")}
-                label="Cancelar"
-              />
-              <ActionConfirmButton
-                type="submit"
-                color="btn-primary"
-                label="Guardar"
-                icon="boxicons:save"
-              />
-            </div>
-          </form>
-        </div>
-      </SectionCard>
     </div>
-  </PageContainer>
-  <AsyncFormScript />
-</BaseLayout>
+  </SectionCard>
+</FormShell>
+
+<AsyncFormScript />

@@ -55,10 +55,17 @@ try {
 const hasRun = apiData && apiData.stats !== null;
 const stats = apiData?.stats;
 const results = apiData?.results || [];
-const pagination = apiData?.pagination || { page: 1, limit: 50, totalPages: 1, totalItems: 0 };
+const pagination = apiData?.pagination || {
+  page: 1,
+  limit: 50,
+  totalPages: 1,
+  totalItems: 0,
+};
 
-const headerGridClass = "grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] gap-4";
-const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] items-center gap-4";
+const headerGridClass =
+  "grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] gap-4";
+const rowGridClass =
+  "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_1.5fr] items-center gap-4";
 ---
 
 <PageContainer width="xl">
@@ -67,167 +74,269 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     description="Comparativa de ubicaciones reportadas por InvGate contra las oficinas registradas en la base de datos de MDA."
   />
 
-  {apiError && (
-    <div class="alert alert-error my-4 shadow-sm" role="alert">
-      <Icon name="boxicons:x-circle-filled-solid" size={24} aria-hidden="true" />
+  {
+    apiError && (
+      <div class="alert alert-error my-4 shadow-sm" role="alert">
+        <Icon
+          name="boxicons:x-circle-filled-solid"
+          size={24}
+          aria-hidden="true"
+        />
+        <div>
+          <h3 class="font-bold">Error de sincronización</h3>
+          <p class="text-sm">{apiError}</p>
+        </div>
+      </div>
+    )
+  }
+
+  {
+    !hasRun ? (
+      /* --- EMPTY STATE (NOT SYNCED YET) --- */
+      <div class="bg-base-100 border-base-200 my-8 flex flex-col items-center justify-center rounded-2xl border p-12 text-center shadow-sm">
+        <div class="bg-base-200 text-base-content/40 mb-4 rounded-full p-6">
+          <Icon name="boxicons:map-filled" size={48} aria-hidden="true" />
+        </div>
+        <h2 class="text-base-content mb-2 text-xl font-bold">
+          Sin datos de comparación
+        </h2>
+        <p class="text-base-content/70 mb-6 max-w-md text-sm">
+          Aún no se ha realizado la comparación de ubicaciones entre InvGate y
+          la base de datos de MDA. Sincronice los datos para comenzar.
+        </p>
+        <a
+          href="/admin/invgate/ubicaciones?sync=true"
+          class="btn btn-primary btn-md gap-2"
+        >
+          <Icon
+            name="boxicons:refresh-ccw-filled"
+            size={20}
+            aria-hidden="true"
+          />
+          Sincronizar ahora
+        </a>
+      </div>
+    ) : (
+      /* --- COMPARISON RUNS / CACHED CONTENT --- */
       <div>
-        <h3 class="font-bold">Error de sincronización</h3>
-        <p class="text-sm">{apiError}</p>
-      </div>
-    </div>
-  )}
-
-  {!hasRun ? (
-    /* --- EMPTY STATE (NOT SYNCED YET) --- */
-    <div class="flex flex-col items-center justify-center text-center p-12 my-8 bg-base-100 border border-base-200 rounded-2xl shadow-sm">
-      <div class="rounded-full bg-base-200 p-6 mb-4 text-base-content/40">
-        <Icon name="boxicons:map-filled" size={48} aria-hidden="true" />
-      </div>
-      <h2 class="text-xl font-bold mb-2 text-base-content">Sin datos de comparación</h2>
-      <p class="max-w-md text-base-content/70 mb-6 text-sm">
-        Aún no se ha realizado la comparación de ubicaciones entre InvGate y la base de datos de MDA. Sincronice los datos para comenzar.
-      </p>
-      <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-primary btn-md gap-2">
-        <Icon name="boxicons:refresh-ccw-filled" size={20} aria-hidden="true" />
-        Sincronizar ahora
-      </a>
-    </div>
-  ) : (
-    /* --- COMPARISON RUNS / CACHED CONTENT --- */
-    <div>
-      <!-- Stats Summary cards -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 my-6">
-        <div class="card bg-base-100 shadow border border-base-200 p-4">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total InvGate</span>
-          <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalInvgate}</span>
-        </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Matcheados</span>
-          <span class="text-2xl font-bold mt-1 text-success">{stats.matched}</span>
-        </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en MDA</span>
-          <span class="text-2xl font-bold mt-1 text-warning">{stats.unmatchedMda}</span>
-        </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4 ">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Solo en InvGate</span>
-          <span class="text-2xl font-bold mt-1 text-error">{stats.unmatchedInvgate}</span>
-        </div>
-        <div class="card bg-base-100 shadow border border-base-200 p-4">
-          <span class="text-xs font-semibold uppercase tracking-wider text-base-content/60">Total MDA</span>
-          <span class="text-2xl font-bold mt-1 text-base-content">{stats.totalMda}</span>
-        </div>
-      </div>
-
-      <!-- Search & Filters Toolbar -->
-      <div class="mb-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-        <!-- Filter buttons -->
-        <div class="join border border-base-200 rounded-lg">
-          <a
-            href={`/admin/invgate/ubicaciones?filter=all&q=${encodeURIComponent(q)}`}
-            class:list={["join-item btn btn-md", filter === "all" ? "btn-active btn-neutral" : "bg-base-100"]}
-          >
-            Todos
-          </a>
-          <a
-            href={`/admin/invgate/ubicaciones?filter=matched&q=${encodeURIComponent(q)}`}
-            class:list={["join-item btn btn-md", filter === "matched" ? "btn-active btn-neutral" : "bg-base-100"]}
-          >
-            Matcheados
-          </a>
-          <a
-            href={`/admin/invgate/ubicaciones?filter=unmatched&q=${encodeURIComponent(q)}`}
-            class:list={["join-item btn btn-md", filter === "unmatched" ? "btn-active btn-neutral" : "bg-base-100"]}
-          >
-            Solo en InvGate
-          </a>
-        </div>
-
-        <div class="flex gap-2">
-          <!-- Trigger Sync -->
-          <a href="/admin/invgate/ubicaciones?sync=true" class="btn btn-outline btn-md gap-2" title="Volver a sincronizar">
-            <Icon name="boxicons:refresh-ccw-filled" size={18} aria-hidden="true" />
-            Sincronizar
-          </a>
-
-          <!-- Search Bar -->
-          <div class="w-full md:w-80">
-            <SearchBar id="ubicaciones-search" placeholder="Buscar ubicación, NIS, CP..." size="md" />
+        {/* Stats Summary cards */}
+        <div class="my-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div class="card bg-base-100 border-base-200 border p-4 shadow">
+            <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
+              Total InvGate
+            </span>
+            <span class="text-base-content mt-1 text-2xl font-bold">
+              {stats.totalInvgate}
+            </span>
+          </div>
+          <div class="card bg-base-100 border-base-200 border p-4 shadow">
+            <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
+              Matcheados
+            </span>
+            <span class="text-success mt-1 text-2xl font-bold">
+              {stats.matched}
+            </span>
+          </div>
+          <div class="card bg-base-100 border-base-200 border p-4 shadow">
+            <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
+              Solo en MDA
+            </span>
+            <span class="text-warning mt-1 text-2xl font-bold">
+              {stats.unmatchedMda}
+            </span>
+          </div>
+          <div class="card bg-base-100 border-base-200 border p-4 shadow">
+            <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
+              Solo en InvGate
+            </span>
+            <span class="text-error mt-1 text-2xl font-bold">
+              {stats.unmatchedInvgate}
+            </span>
+          </div>
+          <div class="card bg-base-100 border-base-200 border p-4 shadow">
+            <span class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
+              Total MDA
+            </span>
+            <span class="text-base-content mt-1 text-2xl font-bold">
+              {stats.totalMda}
+            </span>
           </div>
         </div>
-      </div>
 
-      <!-- Results Table -->
-      {results.length === 0 ? (
-        <div class="flex flex-col items-center justify-center text-center p-12 bg-base-100 border border-base-200 rounded-xl">
-          <div class="rounded-full bg-base-200 p-4 mb-2 text-base-content/40">
-            <Icon name="boxicons:search" size={32} aria-hidden="true" />
+        {/* Search & Filters Toolbar */}
+        <div class="mb-6 flex flex-col items-stretch justify-between gap-4 md:flex-row md:items-center">
+          {/* Filter buttons */}
+          <div class="join border-base-200 rounded-lg border">
+            <a
+              href={`/admin/invgate/ubicaciones?filter=all&q=${encodeURIComponent(q)}`}
+              class:list={[
+                "join-item btn btn-md",
+                filter === "all" ? "btn-active btn-neutral" : "bg-base-100",
+              ]}
+            >
+              Todos
+            </a>
+            <a
+              href={`/admin/invgate/ubicaciones?filter=matched&q=${encodeURIComponent(q)}`}
+              class:list={[
+                "join-item btn btn-md",
+                filter === "matched" ? "btn-active btn-neutral" : "bg-base-100",
+              ]}
+            >
+              Matcheados
+            </a>
+            <a
+              href={`/admin/invgate/ubicaciones?filter=unmatched&q=${encodeURIComponent(q)}`}
+              class:list={[
+                "join-item btn btn-md",
+                filter === "unmatched"
+                  ? "btn-active btn-neutral"
+                  : "bg-base-100",
+              ]}
+            >
+              Solo en InvGate
+            </a>
           </div>
-          <p class="text-base-content/60 text-sm">No se encontraron ubicaciones para la búsqueda o filtro seleccionado.</p>
-        </div>
-      ) : (
-        <div class="space-y-4">
-          <DataTable
-            ariaLabel="Resultados de la comparación de ubicaciones"
-            minWidthClass="min-w-[1000px]"
-            headerGridClass={headerGridClass}
-            rowGridClass={rowGridClass}
-          >
-            <div slot="header"><DataTableHeaderCell>Estado</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>Ubicación InvGate</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>NIS</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>CP</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>CC</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>Oficina MDA</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>Código MDA</DataTableHeaderCell></div>
-            <div slot="header"><DataTableHeaderCell>Dirección MDA</DataTableHeaderCell></div>
-            <div id="locations-container" class="contents">
-              {results.map((row: any) => (
-                <UbicacionRow row={row} rowGridClass={rowGridClass} />
-              ))}
+
+          <div class="flex gap-2">
+            {/* Trigger Sync */}
+            <a
+              href="/admin/invgate/ubicaciones?sync=true"
+              class="btn btn-outline btn-md gap-2"
+              title="Volver a sincronizar"
+            >
+              <Icon
+                name="boxicons:refresh-ccw-filled"
+                size={18}
+                aria-hidden="true"
+              />
+              Sincronizar
+            </a>
+
+            {/* Search Bar */}
+            <div class="w-full md:w-80">
+              <SearchBar
+                id="ubicaciones-search"
+                placeholder="Buscar ubicación, NIS, CP..."
+                size="md"
+              />
             </div>
-          </DataTable>
-
-          <!-- Infinite Scroll Sentinel -->
-          <div id="locations-sentinel" class="py-8 text-center flex justify-center {pagination.totalPages > 1 ? '' : 'hidden'}" data-has-more={pagination.totalPages > 1 ? "true" : "false"} data-initial-page={pagination.page}>
-            <span class="loading loading-spinner loading-md text-primary hidden" id="locations-spinner"></span>
           </div>
         </div>
-      )}
-    </div>
-  )}
+
+        {/* Results Table */}
+        {results.length === 0 ? (
+          <div class="bg-base-100 border-base-200 flex flex-col items-center justify-center rounded-xl border p-12 text-center">
+            <div class="bg-base-200 text-base-content/40 mb-2 rounded-full p-4">
+              <Icon name="boxicons:search" size={32} aria-hidden="true" />
+            </div>
+            <p class="text-base-content/60 text-sm">
+              No se encontraron ubicaciones para la búsqueda o filtro
+              seleccionado.
+            </p>
+          </div>
+        ) : (
+          <div class="space-y-4">
+            <DataTable
+              ariaLabel="Resultados de la comparación de ubicaciones"
+              minWidthClass="min-w-[1000px]"
+              headerGridClass={headerGridClass}
+              rowGridClass={rowGridClass}
+            >
+              <div slot="header">
+                <DataTableHeaderCell>Estado</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>Ubicación InvGate</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>NIS</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>CP</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>CC</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>Oficina MDA</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>Código MDA</DataTableHeaderCell>
+              </div>
+              <div slot="header">
+                <DataTableHeaderCell>Dirección MDA</DataTableHeaderCell>
+              </div>
+              <div id="locations-container" class="contents">
+                {results.map((row: any) => (
+                  <UbicacionRow row={row} rowGridClass={rowGridClass} />
+                ))}
+              </div>
+            </DataTable>
+
+            {/* Infinite Scroll Sentinel */}
+            <div
+              id="locations-sentinel"
+              class="{pagination.totalPages > 1 ? '' : 'hidden'} flex justify-center py-8 text-center"
+              data-has-more={pagination.totalPages > 1 ? "true" : "false"}
+              data-initial-page={pagination.page}
+            >
+              <span
+                class="loading loading-spinner loading-md text-primary hidden"
+                id="locations-spinner"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 </PageContainer>
 
 <dialog id="create_office_modal" class="modal">
   <div class="modal-box max-w-lg">
-    <h3 class="font-bold text-lg mb-4 text-base-content">Crear nueva oficina</h3>
+    <h3 class="text-base-content mb-4 text-lg font-bold">
+      Crear nueva oficina
+    </h3>
     <form id="create_office_form" class="space-y-4">
       <FormField id="office-code" name="code" label="Código NIS" required />
       <FormField id="office-name" name="name" label="Nombre" required />
       <FormField id="office-address" name="address" label="Dirección" />
-      <SelectField id="office-province" name="provinceCode" label="Provincia" required>
+      <SelectField
+        id="office-province"
+        name="provinceCode"
+        label="Provincia"
+        required
+      >
         <option value="" disabled selected>Seleccioná una provincia</option>
-        {allProvinces.map((prov) => (
-          <option value={prov.code}>{prov.name}</option>
-        ))}
+        {
+          allProvinces.map((prov) => (
+            <option value={prov.code}>{prov.name}</option>
+          ))
+        }
       </SelectField>
       <FormField id="office-cc" name="cc" label="Centro de Costo" />
       <SelectField id="office-type" name="type" label="Tipo" required>
         <option value="" disabled selected>Seleccioná un tipo</option>
-        {Object.entries(officeTypeLabelByType).map(([key, label]) => (
-          <option value={key}>{label}</option>
-        ))}
+        {
+          Object.entries(officeTypeLabelByType).map(([key, label]) => (
+            <option value={key}>{label}</option>
+          ))
+        }
       </SelectField>
-      <div class="modal-action flex justify-end gap-2 mt-6">
+      <div class="modal-action mt-6 flex justify-end gap-2">
         <ActionCancelButton
           type="button"
           label="Cancelar"
+          icon="boxicons:x-filled"
+          variant="error"
           onclick="document.getElementById('create_office_modal').close()"
         />
         <ActionConfirmButton
           type="submit"
           color="btn-primary"
           label="Crear"
+          icon="boxicons:plus-filled"
         />
       </div>
     </form>
@@ -236,10 +345,12 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
 
 <script is:inline>
   function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      const toast = document.createElement("div");
-      toast.className = "toast toast-end toast-bottom z-50 p-4";
-      toast.innerHTML = `
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        const toast = document.createElement("div");
+        toast.className = "toast toast-end toast-bottom z-50 p-4";
+        toast.innerHTML = `
         <div class="alert alert-success shadow-md py-3 px-5 text-sm flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 stroke-current" fill="none" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -247,18 +358,19 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
           <span>Copiado al portapapeles</span>
         </div>
       `;
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 2000);
-    }).catch(err => {
-      console.error("Fallo al copiar: ", err);
-    });
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transition = "opacity 0.3s ease";
+          setTimeout(() => toast.remove(), 300);
+        }, 2000);
+      })
+      .catch((err) => {
+        console.error("Fallo al copiar: ", err);
+      });
   }
 
-  window.openCreateOfficeModal = function(btn) {
+  window.openCreateOfficeModal = function (btn) {
     const nis = btn.getAttribute("data-nis");
     const name = btn.getAttribute("data-name");
     const cc = btn.getAttribute("data-cc");
@@ -281,12 +393,14 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     }
 
     window.lastTriggeringBtn = btn;
-    window.lastInvgateLink = invgateId ? {
-      invgateLocationId: parseInt(invgateId, 10),
-      invgateDisplayName: invgateDisplayName || "",
-      invgateCp: invgateCp || "",
-      invgateAddress: invgateAddress || "",
-    } : null;
+    window.lastInvgateLink = invgateId
+      ? {
+          invgateLocationId: parseInt(invgateId, 10),
+          invgateDisplayName: invgateDisplayName || "",
+          invgateCp: invgateCp || "",
+          invgateAddress: invgateAddress || "",
+        }
+      : null;
     modal.showModal();
   };
 
@@ -298,18 +412,18 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-        const formData = new FormData(form);
-        const data = {
-          code: formData.get("code"),
-          name: formData.get("name"),
-          address: (formData.get("address") || "").toUpperCase() || null,
-          provinceCode: formData.get("provinceCode"),
-          cc: formData.get("cc"),
-          type: formData.get("type"),
-        };
-        if (window.lastInvgateLink) {
-          data.invgateLink = window.lastInvgateLink;
-        }
+      const formData = new FormData(form);
+      const data = {
+        code: formData.get("code"),
+        name: formData.get("name"),
+        address: (formData.get("address") || "").toUpperCase() || null,
+        provinceCode: formData.get("provinceCode"),
+        cc: formData.get("cc"),
+        type: formData.get("type"),
+      };
+      if (window.lastInvgateLink) {
+        data.invgateLink = window.lastInvgateLink;
+      }
 
       try {
         const res = await fetch("/api/admin/offices/create", {
@@ -326,11 +440,14 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
           window.showToast?.("Oficina creada con éxito.", "alert-success");
           modal.close();
 
-          const row = window.lastTriggeringBtn ? window.lastTriggeringBtn.closest("[data-location-row]") : null;
+          const row = window.lastTriggeringBtn
+            ? window.lastTriggeringBtn.closest("[data-location-row]")
+            : null;
           if (row) {
             const badgeDiv = row.querySelector("div:first-child");
             if (badgeDiv) {
-              badgeDiv.innerHTML = '<span class="badge badge-success text-success-content badge-sm font-medium">Match</span>';
+              badgeDiv.innerHTML =
+                '<span class="badge badge-success text-success-content badge-sm font-medium">Match</span>';
             }
 
             const actionDiv = row.querySelector("[data-create-btn-container]");
@@ -351,7 +468,10 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
             }
           }
         } else {
-          window.showToast?.(result.error || "Error al crear la oficina", "alert-error");
+          window.showToast?.(
+            result.error || "Error al crear la oficina",
+            "alert-error",
+          );
         }
       } catch (err) {
         window.showToast?.("Error de conexión al servidor", "alert-error");
@@ -371,7 +491,10 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
   const urlParams = new URLSearchParams(window.location.search);
   let currentFilter = urlParams.get("filter") ?? "unmatched";
   let currentSearch = urlParams.get("q") ?? "";
-  let currentPage = parseInt(sentinel?.getAttribute("data-initial-page") || "1", 10);
+  let currentPage = parseInt(
+    sentinel?.getAttribute("data-initial-page") || "1",
+    10,
+  );
   let hasMore = sentinel?.getAttribute("data-has-more") === "true";
   let isLoading = false;
   let debounceTimeout;
@@ -392,7 +515,9 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
       params.set("filter", filter);
       if (query) params.set("q", query);
 
-      const response = await fetch(`/api/invgate/locations/rows?${params.toString()}`);
+      const response = await fetch(
+        `/api/invgate/locations/rows?${params.toString()}`,
+      );
       if (!response.ok) throw new Error("API call failed");
 
       const html = await response.text();
@@ -448,12 +573,15 @@ const rowGridClass = "grid grid-cols-[120px_1.5fr_100px_120px_100px_1.2fr_120px_
 
   // Infinite scroll
   if (sentinel && container) {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !isLoading && hasMore) {
-        currentPage++;
-        fetchLocations(currentSearch, currentFilter, currentPage, false);
-      }
-    }, { rootMargin: "200px" });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore) {
+          currentPage++;
+          fetchLocations(currentSearch, currentFilter, currentPage, false);
+        }
+      },
+      { rootMargin: "200px" },
+    );
 
     observer.observe(sentinel);
   }

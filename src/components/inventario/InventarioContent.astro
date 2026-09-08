@@ -17,7 +17,13 @@ import {
   agents,
   operatorAttendance,
 } from "@db/schema";
-import { getTerminals, getTerminalModelsByBrand } from "@lib/terminalQueries";
+import {
+  getTerminals,
+  getTerminalModelsByBrand,
+  getTerminalStatusCounts,
+  getTTStatusCounts,
+  getMediterraneaStatusCounts,
+} from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 import { and, eq } from "drizzle-orm";
 import { getShiftType } from "@lib/cubics";
@@ -32,6 +38,14 @@ const user = Astro.locals.user;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
+
+const canExport = user
+  ? ["team_leader", "supervisor", "admin"].includes(user.role)
+  : false;
+
+const terminalStatusCounts = await getTerminalStatusCounts();
+const ttStatusCounts = await getTTStatusCounts();
+const mediStatusCounts = await getMediterraneaStatusCounts();
 
 const terminalHeaderGridClass = "grid-cols-12 gap-4";
 const terminalRowGridClass = "grid grid-cols-12 items-start gap-4";
@@ -58,11 +72,9 @@ const terminalModelsByBrand = await getTerminalModelsByBrand();
 
 const resolvedParams = getResolvedSearchParams(Astro.request, Astro.url);
 const sortBy = (resolvedParams.get("sortBy") || undefined) as
-  | TerminalSortKey
-  | undefined;
+  TerminalSortKey | undefined;
 const sortOrder = (resolvedParams.get("sortOrder") || undefined) as
-  | SortOrder
-  | undefined;
+  SortOrder | undefined;
 const activeTab = resolvedParams.get("inventory_tabs") || "terminales";
 
 const {
@@ -153,6 +165,11 @@ const inventoryTabs = [
     value: "mediterranea",
     icon: "boxicons:tv",
   },
+  {
+    label: "T&T & STS",
+    value: "ttsts",
+    icon: "boxicons:cpu-filled",
+  },
   { label: "Cúbics", value: "cubics", icon: "boxicons:server-filled" },
 ];
 ---
@@ -175,13 +192,13 @@ const inventoryTabs = [
       activeValue={activeTab}
       name="inventory_tabs"
       id="inventory-view-switcher"
-      class="w-full grid grid-cols-3"
+      class="grid w-full grid-cols-4"
       containerClass="w-full"
     />
   </div>
 
   <div
-    class="flex flex-col gap-4 w-full rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
+    class="rounded-box border-base-300 bg-base-100 flex w-full flex-col gap-4 border p-4 shadow-md"
   >
     <!-- Contenedor de Filtros (Fila Superior) -->
     <div class="w-full">
@@ -189,136 +206,177 @@ const inventoryTabs = [
       <div
         id="header-right-terminales"
         class:list={[
-          "flex flex-wrap items-center gap-3 w-full transition-opacity duration-300",
+          "flex w-full flex-col gap-3 transition-opacity duration-300",
           activeTab === "terminales" ? "flex" : "hidden",
         ]}
       >
-        <div class="form-control grow">
-          <select
-            id="filter-os"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por sistema operativo"
+        <!-- Fila A: filtros de atributos -->
+        <div class="grid w-full grid-cols-3 gap-3 md:grid-cols-6">
+          <div class="form-control grow">
+            <select
+              id="filter-os"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por sistema operativo"
+            >
+              <option value="all">Sist. Op. (Todos)</option>
+              <option value="win11">Windows 11</option>
+              <option value="win10">Windows 10</option>
+              <option value="win7">Windows 7</option>
+              <option value="winxp">Windows XP</option>
+              <option value="winserver">Windows Server</option>
+              <option value="ubuntu">Ubuntu</option>
+              <option value="debian">Debian</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-os-variant"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por variante de sistema operativo"
+              disabled
+            >
+              <option value="all">Variante (Todas)</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-arch"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por arquitectura"
+            >
+              <option value="all">Arquitectura (Todas)</option>
+              <option value="64 bits">64 bits</option>
+              <option value="32 bits">32 bits</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-brand"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por marca"
+            >
+              <option value="all">Marca (Todas)</option>
+              <option value="dell">Dell</option>
+              <option value="lenovo">Lenovo</option>
+              <option value="hp">HP</option>
+              <option value="bangho">Banghó</option>
+              <option value="coradir">Coradir</option>
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-model"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por modelo de terminal"
+            >
+              <option value="all">Modelo (Todos)</option>
+              {
+                terminalModelsByBrand.map((entry) => (
+                  <option value={entry.model} data-brand={entry.brand}>
+                    {entry.model}
+                  </option>
+                ))
+              }
+            </select>
+          </div>
+          <div class="form-control grow">
+            <select
+              id="filter-ram"
+              class="select select-bordered text-base-content/80 w-full font-medium"
+              aria-label="Filtrar por memoria RAM"
+            >
+              <option value="all">RAM (Todas)</option>
+              <option value="<=1gb">&le; 1 GB</option>
+              <option value="2gb">2 GB</option>
+              <option value="4gb">4 GB</option>
+              <option value="8gb">8 GB</option>
+              <option value=">=16gb">&ge; 16 GB</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Fila B: estado, toggles y limpiar -->
+        <div class="flex w-full flex-wrap items-center gap-3">
+          <div
+            class="tabs tabs-box"
+            role="radiogroup"
+            aria-label="Estado de conexión"
           >
-            <option value="all">Sist. Op. (Todos)</option>
-            <option value="win11">Windows 11</option>
-            <option value="win10">Windows 10</option>
-            <option value="win7">Windows 7</option>
-            <option value="winxp">Windows XP</option>
-            <option value="winserver">Windows Server</option>
-            <option value="ubuntu">Ubuntu</option>
-            <option value="debian">Debian</option>
-          </select>
-        </div>
-        <div class="form-control grow">
-          <select
-            id="filter-os-variant"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por variante de sistema operativo"
-            disabled
+            <input
+              type="radio"
+              name="terminal_status"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Todas"
+              checked
+              data-terminal-status="all"
+            />
+            <label
+              class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+            >
+              <input
+                type="radio"
+                name="terminal_status"
+                data-terminal-status="online"
+              />
+              <span class="flex items-center gap-1">
+                Online
+                <span class="badge badge-soft badge-xs font-mono"
+                  >{terminalStatusCounts.online}</span
+                >
+              </span>
+            </label>
+            <label
+              class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+            >
+              <input
+                type="radio"
+                name="terminal_status"
+                data-terminal-status="offline"
+              />
+              <span class="flex items-center gap-1">
+                Offline
+                <span class="badge badge-soft badge-xs font-mono"
+                  >{terminalStatusCounts.offline}</span
+                >
+              </span>
+            </label>
+          </div>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              id="filter-duplicates"
+              class="toggle toggle-sm"
+              data-terminal-duplicates
+            />
+            <span class="text-sm font-medium">Duplicados</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              id="filter-orphans"
+              class="toggle toggle-sm"
+              data-terminal-orphans
+            />
+            <span class="text-sm font-medium">Sin ubicación</span>
+          </label>
+          <button
+            id="btn-clear-filters-terminales"
+            class="btn btn-outline btn-error gap-2 font-semibold"
+            type="button"
+            aria-label="Limpiar todos los filtros de terminales"
+            title="Limpiar todos los filtros"
           >
-            <option value="all">Variante (Todas)</option>
-          </select>
+            <Icon name="boxicons:trash" class="size-4" />
+            Limpiar filtros
+          </button>
         </div>
-        <div class="form-control grow">
-          <select
-            id="filter-arch"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por arquitectura"
-          >
-            <option value="all">Arquitectura (Todas)</option>
-            <option value="64 bits">64 bits</option>
-            <option value="32 bits">32 bits</option>
-          </select>
-        </div>
-        <div class="form-control grow">
-          <select
-            id="filter-brand"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por marca"
-          >
-            <option value="all">Marca (Todas)</option>
-            <option value="dell">Dell</option>
-            <option value="lenovo">Lenovo</option>
-            <option value="hp">HP</option>
-            <option value="bangho">Banghó</option>
-            <option value="coradir">Coradir</option>
-          </select>
-        </div>
-        <div class="form-control grow">
-          <select
-            id="filter-model"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por modelo de terminal"
-          >
-            <option value="all">Modelo (Todos)</option>
-            {
-              terminalModelsByBrand.map((entry) => (
-                <option value={entry.model} data-brand={entry.brand}>
-                  {entry.model}
-                </option>
-              ))
-            }
-          </select>
-        </div>
-        <div class="form-control grow">
-          <select
-            id="filter-ram"
-            class="select select-bordered w-full font-medium text-base-content/80"
-            aria-label="Filtrar por memoria RAM"
-          >
-            <option value="all">RAM (Todas)</option>
-            <option value="<=1gb">&le; 1 GB</option>
-            <option value="2gb">2 GB</option>
-            <option value="4gb">4 GB</option>
-            <option value="8gb">8 GB</option>
-            <option value=">=16gb">&ge; 16 GB</option>
-          </select>
-        </div>
-        <div
-          class="tabs tabs-box"
-          role="radiogroup"
-          aria-label="Estado de conexión"
-        >
-          <input
-            type="radio"
-            name="terminal_status"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Todas"
-            checked
-            data-terminal-status="all"
-          />
-          <input
-            type="radio"
-            name="terminal_status"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Online"
-            data-terminal-status="online"
-          />
-          <input
-            type="radio"
-            name="terminal_status"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Offline"
-            data-terminal-status="offline"
-          />
-        </div>
-        <button
-          id="btn-clear-filters-terminales"
-          class="btn btn-outline btn-error font-semibold gap-2"
-          type="button"
-          aria-label="Limpiar todos los filtros de terminales"
-          title="Limpiar todos los filtros"
-        >
-          <Icon name="boxicons:trash" class="size-4" />
-          Limpiar filtros
-        </button>
       </div>
 
       <!-- Filtros para Cúbics -->
       <div
         id="header-right-cubics"
         class:list={[
-          "flex-wrap items-center justify-between gap-4 w-full transition-opacity duration-300",
+          "w-full flex-wrap items-center justify-between gap-4 transition-opacity duration-300",
           activeTab === "cubics" ? "flex" : "hidden",
         ]}
       >
@@ -356,7 +414,7 @@ const inventoryTabs = [
           </div>
           <button
             id="btn-clear-filters-cubics"
-            class="btn btn-outline btn-error font-semibold gap-2"
+            class="btn btn-outline btn-error gap-2 font-semibold"
             type="button"
             aria-label="Limpiar todos los filtros de cúbics"
             title="Limpiar todos los filtros"
@@ -366,16 +424,16 @@ const inventoryTabs = [
           </button>
         </div>
 
-        <div class="flex flex-row gap-3 items-center">
+        <div class="flex flex-row items-center gap-3">
           <aside
-            class="card border border-base-300 bg-base-100 shadow-sm w-full sm:w-auto"
+            class="card border-base-300 bg-base-100 w-full border shadow-sm sm:w-auto"
             aria-label="Resumen de conectividad"
           >
             <div
-              class="card-body flex-row items-center justify-between sm:justify-start gap-2 px-3 py-2"
+              class="card-body flex-row items-center justify-between gap-2 px-3 py-2 sm:justify-start"
             >
               <p
-                class="text-xs font-semibold uppercase tracking-wide text-base-content/60 m-0"
+                class="text-base-content/60 m-0 text-xs font-semibold tracking-wide uppercase"
               >
                 Conectividad
               </p>
@@ -391,7 +449,7 @@ const inventoryTabs = [
               <div>
                 <a
                   href={`${import.meta.env.BASE_URL}inventario-terminales/cubics/create`}
-                  class="btn btn-secondary font-semibold shadow-sm shrink-0 gap-2"
+                  class="btn btn-secondary shrink-0 gap-2 font-semibold shadow-sm"
                   aria-label="Registrar nueva cubic"
                 >
                   <Icon name="boxicons:plus" class="size-4" />
@@ -401,20 +459,29 @@ const inventoryTabs = [
               </div>
             )
           }
+          {
+            canExport && (
+              <ExportCsvButton
+                id="export-csv-cubics-btn"
+                href={getCleanBase() + "api/export/cubics"}
+                ariaLabel="Exportar cúbics a CSV"
+              />
+            )
+          }
         </div>
       </div>
 
       <div
         id="header-right-mediterranea"
         class:list={[
-          "flex-wrap items-center gap-3 w-full transition-opacity duration-300",
+          "w-full flex-wrap items-center gap-3 transition-opacity duration-300",
           activeTab === "mediterranea" ? "flex" : "hidden",
         ]}
       >
         <div class="form-control grow">
           <select
             id="filter-medi-type"
-            class="select select-bordered w-full font-medium text-base-content/80"
+            class="select select-bordered text-base-content/80 w-full font-medium"
             aria-label="Filtrar por tipo de Mediterránea"
           >
             <option value="all">Tipos (Todos)</option>
@@ -435,24 +502,32 @@ const inventoryTabs = [
             checked
             data-medi-status="all"
           />
-          <input
-            type="radio"
-            name="medi_status"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Online"
-            data-medi-status="online"
-          />
-          <input
-            type="radio"
-            name="medi_status"
-            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
-            aria-label="Offline"
-            data-medi-status="offline"
-          />
+          <label
+            class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+          >
+            <input type="radio" name="medi_status" data-medi-status="online" />
+            <span class="flex items-center gap-1">
+              Online
+              <span class="badge badge-soft badge-xs font-mono"
+                >{mediStatusCounts.online}</span
+              >
+            </span>
+          </label>
+          <label
+            class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+          >
+            <input type="radio" name="medi_status" data-medi-status="offline" />
+            <span class="flex items-center gap-1">
+              Offline
+              <span class="badge badge-soft badge-xs font-mono"
+                >{mediStatusCounts.offline}</span
+              >
+            </span>
+          </label>
         </div>
         <button
           id="btn-clear-filters-medi"
-          class="btn btn-outline btn-error font-semibold gap-2"
+          class="btn btn-outline btn-error gap-2 font-semibold"
           type="button"
           aria-label="Limpiar todos los filtros de Mediterránea"
           title="Limpiar todos los filtros"
@@ -460,6 +535,127 @@ const inventoryTabs = [
           <Icon name="boxicons:trash" size={16} />
           Limpiar filtros
         </button>
+      </div>
+
+      <!-- Filtros para T&T & STS -->
+      <div
+        id="header-right-ttsts"
+        class:list={[
+          "w-full flex-wrap items-center gap-3 transition-opacity duration-300",
+          activeTab === "ttsts" ? "flex" : "hidden",
+        ]}
+      >
+        <div
+          class="tabs tabs-box"
+          role="radiogroup"
+          aria-label="Filtrar por tipo T&T / STS"
+        >
+          <input
+            type="radio"
+            name="tt_type"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Todos"
+            checked
+            data-tt-type="all"
+          />
+          <input
+            type="radio"
+            name="tt_type"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Solo T&T"
+            data-tt-type="tyt"
+          />
+          <input
+            type="radio"
+            name="tt_type"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Solo STS"
+            data-tt-type="sts"
+          />
+        </div>
+        <label id="tt-vm-filter-wrapper" class="hidden">
+          <div
+            class="tabs tabs-box"
+            role="radiogroup"
+            aria-label="Filtrar por máquina virtual"
+          >
+            <input
+              type="radio"
+              name="tt_vm"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Todos"
+              checked
+              data-tt-vm="all"
+            />
+            <input
+              type="radio"
+              name="tt_vm"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Con VM"
+              data-tt-vm="with"
+            />
+            <input
+              type="radio"
+              name="tt_vm"
+              class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+              aria-label="Sin VM"
+              data-tt-vm="without"
+            />
+          </div>
+        </label>
+        <div
+          class="tabs tabs-box"
+          role="radiogroup"
+          aria-label="Estado de conexión T&T & STS"
+        >
+          <input
+            type="radio"
+            name="tt_status"
+            class="tab text-base-content/70 checked:text-primary-content checked:[--tab-bg:var(--color-primary)]"
+            aria-label="Todas"
+            checked
+            data-tt-status="all"
+          />
+          <label
+            class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+          >
+            <input type="radio" name="tt_status" data-tt-status="online" />
+            <span class="flex items-center gap-1">
+              Online
+              <span class="badge badge-soft badge-xs font-mono"
+                >{ttStatusCounts.online}</span
+              >
+            </span>
+          </label>
+          <label
+            class="tab has-checked:text-primary-content has-checked:[--tab-bg:var(--color-primary)]"
+          >
+            <input type="radio" name="tt_status" data-tt-status="offline" />
+            <span class="flex items-center gap-1">
+              Offline
+              <span class="badge badge-soft badge-xs font-mono"
+                >{ttStatusCounts.offline}</span
+              >
+            </span>
+          </label>
+        </div>
+        <button
+          id="btn-clear-filters-ttsts"
+          class="btn btn-outline btn-error gap-2 font-semibold"
+          type="button"
+          aria-label="Limpiar todos los filtros de T&T & STS"
+          title="Limpiar todos los filtros"
+        >
+          <Icon name="boxicons:trash" size={16} />
+          Limpiar filtros
+        </button>
+      </div>
+
+      <!-- Chips de filtros activos (render client-side) -->
+      <div
+        id="active-filter-chips"
+        class="mt-3 hidden w-full flex-wrap items-center gap-2"
+      >
       </div>
     </div>
 
@@ -472,7 +668,7 @@ const inventoryTabs = [
           activeTab !== "terminales" && "hidden",
         ]}
       >
-        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+        <div class="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap">
           <div class="w-full">
             <SearchBar
               id="terminal-search"
@@ -488,11 +684,15 @@ const inventoryTabs = [
               >{totalTerminals} resultados</span
             >
           </div>
-          <ExportCsvButton
-            id="export-csv-terminales-btn"
-            href={import.meta.env.BASE_URL + "api/export/terminals"}
-            ariaLabel="Exportar terminales a CSV"
-          />
+          {
+            canExport && (
+              <ExportCsvButton
+                id="export-csv-terminales-btn"
+                href={import.meta.env.BASE_URL + "api/export/terminals"}
+                ariaLabel="Exportar terminales a CSV"
+              />
+            )
+          }
         </div>
       </div>
 
@@ -516,7 +716,7 @@ const inventoryTabs = [
           activeTab !== "mediterranea" && "hidden",
         ]}
       >
-        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full">
+        <div class="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap">
           <div class="w-full">
             <SearchBar
               id="medi-search"
@@ -530,11 +730,50 @@ const inventoryTabs = [
             <Icon name="boxicons:eye-filled" size={16} />
             <span id="total-count-badge-mediterranea">0 resultados</span>
           </div>
-          <ExportCsvButton
-            id="export-csv-medi-btn"
-            href={getCleanBase() + "api/export/terminals?isMediterranea=true"}
-            ariaLabel="Exportar Mediterránea a CSV"
-          />
+          {
+            canExport && (
+              <ExportCsvButton
+                id="export-csv-medi-btn"
+                href={
+                  getCleanBase() + "api/export/terminals?isMediterranea=true"
+                }
+                ariaLabel="Exportar Mediterránea a CSV"
+              />
+            )
+          }
+        </div>
+      </div>
+
+      <div
+        id="header-search-ttsts"
+        class:list={[
+          "w-full transition-opacity duration-300",
+          activeTab !== "ttsts" && "hidden",
+        ]}
+      >
+        <div class="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap">
+          <div class="w-full">
+            <SearchBar
+              id="tt-search"
+              placeholder="Buscar por hostname, IP o sucursal"
+            />
+          </div>
+          <div
+            class="badge badge-neutral badge-lg whitespace-nowrap"
+            aria-label="Cantidad de equipos T&T & STS"
+          >
+            <Icon name="boxicons:eye-filled" size={16} />
+            <span id="total-count-badge-ttsts">0 equipos</span>
+          </div>
+          {
+            canExport && (
+              <ExportCsvButton
+                id="export-csv-tt-btn"
+                href={getCleanBase() + "api/export/terminals?isTT=true"}
+                ariaLabel="Exportar T&T & STS a CSV"
+              />
+            )
+          }
         </div>
       </div>
     </div>
@@ -546,15 +785,15 @@ const inventoryTabs = [
   >
     {
       terminals.length === 0 ? (
-        <div class="card border border-error/20 bg-error/5 text-error-content max-w-2xl mx-auto my-8 shadow-sm">
-          <div class="card-body items-center text-center p-6 sm:p-8">
-            <span class="inline-flex size-14 items-center justify-center rounded-full bg-error/10 text-error mb-2 border border-error/20">
+        <div class="card border-error/20 bg-error/5 text-error-content mx-auto my-8 max-w-2xl border shadow-sm">
+          <div class="card-body items-center p-6 text-center sm:p-8">
+            <span class="bg-error/10 text-error border-error/20 mb-2 inline-flex size-14 items-center justify-center rounded-full border">
               <Icon name="boxicons:x-circle-filled-filled" class="size-8" />
             </span>
-            <h3 class="text-lg font-bold text-base-content">
+            <h3 class="text-base-content text-lg font-bold">
               Sin datos de terminales
             </h3>
-            <p class="text-sm text-base-content/70 max-w-md mt-1">
+            <p class="text-base-content/70 mt-1 max-w-md text-sm">
               El servicio no pudo obtener datos de las terminales. Por favor,
             </p>
           </div>
@@ -608,7 +847,7 @@ const inventoryTabs = [
             <div
               id="scroll-sentinel-terminales"
               class:list={[
-                "py-8 text-center flex justify-center",
+                "flex justify-center py-8 text-center",
                 !hasMore && "hidden",
               ]}
               data-has-more={hasMore ? "true" : "false"}
@@ -684,12 +923,12 @@ const inventoryTabs = [
                 data-sort-ip={machine.ip ?? ""}
                 class:list={[
                   cubicRowGridClass,
-                  "border-b border-base-300 px-4 py-4 transition-colors hover:bg-base-300/50 last:border-b-0",
+                  "border-base-300 hover:bg-base-300/50 border-b px-4 py-4 transition-colors last:border-b-0",
                 ]}
               >
                 <div class={hostSpan + " min-w-0"}>
                   <div class="flex items-center gap-3">
-                    <span class="inline-flex size-8 shrink-0 self-center items-center justify-center rounded-lg border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400 border">
+                    <span class="inline-flex size-8 shrink-0 items-center justify-center self-center rounded-lg border border-sky-500/30 bg-sky-500/15 text-sky-500 dark:text-sky-400">
                       <Icon name="boxicons:desktop-filled" size={16} />
                     </span>
                     <div class="min-w-0 flex-1">
@@ -742,7 +981,7 @@ const inventoryTabs = [
                           ]}
                         />
                       </div>
-                      <span class="text-sm text-base-content/80">
+                      <span class="text-base-content/80 text-sm">
                         {statusCopy[machine.status as CubicStatus]}
                       </span>
                     </div>
@@ -777,7 +1016,7 @@ const inventoryTabs = [
                           tabindex="0"
                           aria-label="Usuario asignado: Sin asignar"
                         >
-                          <div class="w-9 rounded-full bg-base-200 text-base-content/70">
+                          <div class="bg-base-200 text-base-content/70 w-9 rounded-full">
                             <span class="text-xs font-semibold select-none">
                               --
                             </span>
@@ -791,7 +1030,7 @@ const inventoryTabs = [
                   <div
                     class={
                       actionsSpan +
-                      " min-w-0 flex items-center justify-end gap-2"
+                      " flex min-w-0 items-center justify-end gap-2"
                     }
                   >
                     <ActionEditButton
@@ -857,10 +1096,7 @@ const inventoryTabs = [
 
         <div
           id="scroll-sentinel-mediterranea"
-          class:list={[
-            "py-8 text-center flex justify-center",
-            "hidden",
-          ]}
+          class:list={["flex justify-center py-8 text-center", "hidden"]}
           data-has-more="false"
         >
           <span
@@ -876,6 +1112,89 @@ const inventoryTabs = [
         description="No hemos podido encontrar terminales de Mediterránea que coincidan con los filtros seleccionados. Probá modificando los criterios o limpiando los filtros."
         showClearButton={true}
         clearButtonId="btn-clear-empty-mediterranea"
+        clearButtonText="Limpiar filtros"
+      />
+    </section>
+  </div>
+
+  <div
+    id="view-ttsts"
+    class:list={["space-y-6", activeTab !== "ttsts" && "hidden"]}
+  >
+    <div
+      class="collapse-arrow bg-secondary text-secondary-content has-checked:bg-accent has-checked:text-accent-content collapse"
+    >
+      <input type="checkbox" />
+      <div class="collapse-title text-sm font-medium">
+        ¿Qué equipo me corresponde para conexión remota?
+      </div>
+      <div class="collapse-content text-sm">
+        <p>
+          En los equipos T&T y STS, la terminal operativa es la física (Debian
+          10, hostname sin sufijo <code class="font-mono">-D</code>): a ella se
+          conecta el soporte remoto en caso de incidencia. El registro con
+          sufijo <code class="font-mono">-D</code> es la máquina virtual (Debian 12)
+          del mismo equipo. Los equipos de Telegrafía no siguen esta convención.
+        </p>
+      </div>
+    </div>
+
+    <section class="space-y-3">
+      <div id="ttsts-table-wrapper">
+        <DataTable
+          id="table-ttsts"
+          ariaLabel="Inventario de equipos T&T & STS"
+          minWidthClass="min-w-280"
+          headerGridClass={terminalHeaderGridClass}
+          rowGridClass={terminalRowGridClass}
+          serverSideSort={true}
+        >
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell sortKey="hostname">
+              Hostname
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="hardware">
+              Hardware
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-3">
+            <DataTableHeaderCell sortKey="os">
+              Sistema operativo
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell sortKey="location">
+              Ubicación
+            </DataTableHeaderCell>
+          </div>
+          <div slot="header" class="col-span-2">
+            <DataTableHeaderCell align="right">
+              Último contacto
+            </DataTableHeaderCell>
+          </div>
+          <div id="table-ttsts-body" class="contents"></div>
+        </DataTable>
+
+        <div
+          id="scroll-sentinel-ttsts"
+          class:list={["flex justify-center py-8 text-center", "hidden"]}
+          data-has-more="false"
+        >
+          <span
+            class="loading loading-spinner loading-md text-primary"
+            id="loading-spinner-ttsts"></span>
+        </div>
+      </div>
+
+      <SearchEmptyState
+        id="no-results-state-ttsts"
+        class="hidden"
+        title="No hay coincidencias"
+        description="No hemos podido encontrar equipos T&T & STS que coincidan con los filtros seleccionados. Probá modificando los criterios o limpiando los filtros."
+        showClearButton={true}
+        clearButtonId="btn-clear-empty-ttsts"
         clearButtonText="Limpiar filtros"
       />
     </section>
@@ -907,15 +1226,18 @@ const inventoryTabs = [
     const isTerminales = activeValue === "terminales";
     const isCubics = activeValue === "cubics";
     const isMediterranea = activeValue === "mediterranea";
+    const isTTSTS = activeValue === "ttsts";
 
     viewTerminales?.classList.toggle("hidden", !isTerminales);
     viewCubics?.classList.toggle("hidden", !isCubics);
     viewMediterranea?.classList.toggle("hidden", !isMediterranea);
+    viewTT?.classList.toggle("hidden", !isTTSTS);
 
     if (isTerminales) {
       searchTerminales?.classList.remove("hidden");
       searchCubics?.classList.add("hidden");
       searchMediterranea?.classList.add("hidden");
+      searchTT?.classList.add("hidden");
 
       rightTerminales?.classList.remove("hidden");
       rightTerminales?.classList.add("flex");
@@ -925,10 +1247,14 @@ const inventoryTabs = [
 
       rightMediterranea?.classList.add("hidden");
       rightMediterranea?.classList.remove("flex");
+
+      rightTT?.classList.add("hidden");
+      rightTT?.classList.remove("flex");
     } else if (isCubics) {
       searchTerminales?.classList.add("hidden");
       searchCubics?.classList.remove("hidden");
       searchMediterranea?.classList.add("hidden");
+      searchTT?.classList.add("hidden");
 
       rightTerminales?.classList.add("hidden");
       rightTerminales?.classList.remove("flex");
@@ -938,10 +1264,14 @@ const inventoryTabs = [
 
       rightMediterranea?.classList.add("hidden");
       rightMediterranea?.classList.remove("flex");
-    } else {
+
+      rightTT?.classList.add("hidden");
+      rightTT?.classList.remove("flex");
+    } else if (isMediterranea) {
       searchTerminales?.classList.add("hidden");
       searchCubics?.classList.add("hidden");
       searchMediterranea?.classList.remove("hidden");
+      searchTT?.classList.add("hidden");
 
       rightTerminales?.classList.add("hidden");
       rightTerminales?.classList.remove("flex");
@@ -951,6 +1281,26 @@ const inventoryTabs = [
 
       rightMediterranea?.classList.remove("hidden");
       rightMediterranea?.classList.add("flex");
+
+      rightTT?.classList.add("hidden");
+      rightTT?.classList.remove("flex");
+    } else {
+      searchTerminales?.classList.add("hidden");
+      searchCubics?.classList.add("hidden");
+      searchMediterranea?.classList.add("hidden");
+      searchTT?.classList.remove("hidden");
+
+      rightTerminales?.classList.add("hidden");
+      rightTerminales?.classList.remove("flex");
+
+      rightCubics?.classList.add("hidden");
+      rightCubics?.classList.remove("flex");
+
+      rightMediterranea?.classList.add("hidden");
+      rightMediterranea?.classList.remove("flex");
+
+      rightTT?.classList.remove("hidden");
+      rightTT?.classList.add("flex");
     }
   };
 
@@ -963,6 +1313,10 @@ const inventoryTabs = [
     ) {
       mediCurrentPage = 1;
       fetchMediterranea(true);
+    }
+    if (e.detail.value === "ttsts" && ttContainer?.children.length === 0) {
+      ttCurrentPage = 1;
+      fetchTT(true);
     }
   });
 
@@ -994,6 +1348,8 @@ const inventoryTabs = [
     "total-count-badge-terminales",
   );
   const exportCsvBtn = document.getElementById("export-csv-terminales-btn");
+  const duplicatesToggle = document.getElementById("filter-duplicates");
+  const orphansToggle = document.getElementById("filter-orphans");
 
   let currentPage = 1;
   let currentSearch = terminalSearchInput?.value.trim() || "";
@@ -1005,6 +1361,8 @@ const inventoryTabs = [
   let currentModel = modelFilterSelect?.value || "all";
   let currentStatus =
     statusRadioInputs.find((r) => r.checked)?.dataset.terminalStatus || "all";
+  let currentDuplicates = false;
+  let currentOrphans = false;
   let isLoading = false;
   let hasMore = terminalsSentinel?.getAttribute("data-has-more") === "true";
   let terminalRows = Array.from(
@@ -1025,6 +1383,37 @@ const inventoryTabs = [
     "total-count-badge-mediterranea",
   );
   const mediExportCsvBtn = document.getElementById("export-csv-medi-btn");
+
+  const viewTT = document.getElementById("view-ttsts");
+  const searchTT = document.getElementById("header-search-ttsts");
+  const rightTT = document.getElementById("header-right-ttsts");
+  const ttSearchInput = document.querySelector<HTMLInputElement>("#tt-search");
+  const ttStatusRadioInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>("[data-tt-status]"),
+  );
+  const ttSentinel = document.getElementById("scroll-sentinel-ttsts");
+  const ttSpinner = document.getElementById("loading-spinner-ttsts");
+  const ttContainer = document.getElementById("table-ttsts-body");
+  const ttTotalCountBadge = document.getElementById("total-count-badge-ttsts");
+  const ttExportCsvBtn = document.getElementById("export-csv-tt-btn");
+  const ttTypeRadioInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>("[data-tt-type]"),
+  );
+  const ttVmRadioInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>("[data-tt-vm]"),
+  );
+  const ttVmFilterWrapper = document.getElementById("tt-vm-filter-wrapper");
+
+  let ttCurrentPage = 1;
+  let ttCurrentSearch = ttSearchInput?.value.trim() || "";
+  let ttCurrentStatus =
+    ttStatusRadioInputs.find((r) => r.checked)?.dataset.ttStatus || "all";
+  let ttCurrentType =
+    ttTypeRadioInputs.find((r) => r.checked)?.dataset.ttType || "all";
+  let ttCurrentVm =
+    ttVmRadioInputs.find((r) => r.checked)?.dataset.ttVm || "all";
+  let ttHasMore = false;
+  let ttIsLoading = false;
 
   let mediCurrentPage = 1;
   let mediCurrentSearch = mediSearchInput?.value.trim() || "";
@@ -1060,6 +1449,8 @@ const inventoryTabs = [
         ram: currentRam,
         model: currentModel,
         status: currentStatus,
+        duplicates: currentDuplicates ? "true" : "",
+        orphans: currentOrphans ? "true" : "",
       };
 
       for (const [key, val] of Object.entries(filters)) {
@@ -1076,11 +1467,38 @@ const inventoryTabs = [
       params.delete("brand");
       params.delete("ram");
       params.delete("model");
+      params.delete("duplicates");
+      params.delete("orphans");
 
       const filters: Record<string, string> = {
         search: mediCurrentSearch,
         mediterraneaType: mediCurrentType,
         status: mediCurrentStatus,
+      };
+
+      for (const [key, val] of Object.entries(filters)) {
+        if (val && val !== "all") {
+          params.set(key, val);
+        } else {
+          params.delete(key);
+        }
+      }
+    } else if (activeTab === "ttsts") {
+      params.delete("os");
+      params.delete("osVariant");
+      params.delete("architecture");
+      params.delete("brand");
+      params.delete("ram");
+      params.delete("model");
+      params.delete("mediterraneaType");
+      params.delete("duplicates");
+      params.delete("orphans");
+
+      const filters: Record<string, string> = {
+        search: ttCurrentSearch,
+        status: ttCurrentStatus,
+        ttType: ttCurrentType,
+        vmFilter: ttCurrentVm,
       };
 
       for (const [key, val] of Object.entries(filters)) {
@@ -1098,6 +1516,8 @@ const inventoryTabs = [
       params.delete("ram");
       params.delete("model");
       params.delete("mediterraneaType");
+      params.delete("duplicates");
+      params.delete("orphans");
       params.delete("status");
       params.delete("search");
     }
@@ -1128,6 +1548,8 @@ const inventoryTabs = [
         ram: currentRam,
         model: currentModel,
         status: currentStatus,
+        duplicates: currentDuplicates ? "true" : "",
+        orphans: currentOrphans ? "true" : "",
       };
       for (const [key, val] of Object.entries(filters)) {
         if (val && val !== "all") {
@@ -1153,6 +1575,220 @@ const inventoryTabs = [
         `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`,
       );
     }
+
+    if (ttExportCsvBtn) {
+      const queryParams = new URLSearchParams();
+      queryParams.set("isTT", "true");
+      if (ttCurrentSearch) queryParams.set("search", ttCurrentSearch);
+      if (ttCurrentStatus && ttCurrentStatus !== "all")
+        queryParams.set("status", ttCurrentStatus);
+      if (ttCurrentType && ttCurrentType !== "all")
+        queryParams.set("ttType", ttCurrentType);
+      if (ttCurrentVm && ttCurrentVm !== "all")
+        queryParams.set("vmFilter", ttCurrentVm);
+      ttExportCsvBtn.setAttribute(
+        "href",
+        `${baseUrl}api/export/terminals${queryParams.toString() ? "?" + queryParams.toString() : ""}`,
+      );
+    }
+
+    renderActiveFilterChips();
+  };
+
+  const chipsContainer = document.getElementById("active-filter-chips");
+
+  const filterValueLabels: Record<string, string> = {
+    win11: "Windows 11",
+    win10: "Windows 10",
+    win7: "Windows 7",
+    winxp: "Windows XP",
+    winserver: "Windows Server",
+    ubuntu: "Ubuntu",
+    debian: "Debian",
+    "64 bits": "64 bits",
+    "32 bits": "32 bits",
+    dell: "Dell",
+    lenovo: "Lenovo",
+    hp: "HP",
+    bangho: "Banghó",
+    coradir: "Coradir",
+    "<=1gb": "≤ 1 GB",
+    "2gb": "2 GB",
+    "4gb": "4 GB",
+    "8gb": "8 GB",
+    ">=16gb": "≥ 16 GB",
+    online: "Online",
+    offline: "Offline",
+    turnero: "Turneros",
+    tv: "TVs",
+    tyt: "Solo T&T",
+    sts: "Solo STS",
+    with: "Con VM",
+    without: "Sin VM",
+  };
+
+  const makeFilterChip = (labelText: string, onRemove: () => void) => {
+    const chip = document.createElement("div");
+    chip.className = "badge badge-soft badge-neutral gap-1 whitespace-nowrap";
+    chip.textContent = labelText;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "opacity-60 hover:opacity-100";
+    removeBtn.textContent = "✕";
+    removeBtn.setAttribute("aria-label", `Quitar filtro ${labelText}`);
+    removeBtn.addEventListener("click", onRemove);
+    chip.appendChild(removeBtn);
+    return chip;
+  };
+
+  const chipLabel = (value: string) => filterValueLabels[value] ?? value;
+
+  const renderActiveFilterChips = () => {
+    if (!chipsContainer) return;
+    const activeTabRadio = switcher?.querySelector(
+      'input[type="radio"]:checked',
+    ) as HTMLInputElement | null;
+    const activeTab = activeTabRadio?.value || "terminales";
+
+    const chips: HTMLDivElement[] = [];
+
+    if (activeTab === "terminales") {
+      if (currentSearch)
+        chips.push(
+          makeFilterChip(`"${currentSearch}"`, () => {
+            if (terminalSearchInput) terminalSearchInput.value = "";
+            triggerSearch();
+          }),
+        );
+      if (currentOs !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentOs), () => {
+            if (osFilterSelect) osFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentOsVariant !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentOsVariant), () => {
+            if (osVariantFilterSelect) osVariantFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentArch !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentArch), () => {
+            if (archFilterSelect) archFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentBrand !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentBrand), () => {
+            if (brandFilterSelect) brandFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentRam !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentRam), () => {
+            if (ramFilterSelect) ramFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentModel !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentModel), () => {
+            if (modelFilterSelect) modelFilterSelect.value = "all";
+            triggerSearch();
+          }),
+        );
+      if (currentStatus !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(currentStatus), () => {
+            statusRadioInputs.forEach((radio, idx) => {
+              radio.checked = idx === 0;
+            });
+            triggerSearch();
+          }),
+        );
+      if (currentDuplicates)
+        chips.push(
+          makeFilterChip("Duplicados", () => {
+            if (duplicatesToggle) duplicatesToggle.checked = false;
+            triggerSearch();
+          }),
+        );
+      if (currentOrphans)
+        chips.push(
+          makeFilterChip("Sin ubicación", () => {
+            if (orphansToggle) orphansToggle.checked = false;
+            triggerSearch();
+          }),
+        );
+    } else if (activeTab === "mediterranea") {
+      if (mediCurrentSearch)
+        chips.push(
+          makeFilterChip(`"${mediCurrentSearch}"`, () => {
+            if (mediSearchInput) mediSearchInput.value = "";
+            triggerMediSearch();
+          }),
+        );
+      if (mediCurrentType !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(mediCurrentType), () => {
+            if (mediTypeSelect) mediTypeSelect.value = "all";
+            triggerMediSearch();
+          }),
+        );
+      if (mediCurrentStatus !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(mediCurrentStatus), () => {
+            mediStatusRadioInputs.forEach((radio, idx) => {
+              radio.checked = idx === 0;
+            });
+            triggerMediSearch();
+          }),
+        );
+    } else if (activeTab === "ttsts") {
+      if (ttCurrentSearch)
+        chips.push(
+          makeFilterChip(`"${ttCurrentSearch}"`, () => {
+            if (ttSearchInput) ttSearchInput.value = "";
+            triggerTTSearch();
+          }),
+        );
+      if (ttCurrentStatus !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(ttCurrentStatus), () => {
+            ttStatusRadioInputs.forEach((radio, idx) => {
+              radio.checked = idx === 0;
+            });
+            triggerTTSearch();
+          }),
+        );
+      if (ttCurrentType !== "all")
+        chips.push(
+          makeFilterChip(chipLabel(ttCurrentType), () => {
+            ttTypeRadioInputs.forEach((radio, idx) => {
+              radio.checked = idx === 0;
+            });
+            triggerTTSearch();
+          }),
+        );
+      if (ttCurrentVm !== "all" && ttCurrentType === "tyt")
+        chips.push(
+          makeFilterChip(chipLabel(ttCurrentVm), () => {
+            ttVmRadioInputs.forEach((radio, idx) => {
+              radio.checked = idx === 0;
+            });
+            triggerTTSearch();
+          }),
+        );
+    }
+
+    chipsContainer.replaceChildren(...chips);
+    chipsContainer.classList.toggle("hidden", chips.length === 0);
+    chipsContainer.classList.toggle("flex", chips.length > 0);
   };
 
   const fetchTerminals = async (isNewSearch: boolean, showLoadingUI = true) => {
@@ -1177,6 +1813,8 @@ const inventoryTabs = [
         params.set("model", currentModel);
       if (currentStatus && currentStatus !== "all")
         params.set("status", currentStatus);
+      if (currentDuplicates) params.set("duplicates", "true");
+      if (currentOrphans) params.set("orphans", "true");
       if (currentSortBy) {
         params.set("sortBy", currentSortBy);
         if (currentSortOrder) params.set("sortOrder", currentSortOrder);
@@ -1450,6 +2088,188 @@ const inventoryTabs = [
     observer.observe(mediSentinel);
   }
 
+  const fetchTT = async (isNewSearch: boolean, showLoadingUI = true) => {
+    if (ttIsLoading) return;
+    ttIsLoading = true;
+    if (showLoadingUI) ttSpinner?.classList.remove("hidden");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("isTT", "true");
+      params.set("page", ttCurrentPage.toString());
+      params.set("limit", "50");
+      if (ttCurrentSearch) params.set("search", ttCurrentSearch);
+      if (ttCurrentStatus && ttCurrentStatus !== "all")
+        params.set("status", ttCurrentStatus);
+      if (ttCurrentType && ttCurrentType !== "all")
+        params.set("ttType", ttCurrentType);
+      if (ttCurrentVm && ttCurrentVm !== "all")
+        params.set("vmFilter", ttCurrentVm);
+      if (currentSortBy) {
+        params.set("sortBy", currentSortBy);
+        if (currentSortOrder) params.set("sortOrder", currentSortOrder);
+      }
+
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(
+        `${baseUrl}/api/terminals?${params.toString()}`,
+      );
+      if (!response.ok) throw new Error("API call failed");
+
+      const html = await response.text();
+      const newHasMore = response.headers.get("X-Has-More") === "true";
+      const totalCount = response.headers.get("X-Total-Count") || "0";
+
+      ttHasMore = newHasMore;
+
+      if (ttTotalCountBadge) {
+        ttTotalCountBadge.textContent = `${totalCount} equipos`;
+      }
+
+      if (ttContainer) {
+        if (isNewSearch) {
+          ttContainer.innerHTML = html;
+        } else {
+          ttContainer.insertAdjacentHTML("beforeend", html);
+        }
+      }
+
+      const rowCount =
+        ttContainer?.querySelectorAll("[data-terminal-row]").length ?? 0;
+      const noResultsState = document.getElementById("no-results-state-ttsts");
+      const tableWrapper = document.getElementById("ttsts-table-wrapper");
+
+      if (noResultsState && tableWrapper) {
+        if (rowCount === 0) {
+          noResultsState.classList.remove("hidden");
+          noResultsState.classList.add("flex");
+          tableWrapper.classList.add("hidden");
+        } else {
+          noResultsState.classList.add("hidden");
+          noResultsState.classList.remove("flex");
+          tableWrapper.classList.remove("hidden");
+        }
+      }
+
+      if (ttCurrentSearch && ttContainer) {
+        const newArticles = Array.from(
+          ttContainer.querySelectorAll<HTMLElement>("[data-terminal-row]"),
+        );
+        newArticles.forEach((item) => {
+          highlightSearchTargets(item, ttCurrentSearch);
+        });
+      }
+
+      if (!ttHasMore) {
+        ttSentinel?.classList.add("hidden");
+      } else {
+        ttSentinel?.classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error("Error fetching T&T & STS:", err);
+    } finally {
+      ttIsLoading = false;
+      if (showLoadingUI) ttSpinner?.classList.add("hidden");
+    }
+  };
+
+  if (ttSentinel) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !ttIsLoading && ttHasMore) {
+          ttCurrentPage++;
+          fetchTT(false);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(ttSentinel);
+  }
+
+  const syncTtVmFilterVisibility = () => {
+    if (!ttVmFilterWrapper) return;
+    if (ttCurrentType === "tyt") {
+      ttVmFilterWrapper.classList.remove("hidden");
+    } else {
+      ttVmFilterWrapper.classList.add("hidden");
+      ttVmRadioInputs.forEach((radio, idx) => {
+        radio.checked = idx === 0;
+      });
+      ttCurrentVm = "all";
+    }
+  };
+
+  let ttDebounceTimeout: number;
+  const triggerTTSearch = () => {
+    clearTimeout(ttDebounceTimeout);
+    ttDebounceTimeout = window.setTimeout(() => {
+      ttCurrentPage = 1;
+      ttCurrentSearch = ttSearchInput?.value.trim() || "";
+      ttCurrentStatus =
+        ttStatusRadioInputs.find((r) => r.checked)?.dataset.ttStatus || "all";
+      ttCurrentType =
+        ttTypeRadioInputs.find((r) => r.checked)?.dataset.ttType || "all";
+      ttCurrentVm =
+        ttVmRadioInputs.find((r) => r.checked)?.dataset.ttVm || "all";
+      syncTtVmFilterVisibility();
+      fetchTT(true);
+      syncFiltersToURL();
+    }, 300);
+  };
+
+  ttSearchInput?.addEventListener("input", triggerTTSearch);
+  ttStatusRadioInputs.forEach((radio) =>
+    radio.addEventListener("change", triggerTTSearch),
+  );
+  ttTypeRadioInputs.forEach((radio) =>
+    radio.addEventListener("change", triggerTTSearch),
+  );
+  ttVmRadioInputs.forEach((radio) =>
+    radio.addEventListener("change", triggerTTSearch),
+  );
+
+  const btnClearTT = document.getElementById("btn-clear-filters-ttsts");
+  btnClearTT?.addEventListener("click", () => {
+    if (ttSearchInput) ttSearchInput.value = "";
+    ttStatusRadioInputs.forEach((radio, idx) => {
+      radio.checked = idx === 0;
+    });
+    ttTypeRadioInputs.forEach((radio, idx) => {
+      radio.checked = idx === 0;
+    });
+    ttVmRadioInputs.forEach((radio, idx) => {
+      radio.checked = idx === 0;
+    });
+    ttCurrentPage = 1;
+    ttCurrentSearch = "";
+    ttCurrentStatus = "all";
+    ttCurrentType = "all";
+    ttCurrentVm = "all";
+    syncTtVmFilterVisibility();
+    fetchTT(true);
+    syncFiltersToURL();
+  });
+
+  const btnClearEmptyTT = document.getElementById("btn-clear-empty-ttsts");
+  btnClearEmptyTT?.addEventListener("click", () => {
+    btnClearTT?.click();
+  });
+
+  const ttTable = document.getElementById("table-ttsts");
+  ttTable?.addEventListener("table-sort-change", (e: any) => {
+    const { sortKey, direction } = e.detail;
+    currentSortBy = direction === "none" ? null : sortKey;
+    currentSortOrder =
+      direction === "ascending"
+        ? "asc"
+        : direction === "descending"
+          ? "desc"
+          : null;
+    ttCurrentPage = 1;
+    fetchTT(true, false);
+    syncFiltersToURL();
+  });
+
   let debounceTimeout: number;
   const triggerSearch = () => {
     clearTimeout(debounceTimeout);
@@ -1465,12 +2285,16 @@ const inventoryTabs = [
       currentStatus =
         statusRadioInputs.find((r) => r.checked)?.dataset.terminalStatus ||
         "all";
+      currentDuplicates = duplicatesToggle?.checked ?? false;
+      currentOrphans = orphansToggle?.checked ?? false;
       fetchTerminals(true);
       syncFiltersToURL();
     }, 300);
   };
 
   terminalSearchInput?.addEventListener("input", triggerSearch);
+  duplicatesToggle?.addEventListener("change", triggerSearch);
+  orphansToggle?.addEventListener("change", triggerSearch);
 
   const btnClearTerminales = document.getElementById(
     "btn-clear-filters-terminales",
@@ -1501,6 +2325,10 @@ const inventoryTabs = [
     currentRam = "all";
     currentModel = "all";
     currentStatus = "all";
+    if (duplicatesToggle) duplicatesToggle.checked = false;
+    if (orphansToggle) orphansToggle.checked = false;
+    currentDuplicates = false;
+    currentOrphans = false;
     fetchTerminals(true);
     syncFiltersToURL();
   });
@@ -1840,6 +2668,25 @@ const inventoryTabs = [
           });
       }
     }
+
+    if (ttTable) {
+      ttTable.dataset.tableSortKey = currentSortBy;
+      ttTable.dataset.tableSortDirection = dir;
+      const control = ttTable.querySelector(
+        `[data-table-sort-key="${currentSortBy}"]`,
+      );
+      if (control) {
+        control.setAttribute("data-table-sort-direction", dir);
+        control.setAttribute("aria-sort", dir);
+        control
+          .querySelectorAll("[data-table-sort-icon]")
+          .forEach((icon: any) => {
+            const shouldShow = icon.dataset.tableSortIcon === dir;
+            icon.classList.toggle("hidden", !shouldShow);
+            icon.classList.toggle("opacity-0", !shouldShow);
+          });
+      }
+    }
   }
 
   const initialUrlParams = new URLSearchParams(window.location.search);
@@ -1865,6 +2712,52 @@ const inventoryTabs = [
 
     fetchMediterranea(true);
   }
+
+  if (initialActiveTab === "ttsts") {
+    if (ttSearchInput && initialUrlParams.has("search")) {
+      ttSearchInput.value = initialUrlParams.get("search") || "";
+      ttCurrentSearch = ttSearchInput.value.trim();
+    }
+    if (initialUrlParams.has("status")) {
+      const statusVal = initialUrlParams.get("status") || "all";
+      ttStatusRadioInputs.forEach((radio) => {
+        radio.checked = radio.dataset.ttStatus === statusVal;
+      });
+      ttCurrentStatus = statusVal;
+    }
+    if (initialUrlParams.has("ttType")) {
+      const typeVal = initialUrlParams.get("ttType") || "all";
+      ttTypeRadioInputs.forEach((radio) => {
+        radio.checked = radio.dataset.ttType === typeVal;
+      });
+      ttCurrentType = typeVal;
+    }
+    if (initialUrlParams.has("vmFilter")) {
+      const vmVal = initialUrlParams.get("vmFilter") || "all";
+      ttVmRadioInputs.forEach((radio) => {
+        radio.checked = radio.dataset.ttVm === vmVal;
+      });
+      ttCurrentVm = vmVal;
+    }
+    syncTtVmFilterVisibility();
+    fetchTT(true);
+  }
+
+  if (initialActiveTab === "terminales") {
+    if (initialUrlParams.get("duplicates") === "true" && duplicatesToggle) {
+      duplicatesToggle.checked = true;
+      currentDuplicates = true;
+    }
+    if (initialUrlParams.get("orphans") === "true" && orphansToggle) {
+      orphansToggle.checked = true;
+      currentOrphans = true;
+    }
+    if (currentDuplicates || currentOrphans) {
+      fetchTerminals(true);
+      syncFiltersToURL();
+    }
+  }
+  syncFiltersToURL();
 </script>
 <script
   type="application/json"

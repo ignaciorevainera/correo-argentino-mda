@@ -15,7 +15,10 @@ export interface DeleteHandlerConfig {
   logMessage?: (deleted: Record<string, unknown> | null) => string;
   returnJsonOnInvalidId?: boolean;
   beforeDelete?: (context: { id: number }) => Promise<void> | void;
-  afterDelete?: (context: { id: number; deleted: Record<string, unknown> | null }) => Promise<void> | void;
+  afterDelete?: (context: {
+    id: number;
+    deleted: Record<string, unknown> | null;
+  }) => Promise<void> | void;
   performDelete: (id: number) => Promise<Record<string, unknown> | null>;
 }
 
@@ -24,14 +27,15 @@ export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
     const rawId = params.id;
     const id = Number(rawId);
     const isInvalid = !rawId || isNaN(id) || id <= 0;
-    const invalidIdMsg = config.invalidIdMessage ?? `ID de ${config.entityName} no proporcionado`;
+    const invalidIdMsg =
+      config.invalidIdMessage ?? `ID de ${config.entityName} no proporcionado`;
 
     if (isInvalid) {
       if (config.returnJsonOnInvalidId) {
         return new Response(invalidIdMsg, { status: 400 });
       }
       return redirect(
-        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(invalidIdMsg)}&toast_type=error`
+        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(invalidIdMsg)}&toast_type=error`,
       );
     }
 
@@ -40,8 +44,8 @@ export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
       if (!user || !isAllowed(config.requiredFeature, user.role)) {
         return redirect(
           `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(
-            config.unauthorizedMessage ?? "No autorizado"
-          )}&toast_type=error`
+            config.unauthorizedMessage ?? "No autorizado",
+          )}&toast_type=error`,
         );
       }
     }
@@ -67,21 +71,25 @@ export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
           ? config.successMessage(deleted)
           : `${config.entityName.charAt(0).toUpperCase() + config.entityName.slice(1)} eliminado con éxito.`;
         return redirect(
-          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`
+          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(successMsg)}&toast_type=success`,
         );
       } else {
-        const notFoundMsg = config.notFoundMessage ?? `El ${config.entityName} no existe.`;
+        const notFoundMsg =
+          config.notFoundMessage ?? `El ${config.entityName} no existe.`;
         return redirect(
-          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(notFoundMsg)}&toast_type=error`
+          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(notFoundMsg)}&toast_type=error`,
         );
       }
     } catch (error) {
-      console.error(`[deleteHandler] Error al eliminar ${config.entityName}:`, error);
+      console.error(
+        `[deleteHandler] Error al eliminar ${config.entityName}:`,
+        error,
+      );
       const errorMsg = config.errorMessage
         ? config.errorMessage(error)
         : `Error al eliminar el ${config.entityName}.`;
       return redirect(
-        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(errorMsg)}&toast_type=error`
+        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent(errorMsg)}&toast_type=error`,
       );
     }
   };

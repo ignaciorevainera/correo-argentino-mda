@@ -10,6 +10,7 @@ import HeroSearchBar from "@components/ui/HeroSearchBar.astro";
 import ChromeExtensionBanner from "./ChromeExtensionBanner.astro";
 import EditUserModal from "./EditUserModal.astro";
 import TerminalModal from "./TerminalModal.astro";
+import Modal from "@components/ui/Modal.astro";
 import SkeletonCard from "@components/ui/skeletons/SkeletonCard.astro";
 const cleanBase = getCleanBase();
 const userRole = Astro.locals.user?.role || "";
@@ -17,12 +18,12 @@ const userRole = Astro.locals.user?.role || "";
 
 <PageContainer>
   <!-- Contenedor Principal Optimizado (Grilla) -->
-  <div class="grid lg:grid-cols-3 gap-6 mb-8">
+  <div class="mb-8 grid gap-6 lg:grid-cols-3">
     <!-- Sección de Búsqueda -->
     <section
-      class="lg:col-span-2 py-8 px-6 md:px-8 rounded-2xl bg-base-200/50 border border-base-300 shadow-md flex flex-col justify-center"
+      class="bg-base-200/50 border-base-300 flex flex-col justify-center rounded-2xl border px-6 py-8 shadow-md md:px-8 lg:col-span-2"
     >
-      <div class="flex items-start justify-between mb-6 gap-4">
+      <div class="mb-6 flex items-start justify-between gap-4">
         <PageHeader
           description="Acceso rápido a contacto, internos y dependencias de todo el personal."
           class="flex-1 text-left"
@@ -30,7 +31,7 @@ const userRole = Astro.locals.user?.role || "";
         />
         <button
           id="sync-invgate-btn"
-          class="btn btn-accent btn-outline btn-sm gap-2 hidden shrink-0 mt-1 w-[185px]"
+          class="btn btn-accent btn-outline btn-sm mt-1 hidden w-46.25 shrink-0 gap-2"
         >
           <span id="sync-invgate-icon" class="inline-flex items-center">
             <Icon
@@ -40,17 +41,17 @@ const userRole = Astro.locals.user?.role || "";
             />
             <Icon
               name="boxicons:check"
-              class="size-4 hidden"
+              class="hidden size-4"
               id="sync-icon-success"
             />
             <Icon
               name="boxicons:x"
-              class="size-4 hidden"
+              class="hidden size-4"
               id="sync-icon-error"
             />
             <span
               id="sync-icon-spinner"
-              class="loading loading-spinner loading-xs text-current hidden"
+              class="loading loading-spinner loading-xs hidden text-current"
             ></span>
           </span>
           <span id="sync-invgate-text">Sincronizar InvGate</span>
@@ -63,21 +64,21 @@ const userRole = Astro.locals.user?.role || "";
         ariaLabel="Buscar usuarios por nombre, apellido o DNI"
       />
 
-      <div class="flex flex-col gap-2 mt-6">
+      <div class="mt-6 flex flex-col gap-2">
         <div
-          class="flex items-center gap-2 text-xs sm:text-sm text-base-content/50"
+          class="text-base-content/50 flex items-center gap-2 text-xs sm:text-sm"
           id="search-status"
         >
           <span>Listo para buscar.</span>
         </div>
         <div
-          class="text-xxs sm:text-xs text-base-content/40 flex items-center gap-1"
+          class="text-xxs text-base-content/40 flex items-center gap-1 sm:text-xs"
           id="sync-status"
         >
         </div>
       </div>
       <!-- Botón de sincronización InvGate (solo visible para admin) -->
-      <button id="sync-invgate-btn" class="btn btn-ghost btn-xs gap-1.5 hidden">
+      <button id="sync-invgate-btn" class="btn btn-ghost btn-xs hidden gap-1.5">
         <Icon name="boxicons:refresh-ccw" class="size-3.5" />
         <span>Sincronizar con InvGate</span>
       </button>
@@ -88,8 +89,8 @@ const userRole = Astro.locals.user?.role || "";
   </div>
 
   <section>
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-bold flex items-center gap-2" id="results-title">
+    <div class="mb-6 flex items-center justify-between">
+      <h2 class="flex items-center gap-2 text-xl font-bold" id="results-title">
         Usuarios sugeridos <span
           class="badge badge-sm badge-neutral"
           id="results-count">0</span
@@ -97,17 +98,17 @@ const userRole = Astro.locals.user?.role || "";
       </h2>
       <div id="loading-indicator" class="hidden">
         <span class="loading loading-spinner loading-sm text-primary"></span>
-        <span class="text-sm text-base-content/60 ml-2">Buscando...</span>
+        <span class="text-base-content/60 ml-2 text-sm">Buscando...</span>
       </div>
     </div>
 
-    <div id="results-skeleton" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div id="results-skeleton" class="grid grid-cols-1 gap-6 md:grid-cols-2">
       {[1, 2, 3, 4, 5, 6].map(() => <SkeletonCard type="user" />)}
     </div>
 
     <div
       id="results-grid"
-      class="hidden grid-cols-1 md:grid-cols-2 gap-6 opacity-0 transition-opacity duration-500"
+      class="hidden grid-cols-1 gap-6 opacity-0 transition-opacity duration-500 md:grid-cols-2"
     >
     </div>
 
@@ -138,11 +139,43 @@ const userRole = Astro.locals.user?.role || "";
 <!-- Modal de Consola Terminal (Grupos AD) -->
 <TerminalModal />
 
+<!-- Modal de Confirmación de Ticket InvGate -->
+<Modal
+  id="invgate-ticket-modal"
+  title="Crear solicitud en InvGate"
+  icon="boxicons:user-plus-filled"
+  size="md"
+>
+  <Fragment slot="content">
+    <p class="text-base-content/80 text-sm">
+      ¿Estás seguro que deseas crear un ticket solicitando acceso a InvGate para
+      el usuario <strong id="modal-user-name"></strong>?
+    </p>
+  </Fragment>
+  <Fragment slot="actions">
+    <div class="mt-6 flex justify-end gap-2">
+      <form method="dialog">
+        <button
+          class="btn btn-ghost border-base-300 hover:bg-base-200 cursor-pointer border"
+          >Cancelar</button
+        >
+      </form>
+      <button
+        id="confirm-create-ticket-btn"
+        class="btn btn-primary cursor-pointer shadow-md">Crear Ticket</button
+      >
+    </div>
+  </Fragment>
+</Modal>
+
 <script is:inline define:vars={{ userRole }}>
   window.__userRole = userRole;
 </script>
 
 <script>
+  import { showToast } from "@lib/toastClient";
+  import { GROUP_DESCRIPTIONS } from "@lib/groupDescriptions";
+
   let isLoaded = false;
   let currentUsers: any[] = [];
 
@@ -237,7 +270,6 @@ const userRole = Astro.locals.user?.role || "";
   const saveEditBtn = document.getElementById(
     "save-edit-btn",
   ) as HTMLButtonElement | null;
-  const saveBtnSpinner = document.getElementById("save-btn-spinner");
 
   // Referencias del modal de terminal (net user)
   const terminalModal = document.getElementById("terminal-modal") as any;
@@ -247,13 +279,44 @@ const userRole = Astro.locals.user?.role || "";
   );
   const terminalOutput = document.getElementById("terminal-output");
   const terminalLoading = document.getElementById("terminal-loading");
-  const closeTerminalBtn = document.getElementById("close-terminal-btn");
   const closeTerminalFooterBtn = document.getElementById(
     "close-terminal-footer-btn",
   );
   const copyTerminalBtn = document.getElementById(
     "copy-terminal-btn",
   ) as HTMLButtonElement | null;
+  const refreshTerminalBtn = document.getElementById(
+    "refresh-terminal-btn",
+  ) as HTMLButtonElement | null;
+  const refreshTerminalIcon = document.getElementById("refresh-terminal-icon");
+
+  function updatePanelFades(scrollEl: Element | null) {
+    if (!scrollEl) return;
+    const topFade = document.getElementById("panel-fade-top");
+    const bottomFade = document.getElementById("panel-fade-bottom");
+    if (!topFade || !bottomFade) return;
+    const hasOverflow = scrollEl.scrollHeight > scrollEl.clientHeight + 4;
+    const atBottom =
+      scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 4;
+    const atTop = scrollEl.scrollTop <= 4;
+    topFade.classList.toggle("opacity-0", !hasOverflow || atTop);
+    bottomFade.classList.toggle("opacity-0", !hasOverflow || atBottom);
+  }
+
+  document.addEventListener(
+    "scroll",
+    (e) => {
+      if (!(e.target instanceof Element)) return;
+      const scrollEl = e.target.closest("#panel-details-scroll");
+      if (scrollEl) updatePanelFades(scrollEl);
+    },
+    true,
+  );
+
+  window.addEventListener("resize", () => {
+    const el = document.getElementById("panel-details-scroll");
+    if (el) updatePanelFades(el);
+  });
 
   // Referencias de la versión organizada de terminal
   const tabPanelBtn = document.getElementById("tab-panel-btn");
@@ -294,13 +357,93 @@ const userRole = Astro.locals.user?.role || "";
   const terminalGroupsList = document.getElementById("terminal-groups-list");
   let currentLdapGroups: string[] = [];
 
+  // Referencias de la pestaña InvGate
+  const tabInvgateBtn = document.getElementById("tab-invgate-btn");
+  const viewInvgate = document.getElementById("view-invgate");
+  const invgateLoading = document.getElementById("invgate-loading");
+  const invgateError = document.getElementById("invgate-error");
+  const invgateFullname = document.getElementById("invgate-fullname");
+  const invgateEmail = document.getElementById("invgate-email");
+  const invgateRole = document.getElementById("invgate-role");
+  const invgatePosition = document.getElementById("invgate-position");
+  const invgateUserid = document.getElementById("invgate-userid");
+  const invgatePhones = document.getElementById("invgate-phones");
+  const invgateGroups = document.getElementById("invgate-groups");
+  const invgateHelpdesks = document.getElementById("invgate-helpdesks");
+  const invgateLocations = document.getElementById("invgate-locations");
+  const invgateManager = document.getElementById("invgate-manager");
+  const invgateOpenTickets = document.getElementById("invgate-open-tickets");
+  const invgateTicketsList = document.getElementById("invgate-tickets-list");
+  const btnCopyInvgateFullname = document.getElementById(
+    "btn-copy-invgate-fullname",
+  );
+  const btnCopyInvgateEmail = document.getElementById("btn-copy-invgate-email");
+  const btnCopyInvgateRole = document.getElementById("btn-copy-invgate-role");
+  const btnCopyInvgatePosition = document.getElementById(
+    "btn-copy-invgate-position",
+  );
+  const btnCopyInvgateManager = document.getElementById(
+    "btn-copy-invgate-manager",
+  );
+  const btnCopyInvgateUserid = document.getElementById(
+    "btn-copy-invgate-userid",
+  );
+  const btnSearchInvgateManager = document.getElementById(
+    "btn-search-invgate-manager",
+  );
+  let invgateLoaded = false;
+  let currentInvgateUsername = "";
+
   // Nuevas referencias para optimización de grupos
   const copyAllGroupsBtn = document.getElementById("copy-all-groups-btn");
   const btnViewGrid = document.getElementById("btn-view-grid");
   const btnViewList = document.getElementById("btn-view-list");
-  const clearGroupSearch = document.getElementById("clear-group-search");
+  const clearGroupSearch = document.getElementById(
+    "clear-terminal-groups-search",
+  );
   let currentSelectedCategory = "all";
   let currentViewMode = "grid";
+  let currentUsername = "";
+
+  const netUserCache = new Map<string, string>();
+  const pendingLegajoFetches = new Set<string>();
+
+  function fetchLegajoForUser(username: string) {
+    const key = (username || "").toLowerCase();
+    if (!key || netUserCache.has(key) || pendingLegajoFetches.has(key)) return;
+    pendingLegajoFetches.add(key);
+
+    fetch(`/api/usuarios/net-user?username=${encodeURIComponent(key)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        pendingLegajoFetches.delete(key);
+        const legajoVal =
+          data.status === "success" && data.employee_number
+            ? data.employee_number
+            : "-";
+        netUserCache.set(key, legajoVal);
+
+        const card = resultsGrid?.querySelector(
+          `[data-user-card-username="${CSS.escape(key)}"]`,
+        );
+        if (card) {
+          const btn = card.querySelector(
+            ".user-card-legajo-btn",
+          ) as HTMLElement | null;
+          if (btn) {
+            btn.setAttribute("data-copy-value", legajoVal);
+            btn.setAttribute("data-copy-label-default", legajoVal);
+            btn.setAttribute("aria-label", `Copiar: ${legajoVal}`);
+            const labelSpan = btn.querySelector("[data-copy-label]");
+            if (labelSpan) labelSpan.textContent = legajoVal;
+          }
+        }
+      })
+      .catch(() => {
+        pendingLegajoFetches.delete(key);
+        netUserCache.set(key, "-");
+      });
+  }
 
   const avatarColors = [
     "bg-blue-500 text-white",
@@ -371,12 +514,22 @@ const userRole = Astro.locals.user?.role || "";
 
   async function init() {
     isLoaded = true;
+    updatePanelFades(document.getElementById("panel-details-scroll"));
     if (statusText) statusText.textContent = "Listo para buscar.";
     resultsSkeleton?.classList.add("hidden");
     resultsGrid?.classList.remove("hidden");
     resultsGrid?.classList.add("grid");
     setTimeout(() => resultsGrid?.classList.remove("opacity-0"), 50);
     displayResults([]);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get("q");
+    if (q && searchInput) {
+      searchInput.value = q;
+      handleSearch();
+    } else if (searchInput) {
+      searchInput.focus();
+    }
 
     fetchSyncStatus();
   }
@@ -642,23 +795,74 @@ const userRole = Astro.locals.user?.role || "";
         }
       };
 
+      const cardEl = clone.querySelector(".card") as HTMLElement | null;
+      const usernameKey = (user.usuario || "").toLowerCase();
+      if (cardEl && usernameKey) {
+        cardEl.setAttribute("data-user-card-username", usernameKey);
+      }
+
       updateCardCopyButton(".user-card-username-btn", user.usuario, query);
       updateCardCopyButton(".user-card-dni-btn", user.dni, query);
       updateCardCopyButton(".user-card-interno-btn", user.interno);
       updateCardCopyButton(".user-card-telefono-btn", user.telefono);
       updateCardCopyButton(".user-card-email-btn", user.email, query);
 
-      // Ubicación
+      if (usernameKey) {
+        if (netUserCache.has(usernameKey)) {
+          updateCardCopyButton(
+            ".user-card-legajo-btn",
+            netUserCache.get(usernameKey) || "-",
+          );
+        } else {
+          updateCardCopyButton(".user-card-legajo-btn", "...");
+          fetchLegajoForUser(usernameKey);
+        }
+      } else {
+        updateCardCopyButton(".user-card-legajo-btn", "-");
+      }
+
+      // Ubicación — multi-office support
+      const sucursales = user.sucursales || [];
       const sucursal = user.sucursal;
-      if (sucursal) {
-        const sucursalNombre = user.sucursalNombre;
+      const sucursalNombre = user.sucursalNombre;
+
+      const sucursalBtn = clone.querySelector(".user-card-sucursal-btn");
+      const wrap = clone.querySelector(".user-card-sucursal-wrap");
+      if (!sucursalBtn || !wrap) {
+        // fallback for any structural issue
+      } else if (sucursales.length > 1) {
+        for (const s of sucursales) {
+          const text = s.name ? `${s.code} — ${s.name}` : s.code;
+          const btn = sucursalBtn.cloneNode(true) as HTMLElement;
+          btn.setAttribute("data-copy-value", s.code);
+          btn.setAttribute("data-copy-label-default", text);
+          btn.setAttribute("aria-label", `Copiar NIS ${s.code}`);
+          const label = btn.querySelector("[data-copy-label]");
+          if (label) label.textContent = text;
+          wrap.appendChild(btn);
+        }
+        sucursalBtn.remove();
+      } else if (sucursales.length === 1) {
+        const s = sucursales[0];
+        const text = s.name ? `${s.code} — ${s.name}` : s.code;
+        sucursalBtn.setAttribute("data-copy-value", s.code);
+        sucursalBtn.setAttribute("data-copy-label-default", text);
+        sucursalBtn.setAttribute("aria-label", `Copiar NIS ${s.code}`);
+        sucursalBtn.classList.add("w-full", "max-w-full", "justify-between");
+        const label = sucursalBtn.querySelector("[data-copy-label]");
+        if (label) label.textContent = text;
+      } else if (sucursal) {
         const valorCompleto = sucursalNombre
           ? `${sucursal} — ${sucursalNombre}`
           : sucursal;
-        updateCardCopyButton(".user-card-sucursal-btn", valorCompleto);
+        sucursalBtn.setAttribute("data-copy-value", valorCompleto);
+        sucursalBtn.setAttribute("data-copy-label-default", valorCompleto);
+        sucursalBtn.setAttribute("aria-label", `Copiar: ${valorCompleto}`);
+        sucursalBtn.classList.add("w-full", "max-w-full", "justify-between");
+        const label = sucursalBtn.querySelector("[data-copy-label]");
+        if (label) label.textContent = valorCompleto;
       } else {
-        const sucursalBtn = clone.querySelector(".user-card-sucursal-btn");
-        const parentRow = sucursalBtn?.closest(".flex.flex-col");
+        const parentRow = sucursalBtn.closest(".flex.flex-col");
         if (parentRow) parentRow.classList.add("hidden");
       }
 
@@ -714,49 +918,24 @@ const userRole = Astro.locals.user?.role || "";
       if (netUserBtn && user.usuario) {
         netUserBtn.addEventListener("click", (e) => {
           e.stopPropagation();
-          openTerminalModal(user.usuario);
+          openTerminalModal(user.usuario, !!user.invgateExists);
         });
       } else if (netUserBtn) {
         netUserBtn.classList.add("hidden");
       }
 
-      const invgateBtn = clone.querySelector(
-        "[data-invgate-copy-btn]",
+      const createTicketBtn = clone.querySelector(
+        "[data-invgate-create-ticket-btn]",
       ) as HTMLElement | null;
-      if (invgateBtn && user.usuario && !user.invgateExists) {
-        invgateBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const ticketBody = `Se solicita asignar al usuario en el grupo InvGate Service Management | Usuarios y grupos.
-
-Usuario de red: ${user.usuario}
-Nombre completo: ${user.nombre}
-DNI: ${user.dni}
-Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
-          copyText(ticketBody).then((ok) => {
-            if (!ok) return;
-            const tooltip = (invgateBtn as Element).closest(
-              ".tooltip",
-            ) as HTMLElement | null;
-            const originalTip = tooltip?.getAttribute("data-tip");
-            if (tooltip) {
-              tooltip.setAttribute(
-                "data-tip",
-                "Descripción del ticket copiada",
-              );
-              tooltip.classList.replace("tooltip-neutral", "tooltip-success");
-              tooltip.classList.add("tooltip-open");
-            }
-            setTimeout(() => {
-              if (tooltip) {
-                tooltip.setAttribute("data-tip", originalTip || "");
-                tooltip.classList.replace("tooltip-success", "tooltip-neutral");
-                tooltip.classList.remove("tooltip-open");
-              }
-            }, 2000);
+      if (createTicketBtn) {
+        if (user.invgateExists) {
+          createTicketBtn.classList.add("hidden");
+        } else {
+          createTicketBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openTicketModal(user);
           });
-        });
-      } else if (invgateBtn) {
-        invgateBtn.closest(".tooltip")?.classList.add("hidden");
+        }
       }
 
       fragment.appendChild(clone);
@@ -800,8 +979,15 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     if (query === "") {
       displayResults([]);
       if (statusText) statusText.textContent = `Listo para buscar.`;
+      const url = new URL(window.location.href);
+      url.searchParams.delete("q");
+      window.history.replaceState({}, "", url.toString());
       return;
     }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("q", query);
+    window.history.replaceState({}, "", url.toString());
 
     window.clearTimeout(searchTimeout);
     loadingIndicator?.classList.remove("hidden");
@@ -823,6 +1009,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
           email: u.username ? `${u.username}@correoargentino.com.ar` : null,
           sucursal: u.sucursal,
           sucursalNombre: u.sucursalNombre,
+          sucursales: u.sucursales ?? [],
           invgateExists: u.invgateExists ?? false,
         }));
 
@@ -841,6 +1028,68 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
       }
     }, 300);
   }
+
+  // Funciones del modal de ticket InvGate
+  let selectedUserForTicket: any = null;
+  const ticketModal = document.getElementById("invgate-ticket-modal") as any;
+  const modalUserName = document.getElementById("modal-user-name");
+  const confirmCreateTicketBtn = document.getElementById(
+    "confirm-create-ticket-btn",
+  ) as HTMLButtonElement | null;
+
+  function openTicketModal(user: any) {
+    if (!ticketModal || !modalUserName) return;
+    selectedUserForTicket = user;
+    modalUserName.textContent = user.nombre || "Usuario";
+    ticketModal.showModal();
+  }
+
+  confirmCreateTicketBtn?.addEventListener("click", async () => {
+    if (!selectedUserForTicket || !confirmCreateTicketBtn) return;
+
+    const originalText = confirmCreateTicketBtn.innerHTML;
+    confirmCreateTicketBtn.disabled = true;
+    confirmCreateTicketBtn.innerHTML =
+      '<span class="loading loading-spinner loading-xs"></span> Creando...';
+
+    try {
+      const response = await fetch("/api/usuarios/create-invgate-ticket", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuario: selectedUserForTicket.usuario,
+          nombreCompleto: selectedUserForTicket.nombre,
+          dni: selectedUserForTicket.dni,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        ticketModal?.close();
+        if (data.ticketUrl) {
+          window.open(data.ticketUrl, "_blank");
+          showToast(
+            "Ticket creado con éxito y abierto en una nueva pestaña.",
+            "alert-success",
+            6000,
+          );
+        } else {
+          showToast("Ticket creado con éxito.", "alert-success");
+        }
+      } else {
+        showToast(data.error || "Error al crear el ticket.", "alert-error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Error de conexión al crear el ticket.", "alert-error");
+    } finally {
+      confirmCreateTicketBtn.disabled = false;
+      confirmCreateTicketBtn.innerHTML = originalText;
+    }
+  });
 
   // Funciones del modal de edición
   function openEditModal(user: any) {
@@ -874,21 +1123,17 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
 
   editForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (
-      !editDni ||
-      !editInterno ||
-      !editTelefono ||
-      !saveEditBtn ||
-      !saveBtnSpinner
-    )
-      return;
+    if (!editDni || !editInterno || !editTelefono || !saveEditBtn) return;
 
     const dni = editDni.value;
     const interno = editInterno.value.trim();
     const telefono = editTelefono.value.trim();
 
     saveEditBtn.disabled = true;
-    saveBtnSpinner.classList.remove("hidden");
+    saveEditBtn.insertAdjacentHTML(
+      "afterbegin",
+      '<span class="loading loading-spinner loading-xs" data-save-spinner></span>',
+    );
 
     try {
       const url = `/api/usuarios/${dni}`;
@@ -935,12 +1180,12 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
       alert(err.message || "Error al conectar con la base de datos.");
     } finally {
       saveEditBtn.disabled = false;
-      saveBtnSpinner.classList.add("hidden");
+      saveEditBtn.querySelector("[data-save-spinner]")?.remove();
     }
   });
 
   // Funciones del modal de terminal
-  async function openTerminalModal(username: string) {
+  async function openTerminalModal(username: string, invgateExists = false) {
     if (
       !terminalModal ||
       !terminalUserTitle ||
@@ -950,6 +1195,8 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     )
       return;
 
+    currentUsername = username;
+
     // Restablecer por defecto a la vista de panel organizado
     tabPanelBtn?.click();
     if (terminalGroupsSearch) {
@@ -958,20 +1205,35 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     }
     currentSelectedCategory = "all";
 
+    // Reseteo de pestaña InvGate
+    invgateLoaded = false;
+    currentInvgateUsername = username;
+    invgateError?.classList.add("hidden");
+    invgateError?.classList.remove("flex");
+    if (invgateLoading) {
+      invgateLoading.classList.add("hidden");
+      invgateLoading.classList.remove("flex");
+    }
+    if (tabInvgateBtn) tabInvgateBtn.classList.toggle("hidden", !invgateExists);
+    viewInvgate?.classList.add("hidden");
+    if (invgateTicketsList) invgateTicketsList.innerHTML = "";
+    if (invgateOpenTickets) invgateOpenTickets.textContent = "0";
+    if (invgatePhones) invgatePhones.innerHTML = "";
+
     // Restablecer estilos de botones de categoría
     const categoryButtons = document.querySelectorAll(
       "#group-category-filters [data-filter]",
     );
     categoryButtons.forEach((b) => {
       b.className =
-        "btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1";
+        "btn btn-sm rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1";
     });
     const allBtn = document.querySelector(
       '#group-category-filters [data-filter="all"]',
     );
     if (allBtn) {
       allBtn.className =
-        "btn btn-xs rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
+        "btn btn-sm rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
     }
 
     terminalUserTitle.textContent = username;
@@ -1008,8 +1270,14 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     if (terminalGroupsList) terminalGroupsList.innerHTML = "";
     currentLdapGroups = [];
 
-    terminalLoading.classList.remove("hidden");
     terminalModal.showModal();
+    await loadTerminalData(username);
+  }
+
+  async function loadTerminalData(username: string) {
+    if (!terminalLoading || !terminalOutput) return;
+    terminalLoading.classList.remove("hidden");
+    terminalLoading.classList.add("flex");
 
     try {
       const url = `/api/usuarios/net-user?username=${encodeURIComponent(username)}`;
@@ -1019,6 +1287,9 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
       const result = await response.json();
 
       if (result.status === "success") {
+        if (result.employee_number) {
+          netUserCache.set(username.toLowerCase(), result.employee_number);
+        }
         terminalOutput.textContent = result.output;
 
         // Cargar datos estructurados
@@ -1107,7 +1378,11 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
         }
 
         updateCategoryCounts(currentLdapGroups);
-        renderGroups(currentLdapGroups);
+        renderGroups(
+          currentLdapGroups,
+          terminalGroupsSearch?.value || "",
+          currentSelectedCategory,
+        );
       } else {
         const errorMsg = "Error: " + (result.error || "Ocurrió un problema.");
         terminalOutput.textContent = errorMsg;
@@ -1126,6 +1401,192 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
       }
     } finally {
       terminalLoading.classList.add("hidden");
+      terminalLoading.classList.remove("flex");
+      updatePanelFades(document.getElementById("panel-details-scroll"));
+    }
+  }
+
+  function setInvText(
+    el: HTMLElement | null,
+    value: unknown,
+    copyBtn: HTMLElement | null,
+  ) {
+    const has = value != null && value !== "";
+    const text = has ? String(value) : "No especificado";
+    if (el) el.textContent = text;
+    if (copyBtn)
+      copyBtn.setAttribute("data-copy-value", has ? String(value) : "");
+  }
+
+  function renderInvChips(container: HTMLElement | null, refs: any[]) {
+    if (!container) return;
+    container.innerHTML = "";
+    if (!refs || refs.length === 0) {
+      container.innerHTML =
+        '<span class="text-base-content/40 text-xs font-sans">Sin datos</span>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const ref of refs) {
+      const chip = document.createElement("span");
+      chip.className =
+        "badge badge-sm badge-soft bg-base-200 border border-base-300 text-base-content font-semibold max-w-full truncate";
+      chip.title = ref.name || String(ref.id);
+      chip.textContent = ref.name || String(ref.id);
+      frag.appendChild(chip);
+    }
+    container.appendChild(frag);
+  }
+
+  function renderInvgatePhones(u: any) {
+    if (!invgatePhones) return;
+    invgatePhones.innerHTML = "";
+    const phones: Array<[string, string]> = [
+      ["Fijo", u.phone],
+      ["Móvil", u.mobile],
+      ["Oficina", u.office],
+      ["Otro", u.other],
+      ["Fax", u.fax],
+    ].filter(([, value]) => value != null && value !== "") as Array<
+      [string, string]
+    >;
+    if (phones.length === 0) {
+      invgatePhones.innerHTML =
+        '<span class="text-base-content/40 text-xs font-sans col-span-full">Sin datos</span>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const [label, num] of phones) {
+      const card = document.createElement("div");
+      card.className =
+        "bg-base-200/50 border border-base-300 rounded-lg p-2 group relative flex items-start gap-2 min-w-0";
+      card.innerHTML = `
+        <div class="size-10 rounded-md bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24" aria-hidden="true"><path d="M18.41 22h.37c.31-.01.6-.17.78-.43l2.27-3.27c.15-.22.21-.49.16-.76a1 1 0 0 0-.43-.65l-4.91-3.27c-.41-.27-.96-.21-1.29.15l-1.88 2.03c-.76-.45-2.03-1.26-3.03-2.26s-1.81-2.27-2.26-3.02l2.03-1.88c.36-.33.43-.88.15-1.29L7.1 2.44c-.15-.22-.38-.38-.64-.43c-.27-.05-.54 0-.76.16L2.43 4.43c-.26.18-.42.47-.43.78c-.03.71-.16 7.04 4.79 11.98c4.46 4.46 10.04 4.8 11.62 4.8Z"/></svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <span class="text-base-content/50 text-xs uppercase font-bold tracking-wider select-none block truncate">${label}</span>
+          <span class="text-xs font-semibold text-base-content mt-0.5 font-mono truncate block" title="${escapeHTML(num)}">${escapeHTML(num)}</span>
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity p-0.5 cursor-pointer shrink-0" data-copy-control data-copy-value="${escapeHTML(num)}" data-copy-label-default="Copiar ${label}" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar ${label}" aria-label="Copiar ${label}">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-default><rect width="14" height="14" x="8" y="2" rx="2" ry="2"/><path d="M8.5 18A2.5 2.5 0 0 1 6 15.5V8H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-2z"/></svg>
+          <svg class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-success><path d="M9 15.59L4.71 11.3L3.3 12.71l5 5c.2.2.45.29.71.29s.51-.1.71-.29l11-11l-1.41-1.41L9.02 15.59Z"/></svg>
+        </button>
+      `;
+      frag.appendChild(card);
+    }
+    invgatePhones.appendChild(frag);
+  }
+
+  function renderInvgateData(data: any) {
+    const u = data.user || {};
+    setInvText(invgateFullname, u.fullname, btnCopyInvgateFullname);
+    setInvText(invgateEmail, u.email, btnCopyInvgateEmail);
+    setInvText(invgateRole, u.role_name, btnCopyInvgateRole);
+    setInvText(invgatePosition, u.position, btnCopyInvgatePosition);
+    setInvText(invgateUserid, u.id, btnCopyInvgateUserid);
+    renderInvgatePhones(u);
+
+    renderInvChips(invgateGroups, data.org?.groups);
+    renderInvChips(invgateHelpdesks, data.org?.helpdesks);
+    renderInvChips(invgateLocations, data.org?.locations);
+
+    const managerName = data.manager?.fullname || null;
+    if (invgateManager)
+      invgateManager.textContent = managerName || "No especificado";
+    if (btnCopyInvgateManager) {
+      btnCopyInvgateManager.setAttribute("data-copy-value", managerName || "");
+    }
+    if (btnSearchInvgateManager) {
+      btnSearchInvgateManager.classList.toggle("hidden", !managerName);
+    }
+
+    renderInvgateTickets(data.tickets);
+  }
+
+  function statusBadgeClass(statusId: number): string {
+    switch (statusId) {
+      case 1:
+        return "bg-info/10 text-info border-info/30";
+      case 2:
+        return "bg-accent/10 text-accent border-accent/30";
+      case 3:
+        return "bg-warning/10 text-warning border-warning/30";
+      case 4:
+        return "bg-neutral/10 text-neutral border-neutral/30";
+      case 5:
+      case 6:
+        return "bg-success/10 text-success border-success/30";
+      case 7:
+        return "bg-error/10 text-error border-error/30";
+      default:
+        return "bg-base-300 text-base-content/60 border-base-content/30";
+    }
+  }
+
+  function renderInvgateTickets(tickets: any[]) {
+    if (!invgateTicketsList) return;
+    invgateTicketsList.innerHTML = "";
+    const list = tickets || [];
+    if (invgateOpenTickets) {
+      invgateOpenTickets.textContent = String(list.length);
+      invgateOpenTickets.className =
+        list.length > 0
+          ? "badge badge-sm badge-soft bg-info/10 text-info font-semibold"
+          : "badge badge-sm badge-soft bg-success/10 text-success font-semibold";
+    }
+    if (list.length === 0) {
+      invgateTicketsList.innerHTML =
+        '<span class="text-base-content/40 text-xs font-sans">Sin tickets relacionados</span>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const t of list) {
+      const row = document.createElement("div");
+      row.className =
+        "flex items-center gap-2 px-1.5 py-1 rounded-md bg-base-200/50 border border-base-300 min-w-0";
+      row.innerHTML = `
+        <span class="badge badge-sm badge-soft border ${statusBadgeClass(t.status_id)}">${escapeHTML(t.status_name || String(t.status_id))}</span>
+        <span class="font-mono text-xs text-base-content/70 shrink-0">${escapeHTML(t.pretty_id || String(t.id))}</span>
+        <span class="text-xs text-base-content truncate flex-1 min-w-0" title="${escapeHTML(t.title || "")}">${escapeHTML(t.title || "Sin título")}</span>
+        <span class="badge badge-sm badge-soft ${t.role === "agent" ? "bg-secondary/10 text-secondary border-secondary/30" : "bg-neutral/10 text-neutral border-neutral/30"}">${t.role === "agent" ? "Asignado" : "Solicitante"}</span>
+      `;
+      frag.appendChild(row);
+    }
+    invgateTicketsList.appendChild(frag);
+  }
+
+  async function loadInvgateData() {
+    if (invgateLoaded || !currentInvgateUsername) return;
+    invgateLoaded = true;
+    invgateError?.classList.add("hidden");
+    invgateError?.classList.remove("flex");
+    if (invgateLoading) {
+      invgateLoading.classList.remove("hidden");
+      invgateLoading.classList.add("flex");
+    }
+    try {
+      const url = `/api/usuarios/invgate-user?username=${encodeURIComponent(currentInvgateUsername)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Error al consultar InvGate");
+      }
+      if (data.inInvGate) {
+        renderInvgateData(data);
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (invgateError) {
+        invgateError.innerHTML = `<span class="text-error text-xs font-sans">${escapeHTML(err.message || "Error al conectar con InvGate")}</span>`;
+        invgateError.classList.remove("hidden");
+        invgateError.classList.add("flex");
+      }
+    } finally {
+      if (invgateLoading) {
+        invgateLoading.classList.add("hidden");
+        invgateLoading.classList.remove("flex");
+      }
     }
   }
 
@@ -1143,7 +1604,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
         key: "seguridad",
         label: "Seguridad",
         colorClass: "border-error/20 bg-error/10 text-error hover:bg-error/20",
-        icon: `<svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>`,
+        icon: `<svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="m20.42 6.11l-7.97-4c-.28-.14-.62-.14-.9 0l-7.97 4c-.31.15-.51.45-.55.79c-.01.11-.96 10.77 8.55 15.01a.98.98 0 0 0 .82 0C21.91 17.66 20.97 7 20.95 6.9a.98.98 0 0 0-.55-.79Z"/></svg>`,
       };
     }
     if (
@@ -1160,7 +1621,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
         label: "Correo",
         colorClass:
           "border-success/20 bg-success/10 text-success hover:bg-success/20",
-        icon: `<svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>`,
+        icon: `<svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v.25l10 7.5l10-7.5V6c0-1.1-.9-2-2-2"/><path d="M12 16c-.21 0-.42-.07-.6-.2L2 8.75V18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8.75l-9.4 7.05c-.18.13-.39.2-.6.2"/></svg>`,
       };
     }
     if (
@@ -1176,7 +1637,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
         key: "sistemas",
         label: "Sistemas",
         colorClass: "border-info/20 bg-info/10 text-info hover:bg-info/20",
-        icon: `<svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/></svg>`,
+        icon: `<svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M22 4.5c0-.83-.67-1.5-1.5-1.5h-17C2.67 3 2 3.67 2 4.5V14h20zM3.5 18H11v2H8v2h8v-2h-3v-2h7.5c.83 0 1.5-.67 1.5-1.5V15H2v1.5c0 .83.67 1.5 1.5 1.5"/></svg>`,
       };
     }
     return {
@@ -1184,7 +1645,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
       label: "Acceso",
       colorClass:
         "border-base-300 bg-base-200 text-base-content hover:bg-base-300",
-      icon: `<svg class="size-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg>`,
+      icon: `<svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M8 21c2.76 0 5-2.24 5-5c0-1.02-.31-1.96-.83-2.75l3.33-3.33l1.79 1.79l1.41-1.41l-1.79-1.79L18 7.42l2.29 2.29L21.7 8.3l-2.29-2.29l1.29-1.29l-1.41-1.41l-8.54 8.54c-.79-.52-1.74-.83-2.75-.83c-2.76 0-5 2.24-5 5s2.24 5 5 5Zm0-8c1.65 0 3 1.35 3 3s-1.35 3-3 3s-3-1.35-3-3s1.35-3 3-3"/></svg>`,
     };
   }
 
@@ -1238,10 +1699,10 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     // Aplicar el diseño según la vista seleccionada
     if (currentViewMode === "grid") {
       terminalGroupsList.className =
-        "flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-[380px] min-h-[380px] scrollbar-thin transition-all grid grid-cols-2 gap-2";
+        "flex-1 min-h-0 bg-base-200/30 border border-base-300 p-3 rounded-lg overflow-y-auto scrollbar-hide transition-all grid grid-cols-2 gap-1.5 content-start auto-rows-max";
     } else {
       terminalGroupsList.className =
-        "flex-1 bg-base-200/30 border border-base-300 p-3.5 rounded-lg overflow-y-auto max-h-[380px] min-h-[380px] scrollbar-thin transition-all flex flex-col gap-2";
+        "flex-1 min-h-0 bg-base-200/30 border border-base-300 p-3 rounded-lg overflow-y-auto scrollbar-hide transition-all flex flex-col gap-1.5 content-start";
     }
 
     const filtered = groupsList.filter((group) => {
@@ -1263,24 +1724,71 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     const fragment = document.createDocumentFragment();
     filtered.forEach((group) => {
       const categoryInfo = getGroupCategory(group);
+      const licenses = GROUP_DESCRIPTIONS[group];
       const item = document.createElement("div");
       // Alto estandarizado h-11 para tamaño fijo independientemente de la cantidad
       item.className = `flex items-center justify-between gap-2.5 px-3 h-11 rounded-lg border transition-all font-sans relative group ${categoryInfo.colorClass}`;
 
+      const licenseIcons = Array.isArray(licenses)
+        ? licenses
+            .map(
+              (lic) => `
+            <div class="tooltip tooltip-top tooltip-neutral">
+              <div class="tooltip-content max-w-xs whitespace-normal text-left">
+                <span class="block text-xs font-bold">${escapeHTML(lic.name)}</span>
+                <span class="block text-xs">${escapeHTML(lic.description)}</span>
+                <span class="mt-1 block text-xs text-base-content/70">Recomendación: ${escapeHTML(lic.recommendation)}</span>
+              </div>
+              <button type="button" class="btn btn-ghost btn-xs p-0.5 shrink-0 cursor-pointer" aria-label="Información de licencia ${escapeHTML(lic.name)}">
+                <svg class="size-3.5 text-base-content/50 hover:text-info" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c5.51 0 10-4.49 10-10S17.51 2 12 2S2 6.49 2 12s4.49 10 10 10M11 7h2v2h-2zm0 4h2v6h-2z"/></svg>
+              </button>
+            </div>`,
+            )
+            .join("")
+        : "";
+
       item.innerHTML = `
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="size-4 shrink-0 select-none flex items-center justify-center">${categoryInfo.icon}</span>
-            <span class="font-semibold truncate text-small select-all text-base-content" title="${group}">${highlightGroupText(group, filterText)}</span>
+            <span class="font-semibold truncate text-small select-all text-base-content" title="${escapeHTML(group)}">${highlightGroupText(group, filterText)}</span>
+            ${licenseIcons}
           </div>
-          <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0" data-copy-control data-copy-value="${group}" data-copy-label-default="Copiar grupo" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar nombre de grupo">
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-copy-icon-default>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-            </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-copy-icon-success>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
+          <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0" data-copy-control data-copy-value="${escapeHTML(group)}" data-copy-label-default="Copiar grupo" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar nombre de grupo">
+            <svg class="size-3.5" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-default><rect width="14" height="14" x="8" y="2" rx="2" ry="2"/><path d="M8.5 18A2.5 2.5 0 0 1 6 15.5V8H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-2z"/></svg>
+            <svg class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-success><path d="M9 15.59L4.71 11.3L3.3 12.71l5 5c.2.2.45.29.71.29s.51-.1.71-.29l11-11l-1.41-1.41L9.02 15.59Z"/></svg>
           </button>
         `;
+      const copyBtn = item.querySelector(
+        "button[data-copy-control]",
+      ) as HTMLButtonElement | null;
+      if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+          const copied = await copyText(group);
+          if (!copied) return;
+          const defaultIcons = Array.from(
+            copyBtn.querySelectorAll("[data-copy-icon-default]"),
+          );
+          const successIcons = Array.from(
+            copyBtn.querySelectorAll("[data-copy-icon-success]"),
+          );
+          defaultIcons.forEach((icon) =>
+            icon.classList.add("hidden", "opacity-0", "scale-75"),
+          );
+          successIcons.forEach((icon) => {
+            icon.classList.remove("hidden", "opacity-0", "scale-75");
+            icon.classList.add("scale-100", "opacity-100");
+          });
+          setTimeout(() => {
+            defaultIcons.forEach((icon) =>
+              icon.classList.remove("hidden", "opacity-0", "scale-75"),
+            );
+            successIcons.forEach((icon) => {
+              icon.classList.add("hidden", "opacity-0", "scale-75");
+              icon.classList.remove("scale-100", "opacity-100");
+            });
+          }, 1800);
+        });
+      }
       fragment.appendChild(item);
     });
     terminalGroupsList.appendChild(fragment);
@@ -1360,7 +1868,7 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     btn.addEventListener("click", () => {
       categoryButtons.forEach((b) => {
         b.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-base-200 text-base-content/60 border border-base-300 hover:bg-base-300 hover:text-base-content font-sans font-bold gap-1";
       });
 
       const filter = btn.getAttribute("data-filter") || "all";
@@ -1368,19 +1876,19 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
 
       if (filter === "all") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20 font-sans font-bold gap-1";
       } else if (filter === "seguridad") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-error/20 text-error border border-error/30 hover:bg-error/30 font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-error/20 text-error border border-error/30 hover:bg-error/30 font-sans font-bold gap-1";
       } else if (filter === "correo") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-success/20 text-success border border-success/30 hover:bg-success/30 font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-success/20 text-success border border-success/30 hover:bg-success/30 font-sans font-bold gap-1";
       } else if (filter === "sistemas") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-info/20 text-info border border-info/30 hover:bg-info/30 font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-info/20 text-info border border-info/30 hover:bg-info/30 font-sans font-bold gap-1";
       } else if (filter === "otros") {
         btn.className =
-          "btn btn-xs rounded-full cursor-pointer transition-all bg-base-300 text-base-content border border-base-content/30 hover:bg-base-300 font-sans font-bold gap-1";
+          "btn btn-sm rounded-full cursor-pointer transition-all bg-base-300 text-base-content border border-base-content/30 hover:bg-base-300 font-sans font-bold gap-1";
       }
 
       renderGroups(
@@ -1410,15 +1918,41 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     renderGroups(currentLdapGroups, val, currentSelectedCategory);
   });
 
+  refreshTerminalBtn?.addEventListener("click", async () => {
+    if (!currentUsername) return;
+    refreshTerminalIcon?.classList.add("animate-spin");
+    refreshTerminalBtn.disabled = true;
+    try {
+      const invgateActive =
+        viewInvgate && !viewInvgate.classList.contains("hidden");
+      if (invgateActive) {
+        terminalLoading?.classList.add("hidden");
+        terminalLoading?.classList.remove("flex");
+      }
+      await loadTerminalData(currentUsername);
+      invgateLoaded = false;
+      if (invgateActive) {
+        await loadInvgateData();
+      }
+    } finally {
+      refreshTerminalIcon?.classList.remove("animate-spin");
+      refreshTerminalBtn.disabled = false;
+    }
+  });
+
   // Control de pestañas (Tabs)
   tabPanelBtn?.addEventListener("click", () => {
     tabPanelBtn.classList.add("border-secondary", "text-secondary");
     tabPanelBtn.classList.remove("border-transparent", "text-base-content/60");
     tabConsoleBtn?.classList.remove("border-secondary", "text-secondary");
     tabConsoleBtn?.classList.add("border-transparent", "text-base-content/60");
+    tabInvgateBtn?.classList.remove("border-secondary", "text-secondary");
+    tabInvgateBtn?.classList.add("border-transparent", "text-base-content/60");
 
     viewPanel?.classList.remove("hidden");
     viewConsole?.classList.add("hidden");
+    viewInvgate?.classList.add("hidden");
+    copyTerminalBtn?.classList.remove("hidden");
   });
 
   tabConsoleBtn?.addEventListener("click", () => {
@@ -1429,12 +1963,49 @@ Correo corporativo: ${user.usuario.toLowerCase()}@correoargentino.com.ar`;
     );
     tabPanelBtn?.classList.remove("border-secondary", "text-secondary");
     tabPanelBtn?.classList.add("border-transparent", "text-base-content/60");
+    tabInvgateBtn?.classList.remove("border-secondary", "text-secondary");
+    tabInvgateBtn?.classList.add("border-transparent", "text-base-content/60");
 
     viewConsole?.classList.remove("hidden");
     viewPanel?.classList.add("hidden");
+    viewInvgate?.classList.add("hidden");
+    copyTerminalBtn?.classList.remove("hidden");
   });
 
-  closeTerminalBtn?.addEventListener("click", closeTerminalModal);
+  tabInvgateBtn?.addEventListener("click", () => {
+    tabInvgateBtn.classList.add("border-secondary", "text-secondary");
+    tabInvgateBtn.classList.remove(
+      "border-transparent",
+      "text-base-content/60",
+    );
+    tabPanelBtn?.classList.remove("border-secondary", "text-secondary");
+    tabPanelBtn?.classList.add("border-transparent", "text-base-content/60");
+    tabConsoleBtn?.classList.remove("border-secondary", "text-secondary");
+    tabConsoleBtn?.classList.add("border-transparent", "text-base-content/60");
+
+    viewPanel?.classList.add("hidden");
+    viewConsole?.classList.add("hidden");
+    viewInvgate?.classList.remove("hidden");
+
+    terminalLoading?.classList.add("hidden");
+    terminalLoading?.classList.remove("flex");
+
+    copyTerminalBtn?.classList.add("hidden");
+
+    loadInvgateData();
+  });
+
+  btnSearchInvgateManager?.addEventListener("click", () => {
+    const name = invgateManager?.textContent;
+    if (name && name !== "-" && name !== "No especificado") {
+      closeTerminalModal();
+      if (searchInput) {
+        searchInput.value = name;
+        handleSearch();
+      }
+    }
+  });
+
   closeTerminalFooterBtn?.addEventListener("click", closeTerminalModal);
 
   copyTerminalBtn?.addEventListener("click", async () => {
