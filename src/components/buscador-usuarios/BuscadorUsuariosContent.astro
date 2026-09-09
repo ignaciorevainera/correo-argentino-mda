@@ -3,6 +3,7 @@
 import { Icon } from "astro-icon/components";
 import { getCleanBase } from "@lib/baseUrl";
 import UserCard from "@components/UserCard.astro";
+import CopyButton from "@components/ui/CopyButton.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
@@ -133,6 +134,18 @@ const userRole = Astro.locals.user?.role || "";
 
 <UserCard />
 
+<!-- Plantilla de CopyButton (icon) para clonar en HTML dinámico (grupos/teléfonos) -->
+<template id="copy-icon-template">
+  <CopyButton
+    variant="icon"
+    value="template"
+    label="Copiar"
+    size="xs"
+    showTooltip={false}
+    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity cursor-pointer shrink-0"
+  />
+</template>
+
 <!-- Modal de Edición de Contacto -->
 <EditUserModal />
 
@@ -174,58 +187,10 @@ const userRole = Astro.locals.user?.role || "";
 
 <script>
   import { showToast } from "@lib/toastClient";
-  import { GROUP_DESCRIPTIONS } from "@lib/groupDescriptions";
+  import { getLicensesForGroup } from "@lib/groupDescriptions";
 
   let isLoaded = false;
   let currentUsers: any[] = [];
-
-  function fallbackCopyToClipboard(value: string): boolean {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.setAttribute("aria-hidden", "true");
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    textarea.style.top = "0";
-    textarea.style.opacity = "0";
-
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    let copied = false;
-    try {
-      const legacyCopyApi = document as unknown as {
-        execCommand?: (commandId: string) => boolean;
-      };
-      copied =
-        typeof legacyCopyApi.execCommand === "function"
-          ? legacyCopyApi.execCommand("copy")
-          : false;
-    } catch {
-      copied = false;
-    }
-
-    textarea.remove();
-    return copied;
-  }
-
-  async function copyText(value: string): Promise<boolean> {
-    const canUseClipboardApi =
-      typeof navigator !== "undefined" &&
-      typeof navigator.clipboard !== "undefined" &&
-      typeof navigator.clipboard.writeText === "function";
-
-    if (canUseClipboardApi) {
-      try {
-        await navigator.clipboard.writeText(value);
-        return true;
-      } catch {
-        return fallbackCopyToClipboard(value);
-      }
-    }
-    return fallbackCopyToClipboard(value);
-  }
 
   const searchInput = document.getElementById(
     "search-input",
@@ -466,6 +431,25 @@ const userRole = Astro.locals.user?.role || "";
           '"': "&quot;",
         })[tag] || tag,
     );
+  }
+
+  const copyIconTemplate = document.getElementById(
+    "copy-icon-template",
+  ) as HTMLTemplateElement | null;
+
+  // Clona la instancia de CopyButton (icon) renderizada en el <template>
+  function cloneCopyIcon(
+    value: string,
+    label: string,
+  ): HTMLElement | null {
+    const btn = copyIconTemplate?.content.firstElementChild?.cloneNode(
+      true,
+    ) as HTMLElement | null;
+    if (!btn) return null;
+    btn.setAttribute("data-copy-value", value);
+    btn.setAttribute("data-copy-label-default", label);
+    btn.setAttribute("aria-label", label);
+    return btn;
   }
 
   function highlightText(text: string, query: string): string {
@@ -943,34 +927,6 @@ const userRole = Astro.locals.user?.role || "";
     resultsGrid.appendChild(fragment);
   }
 
-  async function copyToClipboard(text: string, btn: HTMLElement) {
-    if (!text) return;
-    const copied = await copyText(text);
-    if (!copied) return;
-
-    const tooltip = btn.closest(".tooltip") as HTMLElement | null;
-    const originalTip = tooltip?.getAttribute("data-tip");
-    const originalIcon = btn.innerHTML;
-
-    if (tooltip) {
-      tooltip.setAttribute("data-tip", "¡Copiado!");
-      tooltip.classList.replace("tooltip-neutral", "tooltip-success");
-      tooltip.classList.add("tooltip-open");
-    }
-
-    btn.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
-
-    setTimeout(() => {
-      if (tooltip) {
-        tooltip.setAttribute("data-tip", originalTip || "");
-        tooltip.classList.replace("tooltip-success", "tooltip-neutral");
-        tooltip.classList.remove("tooltip-open");
-      }
-      btn.innerHTML = originalIcon;
-    }, 2000);
-  }
-
   let searchTimeout: number;
   async function handleSearch() {
     if (!isLoaded || !searchInput) return;
@@ -1239,6 +1195,7 @@ const userRole = Astro.locals.user?.role || "";
     terminalUserTitle.textContent = username;
     terminalCommandUsername.textContent = username;
     terminalOutput.textContent = "";
+    copyTerminalBtn?.setAttribute("data-copy-value", "");
 
     // Resetear campos del panel organizado y sus botones de copia
     if (termInfoUsername) termInfoUsername.textContent = username;
@@ -1291,6 +1248,7 @@ const userRole = Astro.locals.user?.role || "";
           netUserCache.set(username.toLowerCase(), result.employee_number);
         }
         terminalOutput.textContent = result.output;
+        copyTerminalBtn?.setAttribute("data-copy-value", result.output);
 
         // Cargar datos estructurados
         if (termInfoFullname)
@@ -1386,6 +1344,7 @@ const userRole = Astro.locals.user?.role || "";
       } else {
         const errorMsg = "Error: " + (result.error || "Ocurrió un problema.");
         terminalOutput.textContent = errorMsg;
+        copyTerminalBtn?.setAttribute("data-copy-value", errorMsg);
         if (terminalGroupsList) {
           terminalGroupsList.innerHTML = `<div class="text-error text-center py-4 text-xs font-sans col-span-full">${errorMsg}</div>`;
         }
@@ -1396,6 +1355,7 @@ const userRole = Astro.locals.user?.role || "";
         "Error de conexión: No se pudo conectar con el servidor corporativo.\n" +
         (err.message || "");
       terminalOutput.textContent = errorMsg;
+        copyTerminalBtn?.setAttribute("data-copy-value", errorMsg);
       if (terminalGroupsList) {
         terminalGroupsList.innerHTML = `<div class="text-error text-center py-4 text-xs font-sans col-span-full">Error al conectar con la red.</div>`;
       }
@@ -1468,11 +1428,9 @@ const userRole = Astro.locals.user?.role || "";
           <span class="text-base-content/50 text-xs uppercase font-bold tracking-wider select-none block truncate">${label}</span>
           <span class="text-xs font-semibold text-base-content mt-0.5 font-mono truncate block" title="${escapeHTML(num)}">${escapeHTML(num)}</span>
         </div>
-        <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity p-0.5 cursor-pointer shrink-0" data-copy-control data-copy-value="${escapeHTML(num)}" data-copy-label-default="Copiar ${label}" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar ${label}" aria-label="Copiar ${label}">
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-default><rect width="14" height="14" x="8" y="2" rx="2" ry="2"/><path d="M8.5 18A2.5 2.5 0 0 1 6 15.5V8H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-2z"/></svg>
-          <svg class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-success><path d="M9 15.59L4.71 11.3L3.3 12.71l5 5c.2.2.45.29.71.29s.51-.1.71-.29l11-11l-1.41-1.41L9.02 15.59Z"/></svg>
-        </button>
       `;
+      const copyBtn = cloneCopyIcon(num, `Copiar ${label}`);
+      if (copyBtn) card.appendChild(copyBtn);
       frag.appendChild(card);
     }
     invgatePhones.appendChild(frag);
@@ -1722,23 +1680,21 @@ const userRole = Astro.locals.user?.role || "";
     }
 
     const fragment = document.createDocumentFragment();
-    filtered.forEach((group) => {
+    filtered.forEach((group, index) => {
       const categoryInfo = getGroupCategory(group);
-      const licenses = GROUP_DESCRIPTIONS[group];
+      const licenses = getLicensesForGroup(group);
       const item = document.createElement("div");
       // Alto estandarizado h-11 para tamaño fijo independientemente de la cantidad
       item.className = `flex items-center justify-between gap-2.5 px-3 h-11 rounded-lg border transition-all font-sans relative group ${categoryInfo.colorClass}`;
 
+      // Primera fila usa tooltip-bottom para no clipearse con el overflow del contenedor
+      const licensePlacement =
+        Math.floor(index / 2) === 0 ? "tooltip-bottom" : "";
       const licenseIcons = Array.isArray(licenses)
         ? licenses
             .map(
               (lic) => `
-            <div class="tooltip tooltip-top tooltip-neutral">
-              <div class="tooltip-content max-w-xs whitespace-normal text-left">
-                <span class="block text-xs font-bold">${escapeHTML(lic.name)}</span>
-                <span class="block text-xs">${escapeHTML(lic.description)}</span>
-                <span class="mt-1 block text-xs text-base-content/70">Recomendación: ${escapeHTML(lic.recommendation)}</span>
-              </div>
+            <div class="tooltip z-50 ${licensePlacement}" data-tip="${escapeHTML(`${lic.name}\n${lic.description}\nRecomendación: ${lic.recommendation}`).replace(/\n/g, "&#10;")}">
               <button type="button" class="btn btn-ghost btn-xs p-0.5 shrink-0 cursor-pointer" aria-label="Información de licencia ${escapeHTML(lic.name)}">
                 <svg class="size-3.5 text-base-content/50 hover:text-info" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c5.51 0 10-4.49 10-10S17.51 2 12 2S2 6.49 2 12s4.49 10 10 10M11 7h2v2h-2zm0 4h2v6h-2z"/></svg>
               </button>
@@ -1753,42 +1709,9 @@ const userRole = Astro.locals.user?.role || "";
             <span class="font-semibold truncate text-small select-all text-base-content" title="${escapeHTML(group)}">${highlightGroupText(group, filterText)}</span>
             ${licenseIcons}
           </div>
-          <button type="button" class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer shrink-0" data-copy-control data-copy-value="${escapeHTML(group)}" data-copy-label-default="Copiar grupo" data-copy-label-success="Copiado" data-copy-replace-label="false" title="Copiar nombre de grupo">
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-default><rect width="14" height="14" x="8" y="2" rx="2" ry="2"/><path d="M8.5 18A2.5 2.5 0 0 1 6 15.5V8H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-2z"/></svg>
-            <svg class="size-3.5 hidden opacity-0 scale-75 text-success transition-all duration-200" viewBox="0 0 24 24" fill="currentColor" data-copy-icon-success><path d="M9 15.59L4.71 11.3L3.3 12.71l5 5c.2.2.45.29.71.29s.51-.1.71-.29l11-11l-1.41-1.41L9.02 15.59Z"/></svg>
-          </button>
         `;
-      const copyBtn = item.querySelector(
-        "button[data-copy-control]",
-      ) as HTMLButtonElement | null;
-      if (copyBtn) {
-        copyBtn.addEventListener("click", async () => {
-          const copied = await copyText(group);
-          if (!copied) return;
-          const defaultIcons = Array.from(
-            copyBtn.querySelectorAll("[data-copy-icon-default]"),
-          );
-          const successIcons = Array.from(
-            copyBtn.querySelectorAll("[data-copy-icon-success]"),
-          );
-          defaultIcons.forEach((icon) =>
-            icon.classList.add("hidden", "opacity-0", "scale-75"),
-          );
-          successIcons.forEach((icon) => {
-            icon.classList.remove("hidden", "opacity-0", "scale-75");
-            icon.classList.add("scale-100", "opacity-100");
-          });
-          setTimeout(() => {
-            defaultIcons.forEach((icon) =>
-              icon.classList.remove("hidden", "opacity-0", "scale-75"),
-            );
-            successIcons.forEach((icon) => {
-              icon.classList.add("hidden", "opacity-0", "scale-75");
-              icon.classList.remove("scale-100", "opacity-100");
-            });
-          }, 1800);
-        });
-      }
+      const copyBtn = cloneCopyIcon(group, "Copiar grupo");
+      if (copyBtn) item.appendChild(copyBtn);
       fragment.appendChild(item);
     });
     terminalGroupsList.appendChild(fragment);
@@ -1801,7 +1724,9 @@ const userRole = Astro.locals.user?.role || "";
   }
 
   // Copiar todos los grupos filtrados en formato lista limpia
-  copyAllGroupsBtn?.addEventListener("click", async () => {
+  // Se ejecuta en fase target antes del handler global de CopyButton:
+  // actualiza data-copy-value y deja que el handler global copie + feedback
+  copyAllGroupsBtn?.addEventListener("click", (e) => {
     if (currentLdapGroups.length === 0) return;
 
     const filterText = terminalGroupsSearch?.value || "";
@@ -1815,20 +1740,16 @@ const userRole = Astro.locals.user?.role || "";
       return getGroupCategory(group).key === currentSelectedCategory;
     });
 
-    if (filtered.length === 0) return;
-
-    const textToCopy = filtered.join("\n");
-    const copied = await copyText(textToCopy);
-    if (copied) {
-      const originalText = copyAllGroupsBtn.innerHTML;
-      copyAllGroupsBtn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-          <span class="text-success">¡Copiados!</span>
-        `;
-      setTimeout(() => {
-        copyAllGroupsBtn.innerHTML = originalText;
-      }, 1500);
+    if (filtered.length === 0) {
+      e.stopPropagation();
+      showToast(
+        "No hay grupos que coincidan con el filtro actual.",
+        "alert-info",
+      );
+      return;
     }
+
+    copyAllGroupsBtn.setAttribute("data-copy-value", filtered.join("\n"));
   });
 
   // Conmutadores de vista Grilla/Lista
@@ -2007,22 +1928,6 @@ const userRole = Astro.locals.user?.role || "";
   });
 
   closeTerminalFooterBtn?.addEventListener("click", closeTerminalModal);
-
-  copyTerminalBtn?.addEventListener("click", async () => {
-    if (!terminalOutput || !copyTerminalBtn) return;
-    const text = terminalOutput.textContent || "";
-    if (!text) return;
-
-    const copied = await copyText(text);
-    if (copied) {
-      const originalIcon = copyTerminalBtn.innerHTML;
-      copyTerminalBtn.innerHTML =
-        '<svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-success animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copiado';
-      setTimeout(() => {
-        if (copyTerminalBtn) copyTerminalBtn.innerHTML = originalIcon;
-      }, 2000);
-    }
-  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
