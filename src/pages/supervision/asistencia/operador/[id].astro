@@ -26,20 +26,44 @@ if (!agent) {
   return Astro.redirect(`${cleanBase}supervision/asistencia/estadisticas`);
 }
 
+const allAgents = await db
+  .select({
+    id: agents.id,
+    name: agents.name,
+  })
+  .from(agents)
+  .orderBy(agents.name);
+
 const currentYear = new Date().getFullYear();
 const years = [currentYear, currentYear - 1, currentYear - 2];
 ---
 
 <BaseLayout>
   <PageContainer width="xl">
-    <!-- Navegación superior -->
-    <a
-      href={`${cleanBase}supervision/asistencia/estadisticas`}
-      class="btn btn-ghost btn-sm mb-3 w-fit pl-2 transition-colors duration-200"
-    >
-      <Icon name="boxicons:chevron-left" size={16} />
-      Volver a Estadísticas
-    </a>
+    <!-- Navegación superior y selector de operador -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <a
+        href={`${cleanBase}supervision/asistencia/estadisticas`}
+        class="btn btn-ghost btn-sm pl-2 transition-colors duration-200 gap-1 font-bold text-xs"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Volver a Estadísticas
+      </a>
+
+      <div class="flex items-center gap-2">
+        <span class="text-base-content/60 text-xs font-bold">Cambiar operador:</span>
+        <select
+          id="switch-operator-select"
+          class="select select-sm select-bordered rounded-xl text-xs font-bold max-w-64"
+        >
+          {allAgents.map((op) => (
+            <option value={op.id} selected={op.id === agentId}>
+              {op.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
 
     <!-- Header del Operador -->
     <div
@@ -162,9 +186,13 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
 
         <!-- Selector de Vista -->
         <div class="join border border-base-300 rounded-xl overflow-hidden shadow-xs">
-          <button id="view-calendar-btn" class="join-item btn btn-xs btn-active gap-1 font-bold" title="Vista Calendario">
+          <button id="view-monthly-btn" class="join-item btn btn-xs btn-active gap-1 font-bold" title="Vista Mensual">
             <Icon name="boxicons:calendar" size={14} />
-            Calendario
+            Mensual
+          </button>
+          <button id="view-annual-btn" class="join-item btn btn-xs btn-ghost gap-1 font-bold text-base-content/60" title="Vista Anual">
+            <Icon name="boxicons:bar-chart-big" size={14} />
+            Anual
           </button>
           <button id="view-table-btn" class="join-item btn btn-xs btn-ghost gap-1 font-bold text-base-content/60" title="Vista Tabla">
             <Icon name="boxicons:table" size={14} />
@@ -189,6 +217,44 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       <!-- Grilla de Celdas -->
       <div id="calendar-grid" class="grid grid-cols-2 sm:grid-cols-7 gap-2 w-full">
         <!-- Celdas generadas dinámicamente -->
+      </div>
+    </div>
+
+    <!-- Vista Anual Consolidada -->
+    <div id="annual-view-container" class="hidden w-full flex flex-col gap-6">
+      <!-- Tira Heatmap 52 Semanas (Estilo GitHub) -->
+      <div class="bg-base-100 border border-base-300 rounded-2xl p-5 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h4 class="text-xs font-black uppercase tracking-wider text-base-content/70">Actividad Anual Continua (52 Semanas)</h4>
+            <span class="badge badge-xs badge-ghost font-bold text-base-content/50" id="annual-heatmap-year">2026</span>
+          </div>
+          <!-- Leyenda de colores -->
+          <div class="flex flex-wrap items-center gap-3 text-xxs font-bold text-base-content/50">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-emerald-500/80"></span> Puntual</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-amber-500"></span> Tardanza</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-violet-500"></span> Ausencia</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-error"></span> Incumplió</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-base-300/60"></span> Franco/Libre</span>
+          </div>
+        </div>
+        <!-- Grilla scrollable horizontal -->
+        <div class="overflow-x-auto pb-2">
+          <div id="annual-heatmap-grid" class="flex gap-1 min-w-[760px] pt-1">
+            <!-- Columnas semanales generadas con padding exacto -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Grilla 4x3 de Tarjetas Mensuales (12 Meses) -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-black uppercase tracking-wider text-base-content/70">Desempeño Mes a Mes</h4>
+          <span class="text-xxs text-base-content/40 font-medium">Click en cualquier mes para abrir su calendario detallado</span>
+        </div>
+        <div id="annual-months-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <!-- 12 Tarjetas de meses inyectadas dinámicamente -->
+        </div>
       </div>
     </div>
 
@@ -265,6 +331,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
 </BaseLayout>
 
 <script is:inline define:vars={{ agentId, cleanBase }}>
+  // 1. Elementos DOM
   const yearSelect = document.getElementById("filter-year");
   const monthSelect = document.getElementById("filter-month");
   const statusSelect = document.getElementById("filter-status");
@@ -275,12 +342,25 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const kpiLates = document.getElementById("kpi-lates");
   const kpiAbsences = document.getElementById("kpi-absences");
 
-  const viewCalendarBtn = document.getElementById("view-calendar-btn");
+  // Botones de vista
+  const viewMonthlyBtn = document.getElementById("view-monthly-btn");
+  const viewAnnualBtn = document.getElementById("view-annual-btn");
   const viewTableBtn = document.getElementById("view-table-btn");
+
+  // Contenedores de vista
   const calendarViewContainer = document.getElementById("calendar-view-container");
+  const annualViewContainer = document.getElementById("annual-view-container");
   const tableViewContainer = document.getElementById("table-view-container");
+
+  // Elementos de la vista anual
+  const annualHeatmapGrid = document.getElementById("annual-heatmap-grid");
+  const annualHeatmapYear = document.getElementById("annual-heatmap-year");
+  const annualMonthsGrid = document.getElementById("annual-months-grid");
+
+  // Grilla de vista mensual
   const calendarGrid = document.getElementById("calendar-grid");
 
+  // Drawer Lateral
   const drawer = document.getElementById("day-drawer");
   const drawerBackdrop = document.getElementById("day-drawer-backdrop");
   const drawerCloseBtn = document.getElementById("drawer-close-btn");
@@ -294,8 +374,41 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const drawerComment = document.getElementById("drawer-comment");
   const drawerGotoDaily = document.getElementById("drawer-goto-daily");
 
-  const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, "0");
-  if (monthSelect) monthSelect.value = currentMonthStr;
+  const switchOperatorSelect = document.getElementById("switch-operator-select");
+  switchOperatorSelect?.addEventListener("change", (e) => {
+    const newId = e.target.value;
+    if (!newId) return;
+    const y = yearSelect ? yearSelect.value : "";
+    const m = activeView === "annual" ? "all" : (monthSelect ? monthSelect.value : "");
+    const qs = new URLSearchParams();
+    if (y) qs.set("year", y);
+    if (m) qs.set("month", m);
+    const queryString = qs.toString() ? `?${qs.toString()}` : "";
+    window.location.href = `${cleanBase}supervision/asistencia/operador/${newId}${queryString}`;
+  });
+
+  // 2. Cache en memoria y estado
+  let annualRecordsCache = null;
+  let annualSummaryCache = null;
+  let cachedYear = null;
+  let cachedStatus = null;
+  let currentMonthlySummary = null;
+  let activeView = "monthly";
+
+  // Inicialización de parámetros URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramYear = urlParams.get("year");
+  const paramMonth = urlParams.get("month");
+  if (paramYear && yearSelect) yearSelect.value = paramYear;
+  if (paramMonth && monthSelect) {
+    monthSelect.value = paramMonth;
+    if (paramMonth === "all") {
+      activeView = "annual";
+    }
+  } else if (monthSelect) {
+    const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, "0");
+    monthSelect.value = currentMonthStr;
+  }
 
   function escapeHtml(str) {
     if (!str) return "";
@@ -318,7 +431,6 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     return "badge-ghost text-base-content/50";
   }
 
-  // 1. Cálculo de desvío en minutos
   function getDelayMinutes(entradaReal, horarioEstipulado) {
     if (
       !entradaReal ||
@@ -342,58 +454,409 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     return realMinutes - scheduledMinutes;
   }
 
-  // 2. Lógica de cambio de vista [Calendario | Tabla]
-  let currentView = "calendar";
+  function calculateSummary(records) {
+    let totalWorkDays = 0;
+    let punctuals = 0;
+    let lates = 0;
+    let failed = 0;
+    let absences = 0;
 
-  function setView(view) {
-    if (view === "calendar" && monthSelect?.value === "all") {
-      view = "table";
+    if (Array.isArray(records)) {
+      records.forEach((log) => {
+        const sched = log.horarioEstipulado;
+        const hasSchedule =
+          sched &&
+          sched !== "Franco" &&
+          sched !== "--:--" &&
+          sched.trim() !== "";
+        if (hasSchedule) {
+          totalWorkDays++;
+          if (log.cumplimiento === "Cumplió") punctuals++;
+          if (log.cumplimiento === "Llegada Tarde") lates++;
+          if (log.cumplimiento === "Incumplió") failed++;
+        }
+        if (log.ausencia && log.ausencia.trim() !== "") {
+          absences++;
+        }
+      });
     }
-    currentView = view;
 
-    if (currentView === "calendar") {
+    const punctualityRate =
+      totalWorkDays > 0 ? Math.round((punctuals / totalWorkDays) * 100) : 100;
+
+    return {
+      totalWorkDays,
+      punctuals,
+      lates,
+      failed,
+      absences,
+      punctualityRate,
+    };
+  }
+
+  function updateKpiDisplays(summary) {
+    if (!summary) return;
+    if (kpiRate) kpiRate.textContent = `${summary.punctualityRate ?? "--"}%`;
+    if (kpiLates) kpiLates.textContent = String(summary.lates ?? "--");
+    if (kpiAbsences) kpiAbsences.textContent = String(summary.absences ?? "--");
+  }
+
+  // 3. Conmutador de vista setView(view)
+  function setView(view) {
+    activeView = view;
+
+    // Resetear estados visuales de botones
+    [viewMonthlyBtn, viewAnnualBtn, viewTableBtn].forEach((btn) => {
+      btn?.classList.remove("btn-active");
+      btn?.classList.add("btn-ghost", "text-base-content/60");
+    });
+
+    // Ocultar contenedores
+    calendarViewContainer?.classList.add("hidden");
+    annualViewContainer?.classList.add("hidden");
+    tableViewContainer?.classList.add("hidden");
+
+    if (activeView === "annual") {
+      viewAnnualBtn?.classList.add("btn-active");
+      viewAnnualBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      annualViewContainer?.classList.remove("hidden");
+
+      // In 'annual': deshabilitar monthSelect con opacidad y cursor sin layout shift
+      if (monthSelect) {
+        monthSelect.disabled = true;
+        monthSelect.classList.add("opacity-50", "cursor-not-allowed");
+      }
+
+      // Actualizar KPIs superiores con resumen anual acumulado
+      if (annualSummaryCache) {
+        updateKpiDisplays(annualSummaryCache);
+      }
+      if (countBadge && annualRecordsCache) {
+        countBadge.textContent = `${annualRecordsCache.length} registros · Vista anual`;
+      }
+    } else if (activeView === "monthly") {
+      viewMonthlyBtn?.classList.add("btn-active");
+      viewMonthlyBtn?.classList.remove("btn-ghost", "text-base-content/60");
       calendarViewContainer?.classList.remove("hidden");
-      tableViewContainer?.classList.add("hidden");
 
-      viewCalendarBtn?.classList.add("btn-active");
-      viewCalendarBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      // In 'monthly': habilitar monthSelect
+      if (monthSelect) {
+        monthSelect.disabled = false;
+        monthSelect.classList.remove("opacity-50", "cursor-not-allowed");
+        if (monthSelect.value === "all") {
+          const curMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+          monthSelect.value = curMonth;
+        }
+      }
 
-      viewTableBtn?.classList.remove("btn-active");
-      viewTableBtn?.classList.add("btn-ghost", "text-base-content/60");
-    } else {
-      calendarViewContainer?.classList.add("hidden");
-      tableViewContainer?.classList.remove("hidden");
-
-      viewCalendarBtn?.classList.remove("btn-active");
-      viewCalendarBtn?.classList.add("btn-ghost", "text-base-content/60");
-
+      renderActiveMonthly();
+    } else if (activeView === "table") {
       viewTableBtn?.classList.add("btn-active");
       viewTableBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      tableViewContainer?.classList.remove("hidden");
+
+      // In 'table': habilitar monthSelect
+      if (monthSelect) {
+        monthSelect.disabled = false;
+        monthSelect.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+
+      renderActiveTable();
     }
   }
 
-  viewCalendarBtn?.addEventListener("click", () => setView("calendar"));
+  function renderActiveMonthly() {
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const selectedMonth = monthSelect?.value;
+    if (!annualRecordsCache || !selectedMonth) return;
+
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = annualRecordsCache.filter((r) => r.date.startsWith(prefix));
+      currentMonthlySummary = calculateSummary(recs);
+      updateKpiDisplays(currentMonthlySummary);
+    } else {
+      if (annualSummaryCache) updateKpiDisplays(annualSummaryCache);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = `${recs.length} registros`;
+    }
+
+    renderCalendar(recs, year, selectedMonth);
+    renderTable(recs);
+  }
+
+  function renderActiveTable() {
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const selectedMonth = monthSelect?.value;
+    if (!annualRecordsCache || !selectedMonth) return;
+
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = annualRecordsCache.filter((r) => r.date.startsWith(prefix));
+      currentMonthlySummary = calculateSummary(recs);
+      updateKpiDisplays(currentMonthlySummary);
+    } else {
+      if (annualSummaryCache) updateKpiDisplays(annualSummaryCache);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = selectedMonth === "all"
+        ? `${recs.length} registros · Año completo`
+        : `${recs.length} registros`;
+    }
+
+    renderTable(recs);
+  }
+
+  viewMonthlyBtn?.addEventListener("click", () => setView("monthly"));
+  viewAnnualBtn?.addEventListener("click", () => setView("annual"));
   viewTableBtn?.addEventListener("click", () => setView("table"));
 
-  function handleMonthChange() {
-    if (monthSelect?.value === "all") {
-      if (viewCalendarBtn) {
-        viewCalendarBtn.setAttribute("disabled", "true");
-        viewCalendarBtn.classList.add("opacity-50", "pointer-events-none");
-        viewCalendarBtn.title = "Seleccione un mes específico para ver el calendario";
+  // 4. Heatmap Anual Continuo de 52 Semanas (Estilo GitHub)
+  function renderAnnualHeatmap(records, year) {
+    const yearNum = parseInt(year, 10);
+    if (annualHeatmapYear) {
+      annualHeatmapYear.textContent = String(yearNum);
+    }
+    if (!annualHeatmapGrid) return;
+    annualHeatmapGrid.innerHTML = "";
+
+    const recordsByDate = new Map();
+    if (Array.isArray(records)) {
+      records.forEach((r) => recordsByDate.set(r.date, r));
+    }
+
+    // Offset Lunes a Domingo para el 1 de Enero
+    const jan1 = new Date(yearNum, 0, 1, 12, 0, 0);
+    const jan1DayIndex = (jan1.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+
+    const isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+    const totalDaysInYear = isLeap ? 366 : 365;
+
+    const cells = [];
+
+    // Prepend transparent padding cells for previous Dec days in week 1
+    for (let p = 0; p < jan1DayIndex; p++) {
+      cells.push({ isPadding: true });
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    // Generar días del año
+    for (let dayOfYear = 1; dayOfYear <= totalDaysInYear; dayOfYear++) {
+      const d = new Date(yearNum, 0, dayOfYear, 12, 0, 0);
+      const mStr = String(d.getMonth() + 1).padStart(2, "0");
+      const dStr = String(d.getDate()).padStart(2, "0");
+      const dateStr = `${yearNum}-${mStr}-${dStr}`;
+      const dayOfWeek = (d.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+      const log = recordsByDate.get(dateStr) || null;
+
+      cells.push({
+        isPadding: false,
+        dateStr,
+        dayOfWeek,
+        log,
+        isToday: dateStr === todayStr,
+      });
+    }
+
+    // Appends transparent padding cells to finish week 52/53 on Sunday
+    const remainder = cells.length % 7;
+    if (remainder !== 0) {
+      const paddingNeeded = 7 - remainder;
+      for (let p = 0; p < paddingNeeded; p++) {
+        cells.push({ isPadding: true });
       }
-      setView("table");
-    } else {
-      if (viewCalendarBtn) {
-        viewCalendarBtn.removeAttribute("disabled");
-        viewCalendarBtn.classList.remove("opacity-50", "pointer-events-none");
-        viewCalendarBtn.title = "Vista Calendario";
+    }
+
+    // Columna izquierda con iniciales de días (L, M, M, J, V, S, D)
+    const dayLabelsCol = document.createElement("div");
+    dayLabelsCol.className = "flex flex-col gap-1 pr-1.5 text-xxs font-black text-base-content/40 select-none shrink-0";
+    const dayLabels = ["L", "M", "M", "J", "V", "S", "D"];
+    dayLabels.forEach((label) => {
+      const lbl = document.createElement("div");
+      lbl.className = "w-3 h-3 sm:w-3.5 sm:h-3.5 flex items-center justify-center";
+      lbl.textContent = label;
+      dayLabelsCol.appendChild(lbl);
+    });
+    annualHeatmapGrid.appendChild(dayLabelsCol);
+
+    // Columnas estrictas de 7 días (Lunes a Domingo)
+    const totalWeeks = cells.length / 7;
+    const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+    for (let w = 0; w < totalWeeks; w++) {
+      const col = document.createElement("div");
+      col.className = "flex flex-col gap-1 shrink-0";
+
+      for (let r = 0; r < 7; r++) {
+        const item = cells[w * 7 + r];
+        const cell = document.createElement("div");
+
+        if (item.isPadding) {
+          cell.className = "w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-xs bg-base-300/10 opacity-15 pointer-events-none";
+        } else {
+          const log = item.log;
+          const isWeekend = item.dayOfWeek === 5 || item.dayOfWeek === 6;
+          let colorClass = "bg-base-300/40 hover:ring-2 hover:ring-primary/50";
+          let statusLabel = "Franco / Libre";
+
+          if (log) {
+            if (log.ausencia) {
+              colorClass = "bg-violet-500 hover:bg-violet-400";
+              statusLabel = `Ausencia: ${log.ausencia}`;
+            } else if (log.cumplimiento === "Llegada Tarde") {
+              colorClass = "bg-amber-500 hover:bg-amber-400";
+              statusLabel = "Llegada Tarde";
+            } else if (log.cumplimiento === "Incumplió") {
+              colorClass = "bg-error hover:bg-error/80";
+              statusLabel = "Incumplió";
+            } else if (log.cumplimiento === "Cumplió") {
+              colorClass = "bg-emerald-500 hover:bg-emerald-400";
+              statusLabel = "Cumplió (Puntual)";
+            } else {
+              colorClass = "bg-base-300/60 hover:bg-base-300";
+              statusLabel = log.cumplimiento || "Sin Registro";
+            }
+          } else if (isWeekend) {
+            colorClass = "bg-base-300/30 hover:bg-base-300/50";
+            statusLabel = "Franco";
+          } else {
+            colorClass = "bg-base-200/50 hover:bg-base-300/50";
+            statusLabel = "Sin Registro";
+          }
+
+          cell.className = `w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-xs transition-transform hover:scale-125 cursor-pointer ${colorClass}`;
+          if (item.isToday) {
+            cell.classList.add("ring-2", "ring-primary");
+          }
+
+          const dayName = dayNames[item.dayOfWeek];
+          const sched = log?.horarioEstipulado && log.horarioEstipulado !== "--:--" ? log.horarioEstipulado : (isWeekend ? "Franco" : "--:--");
+          const entrada = log?.entradaReal && log.entradaReal !== "--:--" ? ` | Entrada: ${log.entradaReal}` : "";
+          cell.title = `${item.dateStr} (${dayName}): ${statusLabel} | Horario: ${sched}${entrada}`;
+
+          cell.addEventListener("click", () => {
+            openDrawer(item.dateStr, log);
+          });
+        }
+
+        col.appendChild(cell);
       }
-      setView("calendar");
+
+      annualHeatmapGrid.appendChild(col);
     }
   }
 
-  // 3. Renderizado de Grilla Calendario Heatmap
+  // 5. Grilla 4x3 de Tarjetas Mensuales (12 Meses)
+  function renderAnnualMonths(records, year) {
+    if (!annualMonthsGrid) return;
+    annualMonthsGrid.innerHTML = "";
+
+    const monthNames = [
+      { num: "01", name: "Enero" },
+      { num: "02", name: "Febrero" },
+      { num: "03", name: "Marzo" },
+      { num: "04", name: "Abril" },
+      { num: "05", name: "Mayo" },
+      { num: "06", name: "Junio" },
+      { num: "07", name: "Julio" },
+      { num: "08", name: "Agosto" },
+      { num: "09", name: "Septiembre" },
+      { num: "10", name: "Octubre" },
+      { num: "11", name: "Noviembre" },
+      { num: "12", name: "Diciembre" },
+    ];
+
+    const today = new Date();
+    const currentYearStr = String(today.getFullYear());
+    const currentMonthNum = String(today.getMonth() + 1).padStart(2, "0");
+
+    monthNames.forEach((m) => {
+      const monthPrefix = `${year}-${m.num}`;
+      const monthRecords = Array.isArray(records)
+        ? records.filter((r) => r.date.startsWith(monthPrefix))
+        : [];
+
+      const stats = calculateSummary(monthRecords);
+      const hasRecords = monthRecords.length > 0;
+      const isCurrentMonth = String(year) === currentYearStr && m.num === currentMonthNum;
+
+      let badgeHtml = "";
+      if (!hasRecords) {
+        badgeHtml = `<span class="badge badge-xs badge-ghost text-base-content/40 font-bold">Sin datos</span>`;
+      } else if (stats.punctualityRate >= 90) {
+        badgeHtml = `<span class="badge badge-xs font-black border-emerald-500/40 text-emerald-600 bg-emerald-500/10">${stats.punctualityRate}% Puntual</span>`;
+      } else if (stats.punctualityRate >= 75) {
+        badgeHtml = `<span class="badge badge-xs font-black border-amber-500/40 text-amber-600 bg-amber-500/10">${stats.punctualityRate}% Puntual</span>`;
+      } else {
+        badgeHtml = `<span class="badge badge-xs font-black border-error/40 text-error bg-error/10">${stats.punctualityRate}% Puntual</span>`;
+      }
+
+      const card = document.createElement("div");
+      card.className = `group relative bg-base-100 border border-base-300 hover:border-secondary/50 rounded-2xl p-3.5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between select-none ${isCurrentMonth ? "ring-2 ring-primary/40" : ""}`;
+
+      card.innerHTML = `
+        <div>
+          <div class="flex items-center justify-between gap-1 mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-black text-base-content group-hover:text-secondary transition-colors">${m.name}</span>
+              ${isCurrentMonth ? '<span class="badge badge-2xs badge-primary font-bold">Mes actual</span>' : ""}
+            </div>
+            ${badgeHtml}
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 text-center bg-base-200/40 rounded-xl p-2 border border-base-300/30">
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase">Puntual</span>
+              <span class="text-xs font-black ${hasRecords ? "text-emerald-600 dark:text-emerald-400" : "text-base-content/30"}">${hasRecords ? `${stats.punctualityRate}%` : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase">Tardanzas</span>
+              <span class="text-xs font-black ${stats.lates > 0 ? "text-warning" : "text-base-content/50"}">${hasRecords ? stats.lates : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase">Ausencias</span>
+              <span class="text-xs font-black ${stats.absences > 0 ? "text-violet-500" : "text-base-content/50"}">${hasRecords ? stats.absences : "--"}</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-xs btn-outline btn-secondary w-full gap-1 font-bold mt-2.5 group-hover:btn-secondary group-hover:text-secondary-content transition-all">
+          <span>Ver mes</span>
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      `;
+
+      card.addEventListener("click", () => {
+        goToMonth(m.num);
+      });
+
+      annualMonthsGrid.appendChild(card);
+    });
+  }
+
+  // 6. Navegación instantánea a mes específico (Click-to-Month)
+  function goToMonth(monthNumber) {
+    const padded = String(monthNumber).padStart(2, "0");
+    if (monthSelect) {
+      monthSelect.value = padded;
+    }
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    if (annualRecordsCache && cachedYear === year) {
+      setView("monthly");
+    } else {
+      activeView = "monthly";
+      fetchHistory();
+    }
+  }
+
+  // 7. Renderizado de Grilla Calendario Mensual
   function renderCalendar(records, year, month) {
     if (!calendarGrid) return;
     calendarGrid.innerHTML = "";
@@ -412,7 +875,6 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     if (isNaN(yearNum) || isNaN(monthNum)) return;
 
     const totalDays = new Date(yearNum, monthNum, 0).getDate();
-    // Offset Lunes a Domingo (Lunes=0..Domingo=6)
     const firstDayIndex = (new Date(yearNum, monthNum - 1, 1).getDay() + 6) % 7;
 
     const recordsByDate = new Map();
@@ -420,7 +882,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       records.forEach((r) => recordsByDate.set(r.date, r));
     }
 
-    // Celdas de padding para días del mes anterior en pantallas sm:
+    // Celdas de padding para días del mes anterior
     for (let p = 0; p < firstDayIndex; p++) {
       const padCell = document.createElement("div");
       padCell.className =
@@ -432,7 +894,6 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     const dayNamesAbbr = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-    // Renderizado celdas 1..totalDays
     for (let day = 1; day <= totalDays; day++) {
       const dayStr = String(day).padStart(2, "0");
       const monthStr = String(monthNum).padStart(2, "0");
@@ -440,7 +901,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       const log = recordsByDate.get(dateStr) || null;
 
       const cellDate = new Date(yearNum, monthNum - 1, day);
-      const dayOfWeek = (cellDate.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+      const dayOfWeek = (cellDate.getDay() + 6) % 7;
       const dayAbbr = dayNamesAbbr[dayOfWeek];
       const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
       const isToday = dateStr === todayStr;
@@ -565,7 +1026,47 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     }
   }
 
-  // 4. Implementación del Drawer lateral
+  // 8. Renderizado de Tabla Cronológica
+  function renderTable(records) {
+    if (!tbody) return;
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-12 text-base-content/40 font-bold">
+            No se encontraron registros con los filtros seleccionados.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = records
+      .map((row) => {
+        const badgeClass = getBadgeClass(row.cumplimiento, row.ausencia);
+        const statusText = escapeHtml(row.ausencia || row.cumplimiento);
+        const [y, m, d] = row.date.split("-");
+        const dateFmt = `${d}/${m}/${y}`;
+        const detail = escapeHtml(row.detalle || row.motivoLoguin || "-");
+        const detailTitle = escapeHtml(row.detalle || "");
+
+        return `
+        <tr class="hover:bg-base-200/40 transition-colors">
+          <td class="font-black">${dateFmt}</td>
+          <td class="font-medium text-base-content/80">${escapeHtml(row.horarioEstipulado)}</td>
+          <td class="font-bold ${row.cumplimiento === "Llegada Tarde" ? "text-amber-500" : ""}">${escapeHtml(row.entradaReal)}</td>
+          <td>
+            <span class="badge badge-sm font-black ${badgeClass}">${statusText}</span>
+          </td>
+          <td class="text-base-content/80 text-sm font-medium max-w-xs truncate" title="${detailTitle}">
+            ${detail}
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+  }
+
+  // 9. Drawer lateral
   function openDrawer(dateStr, log) {
     if (!drawer || !drawerBackdrop) return;
 
@@ -586,7 +1087,8 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         const text = escapeHtml(log.ausencia || log.cumplimiento || "Sin Registro");
         drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black ${badgeClass}">${text}</span>`;
       } else {
-        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black badge-ghost text-base-content/50">Sin Registro</span>`;
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black badge-ghost text-base-content/50">${isWeekend ? "Franco / Fin de semana" : "Sin Registro"}</span>`;
       }
     }
 
@@ -657,7 +1159,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     }
   });
 
-  // 5. Carga de datos históricos
+  // 10. Carga de datos con cache en memoria y coordinación de las 3 vistas
   async function fetchHistory() {
     tbody.innerHTML = `
       <tr>
@@ -667,66 +1169,28 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       </tr>
     `;
 
-    const year = yearSelect.value;
-    const month = monthSelect.value;
-    const status = statusSelect.value;
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const status = statusSelect?.value || "all";
 
     try {
+      // Petición consolidada del año completo (month=all) para hidratar el cache
       const res = await fetch(
-        `${cleanBase}api/asistencia/operador/${agentId}?year=${year}&month=${month}&status=${status}`,
+        `${cleanBase}api/asistencia/operador/${agentId}?year=${year}&month=all&status=${status}`,
       );
       if (!res.ok) throw new Error("Error al consultar datos");
       const data = await res.json();
 
-      if (kpiRate) kpiRate.textContent = `${data.summary.punctualityRate}%`;
-      if (kpiLates) kpiLates.textContent = String(data.summary.lates);
-      if (kpiAbsences) kpiAbsences.textContent = String(data.summary.absences);
+      annualRecordsCache = data.records || [];
+      annualSummaryCache = data.summary;
+      cachedYear = year;
+      cachedStatus = status;
 
-      if (countBadge) {
-        if (month === "all") {
-          countBadge.textContent = `${data.records.length} registros · Vista anual (solo tabla)`;
-        } else {
-          countBadge.textContent = `${data.records.length} registros`;
-        }
-      }
+      // Pre-renderizar Heatmap continuo y Grilla 4x3 de meses
+      renderAnnualHeatmap(annualRecordsCache, year);
+      renderAnnualMonths(annualRecordsCache, year);
 
-      renderCalendar(data.records, year, month);
-
-      if (data.records.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="5" class="text-center py-12 text-base-content/40 font-bold">
-              No se encontraron registros con los filtros seleccionados.
-            </td>
-          </tr>
-        `;
-        return;
-      }
-
-      tbody.innerHTML = data.records
-        .map((row) => {
-          const badgeClass = getBadgeClass(row.cumplimiento, row.ausencia);
-          const statusText = escapeHtml(row.ausencia || row.cumplimiento);
-          const [y, m, d] = row.date.split("-");
-          const dateFmt = `${d}/${m}/${y}`;
-          const detail = escapeHtml(row.detalle || row.motivoLoguin || "-");
-          const detailTitle = escapeHtml(row.detalle || "");
-
-          return `
-          <tr class="hover:bg-base-200/40 transition-colors">
-            <td class="font-black">${dateFmt}</td>
-            <td class="font-medium text-base-content/80">${escapeHtml(row.horarioEstipulado)}</td>
-            <td class="font-bold ${row.cumplimiento === "Llegada Tarde" ? "text-amber-500" : ""}">${escapeHtml(row.entradaReal)}</td>
-            <td>
-              <span class="badge badge-sm font-black ${badgeClass}">${statusText}</span>
-            </td>
-            <td class="text-base-content/80 text-sm font-medium max-w-xs truncate" title="${detailTitle}">
-              ${detail}
-            </td>
-          </tr>
-        `;
-        })
-        .join("");
+      // Aplicar vista activa
+      setView(activeView);
     } catch (err) {
       console.error(err);
       tbody.innerHTML = `
@@ -739,13 +1203,35 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     }
   }
 
-  yearSelect?.addEventListener("change", fetchHistory);
-  monthSelect?.addEventListener("change", () => {
-    handleMonthChange();
+  // 11. Listeners de filtros
+  yearSelect?.addEventListener("change", () => {
+    annualRecordsCache = null;
+    annualSummaryCache = null;
+    cachedYear = null;
     fetchHistory();
   });
-  statusSelect?.addEventListener("change", fetchHistory);
 
-  handleMonthChange();
+  statusSelect?.addEventListener("change", () => {
+    annualRecordsCache = null;
+    annualSummaryCache = null;
+    cachedYear = null;
+    fetchHistory();
+  });
+
+  monthSelect?.addEventListener("change", () => {
+    if (activeView === "annual") return;
+    const year = yearSelect?.value;
+    if (annualRecordsCache && cachedYear === year) {
+      if (activeView === "monthly") {
+        renderActiveMonthly();
+      } else if (activeView === "table") {
+        renderActiveTable();
+      }
+    } else {
+      fetchHistory();
+    }
+  });
+
+  // Carga inicial
   fetchHistory();
 </script>

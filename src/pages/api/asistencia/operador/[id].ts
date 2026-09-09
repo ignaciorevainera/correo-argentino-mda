@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { agents, operatorAttendance } from "@db/schema";
+import { agents, operatorAttendance, schedules } from "@db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { requireReadAccess } from "@lib/rbac-middleware";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
@@ -54,18 +54,60 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
       endDate = `${year}-${String(month).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
     }
 
-    // 3. Consulta indexada a base de datos
-    const logs = await db
-      .select()
-      .from(operatorAttendance)
-      .where(
-        and(
-          eq(operatorAttendance.agentId, agentId),
-          gte(operatorAttendance.date, startDate),
-          lte(operatorAttendance.date, endDate),
+    // 3. Consulta indexada a base de datos de asistencias y cronograma
+    const [logs, schedList] = await Promise.all([
+      db
+        .select()
+        .from(operatorAttendance)
+        .where(
+          and(
+            eq(operatorAttendance.agentId, agentId),
+            gte(operatorAttendance.date, startDate),
+            lte(operatorAttendance.date, endDate),
+          ),
+        )
+        .orderBy(desc(operatorAttendance.date)),
+      db
+        .select({
+          date: schedules.date,
+          status: schedules.status,
+          horario: schedules.horario,
+        })
+        .from(schedules)
+        .where(
+          and(
+            eq(schedules.agentName, agent.name),
+            gte(schedules.date, startDate),
+            lte(schedules.date, endDate),
+          ),
         ),
-      )
-      .orderBy(desc(operatorAttendance.date));
+    ]);
+
+    const schedByDate = new Map(schedList.map((s) => [s.date, s]));
+
+    function resolveHorario(logDate: string, currentHorario: string | null): string {
+      if (
+        currentHorario &&
+        currentHorario !== "--:--" &&
+        currentHorario !== "Franco" &&
+        currentHorario.trim() !== ""
+      ) {
+        return currentHorario.trim();
+      }
+      const sched = schedByDate.get(logDate);
+      if (sched) {
+        if (sched.horario && sched.horario.trim() !== "" && sched.horario !== "Franco") {
+          return sched.horario.trim();
+        }
+        if (sched.status === "Franco") {
+          return "--:--";
+        }
+      }
+      if (agent.horarioDefault && agent.horarioDefault.trim() !== "" && agent.horarioDefault !== "-") {
+        return agent.horarioDefault.trim();
+      }
+      return "--:--";
+    }
 
     // 4. Filtrado por estado en memoria
     const filteredLogs = logs.filter((log) => {
@@ -89,11 +131,12 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
     let absences = 0;
 
     logs.forEach((log) => {
+      const effectiveHorario = resolveHorario(log.date, log.horarioEstipulado);
       const hasSchedule =
-        log.horarioEstipulado &&
-        log.horarioEstipulado !== "Franco" &&
-        log.horarioEstipulado !== "--:--" &&
-        log.horarioEstipulado.trim() !== "";
+        effectiveHorario &&
+        effectiveHorario !== "Franco" &&
+        effectiveHorario !== "--:--" &&
+        effectiveHorario.trim() !== "";
       if (hasSchedule || log.cumplimientoForzado) {
         totalWorkDays++;
         if (log.cumplimiento === "Cumplió") punctuals++;
@@ -123,12 +166,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         records: filteredLogs.map((log) => ({
           id: log.id,
           date: log.date,
-          horarioEstipulado:
-            !log.horarioEstipulado ||
-            log.horarioEstipulado === "Franco" ||
-            log.horarioEstipulado.trim() === ""
-              ? "--:--"
-              : log.horarioEstipulado,
+          horarioEstipulado: resolveHorario(log.date, log.horarioEstipulado),
           entradaReal: log.entradaReal || "--:--",
           cumplimiento: log.cumplimiento || "Sin Registro",
           ausencia: log.ausencia || null,
