@@ -31,7 +31,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .set({ password: hashedPassword })
       .where(eq(users.id, user.id));
 
-    await logAdminFromAstro(locals, "Blanqueó su propia contraseña");
+    await logAdminFromAstro(locals, "Cambió su propia contraseña");
 
     return jsonResponse({
       success: true,
