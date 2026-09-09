@@ -76,10 +76,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
           {agent.avatarInitials || agent.name.substring(0, 2).toUpperCase()}
         </div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-base-content text-xl font-black">{agent.name}</h1>
-            <span class="badge badge-sm badge-outline font-bold">ID #{agent.id}</span>
-          </div>
+          <h1 class="text-base-content text-xl font-black">{agent.name}</h1>
           <p class="text-base-content/60 text-xs font-medium">
             Usuario: <span class="font-bold">{agent.username || "S/D"}</span> |
             Sede: <span class="font-bold">{agent.location}</span>
@@ -205,7 +202,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     <!-- Vista Calendario Heatmap -->
     <div id="calendar-view-container" class="w-full flex flex-col gap-3">
       <!-- Cabecera de días Lunes a Domingo -->
-      <div class="hidden sm:grid grid-cols-7 gap-2 text-center text-xxs font-black tracking-wider uppercase text-base-content/50 px-1">
+      <div class="hidden sm:grid grid-cols-7 gap-2 text-center text-xs font-black tracking-wider uppercase text-base-content/70 px-1">
         <div>Lunes</div>
         <div>Martes</div>
         <div>Miércoles</div>
@@ -307,6 +304,10 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
             <span class="font-black text-base-content" id="drawer-horario">08:00 - 17:00</span>
           </div>
           <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Modalidad Cronograma:</span>
+            <span class="font-black text-base-content" id="drawer-modalidad">-</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
             <span class="text-base-content/50 font-bold">Entrada Real:</span>
             <span class="font-black" id="drawer-entrada">08:19</span>
           </div>
@@ -368,6 +369,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const drawerDate = document.getElementById("drawer-date");
   const drawerStatusBadge = document.getElementById("drawer-status-badge");
   const drawerHorario = document.getElementById("drawer-horario");
+  const drawerModalidad = document.getElementById("drawer-modalidad");
   const drawerEntrada = document.getElementById("drawer-entrada");
   const drawerDelayContainer = document.getElementById("drawer-delay-container");
   const drawerDelay = document.getElementById("drawer-delay");
@@ -390,6 +392,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   // 2. Cache en memoria y estado
   let annualRecordsCache = null;
   let annualSummaryCache = null;
+  let schedulesCache = {};
   let cachedYear = null;
   let cachedStatus = null;
   let currentMonthlySummary = null;
@@ -452,6 +455,33 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
     const realMinutes = eh * 60 + em;
     const scheduledMinutes = sh * 60 + sm;
     return realMinutes - scheduledMinutes;
+  }
+
+  function formatModality(status) {
+    if (!status) return { text: "-", full: "Sin modalidad asignada", class: "text-base-content/40" };
+    const s = String(status).trim();
+    if (s === "Home Office") {
+      return { text: "Home Office", full: "Home Office", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Presencial Monte Grande") {
+      return { text: "Presencial MG", full: "Presencial Monte Grande", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Presencial Parque Patricios") {
+      return { text: "Presencial PP", full: "Presencial Parque Patricios", class: "text-base-content/70 font-bold" };
+    }
+    if (s.toLowerCase().startsWith("presencial")) {
+      return { text: "Presencial", full: s, class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Vacaciones") {
+      return { text: "Vacaciones", full: "Vacaciones", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Licencia") {
+      return { text: "Licencia", full: "Licencia", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Franco") {
+      return { text: "Franco", full: "Franco", class: "text-base-content/55 font-semibold" };
+    }
+    return { text: s, full: s, class: "text-base-content/70 font-semibold" };
   }
 
   function calculateSummary(records) {
@@ -733,13 +763,15 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
 
           cell.className = `w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-xs transition-transform hover:scale-125 cursor-pointer ${colorClass}`;
           if (item.isToday) {
-            cell.classList.add("ring-2", "ring-primary");
+            cell.classList.add("ring-2", "ring-secondary");
           }
 
           const dayName = dayNames[item.dayOfWeek];
           const sched = log?.horarioEstipulado && log.horarioEstipulado !== "--:--" ? log.horarioEstipulado : (isWeekend ? "Franco" : "--:--");
           const entrada = log?.entradaReal && log.entradaReal !== "--:--" ? ` | Entrada: ${log.entradaReal}` : "";
-          cell.title = `${item.dateStr} (${dayName}): ${statusLabel} | Horario: ${sched}${entrada}`;
+          const schedStatus = log?.modalidad || schedulesCache?.[item.dateStr]?.status;
+          const modText = schedStatus ? ` | Modalidad: ${schedStatus}` : "";
+          cell.title = `${item.dateStr} (${dayName}): ${statusLabel} | Horario: ${sched}${entrada}${modText}`;
 
           cell.addEventListener("click", () => {
             openDrawer(item.dateStr, log);
@@ -825,12 +857,12 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
             </div>
           </div>
         </div>
-        <button type="button" class="btn btn-xs btn-outline btn-secondary w-full gap-1 font-bold mt-2.5 group-hover:btn-secondary group-hover:text-secondary-content transition-all">
+        <div class="btn btn-xs btn-outline btn-secondary w-full gap-1 font-bold mt-2.5 group-hover:bg-secondary group-hover:text-secondary-content group-hover:border-secondary pointer-events-none transition-all">
           <span>Ver mes</span>
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
           </svg>
-        </button>
+        </div>
       `;
 
       card.addEventListener("click", () => {
@@ -906,9 +938,15 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
       const isToday = dateStr === todayStr;
 
+      const schedItem = schedulesCache ? schedulesCache[dateStr] : null;
+
       let schedDisplay = "--:--";
       if (log && log.horarioEstipulado && log.horarioEstipulado !== "--:--") {
         schedDisplay = log.horarioEstipulado;
+      } else if (schedItem && schedItem.horario && schedItem.horario.trim() !== "" && schedItem.horario !== "Franco") {
+        schedDisplay = schedItem.horario.trim();
+      } else if (schedItem && schedItem.status === "Franco") {
+        schedDisplay = "Franco";
       } else if (isWeekend) {
         schedDisplay = "Franco";
       }
@@ -921,7 +959,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
           cellBgClass = "bg-violet-500/5 hover:bg-violet-500/10 border-violet-500/30";
           centerHtml = `
             <div class="my-auto py-1 w-full">
-              <span class="badge badge-xs font-black border-violet-500/40 text-violet-600 dark:text-violet-400 bg-violet-500/10 truncate max-w-full block text-center" title="${escapeHtml(log.ausencia)}">
+              <span class="badge badge-xs font-black border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/15 truncate max-w-full block text-center" title="${escapeHtml(log.ausencia)}">
                 ${escapeHtml(log.ausencia)}
               </span>
             </div>
@@ -932,10 +970,10 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
           const delayBadge = delay && delay > 0 ? `+${delay} min` : "Tardanza";
           centerHtml = `
             <div class="flex flex-col items-start gap-0.5 my-auto py-1">
-              <span class="badge badge-xs font-black badge-warning text-warning-content shadow-2xs px-1.5 py-0.5">
+              <span class="badge badge-xs font-black border-amber-500/50 text-base-content bg-amber-500/20 shadow-2xs px-1.5 py-0.5">
                 ${delayBadge}
               </span>
-              <span class="text-xs font-black text-warning pl-0.5">${escapeHtml(log.entradaReal)}</span>
+              <span class="text-sm font-black text-amber-800 dark:text-amber-300 pl-0.5">${escapeHtml(log.entradaReal)}</span>
             </div>
           `;
         } else if (log.cumplimiento === "Incumplió") {
@@ -948,17 +986,16 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         } else if (log.cumplimiento === "Cumplió") {
           cellBgClass = "bg-base-100 hover:bg-base-200/60 border-base-300 hover:border-emerald-500/40";
           centerHtml = `
-            <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-xs my-auto py-1">
-              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="flex items-center my-auto py-1 text-emerald-600 dark:text-emerald-400" title="Entrada: ${escapeHtml(log.entradaReal)}">
+              <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
               </svg>
-              <span>${escapeHtml(log.entradaReal)}</span>
             </div>
           `;
         } else {
           centerHtml = `
             <div class="my-auto py-1">
-              <span class="text-xxs font-medium text-base-content/40">Sin registro</span>
+              <span class="text-xs font-medium text-base-content/40">Sin registro</span>
             </div>
           `;
         }
@@ -966,33 +1003,34 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         cellBgClass = "bg-base-200/25 hover:bg-base-200/50 border-base-300/30 opacity-75";
         centerHtml = `
           <div class="my-auto py-1">
-            <span class="text-xxs font-semibold text-base-content/30 italic">Franco</span>
+            <span class="text-xs font-bold text-base-content/55 italic">Franco</span>
           </div>
         `;
       } else {
         cellBgClass = "bg-base-200/15 hover:bg-base-200/40 border-base-300/30 opacity-80";
         centerHtml = `
           <div class="my-auto py-1">
-            <span class="text-xxs font-medium text-base-content/30">Sin registro</span>
+            <span class="text-xs font-medium text-base-content/40">Sin registro</span>
           </div>
         `;
       }
 
       if (isToday) {
-        cellBgClass += " ring-2 ring-primary/60";
+        cellBgClass += " ring-2 ring-secondary";
       }
 
       const hasComment = Boolean(log && (log.detalle || log.motivoLoguin));
       const commentTitle = hasComment ? escapeHtml(log.detalle || log.motivoLoguin) : "";
-      const shiftTypeText = escapeHtml(log?.shiftType || "");
+      const rawModality = log?.modalidad || schedItem?.status || (isWeekend ? "Franco" : null);
+      const modalityFmt = formatModality(rawModality);
 
       const footerHtml = `
-        <div class="flex items-center justify-between w-full mt-1 pt-1 border-t border-base-300/30 text-xxs">
-          <span class="text-base-content/40 truncate max-w-[65px] sm:max-w-[75px]" title="${shiftTypeText}">${shiftTypeText}</span>
+        <div class="flex items-center justify-between w-full mt-1.5 pt-1 border-t border-base-300/50 text-xs">
+          <span class="truncate max-w-[70px] sm:max-w-[85px] ${modalityFmt.class}" title="${escapeHtml(modalityFmt.full)}">${escapeHtml(modalityFmt.text)}</span>
           ${
             hasComment
               ? `<span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
                   </svg>
                 </span>`
@@ -1002,15 +1040,15 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       `;
 
       const cell = document.createElement("div");
-      cell.className = `group relative flex flex-col justify-between p-2.5 rounded-xl border shadow-2xs transition-all duration-150 cursor-pointer min-h-[95px] select-none ${cellBgClass}`;
+      cell.className = `group relative flex flex-col justify-between p-2.5 sm:p-3 rounded-xl border shadow-2xs transition-all duration-150 cursor-pointer min-h-[105px] select-none ${cellBgClass}`;
       cell.setAttribute("data-date", dateStr);
       cell.innerHTML = `
         <div class="flex items-baseline justify-between gap-1 w-full">
           <div class="flex items-baseline gap-1">
-            <span class="text-sm font-black ${isToday ? "text-primary" : "text-base-content"}">${day}</span>
-            <span class="text-xxs font-bold uppercase ${isWeekend ? "text-base-content/40" : "text-base-content/50"}">${dayAbbr}</span>
+            <span class="text-sm font-black ${isToday ? "text-secondary" : "text-base-content"}">${day}</span>
+            <span class="text-xs font-black uppercase ${isWeekend ? "text-base-content/60" : "text-base-content/75"}">${dayAbbr}</span>
           </div>
-          <span class="text-xxs font-semibold text-base-content/50 truncate max-w-[70px] sm:max-w-[80px]" title="${escapeHtml(schedDisplay)}">
+          <span class="text-xs font-bold text-base-content/75 truncate max-w-[75px] sm:max-w-[85px]" title="${escapeHtml(schedDisplay)}">
             ${escapeHtml(schedDisplay)}
           </span>
         </div>
@@ -1053,7 +1091,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         <tr class="hover:bg-base-200/40 transition-colors">
           <td class="font-black">${dateFmt}</td>
           <td class="font-medium text-base-content/80">${escapeHtml(row.horarioEstipulado)}</td>
-          <td class="font-bold ${row.cumplimiento === "Llegada Tarde" ? "text-amber-500" : ""}">${escapeHtml(row.entradaReal)}</td>
+          <td class="font-bold ${row.cumplimiento === "Llegada Tarde" ? "text-amber-800 dark:text-amber-300" : ""}">${escapeHtml(row.entradaReal)}</td>
           <td>
             <span class="badge badge-sm font-black ${badgeClass}">${statusText}</span>
           </td>
@@ -1091,15 +1129,34 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black badge-ghost text-base-content/50">${isWeekend ? "Franco / Fin de semana" : "Sin Registro"}</span>`;
       }
     }
+    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    const schedItem = schedulesCache ? schedulesCache[dateStr] : null;
 
-    const horario = log?.horarioEstipulado || "--:--";
+    let horario = "--:--";
+    if (log && log.horarioEstipulado && log.horarioEstipulado !== "--:--") {
+      horario = log.horarioEstipulado;
+    } else if (schedItem && schedItem.horario && schedItem.horario.trim() !== "" && schedItem.horario !== "Franco") {
+      horario = schedItem.horario.trim();
+    } else if (schedItem && schedItem.status === "Franco") {
+      horario = "Franco";
+    } else if (isWeekend) {
+      horario = "Franco";
+    }
+
     const entrada = log?.entradaReal || "--:--";
 
     if (drawerHorario) drawerHorario.textContent = horario;
+
+    if (drawerModalidad) {
+      const rawModality = log?.modalidad || schedItem?.status || (isWeekend ? "Franco" : null);
+      const modFmt = formatModality(rawModality);
+      drawerModalidad.textContent = modFmt.full;
+      drawerModalidad.className = "font-black text-base-content";
+    }
     if (drawerEntrada) {
       drawerEntrada.textContent = entrada;
       if (log?.cumplimiento === "Llegada Tarde") {
-        drawerEntrada.className = "font-black text-warning";
+        drawerEntrada.className = "font-black text-amber-800 dark:text-amber-300";
       } else if (log?.cumplimiento === "Cumplió") {
         drawerEntrada.className = "font-black text-emerald-600 dark:text-emerald-400";
       } else {
@@ -1113,7 +1170,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         drawerDelayContainer.classList.remove("hidden");
         if (delay > 0) {
           drawerDelay.textContent = `+${delay} min`;
-          drawerDelay.className = "font-black text-warning";
+          drawerDelay.className = "font-black text-amber-800 dark:text-amber-300";
         } else if (delay === 0) {
           drawerDelay.textContent = "0 min (Puntual)";
           drawerDelay.className = "font-black text-emerald-600 dark:text-emerald-400";
@@ -1182,6 +1239,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
 
       annualRecordsCache = data.records || [];
       annualSummaryCache = data.summary;
+      schedulesCache = data.schedules || {};
       cachedYear = year;
       cachedStatus = status;
 
@@ -1207,6 +1265,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   yearSelect?.addEventListener("change", () => {
     annualRecordsCache = null;
     annualSummaryCache = null;
+    schedulesCache = {};
     cachedYear = null;
     fetchHistory();
   });
@@ -1214,6 +1273,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   statusSelect?.addEventListener("change", () => {
     annualRecordsCache = null;
     annualSummaryCache = null;
+    schedulesCache = {};
     cachedYear = null;
     fetchHistory();
   });

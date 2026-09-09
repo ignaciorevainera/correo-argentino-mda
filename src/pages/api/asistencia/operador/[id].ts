@@ -163,17 +163,24 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
           absences,
           punctualityRate,
         },
-        records: filteredLogs.map((log) => ({
-          id: log.id,
-          date: log.date,
-          horarioEstipulado: resolveHorario(log.date, log.horarioEstipulado),
-          entradaReal: log.entradaReal || "--:--",
-          cumplimiento: log.cumplimiento || "Sin Registro",
-          ausencia: log.ausencia || null,
-          motivoLoguin: log.motivoLoguin || null,
-          detalle: log.detalle || null,
-          shiftType: log.shiftType,
-        })),
+        records: filteredLogs.map((log) => {
+          const sched = schedByDate.get(log.date);
+          return {
+            id: log.id,
+            date: log.date,
+            horarioEstipulado: resolveHorario(log.date, log.horarioEstipulado),
+            entradaReal: log.entradaReal || "--:--",
+            cumplimiento: log.cumplimiento || "Sin Registro",
+            ausencia: log.ausencia || null,
+            motivoLoguin: log.motivoLoguin || null,
+            detalle: log.detalle || null,
+            shiftType: log.shiftType,
+            modalidad: sched?.status || null,
+          };
+        }),
+        schedules: Object.fromEntries(
+          schedList.map((s) => [s.date, { status: s.status, horario: s.horario }]),
+        ),
       },
       200,
       "no-store, no-cache, must-revalidate",
