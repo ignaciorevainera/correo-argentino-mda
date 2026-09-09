@@ -78,7 +78,7 @@ const cleanBase = getCleanBase();
     />
 
     <div class="flex items-center gap-4" data-view-controls>
-    <div role="tablist" class="tabs tabs-boxed bg-base-200/50" aria-label="Tamaño de íconos">
+    <div role="tablist" class="tabs tabs-box bg-base-200/50" aria-label="Tamaño de íconos">
       <button
         type="button"
         role="tab"
@@ -107,7 +107,7 @@ const cleanBase = getCleanBase();
         <Icon name="boxicons:square-rounded" size={24} aria-hidden="true" />
       </button>
     </div>
-    <div role="tablist" class="tabs tabs-boxed bg-base-200/50" aria-label="Cantidad de columnas">
+    <div role="tablist" class="tabs tabs-box bg-base-200/50" aria-label="Cantidad de columnas">
       <button
         type="button"
         role="tab"
@@ -210,43 +210,29 @@ const cleanBase = getCleanBase();
   --link-icon-container: 52px;
 }
 
-/* View columns */
-:root {
-  --columns: 3;
-}
-[data-view-columns="1"] {
-  --columns: 1;
-}
-[data-view-columns="2"] {
-  --columns: 2;
-}
-[data-view-columns="3"] {
-  --columns: 3;
-}
-[data-view-columns="4"] {
-  --columns: 4;
-}
-
+/* View columns: el ancho de los ítems usa el conteo efectivo que setea JS
+   (misma fuente que masonry), evitando desacuerdos con media queries de viewport */
 .masonry-grid {
   position: relative;
 }
 
 .masonry-grid .grid-item {
-  width: calc((100% - (8px * (min(var(--columns), 1) - 1))) / min(var(--columns), 1));
+  width: calc((100% - (8px * (var(--columns-effective, 3) - 1))) / var(--columns-effective, 3));
   margin-bottom: 8px;
   break-inside: avoid;
 }
 
-@media (min-width: 768px) {
-  .masonry-grid .grid-item {
-    width: calc((100% - (8px * (min(var(--columns), 2) - 1))) / min(var(--columns), 2));
-  }
-}
-
-@media (min-width: 1280px) {
-  .masonry-grid .grid-item {
-    width: calc((100% - (8px * (min(var(--columns), 4) - 1))) / min(var(--columns), 4));
-  }
+/* Toggle de vista: la opción efectiva se ilumina en primary (derivado del
+   atributo en <html>, también aplica antes de hidratar) */
+:root[data-view-mode="compact"] [data-view-controls] .tab[data-view-mode="compact"],
+:root[data-view-mode="normal"] [data-view-controls] .tab[data-view-mode="normal"],
+:root[data-view-mode="large"] [data-view-controls] .tab[data-view-mode="large"],
+:root[data-view-columns="1"] [data-view-controls] .tab[data-view-columns="1"],
+:root[data-view-columns="2"] [data-view-controls] .tab[data-view-columns="2"],
+:root[data-view-columns="3"] [data-view-controls] .tab[data-view-columns="3"],
+:root[data-view-columns="4"] [data-view-controls] .tab[data-view-columns="4"] {
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
 }
 
 /* Apply icon sizes */
@@ -273,7 +259,14 @@ const cleanBase = getCleanBase();
     highlightSearchTargets,
   } from "@lib/clientSearch";
   import Masonry from "masonry-layout";
-  import { getViewMode, setViewMode, getViewColumns, setViewColumns, type ViewMode, type ViewColumns } from "@lib/viewMode";
+  import {
+    getViewMode,
+    setViewMode,
+    getViewColumns,
+    setViewColumns,
+    type ViewMode,
+    type ViewColumns,
+  } from "@lib/viewMode";
 
   const searchInput = document.getElementById(
     "important-links-search",
@@ -284,29 +277,50 @@ const cleanBase = getCleanBase();
   const emptyState = document.getElementById(
     "important-links-empty",
   ) as HTMLElement | null;
+  const viewControls = document.querySelector("[data-view-controls]");
   const categoryCards = Array.from(
     document.querySelectorAll<HTMLElement>("[data-link-category]"),
   );
 
   const GAP = 8;
 
-  const getColumnCount = (): number => {
-    const raw = document.documentElement.getAttribute("data-view-columns") ?? "3";
-    const base = Math.min(4, Math.max(1, Number(raw) || 3)) as ViewColumns;
+  // Máximo de columnas según el ancho del contenedor (responsive)
+  const getColumnCap = (): ViewColumns => {
     const width = linksGrid?.offsetWidth ?? 0;
     if (width < 768) return 1;
-    if (width < 1280) return Math.min(base, 2);
-    return Math.min(base, 4);
+    if (width < 1280) return 2;
+    return 4;
   };
+
+  // Columnas efectivas: preferencia del usuario (localStorage, intacta)
+  // acotada por responsive. El atributo en <html> es solo salida (CSS highlight)
+  const getEffectiveColumns = (): ViewColumns =>
+    Math.min(getViewColumns(), getColumnCap()) as ViewColumns;
 
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
-    const columns = getColumnCount();
+    const columns = getEffectiveColumns();
     return (linksGrid.offsetWidth - GAP * (columns - 1)) / columns;
+  };
+
+  const layoutMasonry = (): void => {
+    if (!msnry) return;
+    msnry.options.columnWidth = getColumnWidth();
+    msnry.layout();
+  };
+
+  // Aplica el conteo efectivo: atributo en <html> (alimentan el highlight de
+  // los tabs vía CSS), variable CSS de ancho y releo de masonry
+  const applyEffectiveColumns = (): void => {
+    const effective = getEffectiveColumns();
+    document.documentElement.setAttribute("data-view-columns", String(effective));
+    linksGrid?.style.setProperty("--columns-effective", String(effective));
+    layoutMasonry();
   };
 
   let msnry: Masonry | null = null;
   if (linksGrid) {
+    applyEffectiveColumns();
     msnry = new Masonry(linksGrid, {
       itemSelector: ".grid-item",
       columnWidth: getColumnWidth(),
@@ -316,10 +330,9 @@ const cleanBase = getCleanBase();
       initLayout: true,
     });
 
+    // Reacota columnas cuando cambia el ancho del contenedor
     const resizeObserver = new ResizeObserver(() => {
-      if (!msnry) return;
-      msnry.options.columnWidth = getColumnWidth();
-      msnry.layout();
+      applyEffectiveColumns();
     });
     resizeObserver.observe(linksGrid);
   }
@@ -383,67 +396,31 @@ const cleanBase = getCleanBase();
     updateVisibleLinks();
   }
 
-  // View mode initialization
-  const initViewMode = (): void => {
-    const mode = getViewMode();
-    document.documentElement.setAttribute("data-view-mode", mode);
+  // View mode: el highlight de los tabs es CSS puro (derivado del atributo
+    // en <html>), acá solo persistimos y aplicamos
+    document.documentElement.setAttribute("data-view-mode", getViewMode());
 
-    // Update active tab
-    document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
-      const tabMode = tab.getAttribute("data-view-mode");
-      tab.classList.toggle("tab-active", tabMode === mode);
-    });
-  };
-
-  // View mode tab click handler
-  document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const mode = tab.getAttribute("data-view-mode") as ViewMode;
-      setViewMode(mode);
-      document.documentElement.setAttribute("data-view-mode", mode);
-
-      // Update active states
-      document.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((t) => {
-        t.classList.toggle("tab-active", t === tab);
+    viewControls?.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const mode = tab.getAttribute("data-view-mode") as ViewMode;
+        setViewMode(mode);
+        document.documentElement.setAttribute("data-view-mode", mode);
+        // Releo: los tamaños de ícono cambian la altura de las cards
+        layoutMasonry();
       });
-
-      // Recalculate masonry
-      if (msnry) {
-        msnry.options.columnWidth = getColumnWidth();
-        msnry.layout();
-      }
     });
-  });
 
-  initViewMode();
-
-  // View columns initialization
-  const initViewColumns = (): void => {
-    const columns = getViewColumns();
-    document.documentElement.setAttribute("data-view-columns", String(columns));
-    document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
-      const tabColumns = tab.getAttribute("data-view-columns");
-      tab.classList.toggle("tab-active", tabColumns === String(columns));
-    });
-  };
-
-  // Column tab click handler
-  document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const columns = Number(tab.getAttribute("data-view-columns")) as ViewColumns;
-      setViewColumns(columns);
-      document.documentElement.setAttribute("data-view-columns", String(columns));
-      document.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((t) => {
-        t.classList.toggle("tab-active", t === tab);
+    // View columns
+    viewControls?.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const columns = Number(tab.getAttribute("data-view-columns")) as ViewColumns;
+        setViewColumns(columns);
+        // applyEffectiveColumns acota por responsive y actualiza highlight
+        applyEffectiveColumns();
       });
-      if (msnry) {
-        msnry.options.columnWidth = getColumnWidth();
-        msnry.layout();
-      }
     });
-  });
 
-  initViewColumns();
+    applyEffectiveColumns();
 
   // Description hide toggle
   const hideDescriptionsToggle = document.getElementById(
@@ -459,6 +436,4 @@ const cleanBase = getCleanBase();
       }
     });
   }
-
-  initViewColumns();
 </script>
