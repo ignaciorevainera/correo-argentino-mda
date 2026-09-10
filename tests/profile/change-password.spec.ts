@@ -39,14 +39,14 @@ test.describe('Self Password Change', () => {
     await setSessionCookie(context, testUser.signedSessionId);
   });
 
-  test('muestra el boton Blanqueo en el perfil', async ({ page }) => {
+  test('muestra el boton blanque en el perfil', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.getByRole('button', { name: /blanqueo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /blanque/i })).toBeVisible();
   });
 
-  test('abre el modal al hacer clic en Blanqueo', async ({ page }) => {
+  test('abre el modal al hacer clic en blanque', async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo/i }).click();
+    await page.getByRole('button', { name: /blanque/i }).click();
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('Blanquear contraseña');
@@ -56,7 +56,7 @@ test.describe('Self Password Change', () => {
     const hashBefore = await getPasswordHash(testUser.userId);
 
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo/i }).click();
+    await page.getByRole('button', { name: /blanque/i }).click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
@@ -83,7 +83,7 @@ test.describe('Self Password Change', () => {
     const hashBefore = await getPasswordHash(testUser.userId);
 
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo/i }).click();
+    await page.getByRole('button', { name: /blanque/i }).click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('Self Password Change', () => {
 
   test('bloquea contraseñas que no coinciden', async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo/i }).click();
+    await page.getByRole('button', { name: /blanque/i }).click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
