@@ -7,6 +7,7 @@ export const POST = createDeleteHandler({
   entityName: "enlace",
   redirectPath: "admin/recursos",
   invalidIdMessage: "ID de enlace no proporcionado",
+  snapshotLabel: (d) => String((d as any).title ?? ""),
   performDelete: async (id) => {
     const existing = await db.query.resourceLinks.findFirst({
       where: eq(resourceLinks.id, id),

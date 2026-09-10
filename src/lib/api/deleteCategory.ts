@@ -3,6 +3,7 @@ import { db } from "@db/index";
 import { eq } from "drizzle-orm";
 import { getBaseNoSlash } from "@lib/baseUrl";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { insertDeletedRecord } from "@lib/deletedRecords";
 
 export interface DeleteCategoryConfig {
   categoryTable: any;
@@ -13,6 +14,8 @@ export interface DeleteCategoryConfig {
   defaultCategoryValues: Record<string, unknown>;
   redirectPath: string;
   entityName: string;
+  /** Clave de entidad para la papelera. Default: "categoria". */
+  snapshotEntity?: string;
   deleteItemFiles?: (item: Record<string, unknown>) => Promise<void> | void;
 }
 
@@ -79,6 +82,23 @@ export function createCategoryDeleteHandler(
         .where(eq(config.categoryIdColumn, categoryId))
         .limit(1);
       const categoryTitle = categoryToDelete?.title || categoryId;
+
+      if (categoryToDelete) {
+        try {
+          await insertDeletedRecord({
+            entity: config.snapshotEntity ?? "categoria",
+            recordId: categoryId,
+            label: String(categoryTitle),
+            payload: { row: categoryToDelete as Record<string, unknown> },
+            deletedBy: locals.user?.username || "Sistema",
+          });
+        } catch (snapErr) {
+          console.error(
+            "[deleteCategory] No se pudo guardar el snapshot en la papelera:",
+            snapErr,
+          );
+        }
+      }
 
       await db
         .delete(config.categoryTable)

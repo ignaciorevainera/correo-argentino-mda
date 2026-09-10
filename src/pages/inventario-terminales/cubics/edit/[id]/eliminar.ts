@@ -13,7 +13,7 @@ export const POST = createDeleteHandler({
       recordId: id,
       username,
       label: (father) =>
-        `Cubic "${father.name}" (${(father as any).ip ?? "sin IP"})`,
+        `${father.name}${(father as any).ip ? ` (${(father as any).ip})` : ""}`,
       fatherTable: cubics,
       fatherPkColumn: cubics.id,
       children: [

@@ -179,7 +179,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
         entity: "agente",
         recordId: agent.id,
         username: "Sistema",
-        label: (father) => `Agente "${father.name}"`,
+        label: (father) => String(father.name),
         fatherTable: agents,
         fatherPkColumn: agents.id,
       });

@@ -13,7 +13,7 @@ export const POST = createDeleteHandler({
       entity: "agente",
       recordId: id,
       username,
-      label: (father) => `Agente "${father.name}"`,
+      label: (father) => String(father.name),
       fatherTable: agents,
       fatherPkColumn: agents.id,
     }),

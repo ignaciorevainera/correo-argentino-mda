@@ -1,0 +1,32 @@
+---
+import { Icon } from "astro-icon/components";
+import { getDeletedEntityMeta } from "@lib/deletedEntities";
+
+interface Props {
+  entity: string;
+  /** Si true, muestra el nombre de la entidad junto al ícono. Default: true. */
+  showLabel?: boolean;
+  size?: "sm" | "md";
+  class?: string;
+}
+
+const {
+  entity,
+  showLabel = true,
+  size = "sm",
+  class: className = "",
+} = Astro.props;
+
+const meta = getDeletedEntityMeta(entity);
+const iconSize = size === "sm" ? 14 : 18;
+const badgeClass = size === "sm" ? "badge badge-sm" : "badge";
+---
+
+<span
+  class:list={["badge-ghost gap-1.5 font-medium", badgeClass, className]}
+  title={meta.label}
+  aria-label={meta.label}
+>
+  <Icon name={meta.icon} size={iconSize} class:list={["shrink-0", meta.tone]} />
+  {showLabel && <span class="truncate">{meta.label}</span>}
+</span>
