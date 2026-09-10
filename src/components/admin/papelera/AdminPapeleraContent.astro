@@ -8,6 +8,7 @@ import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import { Icon } from "astro-icon/components";
 
 const cleanBase = getCleanBase();
@@ -33,131 +34,122 @@ const rowGridClass = "grid-cols-[minmax(0,2fr)_110px_130px_170px_130px_110px]";
 
   <SearchBar id="papelera-search" placeholder="Buscar por etiqueta, entidad o usuario..." class="mb-4" />
 
-  <DataTable
-    id="papelera-table"
-    ariaLabel="Registros en papelera"
-    headerGridClass={headerGridClass}
-    rowGridClass={rowGridClass}
-    minWidthClass="min-w-max"
-    emptyStateTitle="La papelera está vacía"
-    emptyStateDescription="Los registros eliminados aparecerán aquí y podrán restaurarse."
-  >
-    <div slot="header">
-      <DataTableHeaderCell sortKey="label">Registro</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="entity">Entidad</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="deletedby">Borrado por</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="deletedat">Fecha</DataTableHeaderCell>
-    </div>
-    <div slot="header">
-      <DataTableHeaderCell sortKey="estado">Estado</DataTableHeaderCell>
-    </div>
-    <div slot="header" class="text-right">
-      <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-    </div>
-
-    {
-      registros.length === 0 ? (
-        <div class="text-base-content/50 flex flex-col items-center gap-3 py-16">
-          <div class="bg-base-200 rounded-full p-4">
-            <Icon
-              name="boxicons:trash"
-              size={32}
-              class="opacity-30"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="space-y-1 text-center">
-            <p class="text-sm font-semibold">No hay registros en la papelera</p>
-            <p class="text-xs">
-              Cuando se elimine un registro, aparecerá aquí con opción de restauración.
-            </p>
-          </div>
+  {
+    registros.length === 0 ? (
+      <SearchEmptyState
+        title="La papelera está vacía"
+        description="Los registros eliminados aparecerán aquí y podrán restaurarse."
+        icon="boxicons:trash"
+        class="flex"
+      />
+    ) : (
+      <DataTable
+        id="papelera-table"
+        ariaLabel="Registros en papelera"
+        headerGridClass={headerGridClass}
+        rowGridClass={rowGridClass}
+        minWidthClass="min-w-max"
+        emptyStateTitle="Sin resultados"
+        emptyStateDescription="No se encontraron coincidencias para tu búsqueda. Probá con otros términos."
+      >
+        <div slot="header">
+          <DataTableHeaderCell sortKey="label">Registro</DataTableHeaderCell>
         </div>
-      ) : (
-        <>
-          {registros.map((r) => (
-            <div
-              data-table-row
-              data-sort-id={r.id}
-              data-sort-label={(r.label ?? "").toLowerCase()}
-              data-sort-entity={r.entity}
-              data-sort-deletedby={r.deletedBy}
-              data-sort-deletedat={r.deletedAt}
-              data-sort-estado={r.restoredAt ? "restaurado" : "en-papelera"}
-              data-search-text={`${r.label} ${r.entity} ${r.deletedBy}`.toLowerCase()}
-              class:list={[
-                rowGridClass,
-                "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
-              ]}
-            >
-              <div class="min-w-0">
-                <span
-                  data-highlight-target
-                  class="text-base-content block truncate text-sm font-medium"
-                  title={r.label}
-                >
-                  {r.label}
-                </span>
-              </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="entity">Entidad</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="deletedby"
+            >Borrado por</DataTableHeaderCell
+          >
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="deletedat">Fecha</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="estado">Estado</DataTableHeaderCell>
+        </div>
+        <div slot="header" class="text-right">
+          <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+        </div>
 
-              <div>
-                <span class="badge badge-ghost badge-sm font-mono">
-                  {r.entity}
-                </span>
-              </div>
-
-              <div class="min-w-0">
-                <span class="text-base-content/70 truncate font-mono text-xs">
-                  {r.deletedBy}
-                </span>
-              </div>
-
-              <div class="min-w-0">
-                <span class="text-base-content/70 font-mono text-xs">
-                  {new Date(r.deletedAt).toLocaleString("es-AR")}
-                </span>
-              </div>
-
-              <div>
-                <span
-                  class:list={[
-                    "badge badge-sm",
-                    r.restoredAt ? "badge-success" : "badge-warning",
-                  ]}
-                >
-                  {r.restoredAt ? "restaurado" : "en papelera"}
-                </span>
-              </div>
-
-              <div class="text-right">
-                <form
-                  method="POST"
-                  action={`${cleanBase}admin/papelera/${r.id}/restaurar`}
-                  class="inline"
-                  onsubmit="return confirm('¿Restaurar este registro?')"
-                >
-                  <button
-                    type="submit"
-                    class="btn btn-primary btn-xs"
-                    disabled={!!r.restoredAt}
-                    aria-label={`Restaurar ${r.label}`}
-                  >
-                    Restaurar
-                  </button>
-                </form>
-              </div>
+        {registros.map((r) => (
+          <div
+            data-table-row
+            data-sort-id={r.id}
+            data-sort-label={(r.label ?? "").toLowerCase()}
+            data-sort-entity={r.entity}
+            data-sort-deletedby={r.deletedBy}
+            data-sort-deletedat={r.deletedAt}
+            data-sort-estado={r.restoredAt ? "restaurado" : "en-papelera"}
+            data-search-text={`${r.label} ${r.entity} ${r.deletedBy}`.toLowerCase()}
+            class:list={[
+              rowGridClass,
+              "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
+            ]}
+          >
+            <div class="min-w-0">
+              <span
+                data-highlight-target
+                class="text-base-content block truncate text-sm font-medium"
+                title={r.label}
+              >
+                {r.label}
+              </span>
             </div>
-          ))}
-        </>
-      )
-    }
-  </DataTable>
+
+            <div>
+              <span class="badge badge-ghost badge-sm font-mono">
+                {r.entity}
+              </span>
+            </div>
+
+            <div class="min-w-0">
+              <span class="text-base-content/70 truncate font-mono text-xs">
+                {r.deletedBy}
+              </span>
+            </div>
+
+            <div class="min-w-0">
+              <span class="text-base-content/70 font-mono text-xs">
+                {new Date(r.deletedAt).toLocaleString("es-AR")}
+              </span>
+            </div>
+
+            <div>
+              <span
+                class:list={[
+                  "badge badge-sm",
+                  r.restoredAt ? "badge-success" : "badge-warning",
+                ]}
+              >
+                {r.restoredAt ? "restaurado" : "en papelera"}
+              </span>
+            </div>
+
+            <div class="text-right">
+              <form
+                method="POST"
+                action={`${cleanBase}admin/papelera/${r.id}/restaurar`}
+                class="inline"
+                onsubmit="return confirm('¿Restaurar este registro?')"
+              >
+                <button
+                  type="submit"
+                  class="btn btn-xs btn-soft btn-secondary gap-2"
+                  disabled={!!r.restoredAt}
+                  aria-label={`Restaurar ${r.label}`}
+                >
+                  <Icon name="boxicons:undo-stroke" size={14} />
+                  Restaurar
+                </button>
+              </form>
+            </div>
+          </div>
+        ))}
+      </DataTable>
+    )
+  }
 </PageContainer>
 
 <script>
