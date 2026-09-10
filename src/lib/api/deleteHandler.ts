@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getBaseNoSlash } from "@lib/baseUrl";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { insertDeletedRecord } from "@lib/deletedRecords";
 import { isAllowed } from "@lib/rolesMatrix";
 
 export interface DeleteHandlerConfig {
@@ -19,7 +20,15 @@ export interface DeleteHandlerConfig {
     id: number;
     deleted: Record<string, unknown> | null;
   }) => Promise<void> | void;
-  performDelete: (id: number) => Promise<Record<string, unknown> | null>;
+  /** Snapshot genérico (fila padre) en deleted_records. Default: true.
+   *  Poner en false si performDelete ya hace snapshot atómico completo (entidades críticas). */
+  genericSnapshot?: boolean;
+  /** Label legible para el snapshot genérico. Default: `${entityName} #${id}`. */
+  snapshotLabel?: (deleted: Record<string, unknown>) => string;
+  performDelete: (
+    id: number,
+    ctx: { username: string },
+  ) => Promise<Record<string, unknown> | null>;
 }
 
 export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
@@ -55,7 +64,30 @@ export function createDeleteHandler(config: DeleteHandlerConfig): APIRoute {
         await config.beforeDelete({ id });
       }
 
-      const deleted = await config.performDelete(id);
+      const username = locals.user?.username || "Sistema";
+
+      const deleted = await config.performDelete(id, { username });
+
+      // Snapshot genérico (fila padre). Best-effort: si falla, el borrado ya ocurrió
+      // y se registra el error — las entidades críticas usan snapshot atómico propio.
+      if (deleted && config.genericSnapshot !== false) {
+        try {
+          await insertDeletedRecord({
+            entity: config.entityName,
+            recordId: id,
+            label: config.snapshotLabel
+              ? config.snapshotLabel(deleted)
+              : `${config.entityName} #${id}`,
+            payload: { row: deleted },
+            deletedBy: username,
+          });
+        } catch (snapErr) {
+          console.error(
+            "[deleteHandler] No se pudo guardar el snapshot en la papelera:",
+            snapErr,
+          );
+        }
+      }
 
       if (config.afterDelete) {
         await config.afterDelete({ id, deleted });
