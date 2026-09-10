@@ -1,6 +1,13 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { agents, operatorAttendance, schedules } from "@db/schema";
+import {
+  agents,
+  operatorAttendance,
+  schedules,
+  weekendOvertimeShifts,
+  saturdayRotationConfig,
+  agentSaturdayGroups,
+} from "@db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { requireReadAccess } from "@lib/rbac-middleware";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
@@ -24,6 +31,8 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         location: agents.location,
         avatarInitials: agents.avatarInitials,
         horarioDefault: agents.horarioDefault,
+        saturdayGroup: agents.saturdayGroup,
+        saturdayHorario: agents.saturdayHorario,
       })
       .from(agents)
       .where(eq(agents.id, agentId))
@@ -46,7 +55,6 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 
     let startDate = `${year}-01-01`;
     let endDate = `${year}-12-31`;
-
     if (month !== "all") {
       const monthNum = parseInt(month);
       const daysInMonth = new Date(year, monthNum, 0).getDate();
@@ -54,8 +62,8 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
       endDate = `${year}-${String(month).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
     }
 
-    // 3. Consulta indexada a base de datos de asistencias y cronograma
-    const [logs, schedList] = await Promise.all([
+    // 3. Consulta indexada a base de datos de asistencias, cronograma, horas extras y rotación de sábados
+    const [logs, schedList, overtimeList, rotConfigsList, satGroupsList] = await Promise.all([
       db
         .select()
         .from(operatorAttendance)
@@ -81,11 +89,85 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
             lte(schedules.date, endDate),
           ),
         ),
+      db
+        .select()
+        .from(weekendOvertimeShifts)
+        .where(
+          and(
+            eq(weekendOvertimeShifts.agentId, agentId),
+            gte(weekendOvertimeShifts.date, startDate),
+            lte(weekendOvertimeShifts.date, endDate),
+          ),
+        ),
+      db.select().from(saturdayRotationConfig),
+      db
+        .select()
+        .from(agentSaturdayGroups)
+        .where(eq(agentSaturdayGroups.agentId, agentId)),
     ]);
 
     const schedByDate = new Map(schedList.map((s) => [s.date, s]));
+    const otByDate = new Map(
+      overtimeList.map((ot) => [ot.date, `${ot.startTime} - ${ot.endTime}`]),
+    );
 
-    function resolveHorario(logDate: string, currentHorario: string | null): string {
+    function resolveSaturdayHorario(dateStr: string): string | null {
+      const monthStr = dateStr.substring(0, 7);
+      const overrides = satGroupsList
+        .filter((g) => g.agentId === agentId)
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      let currentGroup = agent.saturdayGroup || null;
+      let currentHorario = agent.saturdayHorario || null;
+
+      const configForMonth = overrides.find((o) => o.month === monthStr);
+      if (configForMonth) {
+        currentGroup = configForMonth.saturdayGroup || null;
+        currentHorario = configForMonth.saturdayHorario || null;
+      } else {
+        const prevConfigs = overrides.filter((o) => o.month < monthStr);
+        if (prevConfigs.length > 0) {
+          const closest = prevConfigs[prevConfigs.length - 1];
+          currentGroup = closest.saturdayGroup || null;
+          currentHorario = closest.saturdayHorario || null;
+        }
+      }
+
+      if (!currentGroup) return null;
+
+      let rotConfig = rotConfigsList.find((c) => c.month === monthStr);
+      if (!rotConfig) {
+        const sorted = rotConfigsList
+          .filter((c) => c.month < monthStr)
+          .sort((a, b) => b.month.localeCompare(a.month));
+        rotConfig = sorted[0];
+      }
+      if (!rotConfig) return null;
+
+      const dateObj = new Date(dateStr + "T12:00:00");
+      const start = new Date(rotConfig.startDate + "T12:00:00");
+      const diffDays = Math.round(
+        (dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const weeksDiff = Math.floor(diffDays / 7);
+      const groups = rotConfig.rotationOrder.split(",").map((g) => g.trim());
+      const N = groups.length;
+      const startIndex = groups.indexOf(rotConfig.startGroup);
+      const idx = startIndex >= 0 ? startIndex : 0;
+      const activeIndex = (((idx + weeksDiff) % N) + N) % N;
+      const activeGroup = groups[activeIndex];
+
+      if (currentGroup === activeGroup) {
+        return currentHorario || "07:00 - 13:00";
+      }
+      return null;
+    }
+
+    function resolveHorario(
+      logDate: string,
+      currentHorario: string | null,
+      shiftType?: string,
+    ): string {
       if (
         currentHorario &&
         currentHorario !== "--:--" &&
@@ -94,16 +176,38 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
       ) {
         return currentHorario.trim();
       }
+
+      if (shiftType === "overtime" || otByDate.has(logDate)) {
+        const otHorario = otByDate.get(logDate);
+        if (otHorario) return otHorario;
+      }
+
+      const [y, m, d] = logDate.split("-").map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      if (dayOfWeek === 6) {
+        const satH = resolveSaturdayHorario(logDate);
+        if (satH) return satH;
+      }
+
       const sched = schedByDate.get(logDate);
       if (sched) {
-        if (sched.horario && sched.horario.trim() !== "" && sched.horario !== "Franco") {
+        if (
+          sched.horario &&
+          sched.horario.trim() !== "" &&
+          sched.horario !== "Franco" &&
+          sched.horario !== "-"
+        ) {
           return sched.horario.trim();
         }
         if (sched.status === "Franco") {
           return "--:--";
         }
       }
-      if (agent.horarioDefault && agent.horarioDefault.trim() !== "" && agent.horarioDefault !== "-") {
+      if (
+        agent.horarioDefault &&
+        agent.horarioDefault.trim() !== "" &&
+        agent.horarioDefault !== "-"
+      ) {
         return agent.horarioDefault.trim();
       }
       return "--:--";
@@ -131,7 +235,11 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
     let absences = 0;
 
     logs.forEach((log) => {
-      const effectiveHorario = resolveHorario(log.date, log.horarioEstipulado);
+      const effectiveHorario = resolveHorario(
+        log.date,
+        log.horarioEstipulado,
+        log.shiftType,
+      );
       const hasSchedule =
         effectiveHorario &&
         effectiveHorario !== "Franco" &&
@@ -165,17 +273,34 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         },
         records: filteredLogs.map((log) => {
           const sched = schedByDate.get(log.date);
+          const [y, m, d] = log.date.split("-").map(Number);
+          const dayOfWeek = new Date(y, m - 1, d).getDay();
+          const isSat = dayOfWeek === 6;
+          const satHorario = isSat ? resolveSaturdayHorario(log.date) : null;
+
+          let modalidad = sched?.status || null;
+          if (log.shiftType === "overtime") {
+            modalidad = "HORAS EXTRAS";
+          } else if (isSat && satHorario && (!modalidad || modalidad === "Franco")) {
+            modalidad = "Home Office";
+          }
+
           return {
             id: log.id,
             date: log.date,
-            horarioEstipulado: resolveHorario(log.date, log.horarioEstipulado),
+            horarioEstipulado: resolveHorario(
+              log.date,
+              log.horarioEstipulado,
+              log.shiftType,
+            ),
             entradaReal: log.entradaReal || "--:--",
             cumplimiento: log.cumplimiento || "Sin Registro",
+            cumplimientoForzado: log.cumplimientoForzado ? 1 : 0,
             ausencia: log.ausencia || null,
             motivoLoguin: log.motivoLoguin || null,
             detalle: log.detalle || null,
             shiftType: log.shiftType,
-            modalidad: sched?.status || null,
+            modalidad,
           };
         }),
         schedules: Object.fromEntries(

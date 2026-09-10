@@ -196,6 +196,17 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
             Tabla
           </button>
         </div>
+
+        <!-- Exportar CSV -->
+        <button
+          type="button"
+          id="export-csv-btn"
+          class="btn btn-outline btn-xs border-base-300 hover:bg-base-200 text-base-content/80 gap-1.5 font-bold rounded-xl h-7 px-3 shadow-xs transition-colors"
+          title="Exportar asistencia mensual a CSV"
+        >
+          <Icon name="boxicons:table-list" size={14} />
+          <span>Exportar CSV</span>
+        </button>
       </div>
     </div>
 
@@ -331,7 +342,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   </PageContainer>
 </BaseLayout>
 
-<script is:inline define:vars={{ agentId, cleanBase }}>
+<script is:inline define:vars={{ agentId, agentName: agent.name, cleanBase }}>
   // 1. Elementos DOM
   const yearSelect = document.getElementById("filter-year");
   const monthSelect = document.getElementById("filter-month");
@@ -347,6 +358,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const viewMonthlyBtn = document.getElementById("view-monthly-btn");
   const viewAnnualBtn = document.getElementById("view-annual-btn");
   const viewTableBtn = document.getElementById("view-table-btn");
+  const exportCsvBtn = document.getElementById("export-csv-btn");
 
   // Contenedores de vista
   const calendarViewContainer = document.getElementById("calendar-view-container");
@@ -499,7 +511,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
           sched !== "Franco" &&
           sched !== "--:--" &&
           sched.trim() !== "";
-        if (hasSchedule) {
+        if (hasSchedule || log.cumplimientoForzado) {
           totalWorkDays++;
           if (log.cumplimiento === "Cumplió") punctuals++;
           if (log.cumplimiento === "Llegada Tarde") lates++;
@@ -564,6 +576,9 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       if (countBadge && annualRecordsCache) {
         countBadge.textContent = `${annualRecordsCache.length} registros · Vista anual`;
       }
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar reporte anual a CSV";
+      }
     } else if (activeView === "monthly") {
       viewMonthlyBtn?.classList.add("btn-active");
       viewMonthlyBtn?.classList.remove("btn-ghost", "text-base-content/60");
@@ -579,6 +594,10 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         }
       }
 
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar asistencia del mes a CSV";
+      }
+
       renderActiveMonthly();
     } else if (activeView === "table") {
       viewTableBtn?.classList.add("btn-active");
@@ -589,6 +608,10 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       if (monthSelect) {
         monthSelect.disabled = false;
         monthSelect.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar tabla a CSV";
       }
 
       renderActiveTable();
@@ -1013,25 +1036,54 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         cellBgClass += " ring-2 ring-secondary";
       }
 
+      const isEventuality = Boolean(
+        log && (
+          log.cumplimiento === "Llegada Tarde" ||
+          log.cumplimiento === "Incumplió" ||
+          (log.ausencia && log.ausencia.trim() !== "")
+        )
+      );
+
       const hasComment = Boolean(log && (log.detalle || log.motivoLoguin));
       const commentTitle = hasComment ? escapeHtml(log.detalle || log.motivoLoguin) : "";
       const rawModality = log?.modalidad || schedItem?.status || (isWeekend ? "Franco" : null);
       const modalityFmt = formatModality(rawModality);
 
-      const footerHtml = `
-        <div class="flex items-center justify-between w-full mt-1.5 pt-1 border-t border-base-300/50 text-xs">
-          <span class="truncate max-w-[70px] sm:max-w-[85px] ${modalityFmt.class}" title="${escapeHtml(modalityFmt.full)}">${escapeHtml(modalityFmt.text)}</span>
-          ${
-            hasComment
-              ? `<span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-                  </svg>
-                </span>`
-              : ""
-          }
-        </div>
-      `;
+      let footerHtml = "";
+      if (isEventuality) {
+        footerHtml = `
+          <div class="flex items-center justify-between w-full mt-1.5 pt-1 border-t border-base-300/50 text-xs">
+            <span class="truncate max-w-[70px] sm:max-w-[85px] ${modalityFmt.class}" title="${escapeHtml(modalityFmt.full)}">${escapeHtml(modalityFmt.text)}</span>
+            ${
+              hasComment
+                ? `<span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                    </svg>
+                  </span>`
+                : ""
+            }
+          </div>
+        `;
+      } else if (hasComment) {
+        footerHtml = `
+          <div class="flex items-center justify-end w-full mt-1.5 pt-1 border-t border-base-300/30 text-xs">
+            <span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+              </svg>
+            </span>
+          </div>
+        `;
+      } else {
+        footerHtml = `<div class="w-full"></div>`;
+      }
+
+      const headerHorarioHtml = isEventuality
+        ? `<span class="text-xs font-bold text-base-content/75 truncate max-w-[75px] sm:max-w-[85px]" title="${escapeHtml(schedDisplay)}">
+            ${escapeHtml(schedDisplay)}
+          </span>`
+        : "";
 
       const cell = document.createElement("div");
       cell.className = `group relative flex flex-col justify-between p-2.5 sm:p-3 rounded-xl border shadow-2xs transition-all duration-150 cursor-pointer min-h-[105px] select-none ${cellBgClass}`;
@@ -1042,9 +1094,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
             <span class="text-sm font-black ${isToday ? "text-secondary" : "text-base-content"}">${day}</span>
             <span class="text-xs font-black uppercase ${isWeekend ? "text-base-content/60" : "text-base-content/75"}">${dayAbbr}</span>
           </div>
-          <span class="text-xs font-bold text-base-content/75 truncate max-w-[75px] sm:max-w-[85px]" title="${escapeHtml(schedDisplay)}">
-            ${escapeHtml(schedDisplay)}
-          </span>
+          ${headerHorarioHtml}
         </div>
         ${centerHtml}
         ${footerHtml}
@@ -1285,6 +1335,195 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       fetchHistory();
     }
   });
+
+  // 12. Exportación a CSV (Mensual y Anual)
+  function cleanCsvCell(val) {
+    if (val === null || val === undefined) return '""';
+    let str = String(val).replace(/\r?\n|\r/g, " ").replace(/"/g, '""');
+    return `"${str}"`;
+  }
+
+  function downloadCsv(content, filename) {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportCsv() {
+    if (!annualRecordsCache || annualRecordsCache.length === 0) {
+      window.showToast?.("No hay datos cargados para exportar.", "alert-warning");
+      return;
+    }
+
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const safeName = (agentName || "operador").trim().replace(/\s+/g, "_");
+
+    // VISTA ANUAL: Resumen de desempeño mes a mes + detalle de jornadas
+    if (activeView === "annual") {
+      const csvSections = [];
+
+      csvSections.push([`REPORTE ANUAL DE ASISTENCIA - ${agentName || 'OPERADOR'} - AÑO ${year}`]);
+      csvSections.push([]);
+      csvSections.push(["RESUMEN DE DESEMPEÑO MES A MES"]);
+      csvSections.push([
+        "Mes",
+        "Total Días",
+        "Puntuales",
+        "Tardanzas",
+        "Ausencias",
+        "Incumplió",
+        "% Puntualidad"
+      ].map(cleanCsvCell).join(","));
+
+      let sumWorkDays = 0;
+      let sumPunctuals = 0;
+      let sumLates = 0;
+      let sumAbsences = 0;
+      let sumFailed = 0;
+
+      monthNames.forEach((mName, idx) => {
+        const mNum = String(idx + 1).padStart(2, "0");
+        const monthPrefix = `${year}-${mNum}`;
+        const monthRecs = annualRecordsCache.filter((r) => r.date.startsWith(monthPrefix));
+        const stats = calculateSummary(monthRecs);
+
+        sumWorkDays += stats.totalWorkDays;
+        sumPunctuals += stats.punctuals;
+        sumLates += stats.lates;
+        sumAbsences += stats.absences;
+        sumFailed += stats.failed;
+
+        const rateStr = monthRecs.length > 0 ? `${stats.punctualityRate}%` : "--";
+        const row = [
+          mName,
+          stats.totalWorkDays,
+          stats.punctuals,
+          stats.lates,
+          stats.absences,
+          stats.failed,
+          rateStr
+        ];
+        csvSections.push(row.map(cleanCsvCell).join(","));
+      });
+
+      const globalRate = sumWorkDays > 0 ? `${Math.round((sumPunctuals / sumWorkDays) * 100)}%` : "--";
+      csvSections.push([
+        "TOTAL ANUAL",
+        sumWorkDays,
+        sumPunctuals,
+        sumLates,
+        sumAbsences,
+        sumFailed,
+        globalRate
+      ].map(cleanCsvCell).join(","));
+
+      csvSections.push([]);
+      csvSections.push(["DETALLE CRONOLÓGICO DE JORNADAS DEL AÑO"]);
+      const detailHeaders = [
+        "Fecha",
+        "Día",
+        "Horario Planificado",
+        "Entrada Real",
+        "Estado / Cumplimiento",
+        "Modalidad",
+        "Observación / Detalle"
+      ];
+      csvSections.push(detailHeaders.map(cleanCsvCell).join(","));
+
+      const sortedAnnual = [...annualRecordsCache].sort((a, b) => a.date.localeCompare(b.date));
+      sortedAnnual.forEach((row) => {
+        const [y, m, d] = row.date.split("-").map(Number);
+        const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+        const dateFmt = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+        const dayName = dayNames[dateObj.getDay()];
+        const horario = row.horarioEstipulado && row.horarioEstipulado !== "--:--" ? row.horarioEstipulado : "Franco";
+        const entrada = row.entradaReal || "--:--";
+        const status = row.ausencia || row.cumplimiento || "Sin Registro";
+        const modalidad = row.modalidad || "Franco";
+        const detalle = row.detalle || row.motivoLoguin || "";
+
+        const rowData = [
+          dateFmt,
+          dayName,
+          horario,
+          entrada,
+          status,
+          modalidad,
+          detalle
+        ];
+        csvSections.push(rowData.map(cleanCsvCell).join(","));
+      });
+
+      const filename = `asistencia_${safeName}_${year}_anual.csv`;
+      downloadCsv(csvSections.join("\n"), filename);
+      window.showToast?.("Reporte anual CSV descargado con éxito.", "alert-success");
+      return;
+    }
+
+    // VISTA MENSUAL / TABLA: Tomando la vista de tabla como referencia
+    const selectedMonth = monthSelect?.value || String(new Date().getMonth() + 1).padStart(2, "0");
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = recs.filter((r) => r.date.startsWith(prefix));
+    }
+
+    recs = [...recs].sort((a, b) => a.date.localeCompare(b.date));
+
+    const csvRows = [];
+    const headers = [
+      "Fecha",
+      "Día",
+      "Horario Planificado",
+      "Entrada Real",
+      "Estado / Cumplimiento",
+      "Modalidad",
+      "Observación / Detalle"
+    ];
+    csvRows.push(headers.map(cleanCsvCell).join(","));
+
+    recs.forEach((row) => {
+      const [y, m, d] = row.date.split("-").map(Number);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+      const dateFmt = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+      const dayName = dayNames[dateObj.getDay()];
+      const horario = row.horarioEstipulado && row.horarioEstipulado !== "--:--" ? row.horarioEstipulado : "Franco";
+      const entrada = row.entradaReal || "--:--";
+      const status = row.ausencia || row.cumplimiento || "Sin Registro";
+      const modalidad = row.modalidad || "Franco";
+      const detalle = row.detalle || row.motivoLoguin || "";
+
+      const rowData = [
+        dateFmt,
+        dayName,
+        horario,
+        entrada,
+        status,
+        modalidad,
+        detalle
+      ];
+      csvRows.push(rowData.map(cleanCsvCell).join(","));
+    });
+
+    const monthLabel = selectedMonth !== "all" ? `${year}-${selectedMonth}` : `${year}_completo`;
+    const filename = `asistencia_${safeName}_${monthLabel}.csv`;
+    downloadCsv(csvRows.join("\n"), filename);
+    window.showToast?.("Reporte mensual CSV descargado con éxito.", "alert-success");
+  }
+
+  exportCsvBtn?.addEventListener("click", handleExportCsv);
 
   // Carga inicial
   fetchHistory();

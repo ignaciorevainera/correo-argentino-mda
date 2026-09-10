@@ -347,7 +347,13 @@ export async function getAttendanceData(startDate: string, endDate: string) {
       const overtimeShift = dbOvertimeShifts.find(
         (s) => s.agentId === agent.id && s.date === dateStr,
       );
-      const hasOvertime = !!overtimeShift;
+      const actualOvertime = dbAttendance.find(
+        (a) =>
+          a.agentId === agent.id &&
+          a.date === dateStr &&
+          a.shiftType === "overtime",
+      );
+      const hasOvertime = !!overtimeShift || !!actualOvertime;
       const isFranco =
         modalidadPlanificada === "Franco" ||
         modalidadPlanificada === "Vacaciones" ||
@@ -362,8 +368,13 @@ export async function getAttendanceData(startDate: string, endDate: string) {
             a.shiftType === "normal",
         );
 
-        if (actualNormal?.horarioEstipulado) {
-          horarioEstipulado = actualNormal.horarioEstipulado;
+        if (
+          actualNormal?.horarioEstipulado &&
+          actualNormal.horarioEstipulado.trim() !== "" &&
+          actualNormal.horarioEstipulado !== "--:--" &&
+          actualNormal.horarioEstipulado !== "Franco"
+        ) {
+          horarioEstipulado = actualNormal.horarioEstipulado.trim();
         }
 
         let defaultAsistencia = "";
@@ -407,17 +418,17 @@ export async function getAttendanceData(startDate: string, endDate: string) {
       }
 
       // 2. Emit overtime row if HE is present
-      if (hasOvertime && overtimeShift) {
-        const actualOvertime = dbAttendance.find(
-          (a) =>
-            a.agentId === agent.id &&
-            a.date === dateStr &&
-            a.shiftType === "overtime",
-        );
-
-        let heHorario = `${overtimeShift.startTime} - ${overtimeShift.endTime}`;
-        if (actualOvertime?.horarioEstipulado) {
-          heHorario = actualOvertime.horarioEstipulado;
+      if (hasOvertime) {
+        let heHorario = overtimeShift
+          ? `${overtimeShift.startTime} - ${overtimeShift.endTime}`
+          : actualOvertime?.horarioEstipulado || "--:--";
+        if (
+          actualOvertime?.horarioEstipulado &&
+          actualOvertime.horarioEstipulado.trim() !== "" &&
+          actualOvertime.horarioEstipulado !== "--:--" &&
+          actualOvertime.horarioEstipulado !== "Franco"
+        ) {
+          heHorario = actualOvertime.horarioEstipulado.trim();
         }
 
         const asistencia = actualOvertime?.asistencia || "HORAS EXTRAS";
