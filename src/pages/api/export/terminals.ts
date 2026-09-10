@@ -5,27 +5,55 @@ import { can } from "@lib/roleConfig";
 import { normalizeSearchValue } from "@lib/clientSearch";
 
 const SQL_COLUMNS = [
-  "id", "hostname", "mac_address", "ip_address", "operating_system",
-  "os_architecture", "ram", "serial_number", "manufacturer", "model",
-  "nis", "nis2", "last_contact", "synced_at", "searchable_text",
+  "id",
+  "hostname",
+  "mac_address",
+  "ip_address",
+  "operating_system",
+  "os_architecture",
+  "ram",
+  "serial_number",
+  "manufacturer",
+  "model",
+  "nis",
+  "nis2",
+  "last_contact",
+  "synced_at",
+  "searchable_text",
 ];
 
 const HEADERS = [
-  "ID", "Hostname", "Dirección MAC", "Dirección IP", "Sistema Operativo",
-  "Arquitectura OS", "RAM", "Número de Serie", "Fabricante", "Modelo",
-  "NIS (Oficina)", "NIS Alternativo", "Último Contacto", "Sincronizado El",
+  "ID",
+  "Hostname",
+  "Dirección MAC",
+  "Dirección IP",
+  "Sistema Operativo",
+  "Arquitectura OS",
+  "RAM",
+  "Número de Serie",
+  "Fabricante",
+  "Modelo",
+  "NIS (Oficina)",
+  "NIS Alternativo",
+  "Último Contacto",
+  "Sincronizado El",
   "Texto de Búsqueda",
 ];
 
 const KEY_MAP: Record<number, string> = {};
-SQL_COLUMNS.forEach((col, i) => { KEY_MAP[i] = col; });
+SQL_COLUMNS.forEach((col, i) => {
+  KEY_MAP[i] = col;
+});
 
 export const GET: APIRoute = async ({ locals, url }) => {
   const user = locals.user;
   if (!user || !can(user.role, "team_leader")) {
     return new Response(
-      JSON.stringify({ error: "Acceso denegado. Se requieren permisos de Team Leader o superior para exportar a CSV." }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({
+        error:
+          "Acceso denegado. Se requieren permisos de Team Leader o superior para exportar a CSV.",
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -40,9 +68,14 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const status = url.searchParams.get("status") || "all";
   const isMediterranea = url.searchParams.get("isMediterranea") === "true";
   const mediterraneaType = url.searchParams.get("mediterraneaType") || "all";
+  const isTT = url.searchParams.get("isTT") === "true";
+  const ttType = url.searchParams.get("ttType") || "all";
+  const vmFilter = url.searchParams.get("vmFilter") || "all";
+  const duplicates = url.searchParams.get("duplicates") === "true";
+  const orphans = url.searchParams.get("orphans") === "true";
 
   // Build SQL dynamically
-  const selectCols = SQL_COLUMNS.map(col => `t.${col} AS ${col}`).join(", ");
+  const selectCols = SQL_COLUMNS.map((col) => `t.${col} AS ${col}`).join(", ");
   let query = `SELECT ${selectCols} FROM terminals t LEFT JOIN offices o ON t.nis = o.code`;
   const conditions: string[] = [];
   const queryParams: any[] = [];
@@ -58,6 +91,48 @@ export const GET: APIRoute = async ({ locals, url }) => {
       conditions.push("(t.hostname LIKE ? OR t.hostname LIKE ?)");
       queryParams.push("TMEDI%", "TVMEDI%");
     }
+  }
+
+  if (isTT) {
+    conditions.push(
+      "(LOWER(t.operating_system) LIKE ? OR LOWER(t.operating_system) LIKE ? OR t.hostname LIKE ?)",
+    );
+    queryParams.push("%debian%", "%ubuntu%", "TT_____P");
+    // Exclusión explícita de Mediterránea
+    conditions.push("t.hostname NOT LIKE ? AND t.hostname NOT LIKE ?");
+    queryParams.push("TMEDI%", "TVMEDI%");
+  }
+
+  if (isTT && ttType === "tyt") {
+    conditions.push(
+      "(t.hostname LIKE ? OR t.hostname LIKE ?)",
+    );
+    queryParams.push("TT_____P", "TT_____P-D");
+  } else if (isTT && ttType === "sts") {
+    conditions.push(
+      "(LOWER(t.operating_system) LIKE ? OR LOWER(t.operating_system) LIKE ?) AND t.hostname NOT LIKE ? AND t.hostname NOT LIKE ?",
+    );
+    queryParams.push("%debian%", "%ubuntu%", "TT_____P", "TT_____P-D");
+  }
+
+  if (isTT && vmFilter === "with") {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM terminals t2 WHERE t2.hostname = CASE WHEN t.hostname LIKE '%-D' THEN substr(t.hostname, 1, length(t.hostname) - 2) ELSE t.hostname END || '-D')",
+    );
+  } else if (isTT && vmFilter === "without") {
+    conditions.push(
+      "NOT EXISTS (SELECT 1 FROM terminals t2 WHERE t2.hostname = CASE WHEN t.hostname LIKE '%-D' THEN substr(t.hostname, 1, length(t.hostname) - 2) ELSE t.hostname END || '-D') AND t.hostname NOT LIKE '%-D'",
+    );
+  }
+
+  if (duplicates) {
+    conditions.push(
+      "(t.hostname IN (SELECT hostname FROM terminals WHERE hostname IS NOT NULL AND hostname != '' GROUP BY hostname HAVING COUNT(*) > 1) OR t.ip_address IN (SELECT ip_address FROM terminals WHERE ip_address IS NOT NULL AND ip_address != '' GROUP BY ip_address HAVING COUNT(*) > 1))",
+    );
+  }
+
+  if (orphans) {
+    conditions.push("o.code IS NULL");
   }
 
   if (search && search.trim() !== "") {
@@ -120,7 +195,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
   if (brand !== "all") {
     if (brand === "hp") {
-      conditions.push("(LOWER(t.manufacturer) LIKE ? OR LOWER(t.manufacturer) LIKE ? OR LOWER(t.manufacturer) LIKE ?)");
+      conditions.push(
+        "(LOWER(t.manufacturer) LIKE ? OR LOWER(t.manufacturer) LIKE ? OR LOWER(t.manufacturer) LIKE ?)",
+      );
       queryParams.push("%hp%", "%hewlett-packard%", "%hewlett packard%");
     } else {
       conditions.push("LOWER(t.manufacturer) LIKE ?");
@@ -142,7 +219,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
       conditions.push("(t.ram LIKE ? OR t.ram LIKE ?)");
       queryParams.push("8%", "7%");
     } else if (ram === ">=16gb") {
-      conditions.push("(t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ?)");
+      conditions.push(
+        "(t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ? OR t.ram LIKE ?)",
+      );
       queryParams.push("16%", "24%", "32%", "64%", "128%");
     }
   }
@@ -157,7 +236,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
       conditions.push("t.last_contact >= ?");
       queryParams.push(thresholdDate);
     } else if (status === "offline") {
-      conditions.push("(t.last_contact < ? OR t.last_contact IS NULL OR t.last_contact = '')");
+      conditions.push(
+        "(t.last_contact < ? OR t.last_contact IS NULL OR t.last_contact = '')",
+      );
       queryParams.push(thresholdDate);
     }
   }
@@ -174,7 +255,11 @@ export const GET: APIRoute = async ({ locals, url }) => {
   query += " ORDER BY t.hostname ASC";
 
   try {
-    const csvStream = streamCsv(HEADERS, streamQuery(query, ...queryParams), KEY_MAP);
+    const csvStream = streamCsv(
+      HEADERS,
+      streamQuery(query, ...queryParams),
+      KEY_MAP,
+    );
     const dateStr = new Date().toISOString().split("T")[0];
 
     return new Response(csvStream, {

@@ -7,7 +7,9 @@ import { isAllowed } from "@lib/rolesMatrix";
 
 const user = Astro.locals.user;
 if (!user || user.id === 0) {
-  return Astro.redirect((import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/login");
+  return Astro.redirect(
+    (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/login",
+  );
 }
 
 const roleLabelMap: Record<string, string> = {
@@ -237,34 +239,34 @@ const visibleCategories = categories
     <div class="flex flex-col gap-8">
       <section
         aria-labelledby="profile-heading"
-        class="card bg-base-100 border border-base-300 shadow-sm relative overflow-hidden"
+        class="card bg-base-100 border-base-300 relative overflow-hidden border shadow-sm"
       >
         <div
-          class="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none"
+          class="from-primary/5 pointer-events-none absolute inset-0 bg-linear-to-br via-transparent to-transparent opacity-50"
           aria-hidden="true"
         >
         </div>
         <div class="card-body flex-row items-center gap-6 p-6 md:p-8">
           <div
             class:list={[
-              "flex h-20 w-20 md:h-24 md:w-24 shrink-0 items-center justify-center rounded-full text-2xl md:text-3xl font-black ring-4 shadow-inner",
+              "flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-2xl font-black shadow-inner ring-4 md:h-24 md:w-24 md:text-3xl",
               avatarClass,
             ]}
             aria-hidden="true"
           >
             {user.username.slice(0, 2).toUpperCase()}
           </div>
-          <div class="flex flex-col gap-1.5 z-10">
+          <div class="z-10 flex flex-col gap-1.5">
             <h1
               id="profile-heading"
-              class="text-2xl md:text-3xl font-bold tracking-tight text-base-content"
+              class="text-base-content text-2xl font-bold tracking-tight md:text-3xl"
             >
               {user.username}
             </h1>
             <div class="flex items-center gap-2">
               <span
                 class:list={[
-                  "badge badge-sm uppercase font-bold tracking-wider",
+                  "badge badge-sm font-bold tracking-wider uppercase",
                   badgeClass,
                 ]}
               >
@@ -278,16 +280,16 @@ const visibleCategories = categories
       <section aria-labelledby="bento-heading" class="space-y-6">
         <h2
           id="bento-heading"
-          class="text-xl font-bold text-base-content tracking-tight"
+          class="text-base-content text-xl font-bold tracking-tight"
         >
           Acciones y accesos permitidos
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {
             visibleCategories.map((category) => (
-              <div class="card bg-base-100 border border-base-300 shadow-sm hover:shadow-md hover:border-base-content/20 transition-all duration-300 relative overflow-hidden group">
-                <div class="card-body p-6 flex flex-col justify-between h-full gap-4">
+              <div class="card bg-base-100 border-base-300 hover:border-base-content/20 group relative overflow-hidden border shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="card-body flex h-full flex-col justify-between gap-4 p-6">
                   <div class="space-y-3">
                     <div class="flex items-center gap-3">
                       <div
@@ -299,25 +301,25 @@ const visibleCategories = categories
                       >
                         <Icon name={category.icon} size={20} />
                       </div>
-                      <h3 class="font-bold text-base md:text-lg text-base-content">
+                      <h3 class="text-base-content text-base font-bold md:text-lg">
                         {category.title}
                       </h3>
                     </div>
 
-                    <p class="text-xs text-base-content/60">
+                    <p class="text-base-content/60 text-xs">
                       {category.description}
                     </p>
                   </div>
 
-                  <div class="border-t border-base-200 pt-3 mt-auto">
-                    <span class="text-xxs font-bold uppercase tracking-wider text-base-content/40 block mb-2">
+                  <div class="border-base-200 mt-auto border-t pt-3">
+                    <span class="text-xxs text-base-content/40 mb-2 block font-bold tracking-wider uppercase">
                       Accesos habilitados:
                     </span>
                     <ul class="space-y-2">
                       {category.actions.map((action) => (
                         <li class="flex items-center gap-2.5 text-sm">
                           <div
-                            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success mt-0.5"
+                            class="bg-success/15 text-success mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                             aria-hidden="true"
                           >
                             <Icon name="boxicons:check" size={14} />
@@ -337,20 +339,20 @@ const visibleCategories = categories
 
         {
           visibleCategories.length === 0 && (
-            <div class="rounded-2xl border border-dashed border-base-300 bg-base-200/50 p-12 text-center">
+            <div class="border-base-300 bg-base-200/50 rounded-2xl border border-dashed p-12 text-center">
               <Icon
                 name="boxicons:lock"
                 size={40}
-                class="mx-auto mb-3 opacity-30 text-base-content"
+                class="text-base-content mx-auto mb-3 opacity-30"
                 aria-hidden="true"
               />
-              <h3 class="text-base font-semibold text-base-content/80">
+              <h3 class="text-base-content/80 text-base font-semibold">
                 Sin accesos disponibles
               </h3>
-              <p class="text-sm text-base-content/60 mt-1">
-                Tu rol de usuario no tiene permisos asignados en ninguna categoría
-                del sistema. Contactá a un administrador si necesitás acceso a
-                alguna funcionalidad.
+              <p class="text-base-content/60 mt-1 text-sm">
+                Tu rol de usuario no tiene permisos asignados en ninguna
+                categoría del sistema. Contactá a un administrador si necesitás
+                acceso a alguna funcionalidad.
               </p>
             </div>
           )

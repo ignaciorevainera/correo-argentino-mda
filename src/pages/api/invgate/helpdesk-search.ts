@@ -30,11 +30,7 @@ export const GET: APIRoute = async ({ url }) => {
         totalMembers: hd.total_members,
       }));
 
-    return jsonResponse(
-      { helpdesks: filtered },
-      200,
-      "private, max-age=60",
-    );
+    return jsonResponse({ helpdesks: filtered }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("[InvGate Helpdesk Search] Error:", error);
     return jsonResponse({ error: sanitizeError(error) }, 500);

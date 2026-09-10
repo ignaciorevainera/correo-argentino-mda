@@ -38,10 +38,7 @@ export const getTerminalColorClass = (
     return "border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400";
   }
 
-  if (
-    osLower.includes("windows server") ||
-    osLower === "winserver"
-  ) {
+  if (osLower.includes("windows server") || osLower === "winserver") {
     return "border-blue-900/30 bg-blue-900/15 text-blue-900 dark:text-blue-300";
   }
 
@@ -57,11 +54,16 @@ export const getTerminalColorClass = (
 
 export const getTerminalTypeLabel = (osName: string): string => {
   const normalized = (osName || "").toLowerCase().trim();
-  if (normalized.includes("windows 11") || normalized === "win11") return "Windows 11";
-  if (normalized.includes("windows 10") || normalized === "win10") return "Windows 10";
-  if (normalized.includes("windows 7") || normalized === "win7") return "Windows 7";
-  if (normalized.includes("windows xp") || normalized === "winxp") return "Windows XP";
-  if (normalized.includes("windows server") || normalized === "winserver") return "Windows Server";
+  if (normalized.includes("windows 11") || normalized === "win11")
+    return "Windows 11";
+  if (normalized.includes("windows 10") || normalized === "win10")
+    return "Windows 10";
+  if (normalized.includes("windows 7") || normalized === "win7")
+    return "Windows 7";
+  if (normalized.includes("windows xp") || normalized === "winxp")
+    return "Windows XP";
+  if (normalized.includes("windows server") || normalized === "winserver")
+    return "Windows Server";
   if (normalized.includes("ubuntu") || normalized === "ubuntu") return "Ubuntu";
   if (normalized.includes("debian") || normalized === "debian") return "Debian";
 

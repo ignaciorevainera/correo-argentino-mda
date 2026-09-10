@@ -17,11 +17,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!agentName) {
       return new Response(
         JSON.stringify({ error: "El nombre del operador es requerido" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
-    const agent = await db.select({ id: agents.id })
+    const agent = await db
+      .select({ id: agents.id })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
@@ -31,7 +32,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .update(agents)
         .set({
           maxConsecutiveHO:
-            maxConsecutiveHO === "" || maxConsecutiveHO === null || maxConsecutiveHO === undefined
+            maxConsecutiveHO === "" ||
+            maxConsecutiveHO === null ||
+            maxConsecutiveHO === undefined
               ? null
               : parseInt(maxConsecutiveHO),
           minPWeek:
@@ -41,21 +44,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
         })
         .where(eq(agents.id, agent[0].id));
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     } else {
-      return new Response(
-        JSON.stringify({ error: "Operador no encontrado" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Operador no encontrado" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
     }
   } catch (error: any) {
     console.error("POST Rules API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };

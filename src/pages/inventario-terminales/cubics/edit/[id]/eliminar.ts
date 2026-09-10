@@ -17,8 +17,7 @@ export const POST = createDeleteHandler({
       .returning({ name: cubics.name });
     return deleted ?? null;
   },
-  successMessage: (d) => d
-    ? `Ordenador "${(d as any).name}" dado de baja con éxito.`
-    : "Cubic eliminado con éxito.",
+  successMessage: (d) =>
+    `Ordenador "${(d as any).name}" dado de baja con éxito.`,
   logMessage: (d) => `Eliminó el cubic "${(d as any)?.name}"`,
 });

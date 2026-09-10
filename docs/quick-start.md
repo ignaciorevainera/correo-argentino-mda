@@ -6,11 +6,11 @@ En 15 minutos tenés el entorno local funcionando: app corriendo, base de datos 
 
 ## Requisitos
 
-| Software | Versión mínima | Verificá con |
-|---|---|---|
-| Node.js | >= 22.12.0 | `node --version` |
-| npm | (incluido con Node) | `npm --version` |
-| Git | cualquiera reciente | `git --version` |
+| Software | Versión mínima      | Verificá con     |
+| -------- | ------------------- | ---------------- |
+| Node.js  | >= 22.12.0          | `node --version` |
+| npm      | (incluido con Node) | `npm --version`  |
+| Git      | cualquiera reciente | `git --version`  |
 
 ## 1. Clonar e instalar dependencias
 
@@ -30,14 +30,14 @@ copy .env.example .env
 
 Abrí `.env` y completá estas 6 variables:
 
-| Variable | Valor |
-|---|---|
-| `SESSION_SECRET` | Generalo con: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `ENCRYPTION_KEY` | Generalo con: `node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"` |
-| `INVGATE_API_KEY` | Pedilo a un administrador del proyecto |
-| `INVGATE_BASE_URL` | `https://correoargentino.sd.cloud.invgate.net/api/v1/` |
-| `INVGATE_API_USERNAME` | `portalmda` |
-| `EXTERNAL_STORAGE_DIR` | `./data/storage` |
+| Variable               | Valor                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `SESSION_SECRET`       | Generalo con: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `ENCRYPTION_KEY`       | Generalo con: `node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"` |
+| `INVGATE_API_KEY`      | Pedilo a un administrador del proyecto                                                   |
+| `INVGATE_BASE_URL`     | `https://correoargentino.sd.cloud.invgate.net/api/v1/`                                   |
+| `INVGATE_API_USERNAME` | `portalmda`                                                                              |
+| `EXTERNAL_STORAGE_DIR` | `./data/storage`                                                                         |
 
 > Si `INVGATE_API_KEY` está vacía el servidor arranca, pero las funciones que consultan InvGate (incidentes, ubicaciones, búsquedas) fallan en silencio.
 
@@ -129,12 +129,12 @@ Error: page.goto: net::ERR_CONNECTION_REFUSED
 
 ## Comandos útiles
 
-| Comando | Qué hace |
-|---|---|
-| `npm run dev` | Servidor de desarrollo (hot reload) |
-| `npm run build` | Compila para producción |
-| `npm run preview` | Sirve el build localmente |
-| `npm run db:push` | Sincroniza schema Drizzle con SQLite |
-| `npm run db:studio` | Abre Drizzle Studio para explorar datos |
-| `npx playwright test` | Ejecuta tests E2E |
-| `npm run astro -- --help` | Ayuda del CLI de Astro |
+| Comando                   | Qué hace                                |
+| ------------------------- | --------------------------------------- |
+| `npm run dev`             | Servidor de desarrollo (hot reload)     |
+| `npm run build`           | Compila para producción                 |
+| `npm run preview`         | Sirve el build localmente               |
+| `npm run db:push`         | Sincroniza schema Drizzle con SQLite    |
+| `npm run db:studio`       | Abre Drizzle Studio para explorar datos |
+| `npx playwright test`     | Ejecuta tests E2E                       |
+| `npm run astro -- --help` | Ayuda del CLI de Astro                  |

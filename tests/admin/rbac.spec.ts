@@ -1,14 +1,17 @@
-import 'dotenv/config';
-import { test, expect } from '@playwright/test';
-import { db } from '../../src/db/index';
-import { users, sessions } from '../../src/db/schema';
-import { eq } from 'drizzle-orm';
-import { createHmac } from 'crypto';
+import "dotenv/config";
+import { test, expect } from "@playwright/test";
+import { db } from "../../src/db/index";
+import { users, sessions } from "../../src/db/schema";
+import { eq } from "drizzle-orm";
+import { createHmac } from "crypto";
 
-const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
+const SECRET_KEY =
+  process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
 
 function signSessionId(sessionId: string): string {
-  const signature = createHmac("sha256", SECRET_KEY).update(sessionId).digest("base64url");
+  const signature = createHmac("sha256", SECRET_KEY)
+    .update(sessionId)
+    .digest("base64url");
   return `${sessionId}.${signature}`;
 }
 
@@ -23,17 +26,20 @@ interface TestUser {
 const testUsers: Record<string, TestUser> = {};
 
 test.beforeAll(async () => {
-  const roles = ['agent', 'referent', 'team_leader', 'supervisor', 'admin'];
+  const roles = ["agent", "referent", "team_leader", "supervisor", "admin"];
   for (const role of roles) {
     const username = `${role}_test_e2e_${Date.now()}`;
     const rawSessionId = `test-${role}-session-${Date.now()}`;
     const signedSessionId = signSessionId(rawSessionId);
 
-    const [newUser] = await db.insert(users).values({
-      username,
-      password: 'hashed_fake_password',
-      role,
-    }).returning({ id: users.id });
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        username,
+        password: "hashed_fake_password",
+        role,
+      })
+      .returning({ id: users.id });
 
     await db.insert(sessions).values({
       id: rawSessionId,
@@ -59,225 +65,345 @@ test.afterAll(async () => {
   }
 });
 
-test.describe('Controles de Acceso (RBAC) - Agente', () => {
+test.describe("Controles de Acceso (RBAC) - Agente", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([{
-      name: 'session_id',
-      value: testUsers['agent'].signedSessionId,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: testUsers["agent"].signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
   });
 
-  test('Agente deberia poder acceder a /supervision/asignacion-autogestiones', async ({ page }) => {
-    await page.goto('/supervision/asignacion-autogestiones');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Agente deberia poder acceder a /supervision/asignacion-autogestiones", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asignacion-autogestiones");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente deberia poder acceder a /supervision/calidad-operadores', async ({ page }) => {
-    await page.goto('/supervision/calidad-operadores');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Agente deberia poder acceder a /supervision/calidad-operadores", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/calidad-operadores");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente deberia poder acceder a /supervision/cronograma', async ({ page }) => {
-    await page.goto('/supervision/cronograma');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Agente deberia poder acceder a /supervision/cronograma", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/cronograma");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente no deberia poder acceder a /supervision/asistencia', async ({ page }) => {
-    await page.goto('/supervision/asistencia');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Agente no deberia poder acceder a /supervision/asistencia", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asistencia");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente no deberia poder acceder a /admin', async ({ page }) => {
-    await page.goto('/admin');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Agente no deberia poder acceder a /admin", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente no deberia poder acceder a /mesas-de-ayuda/edit', async ({ page }) => {
-    await page.goto('/mesas-de-ayuda/edit/99999');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Agente no deberia poder acceder a /mesas-de-ayuda/edit", async ({
+    page,
+  }) => {
+    await page.goto("/mesas-de-ayuda/edit/99999");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Agente no deberia poder acceder a /oficinas/create', async ({ page }) => {
-    await page.goto('/oficinas/create');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Agente no deberia poder acceder a /oficinas/create", async ({
+    page,
+  }) => {
+    await page.goto("/oficinas/create");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 });
 
-test.describe('Controles de Acceso (RBAC) - Referente', () => {
+test.describe("Controles de Acceso (RBAC) - Referente", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([{
-      name: 'session_id',
-      value: testUsers['referent'].signedSessionId,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: testUsers["referent"].signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
   });
 
-  test('Referente deberia poder acceder a /supervision/asignacion-autogestiones', async ({ page }) => {
-    await page.goto('/supervision/asignacion-autogestiones');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Referente deberia poder acceder a /supervision/asignacion-autogestiones", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asignacion-autogestiones");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Referente deberia poder acceder a /supervision/cronograma', async ({ page }) => {
-    await page.goto('/supervision/cronograma');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Referente deberia poder acceder a /supervision/cronograma", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/cronograma");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Referente no deberia poder acceder a /supervision/asistencia', async ({ page }) => {
-    await page.goto('/supervision/asistencia');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Referente no deberia poder acceder a /supervision/asistencia", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asistencia");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 });
 
-test.describe('Controles de Acceso (RBAC) - Supervisor', () => {
+test.describe("Controles de Acceso (RBAC) - Supervisor", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([{
-      name: 'session_id',
-      value: testUsers['supervisor'].signedSessionId,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: testUsers["supervisor"].signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
   });
 
-  test('Supervisor no deberia poder acceder a /admin/usuarios', async ({ page }) => {
-    await page.goto('/admin/usuarios');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Supervisor no deberia poder acceder a /admin/usuarios", async ({
+    page,
+  }) => {
+    await page.goto("/admin/usuarios");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor no deberia poder acceder a /admin/Usuarios', async ({ page }) => {
-    await page.goto('/admin/Usuarios');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Supervisor no deberia poder acceder a /admin/Usuarios", async ({
+    page,
+  }) => {
+    await page.goto("/admin/Usuarios");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor no deberia poder acceder a /admin/auditoria', async ({ page }) => {
-    await page.goto('/admin/auditoria');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Supervisor no deberia poder acceder a /admin/auditoria", async ({
+    page,
+  }) => {
+    await page.goto("/admin/auditoria");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor deberia poder acceder a /supervision/cronograma', async ({ page }) => {
-    await page.goto('/supervision/cronograma');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Supervisor deberia poder acceder a /supervision/cronograma", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/cronograma");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor deberia poder acceder a /supervision/asistencia', async ({ page }) => {
-    await page.goto('/supervision/asistencia');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Supervisor deberia poder acceder a /supervision/asistencia", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asistencia");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor deberia poder acceder a /mesas-de-ayuda', async ({ page }) => {
-    await page.goto('/mesas-de-ayuda');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Supervisor deberia poder acceder a /mesas-de-ayuda", async ({
+    page,
+  }) => {
+    await page.goto("/mesas-de-ayuda");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Supervisor deberia poder acceder a /oficinas/create', async ({ page }) => {
-    await page.goto('/oficinas/create');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Supervisor deberia poder acceder a /oficinas/create", async ({
+    page,
+  }) => {
+    await page.goto("/oficinas/create");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 });
 
-test.describe('Controles de Acceso (RBAC) - Team Leader', () => {
+test.describe("Controles de Acceso (RBAC) - Team Leader", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([{
-      name: 'session_id',
-      value: testUsers['team_leader'].signedSessionId,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: testUsers["team_leader"].signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
   });
 
-  test('Team Leader no deberia poder acceder a /admin/usuarios', async ({ page }) => {
-    await page.goto('/admin/usuarios');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Team Leader no deberia poder acceder a /admin/usuarios", async ({
+    page,
+  }) => {
+    await page.goto("/admin/usuarios");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader no deberia poder acceder a /admin/auditoria', async ({ page }) => {
-    await page.goto('/admin/auditoria');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Team Leader no deberia poder acceder a /admin/auditoria", async ({
+    page,
+  }) => {
+    await page.goto("/admin/auditoria");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader deberia poder acceder a /supervision/cronograma', async ({ page }) => {
-    await page.goto('/supervision/cronograma');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Team Leader deberia poder acceder a /supervision/cronograma", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/cronograma");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader deberia poder acceder a /supervision/asistencia', async ({ page }) => {
-    await page.goto('/supervision/asistencia');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Team Leader deberia poder acceder a /supervision/asistencia", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asistencia");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader deberia poder acceder a /supervision/asignacion-autogestiones', async ({ page }) => {
-    await page.goto('/supervision/asignacion-autogestiones');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Team Leader deberia poder acceder a /supervision/asignacion-autogestiones", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asignacion-autogestiones");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader no deberia poder acceder a /mesas-de-ayuda/edit', async ({ page }) => {
-    await page.goto('/mesas-de-ayuda/edit/99999');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Team Leader no deberia poder acceder a /mesas-de-ayuda/edit", async ({
+    page,
+  }) => {
+    await page.goto("/mesas-de-ayuda/edit/99999");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Team Leader no deberia poder acceder a /oficinas/create', async ({ page }) => {
-    await page.goto('/oficinas/create');
-    await expect(page).toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).toContainText('Acceso no autorizado');
+  test("Team Leader no deberia poder acceder a /oficinas/create", async ({
+    page,
+  }) => {
+    await page.goto("/oficinas/create");
+    await expect(page).toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
   });
 });
 
-test.describe('Controles de Acceso (RBAC) - Administrador', () => {
+test.describe("Controles de Acceso (RBAC) - Administrador", () => {
   test.beforeEach(async ({ context }) => {
-    await context.addCookies([{
-      name: 'session_id',
-      value: testUsers['admin'].signedSessionId,
-      domain: 'localhost',
-      path: '/',
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: testUsers["admin"].signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
   });
 
-  test('Administrador deberia poder acceder a /admin/auditoria', async ({ page }) => {
-    await page.goto('/admin/auditoria');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Administrador deberia poder acceder a /admin/auditoria", async ({
+    page,
+  }) => {
+    await page.goto("/admin/auditoria");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Administrador deberia poder acceder a /supervision/asistencia', async ({ page }) => {
-    await page.goto('/supervision/asistencia');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Administrador deberia poder acceder a /supervision/asistencia", async ({
+    page,
+  }) => {
+    await page.goto("/supervision/asistencia");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Administrador deberia poder acceder a /mesas-de-ayuda', async ({ page }) => {
-    await page.goto('/mesas-de-ayuda');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Administrador deberia poder acceder a /mesas-de-ayuda", async ({
+    page,
+  }) => {
+    await page.goto("/mesas-de-ayuda");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 
-  test('Administrador deberia poder acceder a /oficinas/create', async ({ page }) => {
-    await page.goto('/oficinas/create');
-    await expect(page).not.toHaveURL('http://localhost:4321/');
-    await expect(page.locator('#global-toast-container')).not.toContainText('Acceso no autorizado');
+  test("Administrador deberia poder acceder a /oficinas/create", async ({
+    page,
+  }) => {
+    await page.goto("/oficinas/create");
+    await expect(page).not.toHaveURL("http://localhost:4321/");
+    await expect(page.locator("#global-toast-container")).not.toContainText(
+      "Acceso no autorizado",
+    );
   });
 });

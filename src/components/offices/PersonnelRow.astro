@@ -1,0 +1,59 @@
+---
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+
+interface Props {
+  person: {
+    fullname?: string | null;
+    position?: string | null;
+    dni?: string | null;
+    interno?: string | null;
+    telefono?: string | null;
+  };
+}
+
+const { person: p } = Astro.props;
+const cleanBase = getCleanBase();
+---
+
+<div
+  class="border-base-200 flex items-center justify-between gap-3 border-b py-2 last:border-b-0"
+>
+  <div class="min-w-0">
+    <p
+      class="text-base-content flex flex-wrap items-center gap-x-1 gap-y-1 text-xs font-semibold"
+    >
+      <span class="min-w-0 truncate">{p.fullname || "Sin nombre"}</span>
+      {
+        p.position ? (
+          <span class="badge badge-soft badge-secondary text-xxs">
+            {p.position.replace(/Supervisor/gi, "Sup.")}
+          </span>
+        ) : null
+      }
+    </p>
+  </div>
+  <div class="flex shrink-0 items-center gap-2">
+    {
+      (p.interno ?? p.telefono) ? (
+        <div class="text-base-content/70 flex items-center gap-1 text-xs">
+          <Icon name="boxicons:phone-filled" size={14} aria-hidden="true" />
+          <span class="font-mono">{p.interno ?? p.telefono}</span>
+        </div>
+      ) : null
+    }
+    {
+      p.dni ? (
+        <a
+          href={`${cleanBase}buscador-usuarios?q=${p.dni}`}
+          class="btn btn-ghost btn-xs text-base-content/50 gap-1"
+          title="Ver en buscador de usuarios"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="boxicons:search" size={14} aria-hidden="true" />
+        </a>
+      ) : null
+    }
+  </div>
+</div>

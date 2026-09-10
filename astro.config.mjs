@@ -12,6 +12,7 @@ import node from "@astrojs/node";
 export default defineConfig({
   site: "http://mda.correo.local",
   base: "/",
+  compressHTML: true,
 
   security: {
     checkOrigin: false,
@@ -24,14 +25,18 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
-      esbuildOptions: {
-        define: {
-          "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "development"),
+      rolldownOptions: {
+        transform: {
+          define: {
+            "process.env.NODE_ENV": JSON.stringify(
+              process.env.NODE_ENV ?? "development",
+            ),
+          },
         },
       },
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         external: ["ldapjs"],
       },
     },
@@ -41,6 +46,6 @@ export default defineConfig({
   integrations: [icon(), react()],
 
   adapter: node({
-    mode: "standalone",
+    mode: "middleware",
   }),
 });

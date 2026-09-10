@@ -1,0 +1,50 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  icon: string;
+  title: string;
+  subtitle?: string;
+  iconBg?: string;
+  iconColor?: string;
+  bordered?: boolean;
+}
+
+const {
+  icon,
+  title,
+  subtitle,
+  iconBg = "bg-secondary/15",
+  iconColor = "text-secondary",
+  bordered = false,
+} = Astro.props;
+---
+
+<div
+  class:list={[
+    "flex flex-col justify-between gap-3 md:flex-row md:items-center",
+    bordered && "border-b bg-base-200 border-base-300 px-6 py-3.5",
+  ]}
+>
+  <div class="flex items-center gap-3">
+    <div
+      class:list={[
+        iconBg,
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
+      ]}
+    >
+      <Icon name={icon} size={18} class={iconColor} />
+    </div>
+    <div>
+      <h2
+        class="text-base-content text-sm font-black tracking-wider uppercase"
+      >
+        {title}
+      </h2>
+      {subtitle && <p class="text-small text-base-content/50">{subtitle}</p>}
+    </div>
+  </div>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+    <slot />
+  </div>
+</div>

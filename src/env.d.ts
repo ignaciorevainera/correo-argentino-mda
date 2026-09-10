@@ -31,3 +31,5 @@ interface ImportMetaEnv {
   readonly INVGATE_API_USERNAME: string;
   readonly EXTERNAL_STORAGE_DIR: string;
 }
+
+declare module "topojson-client";

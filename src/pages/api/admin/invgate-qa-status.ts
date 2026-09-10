@@ -15,6 +15,8 @@ export const GET: APIRoute = async ({ locals }) => {
     status: result.status,
     message: result.ok
       ? "Conexión exitosa (QA)"
-      : ("message" in result ? result.message : "Fallo de conexión (QA)"),
+      : "message" in result
+        ? result.message
+        : "Fallo de conexión (QA)",
   });
 };

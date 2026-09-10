@@ -1,20 +1,36 @@
-import { state, safeGetItem, safeSetItem } from './state';
-import { fetchCronogramaData, fetchCronogramaFullData, saveEdits, deleteOperator, deleteMonth } from './api';
-import { getStatusStyles } from './styles';
-import { escapeHtml } from '@lib/sanitize';
-import { 
-  getGanttPosition, 
-  getDaysInMonth, 
-  formatYMD, 
-  formatDMY, 
-  isCurrentlyWorking, 
-  debounce, 
-  timeToMinutes
-} from './utils';
-import { updateButtonGroupState, STATUS_FILTER_CONFIGS, LOCATION_FILTER_CONFIG } from './filters';
-import { showToast, showConfirm } from './notifications';
-import { OperatorStatus, type OperatorData, type WeekendOvertimeShift, type WeekendOvertimeConfig } from './types';
-import { isFeriado, getFeriadoName } from './feriados';
+import { state, safeGetItem, safeSetItem } from "./state";
+import {
+  fetchCronogramaData,
+  fetchCronogramaFullData,
+  saveEdits,
+  deleteOperator,
+  deleteMonth,
+} from "./api";
+import { getStatusStyles } from "./styles";
+import { escapeHtml } from "@lib/sanitize";
+import {
+  getGanttPosition,
+  getDaysInMonth,
+  formatYMD,
+  formatDMY,
+  isCurrentlyWorking,
+  debounce,
+  timeToMinutes,
+} from "./utils";
+import {
+  updateButtonGroupState,
+  STATUS_FILTER_CONFIGS,
+  LOCATION_FILTER_CONFIG,
+} from "./filters";
+import { showToast, showConfirm } from "./notifications";
+import { copyElementImageToClipboard } from "./copyButton";
+import {
+  OperatorStatus,
+  type OperatorData,
+  type WeekendOvertimeShift,
+  type WeekendOvertimeConfig,
+} from "./types";
+import { isFeriado, getFeriadoName } from "./feriados";
 
 // Submodule imports
 import {
@@ -27,9 +43,8 @@ import {
   loadRotationConfig,
   renderRotationTimeline,
   formatToDDMMYY,
-  setupRotationEventListeners
-} from './rotation-helper';
-
+  setupRotationEventListeners,
+} from "./rotation-helper";
 
 import {
   updateMonthDisplay,
@@ -39,8 +54,9 @@ import {
   changeMonth,
   renderDaily,
   renderHourly,
-  renderMonthly
-} from './monthly-view';
+  renderMonthly,
+  clearParsedDatesCache,
+} from "./monthly-view";
 
 export function isWeekend(dateStr: string): boolean {
   if (!dateStr) return false;
@@ -53,20 +69,29 @@ export function resolveOperatorStatusAndHorario(
   op: OperatorData,
   dateStr: string,
   cachedDayOfWeek?: number,
-  cachedActiveGroup?: string | null
+  cachedActiveGroup?: string | null,
 ): { status: OperatorStatus; horario: string } {
   let status = op.asistencia[dateStr] || OperatorStatus.Franco;
-  let horario = (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario || "";
+  let horario =
+    (op.horarios_dias && op.horarios_dias[dateStr]) || op.horario || "";
 
-  const dayOfWeek = cachedDayOfWeek !== undefined ? cachedDayOfWeek : new Date(dateStr + "T12:00:00").getDay();
+  const dayOfWeek =
+    cachedDayOfWeek !== undefined
+      ? cachedDayOfWeek
+      : new Date(dateStr + "T12:00:00").getDay();
   const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
 
   if (isWeekendDay) {
     const isSaturday = dayOfWeek === 6;
     if (isSaturday && op.saturdayGroup) {
-      const activeGroup = cachedActiveGroup !== undefined ? cachedActiveGroup : getActiveGroupForDate(dateStr);
-      const isOverride = status === OperatorStatus.Vacaciones || status === OperatorStatus.Licencia;
-      
+      const activeGroup =
+        cachedActiveGroup !== undefined
+          ? cachedActiveGroup
+          : getActiveGroupForDate(dateStr);
+      const isOverride =
+        status === OperatorStatus.Vacaciones ||
+        status === OperatorStatus.Licencia;
+
       if (op.saturdayGroup === activeGroup && !isOverride) {
         status = OperatorStatus.HomeOffice;
         horario = op.saturdayHorario || "07:00 - 13:00";
@@ -78,33 +103,42 @@ export function resolveOperatorStatusAndHorario(
 }
 
 export function getDatesArrayForCurrentMonth(): string[] {
-  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const dateInput = document.getElementById(
+    "date-input",
+  ) as HTMLInputElement | null;
   if (!dateInput || !dateInput.value) return [];
 
-  const [year, month] = dateInput.value.split('-').map(Number);
+  const [year, month] = dateInput.value.split("-").map(Number);
   const totalDays = getDaysInMonth(year, month - 1);
   const dates: string[] = [];
   for (let i = 1; i <= totalDays; i++) {
-    const dStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const dStr = `${year}-${String(month).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
     dates.push(dStr);
   }
   return dates;
 }
 
 export function updateDateInputDisplay(): void {
-  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-  const dateDisplay = document.getElementById('date-input-display');
+  const dateInput = document.getElementById(
+    "date-input",
+  ) as HTMLInputElement | null;
+  const dateDisplay = document.getElementById("date-input-display");
 
   if (dateInput && dateDisplay && dateInput.value) {
     dateDisplay.innerText = formatDMY(dateInput.value);
   }
 }
 
-export function sortOperators(ops: OperatorData[], dateStr: string): OperatorData[] {
-  const sortType = state.activeSort || 'alphabetical';
-  
+export function sortOperators(
+  ops: OperatorData[],
+  dateStr: string,
+): OperatorData[] {
+  const sortType = state.activeSort || "alphabetical";
+
   let referenceDate = dateStr;
-  const isDailyActive = !document.getElementById('daily-view')?.classList.contains('hidden');
+  const isDailyActive = !document
+    .getElementById("daily-view")
+    ?.classList.contains("hidden");
   if (!isDailyActive) {
     const today = new Date();
     const todayStr = formatYMD(today);
@@ -112,31 +146,35 @@ export function sortOperators(ops: OperatorData[], dateStr: string): OperatorDat
       referenceDate = todayStr;
     }
   }
-  
+
   const hasContinuation = (op: OperatorData): boolean => {
-    const parts = referenceDate.split('-');
+    const parts = referenceDate.split("-");
     if (parts.length !== 3) return false;
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
     const dateObj = new Date(year, month, day);
     dateObj.setDate(dateObj.getDate() - 1);
-    
-    const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-    
+
+    const yStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
+
     const yesterdayStatus = op.asistencia?.[yStr];
     if (!yesterdayStatus) return false;
-    
-    const isYesterdayAbsent = yesterdayStatus === 'Licencia' || yesterdayStatus === 'Vacaciones' || yesterdayStatus === 'Franco';
+
+    const isYesterdayAbsent =
+      yesterdayStatus === "Licencia" ||
+      yesterdayStatus === "Vacaciones" ||
+      yesterdayStatus === "Franco";
     if (isYesterdayAbsent) return false;
-    
-    const yesterdayHorario = (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
+
+    const yesterdayHorario =
+      (op.horarios_dias && op.horarios_dias[yStr]) || op.horario;
     if (!yesterdayHorario) return false;
-    
-    const times = yesterdayHorario.split(' - ');
+
+    const times = yesterdayHorario.split(" - ");
     if (times.length === 2) {
       const getMins = (t: string) => {
-        const p = t.split(':');
+        const p = t.split(":");
         return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
       };
       const startPct = getMins(times[0]);
@@ -147,64 +185,87 @@ export function sortOperators(ops: OperatorData[], dateStr: string): OperatorDat
   };
 
   return [...ops].sort((a, b) => {
-    if (sortType === 'alphabetical') {
-      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    if (sortType === "alphabetical") {
+      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
     }
-    
-    if (sortType === 'alphabetical-za') {
-      return b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' });
+
+    if (sortType === "alphabetical-za") {
+      return b.nombre.localeCompare(a.nombre, "es", { sensitivity: "base" });
     }
-    
-    if (sortType === 'entry-time') {
+
+    if (sortType === "entry-time") {
       const getEntryTimeMinutes = (op: OperatorData): number => {
         if (hasContinuation(op)) {
           return 0;
         }
         const status = op.asistencia?.[referenceDate];
-        if (status === 'Franco' || status === 'Licencia' || status === 'Vacaciones' || !status) {
+        if (
+          status === "Franco" ||
+          status === "Licencia" ||
+          status === "Vacaciones" ||
+          !status
+        ) {
           return 9999;
         }
-        const dailyHorario = (op.horarios_dias && op.horarios_dias[referenceDate]) || op.horario;
-        if (!dailyHorario || dailyHorario === '-' || dailyHorario === 'Franco') {
+        const dailyHorario =
+          (op.horarios_dias && op.horarios_dias[referenceDate]) || op.horario;
+        if (
+          !dailyHorario ||
+          dailyHorario === "-" ||
+          dailyHorario === "Franco"
+        ) {
           return 9999;
         }
-        const parts = dailyHorario.split(' - ');
+        const parts = dailyHorario.split(" - ");
         if (parts.length === 2) {
           const start = parts[0];
-          const [h, m] = start.split(':').map(Number);
+          const [h, m] = start.split(":").map(Number);
           if (!isNaN(h) && !isNaN(m)) {
             return h * 60 + m;
           }
         }
         return 9999;
       };
-      
+
       const timeA = getEntryTimeMinutes(a);
       const timeB = getEntryTimeMinutes(b);
-      
+
       if (timeA !== timeB) {
         return timeA - timeB;
       }
-      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
     }
-    
-    if (sortType === 'location') {
-      const locA = a.location || 'Monte Grande';
-      const locB = b.location || 'Monte Grande';
+
+    if (sortType === "location") {
+      const locA = a.location || "Monte Grande";
+      const locB = b.location || "Monte Grande";
       if (locA !== locB) {
-        return locA.localeCompare(locB, 'es', { sensitivity: 'base' });
+        return locA.localeCompare(locB, "es", { sensitivity: "base" });
       }
-      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
     }
-    
+
     return 0;
   });
 }
 
-export async function reloadDataForActiveMonth(targetMonth?: string): Promise<void> {
+function isViewVisible(id: string): boolean {
+  const el = document.getElementById(id);
+  return !!el && !el.classList.contains("hidden");
+}
+
+export async function reloadDataForActiveMonth(
+  targetMonth?: string,
+): Promise<void> {
   try {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const monthToLoad = targetMonth || (dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7));
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    const monthToLoad =
+      targetMonth ||
+      (dateInput?.value
+        ? dateInput.value.slice(0, 7)
+        : new Date().toISOString().slice(0, 7));
 
     const payload = await fetchCronogramaFullData(monthToLoad);
     state.cronoData = payload.operators;
@@ -213,31 +274,41 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
     await loadRotationConfig(monthToLoad);
 
-    renderDaily();
-    renderMonthly();
+    clearParsedDatesCache();
+    // Solo re-renderizar las vistas visibles: la vista oculta se actualiza
+    // al entrar (showDailyView/showMonthlyView re-renderizan via rAF).
+    if (isViewVisible("daily-view")) {
+      renderDaily();
+    }
+    if (isViewVisible("monthly-view")) {
+      renderMonthly();
+    }
     renderMonthSelect();
     updateMonthDisplay();
 
     // Actualizar vista de grupos si está visible
-    const groupsView = document.getElementById('groups-view');
-    const isGroupsVisible = groupsView && !groupsView.classList.contains('hidden');
+    const groupsView = document.getElementById("groups-view");
+    const isGroupsVisible =
+      groupsView && !groupsView.classList.contains("hidden");
     if (isGroupsVisible) {
       await renderGroupsView();
     }
 
     // Actualizar vista de pasivas si está visible
-    const pasivaView = document.getElementById('pasiva-view');
-    const isPasivaVisible = pasivaView && !pasivaView.classList.contains('hidden');
+    const pasivaView = document.getElementById("pasiva-view");
+    const isPasivaVisible =
+      pasivaView && !pasivaView.classList.contains("hidden");
     if (isPasivaVisible) {
-      const { renderPasivaView } = await import('./pasiva-view');
+      const { renderPasivaView } = await import("./pasiva-view");
       await renderPasivaView();
     }
 
     // Actualizar vista de horas extras si está visible
-    const overtimeView = document.getElementById('overtime-view');
-    const isOvertimeVisible = overtimeView && !overtimeView.classList.contains('hidden');
+    const overtimeView = document.getElementById("overtime-view");
+    const isOvertimeVisible =
+      overtimeView && !overtimeView.classList.contains("hidden");
     if (isOvertimeVisible) {
-      const { renderOvertimeView } = await import('./overtime-view');
+      const { renderOvertimeView } = await import("./overtime-view");
       renderOvertimeView();
     }
   } catch (err) {
@@ -248,7 +319,9 @@ export async function reloadDataForActiveMonth(targetMonth?: string): Promise<vo
 
 async function init(): Promise<void> {
   try {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
     const todayStr = formatYMD(new Date());
 
     const payload = await fetchCronogramaFullData();
@@ -256,10 +329,12 @@ async function init(): Promise<void> {
     state.overtimeConfigs = payload.weekendOvertimeConfigs;
     state.availableMonths = payload.availableMonths || [];
 
-    const activeMonth = payload.activeMonth || (dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7));
+    const activeMonth =
+      payload.activeMonth ||
+      (dateInput?.value ? dateInput.value.slice(0, 7) : todayStr.slice(0, 7));
 
     try {
-      const feriadosRes = await fetch('/api/cronograma/feriados');
+      const feriadosRes = await fetch("/api/cronograma/feriados");
       if (feriadosRes.ok) {
         state.feriados = await feriadosRes.json();
       }
@@ -269,8 +344,12 @@ async function init(): Promise<void> {
 
     await loadRotationConfig(activeMonth);
 
-    const hasDataForToday = activeMonth === todayStr.slice(0, 7) && state.cronoData.some(op => op.asistencia[todayStr]);
-    const initialDate = hasDataForToday ? todayStr : (state.uniqueDates[state.uniqueDates.length - 1] || `${activeMonth}-01`);
+    const hasDataForToday =
+      activeMonth === todayStr.slice(0, 7) &&
+      state.cronoData.some((op) => op.asistencia[todayStr]);
+    const initialDate = hasDataForToday
+      ? todayStr
+      : state.uniqueDates[state.uniqueDates.length - 1] || `${activeMonth}-01`;
 
     if (dateInput) {
       dateInput.value = initialDate;
@@ -292,8 +371,20 @@ async function init(): Promise<void> {
   }
 }
 
-function updateOperatorDailyHorario(op: OperatorData, date: string, status: string): void {
-  const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+function updateOperatorDailyHorario(
+  op: OperatorData,
+  date: string,
+  status: string,
+): void {
+  const dayNames = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miercoles",
+    "Jueves",
+    "Viernes",
+    "Sabado",
+  ];
   const dateObj = new Date(date + "T12:00:00");
   const dayName = dayNames[dateObj.getDay()];
 
@@ -303,8 +394,13 @@ function updateOperatorDailyHorario(op: OperatorData, date: string, status: stri
   const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
 
   if (isWeekendDay) {
-    if (status === OperatorStatus.Licencia || status === OperatorStatus.Vacaciones) {
-      op.weekendOvertimes = (op.weekendOvertimes || []).filter(s => s.date !== date);
+    if (
+      status === OperatorStatus.Licencia ||
+      status === OperatorStatus.Vacaciones
+    ) {
+      op.weekendOvertimes = (op.weekendOvertimes || []).filter(
+        (s) => s.date !== date,
+      );
       op.overrides[date] = true;
     } else if (status === OperatorStatus.Franco) {
       delete op.overrides[date];
@@ -327,31 +423,425 @@ function updateOperatorDailyHorario(op: OperatorData, date: string, status: stri
   }
 }
 
+function countDailyCoverage(date: string): {
+  pmg: number;
+  ppp: number;
+  ho: number;
+  licenses: number;
+} {
+  let pmg = 0;
+  let ppp = 0;
+  let ho = 0;
+  let licenses = 0;
+  state.cronoData.forEach((o) => {
+    const s = o.asistencia[date];
+    if (s === OperatorStatus.PresencialMonteGrande) pmg++;
+    else if (s === OperatorStatus.PresencialParquePatricios) ppp++;
+    else if (s === OperatorStatus.HomeOffice) ho++;
+    if (s === OperatorStatus.Licencia || s === OperatorStatus.Vacaciones)
+      licenses++;
+  });
+  return { pmg, ppp, ho, licenses };
+}
+
+// NOTE: keep in sync with the HO/P-week violation checks in renderMonthly() (monthly-view.ts)
+function hasRuleViolations(op: OperatorData): boolean {
+  const dates = getDatesArrayForCurrentMonth();
+  const opMaxHO =
+    op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null
+      ? op.maxConsecutiveHO
+      : state.maxConsecutiveHOLimit;
+  const opMinPWeek =
+    op.minPWeek !== undefined && op.minPWeek !== null
+      ? op.minPWeek
+      : state.minPWeekLimit;
+
+  let maxConsecutiveHO = 0;
+  let currentHO = 0;
+  let pWeekViolation = false;
+  let currentWeekP = 0;
+  let currentWeekDays = 0;
+
+  dates.forEach((d, i) => {
+    const s = op.asistencia[d];
+    const day = new Date(d + "T12:00:00").getDay();
+    if (s === OperatorStatus.HomeOffice) {
+      currentHO++;
+      maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
+    } else if (s !== OperatorStatus.Franco && s) {
+      currentHO = 0;
+    }
+    if (
+      s === OperatorStatus.PresencialMonteGrande ||
+      s === OperatorStatus.PresencialParquePatricios
+    ) {
+      currentWeekP++;
+    }
+    if (
+      s !== OperatorStatus.Franco &&
+      s !== OperatorStatus.Licencia &&
+      s !== OperatorStatus.Vacaciones &&
+      s
+    ) {
+      currentWeekDays++;
+    }
+    if (day === 0 || i === dates.length - 1) {
+      if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
+        pWeekViolation = true;
+      }
+      currentWeekP = 0;
+      currentWeekDays = 0;
+    }
+  });
+
+  return maxConsecutiveHO > opMaxHO || pWeekViolation;
+}
+
+// NOTE: keep in sync with the day-cell markup generated inside renderMonthly() (monthly-view.ts)
+function buildMonthlyCellHtml(
+  op: OperatorData,
+  date: string,
+  rowIndex: number,
+): string {
+  const container = document.getElementById("cronograma-app-container");
+  const userRole = container?.dataset.userRole || "agent";
+  const hideComments = ["agent", "referent"].includes(userRole);
+
+  const dayOfWeek = new Date(date + "T12:00:00").getDay();
+  const activeGroup = getActiveGroupForDate(date);
+  const { status, horario: dailyHorario } = resolveOperatorStatusAndHorario(
+    op,
+    date,
+    dayOfWeek,
+    activeGroup,
+  );
+  const isTodayCell = date === formatYMD(new Date());
+  const feriadoName = getFeriadoName(date);
+  const isHoliday = !!feriadoName;
+  const isSaturday = dayOfWeek === 6;
+
+  const coverage = countDailyCoverage(date);
+  const isLicenseOverlap =
+    (status === OperatorStatus.Licencia ||
+      status === OperatorStatus.Vacaciones) &&
+    coverage.licenses > state.maxLicenseOverlapLimit;
+
+  const isFrancoCell = status === OperatorStatus.Franco || !status;
+  let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-colors duration-300`;
+  if (isTodayCell) {
+    cellClass += isFrancoCell
+      ? " bg-base-200/80 dark:bg-base-300/20"
+      : " bg-secondary/10";
+  }
+  if (isLicenseOverlap)
+    cellClass += " ring-1 ring-inset ring-error/30 bg-error/[0.03]";
+  if (isHoliday) cellClass += " bg-orange-100 dark:bg-orange-950";
+
+  const safeName = escapeHtml(op.nombre);
+  const safeDate = escapeHtml(date);
+  const safeStatus = escapeHtml(status || "Franco");
+  const safeHorario = escapeHtml(dailyHorario);
+  const username = op.username || "";
+  const breakInicio = (op.breaks_inicio && op.breaks_inicio[date]) || "";
+  const breakFin = (op.breaks_fin && op.breaks_fin[date]) || "";
+  const hasComment = !hideComments && !!(op.comentarios && op.comentarios[date]);
+  const dayOvertime = (op.weekendOvertimes || []).find(
+    (s) => s.date === date,
+  );
+  const otAttr = dayOvertime
+    ? `data-overtime="${escapeHtml(dayOvertime.startTime + " - " + dayOvertime.endTime)}"`
+    : "";
+
+  if (isFrancoCell) {
+    let francoBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center relative hover:z-20 ${isTodayCell ? "bg-base-300/40 border border-base-content/25" : "bg-base-200/20 border border-base-300/20"}`;
+    if (isHoliday) {
+      francoBtnClass +=
+        " line-through !bg-orange-200/60 dark:!bg-orange-600/60 !border-orange-300 dark:!border-orange-500";
+    }
+    let tooltipAttrs = "";
+    if (dayOvertime) {
+      const tooltipDir = rowIndex === 0 ? "tooltip-bottom" : "tooltip-top";
+      francoBtnClass += ` tooltip ${tooltipDir} ${isHoliday ? "tooltip-holiday" : "tooltip-neutral"}`;
+      tooltipAttrs = `data-tip="HE: ${escapeHtml(dayOvertime.startTime + " - " + dayOvertime.endTime)}"`;
+    }
+    let francoAria = `Ver detalle de ${safeName} el ${safeDate}: Franco`;
+    if (isHoliday && feriadoName) {
+      francoAria += ` (Feriado: ${feriadoName})`;
+    }
+
+    return `<td class="${cellClass}">
+            <button
+              type="button"
+              class="${francoBtnClass}"
+              data-monthly-detail
+              data-operator="${safeName}"
+              data-date="${safeDate}"
+              data-status="Franco"
+              data-horario="${safeHorario}"
+              data-username="${escapeHtml(username)}"
+              data-comment="${hideComments ? "" : escapeHtml(op.comentarios?.[date] || "")}"
+              data-break-inicio="${escapeHtml(breakInicio)}"
+              data-break-fin="${escapeHtml(breakFin)}"
+              aria-label="${francoAria}"
+              ${otAttr}
+              ${isHoliday && feriadoName && !dayOvertime ? `title="Franco (Feriado: ${feriadoName})"` : ""}
+              ${tooltipAttrs}
+            >
+              ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight">HE: ${dayOvertime.startTime}</span>` : ""}
+              ${hasComment ? `<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ${dayOvertime ? "mt-0.5" : ""}" title="Tiene comentario"></div>` : ""}
+            </button>
+          </td>`;
+  }
+
+  let initials = "";
+  if (status === OperatorStatus.PresencialMonteGrande) initials = "MG";
+  else if (status === OperatorStatus.PresencialParquePatricios) initials = "PP";
+  else if (status === OperatorStatus.HomeOffice) initials = "HO";
+  else if (status === OperatorStatus.Licencia) initials = "L";
+  else if (status === OperatorStatus.Vacaciones) initials = "V";
+
+  const styles = getStatusStyles(status);
+
+  let statusBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center transition-colors duration-300 cursor-pointer relative border ${isTodayCell ? "border-secondary/40 ring-1 ring-secondary/30 shadow-[0_0_10px_rgba(37,72,136,0.1)]" : "border-base-300/30"} ${styles.bgClass} shadow-sm ${isLicenseOverlap ? "border-error/40" : ""}`;
+
+  let tooltipAttrs = "";
+  const tooltipDir = rowIndex === 0 ? "tooltip-bottom" : "tooltip-top";
+
+  if (
+    status === OperatorStatus.PresencialMonteGrande ||
+    status === OperatorStatus.PresencialParquePatricios ||
+    status === OperatorStatus.HomeOffice
+  ) {
+    statusBtnClass += ` tooltip ${tooltipDir} ${isHoliday ? "tooltip-holiday" : "tooltip-neutral"}`;
+    let tipText = safeHorario;
+    if (dayOvertime) {
+      tipText += `\nHE: ${escapeHtml(dayOvertime.startTime + " - " + dayOvertime.endTime)}`;
+    }
+    tooltipAttrs = `data-tip="${tipText}"`;
+  } else if (dayOvertime) {
+    statusBtnClass += ` tooltip ${tooltipDir} ${isHoliday ? "tooltip-holiday" : "tooltip-neutral"}`;
+    tooltipAttrs = `data-tip="HE: ${escapeHtml(dayOvertime.startTime + " - " + dayOvertime.endTime)}"`;
+  }
+
+  const isRotationCell = !!(
+    isSaturday &&
+    op.saturdayGroup &&
+    op.saturdayGroup === activeGroup &&
+    !(op.overrides && op.overrides[date])
+  );
+
+  if (isRotationCell) {
+    statusBtnClass +=
+      " ring-1 ring-inset ring-secondary/35 border-secondary/40 hover:ring-secondary/50";
+  }
+
+  if (isHoliday) {
+    statusBtnClass +=
+      " line-through !bg-orange-200 dark:!bg-orange-600 !text-orange-800 dark:!text-orange-100 !border-orange-300 dark:!border-orange-500 !shadow-none";
+  }
+
+  let statusTitle = `${op.nombre} - ${date}: ${status} ${isLicenseOverlap ? "(Solapamiento Crítico)" : ""}`;
+  if (isRotationCell) {
+    statusTitle += ` (Rotación Sábado Grupo ${op.saturdayGroup})`;
+  }
+  let statusAria = `Ver detalle de ${safeName} el ${safeDate}: ${safeStatus}`;
+  if (isHoliday && feriadoName) {
+    statusTitle += ` (Feriado: ${feriadoName})`;
+    statusAria += ` (Feriado: ${feriadoName})`;
+  }
+
+  return `
+          <td class="${cellClass}">
+            <button
+              type="button"
+              class="${statusBtnClass}"
+              ${tooltipAttrs ? "" : `title="${statusTitle}"`}
+              data-monthly-detail
+              data-operator="${safeName}"
+              data-date="${safeDate}"
+              data-status="${safeStatus}"
+              data-horario="${safeHorario}"
+              data-username="${escapeHtml(username)}"
+              data-comment="${hideComments ? "" : escapeHtml(op.comentarios?.[date] || "")}"
+              data-break-inicio="${escapeHtml(breakInicio)}"
+              data-break-fin="${escapeHtml(breakFin)}"
+              aria-label="${statusAria}"
+              ${otAttr}
+              ${isRotationCell ? `data-saturday-rotation="true" data-rotation-horario="${escapeHtml(op.saturdayHorario || "07:00 - 13:00")}"` : ""}
+              ${tooltipAttrs}
+            >
+              <span class="font-black text-xs tracking-tight">${initials}</span>
+              ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight mt-0.5 scale-90">HE: ${dayOvertime.startTime}</span>` : ""}
+              ${isLicenseOverlap ? '<div class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error border border-base-100"></div>' : ""}
+              ${hasComment ? `<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>` : ""}
+            </button>
+          </td>
+        `;
+}
+
+function findLiveMonthlyCell(
+  tbody: HTMLElement | null,
+  operator: string | undefined,
+  date: string | undefined,
+): HTMLElement | null {
+  if (!tbody || !operator || !date) return null;
+  for (const el of Array.from(
+    tbody.querySelectorAll<HTMLElement>("[data-monthly-detail]"),
+  )) {
+    if (el.dataset.operator === operator && el.dataset.date === date) return el;
+  }
+  return null;
+}
+
+function updateMonthlyCellDisplay(
+  cell: HTMLElement,
+  op: OperatorData,
+  date: string,
+): void {
+  // Targeted update of a single monthly cell after a status change.
+  // Must reflect exactly what renderMonthly() would produce for this cell.
+  const td = cell.closest("td");
+  const tr = td?.closest("tr");
+  if (!td || !tr) {
+    renderMonthly();
+    return;
+  }
+
+  const html = buildMonthlyCellHtml(op, date, tr.sectionRowIndex);
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html.trim();
+  const fresh = tpl.content.firstElementChild as HTMLElement | null;
+  if (!fresh) {
+    renderMonthly();
+    return;
+  }
+  td.replaceWith(fresh);
+
+  const dates = getDatesArrayForCurrentMonth();
+
+  if (!state.isTotalsCollapsed && tr.children.length >= 4) {
+    const stats = { P: 0, HO: 0, L: 0 };
+    dates.forEach((d) => {
+      const s = op.asistencia[d];
+      if (
+        s === OperatorStatus.PresencialMonteGrande ||
+        s === OperatorStatus.PresencialParquePatricios
+      )
+        stats.P++;
+      else if (s === OperatorStatus.HomeOffice) stats.HO++;
+      else if (
+        s === OperatorStatus.Licencia ||
+        s === OperatorStatus.Vacaciones
+      )
+        stats.L++;
+    });
+    (tr.children[1] as HTMLElement).textContent = String(stats.P);
+    (tr.children[2] as HTMLElement).textContent = String(stats.HO);
+    (tr.children[3] as HTMLElement).textContent = String(stats.L);
+  }
+
+  const tfoot = document.getElementById("monthly-tfoot");
+  const offset = 1 + (state.isTotalsCollapsed ? 0 : 3);
+  const dayOfMonth = parseInt(date.slice(-2), 10);
+  const coverageCell = tfoot?.children[offset + dayOfMonth - 1] as
+    | HTMLElement
+    | undefined;
+  if (coverageCell) {
+    const c = countDailyCoverage(date);
+    const teamSize = state.cronoData.length;
+    const hoPercent = teamSize > 0 ? (c.ho / teamSize) * 100 : 0;
+    const pmgPercent = teamSize > 0 ? (c.pmg / teamSize) * 100 : 0;
+    const pppPercent = teamSize > 0 ? (c.ppp / teamSize) * 100 : 0;
+    const totalPercent =
+      teamSize > 0 ? ((c.pmg + c.ppp + c.ho) / teamSize) * 100 : 0;
+    const isLowCoverage = totalPercent < 40;
+    const cellPyClass = state.isCoverageMinimized ? "py-1 px-1" : "py-2 px-1";
+
+    coverageCell.className = `${cellPyClass} border-r border-base-200/50 min-w-16 ${isLowCoverage ? "bg-error/5" : ""}`;
+    coverageCell.innerHTML = `<div class="flex flex-col items-center gap-1.5">
+           ${
+             state.isCoverageMinimized
+               ? ""
+               : `
+           <div class="flex flex-col w-2.5 h-10 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+               <div class="bg-purple-500 w-full transition-[height] duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
+               <div class="bg-amber-500 w-full transition-[height] duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
+               <div class="bg-secondary w-full transition-[height] duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
+           </div>
+           `
+           }
+           <div class="flex flex-col items-center">
+              <span class="text-xxs font-black ${isLowCoverage ? "text-error" : "text-base-content/60"}">${c.pmg + c.ppp + c.ho}</span>
+              <span class="text-micro font-black uppercase opacity-30">Activos</span>
+           </div>
+        </div>`;
+  }
+}
+
 function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
   if (!operator || !date) return;
   if (isWeekend(date)) {
-    if (newStatus !== OperatorStatus.Licencia &&
-        newStatus !== OperatorStatus.Vacaciones &&
-        newStatus !== OperatorStatus.Franco &&
-        newStatus !== OperatorStatus.HomeOffice) {
+    if (
+      newStatus !== OperatorStatus.Licencia &&
+      newStatus !== OperatorStatus.Vacaciones &&
+      newStatus !== OperatorStatus.Franco &&
+      newStatus !== OperatorStatus.HomeOffice
+    ) {
       return;
     }
   }
 
-  const existingIndex = state.modifiedSchedules.findIndex(e => e.agentName === operator && e.date === date);
+  const existingIndex = state.modifiedSchedules.findIndex(
+    (e) => e.agentName === operator && e.date === date,
+  );
   if (existingIndex !== -1) {
     state.modifiedSchedules[existingIndex].status = newStatus;
   } else {
-    state.modifiedSchedules.push({ agentName: operator, date, status: newStatus });
+    state.modifiedSchedules.push({
+      agentName: operator,
+      date,
+      status: newStatus,
+    });
   }
 
-  const opIndex = state.cronoData.findIndex(o => o.nombre === operator);
+  const opIndex = state.cronoData.findIndex((o) => o.nombre === operator);
   if (opIndex !== -1) {
-    state.cronoData[opIndex].asistencia[date] = newStatus as OperatorStatus;
-    updateOperatorDailyHorario(state.cronoData[opIndex], date, newStatus);
-    renderMonthly();
+    const op = state.cronoData[opIndex];
+    const teamSize = state.cronoData.length;
+    const prevCoverage = countDailyCoverage(date);
+    const prevActive = prevCoverage.pmg + prevCoverage.ppp + prevCoverage.ho;
+    const prevCritical =
+      teamSize > 0 && prevActive / teamSize < state.minCoveragePercent / 100;
+    const prevViolations = hasRuleViolations(op);
+
+    op.asistencia[date] = newStatus as OperatorStatus;
+    updateOperatorDailyHorario(op, date, newStatus);
+    clearParsedDatesCache();
+
+    const postCoverage = countDailyCoverage(date);
+    const postActive = postCoverage.pmg + postCoverage.ppp + postCoverage.ho;
+    const postCritical =
+      teamSize > 0 && postActive / teamSize < state.minCoveragePercent / 100;
+    const postViolations = hasRuleViolations(op);
+
+    const otherLicensed = state.cronoData.some(
+      (o) =>
+        o.nombre !== operator &&
+        (o.asistencia[date] === OperatorStatus.Licencia ||
+          o.asistencia[date] === OperatorStatus.Vacaciones),
+    );
+    const overlapCrossed =
+      otherLicensed &&
+      (prevCoverage.licenses > state.maxLicenseOverlapLimit) !==
+        (postCoverage.licenses > state.maxLicenseOverlapLimit);
+
+    if (overlapCrossed || prevCritical !== postCritical || prevViolations !== postViolations) {
+      renderMonthly();
+    } else {
+      updateMonthlyCellDisplay(cell, op, date);
+    }
   }
 
   if (state.isEditMode) {
@@ -360,63 +850,87 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
 }
 
 function updatePendingEditsUI(): void {
-   const uniqueKeys = new Set<string>();
-   Object.keys(state.pendingEdits).forEach(k => uniqueKeys.add(k));
-   state.modifiedSchedules.forEach(m => uniqueKeys.add(`${m.agentName}_${m.date}`));
-   
-   const count = uniqueKeys.size;
-   const countEl = document.getElementById('pending-edits-count');
-   const saveBtn = document.getElementById('save-edits-btn') as HTMLButtonElement | null;
-   const discardBtn = document.getElementById('discard-edits-btn') as HTMLButtonElement | null;
-   
-   if (countEl) countEl.innerText = `${count} cambios`;
-   if (saveBtn) saveBtn.disabled = count === 0;
-   if (discardBtn) discardBtn.disabled = count === 0;
+  const uniqueKeys = new Set<string>();
+  Object.keys(state.pendingEdits).forEach((k) => uniqueKeys.add(k));
+  state.modifiedSchedules.forEach((m) =>
+    uniqueKeys.add(`${m.agentName}_${m.date}`),
+  );
 
-   const saveIndicator = document.getElementById('save-indicator');
-   if (saveIndicator) {
-     if (state.isEditMode) {
-       saveIndicator.classList.add('hidden');
-     } else {
-       if (count > 0) {
-         saveIndicator.classList.remove('hidden');
-       } else {
-         saveIndicator.classList.add('hidden');
-       }
-     }
-   }
+  const count = uniqueKeys.size;
+  const countEl = document.getElementById("pending-edits-count");
+  const saveBtn = document.getElementById(
+    "save-edits-btn",
+  ) as HTMLButtonElement | null;
+  const discardBtn = document.getElementById(
+    "discard-edits-btn",
+  ) as HTMLButtonElement | null;
+
+  if (countEl) countEl.innerText = `${count} cambios`;
+  if (saveBtn) saveBtn.disabled = count === 0;
+  if (discardBtn) discardBtn.disabled = count === 0;
+
+  const saveIndicator = document.getElementById("save-indicator");
+  if (saveIndicator) {
+    if (state.isEditMode) {
+      saveIndicator.classList.add("hidden");
+    } else {
+      if (count > 0) {
+        saveIndicator.classList.remove("hidden");
+      } else {
+        saveIndicator.classList.add("hidden");
+      }
+    }
+  }
 }
 
 async function discardChanges(): Promise<void> {
   try {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : undefined;
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    const currentMonth = dateInput?.value
+      ? dateInput.value.slice(0, 7)
+      : undefined;
     const data = await fetchCronogramaData(currentMonth);
     state.cronoData = data;
     state.modifiedSchedules = [];
-    
-    const saveIndicator = document.getElementById('save-indicator');
-    if (saveIndicator) saveIndicator.classList.add('hidden');
 
-    renderDaily();
-    renderMonthly();
+    const saveIndicator = document.getElementById("save-indicator");
+    if (saveIndicator) saveIndicator.classList.add("hidden");
+
+    clearParsedDatesCache();
+    // Mismo gating que reloadDataForActiveMonth: la vista oculta se
+    // re-renderiza al entrar via showDailyView/showMonthlyView.
+    if (isViewVisible("daily-view")) {
+      renderDaily();
+    }
+    if (isViewVisible("monthly-view")) {
+      renderMonthly();
+    }
   } catch (err: unknown) {
     console.error("Error discarding/reloading data:", err);
     showToast("Error al recargar el cronograma", "error");
   }
 }
 
-export function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' | 'overtime' | 'pasiva'): void {
+export function updateViewSwitcherUI(
+  activeView: "monthly" | "daily" | "groups" | "overtime" | "pasiva",
+): void {
   const switchBtns = [
-    { id: 'switch-to-monthly-btn', view: 'monthly' },
-    { id: 'switch-to-daily-btn', view: 'daily' },
-    { id: 'switch-to-groups-btn', view: 'groups' },
-    { id: 'switch-to-overtime-btn', view: 'overtime' },
-    { id: 'switch-to-pasiva-btn', view: 'pasiva' },
+    { id: "switch-to-monthly-btn", view: "monthly" },
+    { id: "switch-to-daily-btn", view: "daily" },
+    { id: "switch-to-groups-btn", view: "groups" },
+    { id: "switch-to-overtime-btn", view: "overtime" },
+    { id: "switch-to-pasiva-btn", view: "pasiva" },
   ];
 
-  const activeClasses = ['btn-secondary', 'shadow-sm', 'shadow-secondary/15'];
-  const inactiveClasses = ['btn-outline', 'border-transparent', 'text-base-content/60', 'hover:bg-base-200/50'];
+  const activeClasses = ["btn-secondary", "shadow-sm", "shadow-secondary/15"];
+  const inactiveClasses = [
+    "btn-outline",
+    "border-transparent",
+    "text-base-content/60",
+    "hover:bg-base-200/50",
+  ];
 
   switchBtns.forEach(({ id, view }) => {
     const btn = document.getElementById(id);
@@ -433,168 +947,195 @@ export function updateViewSwitcherUI(activeView: 'monthly' | 'daily' | 'groups' 
 }
 
 function showDailyView(): void {
-  const dailyView = document.getElementById('daily-view');
-  const monthlyView = document.getElementById('monthly-view');
-  const groupsView = document.getElementById('groups-view');
-  const overtimeView = document.getElementById('overtime-view');
-  const pasivaView = document.getElementById('pasiva-view');
-  const datePickerContainer = document.getElementById('date-picker-container');
+  const dailyView = document.getElementById("daily-view");
+  const monthlyView = document.getElementById("monthly-view");
+  const groupsView = document.getElementById("groups-view");
+  const overtimeView = document.getElementById("overtime-view");
+  const pasivaView = document.getElementById("pasiva-view");
+  const datePickerContainer = document.getElementById("date-picker-container");
 
-  renderDaily();
-  updateViewSwitcherUI('daily');
+  // Show immediately (stale content is still valid), re-render off the
+  // critical path so the tab switch paints instantly instead of blocking.
+  if (dailyView) dailyView.classList.remove("hidden");
+  if (monthlyView) monthlyView.classList.add("hidden");
+  if (groupsView) groupsView.classList.add("hidden");
+  if (overtimeView) overtimeView.classList.add("hidden");
+  if (pasivaView) pasivaView.classList.add("hidden");
 
-  if (dailyView) dailyView.classList.remove('hidden');
-  if (monthlyView) monthlyView.classList.add('hidden');
-  if (groupsView) groupsView.classList.add('hidden');
-  if (overtimeView) overtimeView.classList.add('hidden');
-  if (pasivaView) pasivaView.classList.add('hidden');
+  updateViewSwitcherUI("daily");
 
-  if (datePickerContainer) {
-    datePickerContainer.classList.remove('hidden');
-    setTimeout(() => {
-      datePickerContainer.classList.remove('is-faded');
-    }, 50);
-  }
+  if (datePickerContainer) datePickerContainer.classList.remove("hidden");
+
+  requestAnimationFrame(() => renderDaily());
 }
 
 function showMonthlyView(): void {
-  const dailyView = document.getElementById('daily-view');
-  const monthlyView = document.getElementById('monthly-view');
-  const groupsView = document.getElementById('groups-view');
-  const overtimeView = document.getElementById('overtime-view');
-  const pasivaView = document.getElementById('pasiva-view');
-  const datePickerContainer = document.getElementById('date-picker-container');
+  const dailyView = document.getElementById("daily-view");
+  const monthlyView = document.getElementById("monthly-view");
+  const groupsView = document.getElementById("groups-view");
+  const overtimeView = document.getElementById("overtime-view");
+  const pasivaView = document.getElementById("pasiva-view");
+  const datePickerContainer = document.getElementById("date-picker-container");
 
-  renderMonthly();
-  updateViewSwitcherUI('monthly');
+  if (dailyView) dailyView.classList.add("hidden");
+  if (monthlyView) monthlyView.classList.remove("hidden");
+  if (groupsView) groupsView.classList.add("hidden");
+  if (overtimeView) overtimeView.classList.add("hidden");
+  if (pasivaView) pasivaView.classList.add("hidden");
 
-  if (dailyView) dailyView.classList.add('hidden');
-  if (monthlyView) monthlyView.classList.remove('hidden');
-  if (groupsView) groupsView.classList.add('hidden');
-  if (overtimeView) overtimeView.classList.add('hidden');
-  if (pasivaView) pasivaView.classList.add('hidden');
+  updateViewSwitcherUI("monthly");
 
-  if (datePickerContainer) {
-    datePickerContainer.classList.remove('hidden');
-    setTimeout(() => {
-      datePickerContainer.classList.remove('is-faded');
-    }, 50);
-  }
+  if (datePickerContainer) datePickerContainer.classList.add("hidden");
+
+  requestAnimationFrame(() => renderMonthly());
 }
 
 export function showGroupsView(): void {
-  const dailyView = document.getElementById('daily-view');
-  const monthlyView = document.getElementById('monthly-view');
-  const groupsView = document.getElementById('groups-view');
-  const overtimeView = document.getElementById('overtime-view');
-  const pasivaView = document.getElementById('pasiva-view');
-  const datePickerContainer = document.getElementById('date-picker-container');
-  
+  const dailyView = document.getElementById("daily-view");
+  const monthlyView = document.getElementById("monthly-view");
+  const groupsView = document.getElementById("groups-view");
+  const overtimeView = document.getElementById("overtime-view");
+  const pasivaView = document.getElementById("pasiva-view");
+  const datePickerContainer = document.getElementById("date-picker-container");
+
   renderGroupsView();
-  updateViewSwitcherUI('groups');
-  
-  if (dailyView) dailyView.classList.add('hidden');
-  if (monthlyView) monthlyView.classList.add('hidden');
-  if (groupsView) groupsView.classList.remove('hidden');
-  if (overtimeView) overtimeView.classList.add('hidden');
-  if (pasivaView) pasivaView.classList.add('hidden');
-  
-  if (datePickerContainer) {
-    datePickerContainer.classList.add('is-faded');
-    setTimeout(() => {
-      datePickerContainer.classList.add('hidden');
-    }, 300);
-  }
+  updateViewSwitcherUI("groups");
+
+  if (dailyView) dailyView.classList.add("hidden");
+  if (monthlyView) monthlyView.classList.add("hidden");
+  if (groupsView) groupsView.classList.remove("hidden");
+  if (overtimeView) overtimeView.classList.add("hidden");
+  if (pasivaView) pasivaView.classList.add("hidden");
+
+  if (datePickerContainer) datePickerContainer.classList.add("hidden");
 }
 
 export async function renderGroupsView(): Promise<void> {
   try {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    const month = dateInput?.value
+      ? dateInput.value.slice(0, 7)
+      : new Date().toISOString().slice(0, 7);
     const res = await fetch(`/api/cronograma/rotation-config?month=${month}`);
-    if (!res.ok) throw new Error("No se pudo cargar la configuración de rotación");
+    if (!res.ok)
+      throw new Error("No se pudo cargar la configuración de rotación");
     const config = await res.json();
-    
-    const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
-    const startGroupSelect = document.getElementById('rotation-start-group') as HTMLSelectElement | null;
-    const orderInput = document.getElementById('rotation-order') as HTMLInputElement | null;
-    
+
+    const startDateInput = document.getElementById(
+      "rotation-start-date",
+    ) as HTMLInputElement | null;
+    const startGroupSelect = document.getElementById(
+      "rotation-start-group",
+    ) as HTMLSelectElement | null;
+    const orderInput = document.getElementById(
+      "rotation-order",
+    ) as HTMLInputElement | null;
+
     if (startDateInput && config.startDate) {
       startDateInput.value = config.startDate;
-      const displayEl = document.getElementById('rotation-start-date-display');
+      const displayEl = document.getElementById("rotation-start-date-display");
       if (displayEl) {
         displayEl.innerText = formatToDDMMYY(config.startDate);
       }
     }
-    if (startGroupSelect && config.startGroup) startGroupSelect.value = config.startGroup;
-    if (orderInput && config.rotationOrder) orderInput.value = config.rotationOrder;
-    
-    const disabledGroupsList = (config.disabledGroups || "").split(",").map((g: string) => g.trim()).filter(Boolean);
-    ['A', 'B', 'C', 'D'].forEach(g => {
-      const toggle = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+    if (startGroupSelect && config.startGroup)
+      startGroupSelect.value = config.startGroup;
+    if (orderInput && config.rotationOrder)
+      orderInput.value = config.rotationOrder;
+
+    const disabledGroupsList = (config.disabledGroups || "")
+      .split(",")
+      .map((g: string) => g.trim())
+      .filter(Boolean);
+    ["A", "B", "C", "D"].forEach((g) => {
+      const toggle = document.querySelector(
+        `[data-group-toggle="${g}"]`,
+      ) as HTMLInputElement | null;
       if (toggle) toggle.checked = !disabledGroupsList.includes(g);
     });
 
-    setActiveRotationConfig({ startDate: config.startDate, startGroup: config.startGroup, rotationOrder: config.rotationOrder, disabledGroups: config.disabledGroups || "" });
-    ['A', 'B', 'C', 'D'].forEach(group => {
+    setActiveRotationConfig({
+      startDate: config.startDate,
+      startGroup: config.startGroup,
+      rotationOrder: config.rotationOrder,
+      disabledGroups: config.disabledGroups || "",
+    });
+    ["A", "B", "C", "D"].forEach((group) => {
       const dateEl = document.getElementById(`group-${group}-next-date`);
       if (dateEl) {
         const nextDate = getNextSaturdayForGroup(group);
         if (nextDate) {
           dateEl.textContent = formatToDDMMYY(nextDate);
-          dateEl.classList.remove('hidden');
+          dateEl.classList.remove("hidden");
         } else {
-          dateEl.classList.add('hidden');
+          dateEl.classList.add("hidden");
         }
       }
     });
-    
+
     const groupContainers: Record<string, HTMLElement | null> = {
-      A: document.getElementById('group-A-list'),
-      B: document.getElementById('group-B-list'),
-      C: document.getElementById('group-C-list'),
-      D: document.getElementById('group-D-list'),
+      A: document.getElementById("group-A-list"),
+      B: document.getElementById("group-B-list"),
+      C: document.getElementById("group-C-list"),
+      D: document.getElementById("group-D-list"),
     };
-    
+
     const groupCounts: Record<string, HTMLElement | null> = {
-      A: document.getElementById('group-A-count'),
-      B: document.getElementById('group-B-count'),
-      C: document.getElementById('group-C-count'),
-      D: document.getElementById('group-D-count'),
+      A: document.getElementById("group-A-count"),
+      B: document.getElementById("group-B-count"),
+      C: document.getElementById("group-C-count"),
+      D: document.getElementById("group-D-count"),
     };
 
     const addMemberSelects: Record<string, HTMLSelectElement | null> = {
-      A: document.getElementById('add-member-select-A') as HTMLSelectElement | null,
-      B: document.getElementById('add-member-select-B') as HTMLSelectElement | null,
-      C: document.getElementById('add-member-select-C') as HTMLSelectElement | null,
-      D: document.getElementById('add-member-select-D') as HTMLSelectElement | null,
+      A: document.getElementById(
+        "add-member-select-A",
+      ) as HTMLSelectElement | null,
+      B: document.getElementById(
+        "add-member-select-B",
+      ) as HTMLSelectElement | null,
+      C: document.getElementById(
+        "add-member-select-C",
+      ) as HTMLSelectElement | null,
+      D: document.getElementById(
+        "add-member-select-D",
+      ) as HTMLSelectElement | null,
     };
 
-    const groups = ['A', 'B', 'C', 'D'];
-    groups.forEach(g => {
-      if (groupContainers[g]) groupContainers[g]!.innerHTML = '';
-      if (groupCounts[g]) groupCounts[g]!.innerText = '0 ops';
+    const groups = ["A", "B", "C", "D"];
+    groups.forEach((g) => {
+      if (groupContainers[g]) groupContainers[g]!.innerHTML = "";
+      if (groupCounts[g]) groupCounts[g]!.innerText = "0 ops";
       if (addMemberSelects[g]) {
-        addMemberSelects[g]!.innerHTML = '<option value="" disabled selected>Seleccionar...</option>';
+        addMemberSelects[g]!.innerHTML =
+          '<option value="" disabled selected>Seleccionar...</option>';
       }
     });
 
     const unassignedAgents: OperatorData[] = [];
-    const groupMembers: Record<string, OperatorData[]> = { A: [], B: [], C: [], D: [] };
+    const groupMembers: Record<string, OperatorData[]> = {
+      A: [],
+      B: [],
+      C: [],
+      D: [],
+    };
 
-    state.cronoData.forEach(agent => {
+    state.cronoData.forEach((agent) => {
       const group = agent.saturdayGroup;
-      if (group && ['A', 'B', 'C', 'D'].includes(group)) {
+      if (group && ["A", "B", "C", "D"].includes(group)) {
         groupMembers[group].push(agent);
       } else {
         unassignedAgents.push(agent);
       }
     });
 
-    groups.forEach(g => {
+    groups.forEach((g) => {
       const list = groupMembers[g] || [];
       if (groupCounts[g]) {
-        groupCounts[g]!.innerText = `${list.length} op${list.length !== 1 ? 's' : ''}`;
+        groupCounts[g]!.innerText =
+          `${list.length} op${list.length !== 1 ? "s" : ""}`;
       }
 
       if (groupContainers[g]) {
@@ -605,12 +1146,14 @@ export async function renderGroupsView(): Promise<void> {
             </div>
           `;
         } else {
-          list.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
-            const html = `
+          list
+            .sort((a, b) => a.nombre.localeCompare(b.nombre))
+            .forEach((agent) => {
+              const html = `
               <div class="flex items-center justify-between p-2.5 bg-base-100 border border-base-300/80 rounded-xl hover:border-secondary/30 transition-all shadow-sm group">
                 <div class="flex flex-col min-w-0">
                   <span class="font-bold text-xs text-base-content truncate">${escapeHtml(agent.nombre)}</span>
-                  <span class="text-tiny font-semibold text-base-content/50 truncate">${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}</span>
+                  <span class="text-xs font-bold text-base-content/70 truncate">${escapeHtml(agent.saturdayHorario || "07:00 - 13:00")}</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
                   <button 
@@ -619,7 +1162,7 @@ export async function renderGroupsView(): Promise<void> {
                     data-agent-id="${agent.id}"
                     data-agent-name="${escapeHtml(agent.nombre)}"
                     data-agent-group="${agent.saturdayGroup}"
-                    data-agent-horario="${escapeHtml(agent.saturdayHorario || '07:00 - 13:00')}"
+                    data-agent-horario="${escapeHtml(agent.saturdayHorario || "07:00 - 13:00")}"
                     title="Editar horario"
                   >
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -636,21 +1179,23 @@ export async function renderGroupsView(): Promise<void> {
                 </div>
               </div>
             `;
-            groupContainers[g]!.insertAdjacentHTML('beforeend', html);
-          });
+              groupContainers[g]!.insertAdjacentHTML("beforeend", html);
+            });
         }
       }
     });
 
-    groups.forEach(g => {
+    groups.forEach((g) => {
       const select = addMemberSelects[g];
       if (select) {
-        unassignedAgents.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(agent => {
-          const opt = document.createElement('option');
-          opt.value = String(agent.id);
-          opt.textContent = agent.nombre;
-          select.appendChild(opt);
-        });
+        unassignedAgents
+          .sort((a, b) => a.nombre.localeCompare(b.nombre))
+          .forEach((agent) => {
+            const opt = document.createElement("option");
+            opt.value = String(agent.id);
+            opt.textContent = agent.nombre;
+            select.appendChild(opt);
+          });
       }
     });
 
@@ -658,24 +1203,30 @@ export async function renderGroupsView(): Promise<void> {
     const activeDateStr = dateInput?.value || formatYMD(new Date());
     const activeMonthPrefix = activeDateStr.slice(0, 7);
 
-    if (!rotationTimelineSelectedDate || !rotationTimelineSelectedDate.startsWith(activeMonthPrefix)) {
-      const baseDate = new Date(activeDateStr + 'T12:00:00');
+    if (
+      !rotationTimelineSelectedDate ||
+      !rotationTimelineSelectedDate.startsWith(activeMonthPrefix)
+    ) {
+      const baseDate = new Date(activeDateStr + "T12:00:00");
       const dayVal = baseDate.getDay();
       const diff = dayVal === 0 ? -1 : 6 - dayVal;
       baseDate.setDate(baseDate.getDate() + diff);
       setRotationTimelineSelectedDate(formatYMD(baseDate));
     }
 
-    const rotationTimelineInput = document.getElementById('rotation-timeline-date') as HTMLInputElement | null;
+    const rotationTimelineInput = document.getElementById(
+      "rotation-timeline-date",
+    ) as HTMLInputElement | null;
     if (rotationTimelineInput) {
       rotationTimelineInput.value = rotationTimelineSelectedDate!;
-      const displayEl = document.getElementById('rotation-timeline-date-display');
+      const displayEl = document.getElementById(
+        "rotation-timeline-date-display",
+      );
       if (displayEl) {
         displayEl.textContent = formatToDDMMYY(rotationTimelineSelectedDate!);
       }
     }
     renderRotationTimeline(rotationTimelineSelectedDate!);
-
   } catch (err: any) {
     console.error("renderGroupsView Error:", err);
     showToast("Error al renderizar vista de grupos", "error");
@@ -683,65 +1234,113 @@ export async function renderGroupsView(): Promise<void> {
 }
 
 function updateFilterActiveStates(): void {
-  const filterAllBtn = document.getElementById('filter-monthly-status-all');
-  const filterPresencialMgBtn = document.getElementById('filter-monthly-status-presencial-monte-grande');
-  const filterPresencialPpBtn = document.getElementById('filter-monthly-status-presencial-parque-patricios');
-  const filterHoBtn = document.getElementById('filter-monthly-status-home-office');
-  const filterLicenciaBtn = document.getElementById('filter-monthly-status-licencia');
-  const filterVacacionesBtn = document.getElementById('filter-monthly-status-vacaciones');
+  const filterAllBtn = document.getElementById("filter-monthly-status-all");
+  const filterPresencialMgBtn = document.getElementById(
+    "filter-monthly-status-presencial-monte-grande",
+  );
+  const filterPresencialPpBtn = document.getElementById(
+    "filter-monthly-status-presencial-parque-patricios",
+  );
+  const filterHoBtn = document.getElementById(
+    "filter-monthly-status-home-office",
+  );
+  const filterLicenciaBtn = document.getElementById(
+    "filter-monthly-status-licencia",
+  );
+  const filterVacacionesBtn = document.getElementById(
+    "filter-monthly-status-vacaciones",
+  );
 
-  const filterAllBtnDaily = document.getElementById('filter-daily-status-all');
-  const filterPresencialMgBtnDaily = document.getElementById('filter-daily-status-presencial-monte-grande');
-  const filterPresencialPpBtnDaily = document.getElementById('filter-daily-status-presencial-parque-patricios');
-  const filterHoBtnDaily = document.getElementById('filter-daily-status-home-office');
-  const filterLicenciaBtnDaily = document.getElementById('filter-daily-status-licencia');
-  const filterVacacionesBtnDaily = document.getElementById('filter-daily-status-vacaciones');
+  const filterAllBtnDaily = document.getElementById("filter-daily-status-all");
+  const filterPresencialMgBtnDaily = document.getElementById(
+    "filter-daily-status-presencial-monte-grande",
+  );
+  const filterPresencialPpBtnDaily = document.getElementById(
+    "filter-daily-status-presencial-parque-patricios",
+  );
+  const filterHoBtnDaily = document.getElementById(
+    "filter-daily-status-home-office",
+  );
+  const filterLicenciaBtnDaily = document.getElementById(
+    "filter-daily-status-licencia",
+  );
+  const filterVacacionesBtnDaily = document.getElementById(
+    "filter-daily-status-vacaciones",
+  );
 
   const monthlyButtons = [
-    { el: filterAllBtn, value: 'all' },
-    { el: filterPresencialMgBtn, value: 'Presencial Monte Grande' },
-    { el: filterPresencialPpBtn, value: 'Presencial Parque Patricios' },
-    { el: filterHoBtn, value: 'Home Office' },
-    { el: filterLicenciaBtn, value: 'Licencia' },
-    { el: filterVacacionesBtn, value: 'Vacaciones' }
+    { el: filterAllBtn, value: "all" },
+    { el: filterPresencialMgBtn, value: "Presencial Monte Grande" },
+    { el: filterPresencialPpBtn, value: "Presencial Parque Patricios" },
+    { el: filterHoBtn, value: "Home Office" },
+    { el: filterLicenciaBtn, value: "Licencia" },
+    { el: filterVacacionesBtn, value: "Vacaciones" },
   ];
 
   const dailyButtons = [
-    { el: filterAllBtnDaily, value: 'all' },
-    { el: filterPresencialMgBtnDaily, value: 'Presencial Monte Grande' },
-    { el: filterPresencialPpBtnDaily, value: 'Presencial Parque Patricios' },
-    { el: filterHoBtnDaily, value: 'Home Office' },
-    { el: filterLicenciaBtnDaily, value: 'Licencia' },
-    { el: filterVacacionesBtnDaily, value: 'Vacaciones' }
+    { el: filterAllBtnDaily, value: "all" },
+    { el: filterPresencialMgBtnDaily, value: "Presencial Monte Grande" },
+    { el: filterPresencialPpBtnDaily, value: "Presencial Parque Patricios" },
+    { el: filterHoBtnDaily, value: "Home Office" },
+    { el: filterLicenciaBtnDaily, value: "Licencia" },
+    { el: filterVacacionesBtnDaily, value: "Vacaciones" },
   ];
 
-  updateButtonGroupState(monthlyButtons, state.activeFilter, STATUS_FILTER_CONFIGS.monthly);
-  updateButtonGroupState(dailyButtons, state.activeFilter, STATUS_FILTER_CONFIGS.daily);
+  updateButtonGroupState(
+    monthlyButtons,
+    state.activeFilter,
+    STATUS_FILTER_CONFIGS.monthly,
+  );
+  updateButtonGroupState(
+    dailyButtons,
+    state.activeFilter,
+    STATUS_FILTER_CONFIGS.daily,
+  );
 }
 
 function updateLocationFilterActiveStates(): void {
-  const filterLocationAllBtn = document.getElementById('filter-monthly-location-all');
-  const filterLocationMgBtn = document.getElementById('filter-monthly-location-monte-grande');
-  const filterLocationPpBtn = document.getElementById('filter-monthly-location-parque-patricios');
+  const filterLocationAllBtn = document.getElementById(
+    "filter-monthly-location-all",
+  );
+  const filterLocationMgBtn = document.getElementById(
+    "filter-monthly-location-monte-grande",
+  );
+  const filterLocationPpBtn = document.getElementById(
+    "filter-monthly-location-parque-patricios",
+  );
 
-  const filterLocationAllBtnDaily = document.getElementById('filter-daily-location-all');
-  const filterLocationMgBtnDaily = document.getElementById('filter-daily-location-monte-grande');
-  const filterLocationPpBtnDaily = document.getElementById('filter-daily-location-parque-patricios');
+  const filterLocationAllBtnDaily = document.getElementById(
+    "filter-daily-location-all",
+  );
+  const filterLocationMgBtnDaily = document.getElementById(
+    "filter-daily-location-monte-grande",
+  );
+  const filterLocationPpBtnDaily = document.getElementById(
+    "filter-daily-location-parque-patricios",
+  );
 
   const monthlyButtons = [
-    { el: filterLocationAllBtn, value: 'all' },
-    { el: filterLocationMgBtn, value: 'Monte Grande' },
-    { el: filterLocationPpBtn, value: 'Parque Patricios' }
+    { el: filterLocationAllBtn, value: "all" },
+    { el: filterLocationMgBtn, value: "Monte Grande" },
+    { el: filterLocationPpBtn, value: "Parque Patricios" },
   ];
 
   const dailyButtons = [
-    { el: filterLocationAllBtnDaily, value: 'all' },
-    { el: filterLocationMgBtnDaily, value: 'Monte Grande' },
-    { el: filterLocationPpBtnDaily, value: 'Parque Patricios' }
+    { el: filterLocationAllBtnDaily, value: "all" },
+    { el: filterLocationMgBtnDaily, value: "Monte Grande" },
+    { el: filterLocationPpBtnDaily, value: "Parque Patricios" },
   ];
 
-  updateButtonGroupState(monthlyButtons, state.activeLocationFilter, LOCATION_FILTER_CONFIG);
-  updateButtonGroupState(dailyButtons, state.activeLocationFilter, LOCATION_FILTER_CONFIG);
+  updateButtonGroupState(
+    monthlyButtons,
+    state.activeLocationFilter,
+    LOCATION_FILTER_CONFIG,
+  );
+  updateButtonGroupState(
+    dailyButtons,
+    state.activeLocationFilter,
+    LOCATION_FILTER_CONFIG,
+  );
 }
 
 function applyBrushToCell(cell: HTMLElement): void {
@@ -750,10 +1349,12 @@ function applyBrushToCell(cell: HTMLElement): void {
   if (!operator || !date || !state.activeBrush) return;
 
   if (isWeekend(date)) {
-    if (state.activeBrush !== OperatorStatus.Licencia &&
-        state.activeBrush !== OperatorStatus.Vacaciones &&
-        state.activeBrush !== OperatorStatus.Franco &&
-        state.activeBrush !== OperatorStatus.HomeOffice) {
+    if (
+      state.activeBrush !== OperatorStatus.Licencia &&
+      state.activeBrush !== OperatorStatus.Vacaciones &&
+      state.activeBrush !== OperatorStatus.Franco &&
+      state.activeBrush !== OperatorStatus.HomeOffice
+    ) {
       return;
     }
   }
@@ -762,23 +1363,25 @@ function applyBrushToCell(cell: HTMLElement): void {
 }
 
 function updateBrushUI(): void {
-  document.querySelectorAll('.brush-btn').forEach(btn => {
+  document.querySelectorAll(".brush-btn").forEach((btn) => {
     const brush = (btn as HTMLElement).dataset.brush;
     if (state.activeBrush === brush) {
-      btn.classList.add('ring-2', 'ring-secondary', 'bg-base-200');
+      btn.classList.add("ring-2", "ring-secondary", "bg-base-200");
     } else {
-      btn.classList.remove('ring-2', 'ring-secondary', 'bg-base-200');
+      btn.classList.remove("ring-2", "ring-secondary", "bg-base-200");
     }
   });
 }
 
 function setupEventListeners(): void {
   // Month Select Change Handler
-  document.getElementById('month-selector')?.addEventListener('change', (e) => {
+  document.getElementById("month-selector")?.addEventListener("change", (e) => {
     const select = e.target as HTMLSelectElement;
     const val = select.value;
     if (!val) return;
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
     if (dateInput) {
       dateInput.value = val;
       updateDateInputDisplay();
@@ -786,112 +1389,158 @@ function setupEventListeners(): void {
     }
   });
 
-  document.getElementById('groups-month-selector')?.addEventListener('change', (e) => {
-    const select = e.target as HTMLSelectElement;
-    const val = select.value;
-    if (!val) return;
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    if (dateInput) {
-      dateInput.value = val;
-      updateDateInputDisplay();
-      reloadDataForActiveMonth(val.slice(0, 7));
-    }
-  });
+  document
+    .getElementById("groups-month-selector")
+    ?.addEventListener("change", (e) => {
+      const select = e.target as HTMLSelectElement;
+      const val = select.value;
+      if (!val) return;
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      if (dateInput) {
+        dateInput.value = val;
+        updateDateInputDisplay();
+        reloadDataForActiveMonth(val.slice(0, 7));
+      }
+    });
+
+  document
+    .getElementById("pasiva-month-selector")
+    ?.addEventListener("change", (e) => {
+      const select = e.target as HTMLSelectElement;
+      const val = select.value;
+      if (!val) return;
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      if (dateInput) {
+        dateInput.value = val;
+        updateDateInputDisplay();
+        reloadDataForActiveMonth(val.slice(0, 7));
+      }
+    });
 
   // New Operator Modal Handlers
-  const newOpModal = document.getElementById('new-operator-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
-  const openNewOpBtn = document.getElementById('open-new-op-modal');
+  const newOpModal = document.getElementById("new-operator-modal") as
+    (HTMLDialogElement & { showModal: () => void; close: () => void }) | null;
+  const openNewOpBtn = document.getElementById("open-new-op-modal");
 
-  openNewOpBtn?.addEventListener('click', () => {
+  openNewOpBtn?.addEventListener("click", () => {
     newOpModal?.showModal();
   });
 
   // Holidays Modal Trigger
-  const holidaysModal = document.getElementById('holidays-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
-  const openHolidaysBtn = document.getElementById('open-holidays-modal');
+  const holidaysModal = document.getElementById("holidays-modal") as
+    (HTMLDialogElement & { showModal: () => void; close: () => void }) | null;
+  const openHolidaysBtn = document.getElementById("open-holidays-modal");
 
-  openHolidaysBtn?.addEventListener('click', () => {
+  openHolidaysBtn?.addEventListener("click", () => {
     if (holidaysModal) {
       holidaysModal.showModal();
-      holidaysModal.dispatchEvent(new Event('show'));
+      holidaysModal.dispatchEvent(new Event("show"));
     }
   });
 
-  document.getElementById('switch-to-monthly-btn')?.addEventListener('click', () => {
-    showMonthlyView();
-  });
+  document
+    .getElementById("switch-to-monthly-btn")
+    ?.addEventListener("click", () => {
+      showMonthlyView();
+    });
 
-  document.getElementById('switch-to-daily-btn')?.addEventListener('click', () => {
-    showDailyView();
-  });
+  document
+    .getElementById("switch-to-daily-btn")
+    ?.addEventListener("click", () => {
+      showDailyView();
+    });
 
-  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const dateInput = document.getElementById(
+    "date-input",
+  ) as HTMLInputElement | null;
   if (dateInput) {
-    dateInput.addEventListener('change', () => {
+    dateInput.addEventListener("change", () => {
       updateDateInputDisplay();
       renderDaily();
-      renderMonthly(); 
+      renderMonthly();
     });
   }
 
-  const rotationStartDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
-  rotationStartDateInput?.addEventListener('change', () => {
-    const displayEl = document.getElementById('rotation-start-date-display');
+  const rotationStartDateInput = document.getElementById(
+    "rotation-start-date",
+  ) as HTMLInputElement | null;
+  rotationStartDateInput?.addEventListener("change", () => {
+    const displayEl = document.getElementById("rotation-start-date-display");
     if (displayEl && rotationStartDateInput.value) {
       displayEl.innerText = formatToDDMMYY(rotationStartDateInput.value);
     }
   });
 
-  const monthlyBody = document.getElementById('monthly-tbody');
-  const backToMonthlyBtn = document.getElementById('back-to-monthly-btn');
+  const monthlyBody = document.getElementById("monthly-tbody");
+  const backToMonthlyBtn = document.getElementById("back-to-monthly-btn");
 
-  backToMonthlyBtn?.addEventListener('click', () => {
+  backToMonthlyBtn?.addEventListener("click", () => {
     showMonthlyView();
   });
 
-  document.getElementById('prev-month-btn')?.addEventListener('click', () => {
+  document.getElementById("prev-month-btn")?.addEventListener("click", () => {
     changeMonth(-1);
   });
 
-  document.getElementById('next-month-btn')?.addEventListener('click', () => {
+  document.getElementById("next-month-btn")?.addEventListener("click", () => {
     changeMonth(1);
   });
 
-  document.getElementById('monthly-tfoot')?.addEventListener('click', (event) => {
-    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-coverage-btn');
-    if (!btn) return;
-    state.isCoverageMinimized = !state.isCoverageMinimized;
-    renderMonthly();
-  });
+  document
+    .getElementById("monthly-tfoot")
+    ?.addEventListener("click", (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "#toggle-coverage-btn",
+      );
+      if (!btn) return;
+      state.isCoverageMinimized = !state.isCoverageMinimized;
+      renderMonthly();
+    });
 
-  document.getElementById('monthly-thead')?.addEventListener('click', (event) => {
-    const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('#toggle-totals-btn');
-    if (!btn) return;
-    state.isTotalsCollapsed = !state.isTotalsCollapsed;
-    renderMonthly();
-  });
+  document
+    .getElementById("monthly-thead")
+    ?.addEventListener("click", (event) => {
+      const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "#toggle-totals-btn",
+      );
+      if (!btn) return;
+      state.isTotalsCollapsed = !state.isTotalsCollapsed;
+      renderMonthly();
+    });
 
   let isDragging = false;
-  monthlyBody?.addEventListener('mousedown', (event) => {
+  monthlyBody?.addEventListener("mousedown", (event) => {
     if (event.button !== 0 || !state.isEditMode || !state.activeBrush) return;
-    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
     if (trigger) {
-       isDragging = true;
-       applyBrushToCell(trigger);
+      isDragging = true;
+      applyBrushToCell(trigger);
     }
   });
 
-  monthlyBody?.addEventListener('mouseover', (event) => {
+  monthlyBody?.addEventListener("mouseover", (event) => {
     if (!isDragging || !state.isEditMode || !state.activeBrush) return;
-    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
     if (trigger) applyBrushToCell(trigger);
   });
 
-  document.addEventListener('mouseup', () => { isDragging = false; }); // [PERF] minimal — single assignment
-  
-  monthlyBody?.addEventListener('click', async (event) => {
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+  }); // [PERF] minimal — single assignment
+
+  monthlyBody?.addEventListener("click", async (event) => {
     // Click on edit operator button
-    const editOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.edit-op-btn');
+    const editOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      ".edit-op-btn",
+    );
     if (editOpBtn) {
       event.stopPropagation();
       const originalName = editOpBtn.dataset.editOpName;
@@ -899,45 +1548,66 @@ function setupEventListeners(): void {
       const location = editOpBtn.dataset.editOpLocation;
       const schedule = editOpBtn.dataset.editOpSchedule;
 
-      const originalNameInput = document.getElementById('edit-op-original-name') as HTMLInputElement | null;
-      const nameInput = document.getElementById('edit-op-name') as HTMLInputElement | null;
-      const usernameInput = document.getElementById('edit-op-username') as HTMLInputElement | null;
-      const locSelect = document.getElementById('edit-op-location') as HTMLSelectElement | null;
+      const originalNameInput = document.getElementById(
+        "edit-op-original-name",
+      ) as HTMLInputElement | null;
+      const nameInput = document.getElementById(
+        "edit-op-name",
+      ) as HTMLInputElement | null;
+      const usernameInput = document.getElementById(
+        "edit-op-username",
+      ) as HTMLInputElement | null;
+      const locSelect = document.getElementById(
+        "edit-op-location",
+      ) as HTMLSelectElement | null;
 
-      if (originalNameInput) originalNameInput.value = originalName || '';
-      if (nameInput) nameInput.value = originalName || '';
-      if (usernameInput) usernameInput.value = username || '';
-      if (locSelect) locSelect.value = location || 'Monte Grande';
+      if (originalNameInput) originalNameInput.value = originalName || "";
+      if (nameInput) nameInput.value = originalName || "";
+      if (usernameInput) usernameInput.value = username || "";
+      if (locSelect) locSelect.value = location || "Monte Grande";
 
-      const editOpModal = document.getElementById('edit-operator-modal') as HTMLDialogElement & { showModal: () => void } | null;
+      const editOpModal = document.getElementById("edit-operator-modal") as
+        (HTMLDialogElement & { showModal: () => void }) | null;
       editOpModal?.showModal();
       return;
     }
 
     // Click on delete operator button
-    const deleteOpBtn = (event.target as HTMLElement).closest<HTMLButtonElement>('.delete-op-btn');
+    const deleteOpBtn = (
+      event.target as HTMLElement
+    ).closest<HTMLButtonElement>(".delete-op-btn");
     if (deleteOpBtn) {
       event.stopPropagation();
       const opName = deleteOpBtn.dataset.deleteOpName;
       if (!opName) return;
 
-      const confirmed = await showConfirm(`¿Estás seguro de que deseas eliminar al operador "${opName}"? Esta acción borrará permanentemente sus datos y asistencias registradas.`);
+      const confirmed = await showConfirm(
+        `¿Estás seguro de que deseas eliminar al operador "${opName}"? Esta acción borrará permanentemente sus datos y asistencias registradas.`,
+      );
       if (confirmed) {
         deleteOpBtn.disabled = true;
         try {
           await deleteOperator(opName);
-          
-          const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-          const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : undefined;
+
+          const dateInput = document.getElementById(
+            "date-input",
+          ) as HTMLInputElement | null;
+          const currentMonth = dateInput?.value
+            ? dateInput.value.slice(0, 7)
+            : undefined;
           const data = await fetchCronogramaData(currentMonth);
           state.cronoData = data;
 
+          clearParsedDatesCache();
           renderMonthly();
           renderDaily();
           showToast(`Operador "${opName}" eliminado con éxito.`, "success");
         } catch (err: unknown) {
           console.error("Error deleting operator:", err);
-          const msg = err instanceof Error ? err.message : "Error al intentar eliminar operador.";
+          const msg =
+            err instanceof Error
+              ? err.message
+              : "Error al intentar eliminar operador.";
           showToast(msg, "error");
           deleteOpBtn.disabled = false;
         }
@@ -946,22 +1616,36 @@ function setupEventListeners(): void {
     }
 
     // Row bulk edit
-    const rowHeader = (event.target as HTMLElement).closest<HTMLElement>('.op-row-header');
+    const rowHeader = (event.target as HTMLElement).closest<HTMLElement>(
+      ".op-row-header",
+    );
     if (rowHeader && state.isEditMode && state.activeBrush) {
-       const tr = rowHeader.closest('tr');
-       tr?.querySelectorAll('[data-monthly-detail]').forEach(cell => applyBrushToCell(cell as HTMLElement));
-       return;
+      const tr = rowHeader.closest("tr");
+      const tbody = document.getElementById("monthly-tbody");
+      tr?.querySelectorAll("[data-monthly-detail]").forEach((cell) => {
+        const live = findLiveMonthlyCell(
+          tbody,
+          (cell as HTMLElement).dataset.operator,
+          (cell as HTMLElement).dataset.date,
+        );
+        if (live) applyBrushToCell(live);
+      });
+      return;
     }
 
     // Row highlight toggle (when not active brush editing)
-    const rowDot = (event.target as HTMLElement).closest<HTMLElement>('.op-row-dot');
+    const rowDot = (event.target as HTMLElement).closest<HTMLElement>(
+      ".op-row-dot",
+    );
     if (rowDot && !(state.isEditMode && state.activeBrush)) {
-      const tr = rowDot.closest('tr');
-      tr?.classList.toggle('highlighted-row');
+      const tr = rowDot.closest("tr");
+      tr?.classList.toggle("highlighted-row");
       return;
     }
-    
-    const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+
+    const trigger = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
     if (!trigger) return;
 
     if (trigger.dataset.saturdayRotation === "true") {
@@ -970,122 +1654,152 @@ function setupEventListeners(): void {
     }
 
     if (state.isEditMode && state.activeBrush) return;
-    
-    document.dispatchEvent(new CustomEvent('cronograma:open-monthly-detail', {
-      detail: { trigger }
-    }));
+
+    document.dispatchEvent(
+      new CustomEvent("cronograma:open-monthly-detail", {
+        detail: { trigger },
+      }),
+    );
   });
 
-  const monthlySearch = document.getElementById('monthly-search') as HTMLInputElement | null;
-  const dailySearch = document.getElementById('daily-search') as HTMLInputElement | null;
+  const monthlySearch = document.getElementById(
+    "monthly-search",
+  ) as HTMLInputElement | null;
+  const dailySearch = document.getElementById(
+    "daily-search",
+  ) as HTMLInputElement | null;
 
   const handleSearchInput = debounce((e: Event) => {
     state.searchQuery = (e.target as HTMLInputElement).value.trim();
-    if (monthlySearch && monthlySearch !== e.target) monthlySearch.value = state.searchQuery;
-    if (dailySearch && dailySearch !== e.target) dailySearch.value = state.searchQuery;
+    if (monthlySearch && monthlySearch !== e.target)
+      monthlySearch.value = state.searchQuery;
+    if (dailySearch && dailySearch !== e.target)
+      dailySearch.value = state.searchQuery;
     renderMonthly();
     renderDaily();
   }, 150);
 
-  monthlySearch?.addEventListener('input', handleSearchInput);
-  dailySearch?.addEventListener('input', handleSearchInput);
+  monthlySearch?.addEventListener("input", handleSearchInput);
+  dailySearch?.addEventListener("input", handleSearchInput);
 
   const syncSortDropdowns = (val: string) => {
-    const mLabel = document.getElementById('monthly-sort-label');
-    const dLabel = document.getElementById('daily-sort-label');
-    const opt = document.querySelector(`[data-sort-option][data-value="${val}"]`);
+    const mLabel = document.getElementById("monthly-sort-label");
+    const dLabel = document.getElementById("daily-sort-label");
+    const opt = document.querySelector(
+      `[data-sort-option][data-value="${val}"]`,
+    );
     if (opt) {
-      const txt = opt.querySelector('span:last-child')?.textContent?.trim() || opt.textContent?.trim() || '';
+      const txt =
+        opt.querySelector("span:last-child")?.textContent?.trim() ||
+        opt.textContent?.trim() ||
+        "";
       if (mLabel) mLabel.textContent = `Ordenar: ${txt}`;
       if (dLabel) dLabel.textContent = `Ordenar: ${txt}`;
     }
     // Highlight active option
-    document.querySelectorAll('[data-sort-option]').forEach(el => el.classList.remove('menu-active'));
-    opt?.classList.add('menu-active');
+    document
+      .querySelectorAll("[data-sort-option]")
+      .forEach((el) => el.classList.remove("menu-active"));
+    opt?.classList.add("menu-active");
   };
 
   syncSortDropdowns(state.activeSort);
 
-  document.querySelectorAll('[data-sort-option]').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const val = opt.getAttribute('data-value') || 'alphabetical';
+  document.querySelectorAll("[data-sort-option]").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      const val = opt.getAttribute("data-value") || "alphabetical";
       state.activeSort = val;
       syncSortDropdowns(val);
       (document.activeElement as HTMLElement)?.blur();
       // Close the details dropdown
-      const details = opt.closest('details');
-      if (details) details.removeAttribute('open');
+      const details = opt.closest("details");
+      if (details) details.removeAttribute("open");
       renderMonthly();
       renderDaily();
     });
   });
 
   // Wire up filter buttons via delegation
-  document.getElementById('cronograma-app-container')?.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-filter-value]');
-    if (!btn) return;
-    const val = btn.getAttribute('data-filter-value') || 'all';
-    const attr = btn.getAttribute('data-filter-attribute');
-    if (attr === 'data-filter') {
-      state.activeFilter = val;
-      updateFilterActiveStates();
-    } else if (attr === 'data-location') {
-      state.activeLocationFilter = val;
-      updateLocationFilterActiveStates();
-    }
-    renderMonthly();
-    renderDaily();
-  });
+  document
+    .getElementById("cronograma-app-container")
+    ?.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-filter-value]",
+      );
+      if (!btn) return;
+      const val = btn.getAttribute("data-filter-value") || "all";
+      const attr = btn.getAttribute("data-filter-attribute");
+      if (attr === "data-filter") {
+        state.activeFilter = val;
+        updateFilterActiveStates();
+      } else if (attr === "data-location") {
+        state.activeLocationFilter = val;
+        updateLocationFilterActiveStates();
+      }
+      renderMonthly();
+      renderDaily();
+    });
 
   // Initialize filter button states
   updateFilterActiveStates();
   updateLocationFilterActiveStates();
 
-  const quickEditMenu = document.getElementById('quick-edit-menu');
-  const saveIndicator = document.getElementById('save-indicator');
+  const quickEditMenu = document.getElementById("quick-edit-menu");
+  const saveIndicator = document.getElementById("save-indicator");
   let activeCell: HTMLElement | null = null;
 
-  monthlyBody?.addEventListener('contextmenu', (e) => {
-    const container = document.getElementById('cronograma-app-container');
-    const userRole = container?.dataset.userRole || 'agent';
-    const isReadOnly = ['agent', 'referent'].includes(userRole);
+  monthlyBody?.addEventListener("contextmenu", (e) => {
+    const container = document.getElementById("cronograma-app-container");
+    const userRole = container?.dataset.userRole || "agent";
+    const isReadOnly = ["agent", "referent"].includes(userRole);
     if (isReadOnly) return;
 
-    const trigger = (e.target as HTMLElement).closest<HTMLElement>('[data-monthly-detail]');
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
     if (!trigger || !quickEditMenu) return;
-    
+
     const dateVal = trigger.dataset.date;
     if (dateVal && isWeekend(dateVal)) {
       if (!state.isEditMode) {
         e.preventDefault();
-        showToast("Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)", "warning");
+        showToast(
+          "Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)",
+          "warning",
+        );
         return;
       }
     }
-    
+
     e.preventDefault();
     activeCell = trigger;
-    
-    const targetName = document.getElementById('quick-edit-target-name');
-    if (targetName) targetName.innerText = trigger.dataset.operator || 'Operador';
-    
-    quickEditMenu.classList.remove('hidden');
+
+    const targetName = document.getElementById("quick-edit-target-name");
+    if (targetName)
+      targetName.innerText = trigger.dataset.operator || "Operador";
+
+    quickEditMenu.classList.remove("hidden");
 
     const isWk = dateVal && isWeekend(dateVal);
-    const optionsContainer = document.getElementById('quick-edit-options');
+    const optionsContainer = document.getElementById("quick-edit-options");
     if (optionsContainer) {
-      const options = optionsContainer.querySelectorAll('[data-status]');
-      options.forEach(opt => {
+      const options = optionsContainer.querySelectorAll("[data-status]");
+      options.forEach((opt) => {
         const btn = opt as HTMLButtonElement;
         const status = btn.dataset.status;
         if (isWk) {
-          if (status === 'Licencia' || status === 'Vacaciones' || status === 'Franco' || status === OperatorStatus.HomeOffice) {
-            btn.classList.remove('hidden');
+          if (
+            status === "Licencia" ||
+            status === "Vacaciones" ||
+            status === "Franco" ||
+            status === OperatorStatus.HomeOffice
+          ) {
+            btn.classList.remove("hidden");
           } else {
-            btn.classList.add('hidden');
+            btn.classList.add("hidden");
           }
         } else {
-          btn.classList.remove('hidden');
+          btn.classList.remove("hidden");
         }
       });
     }
@@ -1094,129 +1808,183 @@ function setupEventListeners(): void {
     const menuWidth = quickEditMenu.offsetWidth || 160;
     const menuHeight = quickEditMenu.offsetHeight || 240;
     const padding = 12;
-    
+
     let left = 0;
     let top = 0;
-    
+
     if (window.innerWidth > 768) {
       // Centered horizontally relative to the cell, clamped within viewport bounds
       left = rect.left + rect.width / 2 - menuWidth / 2;
-      left = Math.max(padding, Math.min(window.innerWidth - menuWidth - padding, left));
-      
+      left = Math.max(
+        padding,
+        Math.min(window.innerWidth - menuWidth - padding, left),
+      );
+
+      // Never cover the sticky columns (operator + day-counter cells; the
+      // edit/delete buttons and counters live there). Measure every
+      // left-pinned sticky cell via its computed `left` offset.
+      const scrollContainer = trigger.closest<HTMLElement>(".overflow-x-auto");
+      if (scrollContainer) {
+        const containerLeft = scrollContainer.getBoundingClientRect().left;
+        let stickyZoneRight = containerLeft;
+        scrollContainer
+          .querySelectorAll<HTMLElement>(".sticky")
+          .forEach((cell) => {
+            const cs = window.getComputedStyle(cell);
+            if (cs.position !== "sticky" || cs.left === "auto") return;
+            const leftPx = Number.parseFloat(cs.left);
+            if (Number.isNaN(leftPx)) return;
+            const candidate = containerLeft + leftPx + cell.offsetWidth;
+            if (candidate > stickyZoneRight) stickyZoneRight = candidate;
+          });
+        const safeLeft = stickyZoneRight + 16;
+        if (left < safeLeft) {
+          left = Math.min(safeLeft, window.innerWidth - menuWidth - padding);
+        }
+      }
+
       // Placed above or below the cell based on available space
       const spaceBelow = window.innerHeight - rect.bottom;
-      const showAbove = spaceBelow < (menuHeight + padding);
-      
+      const showAbove = spaceBelow < menuHeight + padding;
+
       if (showAbove) {
         top = rect.top - menuHeight - 8;
-        quickEditMenu.style.transformOrigin = 'bottom center';
+        quickEditMenu.style.transformOrigin = "bottom center";
       } else {
         top = rect.bottom + 8;
-        quickEditMenu.style.transformOrigin = 'top center';
+        quickEditMenu.style.transformOrigin = "top center";
       }
-      top = Math.max(padding, Math.min(window.innerHeight - menuHeight - padding, top));
+      top = Math.max(
+        padding,
+        Math.min(window.innerHeight - menuHeight - padding, top),
+      );
     } else {
       // Mobile view: display centered as a modal-like popup
       left = (window.innerWidth - menuWidth) / 2;
       top = (window.innerHeight - menuHeight) / 2;
-      quickEditMenu.style.transformOrigin = 'center center';
+      quickEditMenu.style.transformOrigin = "center center";
     }
-    
+
     quickEditMenu.style.left = `${left}px`;
     quickEditMenu.style.top = `${top}px`;
   });
 
-  document.getElementById('quick-edit-options')?.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
-    if (!btn || !activeCell || !quickEditMenu) return;
-    
-    const newStatus = btn.dataset.status;
-    if (newStatus) {
-      updateCellStatus(activeCell, newStatus);
-      if (!state.isEditMode) {
-         saveIndicator?.classList.remove('hidden');
+  document
+    .getElementById("quick-edit-options")
+    ?.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        "button",
+      );
+      if (!btn || !activeCell || !quickEditMenu) return;
+
+      const newStatus = btn.dataset.status;
+      if (newStatus) {
+        updateCellStatus(activeCell, newStatus);
+        if (!state.isEditMode) {
+          saveIndicator?.classList.remove("hidden");
+        }
+        quickEditMenu.classList.add("hidden");
       }
-      quickEditMenu.classList.add('hidden');
-    }
-  });
+    });
 
-  document.addEventListener('click', (e) => {
+  document.addEventListener("click", (e) => {
     if (quickEditMenu && !quickEditMenu.contains(e.target as Node)) {
-      quickEditMenu.classList.add('hidden');
+      quickEditMenu.classList.add("hidden");
     }
   });
 
-  document.getElementById('reactivate-edit-mode-btn')?.addEventListener('click', () => {
-    const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
-    if (toggleEditBtn) {
-      toggleEditBtn.click();
-    }
-  });
+  document
+    .getElementById("reactivate-edit-mode-btn")
+    ?.addEventListener("click", () => {
+      const toggleEditBtn = document.getElementById("toggle-edit-mode-btn");
+      if (toggleEditBtn) {
+        toggleEditBtn.click();
+      }
+    });
 
   // Delete active Month Listener
-  document.getElementById('delete-month-btn')?.addEventListener('click', async () => {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    if (!dateInput || !dateInput.value) return;
+  document
+    .getElementById("delete-month-btn")
+    ?.addEventListener("click", async () => {
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      if (!dateInput || !dateInput.value) return;
 
-    const [yearStr, monthStr] = dateInput.value.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10) - 1; // 0-indexed month
+      const [yearStr, monthStr] = dateInput.value.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10) - 1; // 0-indexed month
 
-    const formatter = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' });
-    const monthName = formatter.format(new Date(year, month, 15)).toUpperCase();
+      const formatter = new Intl.DateTimeFormat("es-AR", {
+        month: "long",
+        year: "numeric",
+      });
+      const monthName = formatter
+        .format(new Date(year, month, 15))
+        .toUpperCase();
 
-    const confirmed = await showConfirm(`¿Estás seguro de que deseas eliminar el mes de ${monthName}? Esta acción borrará permanentemente todos los registros de asistencia y comentarios para este periodo y no se puede deshacer.`);
-    if (!confirmed) return;
+      const confirmed = await showConfirm(
+        `¿Estás seguro de que deseas eliminar el mes de ${monthName}? Esta acción borrará permanentemente todos los registros de asistencia y comentarios para este periodo y no se puede deshacer.`,
+      );
+      if (!confirmed) return;
 
-    const deleteBtn = document.getElementById('delete-month-btn') as HTMLButtonElement | null;
-    const originalText = deleteBtn ? deleteBtn.innerHTML : '';
-    if (deleteBtn) {
-      deleteBtn.disabled = true;
-      deleteBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Borrando...`;
-    }
-
-    try {
-      await deleteMonth(year, month);
-
-      const payload = await fetchCronogramaFullData();
-      state.cronoData = payload.operators;
-      state.availableMonths = payload.availableMonths || [];
-
-      if (state.uniqueDates.length > 0) {
-        const targetDate = state.uniqueDates[state.uniqueDates.length - 1];
-        dateInput.value = targetDate;
-        dateInput.min = state.uniqueDates[0];
-        dateInput.max = targetDate;
-      } else {
-        const todayStr = formatYMD(new Date());
-        dateInput.value = todayStr;
-        dateInput.removeAttribute('min');
-        dateInput.removeAttribute('max');
-      }
-
-      const activeYM = dateInput.value.slice(0, 7);
-      await loadRotationConfig(activeYM);
-
-      updateDateInputDisplay();
-      updateMonthDisplay();
-      renderMonthSelect();
-      renderDaily();
-      renderMonthly();
-      showToast(`El mes de ${monthName} ha sido eliminado correctamente.`, "success");
-    } catch (err: unknown) {
-      console.error("Error deleting month:", err);
-      showToast("Ocurrió un error al intentar eliminar el mes.", "error");
-    } finally {
+      const deleteBtn = document.getElementById(
+        "delete-month-btn",
+      ) as HTMLButtonElement | null;
+      const originalText = deleteBtn ? deleteBtn.innerHTML : "";
       if (deleteBtn) {
-        deleteBtn.disabled = false;
-        deleteBtn.innerHTML = originalText;
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Borrando...`;
       }
-    }
-  });
 
-  const newMonthModal = document.getElementById('new-month-modal') as HTMLElement | null;
-  document.getElementById('add-month-btn')?.addEventListener('click', () => {
-    newMonthModal?.classList.add('modal-open');
+      try {
+        await deleteMonth(year, month);
+
+        const payload = await fetchCronogramaFullData();
+        state.cronoData = payload.operators;
+        state.availableMonths = payload.availableMonths || [];
+
+        if (state.uniqueDates.length > 0) {
+          const targetDate = state.uniqueDates[state.uniqueDates.length - 1];
+          dateInput.value = targetDate;
+          dateInput.min = state.uniqueDates[0];
+          dateInput.max = targetDate;
+        } else {
+          const todayStr = formatYMD(new Date());
+          dateInput.value = todayStr;
+          dateInput.removeAttribute("min");
+          dateInput.removeAttribute("max");
+        }
+
+        const activeYM = dateInput.value.slice(0, 7);
+        await loadRotationConfig(activeYM);
+
+        updateDateInputDisplay();
+        updateMonthDisplay();
+        renderMonthSelect();
+        clearParsedDatesCache();
+        renderDaily();
+        renderMonthly();
+        showToast(
+          `El mes de ${monthName} ha sido eliminado correctamente.`,
+          "success",
+        );
+      } catch (err: unknown) {
+        console.error("Error deleting month:", err);
+        showToast("Ocurrió un error al intentar eliminar el mes.", "error");
+      } finally {
+        if (deleteBtn) {
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = originalText;
+        }
+      }
+    });
+
+  const newMonthModal = document.getElementById(
+    "new-month-modal",
+  ) as HTMLElement | null;
+  document.getElementById("add-month-btn")?.addEventListener("click", () => {
+    newMonthModal?.classList.add("modal-open");
   });
 
   // --- Import Handler ---
@@ -1225,130 +1993,167 @@ function setupEventListeners(): void {
     const file = target.files?.[0];
     if (!file) return;
 
-    target.value = ''; // Reset selection
+    target.value = ""; // Reset selection
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    const btn = document.getElementById('import-csv-btn');
-    const originalContent = btn ? btn.innerHTML : '';
+    const btn = document.getElementById("import-csv-btn");
+    const originalContent = btn ? btn.innerHTML : "";
     if (btn) {
       btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span> Procesando...`;
       (btn as HTMLButtonElement).disabled = true;
     }
 
-    fetch('/api/cronograma/import', {
-      method: 'POST',
-      body: formData
+    fetch("/api/cronograma/import", {
+      method: "POST",
+      body: formData,
     })
-    .then(res => {
-      if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Error en importación'); });
-      return res.json();
-    })
-    .then(data => {
-      if (data.edits && Array.isArray(data.edits)) {
-        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-        const currentMonth = dateInput?.value ? dateInput.value.slice(0, 7) : ''; // "YYYY-MM"
+      .then((res) => {
+        if (!res.ok)
+          return res.json().then((d) => {
+            throw new Error(d.error || "Error en importación");
+          });
+        return res.json();
+      })
+      .then((data) => {
+        if (data.edits && Array.isArray(data.edits)) {
+          const dateInput = document.getElementById(
+            "date-input",
+          ) as HTMLInputElement | null;
+          const currentMonth = dateInput?.value
+            ? dateInput.value.slice(0, 7)
+            : ""; // "YYYY-MM"
 
-        // Filter edits that belong to the active month
-        const currentMonthEdits = data.edits.filter((edit: any) => edit.date && edit.date.startsWith(currentMonth));
+          // Filter edits that belong to the active month
+          const currentMonthEdits = data.edits.filter(
+            (edit: any) => edit.date && edit.date.startsWith(currentMonth),
+          );
 
-        if (data.edits.length > 0 && currentMonthEdits.length === 0) {
-          showToast("El archivo CSV no corresponde al mes seleccionado. Cambie de mes en el selector antes de importar.", "warning");
-          return;
-        }
-
-        let appliedCount = 0;
-        currentMonthEdits.forEach((edit: any) => {
-          const op = state.cronoData.find(o => o.nombre === edit.agentName);
-          if (op) {
-            const key = `${edit.agentName}_${edit.date}`;
-            const originalStatus = op.asistencia?.[edit.date] || 'Franco';
-            
-            if (edit.status !== originalStatus) {
-              state.pendingEdits[key] = {
-                agentName: edit.agentName,
-                date: edit.date,
-                status: edit.status,
-                originalStatus,
-                horario: edit.horario,
-                breakInicio: edit.breakInicio,
-                breakFin: edit.breakFin
-              };
-              
-              op.asistencia[edit.date] = edit.status;
-              if (edit.horario) {
-                if (!op.horarios_dias) op.horarios_dias = {};
-                op.horarios_dias[edit.date] = edit.horario;
-              }
-              if (edit.breakInicio !== undefined) {
-                if (!op.breaks_inicio) op.breaks_inicio = {};
-                op.breaks_inicio[edit.date] = edit.breakInicio;
-              }
-              if (edit.breakFin !== undefined) {
-                if (!op.breaks_fin) op.breaks_fin = {};
-                op.breaks_fin[edit.date] = edit.breakFin;
-              }
-              appliedCount++;
-            }
+          if (data.edits.length > 0 && currentMonthEdits.length === 0) {
+            showToast(
+              "El archivo CSV no corresponde al mes seleccionado. Cambie de mes en el selector antes de importar.",
+              "warning",
+            );
+            return;
           }
-        });
 
-        if (appliedCount > 0) {
-          updatePendingEditsUI();
-          renderMonthly();
-          showToast(`¡Se cargaron ${appliedCount} cambios desde el CSV! Revise y guarde.`, "success");
-        } else {
-          showToast("El archivo CSV no contiene cambios con respecto al cronograma actual.", "info");
+          let appliedCount = 0;
+          currentMonthEdits.forEach((edit: any) => {
+            const op = state.cronoData.find((o) => o.nombre === edit.agentName);
+            if (op) {
+              const key = `${edit.agentName}_${edit.date}`;
+              const originalStatus = op.asistencia?.[edit.date] || "Franco";
+
+              if (edit.status !== originalStatus) {
+                state.pendingEdits[key] = {
+                  agentName: edit.agentName,
+                  date: edit.date,
+                  status: edit.status,
+                  originalStatus,
+                  horario: edit.horario,
+                  breakInicio: edit.breakInicio,
+                  breakFin: edit.breakFin,
+                };
+
+                op.asistencia[edit.date] = edit.status;
+                if (edit.horario) {
+                  if (!op.horarios_dias) op.horarios_dias = {};
+                  op.horarios_dias[edit.date] = edit.horario;
+                }
+                if (edit.breakInicio !== undefined) {
+                  if (!op.breaks_inicio) op.breaks_inicio = {};
+                  op.breaks_inicio[edit.date] = edit.breakInicio;
+                }
+                if (edit.breakFin !== undefined) {
+                  if (!op.breaks_fin) op.breaks_fin = {};
+                  op.breaks_fin[edit.date] = edit.breakFin;
+                }
+                appliedCount++;
+              }
+            }
+          });
+
+          if (appliedCount > 0) {
+            updatePendingEditsUI();
+            clearParsedDatesCache();
+            renderMonthly();
+            showToast(
+              `¡Se cargaron ${appliedCount} cambios desde el CSV! Revise y guarde.`,
+              "success",
+            );
+          } else {
+            showToast(
+              "El archivo CSV no contiene cambios con respecto al cronograma actual.",
+              "info",
+            );
+          }
         }
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      showToast(err.message || "Error al importar CSV", "error");
-    })
-    .finally(() => {
-      if (btn) {
-        btn.innerHTML = originalContent;
-        (btn as HTMLButtonElement).disabled = false;
-      }
-    });
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast(err.message || "Error al importar CSV", "error");
+      })
+      .finally(() => {
+        if (btn) {
+          btn.innerHTML = originalContent;
+          (btn as HTMLButtonElement).disabled = false;
+        }
+      });
   }
 
   // --- Premium Exporters ---
   async function handleExportCSV() {
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    let monthName = 'reporte';
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    let monthName = "reporte";
     if (dateInput && dateInput.value) {
-      const d = new Date(dateInput.value + 'T12:00:00');
-      monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+      const d = new Date(dateInput.value + "T12:00:00");
+      monthName = new Intl.DateTimeFormat("es-AR", {
+        month: "long",
+        year: "numeric",
+      }).format(d);
     }
     const dates = getDatesArrayForCurrentMonth();
-    const { exportCSV } = await import('./exporters');
-    exportCSV(state.cronoData, dates, {
-      minCoveragePercent: state.minCoveragePercent,
-      maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
-      minPWeekLimit: state.minPWeekLimit,
-      maxLicenseOverlapLimit: state.maxLicenseOverlapLimit
-    }, monthName);
+    const { exportCSV } = await import("./exporters");
+    exportCSV(
+      state.cronoData,
+      dates,
+      {
+        minCoveragePercent: state.minCoveragePercent,
+        maxConsecutiveHOLimit: state.maxConsecutiveHOLimit,
+        minPWeekLimit: state.minPWeekLimit,
+        maxLicenseOverlapLimit: state.maxLicenseOverlapLimit,
+      },
+      monthName,
+    );
   }
 
   async function handleExportAsImage() {
-    const tableContainer = document.querySelector('#monthly-table')?.parentElement as HTMLElement | null;
+    const tableContainer = document.querySelector("#monthly-table")
+      ?.parentElement as HTMLElement | null;
     if (!tableContainer) return;
 
-    const imgBtn = document.getElementById('export-image-btn') as HTMLButtonElement | null;
-    const originalText = imgBtn ? imgBtn.innerHTML : '';
+    const imgBtn = document.getElementById(
+      "export-image-btn",
+    ) as HTMLButtonElement | null;
+    const originalText = imgBtn ? imgBtn.innerHTML : "";
 
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    let monthName = 'reporte';
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    let monthName = "reporte";
     if (dateInput && dateInput.value) {
-      const d = new Date(dateInput.value + 'T12:00:00');
-      monthName = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(d);
+      const d = new Date(dateInput.value + "T12:00:00");
+      monthName = new Intl.DateTimeFormat("es-AR", {
+        month: "long",
+        year: "numeric",
+      }).format(d);
     }
 
     try {
-      const { exportAsImage } = await import('./exporters');
+      const { exportAsImage } = await import("./exporters");
       await exportAsImage(
         tableContainer,
         monthName,
@@ -1363,140 +2168,122 @@ function setupEventListeners(): void {
             imgBtn.disabled = false;
             imgBtn.innerHTML = originalText;
           }
-        }
+        },
       );
       showToast("Imagen exportada con éxito", "success");
     } catch (err: unknown) {
       console.error(err);
-      showToast("Hubo un error al generar la imagen. Intenta imprimir el reporte.", "error");
+      showToast(
+        "Hubo un error al generar la imagen. Intenta imprimir el reporte.",
+        "error",
+      );
     }
   }
 
-  document.getElementById('export-csv-btn')?.addEventListener('click', handleExportCSV);
-  document.getElementById('export-image-btn')?.addEventListener('click', handleExportAsImage);
+  document
+    .getElementById("export-csv-btn")
+    ?.addEventListener("click", handleExportCSV);
+  document
+    .getElementById("export-image-btn")
+    ?.addEventListener("click", handleExportAsImage);
 
   async function handleCopyRotationImage() {
-    const copyBtn = document.getElementById('copy-rotation-image-btn') as HTMLButtonElement | null;
-    const saturdayCard = document.getElementById('saturday-rotation-card');
+    const copyBtn = document.getElementById(
+      "copy-rotation-image-btn",
+    ) as HTMLButtonElement | null;
+    const saturdayCard = document.getElementById("saturday-rotation-card");
     if (!copyBtn || !saturdayCard) return;
-
-    const originalBtnText = copyBtn.innerHTML;
-    try {
-      copyBtn.disabled = true;
-      copyBtn.innerHTML = `
-        <span class="loading loading-spinner loading-xs"></span>
-        <span>Copiando...</span>
-      `;
-
-      saturdayCard.classList.add('exporting-image');
-
-      const { exportAsClipboardImage } = await import('./exporters');
-      const targetEl = document.getElementById('rotation-timeline-wrapper') || saturdayCard;
-      await exportAsClipboardImage(targetEl);
-
-      copyBtn.classList.remove('btn-secondary');
-      copyBtn.classList.add('btn-success');
-      copyBtn.innerHTML = `
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        <span>¡Copiado!</span>
-      `;
-      showToast('Tabla de guardia copiada al portapapeles.', 'success');
-
-      setTimeout(() => {
-        copyBtn.classList.remove('btn-success');
-        copyBtn.classList.add('btn-secondary');
-        copyBtn.disabled = false;
-        copyBtn.innerHTML = originalBtnText;
-      }, 2500);
-
-    } catch (error: any) {
-      console.error('Failed to copy table image:', error);
-      if (error?.message === "CLIPBOARD_UNAVAILABLE_DOWNLOADED") {
-        showToast('El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.', 'warning');
-      } else {
-        showToast('Error al copiar la imagen.', 'error');
-      }
-      copyBtn.disabled = false;
-      copyBtn.innerHTML = originalBtnText;
-    } finally {
-      saturdayCard.classList.remove('exporting-image');
-    }
+    const targetEl =
+      document.getElementById("rotation-timeline-wrapper") || saturdayCard;
+    await copyElementImageToClipboard(
+      copyBtn,
+      targetEl,
+      {
+        padding: 16,
+        compact: true,
+        width: 1034,
+        onStart: () => saturdayCard.classList.add("exporting-image"),
+        onEnd: () => saturdayCard.classList.remove("exporting-image"),
+      },
+      {
+        success: "Tabla de guardia copiada al portapapeles.",
+        clipboardUnavailable:
+          "El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.",
+        error: "Error al copiar la imagen.",
+      },
+    );
   }
 
-  document.getElementById('copy-rotation-image-btn')?.addEventListener('click', handleCopyRotationImage);
+  document
+    .getElementById("copy-rotation-image-btn")
+    ?.addEventListener("click", handleCopyRotationImage);
 
   async function handleCopyOvertimeImage() {
-    const copyBtn = document.getElementById('copy-overtime-image-btn') as HTMLButtonElement | null;
-    const overtimeCard = document.getElementById('overtime-card');
+    const copyBtn = document.getElementById(
+      "copy-overtime-image-btn",
+    ) as HTMLButtonElement | null;
+    const overtimeCard = document.getElementById("overtime-card");
     if (!copyBtn || !overtimeCard) return;
-
-    const originalBtnText = copyBtn.innerHTML;
-    try {
-      copyBtn.disabled = true;
-      copyBtn.innerHTML = `
-        <span class="loading loading-spinner loading-xs"></span>
-        <span>Copiando...</span>
-      `;
-
-      overtimeCard.classList.add('exporting-image');
-
-      const { exportAsClipboardImage } = await import('./exporters');
-      const targetEl = document.getElementById('overtime-timeline-wrapper') || overtimeCard;
-      await exportAsClipboardImage(targetEl);
-
-      copyBtn.classList.remove('btn-ghost');
-      copyBtn.classList.add('btn-success');
-      copyBtn.innerHTML = `
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        <span>¡Copiado!</span>
-      `;
-      showToast('Horas extras copiadas al portapapeles.', 'success');
-
-      setTimeout(() => {
-        copyBtn.classList.remove('btn-success');
-        copyBtn.classList.add('btn-ghost');
-        copyBtn.disabled = false;
-        copyBtn.innerHTML = originalBtnText;
-      }, 2500);
-
-    } catch (error: any) {
-      console.error('Failed to copy overtime image:', error);
-      if (error?.message === "CLIPBOARD_UNAVAILABLE_DOWNLOADED") {
-        showToast('El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.', 'warning');
-      } else {
-        showToast('Error al copiar la imagen.', 'error');
-      }
-      copyBtn.disabled = false;
-      copyBtn.innerHTML = originalBtnText;
-    } finally {
-      overtimeCard.classList.remove('exporting-image');
-    }
+    const targetEl =
+      document.getElementById("overtime-timeline-wrapper") || overtimeCard;
+    await copyElementImageToClipboard(
+      copyBtn,
+      targetEl,
+      {
+        padding: 16,
+        compact: true,
+        width: 1388,
+        onStart: () => overtimeCard.classList.add("exporting-image"),
+        onEnd: () => overtimeCard.classList.remove("exporting-image"),
+      },
+      {
+        success: "Horas extras copiadas al portapapeles.",
+        clipboardUnavailable:
+          "El portapapeles requiere un sitio seguro (HTTPS). La imagen se descargó automáticamente.",
+        error: "Error al copiar la imagen.",
+      },
+    );
   }
 
-  document.getElementById('copy-overtime-image-btn')?.addEventListener('click', handleCopyOvertimeImage);
+  document
+    .getElementById("copy-overtime-image-btn")
+    ?.addEventListener("click", handleCopyOvertimeImage);
 
-  const importBtn = document.getElementById('import-csv-btn');
-  const importInput = document.getElementById('import-csv-input') as HTMLInputElement | null;
+  const importBtn = document.getElementById("import-csv-btn");
+  const importInput = document.getElementById(
+    "import-csv-input",
+  ) as HTMLInputElement | null;
   if (importBtn && importInput) {
-    importBtn.addEventListener('click', () => importInput.click());
-    importInput.addEventListener('change', handleImportCSV);
+    importBtn.addEventListener("click", () => importInput.click());
+    importInput.addEventListener("change", handleImportCSV);
   }
 
-  document.addEventListener('click', (e) => {
-    const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-click-day]');
+  document.addEventListener("click", (e) => {
+    const clickDayBtn = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-click-day]",
+    );
     if (clickDayBtn) {
       if (state.isEditMode && state.activeBrush) {
-         const dateVal = clickDayBtn.dataset.clickDay;
-         document.getElementById('monthly-tbody')?.querySelectorAll(`[data-date="${dateVal}"]`).forEach(cell => applyBrushToCell(cell as HTMLElement));
-         return;
+        const dateVal = clickDayBtn.dataset.clickDay;
+        const tbody = document.getElementById("monthly-tbody");
+        tbody
+          ?.querySelectorAll<HTMLElement>("[data-monthly-detail]")
+          .forEach((entry) => {
+            if (entry.dataset.date !== dateVal) return;
+            const live = findLiveMonthlyCell(
+              tbody,
+              entry.dataset.operator,
+              entry.dataset.date,
+            );
+            if (live) applyBrushToCell(live);
+          });
+        return;
       }
       const dateVal = clickDayBtn.dataset.clickDay;
       if (dateVal) {
-        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+        const dateInput = document.getElementById(
+          "date-input",
+        ) as HTMLInputElement | null;
         if (dateInput) {
           dateInput.value = dateVal;
           updateDateInputDisplay();
@@ -1505,63 +2292,79 @@ function setupEventListeners(): void {
       }
       return;
     }
-    
-    const closeHourlyBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-close-hourly]');
+
+    const closeHourlyBtn = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-close-hourly]",
+    );
     if (closeHourlyBtn) {
       state.focusedDateStr = null;
       renderMonthly();
       return;
     }
 
-    const profileBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-op-profile]');
+    const profileBtn = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-op-profile]",
+    );
     if (profileBtn) {
       const operatorName = profileBtn.dataset.opProfile;
       if (operatorName) {
-        document.dispatchEvent(new CustomEvent('cronograma:open-drawer', {
-          detail: { operatorName }
-        }));
+        document.dispatchEvent(
+          new CustomEvent("cronograma:open-drawer", {
+            detail: { operatorName },
+          }),
+        );
       }
     }
   });
 
   // --- Edit Mode & Brush Tool ---
-  const toggleEditBtn = document.getElementById('toggle-edit-mode-btn');
-  const editToolbar = document.getElementById('edit-mode-toolbar');
-  
-  toggleEditBtn?.addEventListener('click', () => {
+  const toggleEditBtn = document.getElementById("toggle-edit-mode-btn");
+  const editToolbar = document.getElementById("edit-mode-toolbar");
+
+  toggleEditBtn?.addEventListener("click", () => {
     state.isEditMode = !state.isEditMode;
-    
+
     if (state.isEditMode) {
-      const saveIndicator = document.getElementById('save-indicator');
-      if (saveIndicator) saveIndicator.classList.add('hidden');
-      toggleEditBtn.classList.add('bg-secondary', 'text-secondary-content');
-      toggleEditBtn.classList.remove('btn-outline');
-      document.getElementById('monthly-tbody')?.classList.add('select-none');
+      const saveIndicator = document.getElementById("save-indicator");
+      if (saveIndicator) saveIndicator.classList.add("hidden");
+      toggleEditBtn.classList.add("bg-secondary", "text-secondary-content");
+      toggleEditBtn.classList.remove("btn-outline");
+      document.getElementById("monthly-tbody")?.classList.add("select-none");
       if (editToolbar) {
-         editToolbar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-32');
+        editToolbar.classList.remove(
+          "opacity-0",
+          "pointer-events-none",
+          "translate-y-32",
+        );
       }
       updatePendingEditsUI();
     } else {
-      toggleEditBtn.classList.remove('bg-secondary', 'text-secondary-content');
-      toggleEditBtn.classList.add('btn-outline');
-      document.getElementById('monthly-tbody')?.classList.remove('select-none');
+      toggleEditBtn.classList.remove("bg-secondary", "text-secondary-content");
+      toggleEditBtn.classList.add("btn-outline");
+      document.getElementById("monthly-tbody")?.classList.remove("select-none");
       if (editToolbar) {
-         editToolbar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-32');
+        editToolbar.classList.add(
+          "opacity-0",
+          "pointer-events-none",
+          "translate-y-32",
+        );
       }
       state.activeBrush = null;
       updateBrushUI();
-      
-      const hasUnsavedChanges = state.modifiedSchedules.length > 0 || Object.keys(state.pendingEdits).length > 0;
+
+      const hasUnsavedChanges =
+        state.modifiedSchedules.length > 0 ||
+        Object.keys(state.pendingEdits).length > 0;
       if (hasUnsavedChanges) {
-         const saveIndicator = document.getElementById('save-indicator');
-         if (saveIndicator) saveIndicator.classList.remove('hidden');
+        const saveIndicator = document.getElementById("save-indicator");
+        if (saveIndicator) saveIndicator.classList.remove("hidden");
       }
     }
     renderMonthly();
   });
 
-  document.querySelectorAll('.brush-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+  document.querySelectorAll(".brush-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
       const brush = (e.currentTarget as HTMLElement).dataset.brush;
       if (state.activeBrush === brush) state.activeBrush = null;
       else state.activeBrush = brush || null;
@@ -1569,67 +2372,89 @@ function setupEventListeners(): void {
     });
   });
 
-  document.getElementById('discard-edits-btn')?.addEventListener('click', async () => {
+  document
+    .getElementById("discard-edits-btn")
+    ?.addEventListener("click", async () => {
       state.pendingEdits = {};
       updatePendingEditsUI();
       await discardChanges();
-   });
+    });
 
-   document.getElementById('save-edits-btn')?.addEventListener('click', async (e) => {
+  document
+    .getElementById("save-edits-btn")
+    ?.addEventListener("click", async (e) => {
       const btn = e.currentTarget as HTMLButtonElement;
-      
-      const mergedEditsMap = new Map<string, { agentName: string; date: string; status: string }>();
-      
-      state.modifiedSchedules.forEach(m => {
-         mergedEditsMap.set(`${m.agentName}_${m.date}`, { agentName: m.agentName, date: m.date, status: m.status });
+
+      const mergedEditsMap = new Map<
+        string,
+        { agentName: string; date: string; status: string }
+      >();
+
+      state.modifiedSchedules.forEach((m) => {
+        mergedEditsMap.set(`${m.agentName}_${m.date}`, {
+          agentName: m.agentName,
+          date: m.date,
+          status: m.status,
+        });
       });
-      
-      Object.values(state.pendingEdits).forEach(p => {
-         mergedEditsMap.set(`${p.agentName}_${p.date}`, { agentName: p.agentName, date: p.date, status: p.status });
+
+      Object.values(state.pendingEdits).forEach((p) => {
+        mergedEditsMap.set(`${p.agentName}_${p.date}`, {
+          agentName: p.agentName,
+          date: p.date,
+          status: p.status,
+        });
       });
-      
+
       const editsToSave = Array.from(mergedEditsMap.values());
-      
+
       if (editsToSave.length === 0) return;
-      
+
       btn.disabled = true;
       btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
-      
+
       try {
         await saveEdits(editsToSave);
-        
+
+        clearParsedDatesCache();
         state.pendingEdits = {};
         state.modifiedSchedules = [];
         updatePendingEditsUI();
-        
-        const saveIndicator = document.getElementById('save-indicator');
-        if (saveIndicator) saveIndicator.classList.add('hidden');
-        
+
+        const saveIndicator = document.getElementById("save-indicator");
+        if (saveIndicator) saveIndicator.classList.add("hidden");
+
         btn.innerText = "Guardado!";
-        setTimeout(() => { btn.innerText = "Guardar"; }, 2000);
+        setTimeout(() => {
+          btn.innerText = "Guardar";
+        }, 2000);
         showToast("Cambios guardados con éxito", "success");
       } catch (err: unknown) {
         console.error(err);
         btn.innerText = "Error";
-        btn.classList.add('btn-error');
-        setTimeout(() => { 
-           btn.innerText = "Guardar"; 
-           btn.classList.remove('btn-error');
-           btn.disabled = false;
+        btn.classList.add("btn-error");
+        setTimeout(() => {
+          btn.innerText = "Guardar";
+          btn.classList.remove("btn-error");
+          btn.disabled = false;
         }, 2000);
         showToast("Error al guardar los cambios", "error");
       }
-   });
+    });
 
   // Make the entire date input wrapper clickable
-  const startDateWrapper = document.getElementById('rotation-start-date-wrapper');
-  const startDateInput = document.getElementById('rotation-start-date') as HTMLInputElement | null;
+  const startDateWrapper = document.getElementById(
+    "rotation-start-date-wrapper",
+  );
+  const startDateInput = document.getElementById(
+    "rotation-start-date",
+  ) as HTMLInputElement | null;
   if (startDateWrapper && startDateInput) {
-    startDateWrapper.addEventListener('click', () => {
+    startDateWrapper.addEventListener("click", () => {
       startDateInput.showPicker();
     });
-    startDateInput.addEventListener('input', () => {
-      const displayEl = document.getElementById('rotation-start-date-display');
+    startDateInput.addEventListener("input", () => {
+      const displayEl = document.getElementById("rotation-start-date-display");
       if (displayEl && startDateInput.value) {
         displayEl.innerText = formatToDDMMYY(startDateInput.value);
       }
@@ -1637,23 +2462,35 @@ function setupEventListeners(): void {
   }
 
   // --- Groups View Event Listeners ---
-  document.getElementById('switch-to-groups-btn')?.addEventListener('click', () => {
-    showGroupsView();
-  });
+  document
+    .getElementById("switch-to-groups-btn")
+    ?.addEventListener("click", () => {
+      showGroupsView();
+    });
 
-  const rotForm = document.getElementById('rotation-config-form') as HTMLFormElement | null;
-  rotForm?.addEventListener('submit', async (e) => {
+  const rotForm = document.getElementById(
+    "rotation-config-form",
+  ) as HTMLFormElement | null;
+  rotForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement).value;
-    const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement).value;
-    const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement).value;
-    
-    const disabledGroups = ['A', 'B', 'C', 'D']
-      .filter(g => {
-        const t = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+    const startDate = (
+      document.getElementById("rotation-start-date") as HTMLInputElement
+    ).value;
+    const startGroup = (
+      document.getElementById("rotation-start-group") as HTMLSelectElement
+    ).value;
+    const rotationOrder = (
+      document.getElementById("rotation-order") as HTMLInputElement
+    ).value;
+
+    const disabledGroups = ["A", "B", "C", "D"]
+      .filter((g) => {
+        const t = document.querySelector(
+          `[data-group-toggle="${g}"]`,
+        ) as HTMLInputElement | null;
         return t && !t.checked;
       })
-      .join(',');
+      .join(",");
 
     const dateObj = new Date(startDate + "T12:00:00");
     if (dateObj.getDay() !== 6) {
@@ -1661,25 +2498,43 @@ function setupEventListeners(): void {
       return;
     }
 
-    const saveBtn = rotForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    const saveBtn = rotForm.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : "";
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+      saveBtn.innerHTML =
+        '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
     }
 
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    const month = dateInput?.value
+      ? dateInput.value.slice(0, 7)
+      : new Date().toISOString().slice(0, 7);
 
     try {
-      const res = await fetch('/api/cronograma/rotation-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month, startDate, startGroup, rotationOrder, disabledGroups })
+      const res = await fetch("/api/cronograma/rotation-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month,
+          startDate,
+          startGroup,
+          rotationOrder,
+          disabledGroups,
+        }),
       });
       if (!res.ok) throw new Error("Error al guardar la configuración");
-      setActiveRotationConfig({ startDate, startGroup, rotationOrder, disabledGroups });
-      
+      setActiveRotationConfig({
+        startDate,
+        startGroup,
+        rotationOrder,
+        disabledGroups,
+      });
+
       await reloadDataForActiveMonth(month);
       renderGroupsView();
       showToast("Configuración de rotación guardada con éxito", "success");
@@ -1694,54 +2549,86 @@ function setupEventListeners(): void {
     }
   });
 
-  document.querySelectorAll('[data-group-toggle]').forEach(el => {
-    el.addEventListener('change', async () => {
-      const startDate = (document.getElementById('rotation-start-date') as HTMLInputElement)?.value || '';
-      const startGroup = (document.getElementById('rotation-start-group') as HTMLSelectElement)?.value || '';
-      const rotationOrder = (document.getElementById('rotation-order') as HTMLInputElement)?.value || '';
-      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-      const month = dateInput?.value?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+  document.querySelectorAll("[data-group-toggle]").forEach((el) => {
+    el.addEventListener("change", async () => {
+      const startDate =
+        (document.getElementById("rotation-start-date") as HTMLInputElement)
+          ?.value || "";
+      const startGroup =
+        (document.getElementById("rotation-start-group") as HTMLSelectElement)
+          ?.value || "";
+      const rotationOrder =
+        (document.getElementById("rotation-order") as HTMLInputElement)
+          ?.value || "";
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      const month =
+        dateInput?.value?.slice(0, 7) || new Date().toISOString().slice(0, 7);
 
-      const disabledGroups = ['A', 'B', 'C', 'D']
-        .filter(g => {
-          const t = document.querySelector(`[data-group-toggle="${g}"]`) as HTMLInputElement | null;
+      const disabledGroups = ["A", "B", "C", "D"]
+        .filter((g) => {
+          const t = document.querySelector(
+            `[data-group-toggle="${g}"]`,
+          ) as HTMLInputElement | null;
           return t && !t.checked;
         })
-        .join(',');
+        .join(",");
 
       try {
-        const res = await fetch('/api/cronograma/rotation-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ month, startDate, startGroup, rotationOrder, disabledGroups })
+        const res = await fetch("/api/cronograma/rotation-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            month,
+            startDate,
+            startGroup,
+            rotationOrder,
+            disabledGroups,
+          }),
         });
         if (!res.ok) throw new Error();
-        setActiveRotationConfig({ startDate, startGroup, rotationOrder, disabledGroups });
+        setActiveRotationConfig({
+          startDate,
+          startGroup,
+          rotationOrder,
+          disabledGroups,
+        });
         await reloadDataForActiveMonth(month);
       } catch {
-        showToast('Error al cambiar estado del grupo', 'error');
+        showToast("Error al cambiar estado del grupo", "error");
       }
     });
   });
 
-  ['A', 'B', 'C', 'D'].forEach(g => {
-    const select = document.getElementById(`add-member-select-${g}`) as HTMLSelectElement | null;
-    select?.addEventListener('change', async () => {
+  ["A", "B", "C", "D"].forEach((g) => {
+    const select = document.getElementById(
+      `add-member-select-${g}`,
+    ) as HTMLSelectElement | null;
+    select?.addEventListener("change", async () => {
       const agentIdStr = select.value;
       if (!agentIdStr) return;
       select.disabled = true;
 
-      const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-      const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      const month = dateInput?.value
+        ? dateInput.value.slice(0, 7)
+        : new Date().toISOString().slice(0, 7);
 
       try {
-        const res = await fetch('/api/cronograma/rotation-groups/members', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: g, month })
+        const res = await fetch("/api/cronograma/rotation-groups/members", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentId: parseInt(agentIdStr, 10),
+            saturdayGroup: g,
+            month,
+          }),
         });
         if (!res.ok) throw new Error("Error al asignar el operador al grupo");
-        
+
         await reloadDataForActiveMonth(month);
         renderGroupsView();
         showToast("Operador asignado al grupo con éxito", "success");
@@ -1755,32 +2642,49 @@ function setupEventListeners(): void {
     });
   });
 
-  const groupsViewElement = document.getElementById('groups-view');
-  const editSatModal = document.getElementById('edit-saturday-schedule-modal') as HTMLDialogElement & { showModal: () => void; close: () => void } | null;
-  const editSatForm = document.getElementById('edit-saturday-schedule-form') as HTMLFormElement | null;
-  
-  groupsViewElement?.addEventListener('click', async (e) => {
-    const removeBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.remove-member-btn');
+  const groupsViewElement = document.getElementById("groups-view");
+  const editSatModal = document.getElementById(
+    "edit-saturday-schedule-modal",
+  ) as
+    (HTMLDialogElement & { showModal: () => void; close: () => void }) | null;
+  const editSatForm = document.getElementById(
+    "edit-saturday-schedule-form",
+  ) as HTMLFormElement | null;
+
+  groupsViewElement?.addEventListener("click", async (e) => {
+    const removeBtn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      ".remove-member-btn",
+    );
     if (removeBtn) {
       const agentIdStr = removeBtn.dataset.agentId;
-      const agentName = removeBtn.dataset.agentName || 'el operador';
+      const agentName = removeBtn.dataset.agentName || "el operador";
       if (!agentIdStr) return;
 
-      const confirmed = await showConfirm(`¿Estás seguro de que deseas quitar a ${agentName} de su grupo de rotación?`);
+      const confirmed = await showConfirm(
+        `¿Estás seguro de que deseas quitar a ${agentName} de su grupo de rotación?`,
+      );
       if (confirmed) {
         removeBtn.disabled = true;
 
-        const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-        const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+        const dateInput = document.getElementById(
+          "date-input",
+        ) as HTMLInputElement | null;
+        const month = dateInput?.value
+          ? dateInput.value.slice(0, 7)
+          : new Date().toISOString().slice(0, 7);
 
         try {
-          const res = await fetch('/api/cronograma/rotation-groups/members', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup: null, month })
+          const res = await fetch("/api/cronograma/rotation-groups/members", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agentId: parseInt(agentIdStr, 10),
+              saturdayGroup: null,
+              month,
+            }),
           });
           if (!res.ok) throw new Error("Error al desasignar operador");
-          
+
           await reloadDataForActiveMonth(month);
           renderGroupsView();
           showToast("Operador quitado del grupo con éxito", "success");
@@ -1793,19 +2697,31 @@ function setupEventListeners(): void {
       return;
     }
 
-    const editBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.edit-member-schedule-btn');
+    const editBtn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      ".edit-member-schedule-btn",
+    );
     if (editBtn) {
       const agentIdStr = editBtn.dataset.agentId;
-      const agentName = editBtn.dataset.agentName || '';
-      const agentGroup = editBtn.dataset.agentGroup || '';
-      const agentHorario = editBtn.dataset.agentHorario || '07:00 - 13:00';
+      const agentName = editBtn.dataset.agentName || "";
+      const agentGroup = editBtn.dataset.agentGroup || "";
+      const agentHorario = editBtn.dataset.agentHorario || "07:00 - 13:00";
       if (!agentIdStr) return;
 
-      const opIdInput = document.getElementById('modal-agent-id') as HTMLInputElement | null;
-      const opNameDisplay = document.getElementById('modal-agent-name') as HTMLElement | null;
-      const opGroupInput = document.getElementById('modal-agent-group') as HTMLInputElement | null;
-      const startInput = document.getElementById('modal-schedule-start') as HTMLInputElement | null;
-      const endInput = document.getElementById('modal-schedule-end') as HTMLInputElement | null;
+      const opIdInput = document.getElementById(
+        "modal-agent-id",
+      ) as HTMLInputElement | null;
+      const opNameDisplay = document.getElementById(
+        "modal-agent-name",
+      ) as HTMLElement | null;
+      const opGroupInput = document.getElementById(
+        "modal-agent-group",
+      ) as HTMLInputElement | null;
+      const startInput = document.getElementById(
+        "modal-schedule-start",
+      ) as HTMLInputElement | null;
+      const endInput = document.getElementById(
+        "modal-schedule-end",
+      ) as HTMLInputElement | null;
 
       let start = "07:00";
       let end = "13:00";
@@ -1828,48 +2744,75 @@ function setupEventListeners(): void {
     }
   });
 
-  editSatForm?.addEventListener('submit', async (e) => {
+  editSatForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const agentIdStr = (document.getElementById('modal-agent-id') as HTMLInputElement).value;
-    const saturdayGroup = (document.getElementById('modal-agent-group') as HTMLInputElement).value;
-    const start = (document.getElementById('modal-schedule-start') as HTMLInputElement).value;
-    const end = (document.getElementById('modal-schedule-end') as HTMLInputElement).value;
+    const agentIdStr = (
+      document.getElementById("modal-agent-id") as HTMLInputElement
+    ).value;
+    const saturdayGroup = (
+      document.getElementById("modal-agent-group") as HTMLInputElement
+    ).value;
+    const start = (
+      document.getElementById("modal-schedule-start") as HTMLInputElement
+    ).value;
+    const end = (
+      document.getElementById("modal-schedule-end") as HTMLInputElement
+    ).value;
 
     if (!start || !end) {
       showToast("Debe ingresar la hora de inicio y de fin", "error");
       return;
     }
 
-    if (start < '07:00' || end > '13:00') {
-      showToast("Los horarios deben estar dentro del rango 07:00 a 13:00 hs", "error");
+    if (start < "07:00" || end > "13:00") {
+      showToast(
+        "Los horarios deben estar dentro del rango 07:00 a 13:00 hs",
+        "error",
+      );
       return;
     }
 
     if (start >= end) {
-      showToast("La hora de inicio debe ser anterior a la hora de fin", "error");
+      showToast(
+        "La hora de inicio debe ser anterior a la hora de fin",
+        "error",
+      );
       return;
     }
 
-    const saveBtn = editSatForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    const saveBtn = editSatForm.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement | null;
+    const originalText = saveBtn ? saveBtn.innerHTML : "";
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.innerHTML = '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
+      saveBtn.innerHTML =
+        '<span class="loading loading-spinner loading-xs mr-1"></span> Guardando...';
     }
 
     const saturdayHorario = `${start} - ${end}`;
-    const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
-    const month = dateInput?.value ? dateInput.value.slice(0, 7) : new Date().toISOString().slice(0, 7);
+    const dateInput = document.getElementById(
+      "date-input",
+    ) as HTMLInputElement | null;
+    const month = dateInput?.value
+      ? dateInput.value.slice(0, 7)
+      : new Date().toISOString().slice(0, 7);
 
     try {
-      const res = await fetch('/api/cronograma/rotation-groups/members', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId: parseInt(agentIdStr, 10), saturdayGroup, saturdayHorario, month })
+      const res = await fetch("/api/cronograma/rotation-groups/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: parseInt(agentIdStr, 10),
+          saturdayGroup,
+          saturdayHorario,
+          month,
+        }),
       });
-      if (!res.ok) throw new Error("Error al actualizar la configuración del operador");
-      
+      if (!res.ok)
+        throw new Error("Error al actualizar la configuración del operador");
+
       await reloadDataForActiveMonth(month);
       renderGroupsView();
       editSatModal?.close();
@@ -1889,35 +2832,43 @@ function setupEventListeners(): void {
   setupRotationEventListeners();
   // Lazy-load overtime-view on first tab click
   let overtimeSetupDone = false;
-  document.getElementById('switch-to-overtime-btn')?.addEventListener('click', async () => {
-    const { showOvertimeView, setupOvertimeEventListeners } = await import('./overtime-view');
-    if (!overtimeSetupDone) {
-      setupOvertimeEventListeners();
-      overtimeSetupDone = true;
-    }
-    showOvertimeView();
-  });
+  document
+    .getElementById("switch-to-overtime-btn")
+    ?.addEventListener("click", async () => {
+      const { showOvertimeView, setupOvertimeEventListeners } =
+        await import("./overtime-view");
+      if (!overtimeSetupDone) {
+        setupOvertimeEventListeners();
+        overtimeSetupDone = true;
+      }
+      showOvertimeView();
+    });
 
   // Lazy-load overtime-preview on "Ver Mes" click
-  document.getElementById('preview-month-btn')?.addEventListener('click', async () => {
-    const { openOvertimePreview } = await import('./overtime-preview');
-    openOvertimePreview();
-  });
+  document
+    .getElementById("preview-month-btn")
+    ?.addEventListener("click", async () => {
+      const { openOvertimePreview } = await import("./overtime-preview");
+      openOvertimePreview();
+    });
 
   // Lazy-load pasiva-view on first tab click
   let pasivaSetupDone = false;
-  document.getElementById('switch-to-pasiva-btn')?.addEventListener('click', async () => {
-    const { showPasivaView, setupPasivaEventListeners } = await import('./pasiva-view');
-    if (!pasivaSetupDone) {
-      setupPasivaEventListeners();
-      pasivaSetupDone = true;
-    }
-    showPasivaView();
-  });
+  document
+    .getElementById("switch-to-pasiva-btn")
+    ?.addEventListener("click", async () => {
+      const { showPasivaView, setupPasivaEventListeners } =
+        await import("./pasiva-view");
+      if (!pasivaSetupDone) {
+        setupPasivaEventListeners();
+        pasivaSetupDone = true;
+      }
+      showPasivaView();
+    });
 }
 
 // --- Global Event Listeners ---
-document.addEventListener('cronograma:data-changed', async () => {
+document.addEventListener("cronograma:data-changed", async () => {
   try {
     await reloadDataForActiveMonth();
   } catch (err: unknown) {
@@ -1926,11 +2877,13 @@ document.addEventListener('cronograma:data-changed', async () => {
   }
 });
 
-document.addEventListener('cronograma:month-created', async (e: any) => {
+document.addEventListener("cronograma:month-created", async (e: any) => {
   const { year, month } = e.detail;
-  const targetMonth = `${year}-${(month + 1).toString().padStart(2, '0')}`;
-  
-  const dateInput = document.getElementById('date-input') as HTMLInputElement | null;
+  const targetMonth = `${year}-${(month + 1).toString().padStart(2, "0")}`;
+
+  const dateInput = document.getElementById(
+    "date-input",
+  ) as HTMLInputElement | null;
   if (dateInput) {
     dateInput.value = `${targetMonth}-01`;
     updateDateInputDisplay();
@@ -1944,33 +2897,39 @@ document.addEventListener('cronograma:month-created', async (e: any) => {
   }
 });
 
-document.addEventListener('cronograma:rules-changed', () => {
+document.addEventListener("cronograma:rules-changed", () => {
+  clearParsedDatesCache();
   renderMonthly();
   renderDaily();
   showToast("Reglas de control actualizadas", "success");
 });
 
-document.addEventListener('cronograma:feriados-updated', () => {
+document.addEventListener("cronograma:feriados-updated", () => {
+  clearParsedDatesCache();
   renderMonthly();
   renderDaily();
 });
 
 // Hover effect to highlight break in Gantt timeline
-document.addEventListener('mouseover', (e) => {
-  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+document.addEventListener("mouseover", (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>(
+    ".daily-break-badge",
+  );
   if (badge) {
-    const tr = badge.closest('tr');
-    const breakBar = tr?.querySelector('.gantt-bar-break');
-    breakBar?.classList.add('gantt-break-highlighted');
+    const tr = badge.closest("tr");
+    const breakBar = tr?.querySelector(".gantt-bar-break");
+    breakBar?.classList.add("gantt-break-highlighted");
   }
 });
 
-document.addEventListener('mouseout', (e) => {
-  const badge = (e.target as HTMLElement).closest<HTMLElement>('.daily-break-badge');
+document.addEventListener("mouseout", (e) => {
+  const badge = (e.target as HTMLElement).closest<HTMLElement>(
+    ".daily-break-badge",
+  );
   if (badge) {
-    const tr = badge.closest('tr');
-    const breakBar = tr?.querySelector('.gantt-bar-break');
-    breakBar?.classList.remove('gantt-break-highlighted');
+    const tr = badge.closest("tr");
+    const breakBar = tr?.querySelector(".gantt-bar-break");
+    breakBar?.classList.remove("gantt-break-highlighted");
   }
 });
 

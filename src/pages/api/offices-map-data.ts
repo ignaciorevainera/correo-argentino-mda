@@ -37,7 +37,8 @@ export const GET: APIRoute = async () => {
       .leftJoin(regions, eq(provinces.regionId, regions.id))
       .orderBy(regions.name, provinces.name);
 
-    const provincesByRegion: Record<string, { code: string; name: string }[]> = {};
+    const provincesByRegion: Record<string, { code: string; name: string }[]> =
+      {};
     for (const p of allProvincesWithRegion) {
       const rName = p.regionName ?? "Sin región";
       if (!provincesByRegion[rName]) provincesByRegion[rName] = [];
@@ -71,13 +72,20 @@ export const GET: APIRoute = async () => {
         })),
     }));
 
-    return new Response(JSON.stringify({ sucursales, provincesByRegion, regions: regionsWithReferents }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "public, s-maxage=86400, stale-while-revalidate",
+    return new Response(
+      JSON.stringify({
+        sucursales,
+        provincesByRegion,
+        regions: regionsWithReferents,
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, s-maxage=86400, stale-while-revalidate",
+        },
       },
-    });
+    );
   } catch (error) {
     console.error("Error in offices-map-data API:", error);
     return new Response(JSON.stringify({ error: "Error fetching map data" }), {
@@ -86,4 +94,3 @@ export const GET: APIRoute = async () => {
     });
   }
 };
-

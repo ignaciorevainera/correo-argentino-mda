@@ -16,7 +16,9 @@ export interface DeleteCategoryConfig {
   deleteItemFiles?: (item: Record<string, unknown>) => Promise<void> | void;
 }
 
-export function createCategoryDeleteHandler(config: DeleteCategoryConfig): APIRoute {
+export function createCategoryDeleteHandler(
+  config: DeleteCategoryConfig,
+): APIRoute {
   return async ({ params, request, redirect, locals }) => {
     const categoryId = parseInt(params.id as string, 10);
     if (!categoryId || isNaN(categoryId)) {
@@ -35,7 +37,7 @@ export function createCategoryDeleteHandler(config: DeleteCategoryConfig): APIRo
 
       if (existingDefault.length > 0 && categoryId === existingDefault[0].id) {
         return redirect(
-          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`
+          `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("No se puede eliminar la categoría por defecto")}&toast_type=error`,
         );
       }
 
@@ -81,17 +83,21 @@ export function createCategoryDeleteHandler(config: DeleteCategoryConfig): APIRo
       await db
         .delete(config.categoryTable)
         .where(eq(config.categoryIdColumn, categoryId));
-      await logAdminFromAstro(locals,
-        `Eliminó ${config.entityName} "${categoryTitle}"`
+      await logAdminFromAstro(
+        locals,
+        `Eliminó ${config.entityName} "${categoryTitle}"`,
       );
 
       return redirect(
-        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("Categoría eliminada con éxito")}&toast_type=success`
+        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("Categoría eliminada con éxito")}&toast_type=success`,
       );
     } catch (error) {
-      console.error(`[deleteCategory] Error al eliminar ${config.entityName}:`, error);
+      console.error(
+        `[deleteCategory] Error al eliminar ${config.entityName}:`,
+        error,
+      );
       return redirect(
-        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("Error al eliminar la categoría")}&toast_type=error`
+        `${getBaseNoSlash()}/${config.redirectPath}?toast_msg=${encodeURIComponent("Error al eliminar la categoría")}&toast_type=error`,
       );
     }
   };

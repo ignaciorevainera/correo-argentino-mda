@@ -13,7 +13,11 @@ import UnassignedRecords from "./UnassignedRecords.astro";
 import SoportesStats from "./SoportesStats.astro";
 import ExportCsvButton from "@components/ui/ExportCsvButton.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
-import type { InvgateHelpdesk, InvgateHelpdeskAndLevel } from "@/types/invgate";
+import type {
+  InvgateHelpdesk,
+  InvgateHelpdeskAndLevel,
+  InvgateCategory,
+} from "@/types/invgate";
 import { HIDDEN_HELPDESK_IDS } from "@lib/soportesConfig";
 import { can } from "@lib/roleConfig";
 
@@ -22,12 +26,28 @@ const isAdminUser = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
 const canExport = user ? can(user.role, "team_leader") : false;
+const isAdminOnly = user ? can(user.role, "admin") : false;
 
 const hdResult =
   await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
 const allItems: InvgateHelpdeskAndLevel[] =
   hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : [];
 const invgateError = !hdResult.ok;
+
+const catResult = await invgateGet<InvgateCategory[]>(
+  "categories?page_size=500",
+);
+const categoryNames: Record<string, string> = {};
+if (catResult.ok) {
+  const cats = Array.isArray(catResult.data)
+    ? catResult.data
+    : (catResult.data as { data?: InvgateCategory[] })?.data;
+  if (Array.isArray(cats)) {
+    for (const c of cats) {
+      if (c && c.id != null && c.name) categoryNames[String(c.id)] = c.name;
+    }
+  }
+}
 
 const parentHelpdesks = allItems.filter(
   (item) => item.level_order === undefined,
@@ -46,12 +66,20 @@ allItems
     subLevelsByParent.set(pid, list);
   });
 
+const hiddenRows = await db.query.hiddenHelpdesks.findMany();
+const dbHiddenIds = new Set(hiddenRows.map((r) => r.invgateId));
+const staticHiddenIds = new Set(HIDDEN_HELPDESK_IDS);
+
 const visibleHelpdesks = parentHelpdesks
-  .filter((hd) => !HIDDEN_HELPDESK_IDS.includes(hd.id))
+  .filter((hd) => !dbHiddenIds.has(hd.id) && !staticHiddenIds.has(hd.id))
+  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+const hiddenManagedHelpdesks = parentHelpdesks
+  .filter((hd) => dbHiddenIds.has(hd.id))
   .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
 const parentNameMap = new Map<number, string>();
-visibleHelpdesks.forEach((hd) => {
+parentHelpdesks.forEach((hd) => {
   if (hd.parent_id && parentMap.has(hd.parent_id)) {
     parentNameMap.set(hd.id, parentMap.get(hd.parent_id)!.name || "");
   }
@@ -112,75 +140,98 @@ const totalMembers = visibleHelpdesks.reduce(
     totalMembers={totalMembers}
   />
 
-  <div class="flex flex-nowrap items-center gap-2 md:gap-3 w-full">
-    <div class="flex-1 min-w-0">
-      <SearchBar
-        id="soportes-search"
-        placeholder="Buscar por nombre SM, Invgate, topico..."
-        class="w-full"
-      />
+  <div
+    id="soportes-filters"
+    class="bg-base-100 border-base-300 flex w-full flex-col gap-3 rounded-xl border p-3.5 shadow-xs"
+  >
+    <div class="flex w-full flex-wrap items-center gap-2 md:gap-3">
+      {
+        uniqueParentNames.length > 0 && (
+          <select
+            id="filter-parent"
+            class="select select-bordered select-sm md:select-md shrink-0 grow"
+            aria-label="Filtrar por mesa padre"
+          >
+            <option value="all">Todas las mesas padre</option>
+            {uniqueParentNames.map((name) => (
+              <option value={name}>{name}</option>
+            ))}
+          </select>
+        )
+      }
+
+      <select
+        id="filter-status"
+        class="select select-bordered select-sm md:select-md shrink-0"
+        aria-label="Filtrar por estado"
+      >
+        <option value="all">Todos los estados</option>
+        <option value="active">Activos</option>
+        <option value="inactive">Inactivos</option>
+      </select>
+
+      <select
+        id="sort-by"
+        class="select select-bordered select-sm md:select-md shrink-0"
+        aria-label="Ordenar resultados"
+      >
+        <option value="name-asc">Nombre A-Z</option>
+        <option value="name-desc">Nombre Z-A</option>
+        <option value="members-desc">Más miembros</option>
+        <option value="members-asc">Menos miembros</option>
+        <option value="topics-desc">Más tópicos</option>
+        <option value="topics-asc">Menos tópicos</option>
+      </select>
     </div>
 
-    <select
-      id="filter-status"
-      class="select select-bordered shrink-0 select-sm md:select-md"
-    >
-      <option value="all">Todos los estados</option>
-      <option value="active">Activos</option>
-      <option value="inactive">Inactivos</option>
-    </select>
-
-    {
-      uniqueParentNames.length > 0 && (
-        <select
-          id="filter-parent"
-          class="select select-bordered shrink-0 select-sm md:select-md"
-        >
-          <option value="all">Todas las mesas padre</option>
-          {uniqueParentNames.map((name) => (
-            <option value={name}>{name}</option>
-          ))}
-        </select>
-      )
-    }
-
-    <select
-      id="sort-by"
-      class="select select-bordered shrink-0 select-sm md:select-md"
-    >
-      <option value="name-asc">Nombre A-Z</option>
-      <option value="name-desc">Nombre Z-A</option>
-      <option value="members-desc">Más miembros</option>
-      <option value="members-asc">Menos miembros</option>
-      <option value="topics-desc">Más tópicos</option>
-      <option value="topics-asc">Menos tópicos</option>
-    </select>
-
-    <button
-      id="clear-filters"
-      class="btn btn-outline btn-error font-semibold gap-2 shrink-0 btn-sm md:btn-md"
-      aria-label="Limpiar todos los filtros"
-      title="Limpiar todos los filtros"
-    >
-      <Icon name="boxicons:trash" class="size-4" aria-hidden="true" />
-      <span class="hidden lg:inline">Limpiar filtros</span>
-    </button>
-    {
-      canExport && (
-        <ExportCsvButton
-          id="export-csv"
-          title="Exportar como CSV"
-          label="CSV"
-          shortLabel="CSV"
-          iconSize={16}
+    <div class="flex w-full flex-wrap items-center gap-2 md:gap-3">
+      <div class="min-w-72 flex-1 sm:min-w-96">
+        <SearchBar
+          id="soportes-search"
+          placeholder="Buscar por nombre SM, Invgate, tópico…"
+          class="w-full"
         />
-      )
-    }
+      </div>
+
+      <button
+        id="clear-filters"
+        class="btn btn-outline btn-error btn-sm md:btn-md shrink-0 gap-2 font-semibold"
+        aria-label="Limpiar todos los filtros"
+        title="Limpiar todos los filtros"
+      >
+        <Icon name="boxicons:trash-filled" size={16} aria-hidden="true" />
+        <span class="hidden lg:inline">Limpiar filtros</span>
+      </button>
+      {
+        canExport && (
+          <ExportCsvButton
+            id="export-csv"
+            title="Exportar como CSV"
+            label="Exportar CSV"
+            shortLabel="CSV"
+            iconSize={16}
+          />
+        )
+      }
+      {
+        isAdminOnly && (
+          <button
+            id="toggle-hidden"
+            class="btn btn-outline btn-sm md:btn-md shrink-0 gap-2"
+            aria-pressed="false"
+            title="Ver solo mesas ocultas"
+          >
+            <Icon name="boxicons:low-vision-filled" size={16} aria-hidden="true" />
+            <span class="hidden lg:inline">Mesas ocultas</span>
+          </button>
+        )
+      }
+    </div>
   </div>
 
   <div
     id="soportes-grid"
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
   >
     {
       visibleHelpdesks.map((hd) => {
@@ -194,17 +245,40 @@ const totalMembers = visibleHelpdesks.reduce(
             isAdmin={isAdminUser}
             parentName={parentName}
             subLevels={subLevels}
+            categoryNames={categoryNames}
+            adminOnly={isAdminOnly}
           />
         );
       })
     }
 
     {
+      isAdminOnly &&
+        hiddenManagedHelpdesks.map((hd) => {
+          const records = groupedRecords.get(hd.id) || [];
+          const parentName = parentNameMap.get(hd.id);
+          const subLevels = subLevelsByParent.get(hd.id) || [];
+          return (
+            <HelpdeskCard
+              helpdesk={hd}
+              records={records}
+              isAdmin={isAdminUser}
+              parentName={parentName}
+              subLevels={subLevels}
+              categoryNames={categoryNames}
+              isHidden
+              adminOnly
+            />
+          );
+        })
+    }
+
+    {
       visibleHelpdesks.length === 0 && guides.length === 0 && (
-        <div class="col-span-full flex flex-col items-center gap-3 py-16 text-base-content/50">
-          <div class="rounded-full bg-base-200 p-4">
+        <div class="text-base-content/50 col-span-full flex flex-col items-center gap-3 py-16">
+          <div class="bg-base-200 rounded-full p-4">
             <Icon
-              name="boxicons:group-alt-filled"
+              name="boxicons:headphone-mic-filled"
               size={32}
               class="opacity-30"
               aria-hidden="true"
@@ -220,13 +294,33 @@ const totalMembers = visibleHelpdesks.reduce(
 
     <SearchEmptyState
       id="no-results-state-soportes"
-      class="hidden col-span-full"
+      icon="boxicons:search-filled"
+      class="col-span-full hidden"
       title="Sin resultados"
       description="No se encontraron mesas de ayuda o áreas que coincidan con los filtros aplicados."
       showClearButton={true}
       clearButtonId="btn-clear-empty-soportes"
       clearButtonText="Limpiar filtros"
     />
+
+    {
+      isAdminOnly && (
+        <div
+          id="no-hidden-state-soportes"
+          class="text-base-content/50 col-span-full hidden flex-col items-center gap-3 py-16"
+        >
+          <div class="bg-base-200 rounded-full p-4">
+            <Icon
+              name="boxicons:low-vision-filled"
+              size={32}
+              class="opacity-30"
+              aria-hidden="true"
+            />
+          </div>
+          <p class="text-sm font-semibold">No hay mesas ocultas</p>
+        </div>
+      )
+    }
   </div>
 </PageContainer>
 
@@ -245,12 +339,15 @@ const totalMembers = visibleHelpdesks.reduce(
   const sortBy = document.querySelector<HTMLSelectElement>("#sort-by");
   const grid = document.querySelector<HTMLElement>("#soportes-grid");
   const cards = document.querySelectorAll<HTMLElement>("[data-card-for]");
+  const toggleHiddenBtn =
+    document.querySelector<HTMLButtonElement>("#toggle-hidden");
+  let hiddenOnly = false;
 
   function applyFiltersAndSort() {
-    const query = searchInput?.value.trim() || "";
-    const statusFilter = filterStatus?.value || "all";
-    const parentFilter = filterParent?.value || "all";
-    const sortValue = sortBy?.value || "name-asc";
+    const query = hiddenOnly ? "" : searchInput?.value.trim() || "";
+    const statusFilter = hiddenOnly ? "all" : filterStatus?.value || "all";
+    const parentFilter = hiddenOnly ? "all" : filterParent?.value || "all";
+    const sortValue = hiddenOnly ? "name-asc" : sortBy?.value || "name-asc";
 
     const visible: HTMLElement[] = [];
 
@@ -258,6 +355,7 @@ const totalMembers = visibleHelpdesks.reduce(
       const searchText = card.dataset.searchText || "";
       const cardStatus = card.dataset.status || "";
       const cardParent = card.dataset.parentName || "";
+      const cardHidden = card.dataset.hidden === "true";
 
       const matchesSearch = matchesSearchQuery(query, [searchText]);
       const matchesStatus =
@@ -265,9 +363,15 @@ const totalMembers = visibleHelpdesks.reduce(
       const matchesParent =
         parentFilter === "all" || cardParent === parentFilter;
 
-      const isVisible = matchesSearch && matchesStatus && matchesParent;
-      card.classList.toggle("hidden", !isVisible);
+      const isVisible = hiddenOnly
+        ? cardHidden
+        : !cardHidden && matchesSearch && matchesStatus && matchesParent;
 
+      // Hide non-matching cards instead of removing them from the DOM.
+      // astro-icon dedupes repeated icons into <symbol>/<use> sprites whose
+      // <symbol> lives in the first card; removing cards would orphan the
+      // <use> references and make icons disappear.
+      card.classList.toggle("hidden", !isVisible);
       if (isVisible) {
         visible.push(card);
         highlightSearchTargets(card, query);
@@ -275,13 +379,23 @@ const totalMembers = visibleHelpdesks.reduce(
     });
 
     const noResultsState = document.getElementById("no-results-state-soportes");
-    if (noResultsState) {
-      if (visible.length === 0) {
-        noResultsState.classList.remove("hidden");
-        noResultsState.classList.add("flex");
-      } else {
-        noResultsState.classList.add("hidden");
-        noResultsState.classList.remove("flex");
+    const noHiddenState = document.getElementById("no-hidden-state-soportes");
+
+    if (hiddenOnly) {
+      noResultsState?.classList.add("hidden");
+      noResultsState?.classList.remove("flex");
+      if (noHiddenState) {
+        const showEmpty = visible.length === 0;
+        noHiddenState.classList.toggle("hidden", !showEmpty);
+        noHiddenState.classList.toggle("flex", showEmpty);
+      }
+    } else {
+      noHiddenState?.classList.add("hidden");
+      noHiddenState?.classList.remove("flex");
+      if (noResultsState) {
+        const showEmpty = visible.length === 0;
+        noResultsState.classList.toggle("hidden", !showEmpty);
+        noResultsState.classList.toggle("flex", showEmpty);
       }
     }
 
@@ -319,11 +433,20 @@ const totalMembers = visibleHelpdesks.reduce(
   filterParent?.addEventListener("change", applyFiltersAndSort);
   sortBy?.addEventListener("change", applyFiltersAndSort);
 
+  toggleHiddenBtn?.addEventListener("click", () => {
+    hiddenOnly = !hiddenOnly;
+    toggleHiddenBtn.setAttribute("aria-pressed", String(hiddenOnly));
+    toggleHiddenBtn.classList.toggle("btn-active", hiddenOnly);
+    applyFiltersAndSort();
+  });
+
   cards.forEach((card) => {
     card.addEventListener("members-loaded", () => {
       if (searchInput?.value) applyFiltersAndSort();
     });
   });
+
+  applyFiltersAndSort();
 
   const clearFiltersBtn =
     document.querySelector<HTMLButtonElement>("#clear-filters");
@@ -332,6 +455,9 @@ const totalMembers = visibleHelpdesks.reduce(
   );
 
   const resetFilters = () => {
+    hiddenOnly = false;
+    toggleHiddenBtn?.setAttribute("aria-pressed", "false");
+    toggleHiddenBtn?.classList.remove("btn-active");
     if (searchInput) searchInput.value = "";
     if (filterStatus) filterStatus.value = "all";
     if (filterParent) filterParent.value = "all";
@@ -347,7 +473,7 @@ const totalMembers = visibleHelpdesks.reduce(
 
   exportCsvBtn?.addEventListener("click", () => {
     const visibleCards = Array.from(cards).filter(
-      (c) => !c.classList.contains("hidden"),
+      (c) => c.parentNode === grid && !c.classList.contains("hidden"),
     );
 
     let csvContent = "\uFEFF";

@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
-import { deshacerAsignacion, ensureHasLock, resetAssignmentLock } from "@lib/disponibilidad";
+import {
+  deshacerAsignacion,
+  ensureHasLock,
+  resetAssignmentLock,
+} from "@lib/disponibilidad";
 import { normalizeRole } from "@lib/rbac";
 import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 
@@ -20,6 +24,9 @@ export const POST: APIRoute = async ({ locals }) => {
     }
     return jsonResponse({ error: res.error }, 400);
   } catch (e: any) {
-    return jsonResponse({ error: sanitizeError(e) || "Error al deshacer la asignación" }, 500);
+    return jsonResponse(
+      { error: sanitizeError(e) || "Error al deshacer la asignación" },
+      500,
+    );
   }
 };

@@ -15,38 +15,38 @@ const user = Astro.locals.user || { username: "Invitado" };
     {/* Botón de cerrar (X) en la esquina superior derecha */}
     <button
       type="button"
-      class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
+      class="btn btn-sm btn-circle btn-ghost absolute top-4 right-4"
       aria-label="Cerrar modal"
       data-close-feedback-modal
     >
-      <Icon name="boxicons:x" size={20} />
+      <Icon name="boxicons:x-filled" size={20} />
     </button>
 
     <h3
-      class="text-lg font-bold text-base-content mb-4 flex items-center gap-2"
+      class="text-base-content mb-4 flex items-center gap-2 text-lg font-bold"
     >
-      <Icon name="boxicons:mail-open" size={24} class="text-primary" />
+      <Icon name="boxicons:mail-open-filled" size={24} class="text-primary" />
       <span>Enviar Comentarios o Reportes</span>
     </h3>
 
     {/* Pestañas de Navegación del Modal */}
     <div
-      class="tabs tabs-boxed grid grid-cols-2 bg-base-200 mb-6 rounded-md p-1"
+      class="tabs tabs-boxed bg-base-200 mb-6 grid grid-cols-2 rounded-md p-1"
     >
       <button
         type="button"
         id="tab-sugerencia"
-        class="tab tab-active flex items-center justify-center gap-2 text-sm font-semibold py-2 rounded-md transition-all bg-base-100 shadow-sm"
+        class="tab tab-active bg-base-100 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-semibold shadow-sm transition-all"
       >
-        <Icon name="boxicons:light-bulb-on" size={18} />
+        <Icon name="boxicons:light-bulb-filled" size={18} />
         <span>Sugerir Idea</span>
       </button>
       <button
         type="button"
         id="tab-bug"
-        class="tab flex items-center justify-center gap-2 text-sm font-medium py-2 rounded-md transition-all text-base-content/60"
+        class="tab text-base-content/60 flex items-center justify-center gap-2 rounded-md py-2 text-sm font-medium transition-all"
       >
-        <Icon name="boxicons:bug" size={18} />
+        <Icon name="boxicons:bug-filled" size={18} />
         <span>Reportar Bug</span>
       </button>
     </div>
@@ -94,46 +94,31 @@ const user = Astro.locals.user || { username: "Invitado" };
     </form>
 
     {/* Formulario de Reportar Bug */}
-    <form id="bug-form" class="space-y-4 hidden">
-      <div class="form-control w-full">
-        <label
-          class="label py-1 text-xxs font-semibold uppercase text-base-content/60"
-          >Asunto</label
-        >
-        <input
-          type="text"
-          id="bug-asunto"
-          placeholder="Ej: El buscador no funciona"
-          class="input input-bordered w-full rounded-md text-sm"
-          required
-        />
-      </div>
+    <form id="bug-form" class="hidden space-y-4">
+      <FormField
+        id="bug-asunto"
+        name="bug-asunto"
+        label="Asunto"
+        placeholder="Ej: El buscador no funciona"
+        inputClass="text-sm"
+        required
+      />
 
-      <div class="form-control w-full">
-        <label
-          class="label py-1 text-xxs font-semibold uppercase text-base-content/60"
-          >Área o Categoría</label
-        >
-        <select
-          id="bug-categoria"
-          class="select select-bordered w-full rounded-md text-sm"
-          required
-        >
-          <option value="" disabled selected>Selecciona una opción</option>
-          <option value="cronograma">Cronograma</option>
-          <option value="asistencia">Asistencia</option>
-          <option value="calidad">Calidad</option>
-          <option value="autogesitones">Autogestiones</option>
-          <option value="titulos">Títulos</option>
-          <option value="mesas-de-ayuda">Mesas de Ayuda</option>
-          <option value="buscador-usuarios">Buscador de Usuarios</option>
-          <option value="contactos">Contactos</option>
-          <option value="enlaces">Enlaces/Recursos</option>
-          <option value="oficinas">Oficinas</option>
-          <option value="inventario">Inventario de Terminales</option>
-          <option value="otros">Otros</option>
-        </select>
-      </div>
+      <SelectField id="bug-categoria" name="bug-categoria" label="Área o Categoría" required>
+        <option value="" disabled selected>Selecciona una opción</option>
+        <option value="cronograma">Cronograma</option>
+        <option value="asistencia">Asistencia</option>
+        <option value="calidad">Calidad</option>
+        <option value="autogesitones">Autogestiones</option>
+        <option value="titulos">Títulos</option>
+        <option value="mesas-de-ayuda">Mesas de Ayuda</option>
+        <option value="buscador-usuarios">Buscador de Usuarios</option>
+        <option value="contactos">Contactos</option>
+        <option value="enlaces">Enlaces/Recursos</option>
+        <option value="oficinas">Oficinas</option>
+        <option value="inventario">Inventario de Terminales</option>
+        <option value="otros">Otros</option>
+      </SelectField>
 
       <SelectField
         id="bug-gravedad"
@@ -162,23 +147,26 @@ const user = Astro.locals.user || { username: "Invitado" };
         id="bug-pasos"
         name="bug-pasos"
         label="Pasos para Reproducir"
-        placeholder="1. Ingresar a /mapa-sucursales&#10;2. Cambiar a vista móvil&#10;3. Observar que..."
+        placeholder="1. Ingresar a /mapa-sucursales
+2. Cambiar a vista móvil
+3. Observar que..."
         rows={4}
         required
       />
     </form>
   </Fragment>
   <Fragment slot="actions">
-    <div class="modal-action flex items-center justify-between mt-6">
+    <div class="modal-action mt-6 flex items-center justify-between">
       <div class="text-xxs text-base-content/50">
-        Enviando como: <span class="font-semibold text-base-content"
+        Enviando como: <span class="text-base-content font-semibold"
           >{user.username}</span
         >
       </div>
       <div class="flex gap-2">
         <ActionCancelButton
           type="button"
-          class="rounded-md"
+          variant="error"
+          icon="boxicons:x-filled"
           label="Cancelar"
           data-close-feedback-modal
         />
@@ -186,17 +174,18 @@ const user = Astro.locals.user || { username: "Invitado" };
           type="submit"
           id="btn-submit-sugerencia"
           color="btn-primary"
-          class="rounded-md"
           form="suggestion-form"
           label="Enviar sugerencia"
+          icon="boxicons:send-filled"
         />
         <ActionConfirmButton
           type="submit"
           id="btn-submit-bug"
           color="btn-primary"
-          class="rounded-md hidden"
+          class="hidden"
           form="bug-form"
           label="Reportar bug"
+          icon="boxicons:send-filled"
         />
       </div>
     </div>
@@ -211,7 +200,9 @@ const user = Astro.locals.user || { username: "Invitado" };
   const modal = document.getElementById("feedback_modal") as HTMLDialogElement;
   const tabSugerencia = document.getElementById("tab-sugerencia");
   const tabBug = document.getElementById("tab-bug");
-  const formSugerencia = document.getElementById("suggestion-form") as HTMLFormElement;
+  const formSugerencia = document.getElementById(
+    "suggestion-form",
+  ) as HTMLFormElement;
   const formBug = document.getElementById("bug-form") as HTMLFormElement;
   const closeButtons = document.querySelectorAll("[data-close-feedback-modal]");
   const openButtons = document.querySelectorAll("[data-open-feedback-modal]");
@@ -221,10 +212,26 @@ const user = Astro.locals.user || { username: "Invitado" };
   let activeType: "sugerencia" | "bug" = "sugerencia";
 
   // 1. Manejo del cambio de pestañas
-  function switchTab(activeTab: HTMLElement, inactiveTab: HTMLElement, showForm: HTMLFormElement, hideForm: HTMLFormElement, type: "sugerencia" | "bug") {
-    activeTab.classList.add("tab-active", "bg-base-100", "shadow-sm", "font-semibold");
+  function switchTab(
+    activeTab: HTMLElement,
+    inactiveTab: HTMLElement,
+    showForm: HTMLFormElement,
+    hideForm: HTMLFormElement,
+    type: "sugerencia" | "bug",
+  ) {
+    activeTab.classList.add(
+      "tab-active",
+      "bg-base-100",
+      "shadow-sm",
+      "font-semibold",
+    );
     activeTab.classList.remove("text-base-content/60", "font-medium");
-    inactiveTab.classList.remove("tab-active", "bg-base-100", "shadow-sm", "font-semibold");
+    inactiveTab.classList.remove(
+      "tab-active",
+      "bg-base-100",
+      "shadow-sm",
+      "font-semibold",
+    );
     inactiveTab.classList.add("text-base-content/60", "font-medium");
     showForm.classList.remove("hidden");
     hideForm.classList.add("hidden");

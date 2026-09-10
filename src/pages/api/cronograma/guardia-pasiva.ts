@@ -1,7 +1,13 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { monthlyGuardiaPasivaOperator, weeklyGuardiaPasivaAssignments, users } from "@db/schema";
-import { eq, inArray } from "drizzle-orm";
+import {
+  monthlyGuardiaPasivaOperator,
+  weeklyGuardiaPasivaAssignments,
+  users,
+  employees,
+  agents,
+} from "@db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
 
@@ -9,12 +15,12 @@ const DEFAULT_SUPERVISOR = "Tomasi Alejandro";
 
 interface PostRequestBody {
   month?: string;
-  operatorId?: number | null | string;
   weeklyAssignments?: Array<{
     startDate?: string;
     endDate?: string;
     supervisorName?: string;
     referenteId?: number | null | string;
+    operatorId?: number | null | string;
   }>;
 }
 
@@ -66,7 +72,7 @@ export const GET: APIRoute = async ({ url }) => {
       return jsonResponse({ error: "Missing or invalid month parameter" }, 400);
     }
 
-    // 1. Obtener operador mensual
+    // 1. Obtener operador mensual (fallback)
     const opResult = await db
       .select()
       .from(monthlyGuardiaPasivaOperator)
@@ -78,45 +84,104 @@ export const GET: APIRoute = async ({ url }) => {
     const weeks = getWeeksForMonth(month);
 
     // 3. Obtener asignaciones guardadas para estas semanas
-    const startDates = weeks.map(w => w.startDate);
-    const savedAssignments = startDates.length > 0
-      ? await db
-          .select()
-          .from(weeklyGuardiaPasivaAssignments)
-          .where(inArray(weeklyGuardiaPasivaAssignments.startDate, startDates))
-      : [];
+    const startDates = weeks.map((w) => w.startDate);
+    const savedAssignments =
+      startDates.length > 0
+        ? await db
+            .select()
+            .from(weeklyGuardiaPasivaAssignments)
+            .where(
+              inArray(weeklyGuardiaPasivaAssignments.startDate, startDates),
+            )
+        : [];
 
     // 4. Mapear datos
-    const weeksWithData = weeks.map(w => {
-      const saved = savedAssignments.find(s => s.startDate === w.startDate);
+    const weeksWithData = weeks.map((w) => {
+      const saved = savedAssignments.find((s) => s.startDate === w.startDate);
+      let sName = saved?.supervisorName || DEFAULT_SUPERVISOR;
+      if (sName === "Otomasi") sName = "Tomasi Alejandro";
+      if (sName === "Farce") sName = "Arce Franco";
       return {
         startDate: w.startDate,
         endDate: w.endDate,
         label: w.label,
-        supervisorName: saved?.supervisorName || DEFAULT_SUPERVISOR,
+        supervisorName: sName,
         referenteId: saved?.referenteId || null,
+        operatorId: saved?.operatorId || null,
       };
     });
 
-    // 5. Obtener lista de usuarios que pueden ser supervisores (admin, supervisor, team_leader)
+    // 5. Obtener lista de usuarios que pueden ser supervisores con sus nombres completos
     const supervisorsList = await db
-      .select({ username: users.username })
+      .select({
+        username: users.username,
+        agentName: agents.name,
+        empFullname: employees.fullname,
+      })
       .from(users)
+      .leftJoin(
+        agents,
+        sql`lower(${agents.username}) = lower(${users.username})`,
+      )
+      .leftJoin(
+        employees,
+        sql`lower(${employees.username}) = lower(${users.username})`,
+      )
       .where(inArray(users.role, ["admin", "supervisor", "team_leader"]));
 
-    const supervisors = supervisorsList.map(u => {
-      return u.username
-        .split(/[\s._-]+/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
+    const supervisorNamesSet = new Set<string>();
+    supervisorNamesSet.add(DEFAULT_SUPERVISOR);
+
+    supervisorsList.forEach((u) => {
+      let name = u.agentName;
+      if (!name && u.empFullname) {
+        const parts = u.empFullname.trim().split(/\s+/);
+        if (parts.length === 2) {
+          name = `${parts[1]} ${parts[0]}`;
+        } else if (parts.length >= 3) {
+          name = `${parts[parts.length - 1]} ${parts[1]}`;
+        } else {
+          name = u.empFullname;
+        }
+      }
+      if (u.username.toLowerCase() === "otomasi") {
+        name = "Tomasi Alejandro";
+      }
+      if (name) {
+        supervisorNamesSet.add(name);
+      }
     });
 
-    // Garantizar que el supervisor por defecto esté en la lista
-    if (!supervisors.includes(DEFAULT_SUPERVISOR)) {
-      supervisors.push(DEFAULT_SUPERVISOR);
-    }
+    const supervisors = Array.from(supervisorNamesSet).sort((a, b) =>
+      a.localeCompare(b),
+    );
 
-    return jsonResponse({ operatorId, weeks: weeksWithData, supervisors }, 200, "no-store, no-cache, must-revalidate");
+    // 6. Obtener lista de referentes (agentes con rol referent, supervisor, team_leader, admin)
+    const referentesList = await db
+      .select({
+        id: agents.id,
+        name: agents.name,
+      })
+      .from(agents)
+      .innerJoin(
+        users,
+        sql`lower(${agents.username}) = lower(${users.username})`,
+      )
+      .where(
+        inArray(users.role, ["referent", "supervisor", "team_leader", "admin"]),
+      )
+      .orderBy(agents.name);
+
+    return jsonResponse(
+      {
+        operatorId,
+        weeks: weeksWithData,
+        supervisors,
+        referentes: referentesList,
+      },
+      200,
+      "no-store, no-cache, must-revalidate",
+    );
   } catch (error: any) {
     console.error("GET Guardia Pasiva Error:", error);
     return jsonResponse({ error: "Error interno del servidor" }, 500);
@@ -129,7 +194,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = (await request.json()) as PostRequestBody;
-    const { month, operatorId, weeklyAssignments } = body;
+    const { month, weeklyAssignments } = body;
 
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       return jsonResponse({ error: "Invalid month parameter" }, 400);
@@ -137,45 +202,47 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // Transacción síncrona con SQLite
     await db.transaction((tx) => {
-      // 1. Actualizar o guardar Operador Mensual
-      if (operatorId === null || operatorId === undefined || operatorId === "") {
-        tx.delete(monthlyGuardiaPasivaOperator)
-          .where(eq(monthlyGuardiaPasivaOperator.month, month))
-          .run();
-      } else {
-        const opId = typeof operatorId === "string" ? parseInt(operatorId, 10) : operatorId;
-        tx.insert(monthlyGuardiaPasivaOperator)
-          .values({ month, operatorId: opId })
-          .onConflictDoUpdate({
-            target: monthlyGuardiaPasivaOperator.month,
-            set: { operatorId: opId },
-          })
-          .run();
-      }
-
-      // 2. Actualizar, guardar o eliminar Asignaciones Semanales
+      // Actualizar, guardar o eliminar Asignaciones Semanales
       if (Array.isArray(weeklyAssignments)) {
         for (const item of weeklyAssignments) {
-          const { startDate, endDate, supervisorName, referenteId } = item;
+          const {
+            startDate,
+            endDate,
+            supervisorName,
+            referenteId,
+            operatorId,
+          } = item;
           if (!startDate) continue;
 
-          // Si el referenteId no está asignado o es vacío, se borra el registro existente
-          if (referenteId === null || referenteId === undefined || referenteId === "") {
+          const refId = referenteId
+            ? typeof referenteId === "string"
+              ? parseInt(referenteId, 10)
+              : referenteId
+            : null;
+          const opId = operatorId
+            ? typeof operatorId === "string"
+              ? parseInt(operatorId, 10)
+              : operatorId
+            : null;
+
+          if (
+            !refId &&
+            !opId &&
+            (!supervisorName || supervisorName === DEFAULT_SUPERVISOR)
+          ) {
             tx.delete(weeklyGuardiaPasivaAssignments)
               .where(eq(weeklyGuardiaPasivaAssignments.startDate, startDate))
               .run();
             continue;
           }
 
-          const refId = typeof referenteId === "string" ? parseInt(referenteId, 10) : referenteId;
-
-          // Si el referenteId está presente, se realiza un Upsert
           tx.insert(weeklyGuardiaPasivaAssignments)
             .values({
               startDate,
               endDate: endDate || "",
               supervisorName: supervisorName || DEFAULT_SUPERVISOR,
               referenteId: refId,
+              operatorId: opId,
             })
             .onConflictDoUpdate({
               target: weeklyGuardiaPasivaAssignments.startDate,
@@ -183,6 +250,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
                 endDate: endDate || "",
                 supervisorName: supervisorName || DEFAULT_SUPERVISOR,
                 referenteId: refId,
+                operatorId: opId,
               },
             })
             .run();

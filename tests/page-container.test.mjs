@@ -71,4 +71,3 @@ for (const [path, matcher] of migratedRoutes) {
   );
   assert.match(source, matcher, `${path} should use the expected container`);
 }
-

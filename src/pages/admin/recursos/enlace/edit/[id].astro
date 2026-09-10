@@ -1,10 +1,6 @@
 ---
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
-import { Icon } from "astro-icon/components";
 import { db } from "@db/index";
 import { resourceCategories, resourceLinks } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -15,10 +11,9 @@ import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
-import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
-import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
+import FormShell from "@components/ui/FormShell.astro";
 
 const { id } = Astro.params;
 let errorMsg = "";
@@ -62,7 +57,9 @@ if (existingLink) {
 let formSnapshot = null;
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const formData = await Astro.request.formData();
     formSnapshot = formData;
@@ -70,7 +67,10 @@ if (Astro.request.method === "POST") {
     const title = formData.get("title")?.toString().trim();
     const url = formData.get("url")?.toString().trim();
     const categoryIdRaw = formData.get("categoryId")?.toString();
-    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
+    const categoryId =
+      categoryIdRaw && !isNaN(Number(categoryIdRaw))
+        ? Number(categoryIdRaw)
+        : null;
     const subtitle = formData.get("subtitle")?.toString().trim() || null;
     const deprecated = formData.get("deprecated") === "on";
     const deleteCredentials = formData.get("deleteCredentials") === "on";
@@ -79,9 +79,13 @@ if (Astro.request.method === "POST") {
     let credentialPassword = null;
 
     if (!deleteCredentials) {
-      credentialUsername = formData.get("credentialUsername")?.toString().trim() || null;
-      const rawPassword = formData.get("credentialPassword")?.toString().trim() || "";
-      credentialPassword = rawPassword ? encrypt(rawPassword) : (link.credentialPassword || null);
+      credentialUsername =
+        formData.get("credentialUsername")?.toString().trim() || null;
+      const rawPassword =
+        formData.get("credentialPassword")?.toString().trim() || "";
+      credentialPassword = rawPassword
+        ? encrypt(rawPassword)
+        : link.credentialPassword || null;
     }
 
     let iconPath = link.iconPath || null;
@@ -114,7 +118,10 @@ if (Astro.request.method === "POST") {
         })
         .where(eq(resourceLinks.id, numericId));
       if (oldTitle && oldTitle !== title) {
-        await logAdminFromAstro(Astro.locals, `Actualizó el enlace de "${oldTitle}" a "${title}"`);
+        await logAdminFromAstro(
+          Astro.locals,
+          `Actualizó el enlace de "${oldTitle}" a "${title}"`,
+        );
       } else {
         await logAdminFromAstro(Astro.locals, `Actualizó el enlace "${title}"`);
       }
@@ -122,7 +129,11 @@ if (Astro.request.method === "POST") {
 
     const successMsg = "Enlace actualizado con éxito.";
     if (isAjax) {
-      return toastResponse({ success: true, message: successMsg, redirectUrl: resolveUrl("/admin/recursos") });
+      return toastResponse({
+        success: true,
+        message: successMsg,
+        redirectUrl: resolveUrl("/admin/recursos"),
+      });
     }
     return redirectWithToast("/admin/recursos", successMsg);
   } catch (error: any) {
@@ -136,181 +147,175 @@ if (Astro.request.method === "POST") {
       link.categoryId = formSnapshot.get("categoryId")?.toString() || "";
       link.subtitle = formSnapshot.get("subtitle")?.toString() || "";
       link.deprecated = formSnapshot.get("deprecated") === "on";
-      link.credentialUsername = formSnapshot.get("credentialUsername")?.toString() || "";
+      link.credentialUsername =
+        formSnapshot.get("credentialUsername")?.toString() || "";
     }
   }
 }
 ---
 
-<BaseLayout title="Editar Enlace">
-  <PageContainer>
-    <div class="max-w-2xl mx-auto py-4 sm:py-8">
-      <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
-        <a
-          href={resolveUrl("/admin/recursos")}
-          class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+<FormShell
+  backHref={resolveUrl("/admin/recursos")}
+  title="Editar Enlace"
+  subtitle="Configuración del acceso directo para operadores."
+  containerWidth="2xl"
+  enctype="multipart/form-data"
+  async
+  saveLabel="Guardar Enlace"
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <SectionCard>
+    <div class="p-6 sm:p-8">
+      <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <FormField
+          id="input-title"
+          name="title"
+          label="Título del Enlace"
+          required
+          value={link.title}
+          placeholder="Ej: Portal de Autogestión"
+        />
+
+        <SelectField
+          id="select-categoryId"
+          name="categoryId"
+          label="Categoría"
+          required
+          selectClass="font-medium"
         >
-          <Icon name="boxicons:chevron-left" size={16} />
-          Recursos
-        </a>
-        <span>/</span>
-        <span class="text-base-content font-medium truncate">Editar enlace</span>
+          {
+            categories.map((cat) => (
+              <option
+                value={cat.id}
+                selected={
+                  link.categoryId
+                    ? Number(cat.id) === Number(link.categoryId)
+                    : false
+                }
+              >
+                {cat.title}
+              </option>
+            ))
+          }
+        </SelectField>
+
+        <FormField
+          id="input-url"
+          type="url"
+          name="url"
+          label="URL de Destino"
+          required
+          value={link.url}
+          placeholder="https://..."
+          inputClass="font-mono text-sm"
+          class="sm:col-span-2"
+        />
+
+        <FormField
+          id="input-subtitle"
+          name="subtitle"
+          label="Subtítulo Descriptivo"
+          value={link.subtitle}
+          placeholder="Breve explicación del propósito del enlace"
+          helpText="(Opcional)"
+          class="sm:col-span-2"
+        />
+
+        <FormField
+          id="input-credentialUsername"
+          name="credentialUsername"
+          label="Usuario (Credenciales)"
+          value={link.credentialUsername}
+          placeholder="Ej: admin_soti"
+          helpText="(Opcional)"
+        />
+
+        <FormField
+          id="input-credentialPassword"
+          type="password"
+          name="credentialPassword"
+          label="Contraseña (Credenciales)"
+          placeholder="••••••••"
+          helpText="(Opcional, dejar vacío para no modificar)"
+        />
+
+        {
+          (link.credentialUsername || link.credentialPassword) && (
+            <div class="bg-error/10 border-error/20 flex items-center gap-3 rounded-lg border p-3 sm:col-span-2">
+              <input
+                id="checkbox-deleteCredentials"
+                type="checkbox"
+                name="deleteCredentials"
+                class="checkbox checkbox-error"
+              />
+              <label
+                for="checkbox-deleteCredentials"
+                class="label flex cursor-pointer flex-col items-start p-0"
+              >
+                <span class="label-text text-error font-semibold">
+                  Eliminar credenciales guardadas
+                </span>
+                <span class="label-text-alt text-base-content/60">
+                  Marcar para borrar el usuario y la contraseña almacenados para
+                  este enlace.
+                </span>
+              </label>
+            </div>
+          )
+        }
+
+        <div class="flex items-center gap-3 sm:col-span-2">
+          <input
+            id="checkbox-deprecated"
+            type="checkbox"
+            name="deprecated"
+            class="toggle toggle-primary"
+            checked={link.deprecated}
+          />
+          <label
+            for="checkbox-deprecated"
+            class="label flex cursor-pointer flex-col items-start"
+          >
+            <span class="label-text font-semibold">Marcar como Obsoleto</span>
+            <span class="label-text-alt text-base-content/60"
+              >Los enlaces obsoletos se verán atenuados y etiquetados como
+              "Obsoleto".</span
+            >
+          </label>
+        </div>
       </div>
 
-      <PageHeader
-        title="Editar Enlace"
-        description="Configuración del acceso directo para operadores."
-      />
-
-      {
-        errorMsg && (
-          <script is:inline define:vars={{ errorMsg }}>
-            window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-          </script>
-        )
-      }
-
-      <SectionCard>
-        <div class="p-6 sm:p-8">
-          <form method="POST" enctype="multipart/form-data" class="space-y-5" data-async-form>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              <FormField
-                id="input-title"
-                name="title"
-                label="Título del Enlace"
-                required
-                value={link.title}
-                placeholder="Ej: Portal de Autogestión"
-              />
-
-              <SelectField
-                id="select-categoryId"
-                name="categoryId"
-                label="Categoría"
-                required
-                selectClass="font-medium"
-              >
-                {
-                  categories.map((cat) => (
-                    <option
-                      value={cat.id}
-                      selected={link.categoryId ? Number(cat.id) === Number(link.categoryId) : false}
-                    >
-                      {cat.title}
-                    </option>
-                  ))
-                }
-              </SelectField>
-
-              <FormField
-                id="input-url"
-                type="url"
-                name="url"
-                label="URL de Destino"
-                required
-                value={link.url}
-                placeholder="https://..."
-                inputClass="font-mono text-sm"
-                class="sm:col-span-2"
-              />
-
-              <FormField
-                id="input-subtitle"
-                name="subtitle"
-                label="Subtítulo Descriptivo"
-                value={link.subtitle}
-                placeholder="Breve explicación del propósito del enlace"
-                helpText="(Opcional)"
-                class="sm:col-span-2"
-              />
-
-              <FormField
-                id="input-credentialUsername"
-                name="credentialUsername"
-                label="Usuario (Credenciales)"
-                value={link.credentialUsername}
-                placeholder="Ej: admin_soti"
-                helpText="(Opcional)"
-              />
-
-              <FormField
-                id="input-credentialPassword"
-                type="password"
-                name="credentialPassword"
-                label="Contraseña (Credenciales)"
-                placeholder="••••••••"
-                helpText="(Opcional, dejar vacío para no modificar)"
-              />
-
-              {
-                (link.credentialUsername || link.credentialPassword) && (
-                  <div class="sm:col-span-2 flex items-center gap-3 bg-error/10 border border-error/20 rounded-lg p-3">
-                    <input
-                      id="checkbox-deleteCredentials"
-                      type="checkbox"
-                      name="deleteCredentials"
-                      class="checkbox checkbox-error"
-                    />
-                    <label for="checkbox-deleteCredentials" class="label cursor-pointer flex flex-col items-start p-0">
-                      <span class="label-text font-semibold text-error">Eliminar credenciales guardadas</span>
-                      <span class="label-text-alt text-base-content/60">Marcar para borrar el usuario y la contraseña almacenados para este enlace.</span>
-                    </label>
-                  </div>
-                )
-              }
-
-              <div class="sm:col-span-2 flex items-center gap-3">
-                <input
-                  id="checkbox-deprecated"
-                  type="checkbox"
-                  name="deprecated"
-                  class="toggle toggle-primary"
-                  checked={link.deprecated}
-                />
-                <label for="checkbox-deprecated" class="label cursor-pointer flex flex-col items-start">
-                  <span class="label-text font-semibold">Marcar como Obsoleto</span>
-                  <span class="label-text-alt text-base-content/60">Los enlaces obsoletos se verán atenuados y etiquetados como "Obsoleto".</span>
-                </label>
-              </div>
-            </div>
-
-            <FormField
-              type="file"
-              id="input-icon-file"
-              name="iconFile"
-              label="Ícono"
-              accept="image/png, image/jpeg, image/svg+xml, .ico"
-              helpText="(Opcional, .png, .jpg, .svg, .ico)"
+      <FormField
+        type="file"
+        id="input-icon-file"
+        name="iconFile"
+        label="Ícono"
+        accept="image/png, image/jpeg, image/svg+xml, .ico"
+        helpText="(Opcional, .png, .jpg, .svg, .ico)"
+      >
+        {
+          link.iconPath && (
+            <div
+              slot="preview"
+              class="rounded-box border-base-300 bg-base-200 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border p-1"
             >
-              {
-                link.iconPath && (
-                  <div slot="preview" class="w-12 h-12 shrink-0 rounded-box border border-base-300 bg-base-200 flex items-center justify-center overflow-hidden p-1">
-                    <img
-                      src={resolveUrl(`api/icons/${link.iconPath}`)}
-                      alt="Preview del ícono"
-                      class="w-full h-full object-contain"
-                    />
-                  </div>
-                )
-              }
-            </FormField>
-
-            <div class="flex justify-end gap-3 pt-6 mt-2 border-t border-base-200">
-              <ActionCancelButton
-                href={resolveUrl("/admin/recursos")}
-                label="Cancelar"
-              />
-              <ActionConfirmButton
-                type="submit"
-                color="btn-primary"
-                label="Guardar Enlace"
-                icon="boxicons:save"
+              <img
+                src={resolveUrl(`api/icons/${link.iconPath}`)}
+                alt="Preview del ícono"
+                class="h-full w-full object-contain"
               />
             </div>
-          </form>
-        </div>
-      </SectionCard>
+          )
+        }
+      </FormField>
     </div>
-  </PageContainer>
-  <AsyncFormScript />
-</BaseLayout>
+  </SectionCard>
+</FormShell>
+<AsyncFormScript />

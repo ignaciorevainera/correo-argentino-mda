@@ -49,8 +49,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const month = url.searchParams.get("month");
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       return new Response(
-        JSON.stringify({ error: "month parameter is required and must be in YYYY-MM format" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "month parameter is required and must be in YYYY-MM format",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -72,7 +74,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
     if (saturdays.length === 0) {
       return new Response(
         JSON.stringify({ weekends: [], currentUserId: respondedUserId, month }),
-        { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" } }
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        },
       );
     }
 
@@ -144,7 +152,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     }
 
     const weekends = Array.from(grouped.values()).sort((a, b) =>
-      a.startDate.localeCompare(b.startDate)
+      a.startDate.localeCompare(b.startDate),
     );
 
     return new Response(
@@ -155,13 +163,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
           "Content-Type": "application/json",
           "Cache-Control": "no-store, no-cache, must-revalidate",
         },
-      }
+      },
     );
   } catch (error: unknown) {
     console.error("GET overtime preview API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };

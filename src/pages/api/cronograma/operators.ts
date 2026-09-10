@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       if (!name) {
         return new Response(
           JSON.stringify({ error: "El nombre es requerido para actualizar" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -32,8 +32,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .limit(1);
         if (check.length > 0) {
           return new Response(
-            JSON.stringify({ error: `Ya existe un operador con el nombre "${name}"` }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
+            JSON.stringify({
+              error: `Ya existe un operador con el nombre "${name}"`,
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
           );
         }
       }
@@ -65,17 +67,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .where(eq(schedules.agentName, originalName));
       }
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     } else {
       // --- CREACIÓN DE OPERADOR ---
       if (!name) {
         return new Response(
           JSON.stringify({ error: "El nombre es requerido" }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -86,8 +87,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .limit(1);
       if (check.length > 0) {
         return new Response(
-          JSON.stringify({ error: `Ya existe un operador con el nombre "${name}"` }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({
+            error: `Ya existe un operador con el nombre "${name}"`,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -139,17 +142,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
         await db.insert(schedules).values(inserts);
       }
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
   } catch (error: any) {
     console.error("POST Operator API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };
 
@@ -164,7 +167,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     if (!name) {
       return new Response(
         JSON.stringify({ error: "El nombre es requerido para eliminar" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -174,15 +177,15 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     // 2. Eliminar sus planificaciones de asistencia
     await db.delete(schedules).where(eq(schedules.agentName, name));
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("DELETE Operator API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };

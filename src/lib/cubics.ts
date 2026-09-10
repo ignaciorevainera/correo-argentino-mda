@@ -407,7 +407,7 @@ export const getActiveMachineCount = (machines: CubicMachine[]): number =>
 
 export function getShiftType(
   entradaReal: string | null | undefined,
-  horarioDefault: string | null | undefined
+  horarioDefault: string | null | undefined,
 ): "Diurno" | "Nocturno" {
   let timeStr = entradaReal || "";
   if (!timeStr && horarioDefault) {
@@ -416,7 +416,7 @@ export function getShiftType(
       timeStr = parts[0].trim();
     }
   }
-  
+
   if (timeStr) {
     const hourMatch = timeStr.match(/^(\d{1,2})/);
     if (hourMatch) {
@@ -430,4 +430,3 @@ export function getShiftType(
   }
   return "Diurno";
 }
-

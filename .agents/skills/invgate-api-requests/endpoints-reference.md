@@ -357,7 +357,7 @@ Searches users by email, username, or phone. Keyset-paginated (10 per page).
 
 **Params:** Any search field: `username`, `email`, `phone`, `mobile_phone`, `office_phone`, `other_phone`, `fax_phone`, `employee_number`. Plus: `exact_match` (BOOLEAN), `include_disabled` (BOOLEAN), `page_key` (STRING)
 
-**Tested:** `?email=emlemos@correoargentino.com.ar` → 200 ✅
+**Tested:** `?email=emlemos@correoargentino.com.ar` → 200 ✅. `?username=sdegese@correoargentino.com.ar` (email completo) → 200 ✅, matchea el mismo usuario que `email=`. `?username=sdegese` (sin `@dominio`) → 200 pero `data: []` (sin match; InvGate guarda `username` como email completo).
 
 **Response:**
 ```json
@@ -375,7 +375,15 @@ Searches users by email, username, or phone. Keyset-paginated (10 per page).
 
 **Params:** `ids[]` (ARRAY, **required** — PHP array format)
 
-**Response:** Array of `{ id, username, email, groups[], companies[], helpdesks[], locations[], ...observed[] }`
+**Response:** Array of `{ id, username, email, groups{}, helpdesks{}, locations{}, companies[], ...*_observed[] }`
+
+**Shape verificado en vivo (Correo Argentino):**
+- `groups` = OBJECT / DICT keyed by group ID — `{ "2604": { id: 2604, name: "TITEC_Telecomunicaciones", ... }, "6039": { id: 6039, name: "Todos los usuarios", ... } }`. Cada valor es el objeto completo del grupo (`id`, `name`, `type_id`, `status_id`, `parent_id`, ...). NO es array.
+- `helpdesks` = OBJECT / DICT keyed by helpdesk ID — `{ "2596": { id: 2596, name: null, engine_id: 3, ... } }`. Mismo patrón que `groups` (ojo: `name` puede ser `null`).
+- `locations` = OBJECT / DICT keyed by location ID — `{ "3110": { id: 3110, name: "Barracas - EDIF Brandsen 2070", ... } }`. Mismo patrón.
+- `companies` = ARRAY — siempre `[]` (no hay companies configuradas).
+- `groups_observed` / `locations_observed` / `helpdesks_observed` / `companies_observed` = ARRAYS — siempre `[]` en la data real.
+- **Normalización defensiva requerida:** como `groups`/`helpdesks`/`locations` llegan como dict (no array), `Array.isArray()` devuelve `false`. Usar `Object.values(x)` para obtener la lista de refs y mapear a `{ id, name }` (o `toRefs` que acepte dict).
 
 ---
 

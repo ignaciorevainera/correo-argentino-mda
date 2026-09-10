@@ -12,13 +12,25 @@ interface Props {
   isAdmin: boolean;
   parentName?: string;
   subLevels: InvgateHelpdeskAndLevel[];
+  isHidden?: boolean;
+  adminOnly?: boolean;
+  categoryNames?: Record<string, string>;
 }
 
-const { helpdesk, records, isAdmin, parentName, subLevels } = Astro.props;
+const {
+  helpdesk,
+  records,
+  isAdmin,
+  parentName,
+  subLevels,
+  isHidden = false,
+  adminOnly = false,
+  categoryNames = {},
+} = Astro.props;
 const cleanBase = getCleanBase();
 const hdName = helpdesk.name || `Helpdesk #${helpdesk.id}`;
 const isActive = helpdesk.status_id === 1;
-const statusBadge = isActive ? "badge-success" : "badge-ghost";
+const statusBadge = isActive ? "badge-success badge-soft" : "badge-ghost";
 const statusLabel = isActive ? "Activo" : "Inactivo";
 const hasRecords = records.length > 0;
 const modalId = `modal-details-${helpdesk.id}`;
@@ -57,6 +69,10 @@ if (first?.categories) {
   } catch {}
 }
 
+const displayTopics = topicsList.map((t) =>
+  t ? t.charAt(0).toUpperCase() + t.slice(1) : t,
+);
+
 const sortedSubLevels = [...subLevels].sort(
   (a, b) => (a.level_order || 0) - (b.level_order || 0),
 );
@@ -73,7 +89,6 @@ const searchableText = [
   parentName,
   ...legacyNames,
   topicsList.join(" "),
-  first?.contacts,
   first?.notes,
   ...sortedSubLevels.map((sl) => sl.name),
 ]
@@ -83,8 +98,12 @@ const searchableText = [
 ---
 
 <div
-  class="card bg-base-100 shadow-sm border border-base-300 h-full"
+  class:list={[
+    "card bg-base-100 border-base-300 hover:border-secondary/40 h-full border shadow-sm transition-colors",
+    isHidden && "hidden",
+  ]}
   data-card-for={helpdesk.id}
+  data-hidden={isHidden ? "true" : undefined}
   data-search-text={searchableText}
   data-status={isActive ? "active" : "inactive"}
   data-parent-name={parentName || ""}
@@ -92,51 +111,69 @@ const searchableText = [
   data-topic-count={topicsList.length}
   data-name={hdName}
 >
-  <div class="card-body p-5 gap-0 flex flex-col h-full">
+  <div class="card-body flex h-full flex-col gap-0 p-5">
     <div class="flex-1 space-y-3">
       <div class="flex items-start justify-between gap-2">
-        <div class="flex-1 min-w-0">
+        <div class="min-w-0 flex-1">
           <h3
-            class="card-title text-base flex items-center gap-1 truncate mb-3"
+            class="card-title mb-2 flex items-center gap-1.5 truncate text-base"
           >
             <Icon
-              name="boxicons:group-alt-filled"
-              size={24}
+              name="boxicons:headphone-mic-filled"
+              size={22}
               class="text-secondary shrink-0"
+              aria-hidden="true"
             />
-            <span class="truncate font-bold" data-highlight-target
-              >{hdName}</span
+            <span
+              class="text-base-content truncate font-bold"
+              data-highlight-target>{hdName}</span
             >
           </h3>
-          <div class="flex flex-wrap items-center gap-2 mt-1">
-            <span class="badge badge-sm gap-1 font-mono">
-              <Icon name="boxicons:group-filled" size={12} />
+          <div class="mt-1 flex flex-wrap items-center gap-1.5">
+            <span
+              class="badge badge-sm badge-ghost gap-1 font-mono text-xs"
+              title={`${helpdesk.total_members} miembros`}
+            >
+              <Icon name="boxicons:group-filled" size={12} aria-hidden="true" />
               {helpdesk.total_members}
             </span>
             <span
-              class="badge badge-sm badge-warning gap-1 font-mono hidden"
+              class="badge badge-sm badge-warning hidden cursor-help gap-1 font-mono"
               data-incidents-for={helpdesk.id}
-              title="Incidentes abiertos"
+              title="Incidentes abiertos en InvGate"
             >
-              <Icon name="boxicons:envelope" size={12} aria-hidden="true" />
+              <Icon name="boxicons:envelope-filled" size={12} aria-hidden="true" />
               <span data-incidents-count>0</span>
             </span>
-            <span class:list={["badge badge-sm", statusBadge]}
+            <span class:list={["badge badge-sm font-medium", statusBadge]}
               >{statusLabel}</span
             >
             {
+              isHidden && (
+                <span class="badge badge-sm badge-error gap-1">
+                  <Icon
+                    name="boxicons:low-vision-filled"
+                    size={12}
+                    aria-hidden="true"
+                  />
+                  Oculta
+                </span>
+              )
+            }
+            {
               parentName && (
                 <span
-                  class="badge badge-sm gap-1 badge-ghost h-auto whitespace-normal text-left"
-                  title={`Helpdesk padre: ${parentName}`}
+                  class="badge badge-sm badge-ghost h-auto gap-1 text-left text-xs whitespace-nowrap max-w-72"
+                  title={`Mesa padre: ${parentName}`}
+                  data-parent-badge
                 >
                   <Icon
-                    name="boxicons:git-branch"
+                    name="boxicons:git-branch-filled"
                     size={12}
                     class="shrink-0"
                     aria-hidden="true"
                   />
-                  <span class="line-clamp-2" data-highlight-target>
+                  <span class="truncate min-w-0" data-highlight-target>
                     {parentName}
                   </span>
                 </span>
@@ -146,85 +183,144 @@ const searchableText = [
         </div>
       </div>
 
-      <div class="border-t border-base-200"></div>
+      <div class="border-base-200 my-2 border-t"></div>
 
       {
         sortedSubLevels.length > 0 && (
-          <div class="flex flex-wrap gap-1">
-            {sortedSubLevels.map((sl, i) => (
-              <span
-                class:list={[
-                  "badge badge-sm",
-                  levelColors[i % levelColors.length],
-                ]}
-                title={`${sl.total_members} miembros`}
-              >
-                {sl.name || `Nivel ${sl.level_order}`}
-                <span class="ml-0.5 opacity-50">{sl.total_members}</span>
-              </span>
-            ))}
+          <div class="space-y-1">
+            <p class="text-xxs text-base-content/50 font-semibold tracking-wider uppercase">
+              Niveles de atención
+            </p>
+            <div class="flex flex-wrap gap-1">
+              {sortedSubLevels.map((sl, i) => (
+                <span
+                  class:list={[
+                    "badge badge-sm gap-1.5",
+                    levelColors[i % levelColors.length],
+                  ]}
+                  title={`${sl.total_members} miembros`}
+                  data-level-badge
+                >
+                  <span>{sl.name || `Nivel ${sl.level_order}`}</span>
+                  <span
+                    class="h-3 w-px bg-current opacity-40"
+                    data-level-divider
+                    aria-hidden="true"
+                  />
+                  <span class="font-mono opacity-80">({sl.total_members})</span>
+                </span>
+              ))}
+            </div>
           </div>
         )
       }
 
       {
         legacyNames.length > 0 && (
-          <div class="flex flex-wrap items-center gap-1.5">
-            <Icon
-              name="boxicons:rename"
-              size={14}
-              class="opacity-50 shrink-0"
-              title="Nombres Legacy (SM)"
-            />
-            {legacyNames.map((name) => (
-              <span
-                class="badge badge-sm badge-ghost cursor-default"
-                data-highlight-target
-              >
-                {name}
-              </span>
-            ))}
+          <div class="space-y-1">
+            <p class="text-xxs text-base-content/50 font-semibold tracking-wider uppercase">
+              Denominaciones anteriores (SM)
+            </p>
+            <div class="flex flex-wrap items-center gap-1">
+              {legacyNames.map((name) => (
+                <span
+                  class="badge badge-sm badge-ghost border-base-200 cursor-default border text-xs"
+                  data-highlight-target
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         )
       }
 
       {
         topicsList.length > 0 && (
-          <div class="flex flex-wrap gap-1">
-            {topicsList.map((t) => (
-              <span
-                class="badge badge-sm badge-secondary"
-                data-highlight-target
-              >
-                {t}
-              </span>
-            ))}
+          <div class="space-y-1">
+            <p class="text-xxs text-base-content/50 font-semibold tracking-wider uppercase">
+              Tópicos de atención
+            </p>
+            <div class="flex flex-wrap gap-1">
+              {displayTopics.map((t) => (
+                <span
+                  class="badge badge-sm badge-secondary badge-soft font-medium"
+                  data-highlight-target
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
         )
       }
     </div>
 
-    <div class="card-actions justify-end gap-2 pt-3 flex-nowrap">
+    <div
+      class="card-actions border-base-200 mt-3 flex-wrap items-center justify-end gap-2 border-t pt-4"
+    >
       {
         invgateProfileUrl && (
-          <ActionExternalButton
+          <a
             href={invgateProfileUrl}
-            ariaLabel="Abrir en InvGate"
-          />
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm btn-secondary flex-1 gap-1.5 sm:flex-none"
+            title="Abrir en InvGate"
+          >
+            <Icon
+              name="boxicons:arrow-out-up-right-stroke-square-filled"
+              size={16}
+              aria-hidden="true"
+            />
+            <span>InvGate</span>
+          </a>
         )
       }
-      <OpenModalButton
-        label="Ver más"
-        onclick={`document.getElementById('${modalId}').showModal()`}
-      />
+      <button
+        type="button"
+        class="btn btn-sm btn-ghost border-base-300 flex-1 gap-1 border sm:flex-none"
+        data-open-modal={modalId}
+        data-helpdesk-id={helpdesk.id}
+      >
+        <Icon name="boxicons:info-circle-filled" size={16} aria-hidden="true" />
+        <span>Ver más</span>
+      </button>
+      {
+        adminOnly && !isHidden && (
+          <button
+            data-hide-helpdesk={helpdesk.id}
+            class="btn btn-sm btn-soft btn-error gap-1"
+            title="Ocultar esta mesa de ayuda del listado"
+          >
+            <Icon name="boxicons:low-vision-filled" size={16} aria-hidden="true" />
+            <span class="hidden xl:inline">Ocultar</span>
+          </button>
+        )
+      }
+      {
+        adminOnly && isHidden && (
+          <button
+            data-show-helpdesk={helpdesk.id}
+            class="btn btn-sm btn-soft btn-success gap-1"
+            title="Mostrar esta mesa de ayuda en el listado"
+          >
+            <Icon name="boxicons:eye-filled" size={16} aria-hidden="true" />
+            <span class="hidden xl:inline">Mostrar</span>
+          </button>
+        )
+      }
       {
         isAdmin && (
           <a
-            href={`${cleanBase}soportes/edit?invgate_id=${helpdesk.id}`}
-            class="btn btn-sm md:btn-md btn-soft btn-secondary gap-2 flex-nowrap"
+            href={`${cleanBase}mesas-de-ayuda/edit?invgate_id=${helpdesk.id}`}
+            class="btn btn-sm btn-accent btn-soft gap-1"
+            title={hasRecords ? "Editar información" : "Agregar información"}
           >
-            <Icon name="boxicons:pencil-filled" size={18} />
-            {hasRecords ? "Editar" : "Agregar info"}
+            <Icon name="boxicons:pencil-filled" size={16} aria-hidden="true" />
+            <span class="hidden xl:inline">
+              {hasRecords ? "Editar" : "Agregar"}
+            </span>
           </a>
         )
       }
@@ -232,17 +328,28 @@ const searchableText = [
   </div>
 </div>
 
-<Modal id={modalId} title={hdName} icon="boxicons:group-alt-filled" size="md">
+<Modal id={modalId} title={hdName} icon="boxicons:headphone-mic-filled" size="md">
   <div slot="content" class="space-y-4">
+    {
+      parentName && (
+        <div class="bg-base-200/50 flex items-center justify-between rounded-lg p-3 text-xs">
+          <span class="text-base-content/70">Mesa Padre:</span>
+          <span class="text-base-content font-bold">{parentName}</span>
+        </div>
+      )
+    }
+
     {
       categoryIds.length > 0 && (
         <div>
-          <p class="text-xs font-bold text-base-content/70">
+          <p class="text-base-content/70 mb-1 text-xs font-bold">
             Categorías de derivación
           </p>
-          <div class="flex flex-wrap gap-1 mt-1">
+          <div class="flex flex-wrap gap-1">
             {categoryIds.map((cid) => (
-              <span class="badge badge-xs badge-outline">ID:{cid}</span>
+              <span class="badge badge-xs badge-outline">
+                {categoryNames[String(cid)] ?? `ID: ${cid}`}
+              </span>
             ))}
           </div>
         </div>
@@ -250,31 +357,14 @@ const searchableText = [
     }
 
     {
-      first?.contacts && (
-        <div>
-          <p class="font-bold text-base-content/70 flex items-center gap-1">
-            <Icon name="boxicons:phone-filled" size={18} />
-            Contactos
-          </p>
-          <p
-            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
-            data-highlight-target
-          >
-            {first.contacts}
-          </p>
-        </div>
-      )
-    }
-
-    {
       first?.notes && (
         <div>
-          <p class="font-bold text-base-content/70 flex items-center gap-1">
-            <Icon name="boxicons:note-filled" size={18} />
-            Notas
+          <p class="text-base-content/70 flex items-center gap-1 text-xs font-bold tracking-wider uppercase">
+            <Icon name="boxicons:note-filled" size={16} aria-hidden="true" />
+            Notas técnicas
           </p>
           <p
-            class="text-sm whitespace-pre-wrap text-base-content/80 mt-1"
+            class="text-base-content/80 bg-base-200/30 border-base-200 mt-1 rounded-lg border p-2.5 text-sm whitespace-pre-wrap"
             data-highlight-target
           >
             {first.notes}
@@ -286,18 +376,21 @@ const searchableText = [
     {
       helpdesk.total_members > 0 && (
         <div data-members-for={helpdesk.id}>
-          <p class="font-bold text-base-content/70 flex items-center gap-1">
-            <Icon name="boxicons:group-filled" size={18} />
-            Miembros
+          <p class="text-base-content/70 mb-2 flex items-center gap-1 text-xs font-bold tracking-wider uppercase">
+            <Icon name="boxicons:group-filled" size={16} aria-hidden="true" />
+            Miembros asignados ({helpdesk.total_members})
           </p>
-          <ul
-            class="list-disc list-inside text-sm text-base-content/80 space-y-0.5 mt-1 ml-3"
+          <div
+            class="max-h-56 space-y-1.5 overflow-y-auto pr-1"
             data-members-list
           >
-            <li class="italic text-base-content/50">
-              <span class="loading loading-dots loading-xs" />
-            </li>
-          </ul>
+            <div class="bg-base-200/40 flex items-center gap-2 rounded-lg p-2">
+              <span class="loading loading-dots loading-xs text-base-content/50" />
+              <span class="text-base-content/60 text-xs">
+                Cargando miembros...
+              </span>
+            </div>
+          </div>
         </div>
       )
     }
@@ -310,10 +403,9 @@ const searchableText = [
 </Modal>
 
 <script>
-  const cleanBase = (() => {
-    const b = import.meta.env.BASE_URL || "/";
-    return b.endsWith("/") ? b : b + "/";
-  })();
+  import { getCleanBase } from "@lib/baseUrl";
+
+  const cleanBase = getCleanBase();
 
   async function loadIncidentsSequentially() {
     const cards = Array.from(
@@ -335,47 +427,133 @@ const searchableText = [
           const data = await res.json();
           if (data && typeof data.total === "number" && data.total > 0) {
             countSpan.textContent = String(data.total);
+            badge.setAttribute(
+              "title",
+              `${data.total} incidentes abiertos en InvGate`,
+            );
             badge.classList.remove("hidden");
           }
         }
       } catch (err) {
         console.error("Error loading incidents for " + helpdeskId, err);
       }
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 80));
     }
   }
 
   loadIncidentsSequentially();
 
-  document.querySelectorAll<HTMLElement>("[data-members-for]").forEach((el) => {
-    const invgateId = el.dataset.membersFor;
-    const list = el.querySelector<HTMLElement>("[data-members-list]");
-    if (!invgateId || !list) return;
-
-    fetch(`${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.members && data.members.length > 0) {
-          list.innerHTML = data.members
-            .map((m: string) => `<li data-highlight-target>${m}</li>`)
-            .join("");
-          const cardEl = el.closest<HTMLElement>("[data-card-for]");
-          if (cardEl) {
-            const existing = cardEl.dataset.searchText || "";
-            const membersText = data.members.join(" ").toLowerCase();
-            if (!existing.includes(membersText)) {
-              cardEl.dataset.searchText = existing + " " + membersText;
-            }
-            cardEl.dispatchEvent(new Event("members-loaded"));
-          }
-        } else {
-          list.innerHTML =
-            '<li class="italic text-base-content/40">Sin miembros cargados desde InvGate</li>';
-        }
-      })
-      .catch(() => {
-        list.innerHTML =
-          '<li class="italic text-error/60">Error al cargar miembros</li>';
+  async function toggleHidden(invgateId: number, action: "hide" | "show") {
+    try {
+      const res = await fetch(`${cleanBase}api/soportes/helpdesks/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invgate_id: invgateId }),
       });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error(
+        `Error al ${action === "hide" ? "ocultar" : "mostrar"} helpdesk`,
+        err,
+      );
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const hideBtn = target.closest<HTMLElement>("[data-hide-helpdesk]");
+    if (hideBtn) {
+      const id = Number(hideBtn.dataset.hideHelpdesk);
+      if (Number.isInteger(id) && id > 0) toggleHidden(id, "hide");
+      return;
+    }
+    const showBtn = target.closest<HTMLElement>("[data-show-helpdesk]");
+    if (showBtn) {
+      const id = Number(showBtn.dataset.showHelpdesk);
+      if (Number.isInteger(id) && id > 0) toggleHidden(id, "show");
+    }
+  });
+
+  function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 0 || !parts[0]) return "?";
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  const loadedMembers = new Set<string>();
+
+  async function loadMembers(invgateId: string) {
+    const container = document.querySelector<HTMLElement>(
+      `[data-members-for="${invgateId}"]`,
+    );
+    if (!container) return;
+    const list = container.querySelector<HTMLElement>("[data-members-list]");
+    if (!list || loadedMembers.has(invgateId)) return;
+    loadedMembers.add(invgateId);
+
+    try {
+      const res = await fetch(
+        `${cleanBase}api/invgate/helpdesk-members?invgate_id=${invgateId}`,
+      );
+      const data = await res.json();
+      if (data.members && data.members.length > 0) {
+        list.innerHTML = data.members
+          .map((m: string) => {
+            const initials = getInitials(m);
+            return `
+              <div class="flex items-center gap-2.5 p-2 rounded-lg bg-base-200/50 border border-base-200 text-sm">
+                <div class="avatar placeholder shrink-0">
+                  <div class="bg-secondary/15 text-secondary rounded-full w-7 h-7 flex items-center justify-center font-bold text-xs">
+                    <span>${initials}</span>
+                  </div>
+                </div>
+                <span class="font-medium text-base-content" data-highlight-target>${m}</span>
+              </div>
+            `;
+          })
+          .join("");
+
+        const cardEl = document.querySelector<HTMLElement>(
+          `[data-card-for="${invgateId}"]`,
+        );
+        if (cardEl) {
+          const existing = cardEl.dataset.searchText || "";
+          const membersText = data.members.join(" ").toLowerCase();
+          if (!existing.includes(membersText)) {
+            cardEl.dataset.searchText = existing + " " + membersText;
+          }
+          cardEl.dispatchEvent(new Event("members-loaded"));
+        }
+      } else {
+        list.innerHTML = `
+          <div class="p-3 text-center text-xs text-base-content/50 italic bg-base-200/30 rounded-lg">
+            Sin miembros registrados en InvGate
+          </div>
+        `;
+      }
+    } catch {
+      list.innerHTML = `
+        <div class="p-3 text-center text-xs text-error/70 italic bg-error/10 rounded-lg">
+          Error al cargar miembros
+        </div>
+      `;
+    }
+  }
+
+  document.querySelectorAll<HTMLElement>("[data-open-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const modalId = btn.dataset.openModal;
+      const invgateId = btn.dataset.helpdeskId;
+      if (modalId) {
+        const modal = document.getElementById(
+          modalId,
+        ) as HTMLDialogElement | null;
+        modal?.showModal();
+      }
+      if (invgateId) loadMembers(invgateId);
+    });
   });
 </script>

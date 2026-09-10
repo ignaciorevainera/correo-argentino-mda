@@ -53,14 +53,20 @@ async function getToken(): Promise<string> {
 
     const data = await response.json();
     const token = data.token || data.access_token || data.jwt;
-    if (!token) throw new Error("[Wise CX] Token no encontrado en respuesta de autenticacion.");
+    if (!token)
+      throw new Error(
+        "[Wise CX] Token no encontrado en respuesta de autenticacion.",
+      );
 
     tokenCache = {
       token,
       expiresAt: Date.now() + 55 * 60 * 1000,
     };
 
-    console.log("[Wise CX] Token obtenido, valido hasta:", new Date(tokenCache.expiresAt).toISOString());
+    console.log(
+      "[Wise CX] Token obtenido, valido hasta:",
+      new Date(tokenCache.expiresAt).toISOString(),
+    );
     return token;
   } finally {
     clearTimeout(authTimeout);
@@ -83,10 +89,18 @@ async function wiseCxRequest<T>(
   const baseUrl = getEnv("WISE_CX_BASE_URL");
 
   if (!apiKey) {
-    return { ok: false, status: 0, message: "[Wise CX] WISE_CX_API_KEY no definida." };
+    return {
+      ok: false,
+      status: 0,
+      message: "[Wise CX] WISE_CX_API_KEY no definida.",
+    };
   }
   if (!baseUrl) {
-    return { ok: false, status: 0, message: "[Wise CX] WISE_CX_BASE_URL no definida." };
+    return {
+      ok: false,
+      status: 0,
+      message: "[Wise CX] WISE_CX_BASE_URL no definida.",
+    };
   }
 
   let token: string;
@@ -108,7 +122,7 @@ async function wiseCxRequest<T>(
     const init: RequestInit = {
       method,
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "x-api-key": apiKey,
         "Content-Type": "application/json",
       },
@@ -139,7 +153,8 @@ async function wiseCxRequest<T>(
     const data = (await response.json()) as T;
     return { ok: true, status: response.status, data };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
+    const message =
+      error instanceof Error ? error.message : "Error desconocido";
     return {
       ok: false,
       status: lastStatus,
@@ -150,18 +165,32 @@ async function wiseCxRequest<T>(
   }
 }
 
-export async function wiseCxGet<T>(path: string, timeoutMs?: number): Promise<InvgateResult<T>> {
+export async function wiseCxGet<T>(
+  path: string,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
   return wiseCxRequest<T>("GET", path, undefined, timeoutMs);
 }
 
-export async function wiseCxPost<T>(path: string, body: unknown, timeoutMs?: number): Promise<InvgateResult<T>> {
+export async function wiseCxPost<T>(
+  path: string,
+  body: unknown,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
   return wiseCxRequest<T>("POST", path, body, timeoutMs);
 }
 
-export async function wiseCxPut<T>(path: string, body: unknown, timeoutMs?: number): Promise<InvgateResult<T>> {
+export async function wiseCxPut<T>(
+  path: string,
+  body: unknown,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
   return wiseCxRequest<T>("PUT", path, body, timeoutMs);
 }
 
-export async function wiseCxDelete<T>(path: string, timeoutMs?: number): Promise<InvgateResult<T>> {
+export async function wiseCxDelete<T>(
+  path: string,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
   return wiseCxRequest<T>("DELETE", path, undefined, timeoutMs);
 }

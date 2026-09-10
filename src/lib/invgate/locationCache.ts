@@ -22,7 +22,11 @@ export async function getOrRefreshComparison(): Promise<{
 
   const response = await invgateGet<InvgateLocation[]>("locations");
   if (!response.ok) {
-    return { data: null, error: response.message, status: response.status || 500 };
+    return {
+      data: null,
+      error: response.message,
+      status: response.status || 500,
+    };
   }
 
   const dbOffices = await db

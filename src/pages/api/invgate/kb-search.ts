@@ -23,26 +23,27 @@ export const GET: APIRoute = async ({ url }) => {
   try {
     const articleId = extractArticleId(q);
 
-    const promises: [
-      Promise<any>,
-      Promise<any>,
-      Promise<any> | Promise<null>,
-    ] = [
-      invgateGet<InvgateKbSearchResponse>(
-        `kb.articles.by.keywords?keywords=${encodeURIComponent(q)}&page_size=10`,
-      ),
-      invgateGet<InvgateKbCategory[]>("kb.categories"),
-      articleId
-        ? invgateGet<InvgateKbSearchResponse>(
-            `kb.articles.by.ids?ids[]=${articleId}`,
-          )
-        : Promise.resolve(null),
-    ];
+    const promises: [Promise<any>, Promise<any>, Promise<any> | Promise<null>] =
+      [
+        invgateGet<InvgateKbSearchResponse>(
+          `kb.articles.by.keywords?keywords=${encodeURIComponent(q)}&page_size=10`,
+        ),
+        invgateGet<InvgateKbCategory[]>("kb.categories"),
+        articleId
+          ? invgateGet<InvgateKbSearchResponse>(
+              `kb.articles.by.ids?ids[]=${articleId}`,
+            )
+          : Promise.resolve(null),
+      ];
 
-    const [articlesResult, categoriesResult, idResult] = await Promise.all(promises);
+    const [articlesResult, categoriesResult, idResult] =
+      await Promise.all(promises);
 
     if (!articlesResult.ok) {
-      return jsonResponse({ error: articlesResult.message }, articlesResult.status);
+      return jsonResponse(
+        { error: articlesResult.message },
+        articlesResult.status,
+      );
     }
 
     const categoryMap = new Map<number, string>();
@@ -90,14 +91,13 @@ export const GET: APIRoute = async ({ url }) => {
     const results = combined.slice(0, 10).map((article) => ({
       id: article.id,
       title: article.title,
-      category: article.category_id != null ? categoryMap.get(article.category_id) ?? null : null,
+      category:
+        article.category_id != null
+          ? (categoryMap.get(article.category_id) ?? null)
+          : null,
     }));
 
-    return jsonResponse(
-      { articles: results },
-      200,
-      "private, max-age=60",
-    );
+    return jsonResponse({ articles: results }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("[InvGate KB Search] Error:", error);
     return jsonResponse({ error: sanitizeError(error) }, 500);

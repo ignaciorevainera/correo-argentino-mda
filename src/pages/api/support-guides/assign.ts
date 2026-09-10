@@ -8,7 +8,11 @@ import { ROLE_HIERARCHY } from "@lib/rbac";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || ROLE_HIERARCHY[user.role as keyof typeof ROLE_HIERARCHY] < ROLE_HIERARCHY.supervisor) {
+  if (
+    !user ||
+    ROLE_HIERARCHY[user.role as keyof typeof ROLE_HIERARCHY] <
+      ROLE_HIERARCHY.supervisor
+  ) {
     return jsonResponse({ error: "Acceso denegado" }, 403);
   }
 
@@ -18,7 +22,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const invgateId = Number(body.invgate_id);
 
     if (!recordId || !invgateId || isNaN(recordId) || isNaN(invgateId)) {
-      return jsonResponse({ error: "recordId e invgate_id son requeridos y deben ser numeros" }, 400);
+      return jsonResponse(
+        { error: "recordId e invgate_id son requeridos y deben ser numeros" },
+        400,
+      );
     }
 
     const [record] = await db

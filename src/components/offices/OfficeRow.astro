@@ -1,22 +1,21 @@
 ---
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
+import OfficeContactsSection from "@components/offices/OfficeContactsSection.astro";
+import OfficeEquipmentCard from "@components/offices/OfficeEquipmentCard.astro";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
+import ActionAgentsTicketButton from "@components/ui/ActionAgentsTicketButton.astro";
 import { isAllowed } from "@lib/rolesMatrix";
-import type { OfficeDirectoryItem } from "@types/offices";
+import { resolveUrl } from "@lib/url";
+import type { OfficeDirectoryItem } from "@/types/offices";
 import {
   officeTypeLabelByType,
   officeTypeChipClassByType,
-  assetColorByType,
-  assetIconByType,
-  assetLabelByType,
+  defaultChipClass,
   assetOrderByType,
 } from "@lib/officeHelpers";
-import {
-  getTerminalColorClass,
-  getTerminalTypeLabel,
-} from "@lib/terminalHelpers";
+import { getDetailColumnLayout } from "@lib/officeLayout";
 
 interface Props {
   office: OfficeDirectoryItem;
@@ -29,6 +28,7 @@ const user = Astro.locals.user;
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
+const isStrictAdmin = user?.role === "admin";
 
 const normalizedType =
   office.type === "SUCURSAL"
@@ -41,17 +41,32 @@ const searchText = `${office.name} ${office.code} ${office.region} ${office.prov
 const hasContacts = office.contacts && office.contacts.length > 0;
 const hasInfo = Boolean(office.email || office.notes);
 const hasInvgateDetail: boolean = office.invgateLinked === true;
-const hasInfoSection = hasContacts || hasInfo || hasInvgateDetail;
 
 const totalAssets =
   (office.assets?.length || 0) + (office.terminals?.length || 0);
 const hasAssetsSection = totalAssets > 0;
-const hasDetails = hasInfoSection || hasAssetsSection || hasInvgateDetail;
+const siblings = office.siblings ?? [];
+const hasSiblings = siblings.length > 0;
 
-const activeSectionsCount =
-  (hasInfoSection ? 1 : 0) + (hasAssetsSection ? 1 : 0);
+const layout = getDetailColumnLayout({
+  hasInvgate: hasInvgateDetail,
+  hasInfo,
+  contactsCount: office.contacts?.length ?? 0,
+  hasSiblings,
+  hasAssets: hasAssetsSection,
+});
 
-const officeDirectoryRowGridClass = isAllowedAdmin
+const contactsToCenter = layout.contactsToCenter;
+const hasDetails =
+  hasInvgateDetail || hasInfo || hasContacts || hasAssetsSection || hasSiblings;
+
+const showActionsColumn =
+  isAllowedAdmin ||
+  (isStrictAdmin &&
+    office.type === "TELEGRAFIA" &&
+    office.invgateLinked === true);
+
+const officeDirectoryRowGridClass = showActionsColumn
   ? "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] items-center gap-4"
   : "grid grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] items-center gap-4";
 ---
@@ -69,10 +84,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
   data-sort-parent-nis={office.parentNis ?? ""}
   data-sort-address={`${office.address} ${office.location} ${office.region} ${office.postalCode}`}
   data-sort-group={office.location}
-  class:list={[
-    "block transition-all", 
-    !isVisibleByDefault && "hidden"
-  ]}
+  class:list={["block transition-all", !isVisibleByDefault && "hidden"]}
 >
   <div
     data-office-master-row={hasDetails ? "" : undefined}
@@ -80,8 +92,9 @@ const officeDirectoryRowGridClass = isAllowedAdmin
     aria-expanded={hasDetails ? "false" : undefined}
     class:list={[
       officeDirectoryRowGridClass,
-      "border-b border-base-300 px-4 py-3 transition-colors",
-      office.active === false && "bg-base-200/50 [&_>_div:not(.action-buttons)]:grayscale [&_>_div:not(.action-buttons)]:opacity-80"
+      "border-base-300 border-b px-4 py-3 transition-colors",
+      office.active === false &&
+        "bg-base-200/50 [&_>_div:not(.action-buttons)]:opacity-80 [&_>_div:not(.action-buttons)]:grayscale",
     ]}
   >
     <div>
@@ -90,7 +103,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
           <button
             type="button"
             data-chevron-toggle
-            class="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-base-300 bg-base-200 text-base-content/70 transition-colors hover:bg-base-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            class="border-base-300 bg-base-200 text-base-content/70 hover:bg-base-300 focus-visible:ring-primary/50 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
             aria-label="Expandir detalle"
           >
             <Icon
@@ -115,12 +128,12 @@ const officeDirectoryRowGridClass = isAllowedAdmin
       {
         office.invgateLinked ? (
           <span
-            class="absolute -top-0.5 right-4.5 z-10 size-2 rounded-full bg-info dot-delayed-fade-in"
+            class="bg-info dot-delayed-fade-in absolute -top-0.5 right-4.5 z-10 size-2 rounded-full"
             title="Presente en InvGate"
           />
         ) : (
           <span
-            class="absolute -top-0.5 right-4.5 z-10 size-2 rounded-full bg-neutral dot-delayed-fade-in"
+            class="bg-neutral dot-delayed-fade-in absolute -top-0.5 right-4.5 z-10 size-2 rounded-full"
             title="No registrada en InvGate"
           />
         )
@@ -141,20 +154,22 @@ const officeDirectoryRowGridClass = isAllowedAdmin
     <div class="min-w-0">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
-          <p class="truncate text-sm font-semibold text-base-content">
+          <p class="text-base-content truncate text-sm font-semibold">
             <span data-highlight-target>{office.name}</span>
           </p>
-          {office.active === false && (
-            <span 
-              class="badge badge-error badge-sm font-semibold" 
-              title={office.closedReason || "Oficina inactiva/cerrada"}
-            >
-              Cerrada
-            </span>
-          )}
+          {
+            office.active === false && (
+              <span
+                class="badge badge-error badge-sm font-semibold"
+                title={office.closedReason || "Oficina inactiva/cerrada"}
+              >
+                Cerrada
+              </span>
+            )
+          }
         </div>
         <div
-          class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/55"
+          class="text-base-content/55 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         >
           <span>
             {officeTypeLabelByType[normalizedType] || office.type}
@@ -173,7 +188,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
         office.parentNis ? (
           <span
             data-highlight-target
-            class="inline-flex px-2 py-1 font-mono text-xs font-semibold bg-base-200 border border-base-300 rounded text-base-content/70"
+            class="bg-base-200 border-base-300 text-base-content/70 inline-flex rounded border px-2 py-1 font-mono text-xs font-semibold"
           >
             {office.parentNis}
           </span>
@@ -185,22 +200,22 @@ const officeDirectoryRowGridClass = isAllowedAdmin
 
     <div class="min-w-0">
       <div class="min-w-0 space-y-1">
-        <p class="flex min-w-0 items-center gap-2 text-sm text-base-content/75">
+        <p class="text-base-content/75 flex min-w-0 items-center gap-2 text-sm">
           <Icon
             name="boxicons:location-alt-filled"
-            class="shrink-0 text-secondary"
+            class="text-secondary shrink-0"
             size={16}
             aria-hidden="true"
           />
-          <span class="truncate" title={office.address}>
+          <span class="truncate" title={office.address} data-highlight-target>
             {office.address}
           </span>
         </p>
-        <p class="truncate text-xs text-base-content/55">
+        <p class="text-base-content/55 truncate text-xs">
           {office.location}
         </p>
         <div
-          class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-content/60"
+          class="text-base-content/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
         >
           <span data-highlight-target>
             {office.region}
@@ -222,27 +237,41 @@ const officeDirectoryRowGridClass = isAllowedAdmin
     <div class="min-w-0">
       <span
         data-highlight-target
-        class="font-mono text-xs text-base-content/70"
+        class="text-base-content/70 font-mono text-xs"
       >
         {office.costCenter}
       </span>
     </div>
 
     {
-      isAllowedAdmin && (
-        <div class="min-w-0 flex items-center justify-end gap-2 action-buttons">
-          <ActionEditButton
-            href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
-            ariaLabel={`Editar oficina ${office.name}`}
-          />
-          <form
-            method="POST"
-            action={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}/eliminar`}
-            class="inline"
-            onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
-          >
-            <ActionDeleteButton ariaLabel={`Eliminar oficina ${office.name}`} />
-          </form>
+      showActionsColumn && (
+        <div class="action-buttons flex min-w-0 items-center justify-end gap-2">
+          {isAllowedAdmin && (
+            <>
+              <ActionEditButton
+                href={`${import.meta.env.BASE_URL}oficinas/edit/${office.dbId}`}
+                ariaLabel={`Editar oficina ${office.name}`}
+              />
+              <form
+                method="POST"
+                action={resolveUrl(`oficinas/edit/${office.dbId}/eliminar`)}
+                class="inline"
+                onsubmit={`return confirm('¿Estás seguro de que deseas eliminar la oficina \`${office.name}\` (${office.code})?');`}
+              >
+                <ActionDeleteButton
+                  ariaLabel={`Eliminar oficina ${office.name}`}
+                />
+              </form>
+            </>
+          )}
+          {isStrictAdmin &&
+            office.type === "TELEGRAFIA" &&
+            office.invgateLinked === true && (
+              <ActionAgentsTicketButton
+                officeName={office.name}
+                officeCode={office.code}
+              />
+            )}
         </div>
       )
     }
@@ -251,22 +280,59 @@ const officeDirectoryRowGridClass = isAllowedAdmin
   <div
     data-office-detail-row
     data-office-id={office.id}
-    class="hidden border-b border-base-300 bg-base-200/20"
+    class="border-base-300 bg-base-200/20 hidden border-b"
   >
     <div class="office-detail-panel mx-4 my-3">
-      <div class="bg-base-100 border border-base-300 rounded-box p-4">
-        <div class="flex flex-col lg:flex-row gap-6">
+      <div class="bg-base-100 border-base-300 rounded-box border p-4">
+        <div class="flex flex-col gap-6 lg:flex-row">
           {
-            hasInfoSection && (
+            layout.hasLeft && (
               <div
-                class:list={[
-                  "space-y-5",
-                  hasAssetsSection ? "lg:w-2/5" : "w-full",
-                ]}
+                class:list={["flex min-w-0 flex-col gap-5", layout.leftClass]}
               >
+                {hasInfo && (
+                  <section class="space-y-3">
+                    <h2 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wide uppercase">
+                      <Icon
+                        name="boxicons:info-circle-filled"
+                        size={16}
+                        class="text-secondary"
+                        aria-hidden="true"
+                      />
+                      Información
+                    </h2>
+                    <div class="border-base-300 bg-base-100/50 space-y-2 rounded-lg border p-3 shadow-sm">
+                      {office.email && (
+                        <p class="text-base-content/80 flex items-center gap-2 text-sm">
+                          <Icon
+                            name="boxicons:envelope-filled"
+                            size={14}
+                            class="text-base-content/50 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span class="font-mono text-xs break-all">
+                            {office.email}
+                          </span>
+                        </p>
+                      )}
+                      {office.notes && (
+                        <p class="text-base-content/60 flex items-start gap-2 text-xs">
+                          <Icon
+                            name="boxicons:note-filled"
+                            size={14}
+                            class="text-base-content/40 mt-0.5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span>{office.notes}</span>
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
                 {hasInvgateDetail && (
                   <section class="space-y-3">
-                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
+                    <h2 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wide uppercase">
                       <Icon
                         name="boxicons:database-alt-filled"
                         size={16}
@@ -277,7 +343,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                     </h2>
                     <div
                       class:list={[
-                        "rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm",
+                        "border-base-300 bg-base-100/50 rounded-lg border p-3 shadow-sm",
                         !hasAssetsSection
                           ? "flex flex-wrap items-start gap-x-5 gap-y-2"
                           : "space-y-2",
@@ -285,60 +351,70 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                     >
                       {office.invgateDisplayName && (
                         <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
                             Nombre
                           </span>
-                          <span class="text-sm text-base-content/90">
+                          <span class="text-base-content/90 text-sm">
                             {office.invgateDisplayName}
                           </span>
                         </p>
                       )}
                       {office.invgateAddress && (
                         <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
                             Dirección
                           </span>
-                          <span class="text-sm text-base-content/90">
+                          <span class="text-base-content/90 text-sm">
                             {office.invgateAddress}
                           </span>
                         </p>
                       )}
                       {office.invgateCp && (
                         <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
                             CP
                           </span>
-                          <span class="font-mono text-sm text-base-content/90">
+                          <span class="text-base-content/90 font-mono text-sm">
                             {office.invgateCp}
                           </span>
                         </p>
                       )}
                       {office.invgateCc && (
                         <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
                             CC
                           </span>
-                          <span class="font-mono text-sm text-base-content/90">
+                          <span class="text-base-content/90 font-mono text-sm">
                             {office.invgateCc}
                           </span>
                         </p>
                       )}
                       {office.invgateParentName && (
                         <p class="flex items-center gap-3 text-sm">
-                          <span class="inline-block shrink-0 text-xs font-semibold text-base-content/60">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
                             Ubicación superior
                           </span>
-                          <span class="text-sm text-base-content/90">
+                          <span class="text-base-content/90 text-sm">
                             {office.invgateParentName}
                           </span>
                         </p>
                       )}
                       {(office.invgateDuplicateCount ?? 0) > 0 && (
-                        <p class="flex items-start gap-2 text-xs text-warning">
+                        <p class="text-warning flex items-start gap-2 text-xs">
                           <span>
                             En InvGate se encontraron{" "}
                             {office.invgateDuplicateCount} registros con el
                             mismo NIS. Se vinculó el primero.
+                          </span>
+                        </p>
+                      )}
+                      {office.invgateLinked && (
+                        <p class="flex items-center gap-3 text-sm">
+                          <span class="text-base-content/60 inline-block shrink-0 text-xs font-semibold">
+                            Usuarios
+                          </span>
+                          <span class="text-base-content/90 text-sm">
+                            {office.invgateUserTotal ?? "-"}
                           </span>
                         </p>
                       )}
@@ -347,7 +423,7 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                         !office.invgateAddress &&
                         !office.invgateDisplayName &&
                         !office.invgateParentName && (
-                          <p class="text-xs text-base-content/50 italic">
+                          <p class="text-base-content/50 text-xs italic">
                             Sin datos adicionales de InvGate
                           </p>
                         )}
@@ -355,106 +431,104 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   </section>
                 )}
 
-                {hasInfo && (
-                  <section class="space-y-3">
-                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                      <Icon
-                        name="boxicons:info-circle"
-                        size={16}
-                        class="text-secondary"
-                        aria-hidden="true"
-                      />
-                      Información
-                    </h2>
-                    <div class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm space-y-2">
-                      {office.email && (
-                        <p class="flex items-center gap-2 text-sm text-base-content/80">
-                          <Icon
-                            name="boxicons:envelope-filled"
-                            size={14}
-                            class="shrink-0 text-base-content/50"
-                            aria-hidden="true"
-                          />
-                          <span class="font-mono text-xs break-all">
-                            {office.email}
-                          </span>
-                        </p>
-                      )}
-                      {office.notes && (
-                        <p class="flex items-start gap-2 text-xs text-base-content/60">
-                          <Icon
-                            name="boxicons:note-filled"
-                            size={14}
-                            class="mt-0.5 shrink-0 text-base-content/40"
-                            aria-hidden="true"
-                          />
-                          <span>{office.notes}</span>
-                        </p>
-                      )}
-                    </div>
-                  </section>
-                )}
+                {/* Personal de la sucursal */}
+                <section
+                  class="hidden space-y-3"
+                  data-branch-personnel
+                  data-nis={office.code}
+                >
+                  <h2 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wide uppercase">
+                    <Icon
+                      name="boxicons:group-filled"
+                      size={16}
+                      class="text-secondary"
+                      aria-hidden="true"
+                    />
+                    Referentes del sitio
+                  </h2>
+                  <div
+                    data-branch-personnel-content
+                    class="border-base-300 bg-base-100/50 rounded-lg border p-3 shadow-sm"
+                  />
+                </section>
 
-                {hasContacts && (
-                  <section class="min-w-0 space-y-3">
-                    <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70">
-                      <Icon
-                        name="boxicons:user-filled"
-                        size={16}
-                        class="text-secondary"
-                        aria-hidden="true"
-                      />
-                      Contactos
-                    </h2>
-
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
-                      {office.contacts.map((contact) => (
-                        <article class="rounded-lg border border-base-300 bg-base-100/50 p-3 shadow-sm">
-                          <h3 class="truncate text-sm font-semibold text-base-content">
-                            {contact.name}
-                          </h3>
-                          <div class="mt-3 space-y-2 text-xs text-base-content/70">
-                            {contact.timeSlot && (
-                              <p class="flex items-center gap-2">
-                                <Icon
-                                  name="boxicons:clock-filled"
-                                  size={14}
-                                  class="shrink-0 text-base-content/50"
-                                  aria-hidden="true"
-                                />
-                                <span>{contact.timeSlot}</span>
-                              </p>
-                            )}
-                            {contact.phone && (
-                              <p class="flex items-center gap-2">
-                                <Icon
-                                  name="boxicons:phone-filled"
-                                  size={14}
-                                  class="shrink-0 text-base-content/50"
-                                  aria-hidden="true"
-                                />
-                                <span class="font-mono">{contact.phone}</span>
-                              </p>
-                            )}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
+                {hasContacts && !contactsToCenter && (
+                  <OfficeContactsSection contacts={office.contacts} />
                 )}
               </div>
             )
           }
 
           {
-            hasAssetsSection && (
+            layout.hasCenter && (
+              <div
+                class:list={["flex min-w-0 flex-col gap-5", layout.centerClass]}
+              >
+                {hasSiblings && (
+                  <section class="space-y-3" data-siblings-section>
+                    <h2 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wide uppercase">
+                      <Icon
+                        name="boxicons:building-filled"
+                        size={16}
+                        class="text-secondary"
+                        aria-hidden="true"
+                      />
+                      Oficinas en el mismo edificio ({siblings.length})
+                    </h2>
+                    <div class="grid grid-cols-1 gap-3">
+                      {siblings.map((sib) => (
+                        <div
+                          data-sibling-office
+                          data-sibling-code={sib.code}
+                          data-sibling-type={sib.type}
+                          class="border-base-300 bg-base-100/50 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-sm"
+                        >
+                          <div class="min-w-0">
+                            <p
+                              class="text-base-content truncate text-sm font-semibold"
+                              title={sib.name}
+                            >
+                              {sib.name}
+                            </p>
+                            <p class="text-xxs text-base-content/50 tracking-wide">
+                              {officeTypeLabelByType[sib.type] || sib.type}
+                            </p>
+                          </div>
+                          <CopyButton
+                            value={sib.code}
+                            variant="value"
+                            feedbackOnly={true}
+                            monospace={true}
+                            size="xs"
+                            appearance="ghost"
+                            copiedLabel={`NIS ${sib.code} copiado al portapapeles`}
+                            class={`shrink-0 font-semibold ${officeTypeChipClassByType[sib.type] || defaultChipClass}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {contactsToCenter && hasContacts && (
+                  <OfficeContactsSection
+                    contacts={office.contacts}
+                    dense={true}
+                  />
+                )}
+              </div>
+            )
+          }
+
+          {
+            layout.hasRight && (
               <div
                 class:list={[
-                  "flex flex-col min-w-0",
-                  hasInfoSection ? "lg:w-3/5" : "w-full",
+                  "relative flex min-w-0 flex-col",
+                  layout.rightClass,
                 ]}
               >
-                <h2 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-base-content/70 mb-3">
+                <h2 class="text-base-content/70 mb-3 flex items-center gap-2 text-xs font-bold tracking-wide uppercase">
                   <Icon
                     name="boxicons:desktop-filled"
                     size={16}
@@ -463,105 +537,60 @@ const officeDirectoryRowGridClass = isAllowedAdmin
                   />
                   Equipos ({totalAssets})
                 </h2>
-                <div class="max-h-[320px] overflow-y-auto pr-1">
-                  <div
-                    class:list={[
-                      "grid gap-3 p-1",
-                      hasInfoSection
-                        ? "grid-cols-1 xl:grid-cols-2"
-                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
-                    ]}
-                  >
-                    {/* Terminales sincronizadas */}
-                    {[...office.terminals]
-                      .sort((a, b) => {
-                        const osCompare = (
-                          a.operatingSystem || ""
-                        ).localeCompare(b.operatingSystem || "");
-                        if (osCompare !== 0) return osCompare;
-                        return (a.hostname || "").localeCompare(
-                          b.hostname || "",
-                        );
-                      })
-                      .map((terminal) => (
-                        <div class="flex items-center gap-3 p-3 bg-base-100 rounded-lg border border-base-300 shadow-sm hover:shadow-md transition-shadow min-w-0">
-                          <span
-                            class:list={[
-                              "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                              getTerminalColorClass(
-                                terminal.operatingSystem,
-                                office.type === "TELEGRAFIA",
-                              ),
-                            ]}
-                            aria-hidden="true"
-                          >
-                            <Icon name="boxicons:desktop-filled" size={18} />
-                          </span>
-                          <div class="min-w-0 flex-1">
-                            <p class="text-xxs font-medium text-base-content/60 truncate">
-                              {getTerminalTypeLabel(terminal.operatingSystem)}
-                            </p>
-                            <p class="truncate font-mono text-xs font-semibold text-base-content">
-                              {terminal.hostname}
-                            </p>
-                          </div>
-                          <div class="text-right shrink-0">
-                            <CopyButton
-                              value={terminal.ipAddress}
-                              variant="value"
-                              monospace={true}
-                              size="xs"
-                              appearance="surface"
-                              class="text-xxs font-medium"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                <div class="relative min-h-0 flex-1 lg:max-h-120">
+                  <div class="office-assets-scroll h-full overflow-y-auto pr-1">
+                    <div
+                      data-assets-compact={
+                        layout.compactAssets ? "true" : undefined
+                      }
+                      class:list={[
+                        "grid gap-3 p-1",
+                        layout.compactAssets || layout.hasLeft
+                          ? "grid-cols-1 xl:grid-cols-2"
+                          : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
+                      ]}
+                    >
+                      {/* Terminales sincronizadas */}
+                      {[...office.terminals]
+                        .sort((a, b) => {
+                          const osCompare = (
+                            a.operatingSystem || ""
+                          ).localeCompare(b.operatingSystem || "");
+                          if (osCompare !== 0) return osCompare;
+                          return (a.hostname || "").localeCompare(
+                            b.hostname || "",
+                          );
+                        })
+                        .map((terminal) => (
+                          <OfficeEquipmentCard
+                            terminal={terminal}
+                            compact={layout.compactAssets}
+                            isTelegrafia={office.type === "TELEGRAFIA"}
+                          />
+                        ))}
 
-                    {/* Activos manuales */}
-                    {[...office.assets]
-                      .sort(
-                        (a, b) =>
-                          assetOrderByType[a.type] - assetOrderByType[b.type],
-                      )
-                      .map((asset) => (
-                        <div class="flex items-center gap-3 p-3 bg-base-100 rounded-lg border border-base-300 shadow-sm hover:shadow-md transition-shadow min-w-0">
-                          <span
-                            class:list={[
-                              "inline-flex size-9 shrink-0 items-center justify-center rounded-lg border",
-                              assetColorByType[asset.type],
-                            ]}
-                            aria-hidden="true"
-                          >
-                            <Icon
-                              name={
-                                assetIconByType[asset.type] ||
-                                "boxicons:info-circle"
-                              }
-                              size={18}
-                            />
-                          </span>
-                          <div class="min-w-0 flex-1">
-                            <p class="text-xxs font-medium text-base-content/60 truncate">
-                              {assetLabelByType[asset.type]}
-                            </p>
-                            <p class="truncate font-mono text-xs font-semibold text-base-content">
-                              {asset.hostname}
-                            </p>
-                          </div>
-                          <div class="text-right shrink-0">
-                            <CopyButton
-                              value={asset.ip}
-                              variant="value"
-                              monospace={true}
-                              size="xs"
-                              appearance="surface"
-                              class="text-xxs font-medium"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                      {/* Activos manuales */}
+                      {[...office.assets]
+                        .sort(
+                          (a, b) =>
+                            assetOrderByType[a.type] - assetOrderByType[b.type],
+                        )
+                        .map((asset) => (
+                          <OfficeEquipmentCard
+                            asset={asset}
+                            compact={layout.compactAssets}
+                          />
+                        ))}
+                    </div>
                   </div>
+                  <div
+                    class="office-assets-fade-top from-base-100 pointer-events-none absolute inset-x-0 top-0 h-8 bg-linear-to-b to-transparent opacity-0 transition-opacity duration-200"
+                    aria-hidden="true"
+                  />
+                  <div
+                    class="office-assets-fade from-base-100 pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t to-transparent transition-opacity duration-200"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
             )
@@ -571,3 +600,155 @@ const officeDirectoryRowGridClass = isAllowedAdmin
     </div>
   </div>
 </article>
+
+<script>
+  function loadPersonnel(section: HTMLElement) {
+    if (section.dataset.branchPersonnelLoaded) return;
+    section.dataset.branchPersonnelLoaded = "true";
+
+    const nis = section.getAttribute("data-nis");
+    const content = section.querySelector("[data-branch-personnel-content]");
+    if (!nis || !content) return;
+
+    fetch(`/api/offices/branch-personnel/${encodeURIComponent(nis)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("API error");
+        return res.text();
+      })
+      .then((html) => {
+        if (!html.trim()) {
+          section.classList.add("hidden");
+          return;
+        }
+        section.classList.remove("hidden");
+        content.innerHTML = html;
+      })
+      .catch(() => {
+        section.classList.remove("hidden");
+        content.innerHTML =
+          '<p class="text-xs text-error">Error al cargar personal</p>';
+      });
+  }
+
+  let globalObserver: MutationObserver | null = null;
+
+  function updateAssetsFade(scrollEl: Element | null) {
+    if (!scrollEl) return;
+    const fades = scrollEl.parentElement?.querySelectorAll(
+      ".office-assets-fade, .office-assets-fade-top",
+    );
+    if (!fades || fades.length === 0) return;
+    const hasOverflow = scrollEl.scrollHeight > scrollEl.clientHeight + 4;
+    const atBottom =
+      scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 4;
+    const atTop = scrollEl.scrollTop <= 4;
+    fades.forEach((fade: Element) => {
+      const isTop = fade.classList.contains("office-assets-fade-top");
+      const hidden = isTop ? !hasOverflow || atTop : !hasOverflow || atBottom;
+      fade.classList.toggle("opacity-0", hidden);
+    });
+  }
+
+  function updateAllAssetsFades() {
+    document
+      .querySelectorAll(".office-assets-scroll")
+      .forEach(updateAssetsFade);
+  }
+
+  document.addEventListener(
+    "scroll",
+    (e) => {
+      if (!(e.target instanceof Element)) return;
+      const scrollEl = e.target.closest(".office-assets-scroll");
+      if (scrollEl) updateAssetsFade(scrollEl);
+    },
+    true,
+  );
+
+  function observePersonnelSections() {
+    if (globalObserver) {
+      globalObserver.disconnect();
+    }
+
+    globalObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "class"
+        ) {
+          const target = mutation.target as Element;
+          if (
+            target.hasAttribute("data-office-detail-row") &&
+            !target.classList.contains("hidden")
+          ) {
+            updateAssetsFade(target.querySelector(".office-assets-scroll"));
+            const section = target.querySelector<HTMLElement>(
+              "[data-branch-personnel]",
+            );
+            if (section) {
+              loadPersonnel(section);
+            }
+          }
+        } else if (mutation.type === "childList") {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const el = node as HTMLElement;
+              if (
+                el.hasAttribute("data-office-detail-row") &&
+                !el.classList.contains("hidden")
+              ) {
+                updateAssetsFade(el.querySelector(".office-assets-scroll"));
+                const section = el.querySelector<HTMLElement>(
+                  "[data-branch-personnel]",
+                );
+                if (section) loadPersonnel(section);
+              }
+              const expandedDetails = el.querySelectorAll(
+                "[data-office-detail-row]:not(.hidden)",
+              );
+              expandedDetails.forEach((detail) => {
+                updateAssetsFade(detail.querySelector(".office-assets-scroll"));
+                const section = detail.querySelector<HTMLElement>(
+                  "[data-branch-personnel]",
+                );
+                if (section) loadPersonnel(section);
+              });
+            }
+          });
+        }
+      });
+    });
+
+    globalObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+      childList: true,
+      subtree: true,
+    });
+
+    const visibleDetails = document.querySelectorAll(
+      "[data-office-detail-row]:not(.hidden)",
+    );
+    visibleDetails.forEach((detail) => {
+      updateAssetsFade(detail.querySelector(".office-assets-scroll"));
+      const section = detail.querySelector<HTMLElement>(
+        "[data-branch-personnel]",
+      );
+      if (section) loadPersonnel(section);
+    });
+  }
+
+  document.addEventListener("astro:page-load", updateAllAssetsFades);
+
+  document.addEventListener("astro:page-load", observePersonnelSections);
+  observePersonnelSections();
+</script>
+
+<style>
+  .office-assets-scroll {
+    scrollbar-width: none;
+  }
+  .office-assets-scroll::-webkit-scrollbar {
+    display: none;
+  }
+</style>

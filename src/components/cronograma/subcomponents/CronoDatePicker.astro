@@ -1,0 +1,73 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  id: string;
+  displayId: string;
+  inputId?: string;
+  placeholder?: string;
+  iconSize?: number;
+  required?: boolean;
+  minW?: string;
+  variant?: "sm" | "top";
+  class?: string;
+}
+
+const {
+  id,
+  displayId,
+  inputId,
+  placeholder = "",
+  iconSize,
+  required = false,
+  minW = "min-w-36",
+  variant = "sm",
+  class: extraClass = "",
+} = Astro.props;
+
+const resolvedInputId =
+  inputId ??
+  (variant === "top" ? "date-input" : id.replace("-wrapper", "").replace("-container", ""));
+const resolvedIconSize = iconSize ?? (variant === "top" ? 18 : 14);
+
+const baseClasses =
+  variant === "top"
+    ? "bg-base-100 border-base-300 hover:border-secondary/40 focus-within:ring-secondary/20 relative flex h-[38px] cursor-pointer items-center gap-2.5 rounded-xl border px-4 shadow-sm focus-within:ring-2"
+    : "bg-base-100 border-base-300 hover:border-secondary/40 focus-within:ring-secondary/20 relative flex h-8 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 shadow-sm transition-colors duration-200 focus-within:ring-2";
+---
+
+<div id={id} class:list={[baseClasses, minW, extraClass]}>
+  <Icon
+    name="boxicons:calendar-filled"
+    size={resolvedIconSize}
+    class="text-base-content/40 pointer-events-none"
+  />
+  {
+    variant === "top" ? (
+      <>
+        <label for={resolvedInputId} class="sr-only">
+          Seleccionar fecha
+        </label>
+        <span
+          id={displayId}
+          class="text-base-content pointer-events-none text-sm font-semibold tabular-nums"
+        >
+          {placeholder}
+        </span>
+      </>
+    ) : (
+      <span
+        id={displayId}
+        class="text-base-content pointer-events-none text-xs font-semibold tabular-nums"
+      >
+        {placeholder}
+      </span>
+    )
+  }
+  <input
+    type="date"
+    id={resolvedInputId}
+    class="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none border-0 opacity-0"
+    required={required}
+  />
+</div>

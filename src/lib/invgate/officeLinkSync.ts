@@ -1,7 +1,11 @@
 import { db } from "../../db/index";
 import { offices, officeInvgateLinks } from "../../db/schema";
 import { invgateGet } from "../invgateClient";
-import { matchLocations, parseInvgateLocationName, findDuplicateNis } from "./locationMatcher";
+import {
+  matchLocations,
+  parseInvgateLocationName,
+  findDuplicateNis,
+} from "./locationMatcher";
 import type { InvgateLocation } from "../../types/invgate";
 import { eq } from "drizzle-orm";
 
@@ -25,12 +29,17 @@ async function resolveParentName(
 }
 
 export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
-  console.log("[SyncOfficeLinks] Iniciando sincronización de vínculos oficinas ↔ InvGate...");
+  console.log(
+    "[SyncOfficeLinks] Iniciando sincronización de vínculos oficinas ↔ InvGate...",
+  );
 
   // 1. Fetch all InvGate locations
   const locationsResult = await invgateGet<any[]>("locations");
   if (!locationsResult.ok || !("data" in locationsResult)) {
-    const errorMsg = "message" in locationsResult ? (locationsResult as any).message : "Sin datos";
+    const errorMsg =
+      "message" in locationsResult
+        ? (locationsResult as any).message
+        : "Sin datos";
     return {
       ok: false,
       totalInvgateLocations: 0,
@@ -58,7 +67,9 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
     };
   }
 
-  console.log(`[SyncOfficeLinks] ${locations.length} ubicaciones obtenidas de InvGate.`);
+  console.log(
+    `[SyncOfficeLinks] ${locations.length} ubicaciones obtenidas de InvGate.`,
+  );
 
   // 2. Detect duplicate NIS
   const duplicateNis = findDuplicateNis(locations);
@@ -75,7 +86,12 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
 
   // 4. Load all office codes into a Map
   const allOfficesRows = await db
-    .select({ id: offices.id, code: offices.code, name: offices.name, address: offices.address })
+    .select({
+      id: offices.id,
+      code: offices.code,
+      name: offices.name,
+      address: offices.address,
+    })
     .from(offices);
   const officeCodeMap = new Map<string, { name: string; address: string }>();
   const officeToId = new Map<string, number>();
@@ -105,7 +121,7 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
     const invgateLoc = match.invgateLocation;
     const rawLoc = rawLocById.get(invgateLoc.id);
     const parentId = rawLoc?.parent_id ?? null;
-    const dupCount = invgateLoc.nis ? (duplicateNis.get(invgateLoc.nis) || 0) : 0;
+    const dupCount = invgateLoc.nis ? duplicateNis.get(invgateLoc.nis) || 0 : 0;
     if (dupCount > 0) duplicatesWritten++;
 
     const parentName = await resolveParentName(dedupedLocations, parentId);
@@ -150,7 +166,7 @@ export async function syncOfficeInvgateLinks(): Promise<SyncOfficeLinksResult> {
 
   console.log(
     `[SyncOfficeLinks] Sincronización finalizada. Matched: ${stats.matched}, ` +
-    `Upserted: ${upsertedCount}, Duplicados: ${duplicatesWritten}`
+      `Upserted: ${upsertedCount}, Duplicados: ${duplicatesWritten}`,
   );
 
   return {

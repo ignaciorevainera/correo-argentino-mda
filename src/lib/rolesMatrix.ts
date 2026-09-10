@@ -158,5 +158,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
 export const isAllowed = (featureName: string, role: string) => {
   const feature = rolesMatrix.find((f) => f.feature === featureName);
   const normalizedRole = role.replace(/[- ]/g, "_");
-  return feature ? feature[normalizedRole as keyof typeof feature] === true : false;
+  return feature
+    ? feature[normalizedRole as keyof typeof feature] === true
+    : false;
 };

@@ -4,14 +4,14 @@ Generado el 2026-04-10. Ultima actualizacion: 2026-07-06.
 
 ## Stack
 
-- Framework: Astro v6 (output: `server` / SSR) con adaptador `@astrojs/node` standalone
+- Framework: Astro v7 (output: `server` / SSR) con adaptador `@astrojs/node` standalone
 - Estilos: Tailwind CSS v4 + DaisyUI v5
 - Tipografia: `Geist Variable` (Sans) + `Geist Mono Variable` (Mono) via Fontsource
 - Iconos: `astro-icon` con Boxicons (`@iconify-json/boxicons`)
 - Interactividad: React islands con `@astrojs/react`, `theme-change` para toggle de tema
 - Base de datos: SQLite con Drizzle ORM + `better-sqlite3`
 - Autenticacion: Sesion cookie-based HMAC + RBAC (5 roles: agent, referent, team_leader, supervisor, admin)
-- Deploy: Node standalone con PM2 (3 procesos: Astro SSR, ping-worker, sync-legacy-inventory)
+- Deploy: Node standalone con PM2 (5 procesos: Astro SSR, mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links)
 
 ## Contexto de producto
 
@@ -371,7 +371,7 @@ Uso recomendado:
   En mobile esta etiqueta se oculta para priorizar herramientas.
 - Zona derecha (herramientas globales), orden izquierda a derecha:
   A. Busqueda maestra: command palette con atajo `Ctrl+K` / `Cmd+K`.
-     En desktop se muestra expandida; en mobile se contrae a icono de lupa.
+  En desktop se muestra expandida; en mobile se contrae a icono de lupa.
   B. Preferencias: toggle dark/light con icono dinamico que comunica estado actual.
   C. Alertas y sistema: modal "Acerca del proyecto" con datos de version y autores.
 
@@ -384,6 +384,7 @@ Uso recomendado:
 ### Estado actual
 
 Todas las zonas del Header estan implementadas y cerradas:
+
 - Zona A: Command palette operativa con modal y atajo Ctrl+K/Cmd+K.
 - Zona B: Swap icon de tema integrado con persistencia en localStorage.
 - Zona C: Modal "Acerca del proyecto" con datos del equipo, version y año.
@@ -481,49 +482,49 @@ Familia de botones de accion para CRUDs, todas con icono y tooltip:
 
 ### Vistas operativas
 
-| Ruta                        | Descripcion                                              |
-| --------------------------- | -------------------------------------------------------- |
-| `/`                         | Dashboard principal con acceso rapido por rol            |
-| `/titulos`                  | Tipificacion de tickets con copia rapida                 |
-| `/mesas-de-ayuda`           | Matriz de derivacion por tema y area de soporte          |
-| `/buscador-usuarios`        | Busqueda de personal y validacion de usuarios            |
-| `/generador-firmas`         | Creador de firmas institucionales                        |
-| `/contactos`                | Directorio de numeros y correos utiles                   |
-| `/recursos`                 | Hub de accesos a recursos externos e internos            |
-| `/recursos/aplicativos`     | Catalogo de aplicativos con descargas                    |
-| `/oficinas`                 | Directorio de oficinas, activos de red y datos tecnicos  |
-| `/inventario-terminales`    | Consulta y estado del parque de terminales               |
+| Ruta                     | Descripcion                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `/`                      | Dashboard principal con acceso rapido por rol           |
+| `/titulos`               | Tipificacion de tickets con copia rapida                |
+| `/mesas-de-ayuda`        | Matriz de derivacion por tema y area de soporte         |
+| `/buscador-usuarios`     | Busqueda de personal y validacion de usuarios           |
+| `/generador-firmas`      | Creador de firmas institucionales                       |
+| `/contactos`             | Directorio de numeros y correos utiles                  |
+| `/recursos`              | Hub de accesos a recursos externos e internos           |
+| `/recursos/aplicativos`  | Catalogo de aplicativos con descargas                   |
+| `/oficinas`              | Directorio de oficinas, activos de red y datos tecnicos |
+| `/inventario-terminales` | Consulta y estado del parque de terminales              |
 
 ### Supervision
 
-| Ruta                                   | Descripcion                                     |
-| -------------------------------------- | ----------------------------------------------- |
-| `/supervision`                         | Redirecciona al dashboard                       |
-| `/supervision/cronograma`              | Gestion de cronograma y horarios                |
-| `/supervision/asistencia`              | Control de asistencia y cumplimiento            |
-| `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones        |
-| `/supervision/calidad-operadores`      | Auditoria y puntuacion de calidad               |
+| Ruta                                    | Descripcion                             |
+| --------------------------------------- | --------------------------------------- |
+| `/supervision`                          | Redirecciona al dashboard               |
+| `/supervision/cronograma`               | Gestion de cronograma y horarios        |
+| `/supervision/asistencia`               | Control de asistencia y cumplimiento    |
+| `/supervision/asignacion-autogestiones` | Asignacion Round-Robin de autogestiones |
+| `/supervision/calidad-operadores`       | Auditoria y puntuacion de calidad       |
 
 ### Administracion
 
-| Ruta                       | Descripcion                               |
-| -------------------------- | ----------------------------------------- |
-| `/admin`                   | Dashboard admin con resumen de sistema    |
-| `/admin/usuarios`          | CRUD de usuarios del sistema              |
-| `/admin/contactos`         | CRUD de contactos y categorias            |
-| `/admin/recursos`          | CRUD de enlaces y categorias              |
-| `/admin/auditoria`         | Logs de auditoria                         |
-| `/admin/operadores`        | CRUD de operadores N1/N2                  |
-| `/admin/aplicativos`       | CRUD de aplicativos del catalogo          |
-| `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate            |
+| Ruta                         | Descripcion                            |
+| ---------------------------- | -------------------------------------- |
+| `/admin`                     | Dashboard admin con resumen de sistema |
+| `/admin/usuarios`            | CRUD de usuarios del sistema           |
+| `/admin/contactos`           | CRUD de contactos y categorias         |
+| `/admin/recursos`            | CRUD de enlaces y categorias           |
+| `/admin/auditoria`           | Logs de auditoria                      |
+| `/admin/operadores`          | CRUD de operadores N1/N2               |
+| `/admin/aplicativos`         | CRUD de aplicativos del catalogo       |
+| `/admin/invgate/ubicaciones` | Mapeo de ubicaciones InvGate           |
 
 ### Otras rutas
 
-| Ruta        | Descripcion                   |
-| ----------- | ----------------------------- |
-| `/login`    | Inicio de sesion              |
-| `/logout`   | Cierre de sesion              |
-| `/profile`  | Perfil de usuario             |
+| Ruta       | Descripcion       |
+| ---------- | ----------------- |
+| `/login`   | Inicio de sesion  |
+| `/logout`  | Cierre de sesion  |
+| `/profile` | Perfil de usuario |
 
 ## Convenciones de nomenclatura
 
@@ -548,9 +549,9 @@ Familia de botones de accion para CRUDs, todas con icono y tooltip:
 ### URL base — siempre `@lib/baseUrl`
 
 ```typescript
-import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl"
-const cleanBase = getCleanBase()     // "/mda/"
-const baseNoSlash = getBaseNoSlash() // "/mda"
+import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
+const cleanBase = getCleanBase(); // "/mda/"
+const baseNoSlash = getBaseNoSlash(); // "/mda"
 ```
 
 NUNCA hacer `const base = import.meta.env.BASE_URL || "/"` inline.

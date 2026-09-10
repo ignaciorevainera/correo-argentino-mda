@@ -13,11 +13,14 @@ export const GET: APIRoute = async ({ locals }) => {
     const elapsed = Date.now() - start;
 
     if (!result.ok) {
-      return jsonResponse({
-        ok: false,
-        message: result.message,
-        elapsed,
-      }, result.status);
+      return jsonResponse(
+        {
+          ok: false,
+          message: result.message,
+          elapsed,
+        },
+        result.status,
+      );
     }
 
     return jsonResponse({

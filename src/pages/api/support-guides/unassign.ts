@@ -8,7 +8,11 @@ import { ROLE_HIERARCHY } from "@lib/rbac";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const user = locals.user;
-  if (!user || ROLE_HIERARCHY[user.role as keyof typeof ROLE_HIERARCHY] < ROLE_HIERARCHY.supervisor) {
+  if (
+    !user ||
+    ROLE_HIERARCHY[user.role as keyof typeof ROLE_HIERARCHY] <
+      ROLE_HIERARCHY.supervisor
+  ) {
     return jsonResponse({ error: "Acceso denegado" }, 403);
   }
 
@@ -17,7 +21,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const recordId = Number(body.recordId);
 
     if (!recordId || isNaN(recordId)) {
-      return jsonResponse({ error: "recordId es requerido y debe ser un numero" }, 400);
+      return jsonResponse(
+        { error: "recordId es requerido y debe ser un numero" },
+        400,
+      );
     }
 
     const [record] = await db
@@ -42,6 +49,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonResponse({ ok: true });
   } catch (err) {
     console.error("[unassign] Error:", err);
-    return jsonResponse({ error: "Error interno al desvincular helpdesk" }, 500);
+    return jsonResponse(
+      { error: "Error interno al desvincular helpdesk" },
+      500,
+    );
   }
 };

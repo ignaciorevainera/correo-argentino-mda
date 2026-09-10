@@ -1,14 +1,14 @@
 export enum OperatorStatus {
-  PresencialMonteGrande = 'Presencial Monte Grande',
-  PresencialParquePatricios = 'Presencial Parque Patricios',
-  HomeOffice = 'Home Office',
-  Licencia = 'Licencia',
-  Vacaciones = 'Vacaciones',
-  Franco = 'Franco',
+  PresencialMonteGrande = "Presencial Monte Grande",
+  PresencialParquePatricios = "Presencial Parque Patricios",
+  HomeOffice = "Home Office",
+  Licencia = "Licencia",
+  Vacaciones = "Vacaciones",
+  Franco = "Franco",
 }
 
-export type StatusFilter = OperatorStatus | 'all';
-export type LocationFilter = 'all' | 'Monte Grande' | 'Parque Patricios';
+export type StatusFilter = OperatorStatus | "all";
+export type LocationFilter = "all" | "Monte Grande" | "Parque Patricios";
 
 export interface OperatorData {
   id?: number;
@@ -39,9 +39,9 @@ export interface WeekendOvertimeShift {
   id: number;
   weekendStartDate: string; // "YYYY-MM-DD" (Saturday)
   agentId: number;
-  date: string;             // "YYYY-MM-DD" (Saturday or Sunday)
-  startTime: string;        // "HH:MM"
-  endTime: string;          // "HH:MM"
+  date: string; // "YYYY-MM-DD" (Saturday or Sunday)
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
 }
 
 export interface WeekendOvertimeConfig {

@@ -11,11 +11,17 @@ async function runTest() {
   await page.waitForLoadState("networkidle");
 
   console.log("Verificando que 'PC' NO esté en el dropdown de modelos...");
-  const modelOptions = await page.locator("#filter-model option").allTextContents();
+  const modelOptions = await page
+    .locator("#filter-model option")
+    .allTextContents();
   console.log("Opciones del dropdown de modelo:", modelOptions);
 
   const hasPcOption = modelOptions.some((opt) => opt.trim() === "PC");
-  assert.equal(hasPcOption, false, "El dropdown de modelos no debería contener 'PC'");
+  assert.equal(
+    hasPcOption,
+    false,
+    "El dropdown de modelos no debería contener 'PC'",
+  );
 
   console.log("Test pass: 'PC' no aparece en el dropdown de modelos.");
   await browser.close();

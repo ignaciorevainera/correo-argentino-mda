@@ -31,38 +31,71 @@ const config = {
 
 <Modal id="delete-category-modal" title={config.title} size="lg" class="w-full">
   <Fragment slot="content">
-    <p class="py-4 text-base-content/80 text-sm">
+    <p class="text-base-content/80 py-4 text-sm">
       ¿Qué deseas hacer con los {config.entityPlural} que están asignados a esta categoría?
     </p>
-    <form id="delete-category-form" method="POST" action="" data-delete-prefix={config.deletePath}>
-      <div class="flex flex-col gap-3 mt-2">
-        <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
-          <input type="radio" name="deleteOption" value="unassign" class="radio radio-primary shrink-0 mt-0.5" checked />
-          <div class="flex flex-col gap-1 flex-1 min-w-0">
-            <span class="label-text font-bold text-base whitespace-normal">Desvincular y conservar {config.entityPlural}</span>
-            <span class="text-xs text-base-content/60 whitespace-normal">La categoría será eliminada, pero los {config.entityPlural} se conservarán y se moverán a "Sin categoría".</span>
+    <form
+      id="delete-category-form"
+      method="POST"
+      action=""
+      data-delete-prefix={config.deletePath}
+    >
+      <div class="mt-2 flex flex-col gap-3">
+        <label
+          class="label border-base-300 hover:bg-base-200 cursor-pointer flex-row items-start justify-start gap-4 rounded-lg border p-4 transition-colors"
+        >
+          <input
+            type="radio"
+            name="deleteOption"
+            value="unassign"
+            class="radio radio-primary mt-0.5 shrink-0"
+            checked
+          />
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <span class="label-text text-base font-bold whitespace-normal"
+              >Desvincular y conservar {config.entityPlural}</span
+            >
+            <span class="text-base-content/60 text-xs whitespace-normal"
+              >La categoría será eliminada, pero los {config.entityPlural} se conservarán
+              y se moverán a "Sin categoría".</span
+            >
           </div>
         </label>
-        <label class="label cursor-pointer flex-row items-start justify-start gap-4 p-4 border border-base-300 rounded-lg hover:bg-base-200 transition-colors">
-          <input type="radio" name="deleteOption" value="cascade" class="radio radio-error shrink-0 mt-0.5" />
-          <div class="flex flex-col gap-1 flex-1 min-w-0">
-            <span class="label-text font-bold text-error text-base whitespace-normal">Eliminar todo en Cascada</span>
-            <span class="text-xs text-base-content/60 whitespace-normal">La categoría y todos los {config.entityPlural} que contenga serán eliminados permanentemente. Esta acción no se puede deshacer.</span>
+        <label
+          class="label border-base-300 hover:bg-base-200 cursor-pointer flex-row items-start justify-start gap-4 rounded-lg border p-4 transition-colors"
+        >
+          <input
+            type="radio"
+            name="deleteOption"
+            value="cascade"
+            class="radio radio-error mt-0.5 shrink-0"
+          />
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <span
+              class="label-text text-error text-base font-bold whitespace-normal"
+              >Eliminar todo en Cascada</span
+            >
+            <span class="text-base-content/60 text-xs whitespace-normal"
+              >La categoría y todos los {config.entityPlural} que contenga serán eliminados
+              permanentemente. Esta acción no se puede deshacer.</span
+            >
           </div>
         </label>
       </div>
-      <div class="modal-action flex-col sm:flex-row mt-6 gap-2">
+      <div class="modal-action mt-6 flex-col gap-3 sm:flex-row">
         <ActionCancelButton
           type="button"
           class="w-full sm:w-auto"
+          variant="error"
+          icon="boxicons:x-filled"
           onclick="document.getElementById('delete-category-modal').close()"
         />
         <ActionConfirmButton
           type="submit"
           color="btn-error"
-          class="w-full sm:w-auto ml-0 sm:ml-2"
+          class="w-full sm:w-auto"
           label="Confirmar Eliminación"
-          icon="boxicons:trash"
+          icon="boxicons:trash-filled"
         />
       </div>
     </form>
@@ -74,8 +107,11 @@ const config = {
   const cleanBase = getCleanBase();
 
   (window as any).openDeleteCategoryModal = (categoryId: string) => {
-    const modal = document.getElementById("delete-category-modal") as (HTMLDialogElement & { showModal(): void }) | null;
-    const form = document.getElementById("delete-category-form") as HTMLFormElement | null;
+    const modal = document.getElementById("delete-category-modal") as
+      (HTMLDialogElement & { showModal(): void }) | null;
+    const form = document.getElementById(
+      "delete-category-form",
+    ) as HTMLFormElement | null;
     if (modal && form) {
       const prefix = form.dataset.deletePrefix!;
       form.action = `${cleanBase}${prefix}/${categoryId}/eliminar`;

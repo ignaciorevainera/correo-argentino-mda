@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state } from "./state";
 
 /**
  * Checks if a given date string exists in the state.feriados dictionary.
@@ -16,4 +16,3 @@ export function isFeriado(dateStr: string): boolean {
 export function getFeriadoName(dateStr: string): string | undefined {
   return state.feriados[dateStr];
 }
-

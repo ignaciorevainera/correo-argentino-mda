@@ -8,15 +8,13 @@ import {
   operatorAttendance,
 } from "@db/schema";
 import { eq, asc, and } from "drizzle-orm";
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { Icon } from "astro-icon/components";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
+import FormShell from "@components/ui/FormShell.astro";
 const cleanBase = getCleanBase();
 
 const isNew = true;
@@ -135,10 +133,14 @@ if (Astro.request.method === "POST") {
         } catch (e: any) {}
       }
 
-      await logAdminFromAstro(Astro.locals,
+      await logAdminFromAstro(
+        Astro.locals,
         `Creó el ordenador "${cubicData.name}"`,
       );
-      return redirectWithToast("/inventario-terminales", "Cubic creado con éxito.");
+      return redirectWithToast(
+        "/inventario-terminales",
+        "Cubic creado con éxito.",
+      );
     }
   } catch (e: any) {
     errorMsg = e.message?.includes("UNIQUE")
@@ -174,135 +176,112 @@ for (const agent of allAgents) {
 }
 ---
 
-<BaseLayout title={pageTitle}>
-  <PageContainer width="xxl">
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <a
-        href={`${cleanBase}inventario-terminales`}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
+<FormShell
+  backHref={`${cleanBase}inventario-terminales`}
+  title={pageTitle}
+  subtitle="Completá los datos para registrar un nuevo ordenador."
+  formId="cubic-form"
+  saveLabel="Crear cubic"
+  cancelLabel="Volver al listado"
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
+    }
+  </script>
+
+  <script>
+    document.getElementById("cubic-form")?.addEventListener("submit", (e) => {
+      if (
+        !confirm(
+          "¿Estás seguro de que deseas aplicar estas modificaciones sobre el Cubic?",
+        )
+      ) {
+        e.preventDefault();
+      }
+    });
+  </script>
+
+  <SectionCard class="shadow-md">
+    <h2 class="text-base-content flex items-center gap-2 text-sm font-semibold">
+      <span
+        class="bg-secondary/10 text-secondary inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
       >
-        <Icon name="boxicons:chevron-left" size={16} />
-        Terminales
-      </a>
-      <span>/</span>
-      <span class="text-base-content font-medium truncate">{pageTitle}</span>
+        <Icon name="boxicons:desktop-filled" size={15} />
+      </span>
+      Datos técnicos del equipo
+    </h2>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormField
+        id="input-name"
+        name="name"
+        label="Nombre de red"
+        required
+        value=""
+        placeholder="b1842zacw2999.correo.local"
+        autocomplete="off"
+        inputClass="input-sm font-mono"
+      />
+
+      <FormField
+        id="input-ip"
+        name="ip"
+        label="Dirección IP"
+        value=""
+        placeholder="10.254.59.62"
+        autocomplete="off"
+        inputClass="input-sm font-mono"
+        helpText="IPv4 asignada al equipo. Opcional."
+      />
+    </div>
+  </SectionCard>
+
+  <SectionCard class="shadow-md">
+    <div class="flex items-center justify-between">
+      <h2
+        class="text-base-content flex items-center gap-2 text-sm font-semibold"
+      >
+        <span
+          class="bg-warning/10 text-warning inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+        >
+          <Icon name="boxicons:group-filled" size={15} />
+        </span>
+        Operadores asignados
+      </h2>
+      <button
+        type="button"
+        id="btn-add-assignment"
+        class="btn btn-ghost btn-xs text-warning gap-1"
+      >
+        <Icon name="boxicons:plus-filled" size={14} />
+        Agregar
+      </button>
     </div>
 
-    <PageHeader
-      title={pageTitle}
-      description="Completá los datos para registrar un nuevo ordenador."
-    />
-
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
-    }
-
-    <form
-      method="POST"
-      id="cubic-form"
-      onsubmit="return confirm('¿Estás seguro de que deseas aplicar estas modificaciones sobre el Cubic?');"
-      class="space-y-4"
+    <div
+      id="assignments-container"
+      class="grid grid-cols-1 gap-4 md:grid-cols-2"
     >
-      <SectionCard class="shadow-md">
-          <h2
-            class="flex items-center gap-2 text-sm font-semibold text-base-content"
-          >
-            <span
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:desktop-filled" size={15} />
-            </span>
-            Datos técnicos del equipo
-          </h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              id="input-name"
-              name="name"
-              label="Nombre de red"
-              required
-              value=""
-              placeholder="b1842zacw2999.correo.local"
-              autocomplete="off"
-              inputClass="input-sm font-mono"
-            />
-
-            <FormField
-              id="input-ip"
-              name="ip"
-              label="Dirección IP"
-              value=""
-              placeholder="10.254.59.62"
-              autocomplete="off"
-              inputClass="input-sm font-mono"
-              helpText="IPv4 asignada al equipo. Opcional."
-            />
-          </div>
-      </SectionCard>
-
-      <SectionCard class="shadow-md">
-          <div class="flex items-center justify-between">
-            <h2
-              class="flex items-center gap-2 text-sm font-semibold text-base-content"
-            >
-              <span
-                class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/10 text-warning"
-              >
-                <Icon name="boxicons:group-filled" size={15} />
-              </span>
-              Operadores asignados
-            </h2>
-            <button
-              type="button"
-              id="btn-add-assignment"
-              class="btn btn-ghost btn-xs text-warning gap-1"
-            >
-              <Icon name="boxicons:plus" size={14} />
-              Agregar
-            </button>
-          </div>
-
-          <div
-            id="assignments-container"
-            class="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-          </div>
-          <p
-            id="no-assignments-msg"
-            class="text-xs text-base-content/40 text-center py-1"
-          >
-            Sin operadores asignados.
-          </p>
-      </SectionCard>
-
-      <div class="flex items-center justify-between gap-3 pt-1">
-        <a
-          href={`${cleanBase}inventario-terminales`}
-          class="btn rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent btn-ghost text-neutral hover:bg-neutral/10"
-        >
-          <Icon name="boxicons:arrow-left-filled" size={16} />
-          Volver al listado
-        </a>
-        <button type="submit" class="btn btn-secondary btn-sm gap-2">
-          <Icon name="boxicons:save-filled" size={16} />
-          Crear cubic
-        </button>
-      </div>
-    </form>
-  </PageContainer>
-</BaseLayout>
+    </div>
+    <p
+      id="no-assignments-msg"
+      class="text-base-content/40 py-1 text-center text-xs"
+    >
+      Sin operadores asignados.
+    </p>
+  </SectionCard>
+</FormShell>
 
 <template id="tpl-assignment-row">
   <div
-    class="assignment-row relative rounded-lg bg-base-200/50 p-4 border border-base-300"
+    class="assignment-row bg-base-200/50 border-base-300 relative rounded-lg border p-4"
     data-mode="edit"
   >
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-xs font-bold text-base-content/50"
+    <div class="mb-2 flex items-center justify-between">
+      <span class="text-base-content/50 text-xs font-bold"
         >Nueva Asignación</span
       >
       <button

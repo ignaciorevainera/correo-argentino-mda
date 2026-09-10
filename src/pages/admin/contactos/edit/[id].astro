@@ -2,9 +2,6 @@
 import { db } from "@db/index";
 import { providerContacts, contactCategories } from "@db/schema";
 import { eq, asc } from "drizzle-orm";
-import BaseLayout from "@layouts/BaseLayout.astro";
-import PageContainer from "@components/ui/PageContainer.astro";
-import PageHeader from "@components/ui/PageHeader.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormTextarea from "@components/ui/forms/FormTextarea.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -16,8 +13,7 @@ import FormLegend from "@components/ui/forms/FormLegend.astro";
 import { resolveUrl } from "@lib/url";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { toastResponse } from "@lib/api/toastResponse";
-import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
-import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+import FormShell from "@components/ui/FormShell.astro";
 
 const { id } = Astro.params;
 
@@ -44,12 +40,17 @@ if (id) {
 }
 
 if (Astro.request.method === "POST") {
-  const isAjax = Astro.request.headers.get('accept')?.includes('application/json');
+  const isAjax = Astro.request.headers
+    .get("accept")
+    ?.includes("application/json");
   try {
     const fd = await Astro.request.formData();
 
     const categoryIdRaw = fd.get("categoryId")?.toString();
-    const categoryId = categoryIdRaw && !isNaN(Number(categoryIdRaw)) ? Number(categoryIdRaw) : null;
+    const categoryId =
+      categoryIdRaw && !isNaN(Number(categoryIdRaw))
+        ? Number(categoryIdRaw)
+        : null;
     const provider = fd.get("provider")?.toString().trim() ?? "";
     const service = fd.get("service")?.toString().trim() ?? "";
 
@@ -101,24 +102,39 @@ if (Astro.request.method === "POST") {
             urls,
           })
           .where(eq(providerContacts.id, Number(id)));
-        const oldName = contact ? `${contact.provider} - ${contact.service}` : "";
+        const oldName = contact
+          ? `${contact.provider} - ${contact.service}`
+          : "";
         const newName = `${provider} - ${service}`;
         if (oldName && oldName !== newName) {
-          await logAdminFromAstro(Astro.locals, `Actualizó el contacto de "${oldName}" a "${newName}"`);
+          await logAdminFromAstro(
+            Astro.locals,
+            `Actualizó el contacto de "${oldName}" a "${newName}"`,
+          );
         } else {
-          await logAdminFromAstro(Astro.locals, `Actualizó el contacto "${newName}"`);
+          await logAdminFromAstro(
+            Astro.locals,
+            `Actualizó el contacto "${newName}"`,
+          );
         }
       }
 
       const toastMessage = "Contacto actualizado con éxito.";
       if (isAjax) {
-        return toastResponse({ success: true, message: toastMessage, redirectUrl: resolveUrl("/admin/contactos") });
+        return toastResponse({
+          success: true,
+          message: toastMessage,
+          redirectUrl: resolveUrl("/admin/contactos"),
+        });
       }
       return redirectWithToast("/admin/contactos", toastMessage);
     }
   } catch (e: any) {
     if (isAjax) {
-      return toastResponse({ success: false, error: e.message || "Error al guardar el contacto." });
+      return toastResponse({
+        success: false,
+        error: e.message || "Error al guardar el contacto.",
+      });
     }
     errorMsg = "Error al guardar el contacto.";
   }
@@ -134,146 +150,113 @@ const urlsText =
     .join("\n") ?? "";
 ---
 
-<BaseLayout title={pageTitle}>
-  <PageContainer>
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <a
-        href={resolveUrl("/admin/contactos")}
-        class="flex items-center gap-1.5 hover:text-base-content transition-colors"
-      >
-        <Icon name="boxicons:chevron-left" size={16} />
-        Contactos
-      </a>
-      <span>/</span>
-      <span class="text-base-content font-medium truncate">{pageTitle}</span>
-    </div>
-
-    <PageHeader
-      title={pageTitle}
-      description={`ID de contacto: ${contact!.id}`}
-    />
-
-    {
-      errorMsg && (
-        <script is:inline define:vars={{ errorMsg }}>
-          window.addEventListener('load', () => window.showToast?.(errorMsg, "alert-error"));
-        </script>
-      )
+<FormShell
+  backHref={resolveUrl("/admin/contactos")}
+  title={pageTitle}
+  subtitle={`ID de contacto: ${contact!.id}`}
+  formId="contact-form"
+  saveLabel="Guardar cambios"
+  cancelLabel="Volver al listado"
+  async
+>
+  <script is:inline define:vars={{ errorMsg }}>
+    if (errorMsg) {
+      window.addEventListener("load", () =>
+        window.showToast?.(errorMsg, "alert-error"),
+      );
     }
+  </script>
 
-    <form
-      method="POST"
-      id="contact-form"
-      data-async-form
-      onsubmit="return confirm('¿Estás seguro de que deseas guardar estas modificaciones?');"
-      class="space-y-4"
-    >
-      <SectionCard class="shadow-md">
-          <h2
-            class="flex items-center gap-2 text-sm font-semibold text-base-content"
-          >
-            <span
-              class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary"
-            >
-              <Icon name="boxicons:phone-filled" size={15} />
-            </span>
-            Datos del contacto
-          </h2>
+  <SectionCard class="shadow-md">
+    <h2 class="text-base-content flex items-center gap-2 text-sm font-semibold">
+      <span
+        class="bg-secondary/10 text-secondary inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+      >
+        <Icon name="boxicons:phone-filled" size={15} />
+      </span>
+      Datos del contacto
+    </h2>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="space-y-3">
-              <FormField
-                id="input-provider"
-                name="provider"
-                label="Proveedor"
-                required
-                value={contact?.provider ?? ""}
-                placeholder="ej: CORASA"
-                autocomplete="off"
-                inputClass="input-sm font-semibold"
-              />
-
-              <FormField
-                id="input-service"
-                name="service"
-                label="Servicio"
-                required
-                value={contact?.service ?? ""}
-                placeholder="ej: Mesa de Ayuda"
-                autocomplete="off"
-                inputClass="input-sm"
-              />
-
-              <SelectField
-                id="select-categoryId"
-                name="categoryId"
-                label="Categoría"
-                selectClass="select-sm"
-              >
-                <option value="" selected={!contact?.categoryId}>
-                  Ninguna
-                </option>
-                {
-                  allCategories.map((cat) => (
-                    <option
-                      value={cat.id}
-                      selected={contact?.categoryId ? Number(cat.id) === Number(contact.categoryId) : false}
-                    >
-                      {cat.title}
-                    </option>
-                  ))
-                }
-              </SelectField>
-            </div>
-
-            <div class="space-y-3">
-              <FormTextarea
-                id="input-phones"
-                name="phones"
-                label="Teléfonos (uno por línea)"
-                textareaClass="textarea-sm font-mono text-xs"
-                value={phonesText}
-                rows={2}
-                placeholder="ej: 6316-1111
-0810-777-7787"
-              />
-              <FormTextarea
-                id="input-emails"
-                name="emails"
-                label="Correos electrónicos (uno por línea)"
-                textareaClass="textarea-sm font-mono text-xs"
-                value={emailsText}
-                rows={2}
-                placeholder="ej: soporte@correo.com.ar"
-              />
-              <FormTextarea
-                id="input-urls"
-                name="urls"
-                label="Enlaces web (uno por línea como: Etiqueta, URL)"
-                textareaClass="textarea-sm font-mono text-xs"
-                value={urlsText}
-                rows={2}
-                placeholder="ej: Portal, http://sm.correo.local
-http://www.google.com"
-              />
-            </div>
-          </div>
-      </SectionCard>
-
-      <div class="flex items-center justify-between gap-3 pt-1">
-        <ActionCancelButton
-          href={resolveUrl("/admin/contactos")}
-          label="Volver al listado"
-          icon="boxicons:arrow-left-filled"
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="space-y-3">
+        <FormField
+          id="input-provider"
+          name="provider"
+          label="Proveedor"
+          required
+          value={contact?.provider ?? ""}
+          placeholder="ej: CORASA"
+          autocomplete="off"
+          inputClass="input-sm font-semibold"
         />
-        <ActionConfirmButton
-          type="submit"
-          color="btn-secondary"
-          label="Guardar cambios"
-          icon="boxicons:save-filled"
+
+        <FormField
+          id="input-service"
+          name="service"
+          label="Servicio"
+          required
+          value={contact?.service ?? ""}
+          placeholder="ej: Mesa de Ayuda"
+          autocomplete="off"
+          inputClass="input-sm"
+        />
+
+        <SelectField
+          id="select-categoryId"
+          name="categoryId"
+          label="Categoría"
+          selectClass="select-sm"
+        >
+          <option value="" selected={!contact?.categoryId}> Ninguna </option>
+          {
+            allCategories.map((cat) => (
+              <option
+                value={cat.id}
+                selected={
+                  contact?.categoryId
+                    ? Number(cat.id) === Number(contact.categoryId)
+                    : false
+                }
+              >
+                {cat.title}
+              </option>
+            ))
+          }
+        </SelectField>
+      </div>
+
+      <div class="space-y-3">
+        <FormTextarea
+          id="input-phones"
+          name="phones"
+          label="Teléfonos (uno por línea)"
+          textareaClass="textarea-sm font-mono text-xs"
+          value={phonesText}
+          rows={2}
+          placeholder="ej: 6316-1111
+0810-777-7787"
+        />
+        <FormTextarea
+          id="input-emails"
+          name="emails"
+          label="Correos electrónicos (uno por línea)"
+          textareaClass="textarea-sm font-mono text-xs"
+          value={emailsText}
+          rows={2}
+          placeholder="ej: soporte@correo.com.ar"
+        />
+        <FormTextarea
+          id="input-urls"
+          name="urls"
+          label="Enlaces web (uno por línea como: Etiqueta, URL)"
+          textareaClass="textarea-sm font-mono text-xs"
+          value={urlsText}
+          rows={2}
+          placeholder="ej: Portal, http://sm.correo.local
+http://www.google.com"
         />
       </div>
-    </form>
-  </PageContainer>
-  <AsyncFormScript />
-</BaseLayout>
+    </div>
+  </SectionCard>
+</FormShell>
+<AsyncFormScript />

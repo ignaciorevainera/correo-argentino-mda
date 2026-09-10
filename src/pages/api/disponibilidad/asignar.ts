@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
-import { asignarSiguienteAutogestion, ensureHasLock, resetAssignmentLock } from "@lib/disponibilidad";
+import {
+  asignarSiguienteAutogestion,
+  ensureHasLock,
+  resetAssignmentLock,
+} from "@lib/disponibilidad";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 

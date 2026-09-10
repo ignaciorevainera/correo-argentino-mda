@@ -10,23 +10,26 @@ export const GET: APIRoute = async ({ url }) => {
     if (!weekendStartDate) {
       return new Response(
         JSON.stringify({ error: "weekendStartDate is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
     const res = await db
       .select()
       .from(weekendOvertimeShifts)
       .where(eq(weekendOvertimeShifts.weekendStartDate, weekendStartDate));
-    return new Response(
-      JSON.stringify(res),
-      { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store, no-cache, must-revalidate" } }
-    );
+    return new Response(JSON.stringify(res), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error("GET overtime shifts API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };
 
@@ -37,11 +40,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (denied) return denied;
 
   try {
-    const { id, weekendStartDate, agentId, date, startTime, endTime } = await request.json();
+    const { id, weekendStartDate, agentId, date, startTime, endTime } =
+      await request.json();
     if (!weekendStartDate || !agentId || !date || !startTime || !endTime) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
     if (id) {
@@ -54,16 +58,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .insert(weekendOvertimeShifts)
         .values({ weekendStartDate, agentId, date, startTime, endTime });
     }
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("POST overtime shifts API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };
 
@@ -86,22 +90,24 @@ export const DELETE: APIRoute = async ({ url, request, locals }) => {
       }
     }
     if (!id) {
-      return new Response(
-        JSON.stringify({ error: "id is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "id is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-    await db.delete(weekendOvertimeShifts).where(eq(weekendOvertimeShifts.id, id));
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    await db
+      .delete(weekendOvertimeShifts)
+      .where(eq(weekendOvertimeShifts.id, id));
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("DELETE overtime shifts API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };
 
@@ -115,22 +121,22 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     if (!id || !agentId || !date || !startTime || !endTime) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
     await db
       .update(weekendOvertimeShifts)
       .set({ agentId, date, startTime, endTime })
       .where(eq(weekendOvertimeShifts.id, id));
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("PUT overtime shifts API Error:", error);
-    return new Response(
-      JSON.stringify({ error: sanitizeError(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: sanitizeError(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };

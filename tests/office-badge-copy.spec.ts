@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Office badge copy behavior", () => {
-  test("clicking the chevron button toggles the row detail", async ({ page }) => {
+  test("clicking the chevron button toggles the row detail", async ({
+    page,
+  }) => {
     await page.goto("/oficinas");
     await page.waitForSelector("[data-master-detail-sort-item]");
 
@@ -24,12 +26,16 @@ test.describe("Office badge copy behavior", () => {
     await expect(row).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("clicking the office code badge copies text, shows toast, and does not expand row", async ({ page }) => {
+  test("clicking the office code badge copies text, shows toast, and does not expand row", async ({
+    page,
+  }) => {
     await page.goto("/oficinas");
     await page.waitForSelector("[data-master-detail-sort-item]");
 
     // Find the first CopyButton inside an office master row
-    const badge = page.locator("[data-office-master-row] [data-copy-control]").first();
+    const badge = page
+      .locator("[data-office-master-row] [data-copy-control]")
+      .first();
     await expect(badge).toBeVisible();
 
     // Get the parent row for verifying toggle state
@@ -41,7 +47,9 @@ test.describe("Office badge copy behavior", () => {
 
     // Verify toast notification appears with the copied NIS message
     const toastContainer = page.locator("#global-toast-container");
-    await expect(toastContainer).toContainText(/NIS .+ copiado al portapapeles/);
+    await expect(toastContainer).toContainText(
+      /NIS .+ copiado al portapapeles/,
+    );
 
     // Verify row was NOT toggled (aria-expanded unchanged)
     const rowAriaExpandedAfter = await row.getAttribute("aria-expanded");

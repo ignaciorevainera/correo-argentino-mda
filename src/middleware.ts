@@ -42,7 +42,9 @@ function applyRateLimit(
     const result = checkRateLimit(key, RATE_LIMITS.login);
     if (!result.ok) {
       return redirect(
-        resolveUrl(`/login?toast_msg=${encodeURIComponent("Demasiados intentos. Probá en unos minutos.")}&toast_type=error`),
+        resolveUrl(
+          `/login?toast_msg=${encodeURIComponent("Demasiados intentos. Probá en unos minutos.")}&toast_type=error`,
+        ),
       );
     }
     return null;
@@ -50,13 +52,19 @@ function applyRateLimit(
 
   if (relativePath.startsWith("/api/")) {
     const isWrite = isWriteMethod(method);
-    const identifier = locals.user.id > 0 ? `u:${locals.user.id}` : `ip:${clientAddress ?? "unknown"}`;
+    const identifier =
+      locals.user.id > 0
+        ? `u:${locals.user.id}`
+        : `ip:${clientAddress ?? "unknown"}`;
 
     if (isWrite && relativePath === "/api/cronograma/import") {
       const uploadKey = `upload:${identifier}:${relativePath}`;
       const uploadResult = checkRateLimit(uploadKey, RATE_LIMITS.upload);
       if (!uploadResult.ok) {
-        return tooManyRequests("Demasiadas importaciones. Probá más tarde.", uploadResult.retryAfter);
+        return tooManyRequests(
+          "Demasiadas importaciones. Probá más tarde.",
+          uploadResult.retryAfter,
+        );
       }
     }
 
@@ -64,7 +72,10 @@ function applyRateLimit(
     const profile = isWrite ? RATE_LIMITS.apiWrite : RATE_LIMITS.apiRead;
     const result = checkRateLimit(key, profile);
     if (!result.ok) {
-      return tooManyRequests("Demasiadas solicitudes. Probá más tarde.", result.retryAfter);
+      return tooManyRequests(
+        "Demasiadas solicitudes. Probá más tarde.",
+        result.retryAfter,
+      );
     }
   }
 
@@ -77,7 +88,7 @@ function setSecurityHeaders(response: Response): Response {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Strict-Transport-Security",
-    "max-age=63072000; includeSubDomains; preload"
+    "max-age=63072000; includeSubDomains; preload",
   );
   response.headers.set(
     "Content-Security-Policy",
@@ -91,7 +102,7 @@ function setSecurityHeaders(response: Response): Response {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-    ].join("; ")
+    ].join("; "),
   );
   return response;
 }
@@ -104,10 +115,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const getRelativePath = (pathname: string) => {
     if (pathname.startsWith(cleanBase)) {
-      return '/' + pathname.slice(cleanBase.length);
+      return "/" + pathname.slice(cleanBase.length);
     }
     if (pathname === cleanBase.slice(0, -1)) {
-      return '/';
+      return "/";
     }
     return pathname;
   };
@@ -129,7 +140,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (sessionId) {
     const [session] = await db
-      .select({ id: sessions.id, userId: sessions.userId, expiresAt: sessions.expiresAt })
+      .select({
+        id: sessions.id,
+        userId: sessions.userId,
+        expiresAt: sessions.expiresAt,
+      })
       .from(sessions)
       .where(eq(sessions.id, sessionId));
 
@@ -148,13 +163,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
         await db.delete(sessions).where(eq(sessions.id, sessionId));
       }
       if (relativePath !== "/login") {
-        return redirect(resolveUrl(`/login?toast_msg=${encodeURIComponent("Tu sesión ha expirado")}&toast_type=warning`));
+        return redirect(
+          resolveUrl(
+            `/login?toast_msg=${encodeURIComponent("Tu sesión ha expirado")}&toast_type=warning`,
+          ),
+        );
       }
     }
   } else if (signedSessionId) {
     deleteSessionCookie(cookies);
     if (relativePath !== "/login") {
-      return redirect(resolveUrl(`/login?toast_msg=${encodeURIComponent("Sesión inválida")}&toast_type=error`));
+      return redirect(
+        resolveUrl(
+          `/login?toast_msg=${encodeURIComponent("Sesión inválida")}&toast_type=error`,
+        ),
+      );
     }
   }
 
@@ -183,8 +206,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Redirigir si no está autenticado e intenta acceder a supervisión o admin (insensible a mayúsculas/minúsculas)
   if (
-    lowerPath === "/supervision" || lowerPath.startsWith("/supervision/") ||
-    lowerPath === "/admin" || lowerPath.startsWith("/admin/")
+    lowerPath === "/supervision" ||
+    lowerPath.startsWith("/supervision/") ||
+    lowerPath === "/admin" ||
+    lowerPath.startsWith("/admin/")
   ) {
     if (currentUser.id === 0) {
       return redirect(resolveUrl("/login"));
@@ -200,7 +225,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!hasPermission(relativePath, role)) {
     if (currentUser.id !== 0) {
-      return redirect(resolveUrl(`/?toast_msg=${encodeURIComponent("Acceso no autorizado")}&toast_type=error`));
+      return redirect(
+        resolveUrl(
+          `/?toast_msg=${encodeURIComponent("Acceso no autorizado")}&toast_type=error`,
+        ),
+      );
     }
     return redirect(resolveUrl("/login"));
   }

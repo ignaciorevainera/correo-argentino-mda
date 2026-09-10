@@ -30,11 +30,7 @@ export const GET: APIRoute = async ({ url }) => {
         totalMembers: g.total,
       }));
 
-    return jsonResponse(
-      { groups: filtered },
-      200,
-      "private, max-age=60",
-    );
+    return jsonResponse({ groups: filtered }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("[InvGate Group Search] Error:", error);
     return jsonResponse({ error: sanitizeError(error) }, 500);

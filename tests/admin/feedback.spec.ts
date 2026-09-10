@@ -4,10 +4,13 @@ import { users, sessions, feedback, auditLogs } from "../../src/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { createHmac } from "crypto";
 
-const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
+const SECRET_KEY =
+  process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
 
 function signSessionId(sessionId: string): string {
-  const signature = createHmac("sha256", SECRET_KEY).update(sessionId).digest("base64url");
+  const signature = createHmac("sha256", SECRET_KEY)
+    .update(sessionId)
+    .digest("base64url");
   return `${sessionId}.${signature}`;
 }
 
@@ -28,11 +31,14 @@ test.beforeAll(async () => {
   const adminSessionId = `session-admin-${Date.now()}`;
   const signedAdminSession = signSessionId(adminSessionId);
 
-  const [newAdmin] = await db.insert(users).values({
-    username: adminUsername,
-    password: "hashed_fake_password",
-    role: "admin",
-  }).returning({ id: users.id });
+  const [newAdmin] = await db
+    .insert(users)
+    .values({
+      username: adminUsername,
+      password: "hashed_fake_password",
+      role: "admin",
+    })
+    .returning({ id: users.id });
 
   await db.insert(sessions).values({
     id: adminSessionId,
@@ -53,11 +59,14 @@ test.beforeAll(async () => {
   const agentSessionId = `session-agent-${Date.now()}`;
   const signedAgentSession = signSessionId(agentSessionId);
 
-  const [newAgent] = await db.insert(users).values({
-    username: agentUsername,
-    password: "hashed_fake_password",
-    role: "agent",
-  }).returning({ id: users.id });
+  const [newAgent] = await db
+    .insert(users)
+    .values({
+      username: agentUsername,
+      password: "hashed_fake_password",
+      role: "agent",
+    })
+    .returning({ id: users.id });
 
   await db.insert(sessions).values({
     id: agentSessionId,
@@ -85,24 +94,32 @@ test.afterAll(async () => {
 });
 
 test.describe("Feedback and Bug Reporting System", () => {
-  test("Agent should be able to submit a suggestion and an admin should be able to view and manage it", async ({ page, context }) => {
-    page.on('console', msg => console.log(`BROWSER CONSOLE: ${msg.text()}`));
-    page.on('pageerror', err => console.log(`BROWSER EXCEPTION: ${err.message}`));
-    page.on('response', res => {
-      if (res.status() >= 400) console.log(`HTTP ERROR ${res.status()}: ${res.url()}`);
+  test("Agent should be able to submit a suggestion and an admin should be able to view and manage it", async ({
+    page,
+    context,
+  }) => {
+    page.on("console", (msg) => console.log(`BROWSER CONSOLE: ${msg.text()}`));
+    page.on("pageerror", (err) =>
+      console.log(`BROWSER EXCEPTION: ${err.message}`),
+    );
+    page.on("response", (res) => {
+      if (res.status() >= 400)
+        console.log(`HTTP ERROR ${res.status()}: ${res.url()}`);
     });
 
     // 1. Iniciar sesión como Agente
-    await context.addCookies([{
-      name: "session_id",
-      value: agentUser.signedSessionId,
-      domain: "localhost",
-      path: "/",
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: agentUser.signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
 
     // 2. Cargar página principal
     await page.goto("/");
-    
+
     // 3. Abrir el modal de feedback
     const openModalBtn = page.locator("[data-open-feedback-modal]").first();
     await expect(openModalBtn).toBeVisible();
@@ -114,7 +131,10 @@ test.describe("Feedback and Bug Reporting System", () => {
     // 4. Rellenar formulario de sugerencia
     await page.fill("#sug-asunto", "Sugerencia E2E de prueba");
     await page.selectOption("#sug-categoria", "oficinas");
-    await page.fill("#sug-mensaje", "Propuesta de mejora para buscador de oficinas E2E.");
+    await page.fill(
+      "#sug-mensaje",
+      "Propuesta de mejora para buscador de oficinas E2E.",
+    );
 
     // 5. Enviar el formulario
     const submitBtn = page.locator('#suggestion-form button[type="submit"]');
@@ -127,16 +147,20 @@ test.describe("Feedback and Bug Reporting System", () => {
 
     // 7. Cambiar sesión a Administrador
     await context.clearCookies();
-    await context.addCookies([{
-      name: "session_id",
-      value: adminUser.signedSessionId,
-      domain: "localhost",
-      path: "/",
-    }]);
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: adminUser.signedSessionId,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
 
     // 8. Ir a la página de feedback del admin
     await page.goto("/admin/feedback");
-    await expect(page.locator("main h1")).toContainText("Sugerencias y Reportes");
+    await expect(page.locator("main h1")).toContainText(
+      "Sugerencias y Reportes",
+    );
 
     // 9. Verificar que aparezca la sugerencia enviada por el agente
     const firstRow = page.locator("[data-table-row]").first();
@@ -150,9 +174,15 @@ test.describe("Feedback and Bug Reporting System", () => {
 
     const detailsModal = page.locator("#modal-details");
     await expect(detailsModal).toBeVisible();
-    await expect(page.locator("#detail-subject")).toContainText("Sugerencia E2E de prueba");
-    await expect(page.locator("#detail-description")).toContainText("Propuesta de mejora para buscador de oficinas E2E.");
-    await expect(page.locator("#detail-assigned-to")).toContainText("Sin asignar");
+    await expect(page.locator("#detail-subject")).toContainText(
+      "Sugerencia E2E de prueba",
+    );
+    await expect(page.locator("#detail-description")).toContainText(
+      "Propuesta de mejora para buscador de oficinas E2E.",
+    );
+    await expect(page.locator("#detail-assigned-to")).toContainText(
+      "Sin asignar",
+    );
 
     // Asignarse el caso
     const assignBtn = page.locator("#btn-assign-self");
@@ -169,14 +199,16 @@ test.describe("Feedback and Bug Reporting System", () => {
     // Volver a abrir detalles para verificar que se muestra asignado y se puede liberar
     await detailsBtn.click();
     await expect(detailsModal).toBeVisible();
-    await expect(page.locator("#detail-assigned-to")).toContainText(adminUser.username);
+    await expect(page.locator("#detail-assigned-to")).toContainText(
+      adminUser.username,
+    );
 
     const unassignBtn = page.locator("#btn-unassign-self");
     await expect(unassignBtn).toBeVisible();
     await expect(assignBtn).not.toBeVisible();
 
     // Cerrar el modal usando el botón X
-    await page.locator('#modal-details button.btn-circle').click();
+    await page.locator("#modal-details button.btn-circle").click();
     await expect(detailsModal).not.toBeVisible();
 
     // Volver a abrir detalles para cambiar el estado a "En Revisión"
@@ -186,13 +218,13 @@ test.describe("Feedback and Bug Reporting System", () => {
     // 11. Cambiar estado a "En Revisión"
     const statusBtn = page.locator('[data-status-btn="en_revision"]');
     await statusBtn.click();
-    
+
     // 12. Verificar actualización
     await expect(toast).toContainText("Estado actualizado con éxito");
     await expect(detailsModal).not.toBeVisible();
 
     // Verificar que el estado cambió en la tabla
-    const statusBadge = firstRow.locator('.badge', { hasText: 'En Revisión' });
+    const statusBadge = firstRow.locator(".badge", { hasText: "En Revisión" });
     await expect(statusBadge).toBeVisible();
   });
 });

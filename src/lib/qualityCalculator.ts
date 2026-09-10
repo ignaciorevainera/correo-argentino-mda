@@ -1,11 +1,10 @@
 import { QUALITY_CONFIG } from "@config/quality";
 import type { AuditParameter } from "@/types/quality";
 
-
 export function calculateAuditScores(
   parameters: AuditParameter[],
   checkedParameterIdsOrCodes: Set<number | string>,
-  isCriticalFailure: boolean
+  isCriticalFailure: boolean,
 ) {
   let s1CheckedWeight = 0;
   let s1TotalWeight = 0;
@@ -14,8 +13,8 @@ export function calculateAuditScores(
 
   for (const param of parameters) {
     // Check if either parameter ID (number or string representation) or code is selected
-    const isChecked = 
-      checkedParameterIdsOrCodes.has(param.id) || 
+    const isChecked =
+      checkedParameterIdsOrCodes.has(param.id) ||
       checkedParameterIdsOrCodes.has(String(param.id)) ||
       checkedParameterIdsOrCodes.has(param.code);
 
@@ -28,15 +27,22 @@ export function calculateAuditScores(
     }
   }
 
-  const section1Score = s1TotalWeight > 0 ? Math.round((s1CheckedWeight / s1TotalWeight) * 100) : 0;
-  const section2Score = s2TotalWeight > 0 ? Math.round((s2CheckedWeight / s2TotalWeight) * 100) : 0;
-  
-  const s1Weight = QUALITY_CONFIG.sectionWeights["Interacción con Usuario"] ?? 0.5;
+  const section1Score =
+    s1TotalWeight > 0 ? Math.round((s1CheckedWeight / s1TotalWeight) * 100) : 0;
+  const section2Score =
+    s2TotalWeight > 0 ? Math.round((s2CheckedWeight / s2TotalWeight) * 100) : 0;
+
+  const s1Weight =
+    QUALITY_CONFIG.sectionWeights["Interacción con Usuario"] ?? 0.5;
   const s2Weight = QUALITY_CONFIG.sectionWeights["Gestión del Ticket"] ?? 0.5;
-  let totalScore = Math.round(section1Score * s1Weight + section2Score * s2Weight);
+  let totalScore = Math.round(
+    section1Score * s1Weight + section2Score * s2Weight,
+  );
 
   if (isCriticalFailure) {
-    totalScore = Math.round(totalScore * QUALITY_CONFIG.criticalFailurePenaltyMultiplier);
+    totalScore = Math.round(
+      totalScore * QUALITY_CONFIG.criticalFailurePenaltyMultiplier,
+    );
   }
 
   return {

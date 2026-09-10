@@ -9,25 +9,36 @@ function getEnv(key: string): string {
   return process.env[key] || "";
 }
 
-export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promise<InvgateResult<T>> {
+type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+
+async function invgateRequest<T>(
+  method: HttpMethod,
+  endpoint: string,
+  body?: unknown,
+  timeoutMs = 15000,
+): Promise<InvgateResult<T>> {
   const apiKey = getEnv("INVGATE_API_KEY");
   const baseUrl = getEnv("INVGATE_BASE_URL");
   const rawUsername = getEnv("INVGATE_API_USERNAME");
 
   if (!apiKey) {
-    throw new Error("[InvGate] Variable de entorno INVGATE_API_KEY no definida.");
+    throw new Error(
+      "[InvGate] Variable de entorno INVGATE_API_KEY no definida.",
+    );
   }
 
   if (!baseUrl) {
-    throw new Error("[InvGate] Variable de entorno INVGATE_BASE_URL no definida.");
+    throw new Error(
+      "[InvGate] Variable de entorno INVGATE_BASE_URL no definida.",
+    );
   }
 
   const apiUsername = rawUsername || "portalmda";
 
   const credentials = btoa(apiUsername + ":" + apiKey);
 
-  const headers = {
-    "Authorization": `Basic ${credentials}`,
+  const headers: Record<string, string> = {
+    Authorization: `Basic ${credentials}`,
     "Content-Type": "application/json",
   };
 
@@ -38,11 +49,17 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
+    const init: RequestInit = {
+      method,
       headers,
       signal: controller.signal,
-    });
+    };
+
+    if (body !== undefined && method !== "GET") {
+      init.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, init);
 
     lastStatus = response.status;
 
@@ -62,7 +79,8 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
       data,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
+    const message =
+      error instanceof Error ? error.message : "Error desconocido";
     return {
       ok: false,
       status: lastStatus,
@@ -71,4 +89,34 @@ export async function invgateGet<T>(endpoint: string, timeoutMs = 15000): Promis
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function invgateGet<T>(
+  endpoint: string,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
+  return invgateRequest<T>("GET", endpoint, undefined, timeoutMs);
+}
+
+export async function invgatePost<T>(
+  endpoint: string,
+  body: unknown,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
+  return invgateRequest<T>("POST", endpoint, body, timeoutMs);
+}
+
+export async function invgatePut<T>(
+  endpoint: string,
+  body: unknown,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
+  return invgateRequest<T>("PUT", endpoint, body, timeoutMs);
+}
+
+export async function invgateDelete<T>(
+  endpoint: string,
+  timeoutMs?: number,
+): Promise<InvgateResult<T>> {
+  return invgateRequest<T>("DELETE", endpoint, undefined, timeoutMs);
 }

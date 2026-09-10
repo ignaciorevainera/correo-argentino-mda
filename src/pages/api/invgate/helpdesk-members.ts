@@ -8,11 +8,15 @@ export const GET: APIRoute = async ({ url }) => {
   const invgateId = invgateIdRaw ? Number(invgateIdRaw) : NaN;
 
   if (!invgateIdRaw || isNaN(invgateId)) {
-    return jsonResponse({ error: "invgate_id es requerido y debe ser un numero" }, 400);
+    return jsonResponse(
+      { error: "invgate_id es requerido y debe ser un numero" },
+      400,
+    );
   }
 
   try {
-    const result = await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
+    const result =
+      await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
 
     if (!result.ok) {
       return jsonResponse({ error: result.message }, result.status);
@@ -22,7 +26,9 @@ export const GET: APIRoute = async ({ url }) => {
 
     const helpdesk = all.find((h) => h.id === invgateId && !h.level_order);
 
-    const subLevels = all.filter((h) => h.parent_id === invgateId && h.level_order !== undefined);
+    const subLevels = all.filter(
+      (h) => h.parent_id === invgateId && h.level_order !== undefined,
+    );
 
     const memberIdSet = new Set<number>();
     if (helpdesk && helpdesk.members_ids) {

@@ -7,7 +7,9 @@ import { getAttendanceData } from "@lib/attendance";
 const cleanBase = getCleanBase();
 
 // Define current date string YYYY-MM-DD in Argentina timezone
-const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+const todayStr = new Date().toLocaleDateString("en-CA", {
+  timeZone: "America/Argentina/Buenos_Aires",
+});
 const [y, m, d] = todayStr.split("-");
 
 const urlDate = Astro.url.searchParams.get("date");
@@ -28,20 +30,20 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   window.__ATTENDANCE_INITIAL_DATA_DATE__ = defaultDate;
 </script>
 
-<div class="flex flex-col gap-6 w-full pb-24 animate-in fade-in duration-500">
+<div class="animate-in fade-in flex w-full flex-col gap-6 pb-24 duration-500">
   <!-- Filters bar -->
   <div
-    class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm relative z-50"
+    class="bg-base-100 border-base-300 relative z-50 flex flex-col justify-between gap-4 rounded-2xl border p-4 shadow-sm md:flex-row md:items-center"
   >
     <!-- Date Selector -->
     <div class="flex items-center gap-3">
       <div
-        class="relative flex items-center gap-2 bg-base-200/50 px-4 py-2 rounded-xl border border-base-300 hover:border-secondary/40 transition-colors duration-200 focus-within:ring-2 focus-within:ring-secondary/20"
+        class="bg-base-200/50 border-base-300 hover:border-secondary/40 focus-within:ring-secondary/20 relative flex items-center gap-2 rounded-xl border px-4 py-2 transition-colors duration-200 focus-within:ring-2"
       >
         <Icon name="boxicons:calendar" size={18} class="text-base-content/40" />
         <span
           id="date-display"
-          class="text-sm font-semibold tabular-nums text-base-content pointer-events-none"
+          class="text-base-content pointer-events-none text-sm font-semibold tabular-nums"
         >
           {formattedDefaultDate}
         </span>
@@ -54,48 +56,100 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         />
       </div>
       <span
-        class="text-xs text-base-content/50 uppercase font-black tracking-wider"
+        class="text-base-content/50 text-xs font-black tracking-wider uppercase"
         id="day-of-week-label"></span>
     </div>
 
     <!-- Search, Sort and Export Actions -->
-    <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-      <SearchBar id="operator-search" placeholder="Buscar operador..." class="w-full sm:w-48" />
+    <div class="flex w-full flex-col items-center gap-3 sm:flex-row md:w-auto">
+      <SearchBar
+        id="operator-search"
+        placeholder="Buscar operador..."
+        class="w-full sm:w-48"
+      />
 
       <!-- Sort Dropdown -->
       <details class="dropdown dropdown-bottom dropdown-end w-full sm:w-auto">
-        <summary class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-4 flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto font-bold h-10 bg-base-100 shadow-sm list-none">
+        <summary
+          class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 bg-base-100 flex h-10 w-full list-none items-center justify-between gap-1.5 rounded-xl px-4 font-bold shadow-sm sm:w-auto sm:justify-start"
+        >
           <div class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <line x1="12" y1="20" x2="12" y2="10"></line>
               <line x1="18" y1="20" x2="18" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="16"></line>
             </svg>
             <span id="current-sort-label">Ordenar: Alfabético (A-Z)</span>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="ml-1 h-3.5 w-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><polyline points="6 9 12 15 18 9"></polyline></svg
+          >
         </summary>
-        <ul class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 gap-1 text-xs font-semibold normal-case tracking-normal mt-1" id="sort-menu">
-          <li><button type="button" data-sort="alpha-asc" class="active">Alfabético (A-Z)</button></li>
-          <li><button type="button" data-sort="alpha-desc">Alfabético (Z-A)</button></li>
-          <li class="pointer-events-none p-0"><div class="divider my-0 h-1"></div></li>
-          <li><button type="button" data-sort="sede-mg">Sede (MG → PP)</button></li>
-          <li><button type="button" data-sort="sede-pp">Sede (PP → MG)</button></li>
-          <li class="pointer-events-none p-0"><div class="divider my-0 h-1"></div></li>
-          <li><button type="button" data-sort="time-asc">Horario (Más temprano primero)</button></li>
-          <li><button type="button" data-sort="time-desc">Horario (Más tarde primero)</button></li>
+        <ul
+          class="dropdown-content menu bg-base-100 border-base-300 z-100 mt-1 w-60 gap-1 rounded-xl border p-2 text-xs font-semibold tracking-normal normal-case shadow-lg"
+          id="sort-menu"
+        >
+          <li>
+            <button type="button" data-sort="alpha-asc" class="active"
+              >Alfabético (A-Z)</button
+            >
+          </li>
+          <li>
+            <button type="button" data-sort="alpha-desc"
+              >Alfabético (Z-A)</button
+            >
+          </li>
+          <li class="pointer-events-none p-0">
+            <div class="divider my-0 h-1"></div>
+          </li>
+          <li>
+            <button type="button" data-sort="sede-mg">Sede (MG → PP)</button>
+          </li>
+          <li>
+            <button type="button" data-sort="sede-pp">Sede (PP → MG)</button>
+          </li>
+          <li class="pointer-events-none p-0">
+            <div class="divider my-0 h-1"></div>
+          </li>
+          <li>
+            <button type="button" data-sort="time-asc"
+              >Horario (Más temprano primero)</button
+            >
+          </li>
+          <li>
+            <button type="button" data-sort="time-desc"
+              >Horario (Más tarde primero)</button
+            >
+          </li>
         </ul>
       </details>
 
       <!-- Estadísticas -->
       <a
         href={`${cleanBase}supervision/asistencia/estadisticas`}
-        class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-3 w-10 h-10 flex items-center justify-center shrink-0"
+        class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl px-3"
         title="Ver estadísticas y reportes mensuales"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4 text-base-content/75"
+          class="text-base-content/75 h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -113,11 +167,11 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
       <button
         type="button"
         id="export-csv-btn"
-        class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 rounded-xl px-4 flex items-center gap-1.5 w-full sm:w-auto font-bold h-10"
+        class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 flex h-10 w-full items-center gap-1.5 rounded-xl px-4 font-bold sm:w-auto"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4 text-base-content/75"
+          class="text-base-content/75 h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -137,10 +191,24 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         type="button"
         id="clear-filters-btn"
         disabled
-        class="btn btn-ghost btn-sm rounded-xl px-3 flex items-center gap-1.5 hidden md:flex font-bold h-10 opacity-50 cursor-not-allowed text-base-content/60"
+        class="btn btn-ghost btn-sm text-base-content/60 flex hidden h-10 cursor-not-allowed items-center gap-1.5 rounded-xl px-3 font-bold opacity-50 md:flex"
         title="Limpiar filtros de cabecera"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><line x1="18" y1="6" x2="6" y2="18"></line><line
+            x1="6"
+            y1="6"
+            x2="18"
+            y2="18"></line></svg
+        >
         Limpiar Filtros
       </button>
     </div>
@@ -148,165 +216,422 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
   <!-- Main attendance table -->
   <div
-    class="bg-base-100 rounded-2xl border border-base-300 shadow-md overflow-hidden relative z-0"
+    class="bg-base-100 border-base-300 relative z-0 overflow-hidden rounded-2xl border shadow-md"
   >
-    <div class="overflow-x-auto min-h-[300px]">
+    <div class="min-h-75 overflow-x-auto">
       <table
-        class="w-full text-xs text-left border-collapse"
+        class="w-full border-collapse text-left text-xs"
         id="attendance-table"
       >
         <thead
-          class="bg-base-200/80 border-b border-base-300 font-bold uppercase tracking-wider text-base-content/60"
+          class="bg-base-200/80 border-base-300 text-base-content/60 border-b font-bold tracking-wider uppercase"
         >
           <tr>
-            <th class="py-3.5 px-4 w-[28%] min-w-[180px]">Operador</th>
-            <th class="py-3.5 px-3 w-[20%] min-w-[230px]">
+            <th class="w-[28%] min-w-45 px-4 py-3.5">Operador</th>
+            <th class="w-[20%] min-w-57.5 px-3 py-3.5">
               <div class="flex items-center gap-1">
                 Asistencia Real
                 <details class="dropdown dropdown-bottom">
-                  <summary class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  <summary
+                    class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content"
+                    title="Filtrar"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      ><polygon
+                        points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                      ></polygon></svg
+                    >
                   </summary>
-                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-64 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal mt-1">
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="all" checked />
+                  <div
+                    tabindex="0"
+                    class="dropdown-content bg-base-100 border-base-300 z-100 mt-1 flex w-64 flex-col gap-1 rounded-xl border p-2 text-xs font-normal tracking-normal normal-case shadow-lg"
+                  >
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="asistencia"
+                        value="all"
+                        checked
+                      />
                       <span>Todos</span>
                     </label>
                     <div class="divider my-0 h-1"></div>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="HOME OFFICE" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="asistencia"
+                        value="HOME OFFICE"
+                      />
                       <span>HOME OFFICE</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="PRESENCIAL MONTE GRANDE" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="asistencia"
+                        value="PRESENCIAL MONTE GRANDE"
+                      />
                       <span>PRESENCIAL MONTE GRANDE</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="PRESENCIAL PARQUE PATRICIOS" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="asistencia"
+                        value="PRESENCIAL PARQUE PATRICIOS"
+                      />
                       <span>PRESENCIAL PARQUE PATRICIOS</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="asistencia" value="HORAS EXTRAS" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="asistencia"
+                        value="HORAS EXTRAS"
+                      />
                       <span>HORAS EXTRAS</span>
                     </label>
                   </div>
                 </details>
               </div>
             </th>
-            <th class="py-3.5 px-3 w-[20%] min-w-[180px]">
+            <th class="w-[20%] min-w-45 px-3 py-3.5">
               <div class="flex items-center gap-1">
                 Ausencia / Eventualidad
                 <details class="dropdown dropdown-bottom">
-                  <summary class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  <summary
+                    class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content"
+                    title="Filtrar"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      ><polygon
+                        points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                      ></polygon></svg
+                    >
                   </summary>
-                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-60 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal max-h-64 overflow-y-auto mt-1">
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="all" checked />
+                  <div
+                    tabindex="0"
+                    class="dropdown-content bg-base-100 border-base-300 z-100 mt-1 flex max-h-64 w-60 flex-col gap-1 overflow-y-auto rounded-xl border p-2 text-xs font-normal tracking-normal normal-case shadow-lg"
+                  >
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="all"
+                        checked
+                      />
                       <span>Todos</span>
                     </label>
                     <div class="divider my-0 h-1"></div>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="SIN EVENTUALIDAD" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="SIN EVENTUALIDAD"
+                      />
                       <span>SIN EVENTUALIDAD</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Tramite" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Tramite"
+                      />
                       <span>Tramite</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Demorado" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Demorado"
+                      />
                       <span>Demorado</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Se reporta enfermo" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Se reporta enfermo"
+                      />
                       <span>Se reporta enfermo</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente Justificado" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Ausente Justificado"
+                      />
                       <span>Ausente Justificado</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente con Permiso" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Ausente con Permiso"
+                      />
                       <span>Ausente con Permiso</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausente No Justificado" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Ausente No Justificado"
+                      />
                       <span>Ausente No Justificado</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Ausencia sin aviso" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Ausencia sin aviso"
+                      />
                       <span>Ausencia sin aviso</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Estudio" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Estudio"
+                      />
                       <span>Lic. Estudio</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Medica" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Medica"
+                      />
                       <span>Lic. Medica</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Anual" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Anual"
+                      />
                       <span>Lic. Anual</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. UI" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. UI"
+                      />
                       <span>Lic. UI</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Gremial" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Gremial"
+                      />
                       <span>Lic. Gremial</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Paternidad" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Paternidad"
+                      />
                       <span>Lic. Paternidad</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Maternidad" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Maternidad"
+                      />
                       <span>Lic. Maternidad</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="Lic. Fallecimiento" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="Lic. Fallecimiento"
+                      />
                       <span>Lic. Fallecimiento</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="ausencia" value="ART" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="ausencia"
+                        value="ART"
+                      />
                       <span>ART</span>
                     </label>
                   </div>
                 </details>
               </div>
             </th>
-            <th class="py-3.5 px-3 w-[12%] min-w-[100px] text-center">Horario Estipulado</th>
-            <th class="py-3.5 px-3 w-[10%] min-w-[80px] text-center">Entrada Real</th>
-            <th class="py-3.5 px-3 w-[10%] min-w-[110px] text-center">
+            <th class="w-[12%] min-w-25 px-3 py-3.5 text-center"
+              >Horario Estipulado</th
+            >
+            <th class="w-[10%] min-w-20 px-3 py-3.5 text-center"
+              >Entrada Real</th
+            >
+            <th class="w-[10%] min-w-27.5 px-3 py-3.5 text-center">
               <div class="flex items-center justify-center gap-1">
                 Cumplimiento
                 <details class="dropdown dropdown-bottom dropdown-end">
-                  <summary class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content" title="Filtrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  <summary
+                    class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-base-content"
+                    title="Filtrar"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      ><polygon
+                        points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                      ></polygon></svg
+                    >
                   </summary>
-                  <div tabindex="0" class="dropdown-content z-[100] p-2 shadow-lg bg-base-100 rounded-xl w-52 border border-base-300 flex flex-col gap-1 text-xs font-normal normal-case tracking-normal mt-1 text-left">
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="all" checked />
+                  <div
+                    tabindex="0"
+                    class="dropdown-content bg-base-100 border-base-300 z-100 mt-1 flex w-52 flex-col gap-1 rounded-xl border p-2 text-left text-xs font-normal tracking-normal normal-case shadow-lg"
+                  >
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="cumplimiento"
+                        value="all"
+                        checked
+                      />
                       <span>Todos</span>
                     </label>
                     <div class="divider my-0 h-1"></div>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Cumplió" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="cumplimiento"
+                        value="Cumplió"
+                      />
                       <span>Cumplió</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Incumplió" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="cumplimiento"
+                        value="Incumplió"
+                      />
                       <span>Incumplió</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Llegada Tarde" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="cumplimiento"
+                        value="Llegada Tarde"
+                      />
                       <span>Llegada Tarde</span>
                     </label>
-                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-base-200 rounded-lg cursor-pointer">
-                      <input type="checkbox" class="checkbox checkbox-xs" data-filter-col="cumplimiento" value="Sin Registro" />
+                    <label
+                      class="hover:bg-base-200 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        class="checkbox checkbox-xs"
+                        data-filter-col="cumplimiento"
+                        value="Sin Registro"
+                      />
                       <span>Sin Registro</span>
                     </label>
                   </div>
@@ -315,9 +640,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             </th>
           </tr>
         </thead>
-        <tbody id="attendance-table-body" class="divide-y divide-base-200">
+        <tbody id="attendance-table-body" class="divide-base-200 divide-y">
           <tr>
-            <td colspan="6" class="py-12 text-center text-base-content/40">
+            <td colspan="6" class="text-base-content/40 py-12 text-center">
               <span class="loading loading-spinner loading-md"></span>
               <p class="mt-2 font-medium">Cargando registros...</p>
             </td>
@@ -331,13 +656,16 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 <!-- Floating Sync Status Bar -->
 <div
   id="sync-status-bar"
-  class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] border border-base-300 p-3.5 flex items-center justify-between gap-6 z-100 transition-all duration-300 translate-y-32 opacity-0 pointer-events-none w-[90%] max-w-md"
+  class="bg-base-100/95 border-base-300 pointer-events-none fixed bottom-6 left-1/2 z-100 flex w-[90%] max-w-md -translate-x-1/2 translate-y-32 items-center justify-between gap-6 rounded-2xl border p-3.5 opacity-0 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl transition-all duration-300"
 >
   <div class="flex items-center gap-3">
-    <div id="sync-status-icon" class="w-8 h-8 rounded-xl bg-base-200 flex items-center justify-center border border-base-300">
+    <div
+      id="sync-status-icon"
+      class="bg-base-200 border-base-300 flex h-8 w-8 items-center justify-center rounded-xl border"
+    >
     </div>
     <div>
-      <p id="sync-status-text" class="text-xs font-bold text-base-content">
+      <p id="sync-status-text" class="text-base-content text-xs font-bold">
         Sincronizado.
       </p>
     </div>
@@ -347,16 +675,19 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 <script>
   import { store } from "@lib/attendance-client/store";
   import { dom } from "@lib/attendance-client/dom";
-  import { fetchAttendanceData, triggerAutoSave } from "@lib/attendance-client/api";
+  import {
+    fetchAttendanceData,
+    triggerAutoSave,
+  } from "@lib/attendance-client/api";
   import { startSync, stopSync } from "@lib/attendance-client/sync";
-  import { 
-    getSpanishDayName, 
-    parseTimeRange, 
-    calculateCompliance, 
-    attendanceClasses, 
-    ausenciaClasses, 
-    complianceClasses, 
-    complianceLabels 
+  import {
+    getSpanishDayName,
+    parseTimeRange,
+    calculateCompliance,
+    attendanceClasses,
+    ausenciaClasses,
+    complianceClasses,
+    complianceLabels,
   } from "@lib/attendance-client/utils";
 
   let renderedData: any[] = [];
@@ -369,12 +700,16 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     }
   })();
 
-  const dateInput = document.getElementById("attendance-date") as HTMLInputElement;
+  const dateInput = document.getElementById(
+    "attendance-date",
+  ) as HTMLInputElement;
   const serverToday = dateInput.defaultValue || dateInput.value;
   const currentYear = parseInt(serverToday.substring(0, 4));
   const dateDisplay = document.getElementById("date-display");
   const dayOfWeekLabel = document.getElementById("day-of-week-label");
-  const searchInput = document.getElementById("operator-search") as HTMLInputElement;
+  const searchInput = document.getElementById(
+    "operator-search",
+  ) as HTMLInputElement;
   const exportCsvBtn = document.getElementById("export-csv-btn");
   const tableBody = document.getElementById("attendance-table-body");
 
@@ -446,7 +781,10 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     }
   }
 
-  function updateSelectColor(selectEl: HTMLSelectElement, field = "asistencia") {
+  function updateSelectColor(
+    selectEl: HTMLSelectElement,
+    field = "asistencia",
+  ) {
     const val = selectEl.value;
     const baseClass =
       "select select-bordered h-9 py-1 rounded-xl w-full font-semibold focus:outline-none focus:border-secondary bg-base-100 pr-9 text-small ";
@@ -463,32 +801,53 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
   function renderTable() {
     const query = searchInput?.value.toLowerCase().trim() || "";
-    
+
     const getActiveFilters = (col: string) => {
-      const checkboxes = document.querySelectorAll(`input[data-filter-col="${col}"]:not([value="all"]):checked`);
-      return Array.from(checkboxes).map(cb => (cb as HTMLInputElement).value);
+      const checkboxes = document.querySelectorAll(
+        `input[data-filter-col="${col}"]:not([value="all"]):checked`,
+      );
+      return Array.from(checkboxes).map((cb) => (cb as HTMLInputElement).value);
     };
 
-    const asisFilters = getActiveFilters('asistencia');
-    const ausFilters = getActiveFilters('ausencia');
-    const cumpFilters = getActiveFilters('cumplimiento');
+    const asisFilters = getActiveFilters("asistencia");
+    const ausFilters = getActiveFilters("ausencia");
+    const cumpFilters = getActiveFilters("cumplimiento");
 
-    const clearBtn = document.getElementById('clear-filters-btn') as HTMLButtonElement | null;
+    const clearBtn = document.getElementById(
+      "clear-filters-btn",
+    ) as HTMLButtonElement | null;
     if (clearBtn) {
-      const hasFilters = asisFilters.length > 0 || ausFilters.length > 0 || cumpFilters.length > 0;
+      const hasFilters =
+        asisFilters.length > 0 ||
+        ausFilters.length > 0 ||
+        cumpFilters.length > 0;
       if (hasFilters) {
         clearBtn.disabled = false;
-        clearBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'text-base-content/60');
-        clearBtn.classList.add('text-error', 'hover:bg-error/15', 'bg-error/5');
+        clearBtn.classList.remove(
+          "opacity-50",
+          "cursor-not-allowed",
+          "text-base-content/60",
+        );
+        clearBtn.classList.add("text-error", "hover:bg-error/15", "bg-error/5");
       } else {
         clearBtn.disabled = true;
-        clearBtn.classList.add('opacity-50', 'cursor-not-allowed', 'text-base-content/60');
-        clearBtn.classList.remove('text-error', 'hover:bg-error/15', 'bg-error/5');
+        clearBtn.classList.add(
+          "opacity-50",
+          "cursor-not-allowed",
+          "text-base-content/60",
+        );
+        clearBtn.classList.remove(
+          "text-error",
+          "hover:bg-error/15",
+          "bg-error/5",
+        );
       }
     }
 
     const filtered = store.getData().filter((op) => {
-      const matchesSearch = op.nombre.toLowerCase().includes(query) || (op.username && op.username.toLowerCase().includes(query));
+      const matchesSearch =
+        op.nombre.toLowerCase().includes(query) ||
+        (op.username && op.username.toLowerCase().includes(query));
       if (!matchesSearch) return false;
 
       const asistencia = op.asistencia;
@@ -556,14 +915,18 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     } else if (currentSort === "time-asc" || currentSort === "time-desc") {
       filtered.sort((a, b) => {
         const timeToMinutes = (timeStr: string) => {
-          if (!timeStr || timeStr === "-" || timeStr.toLowerCase() === "franco") return 9999;
-          const match = timeStr.toLowerCase().replace(/\s+/g, "").match(/^(\d{1,2})(?::(\d{2}))?/);
+          if (!timeStr || timeStr === "-" || timeStr.toLowerCase() === "franco")
+            return 9999;
+          const match = timeStr
+            .toLowerCase()
+            .replace(/\s+/g, "")
+            .match(/^(\d{1,2})(?::(\d{2}))?/);
           if (!match) return 9999;
           return parseInt(match[1]) * 60 + (match[2] ? parseInt(match[2]) : 0);
         };
         const minA = timeToMinutes(a.horarioEstipulado);
         const minB = timeToMinutes(b.horarioEstipulado);
-        
+
         if (minA !== minB) {
           return currentSort === "time-asc" ? minA - minB : minB - minA;
         }
@@ -646,7 +1009,9 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
           }
 
           const isOvertime = op.shiftType === "overtime";
-          const selectAsisOpts = isOvertime ? ["HORAS EXTRAS"] : asistenciaOptions;
+          const selectAsisOpts = isOvertime
+            ? ["HORAS EXTRAS"]
+            : asistenciaOptions;
           const asisVal = isOvertime ? "HORAS EXTRAS" : asistencia;
           const isAsisSelectDisabled = isLocked || isOvertime ? "disabled" : "";
 
@@ -718,11 +1083,14 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
             </td>
 
             <td class="py-3 px-3 text-center">
-              ${isLocked ? `
+              ${
+                isLocked
+                  ? `
                 <span class="horario-locked-display px-2.5 py-1 bg-base-200 text-base-content/75 rounded-md font-mono text-xs border border-base-300 font-semibold select-none whitespace-nowrap">
                   ${op.horarioEstipulado || "Franco"}
                 </span>
-              ` : `
+              `
+                  : `
                 <div class="horario-wrapper inline-flex items-center">
                   <span class="horario-display cursor-pointer px-2.5 py-1 bg-base-200 text-base-content/75 rounded-md font-mono text-xs border border-base-300 font-semibold whitespace-nowrap">
                     ${op.horarioEstipulado || "Franco"}
@@ -731,7 +1099,8 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
                     class="horario-edit hidden input input-bordered input-sm rounded-xl bg-base-100 text-center text-xs w-[115px] max-w-full font-mono"
                     value="${op.horarioEstipulado || ""}" data-field="horarioEstipulado" />
                 </div>
-              `}
+              `
+              }
             </td>
 
             <td class="py-3 px-3 text-center">
@@ -807,16 +1176,32 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
       const op = store.getRecord(rowId);
       if (!op) return;
 
-      const detailsRow = document.getElementById(`details-row-${rowId}`) as HTMLElement;
-      const toggleRowBtn = htmlRow.querySelector(".toggle-row-btn") as HTMLElement;
+      const detailsRow = document.getElementById(
+        `details-row-${rowId}`,
+      ) as HTMLElement;
+      const toggleRowBtn = htmlRow.querySelector(
+        ".toggle-row-btn",
+      ) as HTMLElement;
 
-      const selectAsistencia = htmlRow.querySelector('[data-field="asistencia"]') as HTMLSelectElement;
-      const selectAusencia = htmlRow.querySelector('[data-field="ausencia"]') as HTMLSelectElement;
-      const inputEntrada = htmlRow.querySelector('[data-field="entradaReal"]') as HTMLInputElement;
-      const selectCumplimiento = htmlRow.querySelector('[data-field="cumplimiento"]') as HTMLSelectElement;
+      const selectAsistencia = htmlRow.querySelector(
+        '[data-field="asistencia"]',
+      ) as HTMLSelectElement;
+      const selectAusencia = htmlRow.querySelector(
+        '[data-field="ausencia"]',
+      ) as HTMLSelectElement;
+      const inputEntrada = htmlRow.querySelector(
+        '[data-field="entradaReal"]',
+      ) as HTMLInputElement;
+      const selectCumplimiento = htmlRow.querySelector(
+        '[data-field="cumplimiento"]',
+      ) as HTMLSelectElement;
 
-      const inputMotivo = detailsRow.querySelector('[data-field="motivoLoguin"]') as HTMLInputElement;
-      const inputDetalle = detailsRow.querySelector('[data-field="detalle"]') as HTMLTextAreaElement;
+      const inputMotivo = detailsRow.querySelector(
+        '[data-field="motivoLoguin"]',
+      ) as HTMLInputElement;
+      const inputDetalle = detailsRow.querySelector(
+        '[data-field="detalle"]',
+      ) as HTMLTextAreaElement;
 
       const toggleDetails = () => {
         const isHidden = detailsRow.classList.contains("hidden");
@@ -875,24 +1260,32 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         handleEdit("detalle", target.value);
       });
 
-      const horarioDisplay = htmlRow.querySelector('.horario-display') as HTMLElement;
-      const horarioEdit = htmlRow.querySelector('.horario-edit') as HTMLInputElement;
+      const horarioDisplay = htmlRow.querySelector(
+        ".horario-display",
+      ) as HTMLElement;
+      const horarioEdit = htmlRow.querySelector(
+        ".horario-edit",
+      ) as HTMLInputElement;
 
       if (horarioDisplay && horarioEdit) {
-        horarioDisplay.addEventListener('click', (e) => {
+        horarioDisplay.addEventListener("click", (e) => {
           e.stopPropagation();
-          horarioDisplay.classList.add('hidden');
-          horarioEdit.classList.remove('hidden');
+          horarioDisplay.classList.add("hidden");
+          horarioEdit.classList.remove("hidden");
           horarioEdit.focus();
         });
 
-        horarioEdit.addEventListener('input', () => {
+        horarioEdit.addEventListener("input", () => {
           const clean = horarioEdit.value.replace(/\s+/g, "");
-          const isValid = /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
-          horarioEdit.classList.toggle('input-error', !isValid && horarioEdit.value.trim() !== '');
+          const isValid =
+            /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
+          horarioEdit.classList.toggle(
+            "input-error",
+            !isValid && horarioEdit.value.trim() !== "",
+          );
         });
 
-        horarioEdit.addEventListener('blur', () => {
+        horarioEdit.addEventListener("blur", () => {
           const formatted = autoFormatHorario(horarioEdit.value);
           if (formatted !== horarioEdit.value) {
             horarioEdit.value = formatted;
@@ -901,25 +1294,26 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
           horarioDisplay.textContent = formatted || "Franco";
 
           const clean = formatted.replace(/\s+/g, "");
-          const isValid = /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
-          const isInvalid = !isValid && formatted !== '';
-          horarioDisplay.classList.toggle('bg-error/15', isInvalid);
-          horarioDisplay.classList.toggle('text-error', isInvalid);
-          horarioDisplay.classList.toggle('border-error/30', isInvalid);
-          horarioDisplay.classList.toggle('bg-base-200', !isInvalid);
-          horarioDisplay.classList.toggle('text-base-content/75', !isInvalid);
-          horarioDisplay.classList.toggle('border-base-300', !isInvalid);
-          horarioDisplay.classList.toggle('font-bold', true);
+          const isValid =
+            /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
+          const isInvalid = !isValid && formatted !== "";
+          horarioDisplay.classList.toggle("bg-error/15", isInvalid);
+          horarioDisplay.classList.toggle("text-error", isInvalid);
+          horarioDisplay.classList.toggle("border-error/30", isInvalid);
+          horarioDisplay.classList.toggle("bg-base-200", !isInvalid);
+          horarioDisplay.classList.toggle("text-base-content/75", !isInvalid);
+          horarioDisplay.classList.toggle("border-base-300", !isInvalid);
+          horarioDisplay.classList.toggle("font-bold", true);
 
-          horarioEdit.classList.add('hidden');
-          horarioDisplay.classList.remove('hidden');
+          horarioEdit.classList.add("hidden");
+          horarioDisplay.classList.remove("hidden");
         });
 
-        horarioEdit.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
+        horarioEdit.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
             e.preventDefault();
             horarioEdit.blur();
-          } else if (e.key === 'Escape') {
+          } else if (e.key === "Escape") {
             e.preventDefault();
             const original = store.getRecord(rowId)?.horarioEstipulado || "";
             horarioEdit.value = original;
@@ -929,12 +1323,23 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
         // Aplicar estilo de error si el valor cargado ya es inválido
         const initClean = (horarioEdit.value || "").replace(/\s+/g, "");
-        const initValid = /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(initClean);
+        const initValid =
+          /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(
+            initClean,
+          );
         const initFranco = initClean.toLowerCase() === "franco";
-        const initBad = !initValid && initClean !== '' && !initFranco;
+        const initBad = !initValid && initClean !== "" && !initFranco;
         if (initBad) {
-          horarioDisplay.classList.add('bg-error/15', 'text-error', 'border-error/30');
-          horarioDisplay.classList.remove('bg-base-200', 'text-base-content/75', 'border-base-300');
+          horarioDisplay.classList.add(
+            "bg-error/15",
+            "text-error",
+            "border-error/30",
+          );
+          horarioDisplay.classList.remove(
+            "bg-base-200",
+            "text-base-content/75",
+            "border-base-300",
+          );
         }
       }
 
@@ -954,15 +1359,20 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
       });
     });
 
-    document.querySelectorAll('.horario-locked-display').forEach((span) => {
+    document.querySelectorAll(".horario-locked-display").forEach((span) => {
       const txt = (span.textContent || "").trim();
       const clean = txt.replace(/\s+/g, "");
-      const valid = /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
+      const valid =
+        /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
       const isFranco = clean.toLowerCase() === "franco";
-      const bad = !valid && clean !== '' && !isFranco;
+      const bad = !valid && clean !== "" && !isFranco;
       if (bad) {
-        span.classList.add('bg-error/15', 'text-error', 'border-error/30');
-        span.classList.remove('bg-base-200', 'text-base-content/75', 'border-base-300');
+        span.classList.add("bg-error/15", "text-error", "border-error/30");
+        span.classList.remove(
+          "bg-base-200",
+          "text-base-content/75",
+          "border-base-300",
+        );
       }
     });
   }
@@ -972,7 +1382,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
     if (!s) return "";
 
     const digits = s.match(
-      /(\d{1,2})\s*[.:]?\s*(\d{0,2})\D+(\d{1,2})\s*[.:]?\s*(\d{0,2})/
+      /(\d{1,2})\s*[.:]?\s*(\d{0,2})\D+(\d{1,2})\s*[.:]?\s*(\d{0,2})/,
     );
     if (!digits) return s;
 
@@ -1015,46 +1425,49 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   });
 
   tableBody?.querySelectorAll(".toggle-row-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const target = e.currentTarget as HTMLButtonElement;
-        const rowId = target.dataset.rowId;
-        const detailsRow = document.getElementById(`details-row-${rowId}`);
-        const icon = target.querySelector("svg");
+    btn.addEventListener("click", (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      const rowId = target.dataset.rowId;
+      const detailsRow = document.getElementById(`details-row-${rowId}`);
+      const icon = target.querySelector("svg");
 
-        if (detailsRow) {
-          detailsRow.classList.toggle("hidden");
-          target.classList.toggle("bg-base-200");
-          if (icon) {
-            if (detailsRow.classList.contains("hidden")) {
-              icon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
-            } else {
-              icon.innerHTML =
-                '<polyline points="18 15 12 9 6 15"></polyline>';
-            }
+      if (detailsRow) {
+        detailsRow.classList.toggle("hidden");
+        target.classList.toggle("bg-base-200");
+        if (icon) {
+          if (detailsRow.classList.contains("hidden")) {
+            icon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+          } else {
+            icon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
           }
         }
-      });
+      }
     });
+  });
 
-    document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
-      dropdown.addEventListener("click", (e) => {
-        e.stopPropagation();
-      });
+  document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
+    dropdown.addEventListener("click", (e) => {
+      e.stopPropagation();
     });
+  });
 
   // Set up checkbox filters behavior
-  document.querySelectorAll('input.checkbox[data-filter-col]').forEach(cb => {
-    cb.addEventListener('change', (e) => {
+  document.querySelectorAll("input.checkbox[data-filter-col]").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
       const target = e.target as HTMLInputElement;
-      const col = target.getAttribute('data-filter-col');
-      const isAll = target.value === 'all';
-      
-      const allCb = document.querySelector(`input[data-filter-col="${col}"][value="all"]`) as HTMLInputElement;
-      const specificCbs = document.querySelectorAll(`input[data-filter-col="${col}"]:not([value="all"])`);
+      const col = target.getAttribute("data-filter-col");
+      const isAll = target.value === "all";
+
+      const allCb = document.querySelector(
+        `input[data-filter-col="${col}"][value="all"]`,
+      ) as HTMLInputElement;
+      const specificCbs = document.querySelectorAll(
+        `input[data-filter-col="${col}"]:not([value="all"])`,
+      );
 
       if (isAll) {
         if (target.checked) {
-          specificCbs.forEach(c => (c as HTMLInputElement).checked = false);
+          specificCbs.forEach((c) => ((c as HTMLInputElement).checked = false));
         } else {
           target.checked = true;
         }
@@ -1062,28 +1475,32 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         if (target.checked) {
           if (allCb) allCb.checked = false;
         } else {
-          const anyChecked = Array.from(specificCbs).some(c => (c as HTMLInputElement).checked);
+          const anyChecked = Array.from(specificCbs).some(
+            (c) => (c as HTMLInputElement).checked,
+          );
           if (!anyChecked && allCb) {
             allCb.checked = true;
           }
         }
       }
-      
+
       renderTable();
     });
   });
 
   const clearFiltersBtn = document.getElementById("clear-filters-btn");
   if (clearFiltersBtn) {
-    clearFiltersBtn.addEventListener('click', () => {
-      document.querySelectorAll('input.checkbox[data-filter-col]').forEach(cb => {
-        const checkbox = cb as HTMLInputElement;
-        if (checkbox.value === 'all') {
-          checkbox.checked = true;
-        } else {
-          checkbox.checked = false;
-        }
-      });
+    clearFiltersBtn.addEventListener("click", () => {
+      document
+        .querySelectorAll("input.checkbox[data-filter-col]")
+        .forEach((cb) => {
+          const checkbox = cb as HTMLInputElement;
+          if (checkbox.value === "all") {
+            checkbox.checked = true;
+          } else {
+            checkbox.checked = false;
+          }
+        });
       renderTable();
     });
   }
@@ -1091,21 +1508,23 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   searchInput?.addEventListener("input", renderTable);
 
   const updateSortUI = () => {
-    document.querySelectorAll('#sort-menu button').forEach(btn => {
+    document.querySelectorAll("#sort-menu button").forEach((btn) => {
       const htmlBtn = btn as HTMLButtonElement;
-      if (htmlBtn.dataset.sort === currentSort || 
-         (currentSort === 'alpha' && htmlBtn.dataset.sort === 'alpha-asc') ||
-         (currentSort === 'sede' && htmlBtn.dataset.sort === 'sede-pp')) {
-        htmlBtn.classList.add('active');
-        const label = document.getElementById('current-sort-label');
+      if (
+        htmlBtn.dataset.sort === currentSort ||
+        (currentSort === "alpha" && htmlBtn.dataset.sort === "alpha-asc") ||
+        (currentSort === "sede" && htmlBtn.dataset.sort === "sede-pp")
+      ) {
+        htmlBtn.classList.add("active");
+        const label = document.getElementById("current-sort-label");
         if (label) label.textContent = `Ordenar: ${htmlBtn.textContent}`;
       } else {
-        htmlBtn.classList.remove('active');
+        htmlBtn.classList.remove("active");
       }
     });
   };
 
-  document.querySelectorAll('#sort-menu button').forEach(btn => {
+  document.querySelectorAll("#sort-menu button").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       const newSort = target.dataset.sort;
@@ -1225,16 +1644,20 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   document.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     if (!target.closest("details.dropdown")) {
-      document.querySelectorAll("details.dropdown[open]").forEach((dropdown) => {
-        dropdown.removeAttribute("open");
-      });
+      document
+        .querySelectorAll("details.dropdown[open]")
+        .forEach((dropdown) => {
+          dropdown.removeAttribute("open");
+        });
     } else {
       const currentDropdown = target.closest("details.dropdown");
-      document.querySelectorAll("details.dropdown[open]").forEach((dropdown) => {
-        if (dropdown !== currentDropdown) {
-          dropdown.removeAttribute("open");
-        }
-      });
+      document
+        .querySelectorAll("details.dropdown[open]")
+        .forEach((dropdown) => {
+          if (dropdown !== currentDropdown) {
+            dropdown.removeAttribute("open");
+          }
+        });
     }
   });
 </script>

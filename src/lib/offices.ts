@@ -5,9 +5,7 @@ import type {
   OfficeType,
 } from "@/types/offices";
 
-export async function getAllOfficesFromDB(): Promise<
-  OfficeDirectoryItem[]
-> {
+export async function getAllOfficesFromDB(): Promise<OfficeDirectoryItem[]> {
   const dbOffices = await db.query.offices.findMany({
     orderBy: (offices, { asc }) => [asc(offices.code), asc(offices.name)],
     with: {
@@ -27,23 +25,24 @@ export async function getAllOfficesFromDB(): Promise<
     provinceCode: office.provinceCode,
     provinceName: office.province?.name ?? "",
     location: office.province?.name ?? "",
-    costCenter: [
-      office.cctAdminOffice,
-      office.ccCommercial,
-      office.ccCommercialCorp,
-      office.ccElectoral,
-      office.ccNetworkMgmt,
-      office.ccOperations,
-      office.ccOperational,
-      office.ccHr,
-      office.ccSecurity,
-      office.ccAdmin,
-      office.ccAdmission,
-      office.ccCtp,
-      office.ccCtt,
-      office.ccTransport,
-      office.ccLogistics
-    ].find((val) => val && val.trim() !== "") || "—",
+    costCenter:
+      [
+        office.cctAdminOffice,
+        office.ccCommercial,
+        office.ccCommercialCorp,
+        office.ccElectoral,
+        office.ccNetworkMgmt,
+        office.ccOperations,
+        office.ccOperational,
+        office.ccHr,
+        office.ccSecurity,
+        office.ccAdmin,
+        office.ccAdmission,
+        office.ccCtp,
+        office.ccCtt,
+        office.ccTransport,
+        office.ccLogistics,
+      ].find((val) => val && val.trim() !== "") || "—",
     postalCode: "",
     region: office.province?.region?.name ?? "",
     address: office.address ?? "",

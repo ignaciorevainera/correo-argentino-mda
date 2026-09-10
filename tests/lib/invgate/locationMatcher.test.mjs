@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invgate/locationMatcher.js";
+import {
+  parseInvgateLocationName,
+  matchLocations,
+} from "../../../src/lib/invgate/locationMatcher.js";
 
 // Test parseInvgateLocationName
 {
@@ -53,7 +56,8 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
 }
 
 {
-  const input = "ALPACHIRI - SUC POR FAX (L0002 ) 25 De Mayo 200 (L6309AAD) CC_71011101";
+  const input =
+    "ALPACHIRI - SUC POR FAX (L0002 ) 25 De Mayo 200 (L6309AAD) CC_71011101";
   const parsed = parseInvgateLocationName(input);
   assert.equal(parsed.displayName, "ALPACHIRI - SUC POR FAX");
   assert.equal(parsed.nis, "L0002");
@@ -65,15 +69,20 @@ import { parseInvgateLocationName, matchLocations } from "../../../src/lib/invga
 // Test matchLocations
 {
   const invgateLocations = [
-    { id: 1, name: "SUC. SANTA ROSA (L6300) (L6309AAD) CC_71011101", parent_id: null, total: 1 },
+    {
+      id: 1,
+      name: "SUC. SANTA ROSA (L6300) (L6309AAD) CC_71011101",
+      parent_id: null,
+      total: 1,
+    },
     { id: 2, name: "ALMACEN (L0002)", parent_id: 4, total: 2 },
     { id: 3, name: "SALA DE CONTROL", parent_id: 4, total: 0 },
-    { id: 4, name: "Centro NEA", parent_id: null, total: 0 }
+    { id: 4, name: "Centro NEA", parent_id: null, total: 0 },
   ];
 
   const allOfficeCodes = new Map([
     ["L6300", { name: "Santa Rosa", address: "Av San Martin 123" }],
-    ["L9999", { name: "Other Office", address: "Calle Falsa 123" }]
+    ["L9999", { name: "Other Office", address: "Calle Falsa 123" }],
   ]);
 
   const result = matchLocations(invgateLocations, allOfficeCodes);

@@ -3,43 +3,56 @@
 import Modal from "@components/ui/Modal.astro";
 ---
 
-<Modal id="holidays-modal" title="Gestionar Feriados" icon="boxicons:calendar-star" titleClass="font-black text-lg uppercase tracking-tight" zIndex="z-200" class="max-w-lg">
+<Modal
+  id="holidays-modal"
+  title="Gestionar Feriados"
+  icon="boxicons:calendar-star-filled"
+  titleClass="font-black text-lg uppercase tracking-tight"
+  zIndex="z-200"
+  class="max-w-lg"
+>
   <Fragment slot="content">
     <div class="space-y-4">
       <!-- Holidays List Section -->
       <div>
         <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Lista de Feriados</span>
+          <span
+            class="label-text text-base-content/60 text-xs font-bold uppercase"
+            >Lista de Feriados</span
+          >
         </label>
-        <div 
-          id="holidays-list-container" 
-          class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin pr-1 border border-base-200 rounded-xl p-3 bg-base-200/20"
+        <div
+          id="holidays-list-container"
+          class="scrollbar-thin border-base-200 bg-base-200/20 max-h-64 space-y-2 overflow-y-auto rounded-xl border p-3 pr-1"
         >
           <!-- JavaScript will render the list items here -->
         </div>
       </div>
 
       <!-- Add New Holiday Section -->
-      <div class="border-t border-base-200 pt-4">
+      <div class="border-base-200 border-t pt-4">
         <label class="label">
-          <span class="label-text font-bold text-xs uppercase text-base-content/60">Agregar Nuevo Feriado</span>
+          <span
+            class="label-text text-base-content/60 text-xs font-bold uppercase"
+            >Agregar Nuevo Feriado</span
+          >
         </label>
-        <div class="flex flex-col sm:flex-row gap-2">
-          <input 
-            type="date" 
-            id="new-holiday-date" 
-            class="input input-bordered input-sm bg-base-100 focus:outline-none focus:border-secondary font-mono text-xs w-full sm:w-44 shrink-0" 
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="date"
+            id="new-holiday-date"
+            class="input input-bordered input-sm bg-base-100 focus:border-secondary w-full shrink-0 font-mono text-xs focus:outline-none sm:w-44"
           />
-          <input 
-            type="text" 
-            id="new-holiday-name" 
-            placeholder="Nombre del feriado (ej: Año Nuevo)" 
-            class="input input-bordered input-sm bg-base-100 focus:outline-none focus:border-secondary font-bold text-xs flex-1" 
+          <input
+            type="text"
+            id="new-holiday-name"
+            placeholder="Nombre del feriado (ej: Año Nuevo)"
+            class="input input-bordered input-sm bg-base-100 focus:border-secondary flex-1 text-xs font-bold focus:outline-none"
           />
-          <button 
-            type="button" 
-            id="add-holiday-btn" 
-            class="btn btn-sm btn-secondary text-xs font-black uppercase w-full sm:w-auto"
+          <button
+            type="button"
+            id="add-holiday-btn"
+            class="btn btn-sm btn-secondary w-full text-xs font-black uppercase sm:w-auto"
           >
             Agregar
           </button>
@@ -49,16 +62,16 @@ import Modal from "@components/ui/Modal.astro";
   </Fragment>
   <Fragment slot="actions">
     <div class="modal-action mt-6 flex justify-end gap-2">
-      <button 
-        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase" 
-        id="cancel-holidays-btn" 
+      <button
+        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+        id="cancel-holidays-btn"
         type="button"
       >
         Cancelar
       </button>
-      <button 
-        class="btn btn-sm btn-primary text-xs font-black uppercase" 
-        id="save-holidays-btn" 
+      <button
+        class="btn btn-sm btn-primary text-xs font-black uppercase"
+        id="save-holidays-btn"
         type="button"
       >
         Guardar Cambios
@@ -68,26 +81,34 @@ import Modal from "@components/ui/Modal.astro";
 </Modal>
 
 <script>
-  import { state } from '../lib/state';
-  import { showToast } from '../lib/notifications';
+  import { state } from "../lib/state";
+  import { showToast } from "../lib/notifications";
 
   // We maintain a local copy of holidays in memory during modal editing
   let localHolidays: Record<string, string> = {};
 
-  const modal = document.getElementById('holidays-modal') as HTMLDialogElement | null;
-  const listContainer = document.getElementById('holidays-list-container');
-  const dateInput = document.getElementById('new-holiday-date') as HTMLInputElement | null;
-  const nameInput = document.getElementById('new-holiday-name') as HTMLInputElement | null;
-  const addBtn = document.getElementById('add-holiday-btn');
-  const cancelBtn = document.getElementById('cancel-holidays-btn');
-  const saveBtn = document.getElementById('save-holidays-btn') as HTMLButtonElement | null;
+  const modal = document.getElementById(
+    "holidays-modal",
+  ) as HTMLDialogElement | null;
+  const listContainer = document.getElementById("holidays-list-container");
+  const dateInput = document.getElementById(
+    "new-holiday-date",
+  ) as HTMLInputElement | null;
+  const nameInput = document.getElementById(
+    "new-holiday-name",
+  ) as HTMLInputElement | null;
+  const addBtn = document.getElementById("add-holiday-btn");
+  const cancelBtn = document.getElementById("cancel-holidays-btn");
+  const saveBtn = document.getElementById(
+    "save-holidays-btn",
+  ) as HTMLButtonElement | null;
 
   // Render the holidays list from localHolidays map
   function renderLocalHolidaysList(): void {
     if (!listContainer) return;
-    
+
     const sortedDates = Object.keys(localHolidays).sort();
-    
+
     if (sortedDates.length === 0) {
       listContainer.innerHTML = `
         <div class="py-8 text-center text-xs font-bold text-base-content/40 uppercase tracking-wider">
@@ -97,12 +118,13 @@ import Modal from "@components/ui/Modal.astro";
       return;
     }
 
-    let html = '';
-    sortedDates.forEach(dateStr => {
+    let html = "";
+    sortedDates.forEach((dateStr) => {
       const name = localHolidays[dateStr];
       // Format YYYY-MM-DD to DD/MM/YYYY
-      const parts = dateStr.split('-');
-      const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+      const parts = dateStr.split("-");
+      const formattedDate =
+        parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
 
       html += `
         <div class="flex items-center justify-between gap-4 p-2 bg-base-100 border border-base-200 rounded-lg shadow-sm hover:border-base-300 transition-colors">
@@ -129,10 +151,10 @@ import Modal from "@components/ui/Modal.astro";
     listContainer.innerHTML = html;
 
     // Attach event listeners to delete buttons
-    listContainer.querySelectorAll('.delete-holiday-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    listContainer.querySelectorAll(".delete-holiday-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         const target = e.currentTarget as HTMLButtonElement;
-        const dateToDelete = target.getAttribute('data-date');
+        const dateToDelete = target.getAttribute("data-date");
         if (dateToDelete && dateToDelete in localHolidays) {
           delete localHolidays[dateToDelete];
           renderLocalHolidaysList();
@@ -143,20 +165,20 @@ import Modal from "@components/ui/Modal.astro";
 
   if (modal) {
     // Populate local copy when modal opens
-    modal.addEventListener('show', () => {
+    modal.addEventListener("show", () => {
       localHolidays = { ...state.feriados };
       renderLocalHolidaysList();
-      if (dateInput) dateInput.value = '';
-      if (nameInput) nameInput.value = '';
+      if (dateInput) dateInput.value = "";
+      if (nameInput) nameInput.value = "";
     });
 
     // Handle cancel
-    cancelBtn?.addEventListener('click', () => {
+    cancelBtn?.addEventListener("click", () => {
       modal.close();
     });
 
     // Handle add
-    addBtn?.addEventListener('click', () => {
+    addBtn?.addEventListener("click", () => {
       if (!dateInput || !nameInput) return;
       const dateVal = dateInput.value.trim();
       const nameVal = nameInput.value.trim();
@@ -171,7 +193,10 @@ import Modal from "@components/ui/Modal.astro";
       }
 
       if (dateVal in localHolidays) {
-        showToast(`Ya existe un feriado registrado para la fecha seleccionada (${localHolidays[dateVal]}).`, "error");
+        showToast(
+          `Ya existe un feriado registrado para la fecha seleccionada (${localHolidays[dateVal]}).`,
+          "error",
+        );
         return;
       }
 
@@ -180,19 +205,19 @@ import Modal from "@components/ui/Modal.astro";
       renderLocalHolidaysList();
 
       // Clear input fields
-      dateInput.value = '';
-      nameInput.value = '';
+      dateInput.value = "";
+      nameInput.value = "";
       showToast("Feriado agregado a la lista temporal.", "success");
     });
 
     // Handle save
-    saveBtn?.addEventListener('click', async () => {
+    saveBtn?.addEventListener("click", async () => {
       saveBtn.disabled = true;
       try {
-        const res = await fetch('/api/cronograma/feriados', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feriados: localHolidays })
+        const res = await fetch("/api/cronograma/feriados", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feriados: localHolidays }),
         });
 
         if (!res.ok) {
@@ -201,8 +226,8 @@ import Modal from "@components/ui/Modal.astro";
 
         // Update main state and dispatch refresh event
         state.feriados = { ...localHolidays };
-        document.dispatchEvent(new CustomEvent('cronograma:feriados-updated'));
-        
+        document.dispatchEvent(new CustomEvent("cronograma:feriados-updated"));
+
         showToast("Los feriados se han guardado con éxito.", "success");
         modal.close();
       } catch (err: unknown) {

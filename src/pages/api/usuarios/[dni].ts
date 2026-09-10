@@ -6,7 +6,6 @@ import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { logAdminAction } from "@lib/auditLogger";
 
 export const PATCH: APIRoute = async ({ params, request }) => {
-
   const { dni } = params;
   if (!dni) {
     return jsonError("DNI del usuario requerido", 400);

@@ -1,5 +1,10 @@
 import { store, type AttendanceRecord } from "./store";
-import { complianceClasses, complianceLabels, attendanceClasses, ausenciaClasses } from "./utils";
+import {
+  complianceClasses,
+  complianceLabels,
+  attendanceClasses,
+  ausenciaClasses,
+} from "./utils";
 
 export const dom = {
   isRowBeingEdited(rowId: string): boolean {
@@ -10,54 +15,72 @@ export const dom = {
   },
 
   updateRow(rowId: string, record: AttendanceRecord) {
-    const row = document.querySelector(`tr[data-row-id="${rowId}"]`) as HTMLElement;
+    const row = document.querySelector(
+      `tr[data-row-id="${rowId}"]`,
+    ) as HTMLElement;
     if (!row) return;
 
     // 1. Asistencia Real Select
-    const selectAsistencia = row.querySelector('[data-field="asistencia"]') as HTMLSelectElement;
+    const selectAsistencia = row.querySelector(
+      '[data-field="asistencia"]',
+    ) as HTMLSelectElement;
     if (selectAsistencia && selectAsistencia.value !== record.asistencia) {
       selectAsistencia.value = record.asistencia;
       this.updateSelectColor(selectAsistencia, "asistencia");
     }
 
     // 2. Ausencia Select
-    const selectAusencia = row.querySelector('[data-field="ausencia"]') as HTMLSelectElement;
+    const selectAusencia = row.querySelector(
+      '[data-field="ausencia"]',
+    ) as HTMLSelectElement;
     if (selectAusencia && selectAusencia.value !== record.ausencia) {
       selectAusencia.value = record.ausencia;
       this.updateSelectColor(selectAusencia, "ausencia");
     }
 
     // 3. Entrada Real Input
-    const inputEntrada = row.querySelector('[data-field="entradaReal"]') as HTMLInputElement;
+    const inputEntrada = row.querySelector(
+      '[data-field="entradaReal"]',
+    ) as HTMLInputElement;
     if (inputEntrada && inputEntrada.value !== record.entradaReal) {
       inputEntrada.value = record.entradaReal;
     }
 
     // 3.5 Horario Estipulado - actualizar span e input
-    const horarioWrapper = row.querySelector('.horario-wrapper');
+    const horarioWrapper = row.querySelector(".horario-wrapper");
     if (horarioWrapper) {
-      const span = horarioWrapper.querySelector('.horario-display') as HTMLElement;
-      const input = horarioWrapper.querySelector('.horario-edit') as HTMLInputElement;
+      const span = horarioWrapper.querySelector(
+        ".horario-display",
+      ) as HTMLElement;
+      const input = horarioWrapper.querySelector(
+        ".horario-edit",
+      ) as HTMLInputElement;
       if (span) {
         if (span.textContent !== (record.horarioEstipulado || "Franco")) {
           span.textContent = record.horarioEstipulado || "Franco";
         }
         const clean = (record.horarioEstipulado || "").replace(/\s+/g, "");
-        const isValid = /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
-        const isInvalid = !isValid && record.horarioEstipulado !== '';
-        span.classList.toggle('bg-error/15', isInvalid);
-        span.classList.toggle('text-error', isInvalid);
-        span.classList.toggle('border-error/30', isInvalid);
-        span.classList.toggle('bg-base-200', !isInvalid);
-        span.classList.toggle('text-base-content/75', !isInvalid);
-        span.classList.toggle('border-base-300', !isInvalid);
+        const isValid =
+          /^(\d{1,2})(?::(\d{2}))?(?:-|a)(\d{1,2})(?::(\d{2}))?$/.test(clean);
+        const isInvalid = !isValid && record.horarioEstipulado !== "";
+        span.classList.toggle("bg-error/15", isInvalid);
+        span.classList.toggle("text-error", isInvalid);
+        span.classList.toggle("border-error/30", isInvalid);
+        span.classList.toggle("bg-base-200", !isInvalid);
+        span.classList.toggle("text-base-content/75", !isInvalid);
+        span.classList.toggle("border-base-300", !isInvalid);
       }
       if (input && input.value !== (record.horarioEstipulado || "")) {
         input.value = record.horarioEstipulado || "";
       }
     } else {
-      const lockedSpan = row.querySelector('.horario-locked-display') as HTMLElement;
-      if (lockedSpan && lockedSpan.textContent !== (record.horarioEstipulado || "Franco")) {
+      const lockedSpan = row.querySelector(
+        ".horario-locked-display",
+      ) as HTMLElement;
+      if (
+        lockedSpan &&
+        lockedSpan.textContent !== (record.horarioEstipulado || "Franco")
+      ) {
         lockedSpan.textContent = record.horarioEstipulado || "Franco";
       }
     }
@@ -70,9 +93,13 @@ export const dom = {
       badge.className = `badge badge-sm py-2 px-3 rounded-lg text-tiny whitespace-nowrap ${complianceClasses[finalCump] || "badge-ghost"}`;
     }
 
-    const selectCumplimiento = row.querySelector('[data-field="cumplimiento"]') as HTMLSelectElement;
+    const selectCumplimiento = row.querySelector(
+      '[data-field="cumplimiento"]',
+    ) as HTMLSelectElement;
     if (selectCumplimiento) {
-      const expectedValue = record.cumplimientoForzado ? record.cumplimiento : "";
+      const expectedValue = record.cumplimientoForzado
+        ? record.cumplimiento
+        : "";
       if (selectCumplimiento.value !== expectedValue) {
         selectCumplimiento.value = expectedValue;
       }
@@ -81,22 +108,30 @@ export const dom = {
     // 5. Details Row elements (Motivo Login & Detalle)
     const detailsRow = document.getElementById(`details-row-${rowId}`);
     if (detailsRow) {
-      const inputMotivo = detailsRow.querySelector('[data-field="motivoLoguin"]') as HTMLInputElement;
+      const inputMotivo = detailsRow.querySelector(
+        '[data-field="motivoLoguin"]',
+      ) as HTMLInputElement;
       if (inputMotivo && inputMotivo.value !== record.motivoLoguin) {
         inputMotivo.value = record.motivoLoguin;
       }
 
-      const inputDetalle = detailsRow.querySelector('[data-field="detalle"]') as HTMLTextAreaElement;
+      const inputDetalle = detailsRow.querySelector(
+        '[data-field="detalle"]',
+      ) as HTMLTextAreaElement;
       if (inputDetalle && inputDetalle.value !== record.detalle) {
         inputDetalle.value = record.detalle;
       }
     }
   },
 
-  updateSelectColor(selectEl: HTMLSelectElement, field: "asistencia" | "ausencia" = "asistencia") {
+  updateSelectColor(
+    selectEl: HTMLSelectElement,
+    field: "asistencia" | "ausencia" = "asistencia",
+  ) {
     const val = selectEl.value;
-    const baseClass = "select select-bordered h-9 py-1 rounded-xl w-full font-semibold focus:outline-none focus:border-secondary bg-base-100 pr-9 text-small ";
-    
+    const baseClass =
+      "select select-bordered h-9 py-1 rounded-xl w-full font-semibold focus:outline-none focus:border-secondary bg-base-100 pr-9 text-small ";
+
     if (field === "asistencia") {
       selectEl.className = baseClass + "max-w-[220px]";
       const classes = attendanceClasses[val];
@@ -108,11 +143,18 @@ export const dom = {
     }
   },
 
-  showSyncStatus(status: "saving" | "saved" | "syncing" | "synced" | "error" | "idle", errorMsg?: string) {
+  showSyncStatus(
+    status: "saving" | "saved" | "syncing" | "synced" | "error" | "idle",
+    errorMsg?: string,
+  ) {
     const statusBar = document.getElementById("sync-status-bar");
     if (!statusBar) return;
 
-    statusBar.classList.remove("opacity-0", "translate-y-32", "pointer-events-none");
+    statusBar.classList.remove(
+      "opacity-0",
+      "translate-y-32",
+      "pointer-events-none",
+    );
     statusBar.classList.add("opacity-100", "translate-y-0");
 
     const textEl = statusBar.querySelector("#sync-status-text");
@@ -128,7 +170,8 @@ export const dom = {
       case "saving":
         text = "Guardando cambios automáticamente...";
         iconHTML = `<span class="loading loading-spinner loading-xs text-secondary"></span>`;
-        barColor = "border-secondary/40 shadow-[0_4px_20px_rgba(var(--color-secondary-rgb,147,51,234),0.1)]";
+        barColor =
+          "border-secondary/40 shadow-[0_4px_20px_rgba(var(--color-secondary-rgb,147,51,234),0.1)]";
         break;
       case "saved":
         text = "Todos los cambios guardados.";
@@ -165,7 +208,7 @@ export const dom = {
 
     textEl.textContent = text;
     iconContainer.innerHTML = iconHTML;
-    
+
     // Reset border classes and apply new one
     statusBar.className = `fixed bottom-6 left-1/2 -translate-x-1/2 bg-base-100/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] border p-3.5 flex items-center justify-between gap-6 z-100 transition-all duration-300 w-[90%] max-w-md ${barColor}`;
   },
@@ -173,7 +216,11 @@ export const dom = {
   hideSyncStatus() {
     const statusBar = document.getElementById("sync-status-bar");
     if (!statusBar) return;
-    statusBar.classList.add("opacity-0", "translate-y-32", "pointer-events-none");
+    statusBar.classList.add(
+      "opacity-0",
+      "translate-y-32",
+      "pointer-events-none",
+    );
     statusBar.classList.remove("opacity-100", "translate-y-0");
-  }
+  },
 };

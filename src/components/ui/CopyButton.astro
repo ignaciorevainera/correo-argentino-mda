@@ -140,7 +140,7 @@ const tooltipClasses = [
             <Icon
               name="boxicons:check-filled"
               size={16}
-              class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+              class="text-success absolute inset-0 m-auto hidden scale-75 opacity-0 transition-all duration-200"
               data-copy-icon-success
               aria-hidden="true"
             />
@@ -172,7 +172,7 @@ const tooltipClasses = [
           <Icon
             name="boxicons:check-filled"
             size={16}
-            class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+            class="text-success absolute inset-0 m-auto hidden scale-75 opacity-0 transition-all duration-200"
             data-copy-icon-success
             aria-hidden="true"
           />
@@ -214,7 +214,7 @@ const tooltipClasses = [
             />
             <Icon
               name="boxicons:check-filled"
-              class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+              class="text-success absolute inset-0 m-auto hidden scale-75 opacity-0 transition-all duration-200"
               size={16}
               data-copy-icon-success
               aria-hidden="true"
@@ -244,7 +244,7 @@ const tooltipClasses = [
           />
           <Icon
             name="boxicons:check-filled"
-            class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+            class="text-success absolute inset-0 m-auto hidden scale-75 opacity-0 transition-all duration-200"
             size={16}
             data-copy-icon-success
             aria-hidden="true"
@@ -267,7 +267,7 @@ const tooltipClasses = [
     >
       <span
         class:list={[
-          "min-w-0 flex-1 truncate text-sm text-base-content transition-all duration-200",
+          "text-base-content min-w-0 flex-1 truncate text-sm transition-all duration-200",
           monospace && "font-mono",
         ]}
         data-copy-label
@@ -289,7 +289,7 @@ const tooltipClasses = [
     >
       <span
         class:list={[
-          "min-w-0 flex-1 truncate text-sm text-base-content transition-colors group-hover:text-accent group-focus-visible:text-accent",
+          "text-base-content group-hover:text-accent group-focus-visible:text-accent min-w-0 flex-1 truncate text-sm transition-colors",
           monospace && "font-mono",
         ]}
         data-copy-label
@@ -302,14 +302,14 @@ const tooltipClasses = [
         <Icon
           name="boxicons:clipboard-filled"
           size={16}
-          class="absolute inset-0 m-auto text-base-content/55 transition-all duration-200 group-hover:text-accent group-focus-visible:text-accent"
+          class="text-base-content/55 group-hover:text-accent group-focus-visible:text-accent absolute inset-0 m-auto transition-all duration-200"
           data-copy-icon-default
           aria-hidden="true"
         />
         <Icon
           name="boxicons:check-filled"
           size={16}
-          class="absolute inset-0 m-auto hidden scale-75 text-success opacity-0 transition-all duration-200"
+          class="text-success absolute inset-0 m-auto hidden scale-75 opacity-0 transition-all duration-200"
           data-copy-icon-success
           aria-hidden="true"
         />
@@ -370,8 +370,8 @@ const tooltipClasses = [
     return fallbackCopyToClipboard(value);
   };
 
-  if (!document._copyButtonHandlerAttached) {
-    document._copyButtonHandlerAttached = true;
+  if (!(document as any)._copyButtonHandlerAttached) {
+    (document as any)._copyButtonHandlerAttached = true;
 
     const copyTimers = new WeakMap<HTMLElement, number>();
 
@@ -401,21 +401,17 @@ const tooltipClasses = [
         return;
       }
 
-      const label =
-        control.querySelector<HTMLElement>("[data-copy-label]");
+      const label = control.querySelector<HTMLElement>("[data-copy-label]");
       const defaultIcons = Array.from(
         control.querySelectorAll("[data-copy-icon-default]"),
       );
       const successIcons = Array.from(
         control.querySelectorAll("[data-copy-icon-success]"),
       );
-      const shouldReplaceLabel =
-        control.dataset.copyReplaceLabel === "true";
+      const shouldReplaceLabel = control.dataset.copyReplaceLabel === "true";
 
       if (shouldReplaceLabel) {
-        label?.replaceChildren(
-          control.dataset.copyLabelSuccess ?? "Copiado",
-        );
+        label?.replaceChildren(control.dataset.copyLabelSuccess ?? "Copiado");
       }
 
       control.classList.add(
@@ -442,9 +438,7 @@ const tooltipClasses = [
 
       const timer = window.setTimeout(() => {
         if (shouldReplaceLabel) {
-          label?.replaceChildren(
-            control.dataset.copyLabelDefault ?? "Copiar",
-          );
+          label?.replaceChildren(control.dataset.copyLabelDefault ?? "Copiar");
         }
 
         control.classList.remove(

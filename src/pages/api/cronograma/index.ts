@@ -19,12 +19,23 @@ export const GET: APIRoute = async ({ url }) => {
     const dbSchedulesList = await db
       .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
       .from(schedules);
-    const availableMonths = dbSchedulesList.map(s => s.month).filter(Boolean).sort();
-    
+    const availableMonths = dbSchedulesList
+      .map((s) => s.month)
+      .filter(Boolean)
+      .sort();
+
     const d = new Date();
     const currentMonthDefault = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const pastOrCurrentMonths = availableMonths.filter(m => m <= currentMonthDefault);
-    const activeMonth = url.searchParams.get("month") || (pastOrCurrentMonths.length > 0 ? pastOrCurrentMonths[pastOrCurrentMonths.length - 1] : (availableMonths.length > 0 ? availableMonths[availableMonths.length - 1] : currentMonthDefault));
+    const pastOrCurrentMonths = availableMonths.filter(
+      (m) => m <= currentMonthDefault,
+    );
+    const activeMonth =
+      url.searchParams.get("month") ||
+      (pastOrCurrentMonths.length > 0
+        ? pastOrCurrentMonths[pastOrCurrentMonths.length - 1]
+        : availableMonths.length > 0
+          ? availableMonths[availableMonths.length - 1]
+          : currentMonthDefault);
 
     // 2. Cargar configuración de rotación para este mes
     let configList = await db
@@ -33,7 +44,7 @@ export const GET: APIRoute = async ({ url }) => {
       .where(eq(saturdayRotationConfig.month, activeMonth))
       .limit(1);
     let rotationConfig = configList[0];
-    
+
     if (!rotationConfig) {
       // Fallback: intentar copiar el anterior más cercano
       const previousConfigs = await db
@@ -42,7 +53,7 @@ export const GET: APIRoute = async ({ url }) => {
         .where(lt(saturdayRotationConfig.month, activeMonth))
         .orderBy(desc(saturdayRotationConfig.month))
         .limit(1);
-      
+
       const baseConfig = previousConfigs[0] || {
         rotationOrder: "A,B,C,D",
         startDate: "2026-06-06",
@@ -66,7 +77,9 @@ export const GET: APIRoute = async ({ url }) => {
       .select()
       .from(agentSaturdayGroups)
       .where(eq(agentSaturdayGroups.month, activeMonth));
-    const monthlyGroupsMap = new Map(dbMonthlyGroups.map(g => [g.agentId, g]));
+    const monthlyGroupsMap = new Map(
+      dbMonthlyGroups.map((g) => [g.agentId, g]),
+    );
 
     // 4. Buscar asignaciones del mes anterior en caso de fallback (Optimized Fallback Group Lookup)
     const prevMonthResult = await db
@@ -75,17 +88,21 @@ export const GET: APIRoute = async ({ url }) => {
       .where(lt(agentSaturdayGroups.month, activeMonth))
       .orderBy(desc(agentSaturdayGroups.month))
       .limit(1);
-    
+
     const prevMonth = prevMonthResult[0]?.month;
-    let dbPreviousMonthlyGroups: typeof agentSaturdayGroups.$inferSelect[] = [];
+    let dbPreviousMonthlyGroups: (typeof agentSaturdayGroups.$inferSelect)[] =
+      [];
     if (prevMonth) {
       dbPreviousMonthlyGroups = await db
         .select()
         .from(agentSaturdayGroups)
         .where(eq(agentSaturdayGroups.month, prevMonth));
     }
-    
-    const previousGroupsMap = new Map<number, typeof agentSaturdayGroups.$inferSelect>();
+
+    const previousGroupsMap = new Map<
+      number,
+      typeof agentSaturdayGroups.$inferSelect
+    >();
     for (const pg of dbPreviousMonthlyGroups) {
       if (!previousGroupsMap.has(pg.agentId)) {
         previousGroupsMap.set(pg.agentId, pg);
@@ -93,21 +110,30 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     // 5. Cargar todos los agentes
-    const dbAgents = await db.select({
-      id: agents.id, name: agents.name, username: agents.username, location: agents.location,
-      horarioDefault: agents.horarioDefault,
-      esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
-      esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
-      maxConsecutiveHO: agents.maxConsecutiveHO, minPWeek: agents.minPWeek,
-      saturdayGroup: agents.saturdayGroup, saturdayHorario: agents.saturdayHorario,
-    }).from(agents);
+    const dbAgents = await db
+      .select({
+        id: agents.id,
+        name: agents.name,
+        username: agents.username,
+        location: agents.location,
+        horarioDefault: agents.horarioDefault,
+        esquemaSemanal: agents.esquemaSemanal,
+        esquemaHorario: agents.esquemaHorario,
+        esquemaBreakInicio: agents.esquemaBreakInicio,
+        esquemaBreakFin: agents.esquemaBreakFin,
+        maxConsecutiveHO: agents.maxConsecutiveHO,
+        minPWeek: agents.minPWeek,
+        saturdayGroup: agents.saturdayGroup,
+        saturdayHorario: agents.saturdayHorario,
+      })
+      .from(agents);
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db
       .select()
       .from(weekendOvertimeConfig)
       .where(like(weekendOvertimeConfig.weekendStartDate, `${activeMonth}-%`));
-    
+
     const dbOvertimeShifts = await db
       .select()
       .from(weekendOvertimeShifts)
@@ -190,16 +216,23 @@ export const GET: APIRoute = async ({ url }) => {
         // Cálculo dinámico de sábados de rotación
         const isSaturday = dateObj.getDay() === 6;
         if (isSaturday && operator.saturdayGroup) {
-          const disabledList = (rotationConfig.disabledGroups || "").split(",").map((g: string) => g.trim()).filter(Boolean);
+          const disabledList = (rotationConfig.disabledGroups || "")
+            .split(",")
+            .map((g: string) => g.trim())
+            .filter(Boolean);
           if (!disabledList.includes(operator.saturdayGroup)) {
             const start = new Date(rotationConfig.startDate + "T12:00:00");
-            const diffDays = Math.round((dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.round(
+              (dateObj.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+            );
             const weeksDiff = Math.floor(diffDays / 7);
-            const groups = rotationConfig.rotationOrder.split(",").map((g) => g.trim());
+            const groups = rotationConfig.rotationOrder
+              .split(",")
+              .map((g) => g.trim());
             const N = groups.length;
             const startIndex = groups.indexOf(rotationConfig.startGroup);
             const idx = startIndex >= 0 ? startIndex : 0;
-            const activeIndex = ((idx + weeksDiff) % N + N) % N;
+            const activeIndex = (((idx + weeksDiff) % N) + N) % N;
             const activeGroup = groups[activeIndex];
 
             if (operator.saturdayGroup === activeGroup && !overrides[s.date]) {
@@ -229,8 +262,16 @@ export const GET: APIRoute = async ({ url }) => {
       });
 
       // Completar días vacíos con defaults semanales
-      const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-      Object.keys(newAsistencia).forEach(dateStr => {
+      const dayNames = [
+        "Domingo",
+        "Lunes",
+        "Martes",
+        "Miercoles",
+        "Jueves",
+        "Viernes",
+        "Sabado",
+      ];
+      Object.keys(newAsistencia).forEach((dateStr) => {
         const dateObj = new Date(dateStr + "T12:00:00");
         const dayName = dayNames[dateObj.getDay()];
         const status = newAsistencia[dateStr];
@@ -296,7 +337,11 @@ export const GET: APIRoute = async ({ url }) => {
       activeMonth,
     };
 
-    return jsonResponse(responsePayload, 200, "no-store, no-cache, must-revalidate");
+    return jsonResponse(
+      responsePayload,
+      200,
+      "no-store, no-cache, must-revalidate",
+    );
   } catch (error: any) {
     console.error("GET API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
@@ -316,7 +361,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (weeklySchedules && Array.isArray(weeklySchedules)) {
       weeklyCount = weeklySchedules.length;
       for (const ws of weeklySchedules) {
-        const { agentName, esquema_semanal, esquema_horario, esquema_break_inicio, esquema_break_fin } = ws;
+        const {
+          agentName,
+          esquema_semanal,
+          esquema_horario,
+          esquema_break_inicio,
+          esquema_break_fin,
+        } = ws;
         if (!agentName) continue;
 
         const updateData: any = {};
@@ -342,10 +393,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
 
       if (!edits || !Array.isArray(edits)) {
-        await logAdminFromAstro(locals,
-          `Actualizó esquemas semanales de ${weeklyCount} operadores`
+        await logAdminFromAstro(
+          locals,
+          `Actualizó esquemas semanales de ${weeklyCount} operadores`,
         );
-        return jsonResponse({ success: true, message: "Weekly schedules updated" });
+        return jsonResponse({
+          success: true,
+          message: "Weekly schedules updated",
+        });
       }
     }
 
@@ -356,21 +411,37 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Process each edit atomically inside a transaction (Transactions for Batch Edits)
     await db.transaction((tx) => {
       for (const edit of edits) {
-        const { agentName, date, status, comment, horario, breakInicio, breakFin } = edit;
+        const {
+          agentName,
+          date,
+          status,
+          comment,
+          horario,
+          breakInicio,
+          breakFin,
+        } = edit;
         if (!agentName || !date) continue;
 
         // Limpieza automática de horas extras si es fin de semana y el estado es Vacaciones o Licencia
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-        if (isWeekendDay && (status === "Licencia" || status === "Vacaciones")) {
-          const agentList = tx.select({ id: agents.id }).from(agents).where(eq(agents.name, agentName)).limit(1).all();
+        if (
+          isWeekendDay &&
+          (status === "Licencia" || status === "Vacaciones")
+        ) {
+          const agentList = tx
+            .select({ id: agents.id })
+            .from(agents)
+            .where(eq(agents.name, agentName))
+            .limit(1)
+            .all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(
                 and(
                   eq(weekendOvertimeShifts.agentId, agentList[0].id),
-                  eq(weekendOvertimeShifts.date, date)
-                )
+                  eq(weekendOvertimeShifts.date, date),
+                ),
               )
               .run();
           }
@@ -380,10 +451,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .select()
           .from(schedules)
           .where(
-            and(
-              eq(schedules.agentName, agentName),
-              eq(schedules.date, date)
-            )
+            and(eq(schedules.agentName, agentName), eq(schedules.date, date)),
           )
           .limit(1)
           .all();
@@ -397,22 +465,23 @@ export const POST: APIRoute = async ({ request, locals }) => {
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
 
-          tx
-            .update(schedules)
+          tx.update(schedules)
             .set(updateData)
             .where(eq(schedules.id, existing[0].id))
             .run();
         } else {
-          tx.insert(schedules).values({
-            agentName,
-            date,
-            status: status !== undefined ? status : "Franco",
-            comment: comment || "",
-            horario: horario || "",
-            breakInicio: breakInicio || "",
-            breakFin: breakFin || "",
-            isOverride: true,
-          }).run();
+          tx.insert(schedules)
+            .values({
+              agentName,
+              date,
+              status: status !== undefined ? status : "Franco",
+              comment: comment || "",
+              horario: horario || "",
+              breakInicio: breakInicio || "",
+              breakFin: breakFin || "",
+              isOverride: true,
+            })
+            .run();
         }
       }
     });
@@ -420,15 +489,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const editCount = edits?.length || 0;
     let logMessages: string[] = [];
     if (weeklyCount > 0) {
-      logMessages.push(`Actualizó esquemas semanales de ${weeklyCount} operadores`);
+      logMessages.push(
+        `Actualizó esquemas semanales de ${weeklyCount} operadores`,
+      );
     }
     if (editCount > 0) {
-      logMessages.push(`Guardó cambios en el cronograma (${editCount} registros)`);
+      logMessages.push(
+        `Guardó cambios en el cronograma (${editCount} registros)`,
+      );
     }
     if (logMessages.length > 0) {
-      await logAdminFromAstro(locals,
-        logMessages.join(' y ')
-      );
+      await logAdminFromAstro(locals, logMessages.join(" y "));
     }
 
     return jsonResponse({ success: true });

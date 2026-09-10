@@ -24,7 +24,11 @@ export const GET: APIRoute = async ({ locals, request }) => {
       clearCache();
     }
 
-    const { data: cachedComparison, error, status } = await getOrRefreshComparison();
+    const {
+      data: cachedComparison,
+      error,
+      status,
+    } = await getOrRefreshComparison();
 
     if (error && !cachedComparison) {
       if (status === 428) {
@@ -85,6 +89,9 @@ export const GET: APIRoute = async ({ locals, request }) => {
     });
   } catch (error: any) {
     console.error("[Locations API] Error:", error);
-    return jsonResponse({ error: sanitizeError(error) || "Error interno del servidor" }, 500);
+    return jsonResponse(
+      { error: sanitizeError(error) || "Error interno del servidor" },
+      500,
+    );
   }
 };

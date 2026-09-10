@@ -84,7 +84,11 @@ const uniqueZones = allZonesRaw
 
 const showClosedToggle = await hasClosedOffices();
 
-const { data: allOffices, count: totalOfficesCount, hasMore } = await getOffices({
+const {
+  data: allOffices,
+  count: totalOfficesCount,
+  hasMore,
+} = await getOffices({
   page: 1,
   limit: 100,
   search: searchFilter,
@@ -128,9 +132,15 @@ for (const row of rawCounts) {
 }
 
 if (sucursalAutoCount > 0)
-  processedCounts.push({ type: "SUCURSAL_AUTOMATIZADA", count: sucursalAutoCount });
+  processedCounts.push({
+    type: "SUCURSAL_AUTOMATIZADA",
+    count: sucursalAutoCount,
+  });
 if (sucursalNoAutoCount > 0)
-  processedCounts.push({ type: "SUCURSAL_NO_AUTOMATIZADA", count: sucursalNoAutoCount });
+  processedCounts.push({
+    type: "SUCURSAL_NO_AUTOMATIZADA",
+    count: sucursalNoAutoCount,
+  });
 
 const officeCountByType = processedCounts.reduce(
   (acc, row) => {
@@ -194,11 +204,9 @@ const cleanBase = getCleanBase();
     description="Administración del directorio operativo de oficinas, contactos y activos tecnológicos."
   />
 
-
-
   {/* ── Filtros ── */}
   <div
-    class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-md"
+    class="rounded-box border-base-300 bg-base-100 flex flex-col gap-4 border p-4 shadow-md"
     aria-label="Filtros de oficinas"
   >
     <div class="w-full">
@@ -212,66 +220,95 @@ const cleanBase = getCleanBase();
         activeValue={typeFilter}
         name="type"
         activeClasses={officeTypeTabActiveClassByType}
-        class="flex-wrap bg-base-200/50 p-2"
+        class="bg-base-200/50 flex-wrap p-2"
         submitOnChange={false}
       />
     </div>
 
     {/* Fila de selects + búsqueda + acción */}
-    <div class="flex flex-wrap items-center gap-3 w-full">
+    <div class="flex w-full flex-wrap items-center gap-3">
       <select
         id="admin-office-region-filter"
-        class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        class="select border-base-300 focus:border-primary focus:ring-primary/20 min-w-40 flex-1 focus:ring-2 focus:outline-none"
         aria-label="Filtrar por región"
       >
-        <option value="all" selected={regionFilter === "all"}>Regiones (Todas)</option>
-        {uniqueRegions.map((region) => (
-          <option value={region} selected={regionFilter === region}>{region}</option>
-        ))}
+        <option value="all" selected={regionFilter === "all"}
+          >Regiones (Todas)</option
+        >
+        {
+          uniqueRegions.map((region) => (
+            <option value={region} selected={regionFilter === region}>
+              {region}
+            </option>
+          ))
+        }
       </select>
 
       <select
         id="admin-office-province-filter"
-        class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        class="select border-base-300 focus:border-primary focus:ring-primary/20 min-w-40 flex-1 focus:ring-2 focus:outline-none"
         aria-label="Filtrar por provincia"
         disabled={regionFilter === "all"}
       >
-        <option value="all" selected={activeProvinceFilter === "all"}>Provincias (Todas)</option>
-        {regionFilter !== "all" &&
-          (provincesByRegion[regionFilter] || []).map((prov) => (
-            <option value={prov.code} selected={activeProvinceFilter === prov.code}>
-              {prov.name}
-            </option>
-          ))}
+        <option value="all" selected={activeProvinceFilter === "all"}
+          >Provincias (Todas)</option
+        >
+        {
+          regionFilter !== "all" &&
+            (provincesByRegion[regionFilter] || []).map((prov) => (
+              <option
+                value={prov.code}
+                selected={activeProvinceFilter === prov.code}
+              >
+                {prov.name}
+              </option>
+            ))
+        }
       </select>
 
       <select
         id="admin-office-zone-filter"
-        class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        class="select border-base-300 focus:border-primary focus:ring-primary/20 min-w-40 flex-1 focus:ring-2 focus:outline-none"
         aria-label="Filtrar por zona"
       >
-        <option value="all" selected={zoneFilter === "all"}>Zonas (Todas)</option>
-        {uniqueZones.map((zone) => (
-          <option value={zone} selected={zoneFilter === zone}>{zone}</option>
-        ))}
+        <option value="all" selected={zoneFilter === "all"}
+          >Zonas (Todas)</option
+        >
+        {
+          uniqueZones.map((zone) => (
+            <option value={zone} selected={zoneFilter === zone}>
+              {zone}
+            </option>
+          ))
+        }
       </select>
 
       <select
         id="admin-office-paqar-filter"
-        class="select border-base-300 flex-1 min-w-40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        class="select border-base-300 focus:border-primary focus:ring-primary/20 min-w-40 flex-1 focus:ring-2 focus:outline-none"
         aria-label="Filtrar por servicios Paq.AR"
       >
-        <option value="all" selected={paqarFilter === "all"}>Paq.AR (Todos)</option>
-        <option value="admision" selected={paqarFilter === "admision"}>Admite Paq.AR</option>
-        <option value="entrega" selected={paqarFilter === "entrega"}>Entrega Paq.AR</option>
-        <option value="ambos" selected={paqarFilter === "ambos"}>Admite y Entrega</option>
+        <option value="all" selected={paqarFilter === "all"}
+          >Paq.AR (Todos)</option
+        >
+        <option value="admision" selected={paqarFilter === "admision"}
+          >Admite Paq.AR</option
+        >
+        <option value="entrega" selected={paqarFilter === "entrega"}
+          >Entrega Paq.AR</option
+        >
+        <option value="ambos" selected={paqarFilter === "ambos"}
+          >Admite y Entrega</option
+        >
       </select>
 
-      <div class="flex-2 min-w-70 flex items-center gap-4">
+      <div class="flex min-w-70 flex-2 items-center gap-4">
         {
           showClosedToggle && (
-            <label class="label cursor-pointer gap-2 p-0 select-none shrink-0">
-              <span class="label-text font-medium text-base-content/80 text-xs sm:text-sm">Mostrar solo inoperativas</span>
+            <label class="label shrink-0 cursor-pointer gap-2 p-0 select-none">
+              <span class="label-text text-base-content/80 text-xs font-medium sm:text-sm">
+                Mostrar solo inoperativas
+              </span>
               <input
                 type="checkbox"
                 id="admin-office-status-toggle"
@@ -284,9 +321,6 @@ const cleanBase = getCleanBase();
         }
         <SearchBar
           id="admin-office-search"
-          name="search"
-          value={searchFilter}
-          label="Buscar oficina por nombre, código o dirección"
           placeholder="Buscar por código, nombre o dirección"
           class="flex-1"
         />
@@ -314,9 +348,9 @@ const cleanBase = getCleanBase();
   </div>
 
   {/* ── Toolbar superior ── */}
-  <div class="flex items-center justify-between gap-4 mt-6">
+  <div class="mt-6 flex items-center justify-between gap-4">
     <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-base-content">
+      <h2 class="text-base-content text-lg font-semibold">
         Oficinas registradas
       </h2>
       <span
@@ -328,7 +362,7 @@ const cleanBase = getCleanBase();
     </div>
     <a
       href={`${cleanBase}admin/oficinas/new`}
-      class="btn btn-secondary rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      class="btn btn-secondary focus-visible:outline-accent rounded-lg font-medium normal-case transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <Icon name="boxicons:plus" size={18} />
       Nueva sucursal
@@ -355,47 +389,54 @@ const cleanBase = getCleanBase();
       <DataTableHeaderCell sortKey="type">Tipo</DataTableHeaderCell>
     </div>
     <div slot="header">
-      <DataTableHeaderCell sortKey="region">Provincia / Región</DataTableHeaderCell>
+      <DataTableHeaderCell sortKey="region"
+        >Provincia / Región</DataTableHeaderCell
+      >
     </div>
     <div slot="header" class="text-right">
       <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
     </div>
 
     <div id="admin-offices-container" class="contents">
-      {allOffices.length === 0 ? (
-        <div class="flex flex-col items-center gap-3 py-16 text-base-content/50 col-span-5">
-          <div class="rounded-full bg-base-200 p-4">
-            <Icon
-              name="boxicons:building-filled"
-              size={32}
-              class="opacity-30"
-              aria-hidden="true"
-            />
+      {
+        allOffices.length === 0 ? (
+          <div class="text-base-content/50 col-span-5 flex flex-col items-center gap-3 py-16">
+            <div class="bg-base-200 rounded-full p-4">
+              <Icon
+                name="boxicons:building-house-filled"
+                size={32}
+                class="opacity-30"
+                aria-hidden="true"
+              />
+            </div>
+            <div class="space-y-1 text-center">
+              <p class="text-sm font-semibold">
+                No hay oficinas que coincidan con la búsqueda
+              </p>
+              <p class="text-xs">
+                Modificá los filtros o limpiá la búsqueda para ver más
+                resultados.
+              </p>
+            </div>
           </div>
-          <div class="space-y-1 text-center">
-            <p class="text-sm font-semibold">No hay oficinas que coincidan con la búsqueda</p>
-            <p class="text-xs">
-              Modificá los filtros o limpiá la búsqueda para ver más resultados.
-            </p>
-          </div>
-        </div>
-      ) : (
-        allOffices.map((office) => (
-          <AdminOfficeRow office={office} />
-        ))
-      )}
+        ) : (
+          allOffices.map((office) => <AdminOfficeRow office={office} />)
+        )
+      }
     </div>
   </DataTable>
 
   <div
     id="scroll-sentinel"
     class:list={[
-      "py-8 text-center flex justify-center w-full",
+      "flex w-full justify-center py-8 text-center",
       !hasMore && "hidden",
     ]}
     data-has-more={hasMore ? "true" : "false"}
   >
-    <span class="loading loading-spinner loading-md text-primary hidden" id="loading-spinner"></span>
+    <span
+      class="loading loading-spinner loading-md text-primary hidden"
+      id="loading-spinner"></span>
   </div>
 </PageContainer>
 
@@ -406,23 +447,43 @@ const cleanBase = getCleanBase();
   import { highlightSearchTargets } from "@lib/clientSearch";
 
   function initOfficesAdmin() {
-    const searchInput = document.querySelector<HTMLInputElement>("#admin-office-search");
+    const searchInput = document.querySelector<HTMLInputElement>(
+      "#admin-office-search",
+    );
     if (!searchInput) return false;
 
-    const typeTabs = document.querySelectorAll<HTMLElement>("#admin-office-type-tabs [data-tab-value]");
-    const regionFilter = document.querySelector<HTMLSelectElement>("#admin-office-region-filter");
-    const provinceFilter = document.querySelector<HTMLSelectElement>("#admin-office-province-filter");
-    const zoneFilter = document.querySelector<HTMLSelectElement>("#admin-office-zone-filter");
-    const paqarFilter = document.querySelector<HTMLSelectElement>("#admin-office-paqar-filter");
+    const typeTabs = document.querySelectorAll<HTMLElement>(
+      "#admin-office-type-tabs [data-tab-value]",
+    );
+    const regionFilter = document.querySelector<HTMLSelectElement>(
+      "#admin-office-region-filter",
+    );
+    const provinceFilter = document.querySelector<HTMLSelectElement>(
+      "#admin-office-province-filter",
+    );
+    const zoneFilter = document.querySelector<HTMLSelectElement>(
+      "#admin-office-zone-filter",
+    );
+    const paqarFilter = document.querySelector<HTMLSelectElement>(
+      "#admin-office-paqar-filter",
+    );
     const container = document.getElementById("admin-offices-container");
     const sentinel = document.getElementById("scroll-sentinel");
     const spinner = document.getElementById("loading-spinner");
-    const countBadge = document.querySelector<HTMLElement>("#office-count-badge");
-    const clearBtn = document.querySelector<HTMLElement>("#admin-office-clear-filters");
-    const statusToggle = document.querySelector<HTMLInputElement>("#admin-office-status-toggle");
+    const countBadge = document.querySelector<HTMLElement>(
+      "#office-count-badge",
+    );
+    const clearBtn = document.querySelector<HTMLElement>(
+      "#admin-office-clear-filters",
+    );
+    const statusToggle = document.querySelector<HTMLInputElement>(
+      "#admin-office-status-toggle",
+    );
 
-    let activeType = new URLSearchParams(window.location.search).get("type") || "all";
-    let currentStatus = new URLSearchParams(window.location.search).get("status") || "all";
+    let activeType =
+      new URLSearchParams(window.location.search).get("type") || "all";
+    let currentStatus =
+      new URLSearchParams(window.location.search).get("status") || "all";
     let currentPage = 1;
     let currentSearch = searchInput?.value.trim() || "";
     let isLoading = false;
@@ -433,30 +494,38 @@ const cleanBase = getCleanBase();
       params.set("view", "admin");
       params.set("page", pageNumber.toString());
       params.set("limit", "100");
-      
+
       if (activeType !== "all") params.set("type", activeType);
-      if (regionFilter && regionFilter.value !== "all") params.set("region", regionFilter.value);
-      if (provinceFilter && provinceFilter.value !== "all") params.set("province", provinceFilter.value);
-      if (zoneFilter && zoneFilter.value !== "all") params.set("zone", zoneFilter.value);
-      if (paqarFilter && paqarFilter.value !== "all") params.set("paqar", paqarFilter.value);
+      if (regionFilter && regionFilter.value !== "all")
+        params.set("region", regionFilter.value);
+      if (provinceFilter && provinceFilter.value !== "all")
+        params.set("province", provinceFilter.value);
+      if (zoneFilter && zoneFilter.value !== "all")
+        params.set("zone", zoneFilter.value);
+      if (paqarFilter && paqarFilter.value !== "all")
+        params.set("paqar", paqarFilter.value);
       if (currentStatus !== "all") params.set("status", currentStatus);
       if (currentSearch) params.set("search", currentSearch);
-      
+
       return params.toString();
     };
 
     const updateURL = () => {
       const params = new URLSearchParams();
       if (activeType !== "all") params.set("type", activeType);
-      if (regionFilter && regionFilter.value !== "all") params.set("region", regionFilter.value);
-      if (provinceFilter && provinceFilter.value !== "all") params.set("province", provinceFilter.value);
-      if (zoneFilter && zoneFilter.value !== "all") params.set("zone", zoneFilter.value);
-      if (paqarFilter && paqarFilter.value !== "all") params.set("paqar", paqarFilter.value);
+      if (regionFilter && regionFilter.value !== "all")
+        params.set("region", regionFilter.value);
+      if (provinceFilter && provinceFilter.value !== "all")
+        params.set("province", provinceFilter.value);
+      if (zoneFilter && zoneFilter.value !== "all")
+        params.set("zone", zoneFilter.value);
+      if (paqarFilter && paqarFilter.value !== "all")
+        params.set("paqar", paqarFilter.value);
       if (currentStatus !== "all") params.set("status", currentStatus);
       if (currentSearch) params.set("search", currentSearch);
-      
-      const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
-      window.history.replaceState({}, '', newUrl);
+
+      const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+      window.history.replaceState({}, "", newUrl);
     };
 
     const fetchOffices = async (isNewSearch: boolean) => {
@@ -472,7 +541,10 @@ const cleanBase = getCleanBase();
 
         const html = await response.text();
         const newHasMore = response.headers.get("X-Has-More") === "true";
-        const totalCount = parseInt(response.headers.get("X-Total-Count") || "0", 10);
+        const totalCount = parseInt(
+          response.headers.get("X-Total-Count") || "0",
+          10,
+        );
 
         hasMore = newHasMore;
 
@@ -509,7 +581,9 @@ const cleanBase = getCleanBase();
         }
 
         if (currentSearch && container) {
-          const newArticles = Array.from(container.querySelectorAll<HTMLElement>("[data-table-row]"));
+          const newArticles = Array.from(
+            container.querySelectorAll<HTMLElement>("[data-table-row]"),
+          );
           newArticles.forEach((item) => {
             highlightSearchTargets(item, currentSearch);
           });
@@ -551,7 +625,8 @@ const cleanBase = getCleanBase();
       const selectedRegion = regionFilter.value;
 
       if (provinceFilter) {
-        provinceFilter.innerHTML = '<option value="all">Provincias (Todas)</option>';
+        provinceFilter.innerHTML =
+          '<option value="all">Provincias (Todas)</option>';
         if (selectedRegion !== "all" && provincesData?.[selectedRegion]) {
           for (const p of provincesData[selectedRegion]) {
             const opt = document.createElement("option");
@@ -583,17 +658,18 @@ const cleanBase = getCleanBase();
           t.setAttribute("aria-selected", isActive ? "true" : "false");
           t.classList.toggle("tab-active", isActive);
         });
-        
+
         if (regionFilter) regionFilter.value = "all";
         if (provinceFilter) {
-          provinceFilter.innerHTML = '<option value="all">Provincias (Todas)</option>';
+          provinceFilter.innerHTML =
+            '<option value="all">Provincias (Todas)</option>';
           provinceFilter.disabled = true;
           provinceFilter.value = "all";
         }
         if (zoneFilter) zoneFilter.value = "all";
         if (paqarFilter) paqarFilter.value = "all";
         if (searchInput) searchInput.value = "";
-        
+
         onFilterChange();
       });
     }
@@ -619,7 +695,7 @@ const cleanBase = getCleanBase();
             fetchOffices(false);
           }
         },
-        { rootMargin: "100px" }
+        { rootMargin: "100px" },
       );
       observer.observe(sentinel);
     }
@@ -653,42 +729,146 @@ const cleanBase = getCleanBase();
     border-radius: 0.5rem;
   }
 
-  .office-type-chip-administracion { background-color: var(--color-indigo-100, #e0e7ff); border-color: var(--color-indigo-300, #a5b4fc); color: var(--color-indigo-900, #1e1b4b); }
-  [data-theme="dark"] .office-type-chip-administracion { background-color: #1e1b4b; border-color: #4338ca; color: #e0e7ff; }
+  .office-type-chip-administracion {
+    background-color: var(--color-indigo-100, #e0e7ff);
+    border-color: var(--color-indigo-300, #a5b4fc);
+    color: var(--color-indigo-900, #1e1b4b);
+  }
+  [data-theme="dark"] .office-type-chip-administracion {
+    background-color: #1e1b4b;
+    border-color: #4338ca;
+    color: #e0e7ff;
+  }
 
-  .office-type-chip-agencia { background-color: var(--color-amber-100, #fef3c7); border-color: var(--color-amber-300, #fcd34d); color: var(--color-amber-900, #78350f); }
-  [data-theme="dark"] .office-type-chip-agencia { background-color: #78350f; border-color: #b45309; color: #fef3c7; }
+  .office-type-chip-agencia {
+    background-color: var(--color-amber-100, #fef3c7);
+    border-color: var(--color-amber-300, #fcd34d);
+    color: var(--color-amber-900, #78350f);
+  }
+  [data-theme="dark"] .office-type-chip-agencia {
+    background-color: #78350f;
+    border-color: #b45309;
+    color: #fef3c7;
+  }
 
-  .office-type-chip-cdd { background-color: var(--color-blue-100, #dbeafe); border-color: var(--color-blue-300, #93c5fd); color: var(--color-blue-900, #1e3a8a); }
-  [data-theme="dark"] .office-type-chip-cdd { background-color: #1e3a8a; border-color: #1d4ed8; color: #dbeafe; }
+  .office-type-chip-cdd {
+    background-color: var(--color-blue-100, #dbeafe);
+    border-color: var(--color-blue-300, #93c5fd);
+    color: var(--color-blue-900, #1e3a8a);
+  }
+  [data-theme="dark"] .office-type-chip-cdd {
+    background-color: #1e3a8a;
+    border-color: #1d4ed8;
+    color: #dbeafe;
+  }
 
-  .office-type-chip-cdp { background-color: var(--color-red-100, #fee2e2); border-color: var(--color-red-300, #fca5a5); color: var(--color-red-900, #7f1d1d); }
-  [data-theme="dark"] .office-type-chip-cdp { background-color: #7f1d1d; border-color: #b91c1c; color: #fee2e2; }
+  .office-type-chip-cdp {
+    background-color: var(--color-red-100, #fee2e2);
+    border-color: var(--color-red-300, #fca5a5);
+    color: var(--color-red-900, #7f1d1d);
+  }
+  [data-theme="dark"] .office-type-chip-cdp {
+    background-color: #7f1d1d;
+    border-color: #b91c1c;
+    color: #fee2e2;
+  }
 
-  .office-type-chip-ctp { background-color: var(--color-green-100, #dcfce7); border-color: var(--color-green-300, #86efac); color: var(--color-green-900, #14532d); }
-  [data-theme="dark"] .office-type-chip-ctp { background-color: #14532d; border-color: #15803d; color: #dcfce7; }
+  .office-type-chip-ctp {
+    background-color: var(--color-green-100, #dcfce7);
+    border-color: var(--color-green-300, #86efac);
+    color: var(--color-green-900, #14532d);
+  }
+  [data-theme="dark"] .office-type-chip-ctp {
+    background-color: #14532d;
+    border-color: #15803d;
+    color: #dcfce7;
+  }
 
-  .office-type-chip-correo-colaborativo { background-color: var(--color-cyan-100, #cffafe); border-color: var(--color-cyan-300, #67e8f9); color: var(--color-cyan-900, #164e63); }
-  [data-theme="dark"] .office-type-chip-correo-colaborativo { background-color: #164e63; border-color: #0e7490; color: #cffafe; }
+  .office-type-chip-correo-colaborativo {
+    background-color: var(--color-cyan-100, #cffafe);
+    border-color: var(--color-cyan-300, #67e8f9);
+    color: var(--color-cyan-900, #164e63);
+  }
+  [data-theme="dark"] .office-type-chip-correo-colaborativo {
+    background-color: #164e63;
+    border-color: #0e7490;
+    color: #cffafe;
+  }
 
-  .office-type-chip-especiales { background-color: var(--color-purple-100, #f3e8ff); border-color: var(--color-purple-300, #d8b4fe); color: var(--color-purple-900, #581c87); }
-  [data-theme="dark"] .office-type-chip-especiales { background-color: #581c87; border-color: #7e22ce; color: #f3e8ff; }
+  .office-type-chip-especiales {
+    background-color: var(--color-purple-100, #f3e8ff);
+    border-color: var(--color-purple-300, #d8b4fe);
+    color: var(--color-purple-900, #581c87);
+  }
+  [data-theme="dark"] .office-type-chip-especiales {
+    background-color: #581c87;
+    border-color: #7e22ce;
+    color: #f3e8ff;
+  }
 
-  .office-type-chip-estafeta { background-color: var(--color-lime-100, #f7fee7); border-color: var(--color-lime-300, #bef264); color: var(--color-lime-900, #365314); }
-  [data-theme="dark"] .office-type-chip-estafeta { background-color: #365314; border-color: #4d7c0f; color: #bef264; }
+  .office-type-chip-estafeta {
+    background-color: var(--color-lime-100, #f7fee7);
+    border-color: var(--color-lime-300, #bef264);
+    color: var(--color-lime-900, #365314);
+  }
+  [data-theme="dark"] .office-type-chip-estafeta {
+    background-color: #365314;
+    border-color: #4d7c0f;
+    color: #bef264;
+  }
 
-  .office-type-chip-general { background-color: var(--color-stone-200, #e7e5e4); border-color: var(--color-stone-300, #d6d3d1); color: var(--color-stone-900, #1c1917); }
-  [data-theme="dark"] .office-type-chip-general { background-color: #292524; border-color: #44403c; color: #e7e5e4; }
+  .office-type-chip-general {
+    background-color: var(--color-stone-200, #e7e5e4);
+    border-color: var(--color-stone-300, #d6d3d1);
+    color: var(--color-stone-900, #1c1917);
+  }
+  [data-theme="dark"] .office-type-chip-general {
+    background-color: #292524;
+    border-color: #44403c;
+    color: #e7e5e4;
+  }
 
-  .office-type-chip-sucursal-automatizada { background-color: var(--color-yellow-100, #fef9c3); border-color: var(--color-yellow-300, #fde047); color: var(--color-yellow-900, #713f12); }
-  [data-theme="dark"] .office-type-chip-sucursal-automatizada { background-color: #713f12; border-color: #a16207; color: #fef9c3; }
+  .office-type-chip-sucursal-automatizada {
+    background-color: var(--color-yellow-100, #fef9c3);
+    border-color: var(--color-yellow-300, #fde047);
+    color: var(--color-yellow-900, #713f12);
+  }
+  [data-theme="dark"] .office-type-chip-sucursal-automatizada {
+    background-color: #713f12;
+    border-color: #a16207;
+    color: #fef9c3;
+  }
 
-  .office-type-chip-sucursal-no-automatizada { background-color: var(--color-orange-100, #ffedd5); border-color: var(--color-orange-300, #fdba74); color: var(--color-orange-900, #7c2d12); }
-  [data-theme="dark"] .office-type-chip-sucursal-no-automatizada { background-color: #7c2d12; border-color: #ea580c; color: #ffedd5; }
+  .office-type-chip-sucursal-no-automatizada {
+    background-color: var(--color-orange-100, #ffedd5);
+    border-color: var(--color-orange-300, #fdba74);
+    color: var(--color-orange-900, #7c2d12);
+  }
+  [data-theme="dark"] .office-type-chip-sucursal-no-automatizada {
+    background-color: #7c2d12;
+    border-color: #ea580c;
+    color: #ffedd5;
+  }
 
-  .office-type-chip-telegrafia { background-color: var(--color-emerald-100, #d1fae5); border-color: var(--color-emerald-300, #6ee7b7); color: var(--color-emerald-900, #064e3b); }
-  [data-theme="dark"] .office-type-chip-telegrafia { background-color: #064e3b; border-color: #047857; color: #d1fae5; }
+  .office-type-chip-telegrafia {
+    background-color: var(--color-emerald-100, #d1fae5);
+    border-color: var(--color-emerald-300, #6ee7b7);
+    color: var(--color-emerald-900, #064e3b);
+  }
+  [data-theme="dark"] .office-type-chip-telegrafia {
+    background-color: #064e3b;
+    border-color: #047857;
+    color: #d1fae5;
+  }
 
-  .office-type-chip-unidad-postal { background-color: var(--color-rose-100, #ffe4e6); border-color: var(--color-rose-300, #fda4af); color: var(--color-rose-900, #4c0519); }
-  [data-theme="dark"] .office-type-chip-unidad-postal { background-color: #4c0519; border-color: #9f1239; color: #ffe4e6; }
+  .office-type-chip-unidad-postal {
+    background-color: var(--color-rose-100, #ffe4e6);
+    border-color: var(--color-rose-300, #fda4af);
+    color: var(--color-rose-900, #4c0519);
+  }
+  [data-theme="dark"] .office-type-chip-unidad-postal {
+    background-color: #4c0519;
+    border-color: #9f1239;
+    color: #ffe4e6;
+  }
 </style>

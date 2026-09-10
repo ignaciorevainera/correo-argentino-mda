@@ -6,5 +6,7 @@ export const POST: APIRoute = async () => {
   try {
     await requestRelease();
     return jsonResponse({ success: true });
-  } catch (error: any) { return jsonResponse({ error: sanitizeError(error) }, 500); }
+  } catch (error: any) {
+    return jsonResponse({ error: sanitizeError(error) }, 500);
+  }
 };

@@ -142,14 +142,18 @@ const appendGroupedItems = (
   const groupNames = [
     ...new Set([
       ...headers
-        .sort((firstHeader, secondHeader) =>
-          getGroupOriginalIndex(firstHeader) -
-          getGroupOriginalIndex(secondHeader),
+        .sort(
+          (firstHeader, secondHeader) =>
+            getGroupOriginalIndex(firstHeader) -
+            getGroupOriginalIndex(secondHeader),
         )
         .map(getHeaderGroupName),
-      ...items.sort((firstItem, secondItem) =>
-        getOriginalIndex(firstItem) - getOriginalIndex(secondItem),
-      ).map(getGroupName),
+      ...items
+        .sort(
+          (firstItem, secondItem) =>
+            getOriginalIndex(firstItem) - getOriginalIndex(secondItem),
+        )
+        .map(getGroupName),
     ]),
   ];
 
@@ -184,7 +188,8 @@ const appendFlatItems = (
   headers
     .sort(
       (firstHeader, secondHeader) =>
-        getGroupOriginalIndex(firstHeader) - getGroupOriginalIndex(secondHeader),
+        getGroupOriginalIndex(firstHeader) -
+        getGroupOriginalIndex(secondHeader),
     )
     .forEach((header) => {
       body.append(header);
@@ -300,8 +305,12 @@ const bindTableEmptyState = (root: HTMLElement): void => {
   }
 
   const body = getBody(root);
-  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state-root]");
-  const wrapper = root.querySelector<HTMLElement>("[data-master-detail-table-wrapper]");
+  const emptyState = root.querySelector<HTMLElement>(
+    "[data-table-empty-state-root]",
+  );
+  const wrapper = root.querySelector<HTMLElement>(
+    "[data-master-detail-table-wrapper]",
+  );
 
   if (!body || !emptyState || !wrapper) {
     return;
@@ -311,7 +320,9 @@ const bindTableEmptyState = (root: HTMLElement): void => {
     const items = getItems(body);
     if (items.length === 0) return;
 
-    const visibleItems = items.filter(item => !item.classList.contains("hidden"));
+    const visibleItems = items.filter(
+      (item) => !item.classList.contains("hidden"),
+    );
     const hasResults = visibleItems.length > 0;
 
     wrapper.classList.toggle("hidden", !hasResults);
@@ -346,4 +357,3 @@ export const initMasterDetailTableSortObserver = (): void => {
   observer.observe(document.body, { childList: true, subtree: true });
   bindMasterDetailTableSort();
 };
-

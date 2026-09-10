@@ -30,11 +30,7 @@ export const GET: APIRoute = async ({ url }) => {
         totalUsers: loc.total,
       }));
 
-    return jsonResponse(
-      { locations: filtered },
-      200,
-      "private, max-age=60",
-    );
+    return jsonResponse({ locations: filtered }, 200, "private, max-age=60");
   } catch (error: any) {
     console.error("[InvGate Location Search] Error:", error);
     return jsonResponse({ error: error.message }, 500);

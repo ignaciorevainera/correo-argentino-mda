@@ -5,7 +5,9 @@ export function extractUsersArray(rawData: unknown): unknown[] {
     const obj = rawData as Record<string, unknown>;
 
     const candidate =
-      (Array.isArray((obj as any)?.data?.users) ? (obj as any).data.users : undefined) ??
+      (Array.isArray((obj as any)?.data?.users)
+        ? (obj as any).data.users
+        : undefined) ??
       (Array.isArray(obj.users) ? obj.users : undefined) ??
       (Array.isArray(obj.data) ? obj.data : undefined);
 

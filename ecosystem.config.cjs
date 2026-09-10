@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "correo-argentino-mda",
-      script: "./dist/server/entry.mjs",
+      script: "./server.mjs",
       env: {
         NODE_ENV: "production",
         PORT: 4321,

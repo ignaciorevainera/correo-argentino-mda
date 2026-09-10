@@ -198,7 +198,9 @@ const bindTableEmptyState = (root: HTMLElement): void => {
   }
 
   const body = root.querySelector<HTMLElement>("[data-table-sort-body]");
-  const emptyState = root.querySelector<HTMLElement>("[data-table-empty-state-root]");
+  const emptyState = root.querySelector<HTMLElement>(
+    "[data-table-empty-state-root]",
+  );
   const wrapper = root.querySelector<HTMLElement>("[data-table-wrapper]");
 
   if (!body || !emptyState || !wrapper) {
@@ -209,7 +211,7 @@ const bindTableEmptyState = (root: HTMLElement): void => {
     const rows = getRows(body);
     if (rows.length === 0) return;
 
-    const visibleRows = rows.filter(row => !row.classList.contains("hidden"));
+    const visibleRows = rows.filter((row) => !row.classList.contains("hidden"));
     const hasResults = visibleRows.length > 0;
 
     wrapper.classList.toggle("hidden", !hasResults);
@@ -244,4 +246,3 @@ export const initTableSortObserver = (): void => {
   observer.observe(document.body, { childList: true, subtree: true });
   bindClientTableSort();
 };
-

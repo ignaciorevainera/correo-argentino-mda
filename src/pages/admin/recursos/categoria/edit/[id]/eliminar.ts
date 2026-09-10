@@ -7,7 +7,11 @@ export const POST = createCategoryDeleteHandler({
   categoryIdColumn: resourceCategories.id,
   itemsCategoryColumn: resourceLinks.categoryId,
   defaultCategoryTitle: "Sin Categoría",
-  defaultCategoryValues: { title: "Sin Categoría", iconName: "boxicons:folder", tone: "neutral" },
+  defaultCategoryValues: {
+    title: "Sin Categoría",
+    iconName: "boxicons:folder",
+    tone: "neutral",
+  },
   redirectPath: "admin/recursos",
   entityName: "la categoría de recursos",
 });

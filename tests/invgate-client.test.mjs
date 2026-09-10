@@ -28,15 +28,21 @@ async function simulateInvgateGet(endpoint) {
   const rawUsername = process.env.INVGATE_API_USERNAME;
 
   if (!apiKey) {
-    throw new Error("[InvGate] Variable de entorno INVGATE_API_KEY no definida.");
+    throw new Error(
+      "[InvGate] Variable de entorno INVGATE_API_KEY no definida.",
+    );
   }
   if (!baseUrl) {
-    throw new Error("[InvGate] Variable de entorno INVGATE_BASE_URL no definida.");
+    throw new Error(
+      "[InvGate] Variable de entorno INVGATE_BASE_URL no definida.",
+    );
   }
 
   const apiUsername = rawUsername || "portalmda";
 
-  const credentials = Buffer.from(apiUsername + ":" + apiKey).toString("base64");
+  const credentials = Buffer.from(apiUsername + ":" + apiKey).toString(
+    "base64",
+  );
   const headers = {
     Authorization: `Basic ${credentials}`,
     "Content-Type": "application/json",
@@ -55,7 +61,8 @@ async function simulateInvgateGet(endpoint) {
     const data = await response.json();
     return { ok: true, status: response.status, data };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error desconocido";
+    const message =
+      error instanceof Error ? error.message : "Error desconocido";
     return {
       ok: false,
       status: 0,
@@ -71,7 +78,10 @@ process.env.INVGATE_BASE_URL = "https://invgate.test/api/v1/";
 process.env.INVGATE_API_USERNAME = "portalmda";
 
 // --- Test 1: Successful GET ---
-mockFetch({ data: [{ id: 1, title: "Test" }], pagination: { total_entries: 1 } });
+mockFetch({
+  data: [{ id: 1, title: "Test" }],
+  pagination: { total_entries: 1 },
+});
 let result = await simulateInvgateGet("incidents?page=1&page_size=1");
 assert.equal(result.ok, true, "Should return ok: true on success");
 assert.equal(result.status, 200, "Should return status 200");
@@ -92,7 +102,10 @@ mockNetworkError();
 result = await simulateInvgateGet("incidents?page=1");
 assert.equal(result.ok, false, "Should return ok: false on network error");
 assert.equal(result.status, 0, "Should return status 0 on network error");
-assert.ok(result.message.includes("Network error"), "Should include network error message");
+assert.ok(
+  result.message.includes("Network error"),
+  "Should include network error message",
+);
 restoreFetch();
 
 // --- Test 4: Missing API key throws ---
@@ -101,7 +114,10 @@ try {
   await simulateInvgateGet("incidents");
   assert.fail("Should have thrown for missing API key");
 } catch (e) {
-  assert.ok(e.message.includes("INVGATE_API_KEY"), "Should mention missing env var");
+  assert.ok(
+    e.message.includes("INVGATE_API_KEY"),
+    "Should mention missing env var",
+  );
 }
 process.env.INVGATE_API_KEY = "test-api-key-123";
 
@@ -111,18 +127,37 @@ try {
   await simulateInvgateGet("incidents");
   assert.fail("Should have thrown for missing base URL");
 } catch (e) {
-  assert.ok(e.message.includes("INVGATE_BASE_URL"), "Should mention missing env var");
+  assert.ok(
+    e.message.includes("INVGATE_BASE_URL"),
+    "Should mention missing env var",
+  );
 }
 process.env.INVGATE_BASE_URL = "https://invgate.test/api/v1/";
 
 // --- Test 6: Auth header format (must use portalmda as username) ---
 globalThis.fetch = async (url, options) => {
-  assert.ok(options.headers.Authorization.startsWith("Basic "), "Should use Basic auth");
-  const decoded = Buffer.from(options.headers.Authorization.slice(6), "base64").toString("utf8");
-  assert.equal(decoded, "portalmda:test-api-key-123", "Auth should be 'portalmda:<key>'");
-  assert.equal(options.headers["Content-Type"], "application/json", "Should set Content-Type header");
+  assert.ok(
+    options.headers.Authorization.startsWith("Basic "),
+    "Should use Basic auth",
+  );
+  const decoded = Buffer.from(
+    options.headers.Authorization.slice(6),
+    "base64",
+  ).toString("utf8");
+  assert.equal(
+    decoded,
+    "portalmda:test-api-key-123",
+    "Auth should be 'portalmda:<key>'",
+  );
+  assert.equal(
+    options.headers["Content-Type"],
+    "application/json",
+    "Should set Content-Type header",
+  );
   return {
-    ok: true, status: 200, statusText: "OK",
+    ok: true,
+    status: 200,
+    statusText: "OK",
     json: async () => ({ data: [] }),
   };
 };

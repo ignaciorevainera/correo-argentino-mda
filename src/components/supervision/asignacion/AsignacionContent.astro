@@ -58,11 +58,15 @@ if (Astro.request.method === "POST" && !isReadOnly) {
         msg = `Autogestión asignada manualmente a ${ag?.name ?? `ID ${agentId}`}.`;
       }
     } else if (action === "assign_cyclic") {
-      const res = await asignarSiguienteAutogestion(user?.username || "Sistema");
+      const res = await asignarSiguienteAutogestion(
+        user?.username || "Sistema",
+      );
       if (res.success && res.agent) {
         msg = `Autogestión asignada cíclicamente a ${res.agent.nombre}.`;
       } else {
-        msg = res.error || "No hay operadores disponibles o dentro de horario operativo para asignar.";
+        msg =
+          res.error ||
+          "No hay operadores disponibles o dentro de horario operativo para asignar.";
         msgType = "error";
       }
     }
@@ -75,7 +79,10 @@ if (Astro.request.method === "POST" && !isReadOnly) {
     }
   } catch (e: any) {
     const url = new URL(Astro.request.url);
-    url.searchParams.set("toast_msg", `Ocurrió un error al procesar la acción: ${e.message}`);
+    url.searchParams.set(
+      "toast_msg",
+      `Ocurrió un error al procesar la acción: ${e.message}`,
+    );
     url.searchParams.set("toast_type", "error");
     return Astro.redirect(url.pathname + url.search);
   }
@@ -101,15 +108,26 @@ const maxAssignedOperatorId = lastAssignedOperator?.agentId ?? null;
 
 // Find the next suggested operators (up to 4) for the queue
 const availableOperators = allOperators.filter((o) => o.disponible);
-const nextSuggestedOperators = availableOperators.length > 0
-  ? [...availableOperators].sort((a, b) => {
-      const tA = a.lastAutogestionAssignedAt ?? 0;
-      const tB = b.lastAutogestionAssignedAt ?? 0;
-      if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
-      if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
-      return tA - tB;
-    }).slice(0, 4)
-  : [];
+const nextSuggestedOperators =
+  availableOperators.length > 0
+    ? [...availableOperators]
+        .sort((a, b) => {
+          const tA = a.lastAutogestionAssignedAt ?? 0;
+          const tB = b.lastAutogestionAssignedAt ?? 0;
+          if (
+            a.lastAutogestionAssignedAt === null &&
+            b.lastAutogestionAssignedAt !== null
+          )
+            return -1;
+          if (
+            a.lastAutogestionAssignedAt !== null &&
+            b.lastAutogestionAssignedAt === null
+          )
+            return 1;
+          return tA - tB;
+        })
+        .slice(0, 4)
+    : [];
 
 const STATUS_LABELS: Record<string, string> = {
   "En break": "En Break",
@@ -145,7 +163,8 @@ noDisponiblesList.forEach((op) => {
 });
 
 const getBadgeColor = (status: string, disponible: boolean): string => {
-  if (disponible) return "badge-success text-success-content shadow-sm shadow-success/20";
+  if (disponible)
+    return "badge-success text-success-content shadow-sm shadow-success/20";
   switch (status) {
     case "En break":
       return "badge-warning text-warning-content shadow-sm shadow-warning/20";
@@ -201,11 +220,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
   <Modal id="modal-marcar-excepcion">
     <Fragment slot="content">
       <h3
-        class="font-bold text-sm uppercase tracking-wider mb-4 text-base-content flex items-center gap-2"
+        class="text-base-content mb-4 flex items-center gap-2 text-sm font-bold tracking-wider uppercase"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          class="size-5 text-secondary"
+          class="text-secondary size-5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -224,14 +243,24 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       <input type="hidden" id="modal-agent-id" />
 
       <div class="flex flex-col gap-4">
-        <SelectField id="modal-select-tipo" name="modal-select-tipo" label="Tipo de Excepción" size="sm">
+        <SelectField
+          id="modal-select-tipo"
+          name="modal-select-tipo"
+          label="Tipo de Excepción"
+          size="sm"
+        >
           <option value="devolucion_supervisor">Devolución Supervisor</option>
           <option value="break_extendido">Break Extendido</option>
           <option value="problema_tecnico">Problema Técnico</option>
         </SelectField>
 
         <div id="container-tiempo-extra" class="form-control hidden">
-          <SelectField id="modal-select-tiempo-extra" name="modal-select-tiempo-extra" label="Tiempo Extra" size="sm">
+          <SelectField
+            id="modal-select-tiempo-extra"
+            name="modal-select-tiempo-extra"
+            label="Tiempo Extra"
+            size="sm"
+          >
             <option value="5">5 minutos</option>
             <option value="10">10 minutos</option>
             <option value="15">15 minutos</option>
@@ -245,7 +274,13 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           </SelectField>
         </div>
 
-        <FormField id="modal-input-motivo" name="modal-input-motivo" label="Comentario (opcional)" placeholder="Ej. Reunión urgente, corte de internet, etc." size="sm" />
+        <FormField
+          id="modal-input-motivo"
+          name="modal-input-motivo"
+          label="Comentario (opcional)"
+          placeholder="Ej. Reunión urgente, corte de internet, etc."
+          size="sm"
+        />
       </div>
     </Fragment>
     <Fragment slot="actions">
@@ -258,7 +293,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       </button>
       <button
         type="button"
-        class="btn btn-secondary btn-sm font-bold uppercase tracking-wider"
+        class="btn btn-secondary btn-sm font-bold tracking-wider uppercase"
         id="btn-confirmar-modal-excepcion"
       >
         Confirmar
@@ -266,51 +301,47 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     </Fragment>
   </Modal>
 
-  <div
-    class="mb-6 border-b border-base-200 pb-5"
-  >
+  <div class="border-base-200 mb-6 border-b pb-5">
     <PageHeader
       description="Distribución equitativa y controlada de autogestiones entre operadores técnicos."
       descriptionClass="max-w-prose"
     />
   </div>
 
-
-
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+  <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
     <!-- Card Disponibles -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-success/30 transition-colors duration-300"
+      class="card bg-base-100 border-base-300 group hover:border-success/30 overflow-hidden border shadow-md transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+        class="pointer-events-none absolute -top-4 -right-4 p-4 opacity-5 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-10"
       >
         <Icon name="boxicons:user-check" size={128} />
       </div>
       <div class="card-body p-6">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="p-2 bg-success/10 rounded-lg text-success">
+        <div class="mb-2 flex items-center gap-3">
+          <div class="bg-success/10 text-success rounded-lg p-2">
             <Icon name="boxicons:user-check" size={24} />
           </div>
           <h3
-            class="font-bold text-xs uppercase tracking-widest text-base-content/50"
+            class="text-base-content/50 text-xs font-bold tracking-widest uppercase"
           >
             Disponibilidad Actual
           </h3>
         </div>
         <div class="flex items-baseline gap-2">
           <span
-            class="text-5xl font-black text-success tracking-tight"
+            class="text-success text-5xl font-black tracking-tight"
             id="stat-disponibles-count">{disponiblesCount}</span
           >
           <span
-            class="text-base-content/40 font-bold uppercase text-xs tracking-wider"
+            class="text-base-content/40 text-xs font-bold tracking-wider uppercase"
             >operadores activos</span
           >
         </div>
         <div class="mt-6 flex flex-col gap-2">
           <div
-            class="flex justify-between text-xs font-bold uppercase tracking-wider px-0.5"
+            class="flex justify-between px-0.5 text-xs font-bold tracking-wider uppercase"
           >
             <span class="text-base-content/40">Tasa de disponibilidad</span>
             <span class="text-success font-mono font-black" id="stat-percentage"
@@ -322,7 +353,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             >
           </div>
           <progress
-            class="progress progress-success w-full h-2.5 bg-base-200"
+            class="progress progress-success bg-base-200 h-2.5 w-full"
             value={disponiblesCount}
             max={allOperators.length || 1}
             id="stat-progress"></progress>
@@ -332,31 +363,31 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card No Disponibles -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
+      class="card bg-base-100 border-base-300 group hover:border-base-content/20 overflow-hidden border shadow-md transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+        class="pointer-events-none absolute -top-4 -right-4 p-4 opacity-5 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-10"
       >
         <Icon name="boxicons:user-x" size={128} />
       </div>
       <div class="card-body p-6">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="p-2 bg-base-content/5 rounded-lg text-base-content/50">
+        <div class="mb-2 flex items-center gap-3">
+          <div class="bg-base-content/5 text-base-content/50 rounded-lg p-2">
             <Icon name="boxicons:user-x" size={24} />
           </div>
           <h3
-            class="font-bold text-xs uppercase tracking-widest text-base-content/50"
+            class="text-base-content/50 text-xs font-bold tracking-widest uppercase"
           >
             Fuera de Servicio
           </h3>
         </div>
         <div class="flex items-baseline gap-2">
           <span
-            class="text-5xl font-black text-base-content/80 tracking-tight"
+            class="text-base-content/80 text-5xl font-black tracking-tight"
             id="stat-no-disponibles-count">{noDisponiblesCount}</span
           >
           <span
-            class="text-base-content/40 font-bold uppercase text-xs tracking-wider"
+            class="text-base-content/40 text-xs font-bold tracking-wider uppercase"
             >en estados especiales</span
           >
         </div>
@@ -365,20 +396,20 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           {
             Object.entries(breakdown).map(([estado, count]) => (
               <div
-                class="flex items-center justify-between p-2 rounded-lg bg-base-200/50 border border-transparent hover:border-base-300 transition-colors duration-200 data-[count='0']:opacity-40"
+                class="bg-base-200/50 hover:border-base-300 flex items-center justify-between rounded-lg border border-transparent p-2 transition-colors duration-200 data-[count='0']:opacity-40"
                 data-breakdown-container
                 data-count={count}
               >
-                <div class="flex items-center gap-2 min-w-0">
+                <div class="flex min-w-0 items-center gap-2">
                   <span
-                    class={`size-2 rounded-full shrink-0 ${breakdownBadge(estado)}`}
+                    class={`size-2 shrink-0 rounded-full ${breakdownBadge(estado)}`}
                   />
-                  <span class="text-xs font-bold truncate text-base-content/60 uppercase tracking-tight">
+                  <span class="text-base-content/60 truncate text-xs font-bold tracking-tight uppercase">
                     {STATUS_LABELS[estado] ?? estado}
                   </span>
                 </div>
                 <span
-                  class="text-xs font-mono font-bold text-base-content/90"
+                  class="text-base-content/90 font-mono text-xs font-bold"
                   data-breakdown-count={estado}
                 >
                   {count}
@@ -392,41 +423,67 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card Última Asignación -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
+      class="card bg-base-100 border-base-300 group hover:border-base-content/20 overflow-hidden border shadow-md transition-colors duration-300"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+        class="pointer-events-none absolute -top-4 -right-4 p-4 opacity-5 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-10"
       >
         <Icon name="boxicons:history" size={128} />
       </div>
-      <div class="card-body p-6 flex flex-col justify-between h-full">
+      <div class="card-body flex h-full flex-col justify-between p-6">
         <div>
-          <div class="flex items-center gap-3 mb-2">
-            <div class="p-2 bg-info/10 rounded-lg text-info">
+          <div class="mb-2 flex items-center gap-3">
+            <div class="bg-info/10 text-info rounded-lg p-2">
               <Icon name="boxicons:history" size={24} />
             </div>
             <h3
-              class="font-bold text-xs uppercase tracking-widest text-base-content/50"
+              class="text-base-content/50 text-xs font-bold tracking-widest uppercase"
             >
               Última Asignación
             </h3>
           </div>
           <div id="stat-last-assigned-container" class="mt-2 space-y-2">
-            {lastAssignedOperator ? (
-              <div>
-                <div class="text-sm font-semibold text-base-content">
-                  De: <span class="font-black text-info" id="stat-last-assigned-by">{lastAssignedOperator.lastAutogestionAssignedBy || "Sistema"}</span>
+            {
+              lastAssignedOperator ? (
+                <div>
+                  <div class="text-base-content text-sm font-semibold">
+                    De:{" "}
+                    <span
+                      class="text-info font-black"
+                      id="stat-last-assigned-by"
+                    >
+                      {lastAssignedOperator.lastAutogestionAssignedBy ||
+                        "Sistema"}
+                    </span>
+                  </div>
+                  <div class="text-base-content mt-1 text-sm font-semibold">
+                    Para:{" "}
+                    <span
+                      class="text-base-content font-black"
+                      id="stat-last-assigned-to"
+                    >
+                      {lastAssignedOperator.nombre}
+                    </span>
+                  </div>
+                  <div
+                    class="text-base-content/50 mt-2 font-mono text-xs"
+                    id="stat-last-assigned-time"
+                  >
+                    Hora:{" "}
+                    {new Date(
+                      lastAssignedOperator.lastAutogestionAssignedAt!,
+                    ).toLocaleTimeString("es-AR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
                 </div>
-                <div class="text-sm font-semibold text-base-content mt-1">
-                  Para: <span class="font-black text-base-content" id="stat-last-assigned-to">{lastAssignedOperator.nombre}</span>
-                </div>
-                <div class="text-xs text-base-content/50 font-mono mt-2" id="stat-last-assigned-time">
-                  Hora: {new Date(lastAssignedOperator.lastAutogestionAssignedAt!).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              </div>
-            ) : (
-              <span class="text-xs text-base-content/40 italic">Sin asignaciones hoy</span>
-            )}
+              ) : (
+                <span class="text-base-content/40 text-xs italic">
+                  Sin asignaciones hoy
+                </span>
+              )
+            }
           </div>
         </div>
       </div>
@@ -434,20 +491,22 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
     <!-- Card Cola de Asignación -->
     <div
-      class="card bg-base-100 border border-base-300 shadow-md overflow-hidden group hover:border-base-content/20 transition-colors duration-300"
+      class="card bg-base-100 border-base-300 group hover:border-base-content/20 overflow-hidden border shadow-md transition-colors duration-300"
       style="min-height: 210px"
     >
       <div
-        class="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+        class="pointer-events-none absolute -top-4 -right-4 p-4 opacity-5 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-10"
       >
         <Icon name="boxicons:sparkles" size={128} />
       </div>
-      <div class="card-body p-6 flex flex-col h-full">
-        <div class="flex items-center gap-3 mb-3 shrink-0">
-          <div class="p-2 bg-primary/10 rounded-lg text-primary">
+      <div class="card-body flex h-full flex-col p-6">
+        <div class="mb-3 flex shrink-0 items-center gap-3">
+          <div class="bg-primary/10 text-primary rounded-lg p-2">
             <Icon name="boxicons:sparkles" size={24} />
           </div>
-          <h3 class="font-bold text-xs uppercase tracking-widest text-base-content/50">
+          <h3
+            class="text-base-content/50 text-xs font-bold tracking-widest uppercase"
+          >
             Próximos en Cola
           </h3>
         </div>
@@ -465,34 +524,58 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                   >
                     {idx === 0 ? (
                       <div class="flex items-center gap-2 py-1.5">
-                        <div class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
+                        <div class="bg-primary h-1.5 w-1.5 shrink-0 rounded-full" />
                         <div class="min-w-0">
-                          <div class="text-lg sm:text-xl font-black text-primary tracking-tight truncate">{op.nombre}</div>
-                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/40">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                          <div class="text-primary truncate text-lg font-black tracking-tight sm:text-xl">
+                            {op.nombre}
+                          </div>
+                          <div class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
+                            {op.modalidadHoy === "Home Office"
+                              ? "Home"
+                              : "Presencial"}
+                          </div>
                         </div>
                       </div>
                     ) : idx === 1 ? (
                       <div class="flex items-center gap-2 py-1.5">
-                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="bg-base-content/30 h-1.5 w-1.5 shrink-0 rounded-full" />
                         <div class="min-w-0">
-                          <div class="text-base font-bold text-base-content/70 truncate">{op.nombre}</div>
-                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                          <div class="text-base-content/70 truncate text-base font-bold">
+                            {op.nombre}
+                          </div>
+                          <div class="text-xxs text-base-content/30 font-bold tracking-wider uppercase">
+                            {op.modalidadHoy === "Home Office"
+                              ? "Home"
+                              : "Presencial"}
+                          </div>
                         </div>
                       </div>
                     ) : idx === 2 ? (
                       <div class="flex items-center gap-2 py-1.5">
-                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="bg-base-content/30 h-1.5 w-1.5 shrink-0 rounded-full" />
                         <div class="min-w-0">
-                          <div class="text-sm font-semibold text-base-content/50 truncate">{op.nombre}</div>
-                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                          <div class="text-base-content/50 truncate text-sm font-semibold">
+                            {op.nombre}
+                          </div>
+                          <div class="text-xxs text-base-content/30 font-bold tracking-wider uppercase">
+                            {op.modalidadHoy === "Home Office"
+                              ? "Home"
+                              : "Presencial"}
+                          </div>
                         </div>
                       </div>
                     ) : (
                       <div class="flex items-center gap-2 py-1.5">
-                        <div class="w-1.5 h-1.5 rounded-full bg-base-content/30 shrink-0"></div>
+                        <div class="bg-base-content/30 h-1.5 w-1.5 shrink-0 rounded-full" />
                         <div class="min-w-0">
-                          <div class="text-xs font-medium text-base-content/35 truncate">{op.nombre}</div>
-                          <div class="text-xxs font-bold uppercase tracking-wider text-base-content/30">{op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}</div>
+                          <div class="text-base-content/35 truncate text-xs font-medium">
+                            {op.nombre}
+                          </div>
+                          <div class="text-xxs text-base-content/30 font-bold tracking-wider uppercase">
+                            {op.modalidadHoy === "Home Office"
+                              ? "Home"
+                              : "Presencial"}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -500,7 +583,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                 );
               })
             ) : (
-              <div class="text-xs text-base-content/40 italic py-2" id="stat-suggested-name-empty">
+              <div
+                class="text-base-content/40 py-2 text-xs italic"
+                id="stat-suggested-name-empty"
+              >
                 No hay operadores disponibles
               </div>
             )
@@ -508,14 +594,21 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         </div>
       </div>
     </div>
-
   </div>
 
   <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
     <!-- Left: Toggle -->
-    <label class="label cursor-pointer justify-start gap-3 bg-base-200/40 hover:bg-base-200/80 px-4 py-2.5 rounded-xl border border-base-300/45 transition-colors duration-250">
-      <input type="checkbox" id="toggle-disponibles" class="toggle toggle-primary toggle-sm" />
-      <span class="label-text font-bold text-xs uppercase tracking-wider text-base-content/70">
+    <label
+      class="label bg-base-200/40 hover:bg-base-200/80 border-base-300/45 cursor-pointer justify-start gap-3 rounded-xl border px-4 py-2.5 transition-colors duration-250"
+    >
+      <input
+        type="checkbox"
+        id="toggle-disponibles"
+        class="toggle toggle-primary toggle-sm"
+      />
+      <span
+        class="label-text text-base-content/70 text-xs font-bold tracking-wider uppercase"
+      >
         Solo disponibles
       </span>
     </label>
@@ -523,57 +616,91 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     <!-- Right: Status + Actions -->
     <div class="flex items-center gap-4">
       <!-- Lock indicator -->
-      {role !== "agent" && (
-        <>
-          <div id="lock-indicator"
-               data-user-id={user?.id}
-               data-user-username={user?.username}
-               data-lock-timeout={10 * 60 * 1000}
-               class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs font-semibold text-base-content/70">
-            <!-- updateLockBanner() lo puebla dinámicamente -->
-          </div>
-          <div class="w-px h-5 bg-base-300/60"></div>
-        </>
-      )}
+      {
+        role !== "agent" && (
+          <>
+            <div
+              id="lock-indicator"
+              data-user-id={user?.id}
+              data-user-username={user?.username}
+              data-lock-timeout={10 * 60 * 1000}
+              class="text-base-content/70 grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs font-semibold"
+            >
+              {/* updateLockBanner() lo puebla dinámicamente */}
+            </div>
+            <div class="bg-base-300/60 h-5 w-px" />
+          </>
+        )
+      }
 
       <!-- Sync + Refresh -->
       <div class="flex items-center gap-1">
-        <span id="sync-indicator" class="text-xs text-base-content/50 font-semibold w-[180px]">
+        <span
+          id="sync-indicator"
+          class="text-base-content/50 w-45 text-xs font-semibold"
+        >
           Actualizado hace unos instantes
         </span>
-        <button id="btn-refresh" class="btn btn-xs btn-circle btn-ghost text-base-content/60 hover:text-base-content" title="Actualizar ahora">
-          <Icon name="boxicons:refresh-ccw-filled" size={18} id="refresh-icon" />
+        <button
+          id="btn-refresh"
+          class="btn btn-xs btn-circle btn-ghost text-base-content/60 hover:text-base-content"
+          title="Actualizar ahora"
+        >
+          <Icon
+            name="boxicons:refresh-ccw-filled"
+            size={18}
+            id="refresh-icon"
+          />
         </button>
       </div>
 
-      <div class="w-px h-5 bg-base-300/60"></div>
+      <div class="bg-base-300/60 h-5 w-px"></div>
 
       <!-- Action buttons -->
-      {!isReadOnly && (
-        <div class="flex items-center gap-2">
-          <button id="btn-undo" type="button" class="btn btn-secondary btn-outline btn-sm shadow-sm" disabled>
-            <Icon name="boxicons:undo" size={18} aria-hidden="true" />
-            <span id="btn-undo-text">Deshacer</span>
-          </button>
-          <button id="btn-assign-cyclic" type="button" class="btn btn-primary btn-sm shadow-lg shadow-primary/20">
-            <Icon name="boxicons:user-check" size={18} aria-hidden="true" />
-            Asignar Siguiente
-          </button>
-        </div>
-      )}
+      {
+        !isReadOnly && (
+          <div class="flex items-center gap-2">
+            <button
+              id="btn-undo"
+              type="button"
+              class="btn btn-secondary btn-outline btn-sm shadow-sm"
+              disabled
+            >
+              <Icon name="boxicons:undo" size={18} aria-hidden="true" />
+              <span id="btn-undo-text">Deshacer</span>
+            </button>
+            <button
+              id="btn-assign-cyclic"
+              type="button"
+              class="btn btn-primary btn-sm shadow-primary/20 shadow-lg"
+            >
+              <Icon name="boxicons:user-check" size={18} aria-hidden="true" />
+              Asignar Siguiente
+            </button>
+          </div>
+        )
+      }
     </div>
   </div>
 
   <DataTable
     ariaLabel="Lista de operadores para asignación de autogestiones"
-    headerGridClass={isReadOnly ? "grid-cols-[1.8fr_1.5fr_1.2fr] gap-2 md:gap-4" : "grid-cols-[1.8fr_1.5fr_1.2fr_minmax(100px,auto)] gap-2 md:gap-4"}
-    rowGridClass={isReadOnly ? "grid grid-cols-[1.8fr_1.5fr_1.2fr] items-center gap-2 md:gap-4" : "grid grid-cols-[1.8fr_1.5fr_1.2fr_minmax(100px,auto)] items-center gap-2 md:gap-4"}
+    headerGridClass={isReadOnly
+      ? "grid-cols-[1.8fr_1.5fr_1.2fr] gap-2 md:gap-4"
+      : "grid-cols-[1.8fr_1.5fr_1.2fr_minmax(100px,auto)] gap-2 md:gap-4"}
+    rowGridClass={isReadOnly
+      ? "grid grid-cols-[1.8fr_1.5fr_1.2fr] items-center gap-2 md:gap-4"
+      : "grid grid-cols-[1.8fr_1.5fr_1.2fr_minmax(100px,auto)] items-center gap-2 md:gap-4"}
   >
     <Fragment slot="header">
       <DataTableHeaderCell sortKey="nombre">Operador</DataTableHeaderCell>
       <DataTableHeaderCell>Horario / Modo</DataTableHeaderCell>
       <DataTableHeaderCell sortKey="estado">Estado</DataTableHeaderCell>
-      {!isReadOnly && <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>}
+      {
+        !isReadOnly && (
+          <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
+        )
+      }
     </Fragment>
 
     {
@@ -607,16 +734,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           >
             {/* Nombre + ID + Last Assigned */}
             <div class="flex min-w-0 flex-col">
-              <span class="truncate text-xs font-bold text-base-content">
+              <span class="text-base-content truncate text-xs font-bold">
                 {op.nombre}
               </span>
-              <span class="font-mono text-tiny text-base-content/40 font-semibold">
+              <span class="text-tiny text-base-content/40 font-mono font-semibold">
                 ID: {op.agentId} {op.username ? `(${op.username})` : ""}
               </span>
               <div data-op-last-assigned-container>
                 {op.lastAutogestionAssignedAt ? (
                   <span
-                    class="text-tiny text-base-content/75 bg-base-300/50 rounded px-1.5 py-0.5 inline-block font-semibold mt-0.5"
+                    class="text-tiny text-base-content/75 bg-base-300/50 mt-0.5 inline-block rounded px-1.5 py-0.5 font-semibold"
                     data-last-assigned={op.lastAutogestionAssignedAt}
                   >
                     Asignado:{" "}
@@ -626,7 +753,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                     )}
                   </span>
                 ) : (
-                  <span class="text-tiny text-base-content/40 bg-base-200/40 rounded px-1.5 py-0.5 inline-block italic mt-0.5">
+                  <span class="text-tiny text-base-content/40 bg-base-200/40 mt-0.5 inline-block rounded px-1.5 py-0.5 italic">
                     Nunca asignado
                   </span>
                 )}
@@ -634,15 +761,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             </div>
 
             {/* Horario y Modo */}
-            <div class="flex flex-col gap-1 min-w-0">
+            <div class="flex min-w-0 flex-col gap-1">
               <div data-op-horario>
                 {op.horarioHoy ? (
-                  <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-small text-base-content/70">
+                  <div class="text-small text-base-content/70 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span class="flex items-center gap-1 font-semibold">
                       <Icon
                         name="boxicons:clock-dashed-half-filled"
                         size={14}
-                        class="opacity-60 shrink-0"
+                        class="shrink-0 opacity-60"
                       />
                       {op.horarioHoy}
                     </span>
@@ -651,7 +778,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                         <Icon
                           name="boxicons:cup-hot"
                           size={14}
-                          class="opacity-60 shrink-0"
+                          class="shrink-0 opacity-60"
                         />
                         {op.breakInicioHoy} - {op.breakFinHoy}
                       </span>
@@ -664,7 +791,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
               <div data-op-modalidad>
                 {op.modalidadHoy && op.modalidadHoy !== "Franco" && (
-                  <span class="text-xxs font-bold opacity-60 uppercase tracking-tight">
+                  <span class="text-xxs font-bold tracking-tight uppercase opacity-60">
                     {op.modalidadHoy === "Home Office" ? "Home" : "Presencial"}
                   </span>
                 )}
@@ -683,7 +810,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                 >
                   <span
                     data-op-status-badge={op.agentId}
-                    class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} gap-1.5 badge-xs font-semibold uppercase text-tiny tracking-wider py-2 cursor-help`}
+                    class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} badge-xs text-tiny cursor-help gap-1.5 py-2 font-semibold tracking-wider uppercase`}
                   >
                     {getExcepcionalShortLabel(op.estadoExcepcional)}
                     {op.estadoExcepcional === "break_extendido" &&
@@ -697,13 +824,13 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               ) : (
                 <span
                   data-op-status-badge={op.agentId}
-                  class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} gap-1.5 badge-xs font-semibold uppercase text-tiny tracking-wider py-2`}
+                  class={`badge ${getBadgeColor(op.motivo || "", op.disponible)} badge-xs text-tiny gap-1.5 py-2 font-semibold tracking-wider uppercase`}
                 >
                   {op.disponible && (
-                    <span class="size-1.5 rounded-full bg-success-content animate-ping" />
+                    <span class="bg-success-content size-1.5 animate-ping rounded-full" />
                   )}
                   {!op.disponible && op.motivo === "En break" && (
-                    <span class="size-1.5 rounded-full bg-warning-content/75 animate-pulse" />
+                    <span class="bg-warning-content/75 size-1.5 animate-pulse rounded-full" />
                   )}
                   {op.disponible
                     ? "Disponible"
@@ -715,7 +842,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               {op.estadoExcepcional && op.estadoExcepcionalMotivo && (
                 <div
                   data-op-exception-comment={op.agentId}
-                  class="text-small text-base-content/50 italic font-medium max-w-[150px] truncate mt-0.5"
+                  class="text-small text-base-content/50 mt-0.5 max-w-37.5 truncate font-medium italic"
                   title={op.estadoExcepcionalMotivo}
                 >
                   "{op.estadoExcepcionalMotivo}"
@@ -733,7 +860,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                   <div class="m-0">
                     <button
                       type="button"
-                      class="btn btn-secondary btn-xs btn-soft font-bold uppercase tracking-wider"
+                      class="btn btn-secondary btn-xs btn-soft font-bold tracking-wider uppercase"
                       data-op-assign-btn={op.agentId}
                       title={`Asignar autogestión a ${op.nombre}`}
                       disabled={!op.disponible}
@@ -742,11 +869,14 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                     </button>
                   </div>
 
-                  <div data-op-exception-container={op.agentId} class="relative">
+                  <div
+                    data-op-exception-container={op.agentId}
+                    class="relative"
+                  >
                     {op.estadoExcepcional ? (
                       <button
                         type="button"
-                        class="btn btn-error btn-xs btn-outline font-bold uppercase tracking-wider"
+                        class="btn btn-error btn-xs btn-outline font-bold tracking-wider uppercase"
                         data-action-lift-exception={op.agentId}
                         title="Levantar estado excepcional"
                       >
@@ -886,7 +1016,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     };
 
     // Initialize prevQueueIds from the SSR rendered elements
-    let prevQueueIds: number[] = Array.from(document.querySelectorAll("#queue-container [data-agent-id]"))
+    let prevQueueIds: number[] = Array.from(
+      document.querySelectorAll("#queue-container [data-agent-id]"),
+    )
       .map((el) => Number(el.getAttribute("data-agent-id")))
       .filter((id) => !isNaN(id));
 
@@ -923,9 +1055,17 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     // Dynamic UI Update from API Response
     const updateUI = (data: any[]) => {
       // Update Undo button state
-      const opWithUndo = data.find(op => op.lastAutogestionUndo !== null && op.lastAutogestionUndo !== undefined);
-      const btnUndo = document.getElementById("btn-undo") as HTMLButtonElement | null;
-      const btnUndoText = document.getElementById("btn-undo-text") as HTMLElement | null;
+      const opWithUndo = data.find(
+        (op) =>
+          op.lastAutogestionUndo !== null &&
+          op.lastAutogestionUndo !== undefined,
+      );
+      const btnUndo = document.getElementById(
+        "btn-undo",
+      ) as HTMLButtonElement | null;
+      const btnUndoText = document.getElementById(
+        "btn-undo-text",
+      ) as HTMLElement | null;
       if (btnUndo && btnUndoText) {
         if (opWithUndo) {
           btnUndo.disabled = false;
@@ -1035,13 +1175,18 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
       }
 
-      const lastAssignedContainer = document.getElementById("stat-last-assigned-container");
+      const lastAssignedContainer = document.getElementById(
+        "stat-last-assigned-container",
+      );
       if (lastAssignedContainer) {
         if (lastAssignedOp && maxAssignedTimeForCard > 0) {
-          const timeStr = new Date(maxAssignedTimeForCard).toLocaleTimeString("es-AR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const timeStr = new Date(maxAssignedTimeForCard).toLocaleTimeString(
+            "es-AR",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            },
+          );
           lastAssignedContainer.innerHTML = `
             <div>
               <div class="text-sm font-semibold text-base-content">
@@ -1063,13 +1208,23 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       const queueContainer = document.getElementById("queue-container");
       if (queueContainer) {
         const available = data.filter((op) => op.disponible);
-        const sortedQueue = [...available].sort((a, b) => {
-          const tA = a.lastAutogestionAssignedAt ?? 0;
-          const tB = b.lastAutogestionAssignedAt ?? 0;
-          if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
-          if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
-          return tA - tB;
-        }).slice(0, 4);
+        const sortedQueue = [...available]
+          .sort((a, b) => {
+            const tA = a.lastAutogestionAssignedAt ?? 0;
+            const tB = b.lastAutogestionAssignedAt ?? 0;
+            if (
+              a.lastAutogestionAssignedAt === null &&
+              b.lastAutogestionAssignedAt !== null
+            )
+              return -1;
+            if (
+              a.lastAutogestionAssignedAt !== null &&
+              b.lastAutogestionAssignedAt === null
+            )
+              return 1;
+            return tA - tB;
+          })
+          .slice(0, 4);
 
         const newIds = sortedQueue.map((op) => op.agentId);
 
@@ -1080,17 +1235,22 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
           if (index === 0) {
             dotClass = "bg-primary";
-            itemStyle = "text-lg sm:text-xl font-black text-primary tracking-tight truncate";
-            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/40";
+            itemStyle =
+              "text-lg sm:text-xl font-black text-primary tracking-tight truncate";
+            subtitleStyle =
+              "text-xxs font-bold uppercase tracking-wider text-base-content/40";
           } else if (index === 1) {
             itemStyle = "text-base font-bold text-base-content/70 truncate";
-            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
+            subtitleStyle =
+              "text-xxs font-bold uppercase tracking-wider text-base-content/30";
           } else if (index === 2) {
             itemStyle = "text-sm font-semibold text-base-content/50 truncate";
-            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
+            subtitleStyle =
+              "text-xxs font-bold uppercase tracking-wider text-base-content/30";
           } else {
             itemStyle = "text-xs font-medium text-base-content/35 truncate";
-            subtitleStyle = "text-xxs font-bold uppercase tracking-wider text-base-content/30";
+            subtitleStyle =
+              "text-xxs font-bold uppercase tracking-wider text-base-content/30";
           }
 
           return `
@@ -1106,7 +1266,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
         if (JSON.stringify(newIds) !== JSON.stringify(prevQueueIds)) {
           if (newIds.length === 0) {
-            const currentItems = Array.from(queueContainer.querySelectorAll("[data-agent-id]")) as HTMLElement[];
+            const currentItems = Array.from(
+              queueContainer.querySelectorAll("[data-agent-id]"),
+            ) as HTMLElement[];
             currentItems.forEach((el) => {
               el.style.top = "-48px";
               el.style.opacity = "0";
@@ -1121,12 +1283,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               }
             }, 400);
           } else {
-            const emptyMsg = document.getElementById("stat-suggested-name-empty");
+            const emptyMsg = document.getElementById(
+              "stat-suggested-name-empty",
+            );
             if (emptyMsg) {
               emptyMsg.remove();
             }
 
-            const currentItems = Array.from(queueContainer.querySelectorAll("[data-agent-id]")) as HTMLElement[];
+            const currentItems = Array.from(
+              queueContainer.querySelectorAll("[data-agent-id]"),
+            ) as HTMLElement[];
 
             // Animate out orphans
             currentItems.forEach((el) => {
@@ -1140,7 +1306,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
             // Update or create items
             sortedQueue.forEach((op, index) => {
-              let el = queueContainer.querySelector(`[data-agent-id="${op.agentId}"]`) as HTMLElement | null;
+              let el = queueContainer.querySelector(
+                `[data-agent-id="${op.agentId}"]`,
+              ) as HTMLElement | null;
               if (el) {
                 el.innerHTML = renderQueueItemInner(op, index);
                 el.style.top = `${index * 48}px`;
@@ -1164,7 +1332,6 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           prevQueueIds = newIds;
         }
       }
-
 
       // 4. Update each table row
       data.forEach((op) => {
@@ -1316,9 +1483,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               badgeClass = "badge-neutral text-neutral-content/75 opacity-70";
               badgeText = "Fuera de horario";
             } else if (op.motivo === "Licencia") {
-              badgeClass = "badge-error text-error-content shadow-sm shadow-error/20";
+              badgeClass =
+                "badge-error text-error-content shadow-sm shadow-error/20";
             } else if (op.motivo === "Vacaciones") {
-              badgeClass = "badge-info text-info-content shadow-sm shadow-info/20";
+              badgeClass =
+                "badge-info text-info-content shadow-sm shadow-info/20";
             } else if (op.motivo === "Franco") {
               badgeClass = "badge-neutral text-neutral-content/50";
             }
@@ -1511,7 +1680,11 @@ const getExcepcionalShortLabel = (tipo: string): string => {
               const resData = await res.json();
               if (res.status === 423) {
                 modal.close();
-                showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+                showAlert(
+                  "error",
+                  resData.error ||
+                    "Perdiste el control de asignación. Recargando...",
+                );
                 setTimeout(() => window.location.reload(), 1500);
                 return;
               }
@@ -1519,7 +1692,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
                 modal.close();
                 await fetchDisponibilidad();
               } else {
-                showAlert("error", resData.error || "No se pudo marcar el estado excepcional");
+                showAlert(
+                  "error",
+                  resData.error || "No se pudo marcar el estado excepcional",
+                );
               }
             } catch (err) {
               console.error(err);
@@ -1547,14 +1723,21 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             });
             const resData = await res.json();
             if (res.status === 423) {
-              showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+              showAlert(
+                "error",
+                resData.error ||
+                  "Perdiste el control de asignación. Recargando...",
+              );
               setTimeout(() => window.location.reload(), 1500);
               return;
             }
             if (res.ok) {
               await fetchDisponibilidad();
             } else {
-              showAlert("error", resData.error || "No se pudo levantar la excepción");
+              showAlert(
+                "error",
+                resData.error || "No se pudo levantar la excepción",
+              );
             }
           } catch (err) {
             console.error(err);
@@ -1572,23 +1755,36 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         try {
           const res = await fetch("/api/disponibilidad/deshacer", {
             method: "POST",
-            headers: { "Content-Type": "application/json" }
+            headers: { "Content-Type": "application/json" },
           });
           const resData = await res.json();
           if (res.status === 423) {
-            showAlert("error", resData.error || "Perdiste el control de asignación. Recargando...");
+            showAlert(
+              "error",
+              resData.error ||
+                "Perdiste el control de asignación. Recargando...",
+            );
             setTimeout(() => window.location.reload(), 1500);
             return;
           }
           if (res.ok && resData.success) {
-            showAlert("success", `Asignación de ${resData.agentName} deshecha.`);
+            showAlert(
+              "success",
+              `Asignación de ${resData.agentName} deshecha.`,
+            );
             await fetchDisponibilidad();
           } else {
-            showAlert("error", resData.error || "No se pudo deshacer la asignación.");
+            showAlert(
+              "error",
+              resData.error || "No se pudo deshacer la asignación.",
+            );
           }
         } catch (err: any) {
           console.error(err);
-          showAlert("error", `Ocurrió un error al deshacer: ${err.message || err}`);
+          showAlert(
+            "error",
+            `Ocurrió un error al deshacer: ${err.message || err}`,
+          );
         }
         return;
       }
@@ -1600,23 +1796,36 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         try {
           const res = await fetch("/api/disponibilidad/asignar", {
             method: "POST",
-            headers: { "Content-Type": "application/json" }
+            headers: { "Content-Type": "application/json" },
           });
           const data = await res.json();
           if (res.status === 423) {
-            showAlert("error", data.error || "Perdiste el control de asignación. Recargando...");
+            showAlert(
+              "error",
+              data.error || "Perdiste el control de asignación. Recargando...",
+            );
             setTimeout(() => window.location.reload(), 1500);
             return;
           }
           if (res.ok && data.success && data.agent) {
-            showAlert("success", `Autogestión asignada cíclicamente a ${data.agent.nombre || data.agent.name}.`);
+            showAlert(
+              "success",
+              `Autogestión asignada cíclicamente a ${data.agent.nombre || data.agent.name}.`,
+            );
             await fetchDisponibilidad();
           } else {
-            showAlert("error", data.error || "No hay operadores disponibles o dentro de horario operativo para asignar.");
+            showAlert(
+              "error",
+              data.error ||
+                "No hay operadores disponibles o dentro de horario operativo para asignar.",
+            );
           }
         } catch (err: any) {
           console.error(err);
-          showAlert("error", `Ocurrió un error al procesar la asignación cíclica: ${err.message || err}`);
+          showAlert(
+            "error",
+            `Ocurrió un error al procesar la asignación cíclica: ${err.message || err}`,
+          );
         } finally {
           assignCyclicBtn.removeAttribute("disabled");
         }
@@ -1626,7 +1835,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       // 4. Manual assign
       const assignManualBtn = target.closest("[data-op-assign-btn]");
       if (assignManualBtn) {
-        const agentId = Number(assignManualBtn.getAttribute("data-op-assign-btn"));
+        const agentId = Number(
+          assignManualBtn.getAttribute("data-op-assign-btn"),
+        );
         if (!isNaN(agentId)) {
           assignManualBtn.setAttribute("disabled", "true");
           try {
@@ -1637,19 +1848,32 @@ const getExcepcionalShortLabel = (tipo: string): string => {
             });
             const data = await res.json();
             if (res.status === 423) {
-              showAlert("error", data.error || "Perdiste el control de asignación. Recargando...");
+              showAlert(
+                "error",
+                data.error ||
+                  "Perdiste el control de asignación. Recargando...",
+              );
               setTimeout(() => window.location.reload(), 1500);
               return;
             }
             if (res.ok && data.success) {
-              showAlert("success", `Autogestión asignada manualmente a ${data.agentName}.`);
+              showAlert(
+                "success",
+                `Autogestión asignada manualmente a ${data.agentName}.`,
+              );
               await fetchDisponibilidad();
             } else {
-              showAlert("error", data.error || "No se pudo realizar la asignación manual.");
+              showAlert(
+                "error",
+                data.error || "No se pudo realizar la asignación manual.",
+              );
             }
           } catch (err: any) {
             console.error(err);
-            showAlert("error", `Ocurrió un error al procesar la asignación manual: ${err.message || err}`);
+            showAlert(
+              "error",
+              `Ocurrió un error al procesar la asignación manual: ${err.message || err}`,
+            );
           } finally {
             assignManualBtn.removeAttribute("disabled");
           }
@@ -1701,7 +1925,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       if (!indicator) return;
 
       const currentUserId = Number(indicator.getAttribute("data-user-id"));
-      const bannerTimeoutAttr = Number(indicator.getAttribute("data-lock-timeout")) || 600000;
+      const bannerTimeoutAttr =
+        Number(indicator.getAttribute("data-lock-timeout")) || 600000;
 
       let hasLock = false;
       let lockHolderName = null;
@@ -1745,7 +1970,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         if (hasLock) {
           dotColor = "bg-success";
           statusText = "En control";
-          
+
           let rejectBtn = "";
           if (lockReleaseRequested) {
             rejectBtn = `<button type="button" id="btn-reject-release" class="btn btn-success btn-ghost btn-xs font-bold uppercase tracking-wider">Rechazar</button>`;
@@ -1758,8 +1983,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
           dotColor = "bg-warning";
           statusText = `Ocupado: ${escapeHtml(lockHolderName)}`;
           buttonsHtml = `
-            <button type="button" id="btn-request-release" class="btn btn-ghost btn-xs font-bold uppercase tracking-wider text-warning" ${lockReleaseRequested ? 'disabled' : ''}>
-              ${lockReleaseRequested ? 'Solicitado' : 'Pedir liberación'}
+            <button type="button" id="btn-request-release" class="btn btn-ghost btn-xs font-bold uppercase tracking-wider text-warning" ${lockReleaseRequested ? "disabled" : ""}>
+              ${lockReleaseRequested ? "Solicitado" : "Pedir liberación"}
             </button>
           `;
         }
@@ -1767,9 +1992,12 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 
       let timerHtml = "";
       if (showTimer) {
-        const initialCountdown = timerMs > 0 ? formatCountdown(timerMs) : "0:00";
+        const initialCountdown =
+          timerMs > 0 ? formatCountdown(timerMs) : "0:00";
         const isCritical = timerMs > 0 && timerMs < 60000;
-        const badgeClass = isCritical ? "bg-error/70 text-error-content" : "bg-base-100/30";
+        const badgeClass = isCritical
+          ? "bg-error/70 text-error-content"
+          : "bg-base-100/30";
         timerHtml = `<span id="lock-countdown" class="badge badge-xs tabular-nums font-mono border-0 ${badgeClass}">${initialCountdown}</span>`;
       }
 
@@ -1794,7 +2022,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       btnRefresh.addEventListener("click", async () => {
         await Promise.all([
           fetchDisponibilidad(),
-          fetchLockStatus().then(updateLockBanner)
+          fetchLockStatus().then(updateLockBanner),
         ]);
       });
     }
@@ -1803,7 +2031,7 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     polling = setInterval(async () => {
       await Promise.all([
         fetchDisponibilidad(),
-        fetchLockStatus().then(updateLockBanner)
+        fetchLockStatus().then(updateLockBanner),
       ]);
     }, 10000);
 
@@ -1823,7 +2051,9 @@ const getExcepcionalShortLabel = (tipo: string): string => {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       heartbeatInterval = setInterval(async () => {
         try {
-          const res = await fetch("/api/disponibilidad/lock/heartbeat", { method: "POST" });
+          const res = await fetch("/api/disponibilidad/lock/heartbeat", {
+            method: "POST",
+          });
           if (res.ok) {
             lockExpiresAt = Date.now() + lockTimeoutMs;
           } else {
@@ -1849,17 +2079,24 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         const target = e.target as HTMLElement;
 
         // Acquire lock
-        const acquireLockBtn = target.closest("#btn-acquire-lock") as HTMLButtonElement | null;
+        const acquireLockBtn = target.closest(
+          "#btn-acquire-lock",
+        ) as HTMLButtonElement | null;
         if (acquireLockBtn) {
           acquireLockBtn.setAttribute("disabled", "true");
           acquireLockBtn.innerText = "Adquiriendo...";
           try {
-            const res = await fetch("/api/disponibilidad/lock", { method: "POST" });
+            const res = await fetch("/api/disponibilidad/lock", {
+              method: "POST",
+            });
             if (res.ok) {
               window.location.reload();
             } else {
               const data = await res.json();
-              showAlert("error", data.error || "No se pudo adquirir el control");
+              showAlert(
+                "error",
+                data.error || "No se pudo adquirir el control",
+              );
               const lockStatus = await fetchLockStatus();
               if (lockStatus) updateLockBanner(lockStatus);
             }
@@ -1872,12 +2109,16 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
 
         // Reject release
-        const rejectReleaseBtn = target.closest("#btn-reject-release") as HTMLButtonElement | null;
+        const rejectReleaseBtn = target.closest(
+          "#btn-reject-release",
+        ) as HTMLButtonElement | null;
         if (rejectReleaseBtn) {
           rejectReleaseBtn.setAttribute("disabled", "true");
           rejectReleaseBtn.innerText = "Rechazando...";
           try {
-            const res = await fetch("/api/disponibilidad/lock/reject-release", { method: "POST" });
+            const res = await fetch("/api/disponibilidad/lock/reject-release", {
+              method: "POST",
+            });
             if (res.ok) {
               const lockStatus = await fetchLockStatus();
               if (lockStatus) updateLockBanner(lockStatus);
@@ -1895,11 +2136,15 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
 
         // Release lock
-        const releaseLockBtn = target.closest("#btn-release-lock") as HTMLButtonElement | null;
+        const releaseLockBtn = target.closest(
+          "#btn-release-lock",
+        ) as HTMLButtonElement | null;
         if (releaseLockBtn) {
           releaseLockBtn.setAttribute("disabled", "true");
           try {
-            const res = await fetch("/api/disponibilidad/lock", { method: "DELETE" });
+            const res = await fetch("/api/disponibilidad/lock", {
+              method: "DELETE",
+            });
             if (res.ok) {
               window.location.reload();
             } else {
@@ -1917,12 +2162,17 @@ const getExcepcionalShortLabel = (tipo: string): string => {
         }
 
         // Request release
-        const requestReleaseBtn = target.closest("#btn-request-release") as HTMLButtonElement | null;
+        const requestReleaseBtn = target.closest(
+          "#btn-request-release",
+        ) as HTMLButtonElement | null;
         if (requestReleaseBtn) {
           requestReleaseBtn.setAttribute("disabled", "true");
           requestReleaseBtn.innerText = "Enviando...";
           try {
-            const res = await fetch("/api/disponibilidad/lock/request-release", { method: "POST" });
+            const res = await fetch(
+              "/api/disponibilidad/lock/request-release",
+              { method: "POST" },
+            );
             if (res.ok) {
               requestReleaseBtn.innerText = "Solicitud enviada";
               const lockStatus = await fetchLockStatus();
@@ -1949,7 +2199,10 @@ const getExcepcionalShortLabel = (tipo: string): string => {
     window.addEventListener("beforeunload", () => {
       const indicator = document.getElementById("lock-indicator");
       if (indicator && indicator.getAttribute("data-has-lock") === "true") {
-        fetch("/api/disponibilidad/lock", { method: "DELETE", keepalive: true });
+        fetch("/api/disponibilidad/lock", {
+          method: "DELETE",
+          keepalive: true,
+        });
       }
     });
 
@@ -1980,6 +2233,8 @@ const getExcepcionalShortLabel = (tipo: string): string => {
 <style is:global>
   [data-queue-item] {
     position: absolute;
-    transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out;
+    transition:
+      top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease-out;
   }
 </style>

@@ -28,7 +28,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
       return jsonResponse({ tickets: [] }, 200);
     }
 
-    const incidentResult = await invgateGet<InvgateIncident>(`incident?id=${ticketId}`);
+    const incidentResult = await invgateGet<InvgateIncident>(
+      `incident?id=${ticketId}`,
+    );
 
     if (!incidentResult.ok) {
       return jsonResponse({ tickets: [] }, 200);
@@ -38,7 +40,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
     let customerName = "Usuario Desconocido";
 
     if (incident.user_id) {
-      const userResult = await invgateGet<InvgateUser>(`user?id=${incident.user_id}`);
+      const userResult = await invgateGet<InvgateUser>(
+        `user?id=${incident.user_id}`,
+      );
       if (userResult.ok && userResult.data) {
         const u = userResult.data;
         customerName = `${u.name} ${u.lastname}`.trim();

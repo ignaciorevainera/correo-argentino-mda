@@ -10,18 +10,18 @@ export interface AgentDisponibilidad {
   username?: string;
   location: string;
   disponible: boolean;
-  motivo?: string;            // "En break", "Fuera de horario", "Licencia", "Vacaciones", "Franco", etc.
-  horarioHoy?: string;        // "08:00 - 17:00"
-  breakInicioHoy?: string;    // "12:00"
-  breakFinHoy?: string;       // "13:00"
-  retornoEstimado?: string;   // "13:00"
+  motivo?: string; // "En break", "Fuera de horario", "Licencia", "Vacaciones", "Franco", etc.
+  horarioHoy?: string; // "08:00 - 17:00"
+  breakInicioHoy?: string; // "12:00"
+  breakFinHoy?: string; // "13:00"
+  retornoEstimado?: string; // "13:00"
   lastAutogestionAssignedAt: number | null;
   lastAutogestionAssignedBy?: string | null;
   lastAutogestionUndo?: number | null;
-  modalidadHoy?: string;      // "Presencial", "Home Office", "Horas Extras", "Franco", etc.
-  estadoExcepcional?: string;          // Tipo de excepción activa: "devolucion_supervisor" | "break_extendido" | "problema_tecnico"
-  estadoExcepcionalMotivo?: string;    // Comentario del supervisor
-  estadoExcepcionalAt?: number;        // Timestamp
+  modalidadHoy?: string; // "Presencial", "Home Office", "Horas Extras", "Franco", etc.
+  estadoExcepcional?: string; // Tipo de excepción activa: "devolucion_supervisor" | "break_extendido" | "problema_tecnico"
+  estadoExcepcionalMotivo?: string; // Comentario del supervisor
+  estadoExcepcionalAt?: number; // Timestamp
   estadoExcepcionalMinutos?: number | null; // Tiempo extra para break extendido en minutos
 }
 
@@ -42,25 +42,40 @@ export function getLocalDateString(date: Date = new Date()): string {
 export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
   const todayStr = getLocalDateString();
   const now = new Date();
-  
+
   // Spanish day names mapping
-  const dayNames = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+  const dayNames = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miercoles",
+    "Jueves",
+    "Viernes",
+    "Sabado",
+  ];
   const dayName = dayNames[now.getDay()];
 
   // 1. Fetch all agents
-  const dbAgents = await db.select({
-    id: agents.id, name: agents.name, username: agents.username, location: agents.location,
-    horarioDefault: agents.horarioDefault,
-    esquemaSemanal: agents.esquemaSemanal, esquemaHorario: agents.esquemaHorario,
-    esquemaBreakInicio: agents.esquemaBreakInicio, esquemaBreakFin: agents.esquemaBreakFin,
-    lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt,
-    lastAutogestionAssignedBy: agents.lastAutogestionAssignedBy,
-    lastAutogestionUndo: agents.lastAutogestionUndo,
-    estadoExcepcional: agents.estadoExcepcional,
-    estadoExcepcionalMotivo: agents.estadoExcepcionalMotivo,
-    estadoExcepcionalAt: agents.estadoExcepcionalAt,
-    estadoExcepcionalMinutos: agents.estadoExcepcionalMinutos,
-  }).from(agents);
+  const dbAgents = await db
+    .select({
+      id: agents.id,
+      name: agents.name,
+      username: agents.username,
+      location: agents.location,
+      horarioDefault: agents.horarioDefault,
+      esquemaSemanal: agents.esquemaSemanal,
+      esquemaHorario: agents.esquemaHorario,
+      esquemaBreakInicio: agents.esquemaBreakInicio,
+      esquemaBreakFin: agents.esquemaBreakFin,
+      lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt,
+      lastAutogestionAssignedBy: agents.lastAutogestionAssignedBy,
+      lastAutogestionUndo: agents.lastAutogestionUndo,
+      estadoExcepcional: agents.estadoExcepcional,
+      estadoExcepcionalMotivo: agents.estadoExcepcionalMotivo,
+      estadoExcepcionalAt: agents.estadoExcepcionalAt,
+      estadoExcepcionalMinutos: agents.estadoExcepcionalMinutos,
+    })
+    .from(agents);
 
   // 2. Fetch today's persistent schedule overrides
   const dbSchedules = await db
@@ -70,7 +85,11 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
 
   // 3. Process each agent
   const list: AgentDisponibilidad[] = dbAgents.map((agent) => {
-    const workingStatuses = ["Presencial Monte Grande", "Presencial Parque Patricios", "Home Office"];
+    const workingStatuses = [
+      "Presencial Monte Grande",
+      "Presencial Parque Patricios",
+      "Home Office",
+    ];
     // Check if there is an override for this agent today
     const schedule = dbSchedules.find((s) => s.agentName === agent.name);
 
@@ -86,10 +105,14 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       breakFin = schedule.breakFin || "";
     } else {
       // Fallback to weekly schedule
-      const esquemaSemanal = (agent.esquemaSemanal as Record<string, string>) || {};
-      const esquemaHorario = (agent.esquemaHorario as Record<string, string>) || {};
-      const esquemaBreakInicio = (agent.esquemaBreakInicio as Record<string, string>) || {};
-      const esquemaBreakFin = (agent.esquemaBreakFin as Record<string, string>) || {};
+      const esquemaSemanal =
+        (agent.esquemaSemanal as Record<string, string>) || {};
+      const esquemaHorario =
+        (agent.esquemaHorario as Record<string, string>) || {};
+      const esquemaBreakInicio =
+        (agent.esquemaBreakInicio as Record<string, string>) || {};
+      const esquemaBreakFin =
+        (agent.esquemaBreakFin as Record<string, string>) || {};
 
       status = esquemaSemanal[dayName] ?? "Franco";
       horario = esquemaHorario[dayName] || "";
@@ -103,7 +126,10 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
     }
 
     // Fallback for horario if working but empty
-    if (status !== "Franco" && (!horario || horario.trim() === "" || horario.trim() === "-")) {
+    if (
+      status !== "Franco" &&
+      (!horario || horario.trim() === "" || horario.trim() === "-")
+    ) {
       horario = agent.horarioDefault || "";
     }
 
@@ -127,7 +153,6 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       }
     }
 
-
     const info: AgentDisponibilidad = {
       agentId: agent.id,
       nombre: agent.name,
@@ -150,7 +175,8 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
     const applyOverride = () => {
       if (agent.estadoExcepcional) {
         info.disponible = false;
-        info.motivo = EXCEPTION_LABELS[agent.estadoExcepcional] || agent.estadoExcepcional;
+        info.motivo =
+          EXCEPTION_LABELS[agent.estadoExcepcional] || agent.estadoExcepcional;
       }
     };
 
@@ -220,21 +246,30 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       } else {
         // Fallback calculation if breaks format is invalid
         const shiftDuration = endTime.getTime() - startTime.getTime();
-        breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+        breakStart = new Date(
+          startTime.getTime() + shiftDuration / 2 - 30 * 60000,
+        );
         breakEnd = new Date(breakStart.getTime() + 60 * 60000);
       }
     } else {
       // Estimate 1 hour break in the middle of the shift
       const shiftDuration = endTime.getTime() - startTime.getTime();
-      breakStart = new Date(startTime.getTime() + shiftDuration / 2 - 30 * 60000);
+      breakStart = new Date(
+        startTime.getTime() + shiftDuration / 2 - 30 * 60000,
+      );
       breakEnd = new Date(breakStart.getTime() + 60 * 60000);
     }
 
     // Auto-cleanup of break_extendido if it expired
     if (agent.estadoExcepcional === "break_extendido") {
-      if (agent.estadoExcepcionalMinutos !== null && agent.estadoExcepcionalMinutos !== undefined) {
+      if (
+        agent.estadoExcepcionalMinutos !== null &&
+        agent.estadoExcepcionalMinutos !== undefined
+      ) {
         const extraMinutes = agent.estadoExcepcionalMinutos;
-        const extendedBreakEnd = new Date(breakEnd.getTime() + extraMinutes * 60000);
+        const extendedBreakEnd = new Date(
+          breakEnd.getTime() + extraMinutes * 60000,
+        );
         if (now >= extendedBreakEnd) {
           // Clear in DB asynchronously
           db.update(agents)
@@ -246,7 +281,10 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
             })
             .where(eq(agents.id, agent.id))
             .catch((err) =>
-              console.error(`Error auto-clearing break_extendido state for agent ${agent.id}:`, err)
+              console.error(
+                `Error auto-clearing break_extendido state for agent ${agent.id}:`,
+                err,
+              ),
             );
 
           // Mutate local object and info so we don't apply the override in this render
@@ -254,7 +292,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
           agent.estadoExcepcionalMotivo = null;
           agent.estadoExcepcionalAt = null;
           agent.estadoExcepcionalMinutos = null;
-          
+
           info.estadoExcepcional = undefined;
           info.estadoExcepcionalMotivo = undefined;
           info.estadoExcepcionalAt = undefined;
@@ -262,7 +300,10 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
         } else {
           // Format return time
           const retHours = String(extendedBreakEnd.getHours()).padStart(2, "0");
-          const retMins = String(extendedBreakEnd.getMinutes()).padStart(2, "0");
+          const retMins = String(extendedBreakEnd.getMinutes()).padStart(
+            2,
+            "0",
+          );
           info.retornoEstimado = `${retHours}:${retMins}`;
         }
       } else {
@@ -275,7 +316,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
     if (now >= breakStart && now <= breakEnd) {
       info.disponible = false;
       info.motivo = "En break";
-      
+
       // Format return time if not already set
       if (!info.retornoEstimado) {
         const retHours = String(breakEnd.getHours()).padStart(2, "0");
@@ -295,7 +336,9 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
   return list;
 }
 
-export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"): Promise<{
+export async function asignarSiguienteAutogestion(
+  assignedBy: string = "Sistema",
+): Promise<{
   success: boolean;
   agent?: AgentDisponibilidad;
   error?: string;
@@ -306,7 +349,8 @@ export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"
   if (available.length === 0) {
     return {
       success: false,
-      error: "No hay operadores disponibles o dentro de horario operativo para asignar.",
+      error:
+        "No hay operadores disponibles o dentro de horario operativo para asignar.",
     };
   }
 
@@ -315,10 +359,18 @@ export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"
   available.sort((a, b) => {
     const tA = a.lastAutogestionAssignedAt ?? 0;
     const tB = b.lastAutogestionAssignedAt ?? 0;
-    
-    if (a.lastAutogestionAssignedAt === null && b.lastAutogestionAssignedAt !== null) return -1;
-    if (a.lastAutogestionAssignedAt !== null && b.lastAutogestionAssignedAt === null) return 1;
-    
+
+    if (
+      a.lastAutogestionAssignedAt === null &&
+      b.lastAutogestionAssignedAt !== null
+    )
+      return -1;
+    if (
+      a.lastAutogestionAssignedAt !== null &&
+      b.lastAutogestionAssignedAt === null
+    )
+      return 1;
+
     return tA - tB;
   });
 
@@ -326,49 +378,51 @@ export async function asignarSiguienteAutogestion(assignedBy: string = "Sistema"
   const now = Date.now();
 
   // Clear any existing undo states
-  await db
-    .update(agents)
-    .set({ lastAutogestionUndo: null });
+  await db.update(agents).set({ lastAutogestionUndo: null });
 
   const prevValue = winner.lastAutogestionAssignedAt;
 
   // Update in DB
   await db
     .update(agents)
-    .set({ 
+    .set({
       lastAutogestionAssignedAt: now,
       lastAutogestionAssignedBy: assignedBy,
-      lastAutogestionUndo: prevValue
+      lastAutogestionUndo: prevValue,
     })
     .where(eq(agents.id, winner.agentId));
 
   winner.lastAutogestionAssignedAt = now;
   winner.lastAutogestionAssignedBy = assignedBy;
   winner.lastAutogestionUndo = prevValue;
-  
+
   return {
     success: true,
     agent: winner,
   };
 }
 
-export async function asignarManual(agentId: number, assignedBy: string = "Sistema"): Promise<{ success: boolean; error?: string }> {
+export async function asignarManual(
+  agentId: number,
+  assignedBy: string = "Sistema",
+): Promise<{ success: boolean; error?: string }> {
   // Clear any existing undo states
-  await db
-    .update(agents)
-    .set({ lastAutogestionUndo: null });
+  await db.update(agents).set({ lastAutogestionUndo: null });
 
   // Get current state to preserve
-  const [ag] = await db.select({ lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt }).from(agents).where(eq(agents.id, agentId));
+  const [ag] = await db
+    .select({ lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt })
+    .from(agents)
+    .where(eq(agents.id, agentId));
   const prevValue = ag ? ag.lastAutogestionAssignedAt : null;
 
   // Update lastAutogestionAssignedAt for the manually assigned agent
   await db
     .update(agents)
-    .set({ 
+    .set({
       lastAutogestionAssignedAt: Date.now(),
       lastAutogestionAssignedBy: assignedBy,
-      lastAutogestionUndo: prevValue
+      lastAutogestionUndo: prevValue,
     })
     .where(eq(agents.id, agentId));
   return { success: true };
@@ -378,7 +432,7 @@ export async function marcarEstadoExcepcional(
   agentId: number,
   tipo: string,
   motivo?: string,
-  tiempoExtra?: number | null
+  tiempoExtra?: number | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db
@@ -392,12 +446,15 @@ export async function marcarEstadoExcepcional(
       .where(eq(agents.id, agentId));
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Error al marcar estado excepcional" };
+    return {
+      success: false,
+      error: err?.message || "Error al marcar estado excepcional",
+    };
   }
 }
 
 export async function limpiarEstadoExcepcional(
-  agentId: number
+  agentId: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db
@@ -411,15 +468,31 @@ export async function limpiarEstadoExcepcional(
       .where(eq(agents.id, agentId));
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err?.message || "Error al limpiar estado excepcional" };
+    return {
+      success: false,
+      error: err?.message || "Error al limpiar estado excepcional",
+    };
   }
 }
 
-export async function deshacerAsignacion(): Promise<{ success: boolean; agentName?: string; error?: string }> {
-  const all = await db.select({ id: agents.id, name: agents.name, lastAutogestionUndo: agents.lastAutogestionUndo }).from(agents);
-  const target = all.find(a => a.lastAutogestionUndo !== null);
+export async function deshacerAsignacion(): Promise<{
+  success: boolean;
+  agentName?: string;
+  error?: string;
+}> {
+  const all = await db
+    .select({
+      id: agents.id,
+      name: agents.name,
+      lastAutogestionUndo: agents.lastAutogestionUndo,
+    })
+    .from(agents);
+  const target = all.find((a) => a.lastAutogestionUndo !== null);
   if (!target) {
-    return { success: false, error: "No hay ninguna asignación para deshacer." };
+    return {
+      success: false,
+      error: "No hay ninguna asignación para deshacer.",
+    };
   }
 
   const restoredTime = target.lastAutogestionUndo;
@@ -427,28 +500,56 @@ export async function deshacerAsignacion(): Promise<{ success: boolean; agentNam
     .update(agents)
     .set({
       lastAutogestionAssignedAt: restoredTime,
-      lastAutogestionUndo: null
+      lastAutogestionUndo: null,
     })
     .where(eq(agents.id, target.id));
 
   return { success: true, agentName: target.name };
 }
 
-export function isLockExpired(lastActivityAt: number, releaseRequested: boolean = false): boolean {
+export function isLockExpired(
+  lastActivityAt: number,
+  releaseRequested: boolean = false,
+): boolean {
   const timeout = releaseRequested ? 1 * 60 * 1000 : LOCK_TIMEOUT_MS;
   return Date.now() > lastActivityAt + timeout;
 }
 
 export async function getLockStatus(): Promise<
-  { status: "free" } |
-  { status: "occupied"; user: { userId: number; username: string; acquiredAt: number; lastActivityAt: number; releaseRequested: boolean } } |
-  { status: "expired"; user: { userId: number; username: string; lastActivityAt: number } }
+  | { status: "free" }
+  | {
+      status: "occupied";
+      user: {
+        userId: number;
+        username: string;
+        acquiredAt: number;
+        lastActivityAt: number;
+        releaseRequested: boolean;
+      };
+    }
+  | {
+      status: "expired";
+      user: { userId: number; username: string; lastActivityAt: number };
+    }
 > {
-  const [current] = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  const [current] = await db
+    .select()
+    .from(assignmentLock)
+    .where(eq(assignmentLock.id, 1));
   if (!current) return { status: "free" };
-  const isExpired = isLockExpired(current.lastActivityAt, current.releaseRequested === 1);
+  const isExpired = isLockExpired(
+    current.lastActivityAt,
+    current.releaseRequested === 1,
+  );
   if (isExpired) {
-    return { status: "expired", user: { userId: current.userId, username: current.username, lastActivityAt: current.lastActivityAt } };
+    return {
+      status: "expired",
+      user: {
+        userId: current.userId,
+        username: current.username,
+        lastActivityAt: current.lastActivityAt,
+      },
+    };
   }
   return {
     status: "occupied",
@@ -462,31 +563,67 @@ export async function getLockStatus(): Promise<
   };
 }
 
-export async function acquireLock(userId: number, username: string): Promise<{ success: true } | { success: false; reason: "occupied"; holder: string } | { success: false; reason: "race_condition" }> {
+export async function acquireLock(
+  userId: number,
+  username: string,
+): Promise<
+  | { success: true }
+  | { success: false; reason: "occupied"; holder: string }
+  | { success: false; reason: "race_condition" }
+> {
   return db.transaction((tx) => {
-    const currentList = tx.select().from(assignmentLock).where(eq(assignmentLock.id, 1)).all();
+    const currentList = tx
+      .select()
+      .from(assignmentLock)
+      .where(eq(assignmentLock.id, 1))
+      .all();
     const current = currentList[0];
     const now = Date.now();
     if (current) {
-      const isExpired = isLockExpired(current.lastActivityAt, current.releaseRequested === 1);
+      const isExpired = isLockExpired(
+        current.lastActivityAt,
+        current.releaseRequested === 1,
+      );
       if (isExpired) {
-        tx.update(assignmentLock).set({
-          userId, username, acquiredAt: now, lastActivityAt: now, releaseRequested: 0
-        }).where(eq(assignmentLock.id, 1)).run();
+        tx.update(assignmentLock)
+          .set({
+            userId,
+            username,
+            acquiredAt: now,
+            lastActivityAt: now,
+            releaseRequested: 0,
+          })
+          .where(eq(assignmentLock.id, 1))
+          .run();
         return { success: true };
       } else if (current.userId !== userId) {
-        return { success: false, reason: "occupied" as const, holder: current.username };
+        return {
+          success: false,
+          reason: "occupied" as const,
+          holder: current.username,
+        };
       } else {
-        tx.update(assignmentLock).set({
-          lastActivityAt: now, releaseRequested: 0
-        }).where(eq(assignmentLock.id, 1)).run();
+        tx.update(assignmentLock)
+          .set({
+            lastActivityAt: now,
+            releaseRequested: 0,
+          })
+          .where(eq(assignmentLock.id, 1))
+          .run();
         return { success: true };
       }
     }
     try {
-      tx.insert(assignmentLock).values({
-        id: 1, userId, username, acquiredAt: now, lastActivityAt: now, releaseRequested: 0,
-      }).run();
+      tx.insert(assignmentLock)
+        .values({
+          id: 1,
+          userId,
+          username,
+          acquiredAt: now,
+          lastActivityAt: now,
+          releaseRequested: 0,
+        })
+        .run();
       return { success: true };
     } catch {
       return { success: false, reason: "race_condition" as const };
@@ -494,12 +631,18 @@ export async function acquireLock(userId: number, username: string): Promise<{ s
   });
 }
 
-export async function releaseLock(userId: number, isAdmin: boolean = false): Promise<boolean> {
+export async function releaseLock(
+  userId: number,
+  isAdmin: boolean = false,
+): Promise<boolean> {
   if (isAdmin) {
     await db.delete(assignmentLock).where(eq(assignmentLock.id, 1));
     return true;
   }
-  const [current] = await db.select({ userId: assignmentLock.userId }).from(assignmentLock).where(eq(assignmentLock.id, 1));
+  const [current] = await db
+    .select({ userId: assignmentLock.userId })
+    .from(assignmentLock)
+    .where(eq(assignmentLock.id, 1));
   if (!current) return true;
   if (current.userId !== userId) return false;
   await db.delete(assignmentLock).where(eq(assignmentLock.id, 1));
@@ -507,57 +650,76 @@ export async function releaseLock(userId: number, isAdmin: boolean = false): Pro
 }
 
 export async function heartbeatLock(userId: number): Promise<void> {
-  await db.update(assignmentLock)
+  await db
+    .update(assignmentLock)
     .set({ lastActivityAt: Date.now() })
     .where(and(eq(assignmentLock.id, 1), eq(assignmentLock.userId, userId)));
 }
 
 export async function requestRelease(): Promise<void> {
-  const currentList = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  const currentList = await db
+    .select()
+    .from(assignmentLock)
+    .where(eq(assignmentLock.id, 1));
   const current = currentList[0];
   if (!current) return;
   const now = Date.now();
-  const remaining = (current.lastActivityAt + LOCK_TIMEOUT_MS) - now;
+  const remaining = current.lastActivityAt + LOCK_TIMEOUT_MS - now;
   if (remaining > 60000) {
-    await db.update(assignmentLock)
+    await db
+      .update(assignmentLock)
       .set({ releaseRequested: 1, lastActivityAt: now })
       .where(eq(assignmentLock.id, 1));
   } else {
-    await db.update(assignmentLock)
+    await db
+      .update(assignmentLock)
       .set({ releaseRequested: 1 })
       .where(eq(assignmentLock.id, 1));
   }
 }
 
 export async function rejectRelease(userId: number): Promise<boolean> {
-  const [current] = await db.select().from(assignmentLock).where(eq(assignmentLock.id, 1));
+  const [current] = await db
+    .select()
+    .from(assignmentLock)
+    .where(eq(assignmentLock.id, 1));
   if (!current || current.userId !== userId) return false;
-  await db.update(assignmentLock)
+  await db
+    .update(assignmentLock)
     .set({ releaseRequested: 0, lastActivityAt: Date.now() })
     .where(eq(assignmentLock.id, 1));
   return true;
 }
 
 export async function resetAssignmentLock(): Promise<void> {
-  await db.update(assignmentLock)
+  await db
+    .update(assignmentLock)
     .set({ lastActivityAt: Date.now(), releaseRequested: 0 })
     .where(eq(assignmentLock.id, 1));
 }
 
 import { jsonError } from "@lib/apiResponse";
 
-export async function ensureHasLock(locals: App.Locals): Promise<{ ok: true } | { ok: false; response: Response }> {
+export async function ensureHasLock(
+  locals: App.Locals,
+): Promise<{ ok: true } | { ok: false; response: Response }> {
   const status = await getLockStatus();
   if (status.status === "free" || status.status === "expired") {
     return {
       ok: false,
-      response: jsonError("No tenés el control de asignación. Tomá el control primero.", 423),
+      response: jsonError(
+        "No tenés el control de asignación. Tomá el control primero.",
+        423,
+      ),
     };
   }
   if (status.user.userId !== locals.user?.id) {
     return {
       ok: false,
-      response: jsonError(`El control está en manos de ${status.user.username}`, 423),
+      response: jsonError(
+        `El control está en manos de ${status.user.username}`,
+        423,
+      ),
     };
   }
   await heartbeatLock(locals.user.id);

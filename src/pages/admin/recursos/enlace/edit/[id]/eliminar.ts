@@ -18,5 +18,6 @@ export const POST = createDeleteHandler({
     return null;
   },
   successMessage: () => "Enlace eliminado con éxito",
-  logMessage: (d) => d ? `Eliminó el enlace "${(d as any).title}"` : "Eliminó un enlace",
+  logMessage: (d) =>
+    d ? `Eliminó el enlace "${(d as any).title}"` : "Eliminó un enlace",
 });

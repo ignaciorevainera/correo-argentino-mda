@@ -1,4 +1,12 @@
-import { PuzzlePieceIcon, CpuChipIcon, WifiIcon, WrenchScrewdriverIcon, BuildingOffice2Icon, QuestionMarkCircleIcon, ArrowTopRightOnSquareIcon} from "@heroicons/react/24/outline";
+import {
+  PuzzlePieceIcon,
+  CpuChipIcon,
+  WifiIcon,
+  WrenchScrewdriverIcon,
+  BuildingOffice2Icon,
+  QuestionMarkCircleIcon,
+  ArrowTopRightOnSquareIcon,
+} from "@heroicons/react/24/outline";
 
 const serviceStyles = {
   Aplicaciones: {

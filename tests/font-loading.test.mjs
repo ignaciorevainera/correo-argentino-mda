@@ -22,7 +22,4 @@ assert.match(
   /import\s+geistMonoLatinWoff2\s+from\s+"@fontsource-variable\/geist-mono\/files\/geist-mono-latin-wght-normal\.woff2\?url"/,
 );
 assert.match(layout, /rel="preload"[\s\S]*href=\{geistLatinWoff2\}/);
-assert.match(
-  layout,
-  /rel="preload"[\s\S]*href=\{geistMonoLatinWoff2\}/,
-);
+assert.match(layout, /rel="preload"[\s\S]*href=\{geistMonoLatinWoff2\}/);

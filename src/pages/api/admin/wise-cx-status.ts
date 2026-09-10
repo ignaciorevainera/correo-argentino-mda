@@ -14,6 +14,8 @@ export const GET: APIRoute = async ({ locals }) => {
     status: result.status,
     message: result.ok
       ? "Conexión exitosa (Wise CX)"
-      : ("message" in result ? result.message : "Fallo de conexión (Wise CX)"),
+      : "message" in result
+        ? result.message
+        : "Fallo de conexión (Wise CX)",
   });
 };

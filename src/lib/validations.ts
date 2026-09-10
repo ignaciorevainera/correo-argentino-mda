@@ -9,12 +9,14 @@ export const insertOfficeSchema = createInsertSchema(offices);
 export const insertTerminalSchema = createInsertSchema(terminals);
 export const insertSupportGuideSchema = createInsertSchema(supportGuides);
 
-export const createUserFormSchema = insertUserSchema.extend({
-  passwordConfirmation: z.string().min(1, "Confirma la contraseña"),
-}).refine((data) => data.password === data.passwordConfirmation, {
-  message: "Las contraseñas no coinciden",
-  path: ["passwordConfirmation"],
-});
+export const createUserFormSchema = insertUserSchema
+  .extend({
+    passwordConfirmation: z.string().min(1, "Confirma la contraseña"),
+  })
+  .refine((data) => data.password === data.passwordConfirmation, {
+    message: "Las contraseñas no coinciden",
+    path: ["passwordConfirmation"],
+  });
 
 export const officeFormSchema = z.object({
   code: z.string().min(1, "El código es obligatorio"),
@@ -26,7 +28,12 @@ export const officeFormSchema = z.object({
   locality: z.string().nullable().optional(),
   county: z.string().nullable().optional(),
   zone: z.string().nullable().optional(),
-  email: z.string().email("Formato de email inválido").nullable().optional().or(z.literal("")),
+  email: z
+    .string()
+    .email("Formato de email inválido")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
   notes: z.string().nullable().optional(),
   parentNis: z.string().nullable().optional(),
   enRed: z.boolean().optional().default(false),

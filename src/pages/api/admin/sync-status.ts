@@ -34,7 +34,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
       return jsonResponse({ error: "No autorizado" }, 403);
     }
     try {
-      const allUsers = await db.select({ id: users.id, username: users.username, role: users.role }).from(users);
+      const allUsers = await db
+        .select({ id: users.id, username: users.username, role: users.role })
+        .from(users);
       return jsonResponse(allUsers);
     } catch (dbError: any) {
       return jsonResponse({ error: sanitizeError(dbError) }, 500);
@@ -44,17 +46,20 @@ export const GET: APIRoute = async ({ locals, url }) => {
   try {
     let processes: any[] = [];
     try {
-      const { stdout } = await execPromise("pm2 jlist", { windowsHide: true, timeout: 5000 });
+      const { stdout } = await execPromise("pm2 jlist", {
+        windowsHide: true,
+        timeout: 5000,
+      });
       processes = JSON.parse(stdout);
     } catch (pm2Error) {
       console.warn("[SyncStatus API] PM2 no disponible o falló:", pm2Error);
     }
 
     const syncProcess = processes.find(
-      (p: any) => p.name === "sync-legacy-inventory"
+      (p: any) => p.name === "sync-legacy-inventory",
     );
     const pingProcess = processes.find(
-      (p: any) => p.name === "mda-ping-cubics"
+      (p: any) => p.name === "mda-ping-cubics",
     );
 
     let lastSyncDetails: any = null;
@@ -62,8 +67,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
       const statusPath = resolve("src/data/last-sync-status.json");
       const content = await readFile(statusPath, "utf-8");
       lastSyncDetails = JSON.parse(content);
-    } catch (fileError) {
-    }
+    } catch (fileError) {}
 
     let lastSyncDB: string | null = null;
     try {
@@ -72,7 +76,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
         .from(terminals);
       lastSyncDB = syncResult?.maxSync || null;
     } catch (dbError) {
-      console.error("[SyncStatus API] Error al consultar última sincronización en DB:", dbError);
+      console.error(
+        "[SyncStatus API] Error al consultar última sincronización en DB:",
+        dbError,
+      );
     }
 
     let lastPing: string | null = null;
@@ -82,7 +89,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
         .from(cubics);
       lastPing = pingResult?.maxPing || null;
     } catch (dbError) {
-      console.error("[SyncStatus API] Error al consultar último ping en DB:", dbError);
+      console.error(
+        "[SyncStatus API] Error al consultar último ping en DB:",
+        dbError,
+      );
     }
 
     return jsonResponse({
