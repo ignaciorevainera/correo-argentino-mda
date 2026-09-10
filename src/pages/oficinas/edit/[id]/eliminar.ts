@@ -1,19 +1,31 @@
-import { db } from "@db/index";
-import { offices } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { deleteWithSnapshot } from "@lib/deletedRecords";
+import {
+  offices,
+  officeContacts,
+  officeAssets,
+  officeInvgateLinks,
+} from "@db/schema";
 import { createDeleteHandler } from "@lib/api/deleteHandler";
 
 export const POST = createDeleteHandler({
   entityName: "oficina",
   redirectPath: "oficinas",
   requiredFeature: "Administrar Contenido",
-  performDelete: async (id) => {
-    const [deleted] = await db
-      .delete(offices)
-      .where(eq(offices.id, id))
-      .returning({ code: offices.code, name: offices.name });
-    return deleted ?? null;
-  },
+  genericSnapshot: false,
+  performDelete: async (id, { username }) =>
+    deleteWithSnapshot({
+      entity: "oficina",
+      recordId: id,
+      username,
+      label: (father) => `Oficina "${father.name}" (${father.code})`,
+      fatherTable: offices,
+      fatherPkColumn: offices.id,
+      children: [
+        { key: "officeContacts", table: officeContacts, fkColumn: officeContacts.officeId, fkProperty: "officeId" },
+        { key: "officeAssets", table: officeAssets, fkColumn: officeAssets.officeId, fkProperty: "officeId" },
+        { key: "officeInvgateLinks", table: officeInvgateLinks, fkColumn: officeInvgateLinks.officeId, fkProperty: "officeId" },
+      ],
+    }),
   successMessage: (d) =>
     d
       ? `Oficina "${(d as any).name}" (${(d as any).code}) eliminada con éxito.`

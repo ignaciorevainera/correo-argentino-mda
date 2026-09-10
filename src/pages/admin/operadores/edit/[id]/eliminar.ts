@@ -2,17 +2,21 @@ import { db } from "@db/index";
 import { agents, schedules } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { createDeleteHandler } from "@lib/api/deleteHandler";
+import { deleteWithSnapshot } from "@lib/deletedRecords";
 
 export const POST = createDeleteHandler({
   entityName: "operador",
   redirectPath: "admin/operadores",
-  performDelete: async (id) => {
-    const [deleted] = await db
-      .delete(agents)
-      .where(eq(agents.id, id))
-      .returning({ id: agents.id, name: agents.name });
-    return deleted ?? null;
-  },
+  genericSnapshot: false,
+  performDelete: async (id, { username }) =>
+    deleteWithSnapshot({
+      entity: "agente",
+      recordId: id,
+      username,
+      label: (father) => `Agente "${father.name}"`,
+      fatherTable: agents,
+      fatherPkColumn: agents.id,
+    }),
   afterDelete: async ({ deleted }) => {
     if (deleted) {
       await db
