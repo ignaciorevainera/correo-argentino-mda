@@ -15,6 +15,8 @@ import {
   desc,
 } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
+import { getTerminalSnapshot } from "@lib/terminalCache";
+import type { TerminalMinimalRow } from "@lib/terminalSnapshot";
 
 import { type OsFamily, toOsFamily } from "@lib/terminalHelpers";
 export type { OsFamily };
@@ -29,11 +31,7 @@ import {
 
 export type { TTPairState };
 
-import {
-  buildDuplicateClusters,
-  selectActiveMember,
-  type DuplicateCluster,
-} from "@lib/duplicateGroups";
+import { selectActiveMember } from "@lib/duplicateGroups";
 
 export type TerminalSortKey = "hostname" | "hardware" | "os" | "location";
 export type SortOrder = "asc" | "desc";
@@ -68,18 +66,6 @@ export interface TerminalItem {
   lastContactTime: string;
   osFamily: OsFamily;
   isTelegrafia: boolean;
-}
-
-export interface TerminalMinimalRow {
-  id: number;
-  hostname: string | null;
-  ipAddress: string | null;
-  macAddress: string | null;
-  operatingSystem: string | null;
-  manufacturer: string | null;
-  model: string | null;
-  nis: string | null;
-  lastContact: string | null;
 }
 
 export type TerminalDisplayItem =
@@ -509,28 +495,17 @@ const terminalSortValue = (
   }
 };
 
-async function loadMinimalRows(
+async function loadMatchingIds(
   whereClause: ReturnType<typeof and> | undefined,
-): Promise<TerminalMinimalRow[]> {
+): Promise<Set<number>> {
   const base = db
-    .select({
-      id: terminals.id,
-      hostname: terminals.hostname,
-      ipAddress: terminals.ipAddress,
-      macAddress: terminals.macAddress,
-      operatingSystem: terminals.operatingSystem,
-      manufacturer: terminals.manufacturer,
-      model: terminals.model,
-      nis: terminals.nis,
-      lastContact: terminals.lastContact,
-    })
+    .select({ id: terminals.id })
     .from(terminals)
     .leftJoin(offices, eq(terminals.nis, offices.code));
-
   const rows = whereClause
     ? await base.where(whereClause).all()
     : await base.all();
-  return rows;
+  return new Set(rows.map((row) => row.id));
 }
 
 export async function getTerminalDisplay(
@@ -550,38 +525,34 @@ export async function getTerminalDisplay(
   const limit = params.limit || 50;
   const offset = (page - 1) * limit;
 
-  const filters = buildTerminalFilters(params);
-  const whereClause = filters.length > 0 ? and(...filters) : undefined;
+  const snapshot = await getTerminalSnapshot();
+  const { rowsById, allRowIds, clusters, clusterByRowId, clusterMemberIds } =
+    snapshot;
 
-  const matchingRows = await loadMinimalRows(whereClause);
-  const allRows = await loadMinimalRows(undefined);
+  const sqlFilters = buildTerminalFilters({ ...params, duplicates: false });
+  const whereClause = sqlFilters.length > 0 ? and(...sqlFilters) : undefined;
 
-  const clusters = buildDuplicateClusters(
-    allRows.map((row) => ({
-      id: row.id,
-      ip: row.ipAddress,
-      mac: row.macAddress,
-      hostname: row.hostname,
-    })),
-  );
-
-  const clusterByRowId = new Map<number, DuplicateCluster>();
-  for (const cluster of clusters) {
-    for (const id of cluster.ids) clusterByRowId.set(id, cluster);
+  let matchedIds: Set<number>;
+  if (whereClause) {
+    matchedIds = await loadMatchingIds(whereClause);
+    if (params.duplicates) {
+      matchedIds = new Set(
+        [...matchedIds].filter((id) => clusterMemberIds.has(id)),
+      );
+    }
+  } else if (params.duplicates) {
+    matchedIds = clusterMemberIds;
+  } else {
+    matchedIds = allRowIds;
   }
 
-  const minimalById = new Map<number, TerminalMinimalRow>();
-  for (const row of allRows) minimalById.set(row.id, row);
-
-  const matchedIds = new Set(matchingRows.map((row) => row.id));
   const sortBy: TerminalSortKey = params.sortBy ?? "hostname";
-
   const items: Array<{ sortKey: string; item: TerminalDisplayItem }> = [];
 
   for (const cluster of clusters) {
     if (!cluster.ids.some((id) => matchedIds.has(id))) continue;
     const members = cluster.ids
-      .map((id) => minimalById.get(id))
+      .map((id) => rowsById.get(id))
       .filter((row): row is TerminalMinimalRow => Boolean(row));
     const active = selectActiveMember(
       members.map((row) => ({
@@ -590,7 +561,7 @@ export async function getTerminalDisplay(
       })),
     );
     const activeId = active.activeId ?? cluster.ids[0];
-    const activeRow = minimalById.get(activeId) ?? members[0];
+    const activeRow = rowsById.get(activeId) ?? members[0];
     items.push({
       sortKey: terminalSortValue(activeRow, sortBy),
       item: {
@@ -604,11 +575,13 @@ export async function getTerminalDisplay(
     });
   }
 
-  for (const row of matchingRows) {
-    if (clusterByRowId.has(row.id)) continue;
+  for (const id of matchedIds) {
+    if (clusterByRowId.has(id)) continue;
+    const row = rowsById.get(id);
+    if (!row) continue;
     items.push({
       sortKey: terminalSortValue(row, sortBy),
-      item: { type: "single", id: row.id },
+      item: { type: "single", id },
     });
   }
 
