@@ -45,18 +45,20 @@ export function createSnapshotCache<T>(options: {
       if (inFlight && inFlight.signature === signature) return inFlight.promise;
 
       const startEpoch = epoch;
+      let entry!: { signature: string; promise: Promise<T> };
       const promise = (async () => {
         try {
           const value = await options.loadSnapshot(signature);
-          if (startEpoch === epoch && (!inFlight || inFlight.promise === promise)) {
+          if (startEpoch === epoch && inFlight === entry) {
             cached = { signature, value };
           }
           return value;
         } finally {
-          if (inFlight && inFlight.promise === promise) inFlight = null;
+          if (inFlight === entry) inFlight = null;
         }
       })();
-      inFlight = { signature, promise };
+      entry = { signature, promise };
+      inFlight = entry;
       return promise;
     },
     clear(): void {
