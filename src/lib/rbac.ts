@@ -43,6 +43,10 @@ export const routePermissions: RoutePermission[] = [
     roles: ["admin", "supervisor", "team_leader"],
   },
   {
+    path: "/supervision/asistencia/operador",
+    roles: ["admin", "supervisor", "team_leader"],
+  },
+  {
     path: "/supervision/cronograma",
     roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
   },

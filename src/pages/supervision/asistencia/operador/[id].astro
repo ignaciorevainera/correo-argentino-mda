@@ -1,0 +1,2045 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+import { db } from "@db/index";
+import { agents } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+const cleanBase = getCleanBase();
+const { id } = Astro.params;
+const agentId = parseInt(id || "");
+
+if (isNaN(agentId)) {
+  return Astro.redirect(`${cleanBase}supervision/asistencia/estadisticas`);
+}
+
+const agent = await db
+  .select()
+  .from(agents)
+  .where(eq(agents.id, agentId))
+  .limit(1)
+  .then((res) => res[0]);
+
+if (!agent) {
+  return Astro.redirect(`${cleanBase}supervision/asistencia/estadisticas`);
+}
+
+const allAgents = await db
+  .select({
+    id: agents.id,
+    name: agents.name,
+    username: agents.username,
+    location: agents.location,
+    avatarInitials: agents.avatarInitials,
+  })
+  .from(agents)
+  .orderBy(agents.name);
+
+const currentYear = new Date().getFullYear();
+const years = [currentYear, currentYear - 1, currentYear - 2];
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <!-- Navegación superior y selector de operador -->
+    <div class="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
+      <a
+        href={`${cleanBase}supervision/asistencia/estadisticas`}
+        class="btn btn-ghost btn-sm pl-2 transition-colors duration-200 gap-1 font-bold text-xs"
+      >
+        <Icon name="boxicons:chevron-left" size={16} />
+        Volver a Estadísticas
+      </a>
+
+      <!-- Combobox Predictivo de Operador (Opción A) -->
+      <div class="relative w-64 sm:w-80" id="operator-combobox-root">
+        <div class="relative">
+          <Icon
+            name="boxicons:search"
+            class="text-base-content/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            size={16}
+          />
+          <input
+            type="text"
+            id="operator-combobox-input"
+            class="input input-sm input-bordered bg-base-100 border-base-300 w-full pl-9 pr-8 rounded-xl text-xs font-bold outline-none focus:border-secondary transition-all shadow-xs"
+            placeholder="Cambiar operador..."
+            value={agent.name}
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            id="operator-combobox-clear"
+            class="text-base-content/40 hover:text-base-content absolute right-2.5 top-1/2 -translate-y-1/2 hidden cursor-pointer text-xs font-bold"
+            title="Limpiar búsqueda"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Floating Dropdown list -->
+        <div
+          id="operator-combobox-dropdown"
+          class="bg-base-100 border-base-300 shadow-xl absolute left-0 right-0 top-full z-50 mt-1.5 hidden max-h-72 flex-col overflow-y-auto rounded-xl border p-1"
+        >
+          <!-- Elements dynamically generated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Header del Operador -->
+    <div
+      id="operator-header-card"
+      class="bg-base-100 border-base-300 mb-6 flex flex-col gap-4 rounded-2xl border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div class="flex items-center gap-4">
+        <div
+          class="bg-secondary/10 text-secondary flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-black"
+        >
+          {agent.avatarInitials || agent.name.substring(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <h1 class="text-base-content text-xl font-black">{agent.name}</h1>
+          <p class="text-base-content/60 text-xs font-medium">
+            Usuario: <span class="font-bold">{agent.username || "S/D"}</span> |
+            Sede: <span class="font-bold">{agent.location}</span>
+          </p>
+          <div id="print-period-label" class="hidden text-xs font-black text-secondary mt-1"></div>
+        </div>
+      </div>
+
+      <!-- Métricas clave del período seleccionado (siempre sobre el período completo, no filtrado por estado) -->
+      <p class="text-xxs text-base-content/30 font-medium sm:hidden mb-1">Métricas del período completo</p>
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Presentismo</span
+          >
+          <span class="text-secondary text-lg font-black" id="kpi-attendance">--%</span>
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Puntualidad</span
+          >
+          <span class="text-secondary text-lg font-black" id="kpi-rate">--%</span>
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Tardanzas</span
+          >
+          <span class="text-warning text-lg font-black" id="kpi-lates">--</span>
+        </div>
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Ausencias</span
+          >
+          <span class="text-lg font-black text-violet-500" id="kpi-absences">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div
+      class="no-print bg-base-100 border-base-300 mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4 shadow-sm"
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Selector Año -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Año:</span>
+          <select
+            id="filter-year"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            {years.map((y) => <option value={y}>{y}</option>)}
+          </select>
+        </div>
+
+        <!-- Selector Mes -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Mes:</span>
+          <select
+            id="filter-month"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            <option value="all">Todo el año (Consolidado)</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+
+        <!-- Selector Estado -->
+        <div class="flex items-center gap-2">
+          <span class="text-base-content/60 text-xs font-bold">Estado:</span>
+          <select
+            id="filter-status"
+            class="select select-sm select-bordered rounded-xl text-xs font-bold"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="tardanza">Llegadas Tarde</option>
+            <option value="ausente">Ausencias / Licencias</option>
+            <option value="incumplio">Incumplió</option>
+            <option value="cumplio">Cumplió</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Indicador contador -->
+        <span
+          id="result-count"
+          class="badge badge-sm badge-ghost text-base-content/60 font-bold"
+        >
+          Cargando registros...
+        </span>
+
+        <!-- Selector de Vista -->
+        <div class="join border border-base-300 rounded-xl overflow-hidden shadow-xs">
+          <button id="view-monthly-btn" class="join-item btn btn-xs btn-active gap-1 font-bold" title="Vista Mensual">
+            <Icon name="boxicons:calendar" size={14} />
+            Mensual
+          </button>
+          <button id="view-annual-btn" class="join-item btn btn-xs btn-ghost gap-1 font-bold text-base-content/60" title="Vista Anual">
+            <Icon name="boxicons:bar-chart-big" size={14} />
+            Anual
+          </button>
+          <button id="view-table-btn" class="join-item btn btn-xs btn-ghost gap-1 font-bold text-base-content/60" title="Vista Tabla">
+            <Icon name="boxicons:table" size={14} />
+            Tabla
+          </button>
+        </div>
+
+        <!-- Exportar CSV -->
+        <button
+          type="button"
+          id="export-csv-btn"
+          class="btn btn-outline btn-xs border-base-300 hover:bg-base-200 text-base-content/80 gap-1.5 font-bold rounded-xl h-7 px-3 shadow-xs transition-colors"
+          title="Exportar asistencia mensual a CSV"
+        >
+          <Icon name="boxicons:table-list" size={14} />
+          <span>Exportar CSV</span>
+        </button>
+
+        <!-- Exportar PDF -->
+        <button
+          type="button"
+          id="export-pdf-btn"
+          class="btn btn-outline btn-xs border-base-300 hover:bg-base-200 text-base-content/80 gap-1.5 font-bold rounded-xl h-7 px-3 shadow-xs transition-colors"
+          title="Exportar asistencia mensual a PDF"
+        >
+          <Icon name="boxicons:file" size={14} />
+          <span>Exportar PDF</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Vista Calendario Heatmap -->
+    <div id="calendar-view-container" class="w-full flex flex-col gap-3">
+      <!-- Cabecera de días Lunes a Domingo -->
+      <div id="calendar-weekday-headers" class="hidden sm:grid grid-cols-7 gap-2 text-center text-xs font-black tracking-wider uppercase text-base-content/70 px-1">
+        <div>Lunes</div>
+        <div>Martes</div>
+        <div>Miércoles</div>
+        <div>Jueves</div>
+        <div>Viernes</div>
+        <div>Sábado</div>
+        <div>Domingo</div>
+      </div>
+      <!-- Grilla de Celdas -->
+      <div id="calendar-grid" class="grid grid-cols-2 sm:grid-cols-7 gap-2 w-full">
+        <!-- Celdas generadas dinámicamente -->
+      </div>
+    </div>
+
+    <!-- Vista Anual Consolidada -->
+    <div id="annual-view-container" class="hidden w-full flex flex-col gap-6">
+      <!-- Tira Heatmap 52 Semanas (Estilo GitHub) -->
+      <div class="bg-base-100 border border-base-300 rounded-2xl p-5 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h4 class="text-xs font-black uppercase tracking-wider text-base-content/70">Actividad Anual Continua (52 Semanas)</h4>
+            <span class="badge badge-xs badge-ghost font-bold text-base-content/50" id="annual-heatmap-year">2026</span>
+          </div>
+          <!-- Leyenda de colores -->
+          <div class="flex flex-wrap items-center gap-3 text-xxs font-bold text-base-content/50">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-emerald-500/80"></span> Puntual</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-amber-500"></span> Tardanza</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-violet-500"></span> Ausencia</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-error"></span> Incumplió</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-xs bg-base-300/60"></span> Franco/Libre</span>
+          </div>
+        </div>
+        <!-- Grilla scrollable horizontal -->
+        <div class="overflow-x-auto pb-2">
+          <div id="annual-heatmap-grid" class="flex gap-1 min-w-[760px] pt-1">
+            <!-- Columnas semanales generadas con padding exacto -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Grilla 4x3 de Tarjetas Mensuales (12 Meses) -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-black uppercase tracking-wider text-base-content/70">Desempeño Mes a Mes</h4>
+          <span class="text-xxs text-base-content/40 font-medium">Click en cualquier mes para abrir su calendario detallado</span>
+        </div>
+        <div id="annual-months-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <!-- 12 Tarjetas de meses inyectadas dinámicamente -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla Cronológica de Registros -->
+    <div
+      id="table-view-container"
+      class="hidden bg-base-100 border-base-300 overflow-hidden rounded-2xl border shadow-sm"
+    >
+      <div class="overflow-x-auto">
+        <table class="table w-full">
+          <thead>
+            <tr class="bg-base-200/50 text-base-content/60 text-xs uppercase">
+              <th>Fecha</th>
+              <th>Horario Planificado</th>
+              <th>Entrada Real</th>
+              <th>Estado / Cumplimiento</th>
+              <th>Observación / Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody" class="text-xs">
+            <tr>
+              <td colspan="5" class="py-12 text-center font-bold">
+                <span class="loading loading-spinner loading-md text-secondary"></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Drawer Lateral de Detalle de Jornada -->
+    <div id="day-drawer-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden transition-opacity duration-200"></div>
+    <div id="day-drawer" class="fixed right-0 top-0 h-full w-full max-w-sm bg-base-100 border-l border-base-300 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+      <!-- Drawer Header -->
+      <div class="flex items-center justify-between p-4 border-b border-base-200">
+        <div>
+          <span class="text-xxs font-black uppercase tracking-wider text-base-content/40" id="drawer-dayname">Lunes</span>
+          <h3 class="text-base font-black text-base-content" id="drawer-date">14 de Agosto, 2026</h3>
+        </div>
+        <button id="drawer-close-btn" class="btn btn-sm btn-ghost btn-circle">✕</button>
+      </div>
+      <!-- Drawer Body -->
+      <div class="p-5 flex-1 overflow-y-auto space-y-4" id="drawer-body">
+        <!-- Estado y Badge -->
+        <div id="drawer-status-badge"></div>
+        <!-- Comparativa Horaria -->
+        <div class="bg-base-200/50 rounded-xl p-4 border border-base-300/40 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Horario Estipulado:</span>
+            <span class="font-black text-base-content" id="drawer-horario">08:00 - 17:00</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Modalidad Cronograma:</span>
+            <span class="font-black text-base-content" id="drawer-modalidad">-</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-base-content/50 font-bold">Entrada Real:</span>
+            <span class="font-black" id="drawer-entrada">08:19</span>
+          </div>
+          <div class="flex justify-between items-center text-xs border-t border-base-300/40 pt-2" id="drawer-delay-container">
+            <span class="text-base-content/50 font-bold">Desvío Puntualidad:</span>
+            <span class="font-black text-warning" id="drawer-delay">+19 min</span>
+          </div>
+        </div>
+        <!-- Observación / Detalle -->
+        <div class="bg-base-200/50 rounded-xl p-4 border border-base-300/40 space-y-1.5" id="drawer-comment-container">
+          <span class="text-xxs font-black uppercase tracking-wider text-base-content/40">Observaciones</span>
+          <p class="text-xs font-medium text-base-content/80 leading-relaxed" id="drawer-comment">-</p>
+        </div>
+        <!-- Enlace a Control Diario -->
+        <a id="drawer-goto-daily" href="#" class="btn btn-sm btn-outline btn-secondary w-full gap-2 mt-4 font-bold">
+          <Icon name="boxicons:arrow-up-right" size={14} />
+          Abrir en Control Diario
+        </a>
+      </div>
+    </div>
+  </PageContainer>
+</BaseLayout>
+
+<script is:inline define:vars={{ agentId, agentName: agent.name, cleanBase, allAgents }}>
+  // 1. Elementos DOM
+  const yearSelect = document.getElementById("filter-year");
+  const monthSelect = document.getElementById("filter-month");
+  const statusSelect = document.getElementById("filter-status");
+  const tbody = document.getElementById("history-tbody");
+  const countBadge = document.getElementById("result-count");
+
+  const kpiAttendance = document.getElementById("kpi-attendance");
+  const kpiRate = document.getElementById("kpi-rate");
+  const kpiLates = document.getElementById("kpi-lates");
+  const kpiAbsences = document.getElementById("kpi-absences");
+
+  // Botones de vista
+  const viewMonthlyBtn = document.getElementById("view-monthly-btn");
+  const viewAnnualBtn = document.getElementById("view-annual-btn");
+  const viewTableBtn = document.getElementById("view-table-btn");
+  const exportCsvBtn = document.getElementById("export-csv-btn");
+  const exportPdfBtn = document.getElementById("export-pdf-btn");
+
+  // Contenedores de vista
+  const calendarViewContainer = document.getElementById("calendar-view-container");
+  const annualViewContainer = document.getElementById("annual-view-container");
+  const tableViewContainer = document.getElementById("table-view-container");
+
+  // Elementos de la vista anual
+  const annualHeatmapGrid = document.getElementById("annual-heatmap-grid");
+  const annualHeatmapYear = document.getElementById("annual-heatmap-year");
+  const annualMonthsGrid = document.getElementById("annual-months-grid");
+
+  // Grilla de vista mensual
+  const calendarGrid = document.getElementById("calendar-grid");
+
+  // Drawer Lateral
+  const drawer = document.getElementById("day-drawer");
+  const drawerBackdrop = document.getElementById("day-drawer-backdrop");
+  const drawerCloseBtn = document.getElementById("drawer-close-btn");
+  const drawerDayname = document.getElementById("drawer-dayname");
+  const drawerDate = document.getElementById("drawer-date");
+  const drawerStatusBadge = document.getElementById("drawer-status-badge");
+  const drawerHorario = document.getElementById("drawer-horario");
+  const drawerModalidad = document.getElementById("drawer-modalidad");
+  const drawerEntrada = document.getElementById("drawer-entrada");
+  const drawerDelayContainer = document.getElementById("drawer-delay-container");
+  const drawerDelay = document.getElementById("drawer-delay");
+  const drawerComment = document.getElementById("drawer-comment");
+  const drawerGotoDaily = document.getElementById("drawer-goto-daily");
+
+  // --- Combobox Predictivo de Operador (Opción A) ---
+  const comboboxRoot = document.getElementById("operator-combobox-root");
+  const comboboxInput = document.getElementById("operator-combobox-input");
+  const comboboxClear = document.getElementById("operator-combobox-clear");
+  const comboboxDropdown = document.getElementById(
+    "operator-combobox-dropdown",
+  );
+  const currentAgentName = agentName;
+  const currentAgentId = Number(agentId);
+
+  let highlightedIndex = -1;
+  let currentFilteredAgents = Array.isArray(allAgents) ? [...allAgents] : [];
+
+  function navigateToOperator(newId) {
+    if (!newId || newId === currentAgentId) {
+      closeCombobox();
+      if (comboboxInput) comboboxInput.value = currentAgentName;
+      return;
+    }
+    const y = yearSelect ? yearSelect.value : "";
+    const m =
+      activeView === "annual"
+        ? "all"
+        : monthSelect
+          ? monthSelect.value
+          : "";
+    const qs = new URLSearchParams();
+    if (y) qs.set("year", y);
+    if (m) qs.set("month", m);
+    const queryString = qs.toString() ? `?${qs.toString()}` : "";
+    window.location.href = `${cleanBase}supervision/asistencia/operador/${newId}${queryString}`;
+  }
+
+  function openCombobox() {
+    if (!comboboxDropdown) return;
+    renderComboboxItems(comboboxInput?.value || "");
+    comboboxDropdown.classList.remove("hidden");
+  }
+
+  function closeCombobox() {
+    if (!comboboxDropdown) return;
+    comboboxDropdown.classList.add("hidden");
+    highlightedIndex = -1;
+  }
+
+  function renderComboboxItems(query) {
+    if (!comboboxDropdown) return;
+    const cleanQuery = (query || "").trim().toLowerCase();
+
+    // Si coincide exactamente con el nombre actual, mostrar todos para permitir explorar
+    const effectiveQuery =
+      cleanQuery === currentAgentName.toLowerCase() ? "" : cleanQuery;
+
+    currentFilteredAgents = allAgents.filter((a) => {
+      if (!effectiveQuery) return true;
+      const n = (a.name || "").toLowerCase();
+      const u = (a.username || "").toLowerCase();
+      const l = (a.location || "").toLowerCase();
+      return (
+        n.includes(effectiveQuery) ||
+        u.includes(effectiveQuery) ||
+        l.includes(effectiveQuery)
+      );
+    });
+
+    comboboxDropdown.innerHTML = "";
+
+    if (currentFilteredAgents.length === 0) {
+      const emptyDiv = document.createElement("div");
+      emptyDiv.className =
+        "p-3 text-center text-xs font-bold text-base-content/40";
+      emptyDiv.textContent = "No se encontraron operadores";
+      comboboxDropdown.appendChild(emptyDiv);
+      highlightedIndex = -1;
+      return;
+    }
+
+    currentFilteredAgents.forEach((op, index) => {
+      const isCurrent = op.id === currentAgentId;
+      const initials =
+        op.avatarInitials ||
+        op.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .substring(0, 2)
+          .toUpperCase();
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `combobox-item flex items-center justify-between gap-2.5 p-2 rounded-lg text-left w-full transition-colors cursor-pointer ${
+        isCurrent
+          ? "bg-secondary/10 text-secondary font-black"
+          : "hover:bg-base-200 text-base-content font-bold"
+      }`;
+      btn.setAttribute("data-index", String(index));
+      btn.setAttribute("data-id", String(op.id));
+
+      btn.innerHTML = `
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-7 h-7 rounded-md bg-secondary/10 text-secondary flex items-center justify-center font-black text-xxs shrink-0">
+            ${initials}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs truncate ${isCurrent ? "text-secondary font-black" : "text-base-content font-bold"}">
+              ${op.name}
+            </span>
+            <span class="text-micro text-base-content/50 font-medium truncate">
+              ${op.username ? `@${op.username} · ` : ""}${op.location || "Sin Sede"}
+            </span>
+          </div>
+        </div>
+        ${
+          isCurrent
+            ? `<span class="badge badge-xs badge-secondary font-black shrink-0">Actual</span>`
+            : ""
+        }
+      `;
+
+      btn.addEventListener("click", () => {
+        navigateToOperator(op.id);
+      });
+
+      comboboxDropdown.appendChild(btn);
+    });
+
+    highlightedIndex = -1;
+  }
+
+  function updateHighlight() {
+    if (!comboboxDropdown) return;
+    const items = comboboxDropdown.querySelectorAll(".combobox-item");
+    items.forEach((item, idx) => {
+      if (idx === highlightedIndex) {
+        item.classList.add("bg-base-200", "ring-1", "ring-secondary/40");
+        item.scrollIntoView({ block: "nearest" });
+      } else {
+        item.classList.remove("bg-base-200", "ring-1", "ring-secondary/40");
+      }
+    });
+  }
+
+  if (comboboxInput) {
+    comboboxInput.addEventListener("focus", () => {
+      comboboxInput.select();
+      openCombobox();
+    });
+
+    comboboxInput.addEventListener("input", () => {
+      const val = comboboxInput.value;
+      if (comboboxClear) {
+        if (val) comboboxClear.classList.remove("hidden");
+        else comboboxClear.classList.add("hidden");
+      }
+      openCombobox();
+    });
+
+    comboboxInput.addEventListener("keydown", (e) => {
+      if (comboboxDropdown?.classList.contains("hidden")) {
+        if (e.key === "ArrowDown" || e.key === "Enter") {
+          openCombobox();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (currentFilteredAgents.length > 0) {
+          highlightedIndex =
+            (highlightedIndex + 1) % currentFilteredAgents.length;
+          updateHighlight();
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (currentFilteredAgents.length > 0) {
+          highlightedIndex =
+            (highlightedIndex - 1 + currentFilteredAgents.length) %
+            currentFilteredAgents.length;
+          updateHighlight();
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (
+          highlightedIndex >= 0 &&
+          highlightedIndex < currentFilteredAgents.length
+        ) {
+          navigateToOperator(currentFilteredAgents[highlightedIndex].id);
+        } else if (currentFilteredAgents.length === 1) {
+          navigateToOperator(currentFilteredAgents[0].id);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        comboboxInput.value = currentAgentName;
+        closeCombobox();
+        comboboxInput.blur();
+      }
+    });
+  }
+
+  if (comboboxClear) {
+    comboboxClear.addEventListener("click", () => {
+      if (comboboxInput) {
+        comboboxInput.value = "";
+        comboboxClear.classList.add("hidden");
+        comboboxInput.focus();
+        renderComboboxItems("");
+      }
+    });
+  }
+
+  // Click outside cierra el dropdown y restaura el nombre
+  document.addEventListener("click", (e) => {
+    if (comboboxRoot && !comboboxRoot.contains(e.target)) {
+      if (!comboboxDropdown?.classList.contains("hidden")) {
+        closeCombobox();
+        if (comboboxInput && comboboxInput.value !== currentAgentName) {
+          comboboxInput.value = currentAgentName;
+        }
+      }
+    }
+  });
+
+  // Atajo "/" o Ctrl+K / Cmd+K para enfocar el combobox
+  document.addEventListener("keydown", (e) => {
+    const target = e.target;
+    if (
+      !target ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+    if (
+      e.key === "/" ||
+      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")
+    ) {
+      e.preventDefault();
+      comboboxInput?.focus();
+      comboboxInput?.select();
+    }
+  });
+
+  // 2. Cache en memoria y estado
+  let annualRecordsCache = null;
+  let annualSummaryCache = null;
+  let schedulesCache = {};
+  let cachedYear = null;
+  let cachedStatus = null;
+  let currentMonthlySummary = null;
+  let activeView = "monthly";
+
+  // Inicialización de parámetros URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramYear = urlParams.get("year");
+  const paramMonth = urlParams.get("month");
+  if (paramYear && yearSelect) yearSelect.value = paramYear;
+  if (paramMonth && monthSelect) {
+    monthSelect.value = paramMonth;
+    if (paramMonth === "all") {
+      activeView = "annual";
+    }
+  } else if (monthSelect) {
+    const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, "0");
+    monthSelect.value = currentMonthStr;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function getBadgeClass(cumplimiento, ausencia) {
+    if (ausencia)
+      return "badge-ghost border-violet-500/40 text-violet-600 dark:text-violet-400 bg-violet-500/10";
+    if (cumplimiento === "Cumplió")
+      return "badge-ghost border-emerald-500/40 text-emerald-600 bg-emerald-500/10";
+    if (cumplimiento === "Llegada Tarde")
+      return "badge-ghost border-amber-500/40 text-amber-600 bg-amber-500/10";
+    if (cumplimiento === "Incumplió")
+      return "badge-ghost border-error/40 text-error bg-error/10";
+    return "badge-ghost text-base-content/50";
+  }
+
+  function getDelayMinutes(entradaReal, horarioEstipulado) {
+    if (
+      !entradaReal ||
+      !horarioEstipulado ||
+      entradaReal === "--:--" ||
+      horarioEstipulado === "--:--"
+    ) {
+      return null;
+    }
+    const [eh, em] = entradaReal.split(":").map(Number);
+    if (isNaN(eh) || isNaN(em)) return null;
+
+    const clean = horarioEstipulado.toLowerCase().replace(/\s+/g, "");
+    const match = clean.match(/^(\d{1,2})(?::(\d{2}))?/);
+    if (!match) return null;
+    const sh = parseInt(match[1], 10);
+    const sm = match[2] ? parseInt(match[2], 10) : 0;
+
+    const realMinutes = eh * 60 + em;
+    const scheduledMinutes = sh * 60 + sm;
+    return realMinutes - scheduledMinutes;
+  }
+
+  function formatModality(status) {
+    if (!status) return { text: "-", full: "Sin modalidad asignada", class: "text-base-content/40" };
+    const s = String(status).trim();
+    if (s === "Home Office") {
+      return { text: "Home Office", full: "Home Office", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Presencial Monte Grande") {
+      return { text: "Presencial MG", full: "Presencial Monte Grande", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Presencial Parque Patricios") {
+      return { text: "Presencial PP", full: "Presencial Parque Patricios", class: "text-base-content/70 font-bold" };
+    }
+    if (s.toLowerCase().startsWith("presencial")) {
+      return { text: "Presencial", full: s, class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Vacaciones") {
+      return { text: "Vacaciones", full: "Vacaciones", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Licencia") {
+      return { text: "Licencia", full: "Licencia", class: "text-base-content/70 font-bold" };
+    }
+    if (s === "Franco") {
+      return { text: "Franco", full: "Franco", class: "text-base-content/55 font-semibold" };
+    }
+    return { text: s, full: s, class: "text-base-content/70 font-semibold" };
+  }
+
+  function calculateSummary(records) {
+    let totalWorkDays = 0;
+    let punctuals = 0;
+    let lates = 0;
+    let failed = 0;
+    let absences = 0;
+
+    if (Array.isArray(records)) {
+      records.forEach((log) => {
+        const sched = log.horarioEstipulado;
+        const hasSchedule =
+          sched &&
+          sched !== "Franco" &&
+          sched !== "--:--" &&
+          sched.trim() !== "";
+        if (hasSchedule || log.cumplimientoForzado) {
+          totalWorkDays++;
+          if (log.cumplimiento === "Cumplió") punctuals++;
+          if (log.cumplimiento === "Llegada Tarde") lates++;
+          if (log.cumplimiento === "Incumplió") failed++;
+        }
+        if (log.ausencia && log.ausencia.trim() !== "") {
+          absences++;
+        }
+      });
+    }
+
+    const workedDays = punctuals + lates;
+    const punctualityRate =
+      workedDays > 0 ? Math.round((punctuals / workedDays) * 100) : 100;
+    const attendanceRate =
+      totalWorkDays > 0 ? Math.round((workedDays / totalWorkDays) * 100) : 100;
+
+    return {
+      totalWorkDays,
+      workedDays,
+      punctuals,
+      lates,
+      failed,
+      absences,
+      punctualityRate,
+      attendanceRate,
+    };
+  }
+
+  function updateKpiDisplays(summary) {
+    if (!summary) return;
+    if (kpiAttendance) kpiAttendance.textContent = `${summary.attendanceRate ?? "--"}%`;
+    if (kpiRate) kpiRate.textContent = `${summary.punctualityRate ?? "--"}%`;
+    if (kpiLates) kpiLates.textContent = String(summary.lates ?? "--");
+    if (kpiAbsences) kpiAbsences.textContent = String(summary.absences ?? "--");
+  }
+
+  // 3. Conmutador de vista setView(view)
+  function setView(view) {
+    activeView = view;
+
+    // Resetear estados visuales de botones
+    [viewMonthlyBtn, viewAnnualBtn, viewTableBtn].forEach((btn) => {
+      btn?.classList.remove("btn-active");
+      btn?.classList.add("btn-ghost", "text-base-content/60");
+    });
+
+    // Ocultar contenedores
+    calendarViewContainer?.classList.add("hidden");
+    annualViewContainer?.classList.add("hidden");
+    tableViewContainer?.classList.add("hidden");
+
+    if (activeView === "annual") {
+      viewAnnualBtn?.classList.add("btn-active");
+      viewAnnualBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      annualViewContainer?.classList.remove("hidden");
+
+      // In 'annual': deshabilitar monthSelect con opacidad y cursor sin layout shift
+      if (monthSelect) {
+        monthSelect.disabled = true;
+        monthSelect.classList.add("opacity-50", "cursor-not-allowed");
+      }
+
+      // Actualizar KPIs superiores con resumen anual acumulado
+      if (annualSummaryCache) {
+        updateKpiDisplays(annualSummaryCache);
+      }
+      if (countBadge && annualRecordsCache) {
+        countBadge.textContent = `${annualRecordsCache.length} registros · Vista anual`;
+      }
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar reporte anual a CSV";
+      }
+      if (exportPdfBtn) {
+        exportPdfBtn.title = "Exportar reporte anual a PDF";
+      }
+    } else if (activeView === "monthly") {
+      viewMonthlyBtn?.classList.add("btn-active");
+      viewMonthlyBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      calendarViewContainer?.classList.remove("hidden");
+
+      // In 'monthly': habilitar monthSelect
+      if (monthSelect) {
+        monthSelect.disabled = false;
+        monthSelect.classList.remove("opacity-50", "cursor-not-allowed");
+        if (monthSelect.value === "all") {
+          const curMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+          monthSelect.value = curMonth;
+        }
+      }
+
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar asistencia del mes a CSV";
+      }
+      if (exportPdfBtn) {
+        exportPdfBtn.title = "Exportar asistencia del mes a PDF";
+      }
+
+      renderActiveMonthly();
+    } else if (activeView === "table") {
+      viewTableBtn?.classList.add("btn-active");
+      viewTableBtn?.classList.remove("btn-ghost", "text-base-content/60");
+      tableViewContainer?.classList.remove("hidden");
+
+      // In 'table': habilitar monthSelect
+      if (monthSelect) {
+        monthSelect.disabled = false;
+        monthSelect.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+
+      if (exportCsvBtn) {
+        exportCsvBtn.title = "Exportar tabla a CSV";
+      }
+      if (exportPdfBtn) {
+        exportPdfBtn.title = "Exportar tabla a PDF";
+      }
+
+      renderActiveTable();
+    }
+  }
+
+  function renderActiveMonthly() {
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const selectedMonth = monthSelect?.value;
+    if (!annualRecordsCache || !selectedMonth) return;
+
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = annualRecordsCache.filter((r) => r.date.startsWith(prefix));
+      currentMonthlySummary = calculateSummary(recs);
+      updateKpiDisplays(currentMonthlySummary);
+    } else {
+      if (annualSummaryCache) updateKpiDisplays(annualSummaryCache);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = `${recs.length} registros`;
+    }
+
+    renderCalendar(recs, year, selectedMonth);
+    renderTable(recs);
+  }
+
+  function renderActiveTable() {
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const selectedMonth = monthSelect?.value;
+    if (!annualRecordsCache || !selectedMonth) return;
+
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = annualRecordsCache.filter((r) => r.date.startsWith(prefix));
+      currentMonthlySummary = calculateSummary(recs);
+      updateKpiDisplays(currentMonthlySummary);
+    } else {
+      if (annualSummaryCache) updateKpiDisplays(annualSummaryCache);
+    }
+
+    if (countBadge) {
+      countBadge.textContent = selectedMonth === "all"
+        ? `${recs.length} registros · Año completo`
+        : `${recs.length} registros`;
+    }
+
+    renderTable(recs);
+  }
+
+  viewMonthlyBtn?.addEventListener("click", () => setView("monthly"));
+  viewAnnualBtn?.addEventListener("click", () => setView("annual"));
+  viewTableBtn?.addEventListener("click", () => setView("table"));
+
+  // 4. Heatmap Anual Continuo de 52 Semanas (Estilo GitHub)
+  function renderAnnualHeatmap(records, year) {
+    const yearNum = parseInt(year, 10);
+    if (annualHeatmapYear) {
+      annualHeatmapYear.textContent = String(yearNum);
+    }
+    if (!annualHeatmapGrid) return;
+    annualHeatmapGrid.innerHTML = "";
+
+    const recordsByDate = new Map();
+    if (Array.isArray(records)) {
+      records.forEach((r) => recordsByDate.set(r.date, r));
+    }
+
+    // Offset Lunes a Domingo para el 1 de Enero
+    const jan1 = new Date(yearNum, 0, 1, 12, 0, 0);
+    const jan1DayIndex = (jan1.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+
+    const isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+    const totalDaysInYear = isLeap ? 366 : 365;
+
+    const cells = [];
+
+    // Prepend transparent padding cells for previous Dec days in week 1
+    for (let p = 0; p < jan1DayIndex; p++) {
+      cells.push({ isPadding: true });
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    // Generar días del año
+    for (let dayOfYear = 1; dayOfYear <= totalDaysInYear; dayOfYear++) {
+      const d = new Date(yearNum, 0, dayOfYear, 12, 0, 0);
+      const mStr = String(d.getMonth() + 1).padStart(2, "0");
+      const dStr = String(d.getDate()).padStart(2, "0");
+      const dateStr = `${yearNum}-${mStr}-${dStr}`;
+      const dayOfWeek = (d.getDay() + 6) % 7; // 0=Lun .. 6=Dom
+      const log = recordsByDate.get(dateStr) || null;
+
+      cells.push({
+        isPadding: false,
+        dateStr,
+        dayOfWeek,
+        log,
+        isToday: dateStr === todayStr,
+      });
+    }
+
+    // Appends transparent padding cells to finish week 52/53 on Sunday
+    const remainder = cells.length % 7;
+    if (remainder !== 0) {
+      const paddingNeeded = 7 - remainder;
+      for (let p = 0; p < paddingNeeded; p++) {
+        cells.push({ isPadding: true });
+      }
+    }
+
+    // Columna izquierda con iniciales de días (L, M, M, J, V, S, D)
+    const dayLabelsCol = document.createElement("div");
+    dayLabelsCol.className = "flex flex-col gap-1 pr-1.5 text-xxs font-black text-base-content/40 select-none shrink-0";
+    const dayLabels = ["L", "M", "M", "J", "V", "S", "D"];
+    dayLabels.forEach((label) => {
+      const lbl = document.createElement("div");
+      lbl.className = "w-3 h-3 sm:w-3.5 sm:h-3.5 flex items-center justify-center";
+      lbl.textContent = label;
+      dayLabelsCol.appendChild(lbl);
+    });
+    annualHeatmapGrid.appendChild(dayLabelsCol);
+
+    // Columnas estrictas de 7 días (Lunes a Domingo)
+    const totalWeeks = cells.length / 7;
+    const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+    for (let w = 0; w < totalWeeks; w++) {
+      const col = document.createElement("div");
+      col.className = "flex flex-col gap-1 shrink-0";
+
+      for (let r = 0; r < 7; r++) {
+        const item = cells[w * 7 + r];
+        const cell = document.createElement("div");
+
+        if (item.isPadding) {
+          cell.className = "w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-xs bg-base-300/10 opacity-15 pointer-events-none";
+        } else {
+          const log = item.log;
+          const isWeekend = item.dayOfWeek === 5 || item.dayOfWeek === 6;
+          let colorClass = "bg-base-300/40 hover:ring-2 hover:ring-primary/50";
+          let statusLabel = "Franco / Libre";
+
+          if (log) {
+            if (log.ausencia) {
+              colorClass = "bg-violet-500 hover:bg-violet-400";
+              statusLabel = `Ausencia: ${log.ausencia}`;
+            } else if (log.cumplimiento === "Llegada Tarde") {
+              colorClass = "bg-amber-500 hover:bg-amber-400";
+              statusLabel = "Llegada Tarde";
+            } else if (log.cumplimiento === "Incumplió") {
+              colorClass = "bg-error hover:bg-error/80";
+              statusLabel = "Incumplió";
+            } else if (log.cumplimiento === "Cumplió") {
+              colorClass = "bg-emerald-500 hover:bg-emerald-400";
+              statusLabel = "Cumplió (Puntual)";
+            } else {
+              colorClass = "bg-base-300/60 hover:bg-base-300";
+              statusLabel = log.cumplimiento || "Sin Registro";
+            }
+          } else if (isWeekend) {
+            colorClass = "bg-base-300/30 hover:bg-base-300/50";
+            statusLabel = "Franco";
+          } else {
+            colorClass = "bg-base-200/50 hover:bg-base-300/50";
+            statusLabel = "Sin Registro";
+          }
+
+          cell.className = `w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-xs transition-transform hover:scale-125 cursor-pointer ${colorClass}`;
+          if (item.isToday) {
+            cell.classList.add("ring-2", "ring-secondary");
+          }
+
+          const dayName = dayNames[item.dayOfWeek];
+          const sched = log?.horarioEstipulado && log.horarioEstipulado !== "--:--" ? log.horarioEstipulado : (isWeekend ? "Franco" : "--:--");
+          const entrada = log?.entradaReal && log.entradaReal !== "--:--" ? ` | Entrada: ${log.entradaReal}` : "";
+          const schedStatus = log?.modalidad || schedulesCache?.[item.dateStr]?.status;
+          const modText = schedStatus ? ` | Modalidad: ${schedStatus}` : "";
+          cell.title = `${item.dateStr} (${dayName}): ${statusLabel} | Horario: ${sched}${entrada}${modText}`;
+
+          cell.addEventListener("click", () => {
+            openDrawer(item.dateStr, log);
+          });
+        }
+
+        col.appendChild(cell);
+      }
+
+      annualHeatmapGrid.appendChild(col);
+    }
+  }
+
+  // 5. Grilla 4x3 de Tarjetas Mensuales (12 Meses)
+  function renderAnnualMonths(records, year) {
+    if (!annualMonthsGrid) return;
+    annualMonthsGrid.innerHTML = "";
+
+    const monthNames = [
+      { num: "01", name: "Enero" },
+      { num: "02", name: "Febrero" },
+      { num: "03", name: "Marzo" },
+      { num: "04", name: "Abril" },
+      { num: "05", name: "Mayo" },
+      { num: "06", name: "Junio" },
+      { num: "07", name: "Julio" },
+      { num: "08", name: "Agosto" },
+      { num: "09", name: "Septiembre" },
+      { num: "10", name: "Octubre" },
+      { num: "11", name: "Noviembre" },
+      { num: "12", name: "Diciembre" },
+    ];
+
+    const today = new Date();
+    const currentYearStr = String(today.getFullYear());
+    const currentMonthNum = String(today.getMonth() + 1).padStart(2, "0");
+
+    monthNames.forEach((m) => {
+      const monthPrefix = `${year}-${m.num}`;
+      const monthRecords = Array.isArray(records)
+        ? records.filter((r) => r.date.startsWith(monthPrefix))
+        : [];
+
+      const stats = calculateSummary(monthRecords);
+      const hasRecords = monthRecords.length > 0;
+      const isCurrentMonth = String(year) === currentYearStr && m.num === currentMonthNum;
+
+      let badgeHtml = "";
+      if (!hasRecords) {
+        badgeHtml = `<span class="badge badge-xs badge-ghost text-base-content/40 font-bold">Sin datos</span>`;
+      }
+
+      const card = document.createElement("div");
+      card.className = `group relative bg-base-100 border border-base-300 hover:border-secondary/50 rounded-2xl p-3.5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between select-none ${isCurrentMonth ? "ring-2 ring-primary/40" : ""}`;
+
+      card.innerHTML = `
+        <div>
+          <div class="flex items-center justify-between gap-1 mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-black text-base-content group-hover:text-secondary transition-colors">${m.name}</span>
+              ${isCurrentMonth ? '<span class="badge badge-xs badge-primary font-bold">Mes actual</span>' : ""}
+            </div>
+            ${badgeHtml}
+          </div>
+          <div class="grid grid-cols-4 gap-1 text-center bg-base-200/40 rounded-xl p-1.5 sm:p-2 border border-base-300/30">
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Presentismo">Pres.</span>
+              <span class="text-xs font-black ${hasRecords ? "text-secondary" : "text-base-content/30"}">${hasRecords ? `${stats.attendanceRate}%` : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Puntualidad">Punt.</span>
+              <span class="text-xs font-black ${hasRecords ? "text-secondary" : "text-base-content/30"}">${hasRecords ? `${stats.punctualityRate}%` : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Tardanzas">Tard.</span>
+              <span class="text-xs font-black ${stats.lates > 0 ? "text-warning" : "text-base-content/50"}">${hasRecords ? stats.lates : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Ausencias">Aus.</span>
+              <span class="text-xs font-black ${stats.absences > 0 ? "text-violet-500" : "text-base-content/50"}">${hasRecords ? stats.absences : "--"}</span>
+            </div>
+          </div>
+        </div>
+        <div class="btn btn-xs btn-outline btn-secondary w-full gap-1 font-bold mt-2.5 group-hover:bg-secondary group-hover:text-secondary-content group-hover:border-secondary pointer-events-none transition-all">
+          <span>Ver mes</span>
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+          </svg>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        goToMonth(m.num);
+      });
+
+      annualMonthsGrid.appendChild(card);
+    });
+  }
+
+  // 6. Navegación instantánea a mes específico (Click-to-Month)
+  function goToMonth(monthNumber) {
+    const padded = String(monthNumber).padStart(2, "0");
+    if (monthSelect) {
+      monthSelect.value = padded;
+    }
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    if (annualRecordsCache && cachedYear === year) {
+      setView("monthly");
+    } else {
+      activeView = "monthly";
+      fetchHistory();
+    }
+  }
+
+  // 7. Renderizado de Grilla Calendario Mensual
+  function renderCalendar(records, year, month) {
+    if (!calendarGrid) return;
+    calendarGrid.innerHTML = "";
+
+    if (month === "all") {
+      calendarGrid.innerHTML = `
+        <div class="col-span-full py-12 text-center text-xs font-bold text-base-content/50">
+          La vista de calendario requiere seleccionar un mes específico.
+        </div>
+      `;
+      return;
+    }
+
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10);
+    if (isNaN(yearNum) || isNaN(monthNum)) return;
+
+    const totalDays = new Date(yearNum, monthNum, 0).getDate();
+    const firstDayIndex = (new Date(yearNum, monthNum - 1, 1).getDay() + 6) % 7;
+
+    const recordsByDate = new Map();
+    if (Array.isArray(records)) {
+      records.forEach((r) => recordsByDate.set(r.date, r));
+    }
+
+    // Celdas de padding para días del mes anterior
+    for (let p = 0; p < firstDayIndex; p++) {
+      const padCell = document.createElement("div");
+      padCell.className =
+        "hidden sm:block min-h-[95px] rounded-xl border border-dashed border-base-300/30 bg-base-200/20 opacity-30 pointer-events-none";
+      calendarGrid.appendChild(padCell);
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const dayNamesAbbr = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dayStr = String(day).padStart(2, "0");
+      const monthStr = String(monthNum).padStart(2, "0");
+      const dateStr = `${yearNum}-${monthStr}-${dayStr}`;
+      const log = recordsByDate.get(dateStr) || null;
+
+      const cellDate = new Date(yearNum, monthNum - 1, day);
+      const dayOfWeek = (cellDate.getDay() + 6) % 7;
+      const dayAbbr = dayNamesAbbr[dayOfWeek];
+      const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+      const isToday = dateStr === todayStr;
+
+      const schedItem = schedulesCache ? schedulesCache[dateStr] : null;
+
+      let schedDisplay = "--:--";
+      if (log && log.horarioEstipulado && log.horarioEstipulado !== "--:--") {
+        schedDisplay = log.horarioEstipulado;
+      } else if (schedItem && schedItem.horario && schedItem.horario.trim() !== "" && schedItem.horario !== "Franco") {
+        schedDisplay = schedItem.horario.trim();
+      } else if (schedItem && schedItem.status === "Franco") {
+        schedDisplay = "Franco";
+      } else if (isWeekend) {
+        schedDisplay = "Franco";
+      }
+
+      let centerHtml = "";
+      let cellBgClass = "bg-base-100 hover:bg-base-200/60 border-base-300";
+
+      if (log) {
+        if (log.ausencia) {
+          cellBgClass = "bg-violet-500/5 hover:bg-violet-500/10 border-violet-500/30";
+          const hasLoginTime = Boolean(log.entradaReal && log.entradaReal !== "--:--" && log.entradaReal.trim() !== "");
+          let loginSubHtml = "";
+
+          if (log.cumplimiento === "Llegada Tarde") {
+            const delay = getDelayMinutes(log.entradaReal, log.horarioEstipulado);
+            const delayBadge = delay && delay > 0 ? `<span class="badge badge-xs font-black border-amber-500/50 text-base-content bg-amber-500/20 shadow-2xs px-1.5 py-0.5">+${delay} min</span>` : "";
+            const timeText = hasLoginTime ? escapeHtml(log.entradaReal) : "Tardanza";
+            loginSubHtml = `
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="text-sm font-black text-amber-800 dark:text-amber-300 pl-0.5">${timeText}</span>
+                ${delayBadge}
+              </div>
+            `;
+          } else if (log.cumplimiento === "Cumplió") {
+            const timeText = hasLoginTime ? escapeHtml(log.entradaReal) : "";
+            loginSubHtml = `
+              <div class="flex items-center gap-1.5 mt-1 text-base-content" title="Entrada: ${escapeHtml(log.entradaReal || 'Cumplió')}">
+                ${timeText ? `<span class="text-sm font-black text-base-content/90 pl-0.5">${timeText}</span>` : ""}
+                <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+            `;
+          } else if (log.cumplimiento === "Incumplió") {
+            loginSubHtml = `
+              <div class="mt-1">
+                <span class="badge badge-xs font-black badge-error text-error-content">Incumplió</span>
+              </div>
+            `;
+          }
+
+          centerHtml = loginSubHtml
+            ? `
+              <div class="flex flex-col items-start my-auto py-1 w-full">
+                <span class="badge badge-xs font-black border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/15 truncate max-w-full block text-center" title="${escapeHtml(log.ausencia)}">
+                  ${escapeHtml(log.ausencia)}
+                </span>
+                ${loginSubHtml}
+              </div>
+            `
+            : `
+              <div class="my-auto py-1 w-full">
+                <span class="badge badge-xs font-black border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/15 truncate max-w-full block text-center" title="${escapeHtml(log.ausencia)}">
+                  ${escapeHtml(log.ausencia)}
+                </span>
+              </div>
+            `;
+        } else if (log.cumplimiento === "Llegada Tarde") {
+          cellBgClass = "bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/30";
+          const delay = getDelayMinutes(log.entradaReal, log.horarioEstipulado);
+          const delayBadge = delay && delay > 0 ? `+${delay} min` : "Tardanza";
+          centerHtml = `
+            <div class="flex items-center gap-1.5 my-auto py-1">
+              <span class="text-sm font-black text-amber-800 dark:text-amber-300 pl-0.5">${escapeHtml(log.entradaReal)}</span>
+              <span class="badge badge-xs font-black border-amber-500/50 text-base-content bg-amber-500/20 shadow-2xs px-1.5 py-0.5">
+                ${delayBadge}
+              </span>
+            </div>
+          `;
+        } else if (log.cumplimiento === "Incumplió") {
+          cellBgClass = "bg-error/5 hover:bg-error/10 border-error/30";
+          centerHtml = `
+            <div class="my-auto py-1">
+              <span class="badge badge-xs font-black badge-error text-error-content">Incumplió</span>
+            </div>
+          `;
+        } else if (log.cumplimiento === "Cumplió") {
+          cellBgClass = "bg-base-100 hover:bg-base-200/60 border-base-300 hover:border-emerald-500/40";
+          centerHtml = `
+            <div class="flex items-center my-auto py-1 text-emerald-600 dark:text-emerald-400" title="Entrada: ${escapeHtml(log.entradaReal)}">
+              <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+          `;
+        } else {
+          centerHtml = `
+            <div class="my-auto py-1">
+              <span class="text-xs font-medium text-base-content/40">Sin registro</span>
+            </div>
+          `;
+        }
+      } else if (isWeekend) {
+        cellBgClass = "bg-base-200/25 hover:bg-base-200/50 border-base-300/30 opacity-75";
+        centerHtml = `
+          <div class="my-auto py-1">
+            <span class="text-xs font-bold text-base-content/55 italic">Franco</span>
+          </div>
+        `;
+      } else {
+        cellBgClass = "bg-base-200/15 hover:bg-base-200/40 border-base-300/30 opacity-80";
+        centerHtml = `
+          <div class="my-auto py-1">
+            <span class="text-xs font-medium text-base-content/40">Sin registro</span>
+          </div>
+        `;
+      }
+
+      if (isToday) {
+        cellBgClass += " ring-2 ring-secondary";
+      }
+
+      const isEventuality = Boolean(
+        log && (
+          log.cumplimiento === "Llegada Tarde" ||
+          log.cumplimiento === "Incumplió" ||
+          (log.ausencia && log.ausencia.trim() !== "")
+        )
+      );
+
+      const hasComment = Boolean(log && (log.detalle || log.motivoLoguin));
+      const commentTitle = hasComment ? escapeHtml(log.detalle || log.motivoLoguin) : "";
+      const rawModality = log?.modalidad || schedItem?.status || (isWeekend ? "Franco" : null);
+      const modalityFmt = formatModality(rawModality);
+
+      let footerHtml = "";
+      if (isEventuality) {
+        footerHtml = `
+          <div class="flex items-center justify-between w-full mt-1.5 pt-1 border-t border-base-300/50 text-xs">
+            <span class="truncate max-w-[70px] sm:max-w-[85px] ${modalityFmt.class}" title="${escapeHtml(modalityFmt.full)}">${escapeHtml(modalityFmt.text)}</span>
+            ${
+              hasComment
+                ? `<span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                    </svg>
+                  </span>`
+                : ""
+            }
+          </div>
+        `;
+      } else if (hasComment) {
+        footerHtml = `
+          <div class="flex items-center justify-end w-full mt-1.5 pt-1 border-t border-base-300/30 text-xs">
+            <span class="text-warning flex items-center shrink-0 cursor-help" title="${commentTitle}">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+              </svg>
+            </span>
+          </div>
+        `;
+      } else {
+        footerHtml = `<div class="w-full"></div>`;
+      }
+
+      const headerHorarioHtml = isEventuality
+        ? `<span class="text-xs font-bold text-base-content/75 truncate max-w-[75px] sm:max-w-[85px]" title="${escapeHtml(schedDisplay)}">
+            ${escapeHtml(schedDisplay)}
+          </span>`
+        : "";
+
+      const cell = document.createElement("div");
+      cell.className = `group relative flex flex-col justify-between p-2.5 sm:p-3 rounded-xl border shadow-2xs transition-all duration-150 cursor-pointer min-h-[105px] select-none ${cellBgClass}`;
+      cell.setAttribute("data-date", dateStr);
+      cell.innerHTML = `
+        <div class="flex items-baseline justify-between gap-1 w-full">
+          <div class="flex items-baseline gap-1">
+            <span class="text-sm font-black ${isToday ? "text-secondary" : "text-base-content"}">${day}</span>
+            <span class="text-xs font-black uppercase ${isWeekend ? "text-base-content/60" : "text-base-content/75"}">${dayAbbr}</span>
+          </div>
+          ${headerHorarioHtml}
+        </div>
+        ${centerHtml}
+        ${footerHtml}
+      `;
+
+      cell.addEventListener("click", () => {
+        openDrawer(dateStr, log);
+      });
+
+      calendarGrid.appendChild(cell);
+    }
+  }
+
+  // 8. Renderizado de Tabla Cronológica
+  function renderTable(records) {
+    if (!tbody) return;
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-12 text-base-content/40 font-bold">
+            No se encontraron registros con los filtros seleccionados.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = records
+      .map((row) => {
+        const badgeClass = getBadgeClass(row.cumplimiento, row.ausencia);
+        const statusText = escapeHtml(row.ausencia || row.cumplimiento);
+        const [y, m, d] = row.date.split("-");
+        const dateFmt = `${d}/${m}/${y}`;
+        const detail = escapeHtml(row.detalle || row.motivoLoguin || "-");
+        const detailTitle = escapeHtml(row.detalle || "");
+
+        const entradaRealHtml = row.cumplimiento === "Llegada Tarde"
+          ? `<span class="font-bold text-amber-800 dark:text-amber-300">${escapeHtml(row.entradaReal)}</span>`
+          : row.cumplimiento === "Cumplió"
+            ? `<span class="font-bold text-base-content inline-flex items-center gap-1">${escapeHtml(row.entradaReal)}<svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></span>`
+            : `<span class="font-bold">${escapeHtml(row.entradaReal)}</span>`;
+
+        return `
+        <tr class="hover:bg-base-200/40 transition-colors">
+          <td class="font-black">${dateFmt}</td>
+          <td class="font-medium text-base-content/80">${escapeHtml(row.horarioEstipulado)}</td>
+          <td>${entradaRealHtml}</td>
+          <td>
+            <span class="badge badge-sm font-black ${badgeClass}">${statusText}</span>
+          </td>
+          <td class="text-base-content/80 text-sm font-medium max-w-xs truncate" title="${detailTitle}">
+            ${detail}
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+  }
+
+  // 9. Drawer lateral
+  function openDrawer(dateStr, log) {
+    if (!drawer || !drawerBackdrop) return;
+
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    if (drawerDayname) drawerDayname.textContent = dayNames[dateObj.getDay()];
+    if (drawerDate) drawerDate.textContent = `${d} de ${monthNames[m - 1]}, ${y}`;
+
+    if (drawerStatusBadge) {
+      if (log) {
+        const badgeClass = getBadgeClass(log.cumplimiento, log.ausencia);
+        const text = escapeHtml(log.ausencia || log.cumplimiento || "Sin Registro");
+        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black ${badgeClass}">${text}</span>`;
+      } else {
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        drawerStatusBadge.innerHTML = `<span class="badge badge-md font-black badge-ghost text-base-content/50">${isWeekend ? "Franco / Fin de semana" : "Sin Registro"}</span>`;
+      }
+    }
+    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    const schedItem = schedulesCache ? schedulesCache[dateStr] : null;
+
+    let horario = "--:--";
+    if (log && log.horarioEstipulado && log.horarioEstipulado !== "--:--") {
+      horario = log.horarioEstipulado;
+    } else if (schedItem && schedItem.horario && schedItem.horario.trim() !== "" && schedItem.horario !== "Franco") {
+      horario = schedItem.horario.trim();
+    } else if (schedItem && schedItem.status === "Franco") {
+      horario = "Franco";
+    } else if (isWeekend) {
+      horario = "Franco";
+    }
+
+    const entrada = log?.entradaReal || "--:--";
+
+    if (drawerHorario) drawerHorario.textContent = horario;
+
+    if (drawerModalidad) {
+      const rawModality = log?.modalidad || schedItem?.status || (isWeekend ? "Franco" : null);
+      const modFmt = formatModality(rawModality);
+      drawerModalidad.textContent = modFmt.full;
+      drawerModalidad.className = "font-black text-base-content";
+    }
+    if (drawerEntrada) {
+      drawerEntrada.textContent = entrada;
+      if (log?.cumplimiento === "Llegada Tarde") {
+        drawerEntrada.className = "font-black text-amber-800 dark:text-amber-300";
+      } else if (log?.cumplimiento === "Cumplió") {
+        drawerEntrada.className = "font-black text-emerald-600 dark:text-emerald-400";
+      } else {
+        drawerEntrada.className = "font-black text-base-content";
+      }
+    }
+
+    const delay = log ? getDelayMinutes(log.entradaReal, log.horarioEstipulado) : null;
+    if (drawerDelayContainer && drawerDelay) {
+      if (delay !== null) {
+        drawerDelayContainer.classList.remove("hidden");
+        if (delay > 0) {
+          drawerDelay.textContent = `+${delay} min`;
+          drawerDelay.className = "font-black text-amber-800 dark:text-amber-300";
+        } else if (delay === 0) {
+          drawerDelay.textContent = "0 min (Puntual)";
+          drawerDelay.className = "font-black text-emerald-600 dark:text-emerald-400";
+        } else {
+          drawerDelay.textContent = `${delay} min (Anticipado)`;
+          drawerDelay.className = "font-black text-emerald-600 dark:text-emerald-400";
+        }
+      } else {
+        drawerDelayContainer.classList.add("hidden");
+      }
+    }
+
+    const comment = log ? (log.detalle || log.motivoLoguin || "") : "";
+    if (drawerComment) {
+      drawerComment.textContent = comment.trim() || "Sin observaciones registradas.";
+    }
+
+    if (drawerGotoDaily) {
+      drawerGotoDaily.href = `${cleanBase}supervision/asistencia?date=${dateStr}`;
+    }
+
+    drawerBackdrop.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      drawer.classList.remove("translate-x-full");
+    });
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeDrawer() {
+    if (!drawer || !drawerBackdrop) return;
+    drawer.classList.add("translate-x-full");
+    setTimeout(() => {
+      drawerBackdrop.classList.add("hidden");
+      document.body.style.overflow = "";
+    }, 300);
+  }
+
+  drawerCloseBtn?.addEventListener("click", closeDrawer);
+  drawerBackdrop?.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !drawer?.classList.contains("translate-x-full")) {
+      closeDrawer();
+    }
+  });
+
+  // 10. Carga de datos con cache en memoria y coordinación de las 3 vistas
+  async function fetchHistory() {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center py-12">
+          <span class="loading loading-spinner loading-md text-secondary"></span>
+        </td>
+      </tr>
+    `;
+
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const status = statusSelect?.value || "all";
+
+    try {
+      // Petición consolidada del año completo (month=all) para hidratar el cache
+      const res = await fetch(
+        `${cleanBase}api/asistencia/operador/${agentId}?year=${year}&month=all&status=${status}`,
+      );
+      if (!res.ok) throw new Error("Error al consultar datos");
+      const data = await res.json();
+
+      annualRecordsCache = data.records || [];
+      annualSummaryCache = data.summary;
+      schedulesCache = data.schedules || {};
+      cachedYear = year;
+      cachedStatus = status;
+
+      // Pre-renderizar Heatmap continuo y Grilla 4x3 de meses
+      renderAnnualHeatmap(annualRecordsCache, year);
+      renderAnnualMonths(annualRecordsCache, year);
+
+      // Aplicar vista activa
+      setView(activeView);
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-12 text-error font-bold">
+            Ocurrió un error al cargar los datos históricos.
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  // 11. Listeners de filtros
+  yearSelect?.addEventListener("change", () => {
+    annualRecordsCache = null;
+    annualSummaryCache = null;
+    schedulesCache = {};
+    cachedYear = null;
+    fetchHistory();
+  });
+
+  statusSelect?.addEventListener("change", () => {
+    annualRecordsCache = null;
+    annualSummaryCache = null;
+    schedulesCache = {};
+    cachedYear = null;
+    fetchHistory();
+  });
+
+  monthSelect?.addEventListener("change", () => {
+    if (activeView === "annual") return;
+    const year = yearSelect?.value;
+    if (annualRecordsCache && cachedYear === year) {
+      if (activeView === "monthly") {
+        renderActiveMonthly();
+      } else if (activeView === "table") {
+        renderActiveTable();
+      }
+    } else {
+      fetchHistory();
+    }
+  });
+
+  // 12. Exportación a CSV (Mensual y Anual)
+  function cleanCsvCell(val) {
+    if (val === null || val === undefined) return '""';
+    let str = String(val).replace(/\r?\n|\r/g, " ").replace(/"/g, '""');
+    return `"${str}"`;
+  }
+
+  function downloadCsv(content, filename) {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportCsv() {
+    if (!annualRecordsCache || annualRecordsCache.length === 0) {
+      window.showToast?.("No hay datos cargados para exportar.", "alert-warning");
+      return;
+    }
+
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const safeName = (agentName || "operador").trim().replace(/\s+/g, "_");
+
+    // VISTA ANUAL: Resumen de desempeño mes a mes + detalle de jornadas
+    if (activeView === "annual") {
+      const csvSections = [];
+
+      csvSections.push([`REPORTE ANUAL DE ASISTENCIA - ${agentName || 'OPERADOR'} - AÑO ${year}`]);
+      csvSections.push([]);
+      csvSections.push(["RESUMEN DE DESEMPEÑO MES A MES"]);
+      csvSections.push([
+        "Mes",
+        "Total Días",
+        "Días Trabajados",
+        "Puntuales",
+        "Tardanzas",
+        "Ausencias",
+        "Incumplió",
+        "% Presentismo",
+        "% Puntualidad"
+      ].map(cleanCsvCell).join(","));
+
+      let sumWorkDays = 0;
+      let sumWorked = 0;
+      let sumPunctuals = 0;
+      let sumLates = 0;
+      let sumAbsences = 0;
+      let sumFailed = 0;
+
+      monthNames.forEach((mName, idx) => {
+        const mNum = String(idx + 1).padStart(2, "0");
+        const monthPrefix = `${year}-${mNum}`;
+        const monthRecs = annualRecordsCache.filter((r) => r.date.startsWith(monthPrefix));
+        const stats = calculateSummary(monthRecs);
+
+        sumWorkDays += stats.totalWorkDays;
+        sumWorked += stats.workedDays;
+        sumPunctuals += stats.punctuals;
+        sumLates += stats.lates;
+        sumAbsences += stats.absences;
+        sumFailed += stats.failed;
+
+        const presStr = monthRecs.length > 0 ? `${stats.attendanceRate}%` : "--";
+        const rateStr = monthRecs.length > 0 ? `${stats.punctualityRate}%` : "--";
+        const row = [
+          mName,
+          stats.totalWorkDays,
+          stats.workedDays,
+          stats.punctuals,
+          stats.lates,
+          stats.absences,
+          stats.failed,
+          presStr,
+          rateStr
+        ];
+        csvSections.push(row.map(cleanCsvCell).join(","));
+      });
+
+      const globalAttendance = sumWorkDays > 0 ? `${Math.round((sumWorked / sumWorkDays) * 100)}%` : "--";
+      const globalPunctuality = sumWorked > 0 ? `${Math.round((sumPunctuals / sumWorked) * 100)}%` : "--";
+      csvSections.push([
+        "TOTAL ANUAL",
+        sumWorkDays,
+        sumWorked,
+        sumPunctuals,
+        sumLates,
+        sumAbsences,
+        sumFailed,
+        globalAttendance,
+        globalPunctuality
+      ].map(cleanCsvCell).join(","));
+
+      csvSections.push([]);
+      csvSections.push(["DETALLE CRONOLÓGICO DE JORNADAS DEL AÑO"]);
+      const detailHeaders = [
+        "Fecha",
+        "Día",
+        "Horario Planificado",
+        "Entrada Real",
+        "Estado / Cumplimiento",
+        "Modalidad",
+        "Observación / Detalle"
+      ];
+      csvSections.push(detailHeaders.map(cleanCsvCell).join(","));
+
+      const sortedAnnual = [...annualRecordsCache].sort((a, b) => a.date.localeCompare(b.date));
+      sortedAnnual.forEach((row) => {
+        const [y, m, d] = row.date.split("-").map(Number);
+        const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+        const dateFmt = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+        const dayName = dayNames[dateObj.getDay()];
+        const horario = row.horarioEstipulado && row.horarioEstipulado !== "--:--" ? row.horarioEstipulado : "Franco";
+        const entrada = row.entradaReal || "--:--";
+        const status = row.ausencia || row.cumplimiento || "Sin Registro";
+        const modalidad = row.modalidad || "Franco";
+        const detalle = row.detalle || row.motivoLoguin || "";
+
+        const rowData = [
+          dateFmt,
+          dayName,
+          horario,
+          entrada,
+          status,
+          modalidad,
+          detalle
+        ];
+        csvSections.push(rowData.map(cleanCsvCell).join(","));
+      });
+
+      const filename = `asistencia_${safeName}_${year}_anual.csv`;
+      downloadCsv(csvSections.join("\n"), filename);
+      window.showToast?.("Reporte anual CSV descargado con éxito.", "alert-success");
+      return;
+    }
+
+    // VISTA MENSUAL / TABLA: Tomando la vista de tabla como referencia
+    const selectedMonth = monthSelect?.value || String(new Date().getMonth() + 1).padStart(2, "0");
+    let recs = annualRecordsCache;
+    if (selectedMonth !== "all") {
+      const prefix = `${year}-${selectedMonth}`;
+      recs = recs.filter((r) => r.date.startsWith(prefix));
+    }
+
+    recs = [...recs].sort((a, b) => a.date.localeCompare(b.date));
+
+    const csvRows = [];
+    const headers = [
+      "Fecha",
+      "Día",
+      "Horario Planificado",
+      "Entrada Real",
+      "Estado / Cumplimiento",
+      "Modalidad",
+      "Observación / Detalle"
+    ];
+    csvRows.push(headers.map(cleanCsvCell).join(","));
+
+    recs.forEach((row) => {
+      const [y, m, d] = row.date.split("-").map(Number);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+      const dateFmt = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+      const dayName = dayNames[dateObj.getDay()];
+      const horario = row.horarioEstipulado && row.horarioEstipulado !== "--:--" ? row.horarioEstipulado : "Franco";
+      const entrada = row.entradaReal || "--:--";
+      const status = row.ausencia || row.cumplimiento || "Sin Registro";
+      const modalidad = row.modalidad || "Franco";
+      const detalle = row.detalle || row.motivoLoguin || "";
+
+      const rowData = [
+        dateFmt,
+        dayName,
+        horario,
+        entrada,
+        status,
+        modalidad,
+        detalle
+      ];
+      csvRows.push(rowData.map(cleanCsvCell).join(","));
+    });
+
+    const monthLabel = selectedMonth !== "all" ? `${year}-${selectedMonth}` : `${year}_completo`;
+    const filename = `asistencia_${safeName}_${monthLabel}.csv`;
+    downloadCsv(csvRows.join("\n"), filename);
+    window.showToast?.("Reporte mensual CSV descargado con éxito.", "alert-success");
+  }
+
+  exportCsvBtn?.addEventListener("click", handleExportCsv);
+
+  // 13. Exportación a PDF (Impresión nativa / Guardar como PDF)
+  function handleExportPdf() {
+    const year = yearSelect?.value || new Date().getFullYear().toString();
+    const monthNum = monthSelect?.value || "";
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const monthName = monthNum && monthNum !== "all" ? monthNames[parseInt(monthNum, 10) - 1] : "";
+
+    const originalTitle = document.title;
+    const periodLabelEl = document.getElementById("print-period-label");
+
+    if (activeView === "annual") {
+      document.title = `Asistencia_Anual_${(agentName || 'Operador').trim().replace(/\s+/g, '_')}_${year}`;
+      if (periodLabelEl) periodLabelEl.textContent = `Reporte Anual Consolidado ${year}`;
+    } else {
+      const pText = monthName ? `${monthName} ${year}` : year;
+      document.title = `Asistencia_${(agentName || 'Operador').trim().replace(/\s+/g, '_')}_${pText.replace(/\s+/g, '_')}`;
+      if (periodLabelEl) periodLabelEl.textContent = `Período: ${pText}`;
+    }
+
+    window.print();
+
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
+  }
+
+  exportPdfBtn?.addEventListener("click", handleExportPdf);
+
+  // Carga inicial
+  fetchHistory();
+</script>
+
+<style is:global>
+  @media print {
+    @page {
+      size: landscape;
+      margin: 8mm 10mm;
+    }
+
+    /* Forzar fondo y colores exactos */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Desbloquear scroll y alturas fijas de contenedores */
+    html,
+    body,
+    .drawer,
+    .drawer-content,
+    main {
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: white !important;
+      color: black !important;
+    }
+
+    /* Ocultar elementos de navegación y controles interactivos */
+    header,
+    footer,
+    nav,
+    aside,
+    .navbar,
+    .drawer-side,
+    .no-print,
+    .btn,
+    button,
+    #day-drawer,
+    #day-drawer-backdrop,
+    #global-toast-container,
+    #command-palette-modal,
+    #feedback-modal,
+    #about-project-modal {
+      display: none !important;
+    }
+
+    /* Tarjeta cabecera del operador */
+    #operator-header-card {
+      border: 1px solid #e5e7eb !important;
+      box-shadow: none !important;
+      margin-bottom: 12px !important;
+      padding: 12px 16px !important;
+      background: #fafafa !important;
+      page-break-after: avoid;
+    }
+
+    #print-period-label {
+      display: block !important;
+    }
+
+    /* Grilla de calendario mensual */
+    #calendar-weekday-headers {
+      display: grid !important;
+      grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+      gap: 6px !important;
+      margin-bottom: 4px !important;
+    }
+
+    #calendar-grid {
+      display: grid !important;
+      grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+      gap: 6px !important;
+      width: 100% !important;
+    }
+
+    #calendar-grid > div {
+      min-height: 80px !important;
+      padding: 6px 8px !important;
+      border: 1px solid #e5e7eb !important;
+      box-shadow: none !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid;
+    }
+
+    /* Vista anual consolidada */
+    #annual-heatmap-grid {
+      display: flex !important;
+      gap: 2px !important;
+      overflow: visible !important;
+    }
+
+    #annual-months-grid {
+      display: grid !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      gap: 10px !important;
+    }
+
+    #annual-months-grid > div {
+      border: 1px solid #e5e7eb !important;
+      box-shadow: none !important;
+      padding: 10px !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid;
+    }
+
+    /* Vista tabla cronológica */
+    #table-view-container {
+      border: 1px solid #e5e7eb !important;
+      box-shadow: none !important;
+      display: block !important;
+    }
+
+    #table-view-container table {
+      width: 100% !important;
+    }
+
+    #table-view-container thead {
+      display: table-header-group !important;
+    }
+
+    #table-view-container tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid;
+    }
+  }
+</style>
