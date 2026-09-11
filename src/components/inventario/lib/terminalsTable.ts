@@ -198,7 +198,7 @@ export async function fetchTerminals(
   } finally {
     if (seq === requestSeq) {
       isLoading = false;
-      if (showLoadingUI) terminalsSpinner?.classList.add("hidden");
+      terminalsSpinner?.classList.add("hidden");
     }
   }
 }
