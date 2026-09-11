@@ -3,7 +3,6 @@ import { test, expect } from "@playwright/test";
 import {
   createTestUserAndSession,
   cleanupTestUser,
-  setSessionCookie,
 } from "../helpers/auth";
 import { db } from "../../src/db/index";
 import { employees } from "../../src/db/schema";
@@ -11,6 +10,18 @@ import { eq } from "drizzle-orm";
 
 const TEST_DNI = "99999999";
 const TEST_NAME = `Authz Test ${Date.now()}`;
+
+async function login(context: any, signedSessionId: string): Promise<void> {
+  const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
+  await context.addCookies([
+    {
+      name: "session_id",
+      value: signedSessionId,
+      domain: new URL(baseURL).hostname,
+      path: "/",
+    },
+  ]);
+}
 
 async function seedEmployee(): Promise<void> {
   await db
@@ -63,7 +74,7 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
   });
 
   test("agent logueado → 403 y no modifica", async ({ context }) => {
-    await setSessionCookie(context, agentUser.signedSessionId);
+    await login(context, agentUser.signedSessionId);
     const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
       data: { interno: "HACK" },
     });
@@ -76,7 +87,7 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
   });
 
   test("admin logueado → 200 y modifica", async ({ context }) => {
-    await setSessionCookie(context, adminUser.signedSessionId);
+    await login(context, adminUser.signedSessionId);
     const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
       data: { interno: "1234" },
     });
