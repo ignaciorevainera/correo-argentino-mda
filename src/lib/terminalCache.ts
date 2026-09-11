@@ -1,6 +1,6 @@
 import { db } from "@db/index";
-import { offices, terminals } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { terminals } from "@db/schema";
+import { sql } from "drizzle-orm";
 import {
   buildTerminalSnapshot,
   createSnapshotCache,
@@ -22,7 +22,6 @@ async function loadAllMinimalRows(): Promise<TerminalMinimalRow[]> {
       lastContact: terminals.lastContact,
     })
     .from(terminals)
-    .leftJoin(offices, eq(terminals.nis, offices.code))
     .all();
 }
 
