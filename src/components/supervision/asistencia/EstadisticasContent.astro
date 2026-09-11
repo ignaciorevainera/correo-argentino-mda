@@ -328,6 +328,63 @@ const initialData = await getAttendanceData(startDate, endDate);
   let barChartInstance: any = null;
   let activeCategory: { label: string; color: string } | null = null;
 
+  const FIXED_EVENTUALITY_COLORS: Record<string, string> = {
+    // Cumplimientos
+    "Llegada Tarde": "rgba(245, 158, 11, 0.65)", // amber-500
+    "Incumplió": "rgba(239, 68, 68, 0.65)", // red-500
+
+    // Ausencias y eventualidades
+    "Demorado": "rgba(249, 115, 22, 0.65)", // orange-500
+    "Se reporta enfermo": "rgba(168, 85, 247, 0.65)", // purple-500
+    "Lic. Medica": "rgba(139, 92, 246, 0.65)", // violet-500
+    "Ausencia sin aviso": "rgba(244, 63, 94, 0.65)", // rose-500
+    "Lic. Anual": "rgba(14, 165, 233, 0.65)", // sky-500
+    "Lic. Estudio": "rgba(20, 184, 166, 0.65)", // teal-500
+    "Ausente Justificado": "rgba(99, 102, 241, 0.65)", // indigo-500
+    "Lic. Gremial": "rgba(217, 70, 239, 0.65)", // fuchsia-500
+    "Ausente con Permiso": "rgba(236, 72, 153, 0.65)", // pink-500
+    "Tramite": "rgba(100, 116, 139, 0.65)", // slate-500
+    "Lic. UI": "rgba(71, 85, 105, 0.65)", // slate-600
+  };
+
+  const FIXED_EVENTUALITY_ORDER = [
+    "Llegada Tarde",       // amber-500
+    "Se reporta enfermo",  // purple-500
+    "Demorado",            // orange-500
+    "Lic. Anual",          // sky-500
+    "Lic. Medica",         // violet-500
+    "Lic. Estudio",        // teal-500
+    "Incumplió",           // red-500
+    "Ausente Justificado", // indigo-500
+    "Ausencia sin aviso",  // rose-500
+    "Lic. Gremial",        // fuchsia-500
+    "Ausente con Permiso", // pink-500
+    "Tramite",             // slate-500
+    "Lic. UI",             // slate-600
+  ];
+
+  function getEventualityColor(label: string): string {
+    if (FIXED_EVENTUALITY_COLORS[label]) {
+      return FIXED_EVENTUALITY_COLORS[label];
+    }
+    const fallbackPalette = [
+      "rgba(99, 102, 241, 0.65)",
+      "rgba(20, 184, 166, 0.65)",
+      "rgba(236, 72, 153, 0.65)",
+      "rgba(14, 165, 233, 0.65)",
+      "rgba(168, 85, 247, 0.65)",
+      "rgba(217, 70, 239, 0.65)",
+      "rgba(244, 63, 94, 0.65)",
+      "rgba(100, 116, 139, 0.65)",
+    ];
+    let hash = 0;
+    for (let i = 0; i < label.length; i++) {
+      hash = (hash << 5) - hash + label.charCodeAt(i);
+      hash |= 0;
+    }
+    return fallbackPalette[Math.abs(hash) % fallbackPalette.length];
+  }
+
   const monthInput = document.getElementById(
     "analytics-month",
   ) as HTMLInputElement;
@@ -424,8 +481,15 @@ const initialData = await getAttendanceData(startDate, endDate);
           (incidenceData[log.cumplimiento] || 0) + 1;
       }
     });
-    const doughnutLabels = Object.keys(incidenceData);
-    const doughnutValues = Object.values(incidenceData);
+    const doughnutLabels = Object.keys(incidenceData).sort((a, b) => {
+      const idxA = FIXED_EVENTUALITY_ORDER.indexOf(a);
+      const idxB = FIXED_EVENTUALITY_ORDER.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+    const doughnutValues = doughnutLabels.map((k) => incidenceData[k]);
 
     const doughnutCtx = (
       document.getElementById("doughnut-chart") as HTMLCanvasElement
@@ -440,24 +504,9 @@ const initialData = await getAttendanceData(startDate, endDate);
           datasets: [
             {
               data: doughnutValues,
-              backgroundColor: (() => {
-                const palette = [
-                  "rgba(245, 158, 11, 0.65)", // amber-500
-                  "rgba(239, 68, 68, 0.65)", // red-500
-                  "rgba(99, 102, 241, 0.65)", // indigo-500
-                  "rgba(236, 72, 153, 0.65)", // pink-500
-                  "rgba(14, 165, 233, 0.65)", // sky-500
-                  "rgba(20, 184, 166, 0.65)", // teal-500
-                  "rgba(168, 85, 247, 0.65)", // purple-500
-                  "rgba(249, 115, 22, 0.65)", // orange-500
-                  "rgba(217, 70, 239, 0.65)", // fuchsia-500
-                  "rgba(244, 63, 94, 0.65)", // rose-500
-                  "rgba(100, 116, 139, 0.65)", // slate-500 (gris)
-                ];
-                return doughnutLabels.map(
-                  (_, i) => palette[i % palette.length],
-                );
-              })(),
+              backgroundColor: doughnutLabels.map((label) =>
+                getEventualityColor(label),
+              ),
               borderColor: "rgba(150, 150, 150, 0.1)",
               borderWidth: 1.5,
             },
@@ -698,7 +747,7 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
 
     if (!finalColor) {
-      finalColor = "rgba(99, 102, 241, 0.65)";
+      finalColor = getEventualityColor(label);
     }
 
     activeCategory = { label, color: finalColor };
