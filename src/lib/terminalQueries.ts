@@ -29,6 +29,12 @@ import {
 
 export type { TTPairState };
 
+import {
+  buildDuplicateClusters,
+  selectActiveMember,
+  type DuplicateCluster,
+} from "@lib/duplicateGroups";
+
 export type TerminalSortKey = "hostname" | "hardware" | "os" | "location";
 export type SortOrder = "asc" | "desc";
 
@@ -43,6 +49,7 @@ const terminalSortColumns = {
 >;
 
 export interface TerminalItem {
+  id: number;
   hostname: string;
   ip: string;
   mac: string;
@@ -61,6 +68,48 @@ export interface TerminalItem {
   lastContactTime: string;
   osFamily: OsFamily;
   isTelegrafia: boolean;
+}
+
+export interface TerminalMinimalRow {
+  id: number;
+  hostname: string | null;
+  ipAddress: string | null;
+  macAddress: string | null;
+  operatingSystem: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  nis: string | null;
+  lastContact: string | null;
+}
+
+export type TerminalDisplayItem =
+  | { type: "single"; id: number }
+  | {
+      type: "cluster";
+      ids: number[];
+      sharedIps: string[];
+      sharedMacs: string[];
+      sharedHostnames: string[];
+      activeId: number;
+    };
+
+export interface TerminalClusterView {
+  active: TerminalItem;
+  activeIsOnline: boolean;
+  members: TerminalItem[];
+  sharedIps: string[];
+  sharedMacs: string[];
+  sharedHostnames: string[];
+}
+
+export type TerminalDisplayView =
+  | { type: "single"; terminal: TerminalItem }
+  | { type: "cluster"; cluster: TerminalClusterView };
+
+export interface TerminalDisplayResult {
+  items: TerminalDisplayView[];
+  count: number;
+  hasMore: boolean;
 }
 
 const telegrafiaExists = sql<number>`EXISTS (
@@ -114,6 +163,7 @@ function mapTerminalQueryRow(row: TerminalQueryRow): TerminalItem {
   }
 
   return {
+    id: t.id,
     hostname: t.hostname || "--",
     ip: t.ipAddress || "--",
     mac: t.macAddress || "--",
@@ -432,6 +482,195 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     count,
     hasMore,
   };
+}
+
+const parseContactMs = (raw: string): number => {
+  if (!raw) return -Infinity;
+  const ms = new Date(raw.replace(" ", "T")).getTime();
+  return Number.isNaN(ms) ? -Infinity : ms;
+};
+
+const terminalSortValue = (
+  row: TerminalMinimalRow,
+  sortBy: TerminalSortKey,
+): string => {
+  switch (sortBy) {
+    case "hardware":
+      return `${row.manufacturer ?? ""} ${row.model ?? ""}`
+        .trim()
+        .toLowerCase();
+    case "os":
+      return (row.operatingSystem ?? "").toLowerCase();
+    case "location":
+      return (row.nis ?? "").toLowerCase();
+    case "hostname":
+    default:
+      return (row.hostname ?? "").toLowerCase();
+  }
+};
+
+async function loadMinimalRows(
+  whereClause: ReturnType<typeof and> | undefined,
+): Promise<TerminalMinimalRow[]> {
+  const base = db
+    .select({
+      id: terminals.id,
+      hostname: terminals.hostname,
+      ipAddress: terminals.ipAddress,
+      macAddress: terminals.macAddress,
+      operatingSystem: terminals.operatingSystem,
+      manufacturer: terminals.manufacturer,
+      model: terminals.model,
+      nis: terminals.nis,
+      lastContact: terminals.lastContact,
+    })
+    .from(terminals)
+    .leftJoin(offices, eq(terminals.nis, offices.code));
+
+  const rows = whereClause
+    ? await base.where(whereClause).all()
+    : await base.all();
+  return rows;
+}
+
+export async function getTerminalDisplay(
+  params: GetTerminalsParams = {},
+): Promise<TerminalDisplayResult> {
+  // El tab Mediterránea conserva su comportamiento y su orden propios.
+  if (params.isMediterranea === true) {
+    const legacy = await getTerminals(params);
+    return {
+      items: legacy.data.map((terminal) => ({ type: "single", terminal })),
+      count: legacy.count,
+      hasMore: legacy.hasMore,
+    };
+  }
+
+  const page = params.page || 1;
+  const limit = params.limit || 50;
+  const offset = (page - 1) * limit;
+
+  const filters = buildTerminalFilters(params);
+  const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+  const matchingRows = await loadMinimalRows(whereClause);
+  const allRows = await loadMinimalRows(undefined);
+
+  const clusters = buildDuplicateClusters(
+    allRows.map((row) => ({
+      id: row.id,
+      ip: row.ipAddress,
+      mac: row.macAddress,
+      hostname: row.hostname,
+    })),
+  );
+
+  const clusterByRowId = new Map<number, DuplicateCluster>();
+  for (const cluster of clusters) {
+    for (const id of cluster.ids) clusterByRowId.set(id, cluster);
+  }
+
+  const minimalById = new Map<number, TerminalMinimalRow>();
+  for (const row of allRows) minimalById.set(row.id, row);
+
+  const matchedIds = new Set(matchingRows.map((row) => row.id));
+  const sortBy: TerminalSortKey = params.sortBy ?? "hostname";
+
+  const items: Array<{ sortKey: string; item: TerminalDisplayItem }> = [];
+
+  for (const cluster of clusters) {
+    if (!cluster.ids.some((id) => matchedIds.has(id))) continue;
+    const members = cluster.ids
+      .map((id) => minimalById.get(id))
+      .filter((row): row is TerminalMinimalRow => Boolean(row));
+    const active = selectActiveMember(
+      members.map((row) => ({
+        id: row.id,
+        lastContactRaw: row.lastContact ?? "",
+      })),
+    );
+    const activeId = active.activeId ?? cluster.ids[0];
+    const activeRow = minimalById.get(activeId) ?? members[0];
+    items.push({
+      sortKey: terminalSortValue(activeRow, sortBy),
+      item: {
+        type: "cluster",
+        ids: cluster.ids,
+        sharedIps: cluster.sharedIps,
+        sharedMacs: cluster.sharedMacs,
+        sharedHostnames: cluster.sharedHostnames,
+        activeId,
+      },
+    });
+  }
+
+  for (const row of matchingRows) {
+    if (clusterByRowId.has(row.id)) continue;
+    items.push({
+      sortKey: terminalSortValue(row, sortBy),
+      item: { type: "single", id: row.id },
+    });
+  }
+
+  const dir = params.sortOrder === "desc" ? -1 : 1;
+  items.sort((a, b) => a.sortKey.localeCompare(b.sortKey) * dir);
+
+  const count = items.length;
+  const pageItems = items.slice(offset, offset + limit);
+  const hasMore = items.length > offset + limit;
+
+  const pageIds = pageItems.flatMap((entry) =>
+    entry.item.type === "cluster" ? entry.item.ids : [entry.item.id],
+  );
+
+  const fullById = new Map<number, TerminalItem>();
+  if (pageIds.length > 0) {
+    const fullRows = await fullTerminalSelect()
+      .where(inArray(terminals.id, pageIds))
+      .all();
+    for (const row of fullRows) {
+      fullById.set(row.terminal.id, mapTerminalQueryRow(row));
+    }
+  }
+
+  const nowMs = Date.now();
+  const views: TerminalDisplayView[] = [];
+
+  for (const entry of pageItems) {
+    const item = entry.item;
+    if (item.type === "single") {
+      const terminal = fullById.get(item.id);
+      if (terminal) views.push({ type: "single", terminal });
+      continue;
+    }
+
+    const members = item.ids
+      .map((id) => fullById.get(id))
+      .filter((terminal): terminal is TerminalItem => Boolean(terminal))
+      .sort(
+        (a, b) =>
+          parseContactMs(b.lastContactRaw) - parseContactMs(a.lastContactRaw),
+      );
+
+    const active = fullById.get(item.activeId) ?? members[0];
+    if (!active) continue;
+    const activeTs = parseContactMs(active.lastContactRaw);
+
+    views.push({
+      type: "cluster",
+      cluster: {
+        active,
+        activeIsOnline:
+          activeTs !== -Infinity && nowMs - activeTs < 24 * 60 * 60 * 1000,
+        members,
+        sharedIps: item.sharedIps,
+        sharedMacs: item.sharedMacs,
+        sharedHostnames: item.sharedHostnames,
+      },
+    });
+  }
+
+  return { items: views, count, hasMore };
 }
 
 export interface TTGroupResultItem {
