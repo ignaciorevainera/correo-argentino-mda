@@ -88,6 +88,55 @@ describe("createSnapshotCache", () => {
     await cache.get();
     expect(loads).toBe(2);
   });
+
+  it("does not repopulate the cache when clear() runs during an in-flight load", async () => {
+    let loads = 0;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const cache = createSnapshotCache({
+      loadSignature: async () => "sig-1",
+      loadSnapshot: async (sig) => {
+        loads++;
+        await gate;
+        return { signature: sig, value: loads };
+      },
+    });
+    const inflight = cache.get();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    cache.clear();
+    release();
+    await inflight;
+    const after = await cache.get();
+    expect(loads).toBe(2);
+    expect(after.value).toBe(2);
+  });
+
+  it("starts a new load when the signature changes while in flight", async () => {
+    let signature = "sig-1";
+    let loads = 0;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const cache = createSnapshotCache({
+      loadSignature: async () => signature,
+      loadSnapshot: async (sig) => {
+        const value = ++loads;
+        await gate;
+        return { signature: sig, value };
+      },
+    });
+    const first = cache.get();
+    signature = "sig-2";
+    const second = cache.get();
+    release();
+    const [a, b] = await Promise.all([first, second]);
+    expect(loads).toBe(2);
+    expect(a.value).toBe(1);
+    expect(b.value).toBe(2);
+  });
 });
 
 describe("buildTerminalSnapshot", () => {
