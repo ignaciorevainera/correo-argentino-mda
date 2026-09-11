@@ -14,6 +14,8 @@ let currentStatus = "all";
 let currentDuplicates = false;
 let currentOrphans = false;
 let isLoading = false;
+let abortController: AbortController | null = null;
+let requestSeq = 0;
 let hasMore = false;
 let currentSortBy: string | null = null;
 let currentSortOrder: SortDirection | null = null;
@@ -93,8 +95,15 @@ export async function fetchTerminals(
     "total-count-badge-terminales",
   );
 
-  if (isLoading) return;
+  if (isLoading) {
+    if (!isNewSearch) return;
+    abortController?.abort();
+    isLoading = false;
+  }
   isLoading = true;
+  const seq = ++requestSeq;
+  const controller = new AbortController();
+  abortController = controller;
   if (showLoadingUI) terminalsSpinner?.classList.remove("hidden");
 
   try {
@@ -127,10 +136,14 @@ export async function fetchTerminals(
     }
 
     const cleanBase = getCleanBase();
-    const response = await fetch(`${cleanBase}api/terminals?${params.toString()}`);
+    const response = await fetch(
+      `${cleanBase}api/terminals?${params.toString()}`,
+      { signal: controller.signal },
+    );
     if (!response.ok) throw new Error("API call failed");
 
     const html = await response.text();
+    if (seq !== requestSeq) return;
     hasMore = response.headers.get("X-Has-More") === "true";
     const totalCount = response.headers.get("X-Total-Count") || "0";
 
@@ -180,10 +193,13 @@ export async function fetchTerminals(
       terminalsSentinel?.classList.remove("hidden");
     }
   } catch (err) {
+    if ((err as { name?: string } | null)?.name === "AbortError") return;
     console.error("Error fetching terminals:", err);
   } finally {
-    isLoading = false;
-    if (showLoadingUI) terminalsSpinner?.classList.add("hidden");
+    if (seq === requestSeq) {
+      isLoading = false;
+      if (showLoadingUI) terminalsSpinner?.classList.add("hidden");
+    }
   }
 }
 
