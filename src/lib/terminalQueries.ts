@@ -184,13 +184,7 @@ export interface GetTerminalsParams {
   orphans?: boolean;
 }
 
-export async function getTerminals(params: GetTerminalsParams = {}) {
-  const page = params.page || 1;
-  const limit = params.limit || 50;
-  const offset = (page - 1) * limit;
-
-  let queryBuilder = fullTerminalSelect().$dynamic();
-
+function buildTerminalFilters(params: GetTerminalsParams) {
   const filters = [];
 
   if (params.isMediterranea === true) {
@@ -333,12 +327,7 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   }
 
   if (params.status && params.status !== "all") {
-    // Calculamos la fecha límite de 24 horas atrás en formato 'YYYY-MM-DD HH:MM:SS'
-    const thresholdDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .replace("T", " ")
-      .substring(0, 19);
-
+    const thresholdDate = statusThresholdDate();
     if (params.status === "online") {
       filters.push(gte(terminals.lastContact, thresholdDate));
     } else if (params.status === "offline") {
@@ -357,18 +346,42 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   }
 
   if (params.duplicates) {
-    // Hostname o IP repetidos: síntoma de equipos que dejaron de reportar
-    // pero persisten en el inventario legacy.
     filters.push(
-      sql`(${terminals.hostname} IN (SELECT hostname FROM terminals WHERE hostname IS NOT NULL AND hostname != '' GROUP BY hostname HAVING COUNT(*) > 1)
-        OR ${terminals.ipAddress} IN (SELECT ip_address FROM terminals WHERE ip_address IS NOT NULL AND ip_address != '' GROUP BY ip_address HAVING COUNT(*) > 1))`,
+      sql`(
+        TRIM(${terminals.ipAddress}) IN (
+          SELECT TRIM(ip_address) FROM terminals
+          WHERE ip_address IS NOT NULL AND TRIM(ip_address) != ''
+          GROUP BY TRIM(ip_address) HAVING COUNT(*) > 1
+        )
+        OR LOWER(TRIM(${terminals.macAddress})) IN (
+          SELECT LOWER(TRIM(mac_address)) FROM terminals
+          WHERE mac_address IS NOT NULL AND TRIM(mac_address) != ''
+          GROUP BY LOWER(TRIM(mac_address)) HAVING COUNT(*) > 1
+        )
+        OR LOWER(TRIM(${terminals.hostname})) IN (
+          SELECT LOWER(TRIM(hostname)) FROM terminals
+          WHERE hostname IS NOT NULL AND TRIM(hostname) != ''
+          GROUP BY LOWER(TRIM(hostname)) HAVING COUNT(*) > 1
+        )
+      )`,
     );
   }
 
   if (params.orphans) {
-    // NIS que no matchea ninguna oficina registrada.
     filters.push(isNull(offices.code));
   }
+
+  return filters;
+}
+
+export async function getTerminals(params: GetTerminalsParams = {}) {
+  const page = params.page || 1;
+  const limit = params.limit || 50;
+  const offset = (page - 1) * limit;
+
+  let queryBuilder = fullTerminalSelect().$dynamic();
+
+  const filters = buildTerminalFilters(params);
 
   const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
