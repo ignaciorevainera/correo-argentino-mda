@@ -300,6 +300,7 @@ if (Astro.request.method === "POST") {
 
     let helpdeskId: number | null = null;
     let helpdeskName: string | null = null;
+    let mesaRow: typeof mesas.$inferSelect | undefined;
     if (raw) {
       const sep = raw.indexOf("|");
       const idStr = sep === -1 ? raw : raw.slice(0, sep);
@@ -311,6 +312,7 @@ if (Astro.request.method === "POST") {
       if (!row || !row.active) {
         errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
       } else {
+        mesaRow = row;
         helpdeskName = row.name;
       }
     }
@@ -329,10 +331,46 @@ if (Astro.request.method === "POST") {
         const oldRole = targetUser?.role || "desconocido";
         const oldHelpdesk = targetUser?.helpdeskName || "Sin mesa de ayuda";
 
-        await db
-          .update(users)
-          .set({ role: newRole as any, helpdeskId, helpdeskName })
-          .where(eq(users.id, userId));
+        await db.transaction(async (tx) => {
+          await tx
+            .update(users)
+            .set({ role: newRole as any, helpdeskId, helpdeskName })
+            .where(eq(users.id, userId));
+
+          // Politica de participaciones por mesa: al mover a una mesa no
+          // participativa (o dejar sin mesa) se resetean; un supervisor nunca
+          // figura en cronograma. Evita el "fantasma" del agente en
+          // cronograma/calidad/cubics/guardia de otra mesa.
+          const [targetAgent] = await tx
+            .select({ id: agents.id })
+            .from(agents)
+            .where(
+              sql`lower(coalesce(${agents.username}, '')) = lower(${targetUsername})`,
+            );
+
+          if (targetAgent) {
+            const mesaParticipativa = mesaRow
+              ? mesaHasParticipaciones(mesaRow.name)
+              : false;
+            const resetFlags = !mesaParticipativa;
+            if (resetFlags || newRole === "supervisor") {
+              await tx
+                .update(agents)
+                .set({
+                  ...(resetFlags
+                    ? {
+                        enCronograma: false,
+                        asignableCubic: false,
+                        incluidoCalidad: false,
+                        asignableAgs: false,
+                      }
+                    : {}),
+                  ...(newRole === "supervisor" ? { enCronograma: false } : {}),
+                })
+                .where(eq(agents.id, targetAgent.id));
+            }
+          }
+        });
         successMsg = "Rol y mesa de ayuda actualizados con éxito.";
         await logAdminFromAstro(
           Astro.locals,
