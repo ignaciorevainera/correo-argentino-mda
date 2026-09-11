@@ -7,6 +7,7 @@ import { deleteAppPhysicalFile } from "@lib/api/deleteAppFile";
 export const POST = createDeleteHandler({
   entityName: "aplicativo",
   redirectPath: "admin/aplicativos",
+  snapshotLabel: (d) => String((d as any).title ?? ""),
   performDelete: async (id) => {
     const [existing] = await db
       .select()

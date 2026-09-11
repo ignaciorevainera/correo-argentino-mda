@@ -1,23 +1,30 @@
-import { db } from "@db/index";
+import { deleteWithSnapshot } from "@lib/deletedRecords";
 import { cubics, cubicAssignments } from "@db/schema";
-import { eq } from "drizzle-orm";
 import { createDeleteHandler } from "@lib/api/deleteHandler";
 
 export const POST = createDeleteHandler({
   entityName: "cubic",
   redirectPath: "inventario-terminales",
   requiredFeature: "Administrar Contenido",
-  beforeDelete: async ({ id }) => {
-    await db.delete(cubicAssignments).where(eq(cubicAssignments.cubicId, id));
-  },
-  performDelete: async (id) => {
-    const [deleted] = await db
-      .delete(cubics)
-      .where(eq(cubics.id, id))
-      .returning({ name: cubics.name });
-    return deleted ?? null;
-  },
+  genericSnapshot: false,
+  performDelete: async (id, { username }) =>
+    deleteWithSnapshot({
+      entity: "cubic",
+      recordId: id,
+      username,
+      label: (father) =>
+        `${father.name}${(father as any).ip ? ` (${(father as any).ip})` : ""}`,
+      fatherTable: cubics,
+      fatherPkColumn: cubics.id,
+      children: [
+        { key: "cubicAssignments", table: cubicAssignments, fkColumn: cubicAssignments.cubicId, fkProperty: "cubicId" },
+      ],
+    }),
   successMessage: (d) =>
-    `Ordenador "${(d as any).name}" dado de baja con éxito.`,
+    d
+      ? `Ordenador "${(d as any).name}" dado de baja con éxito.`
+      : "Ordenador dado de baja con éxito.",
+  notFoundMessage: "El cubic no existe.",
+  errorMessage: () => "Error al eliminar el cubic",
   logMessage: (d) => `Eliminó el cubic "${(d as any)?.name}"`,
 });

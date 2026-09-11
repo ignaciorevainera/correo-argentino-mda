@@ -1,0 +1,49 @@
+---
+import TerminalRow from "./TerminalRow.astro";
+import TerminalGroupHeader from "./TerminalGroupHeader.astro";
+import type { TerminalDisplayView } from "@lib/terminalQueries";
+
+interface Props {
+  items: TerminalDisplayView[];
+  terminalRowGridClass?: string;
+}
+
+const { items, terminalRowGridClass = "grid grid-cols-12 items-start" } =
+  Astro.props;
+---
+
+{
+  items.map((item) =>
+    item.type === "single" ? (
+      <TerminalRow
+        terminal={item.terminal}
+        terminalRowGridClass={terminalRowGridClass}
+      />
+    ) : (
+      <>
+        <TerminalGroupHeader
+          memberCount={item.cluster.members.length}
+          sharedIps={item.cluster.sharedIps}
+          sharedMacs={item.cluster.sharedMacs}
+          sharedHostnames={item.cluster.sharedHostnames}
+        />
+        {item.cluster.members.map((member) => (
+          <TerminalRow
+            terminal={member}
+            terminalRowGridClass={terminalRowGridClass}
+            isActive={
+              member.id === item.cluster.active.id
+                ? item.cluster.activeIsOnline
+                  ? "active"
+                  : "recent"
+                : null
+            }
+            sharedIps={item.cluster.sharedIps}
+            sharedMacs={item.cluster.sharedMacs}
+            sharedHostnames={item.cluster.sharedHostnames}
+          />
+        ))}
+      </>
+    ),
+  )
+}

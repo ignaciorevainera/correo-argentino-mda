@@ -1,0 +1,51 @@
+---
+interface Props {
+  memberCount: number;
+  sharedIps?: string[];
+  sharedMacs?: string[];
+  sharedHostnames?: string[];
+}
+
+const {
+  memberCount,
+  sharedIps = [],
+  sharedMacs = [],
+  sharedHostnames = [],
+} = Astro.props;
+---
+
+<article
+  data-duplicate-cluster-header
+  data-shared-ips={sharedIps.join(" ")}
+  data-shared-macs={sharedMacs.join(" ")}
+  data-shared-hostnames={sharedHostnames.join(" ")}
+  class="border-accent/40 bg-accent/5 flex flex-wrap items-center gap-2 border-b border-l-4 px-4 py-2"
+>
+  <span class="text-accent text-sm font-semibold">
+    {memberCount} registros duplicados
+  </span>
+
+  <span class="flex flex-wrap items-center gap-1.5">
+    {
+      sharedIps.map((ip) => (
+        <span class="badge badge-accent badge-soft badge-sm font-mono">
+          IP {ip}
+        </span>
+      ))
+    }
+    {
+      sharedMacs.map((mac) => (
+        <span class="badge badge-accent badge-soft badge-sm font-mono">
+          MAC {mac}
+        </span>
+      ))
+    }
+    {
+      sharedHostnames.map((hostname) => (
+        <span class="badge badge-accent badge-soft badge-sm font-mono">
+          Hostname {hostname}
+        </span>
+      ))
+    }
+  </span>
+</article>

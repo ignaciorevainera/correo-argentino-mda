@@ -15,6 +15,8 @@ import {
   desc,
 } from "drizzle-orm";
 import { normalizeSearchValue } from "@lib/clientSearch";
+import { getTerminalSnapshot } from "@lib/terminalCache";
+import type { TerminalMinimalRow } from "@lib/terminalSnapshot";
 
 import { type OsFamily, toOsFamily } from "@lib/terminalHelpers";
 export type { OsFamily };
@@ -28,6 +30,8 @@ import {
 } from "@lib/ttGroups";
 
 export type { TTPairState };
+
+import { selectActiveMember } from "@lib/duplicateGroups";
 
 export type TerminalSortKey = "hostname" | "hardware" | "os" | "location";
 export type SortOrder = "asc" | "desc";
@@ -43,6 +47,7 @@ const terminalSortColumns = {
 >;
 
 export interface TerminalItem {
+  id: number;
   hostname: string;
   ip: string;
   mac: string;
@@ -61,6 +66,36 @@ export interface TerminalItem {
   lastContactTime: string;
   osFamily: OsFamily;
   isTelegrafia: boolean;
+}
+
+export type TerminalDisplayItem =
+  | { type: "single"; id: number }
+  | {
+      type: "cluster";
+      ids: number[];
+      sharedIps: string[];
+      sharedMacs: string[];
+      sharedHostnames: string[];
+      activeId: number;
+    };
+
+export interface TerminalClusterView {
+  active: TerminalItem;
+  activeIsOnline: boolean;
+  members: TerminalItem[];
+  sharedIps: string[];
+  sharedMacs: string[];
+  sharedHostnames: string[];
+}
+
+export type TerminalDisplayView =
+  | { type: "single"; terminal: TerminalItem }
+  | { type: "cluster"; cluster: TerminalClusterView };
+
+export interface TerminalDisplayResult {
+  items: TerminalDisplayView[];
+  count: number;
+  hasMore: boolean;
 }
 
 const telegrafiaExists = sql<number>`EXISTS (
@@ -114,6 +149,7 @@ function mapTerminalQueryRow(row: TerminalQueryRow): TerminalItem {
   }
 
   return {
+    id: t.id,
     hostname: t.hostname || "--",
     ip: t.ipAddress || "--",
     mac: t.macAddress || "--",
@@ -184,13 +220,7 @@ export interface GetTerminalsParams {
   orphans?: boolean;
 }
 
-export async function getTerminals(params: GetTerminalsParams = {}) {
-  const page = params.page || 1;
-  const limit = params.limit || 50;
-  const offset = (page - 1) * limit;
-
-  let queryBuilder = fullTerminalSelect().$dynamic();
-
+function buildTerminalFilters(params: GetTerminalsParams) {
   const filters = [];
 
   if (params.isMediterranea === true) {
@@ -333,12 +363,7 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   }
 
   if (params.status && params.status !== "all") {
-    // Calculamos la fecha límite de 24 horas atrás en formato 'YYYY-MM-DD HH:MM:SS'
-    const thresholdDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .replace("T", " ")
-      .substring(0, 19);
-
+    const thresholdDate = statusThresholdDate();
     if (params.status === "online") {
       filters.push(gte(terminals.lastContact, thresholdDate));
     } else if (params.status === "offline") {
@@ -357,18 +382,42 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
   }
 
   if (params.duplicates) {
-    // Hostname o IP repetidos: síntoma de equipos que dejaron de reportar
-    // pero persisten en el inventario legacy.
     filters.push(
-      sql`(${terminals.hostname} IN (SELECT hostname FROM terminals WHERE hostname IS NOT NULL AND hostname != '' GROUP BY hostname HAVING COUNT(*) > 1)
-        OR ${terminals.ipAddress} IN (SELECT ip_address FROM terminals WHERE ip_address IS NOT NULL AND ip_address != '' GROUP BY ip_address HAVING COUNT(*) > 1))`,
+      sql`(
+        TRIM(${terminals.ipAddress}) IN (
+          SELECT TRIM(ip_address) FROM terminals
+          WHERE ip_address IS NOT NULL AND TRIM(ip_address) != ''
+          GROUP BY TRIM(ip_address) HAVING COUNT(*) > 1
+        )
+        OR LOWER(TRIM(${terminals.macAddress})) IN (
+          SELECT LOWER(TRIM(mac_address)) FROM terminals
+          WHERE mac_address IS NOT NULL AND TRIM(mac_address) != ''
+          GROUP BY LOWER(TRIM(mac_address)) HAVING COUNT(*) > 1
+        )
+        OR LOWER(TRIM(${terminals.hostname})) IN (
+          SELECT LOWER(TRIM(hostname)) FROM terminals
+          WHERE hostname IS NOT NULL AND TRIM(hostname) != ''
+          GROUP BY LOWER(TRIM(hostname)) HAVING COUNT(*) > 1
+        )
+      )`,
     );
   }
 
   if (params.orphans) {
-    // NIS que no matchea ninguna oficina registrada.
     filters.push(isNull(offices.code));
   }
+
+  return filters;
+}
+
+export async function getTerminals(params: GetTerminalsParams = {}) {
+  const page = params.page || 1;
+  const limit = params.limit || 50;
+  const offset = (page - 1) * limit;
+
+  let queryBuilder = fullTerminalSelect().$dynamic();
+
+  const filters = buildTerminalFilters(params);
 
   const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
@@ -419,6 +468,182 @@ export async function getTerminals(params: GetTerminalsParams = {}) {
     count,
     hasMore,
   };
+}
+
+const parseContactMs = (raw: string): number => {
+  if (!raw) return -Infinity;
+  const ms = new Date(raw.replace(" ", "T")).getTime();
+  return Number.isNaN(ms) ? -Infinity : ms;
+};
+
+const terminalSortValue = (
+  row: TerminalMinimalRow,
+  sortBy: TerminalSortKey,
+): string => {
+  switch (sortBy) {
+    case "hardware":
+      return `${row.manufacturer ?? ""} ${row.model ?? ""}`
+        .trim()
+        .toLowerCase();
+    case "os":
+      return (row.operatingSystem ?? "").toLowerCase();
+    case "location":
+      return (row.nis ?? "").toLowerCase();
+    case "hostname":
+    default:
+      return (row.hostname ?? "").toLowerCase();
+  }
+};
+
+async function loadMatchingIds(
+  whereClause: ReturnType<typeof and> | undefined,
+): Promise<Set<number>> {
+  const base = db
+    .select({ id: terminals.id })
+    .from(terminals)
+    .leftJoin(offices, eq(terminals.nis, offices.code));
+  const rows = whereClause
+    ? await base.where(whereClause).all()
+    : await base.all();
+  return new Set(rows.map((row) => row.id));
+}
+
+export async function getTerminalDisplay(
+  params: GetTerminalsParams = {},
+): Promise<TerminalDisplayResult> {
+  // El tab Mediterránea conserva su comportamiento y su orden propios.
+  if (params.isMediterranea === true) {
+    const legacy = await getTerminals(params);
+    return {
+      items: legacy.data.map((terminal) => ({ type: "single", terminal })),
+      count: legacy.count,
+      hasMore: legacy.hasMore,
+    };
+  }
+
+  const page = params.page || 1;
+  const limit = params.limit || 50;
+  const offset = (page - 1) * limit;
+
+  const snapshot = await getTerminalSnapshot();
+  const { rowsById, allRowIds, clusters, clusterByRowId, clusterMemberIds } =
+    snapshot;
+
+  const sqlFilters = buildTerminalFilters({ ...params, duplicates: false });
+  const whereClause = sqlFilters.length > 0 ? and(...sqlFilters) : undefined;
+
+  let matchedIds: Set<number>;
+  if (whereClause) {
+    matchedIds = await loadMatchingIds(whereClause);
+    if (params.duplicates) {
+      matchedIds = new Set(
+        [...matchedIds].filter((id) => clusterMemberIds.has(id)),
+      );
+    }
+  } else if (params.duplicates) {
+    matchedIds = clusterMemberIds;
+  } else {
+    matchedIds = allRowIds;
+  }
+
+  const sortBy: TerminalSortKey = params.sortBy ?? "hostname";
+  const items: Array<{ sortKey: string; item: TerminalDisplayItem }> = [];
+
+  for (const cluster of clusters) {
+    if (!cluster.ids.some((id) => matchedIds.has(id))) continue;
+    const members = cluster.ids
+      .map((id) => rowsById.get(id))
+      .filter((row): row is TerminalMinimalRow => Boolean(row));
+    const active = selectActiveMember(
+      members.map((row) => ({
+        id: row.id,
+        lastContactRaw: row.lastContact ?? "",
+      })),
+    );
+    const activeId = active.activeId ?? cluster.ids[0];
+    const activeRow = rowsById.get(activeId) ?? members[0];
+    items.push({
+      sortKey: terminalSortValue(activeRow, sortBy),
+      item: {
+        type: "cluster",
+        ids: cluster.ids,
+        sharedIps: cluster.sharedIps,
+        sharedMacs: cluster.sharedMacs,
+        sharedHostnames: cluster.sharedHostnames,
+        activeId,
+      },
+    });
+  }
+
+  for (const id of matchedIds) {
+    if (clusterByRowId.has(id)) continue;
+    const row = rowsById.get(id);
+    if (!row) continue;
+    items.push({
+      sortKey: terminalSortValue(row, sortBy),
+      item: { type: "single", id },
+    });
+  }
+
+  const dir = params.sortOrder === "desc" ? -1 : 1;
+  items.sort((a, b) => a.sortKey.localeCompare(b.sortKey) * dir);
+
+  const count = items.length;
+  const pageItems = items.slice(offset, offset + limit);
+  const hasMore = items.length > offset + limit;
+
+  const pageIds = pageItems.flatMap((entry) =>
+    entry.item.type === "cluster" ? entry.item.ids : [entry.item.id],
+  );
+
+  const fullById = new Map<number, TerminalItem>();
+  if (pageIds.length > 0) {
+    const fullRows = await fullTerminalSelect()
+      .where(inArray(terminals.id, pageIds))
+      .all();
+    for (const row of fullRows) {
+      fullById.set(row.terminal.id, mapTerminalQueryRow(row));
+    }
+  }
+
+  const nowMs = Date.now();
+  const views: TerminalDisplayView[] = [];
+
+  for (const entry of pageItems) {
+    const item = entry.item;
+    if (item.type === "single") {
+      const terminal = fullById.get(item.id);
+      if (terminal) views.push({ type: "single", terminal });
+      continue;
+    }
+
+    const members = item.ids
+      .map((id) => fullById.get(id))
+      .filter((terminal): terminal is TerminalItem => Boolean(terminal))
+      .sort(
+        (a, b) =>
+          parseContactMs(b.lastContactRaw) - parseContactMs(a.lastContactRaw),
+      );
+
+    const active = fullById.get(item.activeId) ?? members[0];
+    if (!active) continue;
+    const activeTs = parseContactMs(active.lastContactRaw);
+
+    views.push({
+      type: "cluster",
+      cluster: {
+        active,
+        activeIsOnline:
+          activeTs !== -Infinity && nowMs - activeTs < 24 * 60 * 60 * 1000,
+        members,
+        sharedIps: item.sharedIps,
+        sharedMacs: item.sharedMacs,
+        sharedHostnames: item.sharedHostnames,
+      },
+    });
+  }
+
+  return { items: views, count, hasMore };
 }
 
 export interface TTGroupResultItem {

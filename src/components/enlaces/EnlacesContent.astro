@@ -1,5 +1,6 @@
 ---
 import { getCleanBase } from "@lib/baseUrl";
+import { Icon } from "astro-icon/components";
 import AnnouncementBanner from "@components/ui/AnnouncementBanner.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -14,6 +15,7 @@ import type {
   CategoryViewModel,
 } from "@pages/recursos/_components/types";
 import { decrypt } from "@lib/encryption";
+import { getHideDescriptions } from "@/lib/viewMode";
 
 const isAuthenticated = Astro.locals.user && Astro.locals.user.id !== 0;
 
@@ -68,12 +70,96 @@ const cleanBase = getCleanBase();
     class="max-w-3xl"
   />
 
-  <SearchBar
-    id="important-links-search"
-    label="Buscar enlaces y recursos"
-    placeholder="Buscar por nombre, URL o descripción"
-    class="max-w-md"
-  />
+  <div class="flex flex-wrap items-center gap-4">
+    <SearchBar
+      id="important-links-search"
+      placeholder="Buscar por nombre, URL o descripción"
+      class="max-w-md flex-1"
+    />
+
+    <div class="flex items-center gap-4" data-view-controls>
+    <div role="tablist" class="tabs tabs-box bg-base-200/50" aria-label="Tamaño de íconos">
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="compact"
+        aria-label="Iconos pequeños"
+      >
+        <Icon name="boxicons:square-rounded" size={12} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="normal"
+        aria-label="Iconos normales"
+      >
+        <Icon name="boxicons:square-rounded" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-mode="large"
+        aria-label="Iconos grandes"
+      >
+        <Icon name="boxicons:square-rounded" size={24} aria-hidden="true" />
+      </button>
+    </div>
+    <div role="tablist" class="tabs tabs-box bg-base-200/50" aria-label="Cantidad de columnas">
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="1"
+        aria-label="1 columna"
+      >
+        <Icon name="boxicons:list-ul" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="2"
+        aria-label="2 columnas"
+      >
+        <Icon name="boxicons:columns" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="3"
+        aria-label="3 columnas"
+      >
+        <Icon name="boxicons:columns-3" size={16} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab gap-1.5"
+        data-view-columns="4"
+        aria-label="4 columnas"
+      >
+        <Icon name="boxicons:columns-4" size={16} aria-hidden="true" />
+      </button>
+    </div>
+    <label
+      class="flex items-center gap-2 cursor-pointer select-none"
+      title="Ocultar descripciones de enlaces"
+    >
+      <input
+        type="checkbox"
+        name="hide-descriptions"
+        checked={getHideDescriptions()}
+        class="checkbox checkbox-primary"
+        id="hide-descriptions-toggle"
+      />
+      <span>Ocultar descripciones</span>
+    </label>
+  </div>
+  </div>
 
   <AnnouncementBanner
     title="Nuevo catálogo de aplicativos"
@@ -108,26 +194,62 @@ const cleanBase = getCleanBase();
     color: inherit;
   }
 
-  .masonry-grid {
-    position: relative;
+/* View mode: icon sizes */
+[data-view-mode="compact"] {
+  --link-icon-size: 28px;
+  --link-icon-container: 36px;
+}
+
+[data-view-mode="normal"] {
+  --link-icon-size: 36px;
+  --link-icon-container: 44px;
+}
+
+[data-view-mode="large"] {
+  --link-icon-size: 44px;
+  --link-icon-container: 52px;
+}
+
+/* View columns: el ancho de los ítems usa el conteo efectivo que setea JS
+   (misma fuente que masonry), evitando desacuerdos con media queries de viewport */
+.masonry-grid {
+  position: relative;
+}
+
+.masonry-grid .grid-item {
+  width: calc((100% - (8px * (var(--columns-effective, 3) - 1))) / var(--columns-effective, 3));
+  margin-bottom: 8px;
+  break-inside: avoid;
+}
+
+/* Toggle de vista: la opción efectiva se ilumina en primary (derivado del
+   atributo en <html>, también aplica antes de hidratar) */
+:root[data-view-mode="compact"] [data-view-controls] .tab[data-view-mode="compact"],
+:root[data-view-mode="normal"] [data-view-controls] .tab[data-view-mode="normal"],
+:root[data-view-mode="large"] [data-view-controls] .tab[data-view-mode="large"],
+:root[data-view-columns="1"] [data-view-controls] .tab[data-view-columns="1"],
+:root[data-view-columns="2"] [data-view-controls] .tab[data-view-columns="2"],
+:root[data-view-columns="3"] [data-view-controls] .tab[data-view-columns="3"],
+:root[data-view-columns="4"] [data-view-controls] .tab[data-view-columns="4"] {
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+/* Apply icon sizes */
+[data-link-item] .icon-container {
+  width: var(--link-icon-container);
+  height: var(--link-icon-container);
+}
+
+  [data-link-item] .icon-container img,
+  [data-link-item] .icon-container svg {
+    width: var(--link-icon-size);
+    height: var(--link-icon-size);
   }
 
-  .masonry-grid .grid-item {
-    width: 100%;
-    margin-bottom: 8px;
-    break-inside: avoid;
-  }
-
-  @media (min-width: 768px) {
-    .masonry-grid .grid-item {
-      width: calc(50% - 4px);
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .masonry-grid .grid-item {
-      width: calc(33.333% - 5.333px);
-    }
+  /* Hide descriptions when toggle is enabled */
+  #important-links-grid.hide-descriptions [class*="text-base-content/60"] {
+    display: none !important;
   }
 </style>
 
@@ -137,6 +259,14 @@ const cleanBase = getCleanBase();
     highlightSearchTargets,
   } from "@lib/clientSearch";
   import Masonry from "masonry-layout";
+  import {
+    getViewMode,
+    setViewMode,
+    getViewColumns,
+    setViewColumns,
+    type ViewMode,
+    type ViewColumns,
+  } from "@lib/viewMode";
 
   const searchInput = document.getElementById(
     "important-links-search",
@@ -147,58 +277,64 @@ const cleanBase = getCleanBase();
   const emptyState = document.getElementById(
     "important-links-empty",
   ) as HTMLElement | null;
+  const viewControls = document.querySelector("[data-view-controls]");
   const categoryCards = Array.from(
     document.querySelectorAll<HTMLElement>("[data-link-category]"),
   );
 
   const GAP = 8;
 
+  // Máximo de columnas según el ancho del contenedor (responsive)
+  const getColumnCap = (): ViewColumns => {
+    const width = linksGrid?.offsetWidth ?? 0;
+    if (width < 768) return 1;
+    if (width < 1280) return 2;
+    return 4;
+  };
+
+  // Columnas efectivas: preferencia del usuario (localStorage, intacta)
+  // acotada por responsive. El atributo en <html> es solo salida (CSS highlight)
+  const getEffectiveColumns = (): ViewColumns =>
+    Math.min(getViewColumns(), getColumnCap()) as ViewColumns;
+
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
-    const width = linksGrid.offsetWidth;
-    const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
-    return (width - GAP * (columns - 1)) / columns;
+    const columns = getEffectiveColumns();
+    return (linksGrid.offsetWidth - GAP * (columns - 1)) / columns;
+  };
+
+  const layoutMasonry = (): void => {
+    if (!msnry) return;
+    msnry.options.columnWidth = getColumnWidth();
+    msnry.layout();
+  };
+
+  // Aplica el conteo efectivo: atributo en <html> (alimentan el highlight de
+  // los tabs vía CSS), variable CSS de ancho y releo de masonry
+  const applyEffectiveColumns = (): void => {
+    const effective = getEffectiveColumns();
+    document.documentElement.setAttribute("data-view-columns", String(effective));
+    linksGrid?.style.setProperty("--columns-effective", String(effective));
+    layoutMasonry();
   };
 
   let msnry: Masonry | null = null;
   if (linksGrid) {
+    applyEffectiveColumns();
     msnry = new Masonry(linksGrid, {
       itemSelector: ".grid-item",
       columnWidth: getColumnWidth(),
       gutter: GAP,
       transitionDuration: "0.2s",
+      transitionsEnabled: false,
       initLayout: true,
     });
 
+    // Reacota columnas cuando cambia el ancho del contenedor
     const resizeObserver = new ResizeObserver(() => {
-      if (!msnry) return;
-      msnry.options.columnWidth = getColumnWidth();
-      msnry.layout();
+      applyEffectiveColumns();
     });
     resizeObserver.observe(linksGrid);
-
-    linksGrid.addEventListener(
-      "toggle",
-      (event) => {
-        const target = event.target as HTMLDetailsElement | null;
-        if (!target || target.tagName !== "DETAILS") return;
-
-        if (target.open) {
-          document
-            .querySelectorAll<HTMLDetailsElement>("details[open]")
-            .forEach((details) => {
-              if (details !== target) {
-                details.open = false;
-              }
-            });
-        }
-
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => msnry?.layout());
-        });
-      },
-      true,
-    );
   }
 
   let isFiltered = false;
@@ -258,5 +394,46 @@ const cleanBase = getCleanBase();
 
   if (searchInput && searchInput.value.trim().length > 0) {
     updateVisibleLinks();
+  }
+
+  // View mode: el highlight de los tabs es CSS puro (derivado del atributo
+    // en <html>), acá solo persistimos y aplicamos
+    document.documentElement.setAttribute("data-view-mode", getViewMode());
+
+    viewControls?.querySelectorAll<HTMLElement>("[data-view-mode]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const mode = tab.getAttribute("data-view-mode") as ViewMode;
+        setViewMode(mode);
+        document.documentElement.setAttribute("data-view-mode", mode);
+        // Releo: los tamaños de ícono cambian la altura de las cards
+        layoutMasonry();
+      });
+    });
+
+    // View columns
+    viewControls?.querySelectorAll<HTMLElement>("[data-view-columns]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const columns = Number(tab.getAttribute("data-view-columns")) as ViewColumns;
+        setViewColumns(columns);
+        // applyEffectiveColumns acota por responsive y actualiza highlight
+        applyEffectiveColumns();
+      });
+    });
+
+    applyEffectiveColumns();
+
+  // Description hide toggle
+  const hideDescriptionsToggle = document.getElementById(
+    "hide-descriptions-toggle",
+  ) as HTMLInputElement | null;
+  if (hideDescriptionsToggle) {
+    hideDescriptionsToggle.addEventListener("change", () => {
+      const hideDescriptions = hideDescriptionsToggle.checked;
+      localStorage.setItem("enlacesHideDescriptions", String(hideDescriptions));
+      const grid = document.getElementById("important-links-grid") as HTMLElement | null;
+      if (grid) {
+        grid.classList.toggle("hide-descriptions", hideDescriptions);
+      }
+    });
   }
 </script>

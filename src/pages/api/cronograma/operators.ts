@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { sanitizeError } from "@lib/apiResponse";
+import { deleteWithSnapshot } from "@lib/deletedRecords";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = requireWriteAccess(locals, "cronograma");
@@ -171,7 +172,20 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // 1. Eliminar operador
+    // 1. Snapshot del operador en la papelera (atómico con el borrado)
+    const [agent] = await db.select().from(agents).where(eq(agents.name, name));
+    if (agent) {
+      deleteWithSnapshot({
+        entity: "agente",
+        recordId: agent.id,
+        username: "Sistema",
+        label: (father) => String(father.name),
+        fatherTable: agents,
+        fatherPkColumn: agents.id,
+      });
+    }
+
+    // 2. Eliminar operador
     await db.delete(agents).where(eq(agents.name, name));
 
     // 2. Eliminar sus planificaciones de asistencia

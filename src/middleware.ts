@@ -197,7 +197,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     lowerPath.startsWith("/api/asistencia") ||
     lowerPath.startsWith("/api/calidad") ||
     lowerPath.startsWith("/api/admin") ||
-    lowerPath.startsWith("/api/export")
+    lowerPath.startsWith("/api/export") ||
+    lowerPath.startsWith("/api/profile")
   ) {
     if (currentUser.id === 0) {
       return jsonError("Sesión no iniciada", 401);

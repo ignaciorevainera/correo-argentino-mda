@@ -85,6 +85,16 @@ Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
 
 ---
 
+## Papelera de borrado recuperable
+
+- Toda delete de CRUD admin crea snapshot en `deleted_records` (fila padre; oficinas/cubics además hijos) vía `createDeleteHandler` o `deleteWithSnapshot` (`@lib/deletedRecords.ts`). El snapshot es atómico: si falla, no se borra nada.
+- Restauración admin-only en `/admin/papelera`; registry tipado `RESTORE_REGISTRY` — agregar ahí nuevas entidades restaurables. Únicos en conflicto se renombran con sufijo ` (restaurado)`.
+- Purga: proceso PM2 `purge-deleted-records` (04:00 diaria, retención 90d, `scripts/purge-deleted.ts`). Los registros restaurados quedan como histórico permanente.
+- Entidades nuevas con delete: si usan `createDeleteHandler` el snapshot padre es automático (`genericSnapshot: true` default); para snapshot con hijos usar `deleteWithSnapshot` + `genericSnapshot: false` + entrada en `RESTORE_REGISTRY` si deben ser restaurables.
+- Spec: `docs/superpowers/specs/2026-08-28-papelera-deleted-records-design.md`.
+
+---
+
 ## Convenciones de codigo obligatorias
 
 Estas reglas deben seguirse en TODA contribucion al codigo. Ignorarlas produce errores conocidos.

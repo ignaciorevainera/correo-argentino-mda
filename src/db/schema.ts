@@ -947,3 +947,24 @@ export const titles = sqliteTable("titles", {
     () => new Date(),
   ),
 });
+
+// 20. PAPELERA DE BORRADO RECUPERABLE (snapshots pre-delete)
+export const deletedRecords = sqliteTable(
+  "deleted_records",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    entity: text("entity").notNull(), // "oficina" | "cubic" | "agente" | entityName del handler
+    recordId: text("record_id").notNull(), // id original, en texto
+    label: text("label").notNull(), // legible: 'Oficina "Rafaela" (Q123)'
+    payload: text("payload", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(), // { row: filaPadre, children?: { clave: filas[] } }
+    deletedBy: text("deleted_by").notNull(),
+    deletedAt: text("deleted_at").notNull(),
+    restoredAt: text("restored_at"),
+    purgedAt: text("purged_at"),
+  },
+  (t) => ({
+    entityIdx: index("deleted_records_entity_idx").on(t.entity, t.deletedAt),
+  }),
+);

@@ -49,7 +49,7 @@ const iconUrl = link.iconPath ? `${cleanBase}api/icons/${link.iconPath}` : null;
 <li
   class:list={[
     "border-base-300 bg-base-100 relative rounded border transition-all hover:z-20",
-    link.deprecated && "opacity-50",
+    link.deprecated && "border-dashed",
   ]}
   data-link-item
   data-link-search={searchText}
@@ -60,7 +60,7 @@ const iconUrl = link.iconPath ? `${cleanBase}api/icons/${link.iconPath}` : null;
     {/* Left: Icon and Details */}
     <div class="flex min-w-0 flex-1 items-start gap-3">
       <div
-        class="bg-base-200 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded p-1"
+        class="icon-container bg-base-200 flex shrink-0 items-center justify-center overflow-hidden rounded p-1"
       >
         {
           iconUrl ? (
@@ -86,7 +86,10 @@ const iconUrl = link.iconPath ? `${cleanBase}api/icons/${link.iconPath}` : null;
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span
-            class="text-base-content truncate text-sm font-bold"
+            class:list={[
+              "text-base-content truncate text-sm font-bold",
+              link.deprecated && "opacity-50",
+            ]}
             title={link.title}
             data-highlight-target
           >
@@ -101,26 +104,32 @@ const iconUrl = link.iconPath ? `${cleanBase}api/icons/${link.iconPath}` : null;
           }
         </div>
 
-        {
-          linkSubtitle && (
-            <span
-              class="text-base-content/60 block truncate text-xs"
-              data-highlight-target
-            >
-              {linkSubtitle}
-            </span>
-          )
-        }
+{
+            linkSubtitle && (
+              <span
+                class:list={[
+                  "text-base-content/60 block truncate text-xs",
+                  link.deprecated && "opacity-50",
+                ]}
+                data-highlight-target
+              >
+                {linkSubtitle}
+              </span>
+            )
+          }
 
         {
           link.credentials && (
             <details class="group/creds mt-1.5">
               <summary class="btn btn-xs w-full list-none justify-start">
                 <Icon name="boxicons:key" size={14} class="shrink-0" />
-                <span class="group-open/creds:hidden">
+                <span class="group-open/creds:hidden" data-creds-open>
                   Mostrar credenciales
                 </span>
-                <span class="hidden group-open/creds:inline">
+                <span
+                  class="hidden group-open/creds:inline"
+                  data-creds-close
+                >
                   Ocultar credenciales
                 </span>
               </summary>
@@ -280,3 +289,21 @@ const iconUrl = link.iconPath ? `${cleanBase}api/icons/${link.iconPath}` : null;
   initPasswordToggles();
   document.addEventListener("astro:page-load", initPasswordToggles);
 </script>
+
+<style is:global>
+  /* Columnas angostas (4): texto corto para que la leyenda no se corte */
+  :root[data-view-columns="4"] [data-creds-open] {
+    font-size: 0;
+  }
+  :root[data-view-columns="4"] [data-creds-open]::after {
+    content: "Mostrar";
+    font-size: 0.75rem;
+  }
+  :root[data-view-columns="4"] [data-creds-close] {
+    font-size: 0;
+  }
+  :root[data-view-columns="4"] [data-creds-close]::after {
+    content: "Ocultar";
+    font-size: 0.75rem;
+  }
+</style>

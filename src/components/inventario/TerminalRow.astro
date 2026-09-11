@@ -3,6 +3,7 @@ import { Icon } from "astro-icon/components";
 import type { TerminalItem, TTPairState } from "@lib/terminalQueries";
 import { getTerminalColorClass, type OsFamily } from "@lib/terminalHelpers";
 import CopyButton from "@components/ui/CopyButton.astro";
+import { normalizeDuplicateKey } from "@lib/duplicateGroups";
 
 type BoxiconName = `boxicons:${string}`;
 
@@ -11,6 +12,10 @@ interface Props {
   terminalRowGridClass?: string;
   pairState?: TTPairState;
   paired?: boolean;
+  isActive?: "active" | "recent" | null;
+  sharedIps?: string[];
+  sharedMacs?: string[];
+  sharedHostnames?: string[];
 }
 
 const {
@@ -18,6 +23,10 @@ const {
   terminalRowGridClass = "grid grid-cols-12 items-start",
   pairState,
   paired,
+  isActive = null,
+  sharedIps = [],
+  sharedMacs = [],
+  sharedHostnames = [],
 } = Astro.props;
 
 const isTTHostname = /^TT.{5}P$/.test(terminal.hostname);
@@ -62,6 +71,22 @@ const copyValue = [
   `Modelo: ${terminal.model}`,
   `SN: ${terminal.serial}`,
 ].join("\n");
+
+const normalize = (value: string | null | undefined): string =>
+  normalizeDuplicateKey(value);
+
+const isShared = (
+  value: string | null | undefined,
+  shared: string[],
+): boolean => {
+  const norm = normalize(value);
+  if (!norm) return false;
+  return shared.some((candidate) => normalize(candidate) === norm);
+};
+
+const isSharedIp = isShared(terminal.ip, sharedIps);
+const isSharedMac = isShared(terminal.mac, sharedMacs);
+const isSharedHostname = isShared(terminal.hostname, sharedHostnames);
 ---
 
 <article
@@ -96,7 +121,10 @@ const copyValue = [
     <div class="flex w-full flex-col gap-1">
       <div class="flex flex-row items-center gap-1.5">
         <span
-          class="text-base-content truncate font-mono text-sm font-medium"
+          class:list={[
+            "text-base-content truncate font-mono text-sm font-medium",
+            isSharedHostname && "bg-warning/15 rounded px-1",
+          ]}
           data-highlight-target
         >
           {terminal.hostname}
@@ -106,13 +134,19 @@ const copyValue = [
         )}
       </div>
       <span
-        class="text-base-content/70 truncate font-mono text-xs"
+        class:list={[
+          "text-base-content/70 truncate font-mono text-xs",
+          isSharedIp && "bg-warning/15 rounded px-1",
+        ]}
         data-highlight-target
       >
         {terminal.ip}
       </span>
       <span
-        class="text-base-content/50 truncate font-mono text-xs"
+        class:list={[
+          "text-base-content/50 truncate font-mono text-xs",
+          isSharedMac && "bg-warning/15 rounded px-1",
+        ]}
         data-highlight-target
       >
         {terminal.mac}
@@ -221,6 +255,14 @@ const copyValue = [
       <span class="text-base-content/60 truncate font-mono text-xs">
         {terminal.lastContactTime}
       </span>
+      {
+        isActive && (
+          <span class="badge badge-success badge-xs mt-1 self-end gap-1">
+            {isActive === "active" && <span class="status status-success" />}
+            {isActive === "active" ? "Activa" : "Más reciente"}
+          </span>
+        )
+      }
     </div>
   </div>
 </article>

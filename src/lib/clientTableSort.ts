@@ -133,6 +133,19 @@ const bindTableSortRoot = (root: HTMLElement): void => {
   const rows = getRows(body);
   ensureOriginalIndexes(rows);
   applyRowGridClass(root, rows);
+
+  const defaultKey = root.dataset.tableSortDefaultKey?.trim();
+  const defaultDirection = root.dataset
+    .tableSortDefaultDirection as SortDirection | undefined;
+
+  if (
+    defaultKey &&
+    (defaultDirection === "ascending" || defaultDirection === "descending")
+  ) {
+    sortRows(body, defaultKey, defaultDirection);
+    updateSortControls(root, defaultKey, defaultDirection);
+  }
+
   root.dataset.tableSortBound = "true";
 
   root.addEventListener("click", (event) => {

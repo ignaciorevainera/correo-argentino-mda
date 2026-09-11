@@ -314,6 +314,9 @@ const { id = "agents-ticket-modal" } = Astro.props;
     return sourcesCache;
   }
 
+  // Origen por defecto: API (id 8). Si no existe en el listado, queda sin selección.
+  const DEFAULT_SOURCE_ID = 8;
+
   function populateSourceSelect(sources: IncidentSource[]) {
     if (!sourceSelect) return;
     sourceSelect.innerHTML =
@@ -324,6 +327,10 @@ const { id = "agents-ticket-modal" } = Astro.props;
             `<option value="${s.id}" data-name="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`,
         )
         .join("");
+    const hasDefault = sources.some((s) => s.id === DEFAULT_SOURCE_ID);
+    if (hasDefault) {
+      sourceSelect.value = String(DEFAULT_SOURCE_ID);
+    }
   }
 
   function openAgentsTicketModal(officeName: string, officeCode: string) {
@@ -383,15 +390,40 @@ const { id = "agents-ticket-modal" } = Astro.props;
     ticketUrl?: string;
     reason?: string;
   } | null> {
+    let reason: string | undefined;
     try {
       const res = await fetch(
         `/api/offices/check-agents-ticket?officeCode=${encodeURIComponent(currentOfficeCode)}`,
       );
-      if (!res.ok) return null;
-      return await res.json();
+      const data = (await res.json().catch(() => ({}))) as {
+        exists?: boolean;
+        ticketId?: number;
+        ticketTitle?: string;
+        ticketUrl?: string;
+        reason?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        reason = data.error;
+      } else {
+        return {
+          exists: data.exists === true,
+          ticketId: data.ticketId,
+          ticketTitle: data.ticketTitle,
+          ticketUrl: data.ticketUrl,
+          reason: data.reason,
+        };
+      }
     } catch {
-      return null;
+      reason = undefined;
     }
+    showToast(
+      reason ||
+        "No se pudo verificar si ya existe un ticket en InvGate. Intente de nuevo.",
+      "alert-error",
+      6000,
+    );
+    return null;
   }
 
   function openConfirmModal(duplicate: {
@@ -463,14 +495,19 @@ const { id = "agents-ticket-modal" } = Astro.props;
         if (result.success) {
           confirmModal?.close();
           modal?.close();
+          if (result.warning) {
+            showToast(result.warning, "alert-warning", 8000);
+          }
           if (result.ticketUrl) {
             window.open(result.ticketUrl, "_blank");
-            showToast(
-              "Ticket creado con éxito y abierto en nueva pestaña.",
-              "alert-success",
-              6000,
-            );
-          } else {
+            if (!result.warning) {
+              showToast(
+                "Ticket creado con éxito y abierto en nueva pestaña.",
+                "alert-success",
+                6000,
+              );
+            }
+          } else if (!result.warning) {
             showToast("Ticket creado con éxito.", "alert-success");
           }
         } else {
@@ -549,10 +586,6 @@ const { id = "agents-ticket-modal" } = Astro.props;
     }
 
     if (duplicate === null) {
-      showToast(
-        "No se pudo verificar si ya existe un ticket. Intente de nuevo.",
-        "alert-error",
-      );
       return;
     }
 

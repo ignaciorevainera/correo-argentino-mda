@@ -1,38 +1,51 @@
-import { readFileSync, existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
-const entryPath = process.argv[2] ?? "dist/server/entry.mjs";
-
-if (!existsSync(entryPath)) {
-  console.error(`[verify-build] ERROR: ${entryPath} no existe. Ejecutar astro build primero.`);
-  process.exit(1);
+function findRootDirInDir(dir) {
+  if (!existsSync(dir)) return null;
+  const files = readdirSync(dir);
+  for (const file of files) {
+    const fullPath = join(dir, file);
+    if (statSync(fullPath).isDirectory()) {
+      const res = findRootDirInDir(fullPath);
+      if (res) return res;
+    } else if (file.endsWith(".mjs")) {
+      const source = readFileSync(fullPath, "utf8");
+      const match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+      if (match && match[1].trim()) {
+        return { path: fullPath, rootDir: match[1] };
+      }
+    }
+  }
+  return null;
 }
 
-let source = readFileSync(entryPath, "utf8");
-let match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+const targetPath = process.argv[2] ?? "dist/server";
+const isFile = existsSync(targetPath) && !statSync(targetPath).isDirectory();
 
-// entry.mjs puede ser un stub que re-exporta desde chunks/server_xxx.mjs
-if (!match) {
-  const reExportMatch = source.match(/from\s+['"]([^'"]+)['"]/);
-  if (reExportMatch) {
-    const chunkPath = resolve(dirname(entryPath), reExportMatch[1]);
-    if (existsSync(chunkPath)) {
-      source = readFileSync(chunkPath, "utf8");
-      match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
-    }
+let res = null;
+if (isFile) {
+  const source = readFileSync(targetPath, "utf8");
+  const match = source.match(/"rootDir"\s*:\s*"([^"]*)"/);
+  if (match && match[1].trim()) {
+    res = { path: targetPath, rootDir: match[1] };
   }
 }
 
-if (!match || !match[1].trim()) {
-  console.error(`[verify-build] ERROR: manifest SSR sin \`rootDir\` valido en ${entryPath}.`);
+if (!res) {
+  res = findRootDirInDir("dist/server");
+}
+
+if (!res) {
+  console.error(`[verify-build] ERROR: manifest SSR sin \`rootDir\` valido en ${targetPath}.`);
   console.error("Causa probable: node_modules inconsistente (npm install con PM2/Node vivos).");
   console.error("Fix: detener servicios, borrar node_modules, npm ci, rebuild (docs/lessons.md).");
   process.exit(1);
 }
 
-if (!match[1].startsWith("file://")) {
-  console.error(`[verify-build] ERROR: rootDir inesperado en ${entryPath}: ${match[1]}`);
+if (!res.rootDir.startsWith("file://")) {
+  console.error(`[verify-build] ERROR: rootDir inesperado en ${res.path}: ${res.rootDir}`);
   process.exit(1);
 }
 
-console.log(`[verify-build] OK: rootDir = ${match[1]}`);
+console.log(`[verify-build] OK: rootDir = ${res.rootDir}`);
