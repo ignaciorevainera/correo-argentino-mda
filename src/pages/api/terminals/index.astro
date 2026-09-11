@@ -1,7 +1,8 @@
 ---
 import TerminalRow from "@components/inventario/TerminalRow.astro";
 import TerminalVmRow from "@components/inventario/TerminalVmRow.astro";
-import { getTerminals, getTTGroups } from "@lib/terminalQueries";
+import TerminalList from "@components/inventario/TerminalList.astro";
+import { getTerminalDisplay, getTTGroups } from "@lib/terminalQueries";
 import type { TerminalSortKey, SortOrder } from "@lib/terminalQueries";
 
 const searchParams = Astro.url.searchParams;
@@ -47,8 +48,8 @@ const ttResult = isTT
       vmFilter,
     })
   : null;
-const regular = !isTT
-  ? await getTerminals({
+const displayResult = !isTT
+  ? await getTerminalDisplay({
       page,
       limit,
       search,
@@ -68,8 +69,8 @@ const regular = !isTT
     })
   : null;
 
-const count = ttResult ? ttResult.count : regular!.count;
-const hasMore = ttResult ? ttResult.hasMore : regular!.hasMore;
+const count = ttResult ? ttResult.count : displayResult!.count;
+const hasMore = ttResult ? ttResult.hasMore : displayResult!.hasMore;
 
 Astro.response.headers.set("X-Total-Count", count.toString());
 Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");
@@ -88,4 +89,6 @@ Astro.response.headers.set("Cache-Control", "private, max-age=300");
     </>
   ))}
 
-{regular && regular.data.map((terminal) => <TerminalRow terminal={terminal} />)}
+{
+  displayResult && <TerminalList items={displayResult.items} />
+}
