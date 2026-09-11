@@ -4,8 +4,12 @@ import { employees } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { logAdminAction } from "@lib/auditLogger";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
-export const PATCH: APIRoute = async ({ params, request }) => {
+export const PATCH: APIRoute = async ({ params, request, locals }) => {
+  const denied = await requireWriteAccess(locals, "usuarios");
+  if (denied) return denied;
+
   const { dni } = params;
   if (!dni) {
     return jsonError("DNI del usuario requerido", 400);
@@ -36,7 +40,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       .where(eq(employees.dni, dni));
 
     await logAdminAction(
-      "API (público)",
+      locals.user.username,
       `Actualizó datos de contacto del empleado ${existing[0].fullname} (${dni})`,
     );
 
