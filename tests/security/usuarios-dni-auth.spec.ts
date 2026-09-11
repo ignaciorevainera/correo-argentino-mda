@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { test, expect } from "@playwright/test";
+import { test, expect, type BrowserContext } from "@playwright/test";
 import {
   createTestUserAndSession,
   cleanupTestUser,
@@ -8,10 +8,13 @@ import { db } from "../../src/db/index";
 import { employees } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 
-const TEST_DNI = "99999999";
+const TEST_DNI = "9" + String(Date.now()).slice(-7);
 const TEST_NAME = `Authz Test ${Date.now()}`;
 
-async function login(context: any, signedSessionId: string): Promise<void> {
+async function login(
+  context: BrowserContext,
+  signedSessionId: string,
+): Promise<void> {
   const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
   await context.addCookies([
     {
@@ -24,25 +27,14 @@ async function login(context: any, signedSessionId: string): Promise<void> {
 }
 
 async function seedEmployee(): Promise<void> {
-  await db
-    .insert(employees)
-    .values({
-      dni: TEST_DNI,
-      username: "authz_test",
-      fullname: TEST_NAME,
-      interno: "0000",
-      telefono: "",
-      sucursal: "",
-    })
-    .onConflictDoUpdate({
-      target: employees.dni,
-      set: {
-        fullname: TEST_NAME,
-        interno: "0000",
-        telefono: "",
-        sucursal: "",
-      },
-    });
+  await db.insert(employees).values({
+    dni: TEST_DNI,
+    username: "authz_test",
+    fullname: TEST_NAME,
+    interno: "0000",
+    telefono: "",
+    sucursal: "",
+  });
 }
 
 test.describe("PATCH /api/usuarios/[dni] authz", () => {
@@ -50,9 +42,13 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
   let adminUser: Awaited<ReturnType<typeof createTestUserAndSession>>;
 
   test.beforeAll(async () => {
-    await seedEmployee();
     agentUser = await createTestUserAndSession("agent");
     adminUser = await createTestUserAndSession("admin");
+  });
+
+  test.beforeEach(async () => {
+    await db.delete(employees).where(eq(employees.dni, TEST_DNI));
+    await seedEmployee();
   });
 
   test.afterAll(async () => {
