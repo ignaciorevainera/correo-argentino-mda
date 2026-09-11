@@ -30,6 +30,9 @@ const allAgents = await db
   .select({
     id: agents.id,
     name: agents.name,
+    username: agents.username,
+    location: agents.location,
+    avatarInitials: agents.avatarInitials,
   })
   .from(agents)
   .orderBy(agents.name);
@@ -50,18 +53,40 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         Volver a Estadísticas
       </a>
 
-      <div class="flex items-center gap-2">
-        <span class="text-base-content/60 text-xs font-bold">Cambiar operador:</span>
-        <select
-          id="switch-operator-select"
-          class="select select-sm select-bordered rounded-xl text-xs font-bold max-w-64"
+      <!-- Combobox Predictivo de Operador (Opción A) -->
+      <div class="relative w-64 sm:w-80" id="operator-combobox-root">
+        <div class="relative">
+          <Icon
+            name="boxicons:search"
+            class="text-base-content/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            size={16}
+          />
+          <input
+            type="text"
+            id="operator-combobox-input"
+            class="input input-sm input-bordered bg-base-100 border-base-300 w-full pl-9 pr-8 rounded-xl text-xs font-bold outline-none focus:border-secondary transition-all shadow-xs"
+            placeholder="Cambiar operador..."
+            value={agent.name}
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            id="operator-combobox-clear"
+            class="text-base-content/40 hover:text-base-content absolute right-2.5 top-1/2 -translate-y-1/2 hidden cursor-pointer text-xs font-bold"
+            title="Limpiar búsqueda"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Floating Dropdown list -->
+        <div
+          id="operator-combobox-dropdown"
+          class="bg-base-100 border-base-300 shadow-xl absolute left-0 right-0 top-full z-50 mt-1.5 hidden max-h-72 flex-col overflow-y-auto rounded-xl border p-1"
         >
-          {allAgents.map((op) => (
-            <option value={op.id} selected={op.id === agentId}>
-              {op.name}
-            </option>
-          ))}
-        </select>
+          <!-- Elements dynamically generated -->
+        </div>
       </div>
     </div>
 
@@ -88,7 +113,16 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
 
       <!-- Métricas clave del período seleccionado (siempre sobre el período completo, no filtrado por estado) -->
       <p class="text-xxs text-base-content/30 font-medium sm:hidden mb-1">Métricas del período completo</p>
-      <div class="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-3">
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+        <div
+          class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
+        >
+          <span
+            class="text-xxs text-base-content/40 block font-black uppercase tracking-wider"
+            >Presentismo</span
+          >
+          <span class="text-secondary text-lg font-black" id="kpi-attendance">--%</span>
+        </div>
         <div
           class="bg-base-200/50 border-base-300/40 min-w-24 rounded-xl border p-2.5 text-center"
         >
@@ -355,7 +389,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   </PageContainer>
 </BaseLayout>
 
-<script is:inline define:vars={{ agentId, agentName: agent.name, cleanBase }}>
+<script is:inline define:vars={{ agentId, agentName: agent.name, cleanBase, allAgents }}>
   // 1. Elementos DOM
   const yearSelect = document.getElementById("filter-year");
   const monthSelect = document.getElementById("filter-month");
@@ -363,6 +397,7 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const tbody = document.getElementById("history-tbody");
   const countBadge = document.getElementById("result-count");
 
+  const kpiAttendance = document.getElementById("kpi-attendance");
   const kpiRate = document.getElementById("kpi-rate");
   const kpiLates = document.getElementById("kpi-lates");
   const kpiAbsences = document.getElementById("kpi-absences");
@@ -402,17 +437,248 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
   const drawerComment = document.getElementById("drawer-comment");
   const drawerGotoDaily = document.getElementById("drawer-goto-daily");
 
-  const switchOperatorSelect = document.getElementById("switch-operator-select");
-  switchOperatorSelect?.addEventListener("change", (e) => {
-    const newId = e.target.value;
-    if (!newId) return;
+  // --- Combobox Predictivo de Operador (Opción A) ---
+  const comboboxRoot = document.getElementById("operator-combobox-root");
+  const comboboxInput = document.getElementById("operator-combobox-input");
+  const comboboxClear = document.getElementById("operator-combobox-clear");
+  const comboboxDropdown = document.getElementById(
+    "operator-combobox-dropdown",
+  );
+  const currentAgentName = agentName;
+  const currentAgentId = Number(agentId);
+
+  let highlightedIndex = -1;
+  let currentFilteredAgents = Array.isArray(allAgents) ? [...allAgents] : [];
+
+  function navigateToOperator(newId) {
+    if (!newId || newId === currentAgentId) {
+      closeCombobox();
+      if (comboboxInput) comboboxInput.value = currentAgentName;
+      return;
+    }
     const y = yearSelect ? yearSelect.value : "";
-    const m = activeView === "annual" ? "all" : (monthSelect ? monthSelect.value : "");
+    const m =
+      activeView === "annual"
+        ? "all"
+        : monthSelect
+          ? monthSelect.value
+          : "";
     const qs = new URLSearchParams();
     if (y) qs.set("year", y);
     if (m) qs.set("month", m);
     const queryString = qs.toString() ? `?${qs.toString()}` : "";
     window.location.href = `${cleanBase}supervision/asistencia/operador/${newId}${queryString}`;
+  }
+
+  function openCombobox() {
+    if (!comboboxDropdown) return;
+    renderComboboxItems(comboboxInput?.value || "");
+    comboboxDropdown.classList.remove("hidden");
+  }
+
+  function closeCombobox() {
+    if (!comboboxDropdown) return;
+    comboboxDropdown.classList.add("hidden");
+    highlightedIndex = -1;
+  }
+
+  function renderComboboxItems(query) {
+    if (!comboboxDropdown) return;
+    const cleanQuery = (query || "").trim().toLowerCase();
+
+    // Si coincide exactamente con el nombre actual, mostrar todos para permitir explorar
+    const effectiveQuery =
+      cleanQuery === currentAgentName.toLowerCase() ? "" : cleanQuery;
+
+    currentFilteredAgents = allAgents.filter((a) => {
+      if (!effectiveQuery) return true;
+      const n = (a.name || "").toLowerCase();
+      const u = (a.username || "").toLowerCase();
+      const l = (a.location || "").toLowerCase();
+      return (
+        n.includes(effectiveQuery) ||
+        u.includes(effectiveQuery) ||
+        l.includes(effectiveQuery)
+      );
+    });
+
+    comboboxDropdown.innerHTML = "";
+
+    if (currentFilteredAgents.length === 0) {
+      const emptyDiv = document.createElement("div");
+      emptyDiv.className =
+        "p-3 text-center text-xs font-bold text-base-content/40";
+      emptyDiv.textContent = "No se encontraron operadores";
+      comboboxDropdown.appendChild(emptyDiv);
+      highlightedIndex = -1;
+      return;
+    }
+
+    currentFilteredAgents.forEach((op, index) => {
+      const isCurrent = op.id === currentAgentId;
+      const initials =
+        op.avatarInitials ||
+        op.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .substring(0, 2)
+          .toUpperCase();
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `combobox-item flex items-center justify-between gap-2.5 p-2 rounded-lg text-left w-full transition-colors cursor-pointer ${
+        isCurrent
+          ? "bg-secondary/10 text-secondary font-black"
+          : "hover:bg-base-200 text-base-content font-bold"
+      }`;
+      btn.setAttribute("data-index", String(index));
+      btn.setAttribute("data-id", String(op.id));
+
+      btn.innerHTML = `
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-7 h-7 rounded-md bg-secondary/10 text-secondary flex items-center justify-center font-black text-xxs shrink-0">
+            ${initials}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs truncate ${isCurrent ? "text-secondary font-black" : "text-base-content font-bold"}">
+              ${op.name}
+            </span>
+            <span class="text-micro text-base-content/50 font-medium truncate">
+              ${op.username ? `@${op.username} · ` : ""}${op.location || "Sin Sede"}
+            </span>
+          </div>
+        </div>
+        ${
+          isCurrent
+            ? `<span class="badge badge-xs badge-secondary font-black shrink-0">Actual</span>`
+            : ""
+        }
+      `;
+
+      btn.addEventListener("click", () => {
+        navigateToOperator(op.id);
+      });
+
+      comboboxDropdown.appendChild(btn);
+    });
+
+    highlightedIndex = -1;
+  }
+
+  function updateHighlight() {
+    if (!comboboxDropdown) return;
+    const items = comboboxDropdown.querySelectorAll(".combobox-item");
+    items.forEach((item, idx) => {
+      if (idx === highlightedIndex) {
+        item.classList.add("bg-base-200", "ring-1", "ring-secondary/40");
+        item.scrollIntoView({ block: "nearest" });
+      } else {
+        item.classList.remove("bg-base-200", "ring-1", "ring-secondary/40");
+      }
+    });
+  }
+
+  if (comboboxInput) {
+    comboboxInput.addEventListener("focus", () => {
+      comboboxInput.select();
+      openCombobox();
+    });
+
+    comboboxInput.addEventListener("input", () => {
+      const val = comboboxInput.value;
+      if (comboboxClear) {
+        if (val) comboboxClear.classList.remove("hidden");
+        else comboboxClear.classList.add("hidden");
+      }
+      openCombobox();
+    });
+
+    comboboxInput.addEventListener("keydown", (e) => {
+      if (comboboxDropdown?.classList.contains("hidden")) {
+        if (e.key === "ArrowDown" || e.key === "Enter") {
+          openCombobox();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (currentFilteredAgents.length > 0) {
+          highlightedIndex =
+            (highlightedIndex + 1) % currentFilteredAgents.length;
+          updateHighlight();
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (currentFilteredAgents.length > 0) {
+          highlightedIndex =
+            (highlightedIndex - 1 + currentFilteredAgents.length) %
+            currentFilteredAgents.length;
+          updateHighlight();
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (
+          highlightedIndex >= 0 &&
+          highlightedIndex < currentFilteredAgents.length
+        ) {
+          navigateToOperator(currentFilteredAgents[highlightedIndex].id);
+        } else if (currentFilteredAgents.length === 1) {
+          navigateToOperator(currentFilteredAgents[0].id);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        comboboxInput.value = currentAgentName;
+        closeCombobox();
+        comboboxInput.blur();
+      }
+    });
+  }
+
+  if (comboboxClear) {
+    comboboxClear.addEventListener("click", () => {
+      if (comboboxInput) {
+        comboboxInput.value = "";
+        comboboxClear.classList.add("hidden");
+        comboboxInput.focus();
+        renderComboboxItems("");
+      }
+    });
+  }
+
+  // Click outside cierra el dropdown y restaura el nombre
+  document.addEventListener("click", (e) => {
+    if (comboboxRoot && !comboboxRoot.contains(e.target)) {
+      if (!comboboxDropdown?.classList.contains("hidden")) {
+        closeCombobox();
+        if (comboboxInput && comboboxInput.value !== currentAgentName) {
+          comboboxInput.value = currentAgentName;
+        }
+      }
+    }
+  });
+
+  // Atajo "/" o Ctrl+K / Cmd+K para enfocar el combobox
+  document.addEventListener("keydown", (e) => {
+    const target = e.target;
+    if (
+      !target ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+    if (
+      e.key === "/" ||
+      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")
+    ) {
+      e.preventDefault();
+      comboboxInput?.focus();
+      comboboxInput?.select();
+    }
   });
 
   // 2. Cache en memoria y estado
@@ -537,21 +803,27 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       });
     }
 
+    const workedDays = punctuals + lates;
     const punctualityRate =
-      totalWorkDays > 0 ? Math.round((punctuals / totalWorkDays) * 100) : 100;
+      workedDays > 0 ? Math.round((punctuals / workedDays) * 100) : 100;
+    const attendanceRate =
+      totalWorkDays > 0 ? Math.round((workedDays / totalWorkDays) * 100) : 100;
 
     return {
       totalWorkDays,
+      workedDays,
       punctuals,
       lates,
       failed,
       absences,
       punctualityRate,
+      attendanceRate,
     };
   }
 
   function updateKpiDisplays(summary) {
     if (!summary) return;
+    if (kpiAttendance) kpiAttendance.textContent = `${summary.attendanceRate ?? "--"}%`;
     if (kpiRate) kpiRate.textContent = `${summary.punctualityRate ?? "--"}%`;
     if (kpiLates) kpiLates.textContent = String(summary.lates ?? "--");
     if (kpiAbsences) kpiAbsences.textContent = String(summary.absences ?? "--");
@@ -882,17 +1154,21 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
             </div>
             ${badgeHtml}
           </div>
-          <div class="grid grid-cols-3 gap-1.5 text-center bg-base-200/40 rounded-xl p-2 border border-base-300/30">
+          <div class="grid grid-cols-4 gap-1 text-center bg-base-200/40 rounded-xl p-1.5 sm:p-2 border border-base-300/30">
             <div>
-              <span class="text-xxs block font-bold text-base-content/40 uppercase">Puntual</span>
-              <span class="text-xs font-black ${hasRecords ? "text-base-content" : "text-base-content/30"}">${hasRecords ? `${stats.punctualityRate}%` : "--"}</span>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Presentismo">Pres.</span>
+              <span class="text-xs font-black ${hasRecords ? "text-secondary" : "text-base-content/30"}">${hasRecords ? `${stats.attendanceRate}%` : "--"}</span>
             </div>
             <div>
-              <span class="text-xxs block font-bold text-base-content/40 uppercase">Tardanzas</span>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Puntualidad">Punt.</span>
+              <span class="text-xs font-black ${hasRecords ? "text-secondary" : "text-base-content/30"}">${hasRecords ? `${stats.punctualityRate}%` : "--"}</span>
+            </div>
+            <div>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Tardanzas">Tard.</span>
               <span class="text-xs font-black ${stats.lates > 0 ? "text-warning" : "text-base-content/50"}">${hasRecords ? stats.lates : "--"}</span>
             </div>
             <div>
-              <span class="text-xxs block font-bold text-base-content/40 uppercase">Ausencias</span>
+              <span class="text-xxs block font-bold text-base-content/40 uppercase truncate" title="Ausencias">Aus.</span>
               <span class="text-xs font-black ${stats.absences > 0 ? "text-violet-500" : "text-base-content/50"}">${hasRecords ? stats.absences : "--"}</span>
             </div>
           </div>
@@ -1449,14 +1725,17 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
       csvSections.push([
         "Mes",
         "Total Días",
+        "Días Trabajados",
         "Puntuales",
         "Tardanzas",
         "Ausencias",
         "Incumplió",
+        "% Presentismo",
         "% Puntualidad"
       ].map(cleanCsvCell).join(","));
 
       let sumWorkDays = 0;
+      let sumWorked = 0;
       let sumPunctuals = 0;
       let sumLates = 0;
       let sumAbsences = 0;
@@ -1469,33 +1748,40 @@ const years = [currentYear, currentYear - 1, currentYear - 2];
         const stats = calculateSummary(monthRecs);
 
         sumWorkDays += stats.totalWorkDays;
+        sumWorked += stats.workedDays;
         sumPunctuals += stats.punctuals;
         sumLates += stats.lates;
         sumAbsences += stats.absences;
         sumFailed += stats.failed;
 
+        const presStr = monthRecs.length > 0 ? `${stats.attendanceRate}%` : "--";
         const rateStr = monthRecs.length > 0 ? `${stats.punctualityRate}%` : "--";
         const row = [
           mName,
           stats.totalWorkDays,
+          stats.workedDays,
           stats.punctuals,
           stats.lates,
           stats.absences,
           stats.failed,
+          presStr,
           rateStr
         ];
         csvSections.push(row.map(cleanCsvCell).join(","));
       });
 
-      const globalRate = sumWorkDays > 0 ? `${Math.round((sumPunctuals / sumWorkDays) * 100)}%` : "--";
+      const globalAttendance = sumWorkDays > 0 ? `${Math.round((sumWorked / sumWorkDays) * 100)}%` : "--";
+      const globalPunctuality = sumWorked > 0 ? `${Math.round((sumPunctuals / sumWorked) * 100)}%` : "--";
       csvSections.push([
         "TOTAL ANUAL",
         sumWorkDays,
+        sumWorked,
         sumPunctuals,
         sumLates,
         sumAbsences,
         sumFailed,
-        globalRate
+        globalAttendance,
+        globalPunctuality
       ].map(cleanCsvCell).join(","));
 
       csvSections.push([]);

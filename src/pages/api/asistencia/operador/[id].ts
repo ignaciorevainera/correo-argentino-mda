@@ -256,8 +256,11 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
       }
     });
 
+    const workedDays = punctuals + lates;
     const punctualityRate =
-      totalWorkDays > 0 ? Math.round((punctuals / totalWorkDays) * 100) : 100;
+      workedDays > 0 ? Math.round((punctuals / workedDays) * 100) : 100;
+    const attendanceRate =
+      totalWorkDays > 0 ? Math.round((workedDays / totalWorkDays) * 100) : 100;
 
     return jsonResponse(
       {
@@ -265,10 +268,12 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         period: { year, month },
         summary: {
           totalWorkDays,
+          workedDays,
           punctuals,
           lates,
           failed,
           absences,
+          attendanceRate,
           punctualityRate,
         },
         records: filteredLogs.map((log) => {

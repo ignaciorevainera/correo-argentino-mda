@@ -168,105 +168,142 @@ const initialData = await getAttendanceData(startDate, endDate);
     </div>
   </div>
 
-  <!-- Operator Details Sheet -->
+  <!-- Operator Section: Master-Detail -->
   <div
     class="bg-base-100 border-base-300 flex w-full flex-col gap-4 rounded-2xl border p-5 shadow-sm"
+    id="operator-section"
   >
+    <!-- Section Header: Dynamic based on view -->
     <div
-      class="border-base-200 flex items-center justify-between border-b pb-3"
+      class="border-base-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3"
     >
-      <h3
-        class="text-base-content/70 text-xs font-black tracking-wider uppercase"
-      >
-        Ficha del Operador
-      </h3>
       <div class="flex items-center gap-2">
-        <select
-          id="operator-select"
-          class="select select-sm select-bordered w-full max-w-50 rounded-xl text-xs font-bold"
+        <h3
+          id="operator-section-title"
+          class="text-base-content/70 text-xs font-black tracking-wider uppercase"
         >
-          <option value="">Seleccione operador...</option>
-        </select>
+          Fichas Individuales de Operadores
+        </h3>
+        <span
+          id="operator-count-badge"
+          class="badge badge-sm badge-ghost text-base-content/60 font-bold"
+        >
+          0 operadores
+        </span>
+      </div>
+
+      <!-- Controls in Grid Mode -->
+      <div id="operator-grid-controls" class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="relative w-full sm:w-64">
+          <Icon
+            name="boxicons:search"
+            class="text-base-content/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            size={16}
+          />
+          <input
+            type="text"
+            id="operator-search-input"
+            placeholder="Filtrar por nombre..."
+            class="input input-sm input-bordered bg-base-200/50 border-base-300 w-full pl-9 pr-8 rounded-xl text-xs font-bold outline-none focus:border-secondary transition-all"
+          />
+          <button
+            type="button"
+            id="operator-search-clear"
+            class="text-base-content/40 hover:text-base-content absolute right-2.5 top-1/2 -translate-y-1/2 hidden cursor-pointer text-xs font-bold"
+            title="Limpiar filtro"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls in Detail Mode (Hidden initially) -->
+      <div id="operator-detail-controls" class="hidden flex items-center gap-2">
+        <button
+          type="button"
+          id="op-back-to-grid-btn"
+          class="btn btn-sm btn-ghost hover:bg-base-200 gap-1.5 font-bold text-xs"
+        >
+          <Icon name="boxicons:chevron-left" size={16} />
+          Cambiar Operador
+        </button>
         <a
           id="op-history-btn"
-          class="btn btn-sm btn-outline btn-secondary btn-disabled opacity-50 pointer-events-none gap-1 font-bold text-xs transition-all"
+          class="btn btn-sm btn-outline btn-secondary gap-1.5 font-bold text-xs"
+          target="_self"
         >
-          <Icon name="boxicons:history" size={14} />
+          <Icon name="boxicons:history" size={16} />
           Historial Detallado
         </a>
       </div>
     </div>
 
-    <!-- Operator Stats Block -->
+    <!-- Master View: Grid of Quick Cards -->
+    <div id="operator-grid-view" class="flex flex-col gap-3">
+      <div
+        id="operator-cards-container"
+        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[260px] overflow-y-auto p-0.5"
+      >
+        <!-- Cards generated dynamically via JavaScript -->
+      </div>
+      <div
+        id="operator-grid-empty"
+        class="text-base-content/40 hidden py-12 text-center text-xs font-bold"
+      >
+        No se encontraron operadores con ese criterio de búsqueda.
+      </div>
+    </div>
+
+    <!-- Detail View: Operator Stats Block -->
     <div
-      id="operator-stats"
+      id="operator-detail-view"
       class="animate-in fade-in flex hidden flex-col gap-4 duration-300"
     >
+      <!-- Operator Selected Banner -->
+      <div class="flex items-center gap-3 bg-base-200/40 border border-base-300/40 rounded-xl p-3">
+        <div
+          id="op-detail-avatar"
+          class="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center font-black text-sm shrink-0 shadow-xs"
+        >
+          --
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span id="op-detail-name" class="font-black text-sm text-base-content truncate">
+            --
+          </span>
+          <span id="op-detail-month-label" class="text-xxs text-base-content/50 font-bold uppercase tracking-wider">
+            Métricas del período
+          </span>
+        </div>
+      </div>
+
+      <!-- 5 KPIs -->
       <div class="grid grid-cols-2 gap-3 min-[640px]:grid-cols-5">
-        <div
-          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
-        >
-          <span
-            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
-            >Puntualidad</span
-          >
-          <span
-            class="text-secondary text-base font-black"
-            id="op-kpi-punctuality">--%</span
-          >
+        <div class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center">
+          <span class="text-micro text-base-content/40 block font-black tracking-wider uppercase">Puntualidad</span>
+          <span class="text-secondary text-base font-black" id="op-kpi-punctuality">--%</span>
         </div>
-        <div
-          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
-        >
-          <span
-            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
-            >Cumplió</span
-          >
-          <span class="text-base font-black text-emerald-500" id="op-kpi-worked"
-            >--</span
-          >
+        <div class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center">
+          <span class="text-micro text-base-content/40 block font-black tracking-wider uppercase">Cumplió</span>
+          <span class="text-base font-black text-emerald-500" id="op-kpi-worked">--</span>
         </div>
-        <div
-          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
-        >
-          <span
-            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
-            >Tarde / Retiro</span
-          >
-          <span class="text-warning text-base font-black" id="op-kpi-lates"
-            >--</span
-          >
+        <div class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center">
+          <span class="text-micro text-base-content/40 block font-black tracking-wider uppercase">Tarde / Retiro</span>
+          <span class="text-warning text-base font-black" id="op-kpi-lates">--</span>
         </div>
-        <div
-          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
-        >
-          <span
-            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
-            >Incumplió</span
-          >
-          <span class="text-error/80 text-base font-black" id="op-kpi-failed"
-            >--</span
-          >
+        <div class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center">
+          <span class="text-micro text-base-content/40 block font-black tracking-wider uppercase">Incumplió</span>
+          <span class="text-error/80 text-base font-black" id="op-kpi-failed">--</span>
         </div>
-        <div
-          class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center"
-        >
-          <span
-            class="text-micro text-base-content/40 block font-black tracking-wider uppercase"
-            >Ausencias / Eventualidades</span
-          >
-          <span
-            class="text-base font-black text-violet-500 dark:text-violet-400"
-            id="op-kpi-absences">--</span
-          >
+        <div class="bg-base-200/50 border-base-300/40 rounded-xl border p-3 text-center">
+          <span class="text-micro text-base-content/40 block font-black tracking-wider uppercase">Ausencias / Eventualidades</span>
+          <span class="text-base font-black text-violet-500 dark:text-violet-400" id="op-kpi-absences">--</span>
         </div>
       </div>
 
       <!-- GitHub-Style Contribution Calendar -->
       <div>
-        <h4
-          class="text-xxs text-base-content/40 mb-2 font-bold tracking-wider uppercase"
-        >
+        <h4 class="text-xxs text-base-content/40 mb-2 font-bold tracking-wider uppercase">
           Cuadrícula Mensual de Asistencia
         </h4>
         <div
@@ -276,43 +313,24 @@ const initialData = await getAttendanceData(startDate, endDate);
           <!-- Casillas 1..31 -->
         </div>
         <!-- Grid Legend -->
-        <div
-          class="text-tiny text-base-content/40 mt-3 flex items-center gap-3 font-bold select-none"
-        >
+        <div class="text-tiny text-base-content/40 mt-3 flex items-center gap-3 font-bold select-none">
           <div class="flex items-center gap-1">
-            <span
-              class="h-2.5 w-2.5 rounded border border-emerald-500/30 bg-emerald-500/20"
-            ></span> Cumplió
+            <span class="h-2.5 w-2.5 rounded border border-emerald-500/30 bg-emerald-500/20"></span> Cumplió
           </div>
           <div class="flex items-center gap-1">
-            <span
-              class="h-2.5 w-2.5 rounded border border-amber-500/30 bg-amber-500/20"
-            ></span> Tarde / Retiro
+            <span class="h-2.5 w-2.5 rounded border border-amber-500/30 bg-amber-500/20"></span> Tarde / Retiro
           </div>
           <div class="flex items-center gap-1">
-            <span class="bg-error/15 border-error/30 h-2.5 w-2.5 rounded border"
-            ></span> Incumplió
+            <span class="bg-error/15 border-error/30 h-2.5 w-2.5 rounded border"></span> Incumplió
           </div>
           <div class="flex items-center gap-1">
-            <span
-              class="h-2.5 w-2.5 rounded border border-violet-500/30 bg-violet-500/20"
-            ></span> Ausencia / Eventualidad
+            <span class="h-2.5 w-2.5 rounded border border-violet-500/30 bg-violet-500/20"></span> Ausencia / Eventualidad
           </div>
           <div class="flex items-center gap-1">
-            <span
-              class="bg-base-200/50 border-base-300/40 h-2.5 w-2.5 rounded border"
-            ></span> Franco
+            <span class="bg-base-200/50 border-base-300/40 h-2.5 w-2.5 rounded border"></span> Franco
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Empty state when no operator is selected -->
-    <div
-      id="operator-empty-state"
-      class="text-base-content/40 py-12 text-center font-medium"
-    >
-      Seleccione un operador en el menú superior para ver su ficha estadística.
     </div>
   </div>
 
@@ -388,9 +406,7 @@ const initialData = await getAttendanceData(startDate, endDate);
   const monthInput = document.getElementById(
     "analytics-month",
   ) as HTMLInputElement;
-  const operatorSelect = document.getElementById(
-    "operator-select",
-  ) as HTMLSelectElement;
+  let currentSelectedAgentId: number | null = null;
 
   function processGlobalMetrics() {
     const schedulesWithTime = rawLogs.filter(
@@ -816,10 +832,30 @@ const initialData = await getAttendanceData(startDate, endDate);
     const opLogs = rawLogs.filter((log) => log.agentId === agentId);
     if (opLogs.length === 0) return;
 
-    const emptyState = document.getElementById("operator-empty-state");
-    const statsBlock = document.getElementById("operator-stats");
-    if (emptyState) emptyState.classList.add("hidden");
-    if (statsBlock) statsBlock.classList.remove("hidden");
+    const opName = opLogs[0]?.nombre || "Operador";
+    const initials = opName
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
+
+    const nameEl = document.getElementById("op-detail-name");
+    const avatarEl = document.getElementById("op-detail-avatar");
+    const monthLabel = document.getElementById("op-detail-month-label");
+    const historyBtn = document.getElementById(
+      "op-history-btn",
+    ) as HTMLAnchorElement | null;
+
+    if (nameEl) nameEl.textContent = opName;
+    if (avatarEl) avatarEl.textContent = initials;
+    if (monthLabel && monthInput && monthInput.value) {
+      const [y, m] = monthInput.value.split("-");
+      monthLabel.textContent = `Métricas del período: ${m}/${y}`;
+    }
+    if (historyBtn) {
+      historyBtn.href = `${getCleanBase()}supervision/asistencia/operador/${agentId}`;
+    }
 
     const schedulesWithTime = opLogs.filter(
       (log) =>
@@ -940,7 +976,7 @@ const initialData = await getAttendanceData(startDate, endDate);
         cell.className = `w-8 h-8 rounded-lg flex items-center justify-center text-xxs font-black cursor-pointer shadow-sm transition-transform duration-200 hover:scale-110 hover:z-10 relative ${colorClass}`;
         cell.textContent = String(day);
 
-        // Highlight absences with a red dot indicator (filtering out obsolete/invalid types)
+        // Highlight absences with a indicator
         const validAusencias = [
           "Tramite",
           "Demorado",
@@ -988,28 +1024,218 @@ const initialData = await getAttendanceData(startDate, endDate);
     }
   }
 
-  operatorSelect?.addEventListener("change", () => {
-    const val = operatorSelect.value;
-    const historyBtn = document.getElementById(
-      "op-history-btn",
-    ) as HTMLAnchorElement;
-    if (!val) {
-      if (historyBtn) {
-        historyBtn.classList.add("btn-disabled", "opacity-50", "pointer-events-none");
-        historyBtn.removeAttribute("href");
+  function selectOperator(agentId: number) {
+    currentSelectedAgentId = agentId;
+    const gridView = document.getElementById("operator-grid-view");
+    const gridControls = document.getElementById("operator-grid-controls");
+    const detailView = document.getElementById("operator-detail-view");
+    const detailControls = document.getElementById("operator-detail-controls");
+    const title = document.getElementById("operator-section-title");
+    const countBadge = document.getElementById("operator-count-badge");
+
+    if (gridView) gridView.classList.add("hidden");
+    if (gridControls) gridControls.classList.add("hidden");
+    if (countBadge) countBadge.classList.add("hidden");
+    if (detailView) detailView.classList.remove("hidden");
+    if (detailControls) detailControls.classList.remove("hidden");
+    if (title) title.textContent = "Ficha del Operador";
+
+    showOperatorDetails(agentId);
+  }
+
+  function returnToGrid() {
+    currentSelectedAgentId = null;
+    const gridView = document.getElementById("operator-grid-view");
+    const gridControls = document.getElementById("operator-grid-controls");
+    const detailView = document.getElementById("operator-detail-view");
+    const detailControls = document.getElementById("operator-detail-controls");
+    const title = document.getElementById("operator-section-title");
+    const countBadge = document.getElementById("operator-count-badge");
+
+    if (detailView) detailView.classList.add("hidden");
+    if (detailControls) detailControls.classList.add("hidden");
+    if (gridView) gridView.classList.remove("hidden");
+    if (gridControls) gridControls.classList.remove("hidden");
+    if (countBadge) countBadge.classList.remove("hidden");
+    if (title) title.textContent = "Fichas Individuales de Operadores";
+
+    const input = document.getElementById(
+      "operator-search-input",
+    ) as HTMLInputElement | null;
+    if (input) input.focus();
+  }
+
+  function renderOperatorGrid() {
+    const container = document.getElementById("operator-cards-container");
+    const countBadge = document.getElementById("operator-count-badge");
+    const emptyEl = document.getElementById("operator-grid-empty");
+    if (!container) return;
+
+    // Agrupar logs por operador
+    const operatorLogsMap = new Map<number, { name: string; logs: any[] }>();
+    rawLogs.forEach((log) => {
+      if (!operatorLogsMap.has(log.agentId)) {
+        operatorLogsMap.set(log.agentId, { name: log.nombre, logs: [] });
       }
-      const emptyState = document.getElementById("operator-empty-state");
-      const statsBlock = document.getElementById("operator-stats");
-      if (emptyState) emptyState.classList.remove("hidden");
-      if (statsBlock) statsBlock.classList.add("hidden");
-    } else {
-      if (historyBtn) {
-        historyBtn.href = `${getCleanBase()}supervision/asistencia/operador/${val}`;
-        historyBtn.classList.remove("btn-disabled", "opacity-50", "pointer-events-none");
+      operatorLogsMap.get(log.agentId)!.logs.push(log);
+    });
+
+    const sortedOps = Array.from(operatorLogsMap.entries()).sort((a, b) =>
+      a[1].name.localeCompare(b[1].name),
+    );
+
+    if (countBadge) {
+      countBadge.textContent = `${sortedOps.length} ${sortedOps.length === 1 ? "operador" : "operadores"}`;
+    }
+
+    container.innerHTML = "";
+    if (sortedOps.length === 0) {
+      if (emptyEl) {
+        emptyEl.textContent =
+          "No hay registros de operadores para el mes seleccionado.";
+        emptyEl.classList.remove("hidden");
       }
-      showOperatorDetails(parseInt(val));
+      return;
+    }
+
+    sortedOps.forEach(([agentId, data]) => {
+      const { name, logs } = data;
+      const initials = name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+
+      const schedulesWithTime = logs.filter(
+        (log) =>
+          (log.horarioEstipulado &&
+            log.horarioEstipulado !== "Franco" &&
+            log.cumplimiento &&
+            log.cumplimiento !== "Sin Registro") ||
+          (log.cumplimientoForzado &&
+            log.cumplimiento &&
+            log.cumplimiento !== "Sin Registro"),
+      );
+      const totalSchedules = schedulesWithTime.length;
+      const punctuals = schedulesWithTime.filter(
+        (log) => log.cumplimiento === "Cumplió",
+      ).length;
+      const punctualityRate =
+        totalSchedules > 0
+          ? Math.round((punctuals / totalSchedules) * 100)
+          : 100;
+      const worked = logs.filter(
+        (log) => log.cumplimiento === "Cumplió",
+      ).length;
+
+      let badgeBg =
+        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+      if (punctualityRate < 75) {
+        badgeBg =
+          "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30";
+      } else if (punctualityRate < 90) {
+        badgeBg =
+          "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+      }
+
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className =
+        "operator-mini-card group flex items-center justify-between gap-2.5 p-3 rounded-xl border border-base-200/80 bg-base-100 hover:border-secondary/50 hover:bg-base-200/50 transition-all text-left cursor-pointer shadow-xs";
+      card.setAttribute("data-agent-id", String(agentId));
+      card.setAttribute("data-name", name.toLowerCase());
+
+      card.innerHTML = `
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-secondary group-hover:text-secondary-content transition-colors">
+            ${initials}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-bold text-base-content truncate group-hover:text-secondary transition-colors" title="${name}">
+              ${name}
+            </span>
+            <span class="text-micro text-base-content/50 font-semibold">
+              ${worked} asistencias
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <span class="px-1.5 py-0.5 rounded-md text-micro font-black border ${badgeBg}">
+            ${punctualityRate}%
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-base-content/30 group-hover:text-secondary group-hover:translate-x-0.5 transition-all">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        selectOperator(agentId);
+      });
+
+      container.appendChild(card);
+    });
+
+    filterOperatorGrid();
+  }
+
+  function filterOperatorGrid() {
+    const input = document.getElementById(
+      "operator-search-input",
+    ) as HTMLInputElement | null;
+    const clearBtn = document.getElementById("operator-search-clear");
+    const container = document.getElementById("operator-cards-container");
+    const emptyEl = document.getElementById("operator-grid-empty");
+    if (!container) return;
+
+    const query = (input?.value || "").trim().toLowerCase();
+    if (clearBtn) {
+      if (query) clearBtn.classList.remove("hidden");
+      else clearBtn.classList.add("hidden");
+    }
+
+    const cards =
+      container.querySelectorAll<HTMLElement>(".operator-mini-card");
+    let visibleCount = 0;
+    cards.forEach((card) => {
+      const name = card.getAttribute("data-name") || "";
+      if (!query || name.includes(query)) {
+        card.classList.remove("hidden");
+        visibleCount++;
+      } else {
+        card.classList.add("hidden");
+      }
+    });
+
+    if (emptyEl) {
+      if (visibleCount === 0 && cards.length > 0) {
+        emptyEl.textContent =
+          "No se encontraron operadores con ese criterio de búsqueda.";
+        emptyEl.classList.remove("hidden");
+      } else if (cards.length > 0) {
+        emptyEl.classList.add("hidden");
+      }
+    }
+  }
+
+  const searchInput = document.getElementById("operator-search-input");
+  searchInput?.addEventListener("input", filterOperatorGrid);
+
+  const searchClearBtn = document.getElementById("operator-search-clear");
+  searchClearBtn?.addEventListener("click", () => {
+    const input = document.getElementById(
+      "operator-search-input",
+    ) as HTMLInputElement | null;
+    if (input) {
+      input.value = "";
+      filterOperatorGrid();
+      input.focus();
     }
   });
+
+  const backToGridBtn = document.getElementById("op-back-to-grid-btn");
+  backToGridBtn?.addEventListener("click", returnToGrid);
 
   function getDaysInMonth(year: number, month: number): number {
     return new Date(year, month, 0).getDate();
@@ -1045,23 +1271,20 @@ const initialData = await getAttendanceData(startDate, endDate);
       delete statsWindow.__STATS_INITIAL_DATA__;
       delete statsWindow.__STATS_INITIAL_DATA_MONTH__;
       processGlobalMetrics();
-      populateOperatorDropdown();
+      renderOperatorGrid();
       updateCharts();
       if (activeCategory) {
         showEventualityDetail(activeCategory.label, activeCategory.color);
       }
-      const historyBtn = document.getElementById(
-        "op-history-btn",
-      ) as HTMLAnchorElement;
-      if (operatorSelect.value) {
-        if (historyBtn) {
-          historyBtn.href = `${getCleanBase()}supervision/asistencia/operador/${operatorSelect.value}`;
-          historyBtn.classList.remove("btn-disabled", "opacity-50", "pointer-events-none");
+      if (currentSelectedAgentId) {
+        const stillExists = rawLogs.some(
+          (l) => l.agentId === currentSelectedAgentId,
+        );
+        if (stillExists) {
+          selectOperator(currentSelectedAgentId);
+        } else {
+          returnToGrid();
         }
-        showOperatorDetails(parseInt(operatorSelect.value));
-      } else if (historyBtn) {
-        historyBtn.classList.add("btn-disabled", "opacity-50", "pointer-events-none");
-        historyBtn.removeAttribute("href");
       }
       return;
     }
@@ -1074,54 +1297,26 @@ const initialData = await getAttendanceData(startDate, endDate);
       rawLogs = await response.json();
 
       processGlobalMetrics();
-      populateOperatorDropdown();
+      renderOperatorGrid();
       updateCharts();
 
       if (activeCategory) {
         showEventualityDetail(activeCategory.label, activeCategory.color);
       }
 
-      const historyBtn = document.getElementById(
-        "op-history-btn",
-      ) as HTMLAnchorElement;
-      if (operatorSelect.value) {
-        if (historyBtn) {
-          historyBtn.href = `${getCleanBase()}supervision/asistencia/operador/${operatorSelect.value}`;
-          historyBtn.classList.remove("btn-disabled", "opacity-50", "pointer-events-none");
+      if (currentSelectedAgentId) {
+        const stillExists = rawLogs.some(
+          (l) => l.agentId === currentSelectedAgentId,
+        );
+        if (stillExists) {
+          selectOperator(currentSelectedAgentId);
+        } else {
+          returnToGrid();
         }
-        showOperatorDetails(parseInt(operatorSelect.value));
-      } else if (historyBtn) {
-        historyBtn.classList.add("btn-disabled", "opacity-50", "pointer-events-none");
-        historyBtn.removeAttribute("href");
       }
     } catch (err) {
       console.error(err);
     }
-  }
-
-  function populateOperatorDropdown() {
-    if (!operatorSelect) return;
-    const currentSelection = operatorSelect.value;
-    operatorSelect.innerHTML =
-      '<option value="">Seleccione operador...</option>';
-
-    const operatorsMap = new Map();
-    rawLogs.forEach((log) => {
-      if (!operatorsMap.has(log.agentId)) {
-        operatorsMap.set(log.agentId, log.nombre);
-      }
-    });
-
-    const sortedOps = Array.from(operatorsMap.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1]),
-    );
-    sortedOps.forEach(([id, name]) => {
-      const opt = document.createElement("option");
-      opt.value = String(id);
-      opt.textContent = name;
-      if (String(id) === currentSelection) opt.selected = true;
-      operatorSelect.appendChild(opt);
-    });
   }
 
   monthInput?.addEventListener("change", loadData);
