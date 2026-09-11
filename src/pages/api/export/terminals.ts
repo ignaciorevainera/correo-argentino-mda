@@ -127,7 +127,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
   if (duplicates) {
     conditions.push(
-      "(t.hostname IN (SELECT hostname FROM terminals WHERE hostname IS NOT NULL AND hostname != '' GROUP BY hostname HAVING COUNT(*) > 1) OR t.ip_address IN (SELECT ip_address FROM terminals WHERE ip_address IS NOT NULL AND ip_address != '' GROUP BY ip_address HAVING COUNT(*) > 1))",
+      "(TRIM(t.ip_address) IN (SELECT TRIM(ip_address) FROM terminals WHERE ip_address IS NOT NULL AND TRIM(ip_address) != '' GROUP BY TRIM(ip_address) HAVING COUNT(*) > 1) OR LOWER(TRIM(t.mac_address)) IN (SELECT LOWER(TRIM(mac_address)) FROM terminals WHERE mac_address IS NOT NULL AND TRIM(mac_address) != '' GROUP BY LOWER(TRIM(mac_address)) HAVING COUNT(*) > 1) OR LOWER(TRIM(t.hostname)) IN (SELECT LOWER(TRIM(hostname)) FROM terminals WHERE hostname IS NOT NULL AND TRIM(hostname) != '' GROUP BY LOWER(TRIM(hostname)) HAVING COUNT(*) > 1))",
     );
   }
 
