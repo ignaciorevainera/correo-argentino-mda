@@ -295,4 +295,103 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
         asignableAgs: true,
       });
   });
+
+  test("POST JSON change-role responde 200 success y aplica cambios", async ({
+    context,
+  }) => {
+    const uname = `json_cr_${Date.now()}`;
+    const { userId, agentId } = await seedUserWithAgent(
+      uname,
+      "agent",
+      MDA_TI,
+      {
+        enCronograma: true,
+        asignableCubic: true,
+        incluidoCalidad: true,
+        asignableAgs: true,
+      },
+    );
+    const [coord] = await db
+      .select({ invgateId: mesas.invgateId, name: mesas.name })
+      .from(mesas)
+      .where(eq(mesas.name, COORD));
+    await login(context, adminCookie);
+
+    // context.request comparte el cookie jar con el contexto (a diferencia del
+    // fixture `request` suelto). Si el POST AJAX falla, el server devuelve 400
+    // aunque los cambios se apliquen por autocommit (bug better-sqlite3 async tx).
+    const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
+    const res = await context.request.post(
+      new URL("/admin/usuarios", baseURL).href,
+      {
+        form: {
+          action: "change-role",
+          userId: String(userId),
+          newRole: "agent",
+          helpdesk: `${coord.invgateId}|${coord.name}`,
+        },
+        headers: { Accept: "application/json" },
+      },
+    );
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+
+    expect(await readFlags(agentId)).toEqual({
+      enCronograma: false,
+      asignableCubic: false,
+      incluidoCalidad: false,
+      asignableAgs: false,
+    });
+    const [u] = await db
+      .select({ helpdeskId: users.helpdeskId, helpdeskName: users.helpdeskName })
+      .from(users)
+      .where(eq(users.id, userId));
+    expect(u.helpdeskName).toBe(COORD);
+  });
+
+  test("dejar sin mesa resetea participaciones", async ({ page }) => {
+    const uname = `flags_nomesa_${Date.now()}`;
+    const { userId, agentId } = await seedUserWithAgent(
+      uname,
+      "agent",
+      MDA_TI,
+      {
+        enCronograma: true,
+        asignableCubic: true,
+        incluidoCalidad: true,
+        asignableAgs: true,
+      },
+    );
+
+    await openChangeRole(page, userId);
+    await page.locator("#change-role-helpdesk-select").selectOption("");
+    await page.locator("#change-role-select").selectOption("agent");
+    await submitChangeRole(page);
+
+    await expect
+      .poll(
+        async () => {
+          const [u] = await db
+            .select({
+              helpdeskId: users.helpdeskId,
+              helpdeskName: users.helpdeskName,
+            })
+            .from(users)
+            .where(eq(users.id, userId));
+          return { id: u?.helpdeskId, name: u?.helpdeskName };
+        },
+        { timeout: 10000 },
+      )
+      .toEqual({ id: null, name: null });
+
+    await expect
+      .poll(async () => readFlags(agentId), { timeout: 10000 })
+      .toEqual({
+        enCronograma: false,
+        asignableCubic: false,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      });
+  });
 });

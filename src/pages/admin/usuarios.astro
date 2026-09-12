@@ -94,31 +94,42 @@ if (Astro.request.method === "POST") {
 
         try {
           const hashedPassword = await hashPassword(password);
-          await db.transaction(async (tx) => {
-            await tx.insert(users).values({
-              username,
-              password: hashedPassword,
-              role: role as any,
-              helpdeskId,
-              helpdeskName,
-            });
+          // better-sqlite3 commitea sincrónicamente al retornar el callback:
+          // usando async/await el driver lanza "Transaction function cannot
+          // return a promise", hace rollback y las statements se ejecutan en
+          // autocommit. Callback SÍNCRONO + .run()/.get().
+          db.transaction((tx) => {
+            tx.insert(users)
+              .values({
+                username,
+                password: hashedPassword,
+                role: role as any,
+                helpdeskId,
+                helpdeskName,
+              })
+              .run();
 
-            const [existingAgent] = await tx
+            const existingAgent = tx
               .select({ id: agents.id })
               .from(agents)
-              .where(sql`lower(coalesce(${agents.username}, '')) = ${username}`);
+              .where(
+                sql`lower(coalesce(${agents.username}, '')) = ${username}`,
+              )
+              .get();
 
             if (existingAgent) {
-              await tx
-                .update(agents)
+              tx.update(agents)
                 .set({ name, ...finalParticipaciones })
-                .where(eq(agents.id, existingAgent.id));
+                .where(eq(agents.id, existingAgent.id))
+                .run();
             } else {
-              await tx.insert(agents).values({
-                name,
-                username,
-                ...finalParticipaciones,
-              });
+              tx.insert(agents)
+                .values({
+                  name,
+                  username,
+                  ...finalParticipaciones,
+                })
+                .run();
             }
           });
           successMsg = `Usuario "${username}" creado con éxito.`;
@@ -203,17 +214,17 @@ if (Astro.request.method === "POST") {
         } else {
           const oldName = existingAgent.name;
 
-          await db.transaction(async (tx) => {
-            await tx
-              .update(agents)
+          db.transaction((tx) => {
+            tx.update(agents)
               .set({ name: newName })
-              .where(eq(agents.id, existingAgent.id));
+              .where(eq(agents.id, existingAgent.id))
+              .run();
 
             if (oldName !== newName) {
-              await tx
-                .update(schedules)
+              tx.update(schedules)
                 .set({ agentName: newName })
-                .where(eq(schedules.agentName, oldName));
+                .where(eq(schedules.agentName, oldName))
+                .run();
             }
           });
 
@@ -331,50 +342,50 @@ if (Astro.request.method === "POST") {
         const oldRole = targetUser?.role || "desconocido";
         const oldHelpdesk = targetUser?.helpdeskName || "Sin mesa de ayuda";
 
-        await db.transaction(async (tx) => {
-          await tx
-            .update(users)
-            .set({ role: newRole as any, helpdeskId, helpdeskName })
-            .where(eq(users.id, userId));
+        // Politica de participaciones por mesa: al mover a una mesa no
+        // participativa (o dejar sin mesa) se resetean; un supervisor nunca
+        // figura en cronograma. Evita el "fantasma" del agente en
+        // cronograma/calidad/cubics/guardia de otra mesa.
+        const resetFlags = !(mesaRow && mesaHasParticipaciones(mesaRow.name));
+        const resetParticipaciones = resetFlags || newRole === "supervisor";
 
-          // Politica de participaciones por mesa: al mover a una mesa no
-          // participativa (o dejar sin mesa) se resetean; un supervisor nunca
-          // figura en cronograma. Evita el "fantasma" del agente en
-          // cronograma/calidad/cubics/guardia de otra mesa.
-          const [targetAgent] = await tx
+        // Callback SÍNCRONO: better-sqlite3 no admite promesas en
+        // transaction() (lanza TypeError y hace rollback).
+        db.transaction((tx) => {
+          tx.update(users)
+            .set({ role: newRole as any, helpdeskId, helpdeskName })
+            .where(eq(users.id, userId))
+            .run();
+
+          const targetAgent = tx
             .select({ id: agents.id })
             .from(agents)
             .where(
               sql`lower(coalesce(${agents.username}, '')) = lower(${targetUsername})`,
-            );
+            )
+            .get();
 
-          if (targetAgent) {
-            const mesaParticipativa = mesaRow
-              ? mesaHasParticipaciones(mesaRow.name)
-              : false;
-            const resetFlags = !mesaParticipativa;
-            if (resetFlags || newRole === "supervisor") {
-              await tx
-                .update(agents)
-                .set({
-                  ...(resetFlags
-                    ? {
-                        enCronograma: false,
-                        asignableCubic: false,
-                        incluidoCalidad: false,
-                        asignableAgs: false,
-                      }
-                    : {}),
-                  ...(newRole === "supervisor" ? { enCronograma: false } : {}),
-                })
-                .where(eq(agents.id, targetAgent.id));
-            }
+          if (targetAgent && resetParticipaciones) {
+            tx.update(agents)
+              .set({
+                ...(resetFlags
+                  ? {
+                      enCronograma: false,
+                      asignableCubic: false,
+                      incluidoCalidad: false,
+                      asignableAgs: false,
+                    }
+                  : {}),
+                ...(newRole === "supervisor" ? { enCronograma: false } : {}),
+              })
+              .where(eq(agents.id, targetAgent.id))
+              .run();
           }
         });
         successMsg = "Rol y mesa de ayuda actualizados con éxito.";
         await logAdminFromAstro(
           Astro.locals,
-          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin mesa de ayuda"}"`,
+          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin mesa de ayuda"}"${resetParticipaciones ? " (participaciones reseteadas)" : ""}`,
         );
       } catch (e) {
         errorMsg = "Error al actualizar el usuario.";
