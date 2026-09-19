@@ -132,16 +132,34 @@ test.describe("Banner de usuarios sin mesa de ayuda", () => {
     await expect(banner).toContainText("sin mesa de ayuda asignada");
 
     // El conteo del banner debe reflejar la cantidad real de usuarios sin mesa
-    // (helpdeskId NULL o apuntando a una mesa inexistente).
-    const sinMesa = await db
-      .select({ id: users.id, username: users.username })
-      .from(users)
-      .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
-      .where(or(isNull(users.helpdeskId), isNull(mesas.id)));
-    const shown = sinMesa.length > 20 ? 20 : sinMesa.length;
-    await expect(banner.locator("strong")).toHaveText(String(sinMesa.length));
-    if (shown < sinMesa.length) {
-      await expect(banner).toContainText(`y ${sinMesa.length - shown} más`);
+    // (helpdeskId NULL o apuntando a una mesa inexistente). El banner es un
+    // server island: su render y la query pueden caer a distinto lado de una
+    // escritura concurrente, asi que recargamos y comparamos hasta que el
+    // render coincida con la DB (evita el falso rojo sin volverlo vacio).
+    const sinMesaQuery = () =>
+      db
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
+        .where(or(isNull(users.helpdeskId), isNull(mesas.id)));
+
+    let matchedCount = -1;
+    for (let attempt = 0; attempt < 6 && matchedCount < 0; attempt++) {
+      if (attempt > 0) await page.waitForTimeout(1000);
+      await page.reload();
+      await expect(banner).toBeVisible();
+      const rendered = Number((await banner.locator("strong").innerText()).trim());
+      const sinMesa = await sinMesaQuery();
+      if (rendered === sinMesa.length) matchedCount = rendered;
+    }
+    expect(
+      matchedCount,
+      "el conteo del banner debe coincidir con la DB",
+    ).toBeGreaterThanOrEqual(0);
+
+    const shown = matchedCount > 20 ? 20 : matchedCount;
+    if (shown < matchedCount) {
+      await expect(banner).toContainText(`y ${matchedCount - shown} más`);
     }
   });
 

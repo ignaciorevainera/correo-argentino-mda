@@ -558,6 +558,57 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     expect(rows.length).toBe(0);
   });
 
+  test("alta distingue duplicado de username vs de nombre de agente", async () => {
+    // 1) username duplicado: choca el UNIQUE de users.username.
+    const dupUser = matrix["agent|mda"];
+    const resUsername = await adminForm(adminCookie, {
+      action: "create",
+      name: shortUsername("DupName"),
+      username: dupUser.username,
+      password: PASSWORD,
+      role: "agent",
+      helpdesk: `${mdaId}|${MDA_TI_HELPDESK}`,
+    });
+    expect(resUsername.status).toBe(400);
+    expect(String(resUsername.json?.error)).toContain("nombre de usuario");
+
+    // 2) nombre de agente duplicado: users inserta, agents.name UNIQUE falla
+    // y la transaccion hace rollback completo (no queda usuario huerfano).
+    const dupName = `DupAgente ${shortUsername("")}`;
+    const firstUsername = shortUsername("lfdn1");
+    const ok = await adminForm(adminCookie, {
+      action: "create",
+      name: dupName,
+      username: firstUsername,
+      password: PASSWORD,
+      role: "agent",
+      helpdesk: `${mdaId}|${MDA_TI_HELPDESK}`,
+    });
+    expect(ok.status).toBe(200);
+    const [firstRow] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, firstUsername));
+    registerCreatedUser(firstRow.id, firstUsername);
+
+    const secondUsername = shortUsername("lfdn2");
+    const resName = await adminForm(adminCookie, {
+      action: "create",
+      name: dupName,
+      username: secondUsername,
+      password: PASSWORD,
+      role: "agent",
+      helpdesk: `${mdaId}|${MDA_TI_HELPDESK}`,
+    });
+    expect(resName.status).toBe(400);
+    expect(String(resName.json?.error)).toContain("nombre completo");
+    const orphans = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, secondUsername));
+    expect(orphans.length).toBe(0);
+  });
+
   // -------- Guards de API con roles legacy -----------------------------------
   test("guards API: variantes legacy se normalizan (no bypass)", async () => {
     // support-guides/assign exige supervisor.

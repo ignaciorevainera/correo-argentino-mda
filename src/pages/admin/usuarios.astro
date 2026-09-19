@@ -140,9 +140,17 @@ if (Astro.request.method === "POST") {
         } catch (e) {
           console.error("[usuarios] Error al crear usuario:", e);
           const msg = e instanceof Error ? e.message : String(e);
-          errorMsg = msg.includes("UNIQUE constraint failed")
-            ? "Error: El nombre de usuario ya existe."
-            : "Error al crear el usuario.";
+          // La transaccion inserta users (username UNIQUE) y agents (name
+          // UNIQUE): distinguir la columna evita reportar "usuario ya existe"
+          // cuando en realidad choco el nombre completo del agente.
+          if (msg.includes("users.username")) {
+            errorMsg = "Error: El nombre de usuario ya existe.";
+          } else if (msg.includes("agents.name")) {
+            errorMsg =
+              "Error: Ya existe un agente con ese nombre completo.";
+          } else {
+            errorMsg = "Error al crear el usuario.";
+          }
         }
       }
     }
