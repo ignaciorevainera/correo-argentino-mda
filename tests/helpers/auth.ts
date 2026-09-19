@@ -1,4 +1,5 @@
 import { createHmac, randomUUID } from "crypto";
+import { test } from "@playwright/test";
 import { db } from "../../src/db/index";
 import { users, sessions } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -54,15 +55,26 @@ export async function cleanupTestUser(
   await db.delete(users).where(eq(users.id, userId));
 }
 
+function resolveCookieDomain(): string {
+  try {
+    const baseURL = test.info().project.use.baseURL;
+    if (baseURL) return new URL(baseURL).hostname;
+  } catch {
+    // test.info() unavailable outside a test runtime
+  }
+  return "127.0.0.1";
+}
+
 export async function setSessionCookie(
   context: any,
   signedSessionId: string,
+  domain?: string,
 ): Promise<void> {
   await context.addCookies([
     {
       name: "session_id",
       value: signedSessionId,
-      domain: "127.0.0.1",
+      domain: domain ?? resolveCookieDomain(),
       path: "/",
     },
   ]);

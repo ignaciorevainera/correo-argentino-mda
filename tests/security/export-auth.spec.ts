@@ -27,22 +27,16 @@ test.describe("S3.4 Export endpoints auth", () => {
     expect(response.status()).toBe(401);
   });
 
-  test("offices: returns 200 with admin session", async ({
-    context,
-    request,
-  }) => {
+  test("offices: returns 200 with admin session", async ({ context }) => {
     await setSessionCookie(context, adminUser.signedSessionId);
-    const response = await request.get("/api/export/offices");
+    const response = await context.request.get("/api/export/offices");
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toContain("text/csv");
   });
 
-  test("terminals: returns 200 with admin session", async ({
-    context,
-    request,
-  }) => {
+  test("terminals: returns 200 with admin session", async ({ context }) => {
     await setSessionCookie(context, adminUser.signedSessionId);
-    const response = await request.get("/api/export/terminals");
+    const response = await context.request.get("/api/export/terminals");
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toContain("text/csv");
   });

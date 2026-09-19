@@ -150,13 +150,12 @@ test("Agente no ve mesas ocultas ni el menu de ocultas", async ({
   context,
   browser,
 }) => {
+  const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
   const adminReq = await test.request.newContext({
-    baseURL: "http://127.0.0.1:4321",
+    baseURL,
     extraHTTPHeaders: { Cookie: `session_id=${adminUser.signedSessionId}` },
   });
-  const agentCtx = await browser.newContext({
-    baseURL: "http://127.0.0.1:4321",
-  });
+  const agentCtx = await browser.newContext({ baseURL });
   await setSessionCookie(agentCtx, agentUser.signedSessionId);
   await blockMembersApi(agentCtx);
 
