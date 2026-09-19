@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
-import { sql, eq, isNull } from "drizzle-orm";
+import { sql, eq, isNull, or } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -55,12 +55,15 @@ const usersConMesaInactiva = await db
   .innerJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
   .where(eq(mesas.active, false));
 
-// Usuarios sin mesa asignada: fail-closed (solo páginas comunes) hasta que un
-// admin les asigne una. Se reportan para que no queden invisibles.
+// Usuarios sin mesa asignada (helpdeskId NULL) o con una mesa inexistente
+// (helpdeskId apunta a un invgateId sin fila en mesas): fail-closed (solo
+// páginas comunes) hasta que un admin les asigne una. Las mesas inactivas
+// quedan cubiertas por el otro banner, por eso el leftJoin las excluye.
 const usersSinMesa = await db
   .select({ username: users.username })
   .from(users)
-  .where(isNull(users.helpdeskId))
+  .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
+  .where(or(isNull(users.helpdeskId), isNull(mesas.id)))
   .orderBy(users.username);
 
 // El banner no debe crecer sin límite si hay muchos usuarios sin mesa.
@@ -90,9 +93,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
   {usersSinMesa.length > 0 && (
     <div role="alert" class="alert alert-warning mb-4" data-testid="banner-sin-mesa">
       <Icon name="boxicons:x-circle" size={24} />
-      <span>
+      <span class="min-w-0 break-words">
         <strong>{usersSinMesa.length}</strong> usuario(s) sin mesa de ayuda asignada
-        (solo ven páginas comunes hasta asignarles una):
+        o con una mesa inexistente (solo ven páginas comunes hasta asignarles una):
         {usersSinMesaMostrados.map((u) => u.username).join(", ")}{usersSinMesaRestantes > 0
           ? ` y ${usersSinMesaRestantes} más`
           : ""}.
@@ -103,7 +106,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
   {usersConMesaInactiva.length > 0 && (
     <div role="alert" class="alert alert-warning mb-4">
       <Icon name="boxicons:x-circle" size={24} />
-      <span>
+      <span class="min-w-0 break-words">
         <strong>{usersConMesaInactiva.length}</strong> usuario(s) tienen una mesa
         de ayuda desactivada y requieren reasignación:
         {usersConMesaInactiva.map((u) => `${u.username} (${u.mesaName})`).join(", ")}.

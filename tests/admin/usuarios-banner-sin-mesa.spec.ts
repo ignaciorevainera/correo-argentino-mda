@@ -6,7 +6,7 @@ import "dotenv/config";
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { db } from "../../src/db/index";
 import { users, sessions, mesas, agents } from "../../src/db/schema";
-import { eq, inArray, isNull, and } from "drizzle-orm";
+import { eq, inArray, isNull, and, or } from "drizzle-orm";
 import { createHmac } from "crypto";
 
 const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
@@ -33,12 +33,14 @@ test.describe("Banner de usuarios sin mesa de ayuda", () => {
   let adminSession: string;
   let adminId: number;
   let adminCookie: string;
+  let createdMesa: boolean;
+  let originalMesaActive: boolean | null;
   const createdUserIds: number[] = [];
   const createdUsernames: string[] = [];
 
   test.beforeAll(async () => {
     const [existing] = await db
-      .select({ invgateId: mesas.invgateId })
+      .select({ invgateId: mesas.invgateId, active: mesas.active })
       .from(mesas)
       .where(eq(mesas.name, MDA_TI));
     if (!existing) {
@@ -52,7 +54,11 @@ test.describe("Banner de usuarios sin mesa de ayuda", () => {
           lastSyncedAt: new Date().toISOString(),
         })
         .onConflictDoNothing();
+      createdMesa = true;
+      originalMesaActive = null;
     } else {
+      createdMesa = false;
+      originalMesaActive = existing.active;
       await db.update(mesas).set({ active: true }).where(eq(mesas.name, MDA_TI));
     }
 
@@ -80,6 +86,16 @@ test.describe("Banner de usuarios sin mesa de ayuda", () => {
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
+    // Restaurar solo lo que el test tocó: si creó la mesa de prueba, borrarla;
+    // si ya existía, devolver su estado de activación original.
+    if (createdMesa) {
+      await db.delete(mesas).where(eq(mesas.invgateId, 910001));
+    } else if (originalMesaActive !== null) {
+      await db
+        .update(mesas)
+        .set({ active: originalMesaActive })
+        .where(eq(mesas.name, MDA_TI));
+    }
   });
 
   async function seedUserSinMesa(username: string, role: string): Promise<number> {
@@ -115,13 +131,15 @@ test.describe("Banner de usuarios sin mesa de ayuda", () => {
     await expect(banner).toContainText(unameB);
     await expect(banner).toContainText("sin mesa de ayuda asignada");
 
-    // El conteo del banner debe reflejar la cantidad real de usuarios sin mesa.
+    // El conteo del banner debe reflejar la cantidad real de usuarios sin mesa
+    // (helpdeskId NULL o apuntando a una mesa inexistente).
     const sinMesa = await db
       .select({ id: users.id, username: users.username })
       .from(users)
-      .where(isNull(users.helpdeskId));
+      .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
+      .where(or(isNull(users.helpdeskId), isNull(mesas.id)));
     const shown = sinMesa.length > 20 ? 20 : sinMesa.length;
-    await expect(banner).toContainText(String(sinMesa.length));
+    await expect(banner.locator("strong")).toHaveText(String(sinMesa.length));
     if (shown < sinMesa.length) {
       await expect(banner).toContainText(`y ${sinMesa.length - shown} más`);
     }
