@@ -14,6 +14,7 @@ import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
 import { rolesMatrix } from "@lib/rolesMatrix";
+import { normalizeRole } from "@lib/rbac";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
@@ -95,6 +96,11 @@ const helpdeskOptions = (
 
 const headerGridClass = "grid-cols-[1fr_140px_180px_320px] gap-4";
 const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4";
+
+// Normaliza variantes legacy ("Supervisor ", "Team Leader") en la UI; el
+// enforcement real vive server-side (normalizeRole en usuarios.astro).
+const isSupervisorRole = (role: string): boolean =>
+  normalizeRole(role) === "supervisor";
 ---
 
 <PageContainer width="xl">
@@ -221,7 +227,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm",
                           u.role === "admin"
                             ? "bg-error text-error-content"
-                            : u.role === "supervisor"
+                            : isSupervisorRole(u.role)
                               ? "bg-info text-info-content"
                               : u.role === "team_leader" ||
                                   u.role === "team-leader" ||
@@ -247,7 +253,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                         "badge badge-sm font-bold tracking-wide whitespace-nowrap uppercase",
                         u.role === "admin"
                           ? "badge-error"
-                          : u.role === "supervisor"
+                          : isSupervisorRole(u.role)
                             ? "badge-info"
                             : u.role === "team_leader" ||
                                 u.role === "team-leader" ||
@@ -260,7 +266,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                     >
                       {u.role === "admin"
                         ? "Admin"
-                        : u.role === "supervisor"
+                        : isSupervisorRole(u.role)
                           ? "Supervisor"
                           : u.role === "team_leader" ||
                               u.role === "team-leader" ||
@@ -352,7 +358,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                               name="enCronograma"
                               class="toggle toggle-sm toggle-secondary"
                               checked={!!u.enCronograma}
-                              disabled={u.role === "supervisor"}
+                              disabled={isSupervisorRole(u.role)}
                               title="Un supervisor no figura en el cronograma como operador"
                             />
                             <span class="text-base-content text-sm">Cronograma</span>
