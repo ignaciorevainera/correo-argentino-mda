@@ -41,6 +41,28 @@ describe("normalizeFlags", () => {
     });
   });
 
+  it("MDA TI + 'supervisor ' (legacy con espacio) -> enCronograma false", () => {
+    expect(normalizeFlags(MDA_TI, "supervisor ", allTrue)).toEqual({
+      enCronograma: false,
+      asignableCubic: true,
+      incluidoCalidad: true,
+      asignableAgs: true,
+    });
+  });
+
+  it("MDA TI + 'Supervisor' (legacy con mayúsculas) -> enCronograma false", () => {
+    expect(normalizeFlags(MDA_TI, "Supervisor", allTrue)).toEqual({
+      enCronograma: false,
+      asignableCubic: true,
+      incluidoCalidad: true,
+      asignableAgs: true,
+    });
+  });
+
+  it("MDA TI + 'Team Leader' (legacy, no supervisor) -> sin cambios", () => {
+    expect(normalizeFlags(MDA_TI, "Team Leader", allTrue)).toEqual(allTrue);
+  });
+
   it("Coord + agent + flags true -> los 4 false", () => {
     expect(normalizeFlags(COORD, "agent", allTrue)).toEqual(allFalse);
   });

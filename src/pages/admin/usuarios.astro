@@ -138,7 +138,11 @@ if (Astro.request.method === "POST") {
             `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${finalParticipaciones.enCronograma ? "sí" : "no"}, cubic=${finalParticipaciones.asignableCubic ? "sí" : "no"}, calidad=${finalParticipaciones.incluidoCalidad ? "sí" : "no"}, AGS=${finalParticipaciones.asignableAgs ? "sí" : "no"}`,
           );
         } catch (e) {
-          errorMsg = "Error: El nombre de usuario ya existe.";
+          console.error("[usuarios] Error al crear usuario:", e);
+          const msg = e instanceof Error ? e.message : String(e);
+          errorMsg = msg.includes("UNIQUE constraint failed")
+            ? "Error: El nombre de usuario ya existe."
+            : "Error al crear el usuario.";
         }
       }
     }
@@ -311,7 +315,11 @@ if (Astro.request.method === "POST") {
           `Renombró al usuario de "${oldUsername}" a "${newUsername}"`,
         );
       } catch (e) {
-        errorMsg = "Error: Ese nombre de usuario ya existe.";
+        console.error("[usuarios] Error al renombrar usuario:", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        errorMsg = msg.includes("UNIQUE constraint failed")
+          ? "Error: Ese nombre de usuario ya existe."
+          : "Error al actualizar el usuario.";
       }
     }
   } else if (action === "change-role") {

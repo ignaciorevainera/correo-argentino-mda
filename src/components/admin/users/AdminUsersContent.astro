@@ -12,7 +12,7 @@ import ActionRoleButton from "@components/ui/ActionRoleButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
-import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, mesaHasParticipaciones } from "@lib/helpdeskAccess";
+import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -76,6 +76,15 @@ const SIN_MESA_PREVIEW = 20;
 const usersSinMesaMostrados = usersSinMesa.slice(0, SIN_MESA_PREVIEW);
 const usersSinMesaRestantes = usersSinMesa.length - usersSinMesaMostrados.length;
 
+// Mismo cap para el banner de mesa inactiva (evita overflow del listado).
+const MESA_INACTIVA_PREVIEW = 20;
+const usersConMesaInactivaMostrados = usersConMesaInactiva.slice(
+  0,
+  MESA_INACTIVA_PREVIEW,
+);
+const usersConMesaInactivaRestantes =
+  usersConMesaInactiva.length - usersConMesaInactivaMostrados.length;
+
 const hdResult =
   await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
 const helpdeskOptions = (
@@ -114,7 +123,9 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
       <span class="min-w-0 break-words">
         <strong>{usersConMesaInactiva.length}</strong> usuario(s) tienen una mesa
         de ayuda desactivada y requieren reasignación:
-        {usersConMesaInactiva.map((u) => `${u.username} (${u.mesaName})`).join(", ")}.
+        {usersConMesaInactivaMostrados.map((u) => `${u.username} (${u.mesaName})`).join(", ")}{usersConMesaInactivaRestantes > 0
+          ? ` y ${usersConMesaInactivaRestantes} más`
+          : ""}.
       </span>
     </div>
   )}
@@ -266,7 +277,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                       <span
                         class:list={[
                           "badge badge-sm font-bold tracking-wide whitespace-nowrap uppercase",
-                          u.helpdeskName === "TI_GSM_MDA TI"
+                          u.helpdeskName === MDA_TI_HELPDESK
                             ? "badge-primary"
                             : "badge-secondary",
                         ]}
@@ -921,7 +932,6 @@ import { getCleanBase } from "@lib/baseUrl";
         "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
     };
 
-    const MDA_TI_HELPDESK_NAME = "TI_GSM_MDA TI";
     const ROLE_OPTIONS_FULL = [
       { value: "agent", label: "Agente" },
       { value: "referent", label: "Referente" },

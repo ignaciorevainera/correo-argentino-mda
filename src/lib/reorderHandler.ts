@@ -2,6 +2,7 @@ import { db } from "@db/index";
 import { eq } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
+import { can } from "@lib/roleConfig";
 
 export async function handleReorder(
   request: Request,
@@ -14,6 +15,15 @@ export async function handleReorder(
   },
 ): Promise<Response> {
   if (!locals.user) return jsonError("No autorizado", 401);
+
+  // Los endpoints de reorder (aplicativos/recursos/contactos, y sus categorías)
+  // cuelgan de /admin/aplicativos|recursos|contactos, que heredan /admin =
+  // team_leader+. El middleware no basta: /api/admin está en la whitelist
+  // ALL_ROLES y la mesa MDA TI no lo bloquea, así que cualquier logueado
+  // llegaba acá. can() normaliza variantes legacy del rol.
+  if (!can(locals.user.role, "team_leader")) {
+    return jsonError("Acceso denegado", 403);
+  }
 
   const body = await request.json();
   const items = body?.items;

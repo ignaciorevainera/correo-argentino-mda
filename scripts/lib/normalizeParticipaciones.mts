@@ -10,6 +10,7 @@
 // Nota sobre imports: los scripts no resuelven el alias `@lib`, asi que se
 // importa por path relativo (convencion del repo, ver scripts/*.ts).
 import { mesaHasParticipaciones } from "../../src/lib/helpdeskAccess";
+import { normalizeRole } from "../../src/lib/rbac";
 
 export type ParticipationFlags = {
   enCronograma: boolean;
@@ -37,7 +38,9 @@ export function normalizeFlags(
   if (!mesaHasParticipaciones(mesaName)) {
     return { ...EMPTY_PARTICIPATION_FLAGS };
   }
-  if (role === "supervisor") {
+  // normalizeRole cubre variantes legacy ("Supervisor", "supervisor ") ademas
+  // del canonico; antes solo el canonico forzaba enCronograma=false.
+  if (normalizeRole(role) === "supervisor") {
     return { ...current, enCronograma: false };
   }
   return { ...current };
