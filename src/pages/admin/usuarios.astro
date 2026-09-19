@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
-import { isValidRole } from "@lib/rbac";
+import { isValidRole, normalizeRole } from "@lib/rbac";
 import { mesaHasParticipaciones } from "@lib/helpdeskAccess";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
@@ -90,7 +90,7 @@ if (Astro.request.method === "POST") {
           ? participaciones
           : { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false };
         // Un supervisor no figura en el cronograma como operador (forzado).
-        if (role === "supervisor") finalParticipaciones.enCronograma = false;
+        if (normalizeRole(role) === "supervisor") finalParticipaciones.enCronograma = false;
 
         try {
           const hashedPassword = await hashPassword(password);
@@ -171,7 +171,7 @@ if (Astro.request.method === "POST") {
       const participaciones = {
         // Un supervisor no figura en el cronograma como operador (forzado).
         enCronograma:
-          target.role !== "supervisor" && formData.get("enCronograma") === "on",
+          normalizeRole(target.role) !== "supervisor" && formData.get("enCronograma") === "on",
         asignableCubic: formData.get("asignableCubic") === "on",
         incluidoCalidad: formData.get("incluidoCalidad") === "on",
         asignableAgs: formData.get("asignableAgs") === "on",
@@ -365,7 +365,8 @@ if (Astro.request.method === "POST") {
         // figura en cronograma. Evita el "fantasma" del agente en
         // cronograma/calidad/cubics/guardia de otra mesa.
         const resetFlags = !(mesaRow && mesaHasParticipaciones(mesaRow.name));
-        const resetParticipaciones = resetFlags || newRole === "supervisor";
+        const isSupervisor = normalizeRole(newRole) === "supervisor";
+        const resetParticipaciones = resetFlags || isSupervisor;
 
         // Callback SÍNCRONO: better-sqlite3 no admite promesas en
         // transaction() (lanza TypeError y hace rollback).
@@ -394,7 +395,7 @@ if (Astro.request.method === "POST") {
                       asignableAgs: false,
                     }
                   : {}),
-                ...(newRole === "supervisor" ? { enCronograma: false } : {}),
+                ...(isSupervisor ? { enCronograma: false } : {}),
               })
               .where(eq(agents.id, targetAgent.id))
               .run();

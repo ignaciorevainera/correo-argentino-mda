@@ -107,4 +107,31 @@ test.describe("Participaciones por mesa", () => {
     await page.locator(`button[aria-label="Participaciones de ${uname}"]`).click();
     await expect(page.locator(`#modal-participaciones-${uid} input[name='enCronograma']`)).toBeDisabled();
   });
+
+  test("rol supervisor legacy ('Supervisor ') no figura en cronograma al guardar", async ({
+    context,
+  }) => {
+    const uname = `sup_legacy_${Date.now()}`;
+    const uid = await seedUser(uname, "Supervisor ", "TI_GSM_MDA TI");
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
+    ]);
+    const res = await context.request.post(
+      "http://localhost:4321/admin/usuarios",
+      {
+        form: {
+          action: "update-participaciones",
+          userId: String(uid),
+          enCronograma: "on",
+        },
+        headers: { Accept: "application/json" },
+      },
+    );
+    expect(res.status()).toBe(200);
+    const [row] = await db
+      .select({ enCronograma: agents.enCronograma })
+      .from(agents)
+      .where(eq(agents.username, uname));
+    expect(row.enCronograma).toBe(false);
+  });
 });
