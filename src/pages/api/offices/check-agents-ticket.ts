@@ -49,10 +49,14 @@ export const GET: APIRoute = async ({ request, locals }) => {
       );
 
       if (!newAtLocationRes.ok || !newAtLocationRes.data?.requestIds) {
-        return jsonResponse({
-          exists: false,
-          reason: "No se pudieron consultar los tickets nuevos.",
-        });
+        return jsonError(
+          `No se pudieron consultar los tickets nuevos en InvGate: ${
+            "message" in newAtLocationRes
+              ? newAtLocationRes.message
+              : "respuesta inválida"
+          }`,
+          502,
+        );
       }
 
       locationNewIds.push(...newAtLocationRes.data.requestIds);
@@ -77,10 +81,12 @@ export const GET: APIRoute = async ({ request, locals }) => {
       );
 
       if (!pageRes.ok || !pageRes.data?.requestIds) {
-        return jsonResponse({
-          exists: false,
-          reason: "No se pudieron consultar los tickets abiertos.",
-        });
+        return jsonError(
+          `No se pudieron consultar los tickets abiertos en InvGate: ${
+            "message" in pageRes ? pageRes.message : "respuesta inválida"
+          }`,
+          502,
+        );
       }
 
       requestIds.push(...pageRes.data.requestIds);
@@ -158,8 +164,10 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
     // Step 4: Build ticket URL
     const invgateBaseUrl = USE_QA_INVGATE
-      ? import.meta.env.INVGATE_QA_BASE_URL || ""
-      : import.meta.env.INVGATE_BASE_URL || "";
+      ? import.meta.env.INVGATE_QA_BASE_URL ||
+        process.env.INVGATE_QA_BASE_URL ||
+        ""
+      : import.meta.env.INVGATE_BASE_URL || process.env.INVGATE_BASE_URL || "";
     const cleanBaseUrl = invgateBaseUrl.replace(/\/api\/v1\/?$/, "");
     const ticketUrl = `${cleanBaseUrl}/requests/show/index/id/${matchingIncident.id}`;
 

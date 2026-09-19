@@ -202,6 +202,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // --- Reasignar el ticket al admin logueado como agente ---
+    const invgateBaseUrl = USE_QA_INVGATE
+      ? import.meta.env.INVGATE_QA_BASE_URL ||
+        process.env.INVGATE_QA_BASE_URL ||
+        ""
+      : import.meta.env.INVGATE_BASE_URL || process.env.INVGATE_BASE_URL || "";
+    const cleanBaseUrl = invgateBaseUrl.replace(/\/api\/v1\/?$/, "");
+    const ticketUrl = `${cleanBaseUrl}/requests/show/index/id/${id}`;
+
     const reassignRes = await postFn<{
       status?: string;
       info?: string;
@@ -213,26 +221,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
 
     if (!reassignRes.ok) {
-      return jsonError(
-        `El ticket fue creado (#${id}) pero no se pudo reasignar: ${reassignRes.message}`,
-        500,
-      );
+      return jsonResponse({
+        success: true,
+        id,
+        ticketUrl,
+        warning: `El ticket fue creado (#${id}) pero no se pudo reasignar: ${reassignRes.message}`,
+      });
     }
 
     if (reassignRes.data?.status && reassignRes.data.status !== "OK") {
-      return jsonError(
-        `El ticket fue creado (#${id}) pero la reasignación falló: ${reassignRes.data.error || reassignRes.data.info || "Error desconocido"}`,
-        500,
-      );
+      return jsonResponse({
+        success: true,
+        id,
+        ticketUrl,
+        warning: `El ticket fue creado (#${id}) pero la reasignación falló: ${reassignRes.data.error || reassignRes.data.info || "Error desconocido"}`,
+      });
     }
-
-    const invgateBaseUrl = USE_QA_INVGATE
-      ? import.meta.env.INVGATE_QA_BASE_URL ||
-        process.env.INVGATE_QA_BASE_URL ||
-        ""
-      : import.meta.env.INVGATE_BASE_URL || process.env.INVGATE_BASE_URL || "";
-    const cleanBaseUrl = invgateBaseUrl.replace(/\/api\/v1\/?$/, "");
-    const ticketUrl = `${cleanBaseUrl}/requests/show/index/id/${id}`;
 
     return jsonResponse({ success: true, id, ticketUrl });
   } catch (error: any) {

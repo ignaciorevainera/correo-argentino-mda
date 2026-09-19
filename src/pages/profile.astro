@@ -4,6 +4,13 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import { Icon } from "astro-icon/components";
 import { isAllowed } from "@lib/rolesMatrix";
+import Modal from "@components/ui/Modal.astro";
+import PasswordField from "@components/ui/forms/PasswordField.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
+import { getBaseNoSlash } from "@lib/baseUrl";
 
 const user = Astro.locals.user;
 if (!user || user.id === 0) {
@@ -56,6 +63,7 @@ const roleLabel = roleLabelMap[user.role] ?? "Agente";
 const avatarClass = roleAvatarClasses[user.role] ?? roleAvatarClasses.agent;
 const badgeClass = badgeClasses[user.role] ?? badgeClasses.agent;
 const iconClass = roleIconClasses[user.role] ?? roleIconClasses.agent;
+const apiBase = getBaseNoSlash();
 
 interface PermissionAction {
   label: string;
@@ -273,6 +281,14 @@ const visibleCategories = categories
                 {roleLabel}
               </span>
             </div>
+            <div class="mt-2">
+              <ActionPasswordButton
+                ariaLabel="Blanquear contraseña"
+                label="Blanqueo de contraseña"
+                aria-haspopup="dialog"
+                onclick="document.getElementById('modal-self-password').showModal()"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -359,5 +375,59 @@ const visibleCategories = categories
         }
       </section>
     </div>
+
+    <Modal id="modal-self-password" size="sm">
+      <Fragment slot="content">
+        <h3 class="mb-1 text-base font-semibold text-base-content">
+          Blanquear contraseña
+        </h3>
+        <p class="mb-4 text-xs text-base-content/60">
+          Cambiá la contraseña de tu cuenta. La sesión actual se mantendrá activa.
+        </p>
+        <form
+          method="POST"
+          action={`${apiBase}/api/profile/change-password`}
+          class="space-y-3"
+          data-async-form
+        >
+          <PasswordField
+            id="self-new-password"
+            name="newPassword"
+            required
+            label="Nueva contraseña"
+            confirmPassword={true}
+            confirmLabel="Repetir nueva contraseña"
+            autocomplete="new-password"
+            inputClass="input-sm"
+          />
+          <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-base-200">
+            <ActionCancelButton
+              type="button"
+              variant="error"
+              icon="boxicons:x-filled"
+              onclick="this.closest('dialog').close()"
+            />
+            <ActionConfirmButton
+              type="submit"
+              color="btn-warning"
+              label="Guardar"
+              icon="boxicons:check-filled"
+            />
+          </div>
+        </form>
+      </Fragment>
+    </Modal>
   </PageContainer>
+
+  <AsyncFormScript />
+
+  <script>
+    document.addEventListener('async-form:success', (e) => {
+        const form = e.target as HTMLFormElement;
+        if (form.closest('#modal-self-password')) {
+          form.reset();
+          (document.getElementById('modal-self-password') as HTMLDialogElement | null)?.close();
+        }
+    });
+  </script>
 </BaseLayout>

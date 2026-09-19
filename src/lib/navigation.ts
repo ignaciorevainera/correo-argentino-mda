@@ -149,6 +149,11 @@ export const navSections: NavSection[] = [
             icon: "boxicons:history",
           },
           {
+            href: "/admin/papelera",
+            label: "Papelera",
+            icon: "boxicons:trash",
+          },
+          {
             href: "/admin/invgate/ubicaciones",
             label: "Ubicaciones InvGate",
             icon: "boxicons:location-alt-filled",

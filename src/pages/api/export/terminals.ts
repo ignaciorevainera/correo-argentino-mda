@@ -68,6 +68,11 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const status = url.searchParams.get("status") || "all";
   const isMediterranea = url.searchParams.get("isMediterranea") === "true";
   const mediterraneaType = url.searchParams.get("mediterraneaType") || "all";
+  const isTT = url.searchParams.get("isTT") === "true";
+  const ttType = url.searchParams.get("ttType") || "all";
+  const vmFilter = url.searchParams.get("vmFilter") || "all";
+  const duplicates = url.searchParams.get("duplicates") === "true";
+  const orphans = url.searchParams.get("orphans") === "true";
 
   // Build SQL dynamically
   const selectCols = SQL_COLUMNS.map((col) => `t.${col} AS ${col}`).join(", ");
@@ -86,6 +91,48 @@ export const GET: APIRoute = async ({ locals, url }) => {
       conditions.push("(t.hostname LIKE ? OR t.hostname LIKE ?)");
       queryParams.push("TMEDI%", "TVMEDI%");
     }
+  }
+
+  if (isTT) {
+    conditions.push(
+      "(LOWER(t.operating_system) LIKE ? OR LOWER(t.operating_system) LIKE ? OR t.hostname LIKE ?)",
+    );
+    queryParams.push("%debian%", "%ubuntu%", "TT_____P");
+    // Exclusión explícita de Mediterránea
+    conditions.push("t.hostname NOT LIKE ? AND t.hostname NOT LIKE ?");
+    queryParams.push("TMEDI%", "TVMEDI%");
+  }
+
+  if (isTT && ttType === "tyt") {
+    conditions.push(
+      "(t.hostname LIKE ? OR t.hostname LIKE ?)",
+    );
+    queryParams.push("TT_____P", "TT_____P-D");
+  } else if (isTT && ttType === "sts") {
+    conditions.push(
+      "(LOWER(t.operating_system) LIKE ? OR LOWER(t.operating_system) LIKE ?) AND t.hostname NOT LIKE ? AND t.hostname NOT LIKE ?",
+    );
+    queryParams.push("%debian%", "%ubuntu%", "TT_____P", "TT_____P-D");
+  }
+
+  if (isTT && vmFilter === "with") {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM terminals t2 WHERE t2.hostname = CASE WHEN t.hostname LIKE '%-D' THEN substr(t.hostname, 1, length(t.hostname) - 2) ELSE t.hostname END || '-D')",
+    );
+  } else if (isTT && vmFilter === "without") {
+    conditions.push(
+      "NOT EXISTS (SELECT 1 FROM terminals t2 WHERE t2.hostname = CASE WHEN t.hostname LIKE '%-D' THEN substr(t.hostname, 1, length(t.hostname) - 2) ELSE t.hostname END || '-D') AND t.hostname NOT LIKE '%-D'",
+    );
+  }
+
+  if (duplicates) {
+    conditions.push(
+      "(TRIM(t.ip_address) IN (SELECT TRIM(ip_address) FROM terminals WHERE ip_address IS NOT NULL AND TRIM(ip_address) != '' GROUP BY TRIM(ip_address) HAVING COUNT(*) > 1) OR LOWER(TRIM(t.mac_address)) IN (SELECT LOWER(TRIM(mac_address)) FROM terminals WHERE mac_address IS NOT NULL AND TRIM(mac_address) != '' GROUP BY LOWER(TRIM(mac_address)) HAVING COUNT(*) > 1) OR LOWER(TRIM(t.hostname)) IN (SELECT LOWER(TRIM(hostname)) FROM terminals WHERE hostname IS NOT NULL AND TRIM(hostname) != '' GROUP BY LOWER(TRIM(hostname)) HAVING COUNT(*) > 1))",
+    );
+  }
+
+  if (orphans) {
+    conditions.push("o.code IS NULL");
   }
 
   if (search && search.trim() !== "") {

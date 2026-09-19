@@ -19,6 +19,41 @@ if (!LDAP_USER || !LDAP_PASS) {
 
 const TIMEZONE_AR = "America/Argentina/Buenos_Aires";
 
+function buildDevMock(username: string) {
+  const now = new Date();
+  const fmt = now.toLocaleString("sv-SE", { timeZone: TIMEZONE_AR });
+  const groups = [
+    "Activación Licencia Quisco",
+    "Activación Licencia E1",
+    "Todos",
+    "GG_Todas_Sucursales",
+    "DL_Difusion_Correo",
+    "TI_Sistemas_MDA",
+    "ADM_Seguridad_Tecnica",
+    "Usuarios de dominio",
+  ];
+  const data = {
+    username,
+    fullname: `${username} (usuario MOCK)`,
+    title: "Operador N1 (MOCK)",
+    mail: `${username}@correoargentino.com.ar`,
+    employee_number: "99999",
+    physical_office: "Retiro (MOCK)",
+    telephone_number: "+54 11 5555-0101",
+    manager_name: "SUPERVISOR MOCK",
+    department: "Mesa de Ayuda",
+    description: "Datos mock solo para desarrollo",
+    pwd_last_set: fmt,
+    last_logon: fmt,
+    when_created: fmt,
+    account_expires: "Nunca",
+    bad_pwd_count: "0",
+    lockout_time: null as string | null,
+    groups,
+  };
+  return { ...data, output: formatOutput(data) };
+}
+
 function convertFiletime(filetime: number): string | null {
   if (!filetime || filetime === 0 || filetime >= 9223372036854770000)
     return null;
@@ -299,6 +334,22 @@ export const GET: APIRoute = async ({ request }) => {
     });
   } catch (error: any) {
     console.error("[NetUser] Error:", error);
+
+    const msg = String(error?.message || "");
+    const isNetworkFailure =
+      /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|autenticación LDAP/i.test(
+        msg,
+      );
+
+    if (import.meta.env.DEV && isNetworkFailure) {
+      const mockUsername =
+        new URL(request.url).searchParams.get("username")?.trim() || "mock";
+      console.warn(
+        `[NetUser] LDAP no disponible en dev (getaddrinfo/red). Devolviendo datos MOCK para "${mockUsername}".`,
+      );
+      return jsonResponse({ status: "success", ...buildDevMock(mockUsername) });
+    }
+
     return jsonResponse({
       status: "error",
       error: sanitizeError(error) || "Error al consultar Active Directory",

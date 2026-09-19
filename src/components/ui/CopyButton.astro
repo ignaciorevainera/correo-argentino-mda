@@ -8,6 +8,7 @@ interface Props {
   label?: string;
   copiedLabel?: string;
   ariaLabel?: string;
+  id?: string;
   size?: "xs" | "sm" | "md";
   appearance?: "ghost" | "surface" | "outline";
   monospace?: boolean;
@@ -25,6 +26,7 @@ const {
   label,
   copiedLabel = "Copiado",
   ariaLabel = `Copiar ${value}`,
+  id,
   size = "sm",
   appearance = "ghost",
   monospace = false,
@@ -128,6 +130,7 @@ const tooltipClasses = [
           data-copy-label-success={copiedLabel}
           data-copy-replace-label="false"
           aria-label={ariaLabel}
+          id={id}
         >
           <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
             <Icon
@@ -160,6 +163,7 @@ const tooltipClasses = [
         data-copy-label-success={copiedLabel}
         data-copy-replace-label="false"
         aria-label={ariaLabel}
+        id={id}
       >
         <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
           <Icon
@@ -203,6 +207,7 @@ const tooltipClasses = [
           data-copy-label-success={copiedLabel}
           data-copy-replace-label="true"
           aria-label={ariaLabel}
+          id={id}
         >
           <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
             <Icon
@@ -233,6 +238,7 @@ const tooltipClasses = [
         data-copy-label-success={copiedLabel}
         data-copy-replace-label="true"
         aria-label={ariaLabel}
+        id={id}
       >
         <span class="relative inline-flex size-4 shrink-0 items-center justify-center">
           <Icon
@@ -263,6 +269,7 @@ const tooltipClasses = [
       data-copy-label-success={copiedLabel}
       data-copy-replace-label="false"
       aria-label={ariaLabel}
+      id={id}
       data-feedback-only
     >
       <span
@@ -286,6 +293,7 @@ const tooltipClasses = [
       data-copy-label-success={copiedLabel}
       data-copy-replace-label="false"
       aria-label={ariaLabel}
+      id={id}
     >
       <span
         class:list={[
@@ -319,6 +327,8 @@ const tooltipClasses = [
 }
 
 <script>
+  import { showToast } from "@lib/toastClient";
+
   const fallbackCopyToClipboard = (value: string): boolean => {
     const textarea = document.createElement("textarea");
     textarea.value = value;
@@ -383,7 +393,16 @@ const tooltipClasses = [
 
       const value = control.dataset.copyValue ?? "";
 
-      if (value.trim().length === 0) return;
+      if (value.trim().length === 0) {
+        const rawLabel = control.getAttribute("data-copy-label-default") || "";
+        const fieldLabel = rawLabel.replace(/^copiar\s+/i, "");
+        const toastMsg =
+          fieldLabel && fieldLabel !== "-"
+            ? `${fieldLabel}: no hay valor para copiar.`
+            : "El campo está vacío: no hay valor para copiar.";
+        showToast(toastMsg, "alert-warning");
+        return;
+      }
 
       const copied = await copyToClipboard(value);
 
@@ -397,7 +416,7 @@ const tooltipClasses = [
         const toastMsg =
           control.dataset.copyLabelSuccess ||
           `${value} copiado al portapapeles`;
-        (window as any).showToast?.(toastMsg, "alert-success");
+        showToast(toastMsg, "alert-success");
         return;
       }
 

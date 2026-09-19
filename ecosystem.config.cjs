@@ -45,5 +45,15 @@ module.exports = {
       error_file: "./logs/sync-office-links-error.log",
       out_file: "./logs/sync-office-links-out.log",
     },
+    {
+      name: "purge-deleted-records",
+      script: "node",
+      args: "--import tsx scripts/purge-deleted.ts",
+      cron_restart: "0 4 * * *",
+      autorestart: false,
+      watch: false,
+      error_file: "./logs/purge-error.log",
+      out_file: "./logs/purge-out.log",
+    },
   ],
 };

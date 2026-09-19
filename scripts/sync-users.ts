@@ -47,7 +47,10 @@ async function syncUsers(): Promise<void> {
     `[SyncUsers] Usuarios existentes en BD: ${processedUsernames.size}`,
   );
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-startup-window", "--disable-gpu", "--silent"],
+  });
   const context = await browser.newContext();
   const page = await context.newPage();
 

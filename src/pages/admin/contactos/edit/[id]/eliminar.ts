@@ -6,6 +6,8 @@ import { createDeleteHandler } from "@lib/api/deleteHandler";
 export const POST = createDeleteHandler({
   entityName: "contacto",
   redirectPath: "admin/contactos",
+  snapshotLabel: (d) =>
+    `${(d as any).provider ?? ""}${(d as any).service ? ` - ${(d as any).service}` : ""}`,
   performDelete: async (id) => {
     const [deleted] = await db
       .delete(providerContacts)

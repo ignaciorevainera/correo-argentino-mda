@@ -1,0 +1,97 @@
+---
+import { Icon } from "astro-icon/components";
+import type { TerminalItem } from "@lib/terminalQueries";
+
+interface Props {
+  terminal: TerminalItem;
+  base: string;
+  terminalRowGridClass?: string;
+}
+
+const { terminal, base, terminalRowGridClass = "grid grid-cols-12 items-start" } =
+  Astro.props;
+
+const lastContactAge = (() => {
+  const raw = terminal.lastContactRaw;
+  if (!raw) return "error";
+  const parsed = new Date(raw.replace(" ", "T"));
+  if (Number.isNaN(parsed.getTime())) return "error";
+  const diffMs = Date.now() - parsed.getTime();
+  if (diffMs < 24 * 60 * 60 * 1000) return "success";
+  if (diffMs <= 30 * 24 * 60 * 60 * 1000) return "warning";
+  return "error";
+})();
+---
+
+<article
+  data-terminal-row
+  data-tt-vm-row
+  data-hostname={terminal.hostname}
+  data-ip={terminal.ip}
+  class:list={[
+    terminalRowGridClass,
+    "border-base-300 bg-base-200/50 hover:bg-base-300/40 border-b px-4 py-2 transition-colors last:border-b-0",
+  ]}
+>
+  <div class="col-span-2 flex flex-row gap-2 pl-10">
+    <span
+      class="text-info inline-flex size-6 shrink-0 items-center justify-center self-center rounded-md border border-info/30 bg-info/15"
+    >
+      <Icon name="boxicons:computer-filled" size={12} />
+    </span>
+    <div class="flex w-full min-w-0 flex-col gap-0.5">
+      <span
+        class="text-base-content truncate font-mono text-xs font-medium"
+        data-highlight-target
+      >
+        {terminal.hostname}
+      </span>
+      <span
+        class="text-base-content/70 truncate font-mono text-xs"
+        data-highlight-target
+      >
+        {terminal.ip}
+      </span>
+      <span
+        class="text-base-content/50 truncate font-mono text-xs"
+        data-highlight-target
+      >
+        {terminal.mac}
+      </span>
+    </div>
+  </div>
+
+  <div class="flex min-w-0 flex-col gap-0.5 col-span-3">
+    <span class="badge badge-soft badge-info badge-xs w-fit gap-1">
+      VM de
+      <span class="ml-0.5 font-mono" data-highlight-target>{base}</span>
+    </span>
+  </div>
+
+  <div class="flex min-w-0 flex-col gap-0.5 col-span-3">
+    <span class="text-base-content/80 truncate text-xs" data-highlight-target>
+      {terminal.osName}
+    </span>
+    <span class="text-base-content/50 truncate text-xs">
+      {terminal.architecture}
+    </span>
+  </div>
+
+  <div class="flex min-w-0 flex-col gap-0.5 col-span-2">
+    <span class="text-base-content/50 truncate font-mono text-xs">
+      {terminal.nis}
+    </span>
+  </div>
+
+  <div class="col-span-2 flex flex-col items-end justify-center font-mono">
+    <span class="flex flex-row items-center gap-1.5">
+      <span class:list={["status", `status-${lastContactAge}`]}></span>
+      <span class="text-base-content/70 truncate text-xs">
+        {terminal.lastContactDate}
+      </span>
+    </span>
+    <span class="text-base-content/50 truncate text-xs">
+      {terminal.lastContactTime}
+    </span>
+  </div>
+</article>

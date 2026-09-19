@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import CopyButton from "@components/ui/CopyButton.astro";
 
 const API_URL = "http://mda.correo.local/api/usuarios";
 ---
@@ -48,29 +49,17 @@ const API_URL = "http://mda.correo.local/api/usuarios";
         class="bg-base-300/50 border-base-300 text-base-content/70 flex-1 truncate rounded-lg border px-2.5 py-1.5 font-mono text-xs select-all"
         >{API_URL}</code
       >
-      <button
-        type="button"
+      <CopyButton
+        variant="icon"
+        value={API_URL}
+        label="Copiar URL"
+        copiedLabel="Copiado"
+        ariaLabel="Copiar URL de la API"
         id="copy-api-url-btn"
-        class="btn btn-ghost btn-xs size-7 shrink-0 cursor-pointer rounded-lg p-0"
-        title="Copiar URL"
-        data-copy-value={API_URL}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="size-3.5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          id="copy-api-url-icon"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-          ></path>
-        </svg>
-      </button>
+        size="xs"
+        showTooltip={false}
+        class="shrink-0"
+      />
     </div>
   </div>
 
@@ -91,61 +80,3 @@ const API_URL = "http://mda.correo.local/api/usuarios";
     />
   </a>
 </div>
-
-<script>
-  const copyBtn = document.getElementById("copy-api-url-btn");
-  const copyIcon = document.getElementById("copy-api-url-icon");
-
-  copyBtn?.addEventListener("click", async () => {
-    const url = copyBtn.getAttribute("data-copy-value") || "";
-    if (!url) return;
-
-    const canUseClipboardApi =
-      typeof navigator !== "undefined" &&
-      typeof navigator.clipboard !== "undefined" &&
-      typeof navigator.clipboard.writeText === "function";
-
-    if (canUseClipboardApi) {
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        fallbackCopy(url);
-        return;
-      }
-    } else {
-      fallbackCopy(url);
-      return;
-    }
-
-    showCopied();
-  });
-
-  function fallbackCopy(value: string) {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.setAttribute("aria-hidden", "true");
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    textarea.style.top = "0";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    try {
-      (document as any).execCommand("copy");
-    } catch {}
-    textarea.remove();
-    showCopied();
-  }
-
-  function showCopied() {
-    if (!copyIcon) return;
-    copyIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />`;
-    copyIcon.classList.add("text-success");
-    setTimeout(() => {
-      copyIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />`;
-      copyIcon.classList.remove("text-success");
-    }, 2000);
-  }
-</script>

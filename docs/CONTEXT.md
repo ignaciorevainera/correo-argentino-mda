@@ -34,7 +34,7 @@ de operaciones logisticas y postales.
 - **Autenticacion:** Sesion cookie-based (HMAC firmada), middleware en `src/middleware.ts`
 - **RBAC:** 5 roles en jerarquia — `agent` < `referent` < `team_leader` < `supervisor` < `admin`
 - **Testing E2E:** Playwright (`tests/`), worker 1 serial, requiere dev server en localhost:4321
-- **Deploy:** PM2 con 3 procesos (Astro SSR, ping-worker, sync-legacy-inventory)
+- **Deploy:** PM2 con 5 procesos (Astro SSR, mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links)
 
 ### Dependencias principales
 
@@ -88,6 +88,16 @@ Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
 - **Permisos por modulo:** `src/lib/rolesMatrix.ts` — `isAllowed(feature, role)`: 16 features con read/write/viewAll/viewComments/viewTotals
 - **API routes:** `requireWriteAccess(locals)` / `requireReadAccess(locals)` desde `src/lib/rbac-middleware.ts`
 - **Template checks:** `can(user.role, "admin")` desde `@lib/roleConfig.ts` o `hasPermission(href, userRole)` desde `@lib/rbac.ts`
+
+---
+
+## Papelera de borrado recuperable
+
+- Toda delete de CRUD admin crea snapshot en `deleted_records` (fila padre; oficinas/cubics además hijos) vía `createDeleteHandler` o `deleteWithSnapshot` (`@lib/deletedRecords.ts`). El snapshot es atómico: si falla, no se borra nada.
+- Restauración admin-only en `/admin/papelera`; registry tipado `RESTORE_REGISTRY` — agregar ahí nuevas entidades restaurables. Únicos en conflicto se renombran con sufijo ` (restaurado)`.
+- Purga: proceso PM2 `purge-deleted-records` (04:00 diaria, retención 90d, `scripts/purge-deleted.ts`). Los registros restaurados quedan como histórico permanente.
+- Entidades nuevas con delete: si usan `createDeleteHandler` el snapshot padre es automático (`genericSnapshot: true` default); para snapshot con hijos usar `deleteWithSnapshot` + `genericSnapshot: false` + entrada en `RESTORE_REGISTRY` si deben ser restaurables.
+- Spec: `docs/superpowers/specs/2026-08-28-papelera-deleted-records-design.md`.
 
 ---
 
@@ -340,19 +350,22 @@ BaseLayout (flex flex-col min-h-screen)
 | Proceso               | Puerto | Descripcion                                           |
 | --------------------- | ------ | ----------------------------------------------------- |
 | Astro SSR             | 4321   | Servidor principal (node dist/server/entry.mjs)       |
-| ping-worker           | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)   |
+| mda-ping-cubics       | —      | ICMP ping segmentado a cubics (batch 5→3, 3min gap)   |
 | sync-legacy-inventory | —      | Sincroniza inventario de terminales desde PHP externo |
+| sync-users            | —      | Sincronizacion de empleados via MidPoint (cron 02:00) |
+| sync-office-links     | —      | Sincronizacion de enlaces de oficinas (cron 03:00)    |
 
 ### Scripts clave (`scripts/`)
 
-| Script                     | Descripcion                                  |
-| -------------------------- | -------------------------------------------- |
-| `auto-deploy.bat`          | git pull → npm install → build → pm2 restart |
-| `backup-db.bat`            | Copia `database/mda.db` con timestamp        |
-| `ping-worker.ts`           | Worker PM2 de ping a cubics                  |
-| `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario   |
-| `sync-users.ts`            | Sincronizacion de empleados via MidPoint     |
-| `toggle-mode.ts`           | Script de alternancia de tema light/dark     |
+| Script                     | Descripcion                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `auto-deploy.bat`          | git pull → pm2 kill → npm install → build (verify) → pm2 start |
+| `backup-db.bat`            | Copia `database/mda.db` con timestamp                     |
+| `verify-build.mjs`         | Guard post-build: valida `rootDir` en `dist/server/entry.mjs` |
+| `ping-worker.ts`           | Worker PM2 de ping a cubics                               |
+| `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario                |
+| `sync-users.ts`            | Sincronizacion de empleados via MidPoint                  |
+| `toggle-mode.ts`           | Script de alternancia de tema light/dark                  |
 
 ### Base de datos
 
@@ -374,7 +387,7 @@ BaseLayout (flex flex-col min-h-screen)
 - Sistema de autenticacion con RBAC activo y middleware de sesion.
 - Base de datos SQLite con Drizzle ORM conectada y operativa.
 - Contrato del Header global completamente implementado y cerrado (sin gaps).
-- Infraestructura PM2 con 3 procesos activa en produccion.
+- Infraestructura PM2 con 5 procesos activa en produccion.
 - Testing E2E con Playwright disponible para validacion regresiva.
 - Convenciones de codigo documentadas en este archivo y en `docs/DESIGN.md`.
 - Errores historicos y sus soluciones registrados en `docs/lessons.md`.

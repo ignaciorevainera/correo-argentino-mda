@@ -1,18 +1,48 @@
 ---
 import { Icon } from "astro-icon/components";
-import type { TerminalItem } from "@lib/terminalQueries";
+import type { TerminalItem, TTPairState } from "@lib/terminalQueries";
 import { getTerminalColorClass, type OsFamily } from "@lib/terminalHelpers";
 import CopyButton from "@components/ui/CopyButton.astro";
+import { normalizeDuplicateKey } from "@lib/duplicateGroups";
 
 type BoxiconName = `boxicons:${string}`;
 
 interface Props {
   terminal: TerminalItem;
   terminalRowGridClass?: string;
+  pairState?: TTPairState;
+  paired?: boolean;
+  isActive?: "active" | "recent" | null;
+  sharedIps?: string[];
+  sharedMacs?: string[];
+  sharedHostnames?: string[];
 }
 
-const { terminal, terminalRowGridClass = "grid grid-cols-12 items-start" } =
-  Astro.props;
+const {
+  terminal,
+  terminalRowGridClass = "grid grid-cols-12 items-start",
+  pairState,
+  paired,
+  isActive = null,
+  sharedIps = [],
+  sharedMacs = [],
+  sharedHostnames = [],
+} = Astro.props;
+
+const isTTHostname = /^TT.{5}P$/.test(terminal.hostname);
+
+// Dot de estado por antigüedad del último contacto: verde <24h,
+// amarillo ≤30d, rojo >30d o sin datos.
+const lastContactAge = (() => {
+  const raw = terminal.lastContactRaw;
+  if (!raw) return "error";
+  const parsed = new Date(raw.replace(" ", "T"));
+  if (Number.isNaN(parsed.getTime())) return "error";
+  const diffMs = Date.now() - parsed.getTime();
+  if (diffMs < 24 * 60 * 60 * 1000) return "success";
+  if (diffMs <= 30 * 24 * 60 * 60 * 1000) return "warning";
+  return "error";
+})();
 
 const getRowColorClass = (item: TerminalItem): string => {
   return getTerminalColorClass(item.osName, item.isTelegrafia);
@@ -25,13 +55,12 @@ const osFamilyLabel: Record<OsFamily, string> = {
 };
 
 const rowIcons: Record<
-  "hardware" | "os" | "location" | "contact",
+  "hardware" | "os" | "location",
   BoxiconName
 > = {
   hardware: "boxicons:chip-filled",
   os: "boxicons:database-filled",
   location: "boxicons:location-pin-filled",
-  contact: "boxicons:clock-filled",
 };
 
 const copyValue = [
@@ -42,6 +71,22 @@ const copyValue = [
   `Modelo: ${terminal.model}`,
   `SN: ${terminal.serial}`,
 ].join("\n");
+
+const normalize = (value: string | null | undefined): string =>
+  normalizeDuplicateKey(value);
+
+const isShared = (
+  value: string | null | undefined,
+  shared: string[],
+): boolean => {
+  const norm = normalize(value);
+  if (!norm) return false;
+  return shared.some((candidate) => normalize(candidate) === norm);
+};
+
+const isSharedIp = isShared(terminal.ip, sharedIps);
+const isSharedMac = isShared(terminal.mac, sharedMacs);
+const isSharedHostname = isShared(terminal.hostname, sharedHostnames);
 ---
 
 <article
@@ -60,7 +105,8 @@ const copyValue = [
   data-sort-location={terminal.branch}
   class:list={[
     terminalRowGridClass,
-    "group border-base-300 hover:bg-base-300/40 border-b px-4 py-3 transition-colors last:border-b-0",
+    "group border-base-300 hover:bg-base-300/40 px-4 py-3 transition-colors last:border-b-0",
+    !paired && "border-b",
   ]}
 >
   <div class="col-span-2 flex flex-row gap-4">
@@ -73,20 +119,34 @@ const copyValue = [
       <Icon name="boxicons:desktop-filled" size={16} />
     </span>
     <div class="flex w-full flex-col gap-1">
+      <div class="flex flex-row items-center gap-1.5">
+        <span
+          class:list={[
+            "text-base-content truncate font-mono text-sm font-medium",
+            isSharedHostname && "bg-warning/15 rounded px-1",
+          ]}
+          data-highlight-target
+        >
+          {terminal.hostname}
+        </span>
+        {pairState === "missing-vm" && isTTHostname && !terminal.isTelegrafia && (
+          <span class="badge badge-error badge-xs shrink-0">Sin VM</span>
+        )}
+      </div>
       <span
-        class="text-base-content truncate font-mono text-sm font-medium"
-        data-highlight-target
-      >
-        {terminal.hostname}
-      </span>
-      <span
-        class="text-base-content/70 truncate font-mono text-xs"
+        class:list={[
+          "text-base-content/70 truncate font-mono text-xs",
+          isSharedIp && "bg-warning/15 rounded px-1",
+        ]}
         data-highlight-target
       >
         {terminal.ip}
       </span>
       <span
-        class="text-base-content/50 truncate font-mono text-xs"
+        class:list={[
+          "text-base-content/50 truncate font-mono text-xs",
+          isSharedMac && "bg-warning/15 rounded px-1",
+        ]}
         data-highlight-target
       >
         {terminal.mac}
@@ -186,17 +246,23 @@ const copyValue = [
 
   <div class="col-span-2 flex flex-row gap-1.5">
     <div class="flex w-full flex-col text-right font-mono">
-      <span class="text-base-content truncate text-sm font-medium"
-        >{terminal.lastContactDate}</span
-      >
+      <span class="flex flex-row items-center justify-end gap-1.5">
+        <span class:list={["status", `status-${lastContactAge}`]}></span>
+        <span class="text-base-content truncate text-sm font-medium"
+          >{terminal.lastContactDate}</span
+        >
+      </span>
       <span class="text-base-content/60 truncate font-mono text-xs">
         {terminal.lastContactTime}
       </span>
+      {
+        isActive && (
+          <span class="badge badge-success badge-xs mt-1 self-end gap-1">
+            {isActive === "active" && <span class="status status-success" />}
+            {isActive === "active" ? "Activa" : "Más reciente"}
+          </span>
+        )
+      }
     </div>
-    <Icon
-      name={rowIcons.contact}
-      size={16}
-      class="text-base-content/60 mt-0.5 shrink-0"
-    />
   </div>
 </article>
