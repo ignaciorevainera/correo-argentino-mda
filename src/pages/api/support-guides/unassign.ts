@@ -4,17 +4,13 @@ import { supportGuides } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { logAdminActionStructured } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
-import { ROLE_HIERARCHY } from "@lib/rbac";
+import { can } from "@lib/roleConfig";
 import { validateRequestCsrf } from "@lib/csrf";
 import { checkSlidingRateLimit } from "@lib/rateLimit";
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const user = locals.user;
-  if (
-    !user ||
-    ROLE_HIERARCHY[user.role as keyof typeof ROLE_HIERARCHY] <
-      ROLE_HIERARCHY.supervisor
-  ) {
+  if (!user || !can(user.role, "supervisor")) {
     return jsonResponse({ error: "Acceso denegado" }, 403);
   }
 

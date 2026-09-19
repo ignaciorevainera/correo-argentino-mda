@@ -38,6 +38,8 @@ async function login(
 
 const ASSIGN_URL = "/api/support-guides/assign";
 const HIDE_URL = "/api/soportes/helpdesks/hide";
+const SHOW_URL = "/api/soportes/helpdesks/show";
+const UNASSIGN_URL = "/api/support-guides/unassign";
 
 test.describe("Guards de rol: variantes legacy no deben saltar el chequeo", () => {
   let legacyTeamLeader: Awaited<ReturnType<typeof createTestUserAndSession>>;
@@ -144,5 +146,33 @@ test.describe("Guards de rol: variantes legacy no deben saltar el chequeo", () =
     });
     expect(res.status()).toBe(400);
     expect((await res.json()).error).toContain("invgate_id");
+  });
+
+  test("show: rol legacy 'Agent' → 403 Acceso denegado", async ({
+    context,
+  }) => {
+    await login(context, legacyAgent.signedSessionId);
+    const res = await context.request.post(SHOW_URL, {
+      headers: {
+        "X-CSRF-Token": generateCsrfToken(legacyAgent.sessionId),
+      },
+      data: {},
+    });
+    expect(res.status()).toBe(403);
+    expect(await res.json()).toEqual({ error: "Acceso denegado" });
+  });
+
+  test("unassign: rol legacy 'team leader' → 403 Acceso denegado", async ({
+    context,
+  }) => {
+    await login(context, legacyTeamLeader.signedSessionId);
+    const res = await context.request.post(UNASSIGN_URL, {
+      headers: {
+        "X-CSRF-Token": generateCsrfToken(legacyTeamLeader.sessionId),
+      },
+      data: {},
+    });
+    expect(res.status()).toBe(403);
+    expect(await res.json()).toEqual({ error: "Acceso denegado" });
   });
 });
