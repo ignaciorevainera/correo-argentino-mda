@@ -1,3 +1,15 @@
+// Tabla DESCRIPTIVA de capacidades por rol, renderizada en /admin/usuarios
+// ("tabla comparativa de permisos") y usada por `isAllowed` para gating de UI.
+// NO es la fuente de verdad: la matriz real vive en `rbac.ts`
+// (`getModulePermissions` + `routePermissions` + `hasPermission`) y en
+// `helpdeskAccess.ts` (visibilidad por mesa). Si una fila discrepa de esas,
+// el bug esta en esta tabla. El test
+// `tests/unit/roles-matrix-consistency.test.ts` cubre las filas mapeables.
+//
+// Nota: la visibilidad efectiva de varias filas (cronograma, cubics, calidad,
+// autogestiones, asistencia) tambien depende de la mesa del usuario
+// (`isSectionVisibleSync`). Esta tabla modela solo la capa de rol; el gating
+// por mesa no se representa aca (es por mesa, no por rol).
 export type RoleMatrixFeature = {
   feature: string;
   icon: string;
@@ -122,7 +134,7 @@ export const rolesMatrix: RoleMatrixFeature[] = [
     icon: "boxicons:note",
     agent: false,
     referent: false,
-    team_leader: false,
+    team_leader: true,
     supervisor: true,
     admin: true,
   },

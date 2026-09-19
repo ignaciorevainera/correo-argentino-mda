@@ -20,8 +20,8 @@
 
 ## Testing
 
-- `npx playwright test` — all E2E tests in `tests/`
-- Workers: 1 (serial). Requires dev server at `http://localhost:4321`.
+- `npx playwright test` — E2E tests (`tests/**/*.spec.ts`). Workers: 1 (serial). Requires dev server at `http://localhost:4321`.
+- `npx vitest run` — unit tests (`tests/unit/**/*.test.ts`, no server needed). Config: `vitest.config.ts`.
 - No CI — tests run manually.
 
 ## DB & Drizzle
@@ -32,6 +32,7 @@
 - **Config**: `drizzle.config.ts` (sqlite dialect, schema `./src/db/schema.ts`, out `./drizzle`)
 - **Connection**: `src/db/index.ts` via `better-sqlite3`
 - After schema changes, always run `npm run db:push`
+- **Runbook `scripts/normalize-participaciones.mts`** (one-time, idempotente, corrige participaciones stale de `agents`): (1) **dry-run primero**: `npx tsx scripts/normalize-participaciones.mts`; (2) en prod, antes de aplicar, verificar el vinculo `agents.username ↔ users.username` — el reporte muestra `skippedNoAgent` (usuarios sin agente vinculado que NO se tocan); (3) recien entonces `npx tsx scripts/normalize-participaciones.mts --apply`, que crea un backup **WAL-safe** en `database/` (via `db.backup()`, incluye `-wal`) y escribe en transaccion sincrona. Nunca borra filas.
 
 ## Stack & style
 

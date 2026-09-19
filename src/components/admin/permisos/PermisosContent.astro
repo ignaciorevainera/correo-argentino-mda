@@ -3,7 +3,7 @@ import { db } from "@db/index";
 import { mesas, users } from "@db/schema";
 import { sql, isNotNull } from "drizzle-orm";
 import { getCsrfTokenForSession } from "@lib/csrf";
-import { getModulePermissions } from "@lib/rbac";
+import { getModulePermissions, hasPermission } from "@lib/rbac";
 import { ALLOWED_HELPDESK_NAMES, isSectionVisibleSync } from "@lib/helpdeskAccess";
 
 const [mesaRows, userCountRows] = await Promise.all([
@@ -128,7 +128,13 @@ const lastSyncedAt = mesaList.reduce<string | null>((acc, m) => {
         <div class="font-mono mb-2 text-sm font-semibold">{mesaName}</div>
         <ul class="text-base-content/70 text-xs space-y-1">
           {SECTION_LABELS.map((s) => {
-            const visible = isSectionVisibleSync(mesaName, "agent", s.href);
+            // Resultado real para un rol `agent` de esta mesa: deben cumplirse
+            // AMBAS capas (visibilidad por mesa Y permiso de ruta por rol).
+            // Antes se evaluaba solo la mesa, mostrando ✓ en rutas que el rol
+            // igual no puede abrir (p.ej. "/admin").
+            const visible =
+              isSectionVisibleSync(mesaName, "agent", s.href) &&
+              hasPermission(s.href, "agent");
             return (
               <li class="flex items-center gap-2">
                 <span class:list={["badge badge-xs", visible ? "badge-success" : "badge-error"]}>
@@ -141,6 +147,11 @@ const lastSyncedAt = mesaList.reduce<string | null>((acc, m) => {
         </ul>
       </div>
     ))}
+    <p class="text-base-content/50 text-xs">
+      ✓ = visible combinando la mesa y el permiso de ruta de un rol{" "}
+      <span class="font-mono">agent</span> (la capa de rol usa jerarquía, por eso
+      un supervisor/admin ve más). Los roles superiores heredan acceso.
+    </p>
   </div>
 </div>
 
