@@ -3,7 +3,7 @@
 ---
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
+  (() => {
     const initAsyncForms = () => {
       const forms = document.querySelectorAll("form[data-async-form]");
 
@@ -113,10 +113,29 @@
       });
     };
 
-    // Initialize on DOMContentLoaded
-    initAsyncForms();
+    let observer: MutationObserver | null = null;
 
-    // If using Astro view transitions, initialize on astro:page-load
-    document.addEventListener("astro:page-load", initAsyncForms);
-  });
+    const start = () => {
+      // Bind forms already in the DOM (including islands injected before this
+      // script ran, when readyState is already "interactive"/"complete").
+      initAsyncForms();
+
+      // Forms inside server:defer islands are injected after page load, when
+      // DOMContentLoaded has already fired. Observe later injections.
+      // The dataset guard in initAsyncForms keeps this idempotent.
+      if (!observer) {
+        observer = new MutationObserver(() => initAsyncForms());
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+
+      // If using Astro view transitions, initialize on astro:page-load
+      document.addEventListener("astro:page-load", initAsyncForms);
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
+  })();
 </script>

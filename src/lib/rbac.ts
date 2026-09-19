@@ -133,6 +133,7 @@ export const routePermissions: RoutePermission[] = [
   { path: "/api/icons", roles: ALL_ROLES },
   { path: "/api/invgate", roles: ALL_ROLES },
   { path: "/api/offices", roles: ALL_ROLES },
+  { path: "/api/profile", roles: ALL_ROLES },
   { path: "/api/soportes", roles: ALL_ROLES },
   { path: "/api/support-guides", roles: ALL_ROLES },
   { path: "/api/terminals", roles: ALL_ROLES },

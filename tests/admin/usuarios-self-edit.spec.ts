@@ -53,14 +53,17 @@ test.describe("Sin autoedición de usuario", () => {
     );
     await btn.click();
     await page.locator("#change-role-select").selectOption("agent");
-    // El submit del modal en islas server:defer es nativo (AsyncFormScript no
-    // re-bindea islas inyectadas), así que la respuesta es la navegación POST
-    // del propio documento. Los invariantes son: el error se muestra y el rol
-    // en DB sigue siendo admin. No se aserta el status HTTP (200 con HTML).
-    await Promise.all([
-      page.waitForLoadState("load"),
+    // AsyncFormScript bindea también los forms de islas server:defer: el
+    // submit es AJAX (Accept: application/json) y el error viaja en el JSON.
+    // Los invariantes son: el error se muestra y el rol en DB sigue siendo
+    // admin.
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/admin/usuarios") && r.request().method() === "POST",
+      ),
       page.locator("#modal-change-role button[type='submit']").click(),
     ]);
+    expect(response.headers()["content-type"]).toContain("application/json");
     await expect(page.locator("#global-toast-container")).toContainText(
       "No podés editar tu propio usuario",
       { timeout: 10000 },

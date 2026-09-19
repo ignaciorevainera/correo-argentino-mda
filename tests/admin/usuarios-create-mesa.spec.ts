@@ -58,10 +58,10 @@ test.describe("Alta de usuario requiere mesa de ayuda", () => {
       ),
       form.locator("button[type='submit']").first().click(),
     ]);
-    // El submit es nativo (AsyncFormScript no re-bindea islas server:defer):
-    // el errorMsg viaja como prop a la isla y se muestra vía toast (script
-    // is:inline de la isla corre tras inyección).
-    await page.waitForLoadState("load");
+    // AsyncFormScript bindea también los forms de islas server:defer: el
+    // submit es AJAX (Accept: application/json) y el error viaja en el JSON,
+    // que AsyncFormScript muestra vía showToast sin recargar la página.
+    expect(response.headers()["content-type"]).toContain("application/json");
     await expect(page.locator("#global-toast-container")).toContainText(
       "mesa de ayuda es obligatoria",
       { timeout: 10000 },
