@@ -4,6 +4,7 @@ import { db } from "../../src/db/index";
 import { users, sessions } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
+import { setSessionCookie } from "../helpers/auth";
 
 const SECRET_KEY =
   process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
@@ -51,14 +52,7 @@ test.describe("Overtime preview modal", () => {
     page,
   }) => {
     const signedId = signSessionId(adminSessionId);
-    await context.addCookies([
-      {
-        name: "session_id",
-        value: signedId,
-        domain: "127.0.0.1",
-        path: "/",
-      },
-    ]);
+    await setSessionCookie(context, signedId);
 
     await page.goto("/supervision/cronograma");
     await page.waitForTimeout(500);
@@ -75,7 +69,7 @@ test.describe("Overtime preview modal", () => {
     await expect(modal).toBeVisible();
 
     // Modal should have a header with month name and year
-    const header = modal.locator("h3");
+    const header = modal.locator("#preview-month-trigger");
     await expect(header).toBeVisible();
 
     // Modal should have a content container
@@ -96,14 +90,7 @@ test.describe("Overtime preview modal", () => {
     page,
   }) => {
     const signedId = signSessionId(adminSessionId);
-    await context.addCookies([
-      {
-        name: "session_id",
-        value: signedId,
-        domain: "127.0.0.1",
-        path: "/",
-      },
-    ]);
+    await setSessionCookie(context, signedId);
 
     await page.goto("/supervision/cronograma");
     await page.waitForTimeout(500);

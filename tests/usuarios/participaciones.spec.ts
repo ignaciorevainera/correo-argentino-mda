@@ -1,9 +1,12 @@
 import "dotenv/config";
 import { test, expect, type BrowserContext } from "@playwright/test";
 import { db } from "../../src/db/index";
-import { users, sessions, agents } from "../../src/db/schema";
+import { users, sessions, agents, mesas } from "../../src/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { createHmac, randomUUID } from "crypto";
+import { setSessionCookie } from "../helpers/auth";
+
+const MDA_TI_MESA = "TI_GSM_MDA TI";
 
 const SECRET_KEY =
   process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
@@ -42,14 +45,7 @@ async function setupAdmin(context: BrowserContext): Promise<AdminTestContext> {
     expiresAt: Date.now() + 1000 * 60 * 60 * 24,
   });
 
-  await context.addCookies([
-    {
-      name: "session_id",
-      value: signSessionId(adminSessionId),
-      domain: "127.0.0.1",
-      path: "/",
-    },
-  ]);
+  await setSessionCookie(context, signSessionId(adminSessionId));
 
   return { adminUsername, adminSessionId, adminUserId: newUser.id };
 }
@@ -77,6 +73,25 @@ async function waitForUserInDb(username: string, maxRetries = 10): Promise<boole
 test.describe("Participaciones de usuarios", () => {
   let adminCtx: AdminTestContext;
 
+  test.beforeAll(async () => {
+    const [existing] = await db
+      .select({ invgateId: mesas.invgateId })
+      .from(mesas)
+      .where(eq(mesas.name, MDA_TI_MESA));
+    if (!existing) {
+      await db
+        .insert(mesas)
+        .values({
+          invgateId: 910001,
+          name: MDA_TI_MESA,
+          displayName: null,
+          active: true,
+          lastSyncedAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing();
+    }
+  });
+
   test.beforeEach(async ({ context }) => {
     adminCtx = await setupAdmin(context);
   });
@@ -95,6 +110,7 @@ test.describe("Participaciones de usuarios", () => {
     await page.fill("#admin-password", "CambiarEst0!Clave");
     await page.fill("#admin-fullname", `E2E Participaciones ${username}`);
     await page.selectOption("#admin-role", "team_leader");
+    await page.selectOption("#admin-helpdesk", { label: MDA_TI_MESA });
 
     await expect(
       page.locator('#nuevo-usuario-form input[name="enCronograma"]'),
@@ -158,6 +174,7 @@ test.describe("Participaciones de usuarios", () => {
     await page.fill("#admin-username", username);
     await page.fill("#admin-password", "CambiarEst0!Clave");
     await page.fill("#admin-fullname", `Toggle Crono Test ${username}`);
+    await page.selectOption("#admin-helpdesk", { label: MDA_TI_MESA });
 
     const createSubmitPromise = page.waitForResponse(
       (r) =>
