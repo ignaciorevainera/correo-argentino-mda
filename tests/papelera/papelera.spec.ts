@@ -66,7 +66,7 @@ test.describe.serial("Papelera de borrados recuperables", () => {
     await setSessionCookie(page.context(), admin.signedSessionId);
 
     const res = await page.request.post(
-      `http://127.0.0.1:4321/oficinas/edit/${officeId}/eliminar`,
+      `/oficinas/edit/${officeId}/eliminar`,
     );
     expect(res.ok()).toBeTruthy();
 
@@ -93,7 +93,7 @@ test.describe.serial("Papelera de borrados recuperables", () => {
 
   test("la oficina borrada aparece en la UI de papelera", async ({ page }) => {
     await setSessionCookie(page.context(), admin.signedSessionId);
-    await page.goto("http://127.0.0.1:4321/admin/papelera");
+    await page.goto("/admin/papelera");
     await expect(page.getByText(`Oficina Papelera ${createdCode}`)).toBeVisible();
     await expect(page.getByText("en papelera").first()).toBeVisible();
   });
@@ -110,7 +110,7 @@ test.describe.serial("Papelera de borrados recuperables", () => {
     expect(rec.restoredAt).toBeNull();
 
     await setSessionCookie(page.context(), admin.signedSessionId);
-    await page.goto("http://127.0.0.1:4321/admin/papelera");
+    await page.goto("/admin/papelera");
 
     page.on("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Restaurar" }).first().click();
@@ -131,7 +131,7 @@ test.describe.serial("Papelera de borrados recuperables", () => {
 
   test("agente no accede a la papelera", async ({ page }) => {
     await setSessionCookie(page.context(), plainUser.signedSessionId);
-    await page.goto("http://127.0.0.1:4321/admin/papelera");
+    await page.goto("/admin/papelera");
     // Middleware redirige fuera de la ruta (login/home): la tabla de papelera no renderiza
     expect(page.url()).not.toContain("/admin/papelera");
   });
