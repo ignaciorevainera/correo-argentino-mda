@@ -218,8 +218,8 @@ export function getModulePermissions(
     perm.canRead = true;
     perm.canWrite = rank >= ROLE_HIERARCHY.team_leader;
   } else if (moduleName === "usuarios") {
-    // Solo lectura por defecto, escritura solo para admin
-    perm.canRead = true;
+    // Solo admin lee/escribe (los endpoints de lectura de AD exponen datos sensibles)
+    perm.canRead = rank >= ROLE_HIERARCHY.admin;
     perm.canWrite = rank >= ROLE_HIERARCHY.admin;
   } else if (moduleName === "permisos") {
     perm.canRead = rank >= ROLE_HIERARCHY.admin;

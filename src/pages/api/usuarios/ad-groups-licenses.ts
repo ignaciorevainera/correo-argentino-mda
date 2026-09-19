@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
+import { requireReadAccess } from "@lib/rbac-middleware";
 import ldap from "ldapjs";
 
 const LDAP_SERVER =
@@ -22,7 +23,10 @@ interface AdGroupEntry {
   distinguishedName?: string;
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
+  const denied = await requireReadAccess(locals, "usuarios");
+  if (denied) return denied;
+
   if (!LDAP_USER || !LDAP_PASS) {
     return jsonError("LDAP_USER y LDAP_PASS requeridos en .env", 500);
   }
