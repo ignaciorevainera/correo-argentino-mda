@@ -10,15 +10,18 @@
  *   - rol supervisor -> enCronograma false
  *
  * Seguridad:
- *   - DRY-RUN por defecto: NO escribe. Solo reporta.
+ *   - DRY-RUN por defecto: NO escribe. Abre la DB en readonly (no toca -wal/-shm).
  *   - `--apply` escribe en transaccion SINCRONA (better-sqlite3 rechaza
  *     promesas en transaction()).
- *   - Antes de escribir hace backup fs.copyFileSync de la DB. Si falla, aborta.
+ *   - Antes de escribir hace backup WAL-safe con `db.backup()` (copia tambien
+ *     el contenido pendiente en -wal; `copyFileSync` solo copiaria el .db y
+ *     dejaria un backup inconsistente). Si falla, aborta ANTES de cualquier UPDATE.
  *   - Solo toca filas de `agents` cuyos flags cambian. Nunca borra filas.
  *
  * Mesa canonica: join `users.helpdesk_id = mesas.invgate_id` -> `mesas.name`.
  * NO se usa `users.helpdesk_name` (denormalizado, puede estar stale).
- * Vinculo users<->agents: `lower(coalesce(agents.username,'')) = users.username`.
+ * Vinculo users<->agents case-insensitive:
+ * `lower(coalesce(agents.username,'')) = lower(users.username)`.
  *
  * Uso:
  *   npx tsx scripts/normalize-participaciones.mts               # dry-run
@@ -26,7 +29,7 @@
  *   npx tsx scripts/normalize-participaciones.mts --db <ruta>   # otra DB
  */
 import Database from "better-sqlite3";
-import { copyFileSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import { basename, dirname, join, resolve } from "path";
 import { pathToFileURL } from "url";
 import {
@@ -79,14 +82,14 @@ const SELECT_ROWS = `
     a.asignable_ags AS asignable_ags
   FROM users u
   LEFT JOIN mesas m ON m.invgate_id = u.helpdesk_id
-  LEFT JOIN agents a ON lower(coalesce(a.username, '')) = u.username
+  LEFT JOIN agents a ON lower(coalesce(a.username, '')) = lower(u.username)
 `;
 
 const COUNT_USERS_WITHOUT_AGENT = `
   SELECT COUNT(*) AS c
   FROM users u
   WHERE NOT EXISTS (
-    SELECT 1 FROM agents a WHERE lower(coalesce(a.username, '')) = u.username
+    SELECT 1 FROM agents a WHERE lower(coalesce(a.username, '')) = lower(u.username)
   )
 `;
 
@@ -111,21 +114,37 @@ function rowFlags(r: AgentRow): ParticipationFlags {
   };
 }
 
+export type BackupFn = (
+  db: Database.Database,
+  dest: string,
+) => Promise<unknown>;
+
+/** Backup WAL-safe via better-sqlite3 (incluye el contenido pendiente en -wal). */
+async function defaultBackup(db: Database.Database, dest: string): Promise<void> {
+  await db.backup(dest);
+}
+
 /**
  * Evalua la politica y, si `apply` y hay cambios, los persiste en una unica
- * transaccion sincrona tras crear un backup. Devuelve el reporte.
+ * transaccion sincrona tras crear un backup WAL-safe. Devuelve el reporte.
+ *
+ * - `apply=false`: conexion readonly, sin backup, sin escrituras.
+ * - `apply=true`:  backup (inyectable via `backupFn` para tests) ANTES del tx.
  */
-export function runNormalize(opts: {
+export async function runNormalize(opts: {
   dbPath: string;
   apply?: boolean;
-}): NormalizeReport {
+  backupFn?: BackupFn;
+}): Promise<NormalizeReport> {
   const dbPath = resolve(opts.dbPath);
   const apply = opts.apply === true;
   if (!existsSync(dbPath)) {
     throw new Error(`No existe la DB: ${dbPath}`);
   }
 
-  const db = new Database(dbPath);
+  // readonly cuando dry-run: evita tocar -wal/-shm. El backup solo se hace con
+  // apply=true (conexion normal), por lo que readonly nunca necesita backup.
+  const db = apply ? new Database(dbPath) : new Database(dbPath, { readonly: true });
   try {
     const rows = db.prepare(SELECT_ROWS).all() as AgentRow[];
     const skippedNoAgent = (
@@ -157,7 +176,7 @@ export function runNormalize(opts: {
     if (apply && pending.length > 0) {
       backupPath = join(dirname(dbPath), backupNameFor(basename(dbPath)));
       try {
-        copyFileSync(dbPath, backupPath);
+        await (opts.backupFn ?? defaultBackup)(db, backupPath);
       } catch (e) {
         throw new Error(
           `No se pudo crear el backup en ${backupPath}: ${(e as Error).message}. Abortado, sin cambios.`,
@@ -249,10 +268,10 @@ function parseArgs(argv: string[]): { dbPath: string; apply: boolean } {
   return { dbPath, apply };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const { dbPath, apply } = parseArgs(process.argv.slice(2));
   try {
-    const report = runNormalize({ dbPath, apply });
+    const report = await runNormalize({ dbPath, apply });
     printReport(report);
   } catch (e) {
     console.error("ERROR:", (e as Error).message);
@@ -270,4 +289,4 @@ const invokedDirectly = (() => {
   }
 })();
 
-if (invokedDirectly) main();
+if (invokedDirectly) void main();

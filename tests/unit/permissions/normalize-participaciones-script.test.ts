@@ -107,8 +107,8 @@ afterEach(() => {
 });
 
 describe("runNormalize — dry-run", () => {
-  it("no escribe y reporta los afectados", () => {
-    const report = runNormalize({ dbPath });
+  it("no escribe y reporta los afectados", async () => {
+    const report = await runNormalize({ dbPath });
     expect(report.dryRun).toBe(true);
     expect(report.affected).toBe(3); // ti_sup, coord_agent, nomesa_ref
     expect(report.updated).toBe(0);
@@ -123,8 +123,8 @@ describe("runNormalize — dry-run", () => {
 });
 
 describe("runNormalize — apply", () => {
-  it("escribe solo lo esperado, crea backup y es idempotente", () => {
-    const report = runNormalize({ dbPath, apply: true });
+  it("escribe solo lo esperado, crea backup y es idempotente", async () => {
+    const report = await runNormalize({ dbPath, apply: true });
     expect(report.updated).toBe(3);
     expect(report.backupPath).toBeTruthy();
     expect(existsSync(report.backupPath!)).toBe(true);
@@ -142,23 +142,73 @@ describe("runNormalize — apply", () => {
     expect(flags("orphan_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
 
     // Segunda corrida: sin cambios (idempotente), sin nuevo backup.
-    const second = runNormalize({ dbPath, apply: true });
+    const second = await runNormalize({ dbPath, apply: true });
     expect(second.affected).toBe(0);
     expect(second.updated).toBe(0);
     expect(backups()).toHaveLength(1);
   });
 
-  it("reporta evaluados y usuarios sin agent", () => {
-    const report = runNormalize({ dbPath });
+  it("reporta evaluados y usuarios sin agent", async () => {
+    const report = await runNormalize({ dbPath });
     expect(report.evaluated).toBe(5); // 5 users
     expect(report.skippedNoAgent).toBe(1); // ghost
   });
 
-  it("no borra filas", () => {
-    runNormalize({ dbPath, apply: true });
+  it("no borra filas", async () => {
+    await runNormalize({ dbPath, apply: true });
     const db = new Database(dbPath, { readonly: true });
     const count = (db.prepare("SELECT COUNT(*) c FROM agents").get() as any).c;
     db.close();
     expect(count).toBe(5);
+  });
+});
+
+describe("runNormalize — error paths", () => {
+  it("DB inexistente -> rechaza con error legible, sin crash", async () => {
+    const missing = join(workDir, "no-existe.db");
+    const err = await runNormalize({ dbPath: missing }).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err!.message).toContain("No existe la DB");
+    expect(err!.message).toContain(missing);
+  });
+
+  it("backup falla -> aborta SIN escribir y sin archivo de backup", async () => {
+    const failingBackup = async () => {
+      throw new Error("disco lleno (simulado)");
+    };
+
+    const err = await runNormalize({
+      dbPath,
+      apply: true,
+      backupFn: failingBackup,
+    }).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(err).toBeInstanceOf(Error);
+    expect(err!.message).toContain("No se pudo crear el backup");
+    expect(err!.message).toContain("sin cambios");
+
+    // Ningun flag cambio y no quedo backup.
+    expect(flags("ti_sup")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags("coord_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags("nomesa_ref")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(backups()).toHaveLength(0);
+  });
+
+  it("join case-insensitive: user con mayusculas se vincula igual", async () => {
+    const db = new Database(dbPath);
+    db.prepare("UPDATE users SET username = 'TI_AGENT' WHERE username = 'ti_agent'").run();
+    db.prepare("UPDATE users SET username = 'TI_SUP' WHERE username = 'ti_sup'").run();
+    db.close();
+
+    const report = await runNormalize({ dbPath });
+    // ti_agent mayusculas sigue vinculado (mesa participativa + agent: sin cambios).
+    expect(report.skippedNoAgent).toBe(1); // solo ghost
+    expect(report.affected).toBe(3); // ti_sup, coord_agent, nomesa_ref
   });
 });
