@@ -36,6 +36,10 @@ const allUsers = await db
     username: users.username,
     role: users.role,
     helpdeskName: users.helpdeskName,
+    // Nombre canonico via join: users.helpdeskName puede quedar stale cuando
+    // mesaSync renombra una mesa. Se usa para el gating de participaciones;
+    // el badge/banner siguen mostrando el denormalizado (informativo).
+    mesaName: mesas.name,
     agentId: agents.id,
     agentName: agents.name,
     enCronograma: agents.enCronograma,
@@ -47,7 +51,8 @@ const allUsers = await db
   .leftJoin(
     agents,
     sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
-  );
+  )
+  .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId));
 
 const usersConMesaInactiva = await db
   .select({ username: users.username, mesaName: mesas.name })
@@ -276,7 +281,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                   </div>
 
                   <div class="flex items-center justify-end gap-2">
-                    {u.agentId && mesaHasParticipaciones(u.helpdeskName) && (
+                    {u.agentId && mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
                       <button
                         type="button"
                         class="btn btn-ghost btn-xs"
@@ -316,7 +321,7 @@ const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4"
                     />
                   </div>
 
-                  {u.agentId && mesaHasParticipaciones(u.helpdeskName) && (
+                  {u.agentId && mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
                     <Modal id={`modal-participaciones-${u.id}`}>
                       <Fragment slot="content">
                         <h3 class="text-base-content mb-1 text-base font-semibold">

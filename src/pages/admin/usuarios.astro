@@ -144,15 +144,25 @@ if (Astro.request.method === "POST") {
     }
   } else if (action === "update-participaciones") {
     const userId = Number(formData.get("userId"));
+    // Mesa canonica via join: users.helpdeskName puede quedar stale cuando
+    // mesaSync renombra una mesa. Fallback al denormalizado solo si el join
+    // no resuelve (usuario huerfano), igual que el gating de la UI.
     const [target] = await db
-      .select({ role: users.role, helpdeskName: users.helpdeskName })
+      .select({
+        role: users.role,
+        helpdeskName: users.helpdeskName,
+        mesaName: mesas.name,
+      })
       .from(users)
+      .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
       .where(eq(users.id, userId));
 
     if (!target) {
       errorMsg = "Usuario no encontrado.";
-    } else if (!mesaHasParticipaciones(target.helpdeskName)) {
-      errorMsg = `La mesa "${(target.helpdeskName ?? "Sin mesa de ayuda").trim()}" no tiene secciones con participaciones.`;
+    } else if (
+      !mesaHasParticipaciones(target.mesaName ?? target.helpdeskName)
+    ) {
+      errorMsg = `La mesa "${((target.mesaName ?? target.helpdeskName) ?? "Sin mesa de ayuda").trim()}" no tiene secciones con participaciones.`;
     } else {
       const participaciones = {
         // Un supervisor no figura en el cronograma como operador (forzado).

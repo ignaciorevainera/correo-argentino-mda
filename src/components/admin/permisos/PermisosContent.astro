@@ -171,15 +171,21 @@ const lastSyncedAt = mesaList.reduce<string | null>((acc, m) => {
     async function syncMesas(): Promise<void> {
       const out = await postJson("api/admin/permisos/mesas/sync", {});
       const affected = Array.isArray(out?.affectedUsers) ? out.affectedUsers : [];
+      // El toast se pasa por query params (patron ToastContainer) para que
+      // sobreviva al reload que refresca la tabla de mesas: un showToast()
+      // seguido de reload jamas llega a verse.
+      const url = new URL(window.location.href);
       if (affected.length > 0) {
-        showToast(
+        url.searchParams.set(
+          "toast_msg",
           `Mesas sincronizadas. ${affected.length} usuario(s) con mesa desactivada requieren reasignación en /admin/usuarios`,
-          "alert-warning",
         );
+        url.searchParams.set("toast_type", "warning");
       } else {
-        showToast("Mesas sincronizadas desde InvGate", "alert-success");
+        url.searchParams.set("toast_msg", "Mesas sincronizadas desde InvGate");
+        url.searchParams.set("toast_type", "success");
       }
-      window.location.reload();
+      window.location.replace(url.toString());
     }
 
     document.getElementById("mesas-sync")?.addEventListener("click", async () => {
