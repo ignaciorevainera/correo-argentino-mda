@@ -25,11 +25,7 @@ if (Astro.request.method === "POST") {
   // que se hace desde /profile. El rol admin además no es editable por nadie
   // en el sistema de permisos (whitelist hardcoded, short-circuit en
   // isSectionVisibleSync).
-  const SELF_EDIT_BLOCKED_ACTIONS = new Set([
-    "change-role",
-    "update-user",
-    "update-participaciones",
-  ]);
+  const SELF_EDIT_BLOCKED_ACTIONS = new Set(["update-user"]);
   const selfEditBlocked =
     SELF_EDIT_BLOCKED_ACTIONS.has(action) &&
     Number(formData.get("userId")) === Astro.locals.user.id;
@@ -153,125 +149,94 @@ if (Astro.request.method === "POST") {
         }
       }
     }
-  } else if (action === "update-participaciones") {
-    const userId = Number(formData.get("userId"));
-    // Mesa canonica via join: users.helpdeskName puede quedar stale cuando
-    // mesaSync renombra una mesa. Fallback al denormalizado solo si el join
-    // no resuelve (usuario huerfano), igual que el gating de la UI.
-    const [target] = await db
-      .select({
-        role: users.role,
-        helpdeskName: users.helpdeskName,
-        mesaName: mesas.name,
-      })
-      .from(users)
-      .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
-      .where(eq(users.id, userId));
-
-    if (!target) {
-      errorMsg = "Usuario no encontrado.";
-    } else if (
-      !mesaHasParticipaciones(target.mesaName ?? target.helpdeskName)
-    ) {
-      errorMsg = `La mesa "${((target.mesaName ?? target.helpdeskName) ?? "Sin mesa de ayuda").trim()}" no tiene secciones con participaciones.`;
-    } else {
-      const participaciones = {
-        // Un supervisor no figura en el cronograma como operador (forzado).
-        enCronograma:
-          normalizeRole(target.role) !== "supervisor" && formData.get("enCronograma") === "on",
-        asignableCubic: formData.get("asignableCubic") === "on",
-        incluidoCalidad: formData.get("incluidoCalidad") === "on",
-        asignableAgs: formData.get("asignableAgs") === "on",
-      };
-      try {
-        const [targetUser] = await db
-          .select({ username: users.username })
-          .from(users)
-          .where(eq(users.id, userId));
-        const targetUsername = targetUser?.username || "desconocido";
-
-        const [existingAgent] = await db
-          .select({ id: agents.id })
-          .from(agents)
-          .where(sql`lower(coalesce(${agents.username}, '')) = ${targetUsername}`);
-
-        if (existingAgent) {
-          await db
-            .update(agents)
-            .set(participaciones)
-            .where(eq(agents.id, existingAgent.id));
-        } else {
-          await db.insert(agents).values({
-            name: targetUsername.toUpperCase(),
-            username: targetUsername,
-            ...participaciones,
-          });
-        }
-        successMsg = "Participaciones actualizadas con éxito.";
-        await logAdminFromAstro(
-          Astro.locals,
-          `Actualizó participaciones de "${targetUsername}": cronograma=${participaciones.enCronograma ? "sí" : "no"}, cubic=${participaciones.asignableCubic ? "sí" : "no"}, calidad=${participaciones.incluidoCalidad ? "sí" : "no"}, AGS=${participaciones.asignableAgs ? "sí" : "no"}`,
-        );
-      } catch (e) {
-        errorMsg = "Error al actualizar participaciones.";
-      }
-    }
   } else if (action === "update-user") {
     const userId = Number(formData.get("userId"));
-    const newUsername = formData
-      .get("username")
-      ?.toString()
-      .trim()
-      .toLowerCase();
+    const newUsername = formData.get("username")?.toString().trim().toLowerCase();
     const newName = formData.get("name")?.toString().trim();
+    const newRole = formData.get("newRole")?.toString();
+    const rawHelpdesk = formData.get("helpdesk")?.toString() ?? "";
+    const submitted = {
+      enCronograma: formData.get("enCronograma") === "on",
+      asignableCubic: formData.get("asignableCubic") === "on",
+      incluidoCalidad: formData.get("incluidoCalidad") === "on",
+      asignableAgs: formData.get("asignableAgs") === "on",
+    };
+
+    let helpdeskId: number | null = null;
+    if (rawHelpdesk) {
+      const sep = rawHelpdesk.indexOf("|");
+      const idStr = sep === -1 ? rawHelpdesk : rawHelpdesk.slice(0, sep);
+      const parsedId = Number(idStr);
+      helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+    }
 
     if (!newUsername || !newName) {
       errorMsg = "Nombre completo y nombre de red son obligatorios.";
+    } else if (!newRole || !isValidRole(newRole)) {
+      errorMsg = `Rol inválido: "${newRole ?? ""}".`;
     } else {
-      // Mesa canonica via join: users.helpdeskName puede quedar stale cuando
-      // mesaSync renombra una mesa. Mismo criterio que update-participaciones
-      // y el gating de la UI.
-      const [target] = await db
-        .select({
-          username: users.username,
-          role: users.role,
-          helpdeskName: users.helpdeskName,
-          mesaName: mesas.name,
-        })
-        .from(users)
-        .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
-        .where(eq(users.id, userId));
+      const FLAG_LABELS = {
+        enCronograma: "cronograma",
+        asignableCubic: "cubic",
+        incluidoCalidad: "calidad",
+        asignableAgs: "AGS",
+      } as const;
+      let audit: string | null = null;
 
-      if (!target) {
-        errorMsg = "Usuario no encontrado.";
-      } else {
-        const oldUsername = target.username;
-        // Sin mesa participativa no hay flags que persistir; un supervisor
-        // nunca figura en cronograma (forzado). Mismo saneamiento que create.
-        const mesaParticipativa = mesaHasParticipaciones(
-          target.mesaName ?? target.helpdeskName,
-        );
-        const participaciones = {
-          enCronograma:
-            mesaParticipativa &&
-            normalizeRole(target.role) !== "supervisor" &&
-            formData.get("enCronograma") === "on",
-          asignableCubic:
-            mesaParticipativa && formData.get("asignableCubic") === "on",
-          incluidoCalidad:
-            mesaParticipativa && formData.get("incluidoCalidad") === "on",
-          asignableAgs:
-            mesaParticipativa && formData.get("asignableAgs") === "on",
-        };
-        const FLAG_LABELS = {
-          enCronograma: "cronograma",
-          asignableCubic: "cubic",
-          incluidoCalidad: "calidad",
-          asignableAgs: "AGS",
-        } as const;
+      try {
+        // Callback SÍNCRONO: better-sqlite3 no admite promesas en
+        // transaction() (lanza TypeError y hace rollback). El snapshot se lee
+        // DENTRO de la tx para evitar TOCTOU con ediciones concurrentes.
+        db.transaction((tx) => {
+          const target = tx
+            .select({
+              username: users.username,
+              role: users.role,
+              helpdeskId: users.helpdeskId,
+              helpdeskName: users.helpdeskName,
+            })
+            .from(users)
+            .where(eq(users.id, userId))
+            .get();
 
-        try {
-          const [existingAgent] = await db
+          if (!target) {
+            errorMsg = "Usuario no encontrado.";
+            return;
+          }
+
+          // Mesa canónica (activa) desde DB, nunca del cliente.
+          let mesaName: string | null = null;
+          if (helpdeskId != null) {
+            const mesa = tx
+              .select({ name: mesas.name, active: mesas.active })
+              .from(mesas)
+              .where(eq(mesas.invgateId, helpdeskId))
+              .get();
+            if (!mesa || !mesa.active) {
+              errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
+              return;
+            }
+            mesaName = mesa.name;
+          }
+          const oldUsername = target.username;
+
+          // Colisión de username (excluyendo el propio usuario).
+          if (newUsername !== oldUsername) {
+            const clash = tx
+              .select({ id: users.id })
+              .from(users)
+              .where(
+                sql`lower(${users.username}) = ${newUsername} and ${users.id} <> ${userId}`,
+              )
+              .get();
+            if (clash) {
+              errorMsg = "Error: Ese nombre de usuario ya existe.";
+              return;
+            }
+          }
+
+          // Fila de agente vinculada (por username actual).
+          const agentRow = tx
             .select({
               id: agents.id,
               name: agents.name,
@@ -283,96 +248,106 @@ if (Astro.request.method === "POST") {
             .from(agents)
             .where(
               sql`lower(coalesce(${agents.username}, '')) = ${oldUsername.toLowerCase()}`,
-            );
+            )
+            .get();
 
-          // Callback SÍNCRONO: better-sqlite3 no admite promesas en
-          // transaction() (lanza TypeError y hace rollback).
-          db.transaction((tx) => {
-            if (newUsername !== oldUsername) {
-              tx.update(users)
-                .set({ username: newUsername })
-                .where(eq(users.id, userId))
-                .run();
+          // Colisión de nombre visible (excluyendo la propia fila de agente).
+          if (newName !== (agentRow?.name ?? "")) {
+            const nameClash = tx
+              .select({ id: agents.id })
+              .from(agents)
+              .where(
+                sql`${agents.name} = ${newName} and ${agents.id} <> ${agentRow?.id ?? -1}`,
+              )
+              .get();
+            if (nameClash) {
+              errorMsg = "Error: Ya existe un agente con ese nombre completo.";
+              return;
             }
+          }
 
-            if (existingAgent) {
-              tx.update(agents)
-                .set({ name: newName, username: newUsername, ...participaciones })
-                .where(eq(agents.id, existingAgent.id))
-                .run();
-            } else {
-              // Self-heal: usuarios sin fila agents (vinculo por username)
-              // ahora pueden editarse y se crea la fila en el mismo submit.
-              tx.insert(agents)
-                .values({
-                  name: newName,
-                  username: newUsername,
-                  ...participaciones,
-                })
-                .run();
-            }
+          // Flags efectivos: mesa no participativa o supervisor fuerzan false.
+          const mesaParticipativa = mesaHasParticipaciones(mesaName);
+          const isSupervisor = normalizeRole(newRole) === "supervisor";
+          const finalFlags = {
+            enCronograma: mesaParticipativa && !isSupervisor && submitted.enCronograma,
+            asignableCubic: mesaParticipativa && submitted.asignableCubic,
+            incluidoCalidad: mesaParticipativa && submitted.incluidoCalidad,
+            asignableAgs: mesaParticipativa && submitted.asignableAgs,
+          };
 
-            // El rename de username no cambia el nombre visible; solo si el
-            // nombre cambio se propaga a los cronogramas guardados.
-            if (existingAgent && existingAgent.name !== newName) {
-              tx.update(schedules)
-                .set({ agentName: newName })
-                .where(eq(schedules.agentName, existingAgent.name))
-                .run();
-            }
-          });
+          tx.update(users)
+            .set({
+              role: newRole as any,
+              helpdeskId: helpdeskId ?? null,
+              helpdeskName: mesaName,
+              ...(newUsername !== oldUsername ? { username: newUsername } : {}),
+            })
+            .where(eq(users.id, userId))
+            .run();
 
+          if (agentRow) {
+            tx.update(agents)
+              .set({ name: newName, username: newUsername, ...finalFlags })
+              .where(eq(agents.id, agentRow.id))
+              .run();
+          } else {
+            // Self-heal: usuarios sin fila agents se crean en el mismo submit.
+            tx.insert(agents)
+              .values({ name: newName, username: newUsername, ...finalFlags })
+              .run();
+          }
+
+          if (agentRow && agentRow.name !== newName) {
+            tx.update(schedules)
+              .set({ agentName: newName })
+              .where(eq(schedules.agentName, agentRow.name))
+              .run();
+          }
+
+          // Audit: solo deltas reales.
           const changes: string[] = [];
           if (newUsername !== oldUsername) {
+            changes.push(`nombre de red "${oldUsername}" → "${newUsername}"`);
+          }
+          if (normalizeRole(target.role) !== normalizeRole(newRole)) {
+            changes.push(`rol "${target.role}" → "${newRole}"`);
+          }
+          const oldMesaLabel = target.helpdeskName ?? "Sin mesa de ayuda";
+          const newMesaLabel = mesaName ?? "Sin mesa de ayuda";
+          if (oldMesaLabel !== newMesaLabel) {
+            changes.push(`mesa "${oldMesaLabel}" → "${newMesaLabel}"`);
+          }
+          if (!agentRow) {
+            changes.push(`creada la fila de agente "${newName}"`);
+          } else if (agentRow.name !== newName) {
+            changes.push(`nombre visible "${agentRow.name}" → "${newName}"`);
+          }
+          const changedFlags = (Object.keys(FLAG_LABELS) as (keyof typeof FLAG_LABELS)[])
+            .filter((flag) => (agentRow ? agentRow[flag] : false) !== finalFlags[flag]);
+          if (changedFlags.length > 0) {
             changes.push(
-              `nombre de red "${oldUsername}" → "${newUsername}"`,
+              `participaciones: ${changedFlags
+                .map((flag) => `${FLAG_LABELS[flag]}=${finalFlags[flag] ? "sí" : "no"}`)
+                .join(", ")}`,
             );
           }
-          if (!existingAgent) {
-            changes.push(`creada la fila de agente "${newName}"`);
-            const setFlags = (
-              Object.keys(FLAG_LABELS) as (keyof typeof FLAG_LABELS)[]
-            )
-              .filter((flag) => participaciones[flag])
-              .map((flag) => FLAG_LABELS[flag]);
-            if (setFlags.length > 0) {
-              changes.push(`participaciones activadas: ${setFlags.join(", ")}`);
-            }
-          } else {
-            if (existingAgent.name !== newName) {
-              changes.push(`nombre visible "${existingAgent.name}" → "${newName}"`);
-            }
-            const changedFlags = (
-              Object.keys(FLAG_LABELS) as (keyof typeof FLAG_LABELS)[]
-            ).filter((flag) => existingAgent[flag] !== participaciones[flag]);
-            if (changedFlags.length > 0) {
-              changes.push(
-                `participaciones: ${changedFlags
-                  .map(
-                    (flag) =>
-                      `${FLAG_LABELS[flag]}=${participaciones[flag] ? "sí" : "no"}`,
-                  )
-                  .join(", ")}`,
-              );
-            }
-          }
+          audit = `Actualizó al usuario "${oldUsername}"${changes.length > 0 ? `: ${changes.join("; ")}` : " (sin cambios)"}`;
+        });
 
+        if (!errorMsg && audit) {
           successMsg = "Usuario actualizado con éxito.";
-          await logAdminFromAstro(
-            Astro.locals,
-            `Actualizó al usuario "${oldUsername}"${changes.length > 0 ? `: ${changes.join("; ")}` : " (sin cambios)"}`,
-          );
-        } catch (e) {
-          console.error("[usuarios] Error al actualizar usuario:", e);
-          const msg = e instanceof Error ? e.message : String(e);
-          if (msg.includes("users.username")) {
-            errorMsg = "Error: Ese nombre de usuario ya existe.";
-          } else if (msg.includes("agents.name")) {
-            errorMsg =
-              "Error: Ya existe un agente con ese nombre completo.";
-          } else {
-            errorMsg = "Error al actualizar el usuario.";
-          }
+          await logAdminFromAstro(Astro.locals, audit);
+        }
+      } catch (e) {
+        console.error("[usuarios] Error al actualizar usuario:", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("users.username")) {
+          errorMsg = "Error: Ese nombre de usuario ya existe.";
+        } else if (msg.includes("agents.name")) {
+          errorMsg = "Error: Ya existe un agente con ese nombre completo.";
+        } else {
+          errorMsg = "Error al actualizar el usuario.";
         }
       }
     }
@@ -405,96 +380,6 @@ if (Astro.request.method === "POST") {
           errorMsg = "Error al actualizar la contraseña.";
         }
       }
-    }
-  } else if (action === "change-role") {
-    const userId = Number(formData.get("userId"));
-    const newRole = formData.get("newRole")?.toString();
-    const raw = formData.get("helpdesk")?.toString() ?? "";
-
-    let helpdeskId: number | null = null;
-    let helpdeskName: string | null = null;
-    let mesaRow: typeof mesas.$inferSelect | undefined;
-    if (raw) {
-      const sep = raw.indexOf("|");
-      const idStr = sep === -1 ? raw : raw.slice(0, sep);
-      const name = sep === -1 ? "" : raw.slice(sep + 1);
-      const parsedId = Number(idStr);
-      helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
-      helpdeskName = name || null;
-      const [row] = await db.select().from(mesas).where(eq(mesas.invgateId, helpdeskId));
-      if (!row || !row.active) {
-        errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
-      } else {
-        mesaRow = row;
-        helpdeskName = row.name;
-      }
-    }
-
-    if (userId && newRole && isValidRole(newRole) && !errorMsg) {
-      try {
-        const [targetUser] = await db
-          .select({
-            username: users.username,
-            role: users.role,
-            helpdeskName: users.helpdeskName,
-          })
-          .from(users)
-          .where(eq(users.id, userId));
-        const targetUsername = targetUser?.username || "desconocido";
-        const oldRole = targetUser?.role || "desconocido";
-        const oldHelpdesk = targetUser?.helpdeskName || "Sin mesa de ayuda";
-
-        // Politica de participaciones por mesa: al mover a una mesa no
-        // participativa (o dejar sin mesa) se resetean; un supervisor nunca
-        // figura en cronograma. Evita el "fantasma" del agente en
-        // cronograma/calidad/cubics/guardia de otra mesa.
-        const resetFlags = !(mesaRow && mesaHasParticipaciones(mesaRow.name));
-        const isSupervisor = normalizeRole(newRole) === "supervisor";
-        const resetParticipaciones = resetFlags || isSupervisor;
-
-        // Callback SÍNCRONO: better-sqlite3 no admite promesas en
-        // transaction() (lanza TypeError y hace rollback).
-        db.transaction((tx) => {
-          tx.update(users)
-            .set({ role: newRole as any, helpdeskId, helpdeskName })
-            .where(eq(users.id, userId))
-            .run();
-
-          const targetAgent = tx
-            .select({ id: agents.id })
-            .from(agents)
-            .where(
-              sql`lower(coalesce(${agents.username}, '')) = lower(${targetUsername})`,
-            )
-            .get();
-
-          if (targetAgent && resetParticipaciones) {
-            tx.update(agents)
-              .set({
-                ...(resetFlags
-                  ? {
-                      enCronograma: false,
-                      asignableCubic: false,
-                      incluidoCalidad: false,
-                      asignableAgs: false,
-                    }
-                  : {}),
-                ...(isSupervisor ? { enCronograma: false } : {}),
-              })
-              .where(eq(agents.id, targetAgent.id))
-              .run();
-          }
-        });
-        successMsg = "Rol y mesa de ayuda actualizados con éxito.";
-        await logAdminFromAstro(
-          Astro.locals,
-          `Cambió el rol de "${targetUsername}" de "${oldRole}" a "${newRole}" y la mesa de ayuda de "${oldHelpdesk}" a "${helpdeskName || "Sin mesa de ayuda"}"${resetParticipaciones ? " (participaciones reseteadas)" : ""}`,
-        );
-      } catch (e) {
-        errorMsg = "Error al actualizar el usuario.";
-      }
-    } else if (userId && newRole && !isValidRole(newRole)) {
-      errorMsg = `Rol inválido: "${newRole}".`;
     }
   }
 
