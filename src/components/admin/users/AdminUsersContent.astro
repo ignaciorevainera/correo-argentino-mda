@@ -8,7 +8,6 @@ import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
-import ActionRoleButton from "@components/ui/ActionRoleButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
@@ -25,6 +24,7 @@ import Modal from "@components/ui/Modal.astro";
 import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import ActionButton from "@components/ui/ActionButton.astro";
+import SearchBar from "@components/ui/SearchBar.astro";
 
 interface Props {
   successMsg?: string;
@@ -39,6 +39,7 @@ const allUsers = await db
     username: users.username,
     role: users.role,
     helpdeskName: users.helpdeskName,
+    helpdeskId: users.helpdeskId,
     // Nombre canonico via join: users.helpdeskName puede quedar stale cuando
     // mesaSync renombra una mesa. Se usa para el gating de participaciones;
     // el badge/banner siguen mostrando el denormalizado (informativo).
@@ -140,11 +141,25 @@ const isSupervisorRole = (role: string): boolean =>
           }
         </div>
 
+        <SearchBar
+          id="admin-users-search"
+          placeholder="Buscar por usuario..."
+          ariaLabel="Buscar usuarios por nombre de red"
+          size="sm"
+          class="max-w-md"
+        />
+
         <DataTable
+          id="usuarios-table"
           ariaLabel="Listado de usuarios registrados"
           minWidthClass="min-w-160"
           headerGridClass={headerGridClass}
           rowGridClass={rowGridClass}
+          emptyStateTitle="Sin usuarios que coincidan"
+          emptyStateDescription="No encontramos usuarios ni mesas de ayuda para esa búsqueda. Probá con otro nombre, rol o mesa."
+          showClearButton
+          clearButtonText="Limpiar búsqueda"
+          clearButtonId="admin-users-search-clear"
         >
           <div slot="header">
             <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell
@@ -188,6 +203,7 @@ const isSupervisorRole = (role: string): boolean =>
                   data-sort-username={u.username}
                   data-sort-role={u.role}
                   data-sort-helpdesk={u.helpdeskName ?? ""}
+                  data-search-text={`${u.username} ${u.role.replace(/_/g, " ")} ${u.helpdeskName ?? ""}`}
                   class:list={[
                     rowGridClass,
                     "border-base-300 hover:bg-base-200/50 border-b px-5 py-4 transition-colors last:border-b-0",
@@ -214,7 +230,10 @@ const isSupervisorRole = (role: string): boolean =>
                       >
                         {u.username.slice(0, 2).toUpperCase()}
                       </div>
-                      <span class="text-base-content truncate font-mono font-medium">
+                      <span
+                        class="text-base-content truncate font-mono font-medium"
+                        data-highlight-target
+                      >
                         {u.username}
                       </span>
                     </div>
@@ -292,6 +311,7 @@ const isSupervisorRole = (role: string): boolean =>
                                 ? "badge-warning"
                                 : "badge-neutral",
                       ]}
+                      data-highlight-target
                     >
                       {u.role === "admin"
                         ? "Admin"
@@ -316,27 +336,34 @@ const isSupervisorRole = (role: string): boolean =>
                             ? "badge-primary"
                             : "badge-secondary",
                         ]}
+                        data-highlight-target
                       >
                         {u.helpdeskName}
                       </span>
                     ) : (
-                      <span class="text-base-content/40 text-xs italic">
+                      <span
+                        class="text-base-content/40 text-xs italic"
+                        data-highlight-target
+                      >
                         Sin mesa de ayuda
                       </span>
                     )}
                   </div>
 
                   <div class="flex items-center justify-end gap-3">
-                    <ActionRoleButton
-                      data-action="change-role-btn"
+                    <ActionEditButton
+                      data-edit-user-btn
                       data-user-id={u.id}
                       data-user-role={u.role}
-                      data-user-helpdesk={u.helpdeskName ?? ""}
                       data-user-username={u.username}
-                      ariaLabel={`Cambiar rol y mesa de ayuda de ${u.username}`}
-                    />
-
-                    <ActionEditButton
+                      data-user-name={u.agentName ?? ""}
+                      data-user-helpdesk={u.helpdeskName ?? ""}
+                      data-user-flags={JSON.stringify({
+                        enCronograma: !!u.enCronograma,
+                        asignableCubic: !!u.asignableCubic,
+                        incluidoCalidad: !!u.incluidoCalidad,
+                        asignableAgs: !!u.asignableAgs,
+                      })}
                       onclick={`document.getElementById('modal-edit-user-${u.id}').showModal()`}
                       ariaLabel={`Editar usuario ${u.username}`}
                     />
@@ -380,6 +407,48 @@ const isSupervisorRole = (role: string): boolean =>
                           inputClass="input-sm"
                           helpText="Se propaga a los cronogramas guardados."
                         />
+                        <SelectField
+                          id={`edit-user-role-${u.id}`}
+                          name="newRole"
+                          label="Rol en sistema"
+                          selectClass="select-sm"
+                          options={[
+                            { value: "agent", label: "Agente" },
+                            { value: "referent", label: "Referente" },
+                            { value: "team_leader", label: "Team Leader" },
+                            { value: "supervisor", label: "Supervisor" },
+                            { value: "admin", label: "Administrador" },
+                          ]}
+                          value={u.role}
+                        />
+
+                        <div class="flex items-end gap-2">
+                          <div class="grow">
+                            <SelectField
+                              id={`edit-user-helpdesk-${u.id}`}
+                              name="helpdesk"
+                              label="Mesa de ayuda"
+                              selectClass="select-sm"
+                              options={[
+                                { value: "", label: "Sin mesa de ayuda" },
+                                ...helpdeskOptions.map((hd) => ({
+                                  value: `${hd.id}|${hd.name}`,
+                                  label: hd.name,
+                                })),
+                              ]}
+                              value={`${u.helpdeskId ?? ""}|${u.helpdeskName ?? ""}`}
+                            />
+                          </div>
+                          <ActionButton
+                            id={`suggest-helpdesk-btn-${u.id}`}
+                            icon="boxicons:magic-wand"
+                            label="Sugerir"
+                            size="sm"
+                            color="btn-secondary"
+                            title="Sugerir mesa según el usuario en InvGate"
+                            class="mb-1"
+                          />
+                        </div>
                         {
                           mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) ? (
                             <fieldset
@@ -504,8 +573,8 @@ const isSupervisorRole = (role: string): boolean =>
     </section>
 
     <!-- ─── Form: Nuevo usuario ─── -->
-    <section class="lg:order-2" aria-labelledby="form-nuevo-usuario">
-      <SectionCard class="shadow-md lg:sticky lg:top-24">
+    <section class="order-first lg:order-2" aria-labelledby="form-nuevo-usuario">
+      <SectionCard class="shadow-md lg:sticky lg:top-0 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <h2 id="form-nuevo-usuario" class="card-title gap-2 text-base">
           <div
             aria-hidden="true"
@@ -628,88 +697,6 @@ const isSupervisorRole = (role: string): boolean =>
   </div>
   </div>
 </PageContainer>
-
-<Modal id="modal-change-role">
-  <Fragment slot="content">
-    <h3 class="text-base-content mb-1 text-base font-semibold">
-      Cambiar rol de usuario
-    </h3>
-    <p class="text-base-content/60 mb-4 text-xs">
-      Modifica el rol del usuario en el sistema.
-    </p>
-    <form method="POST" class="space-y-4" data-async-form>
-      <input type="hidden" name="action" value="change-role" />
-      <input type="hidden" name="userId" id="change-role-user-id" />
-      <div class="flex items-end gap-2">
-        <div class="grow">
-          <SelectField
-          id="change-role-helpdesk-select"
-          name="helpdesk"
-          label="Mesa de ayuda"
-          selectClass="select-sm"
-          options={[
-          ...helpdeskOptions.map((hd) => ({
-          value: `${hd.id}|${hd.name}`,
-          label: hd.name,
-          })),
-          { value: "", label: "Sin mesa de ayuda" },
-          ]}
-          />
-        </div>
-        <ActionButton
-          id="suggest-helpdesk-btn"
-          icon="boxicons:magic-wand"
-          label="Sugerir"
-          size="sm"
-          color="btn-secondary"
-          title="Sugerir mesa según el usuario en InvGate"
-          class="mb-1"
-        />
-      </div>
-      <SelectField
-        id="change-role-select"
-        name="newRole"
-        label="Nuevo rol"
-        selectClass="select-sm"
-        options={[
-          { value: "agent", label: "Agente" },
-          { value: "referent", label: "Referente" },
-          { value: "team_leader", label: "Team Leader" },
-          { value: "supervisor", label: "Supervisor" },
-          { value: "admin", label: "Administrador" },
-        ]}
-      />
-
-      <div
-        id="role-desc-container"
-        class="bg-base-200 border-base-300 space-y-1 rounded-lg border p-3 text-xs transition-all duration-300"
-      >
-        <span class="text-base-content block font-bold">Permisos del rol:</span>
-        <p id="role-permissions-desc" class="text-base-content/70">
-          Selecciona un rol para ver sus permisos.
-        </p>
-      </div>
-
-      <div
-        class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3"
-      >
-        <ActionCancelButton
-          type="button"
-          label="Cancelar"
-          icon="boxicons:x-filled"
-          variant="error"
-          onclick="this.closest('dialog').close()"
-        />
-        <ActionConfirmButton
-          type="submit"
-          color="btn-primary"
-          label="Guardar"
-          icon="boxicons:check-filled"
-        />
-      </div>
-    </form>
-  </Fragment>
-</Modal>
 
 <Modal
   id="modal-permissions-matrix"
@@ -1148,5 +1135,57 @@ import { showToast } from "@lib/toastClient";
 
   document.addEventListener("astro:page-load", () => {
     setupUsersObserver();
+  });
+</script>
+
+<script>
+  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+
+  function initUsersSearch() {
+    const searchInput =
+      document.querySelector<HTMLInputElement>("#admin-users-search");
+    if (!searchInput) return false;
+    if (searchInput.dataset.usersSearchBound === "true") return true;
+
+    function applyFilters() {
+      const query = searchInput?.value.trim() ?? "";
+      const rows = document.querySelectorAll<HTMLElement>(
+        "#usuarios-table [data-table-row]",
+      );
+      rows.forEach((row) => {
+        const searchText = row.dataset.searchText || "";
+        const isVisible = matchesSearchQuery(query, [searchText]);
+        row.classList.toggle("hidden", !isVisible);
+        highlightSearchTargets(row, isVisible ? query : "");
+      });
+    }
+
+    searchInput.addEventListener("input", applyFilters);
+    const clearButton = document.getElementById("admin-users-search-clear");
+    clearButton?.addEventListener("click", () => {
+      searchInput.value = "";
+      applyFilters();
+      searchInput.focus();
+    });
+    searchInput.dataset.usersSearchBound = "true";
+    return true;
+  }
+
+  function setupUsersSearchObserver() {
+    if (initUsersSearch()) return;
+
+    const observer = new MutationObserver((_, obs) => {
+      if (initUsersSearch()) {
+        obs.disconnect();
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  setupUsersSearchObserver();
+
+  document.addEventListener("astro:page-load", () => {
+    setupUsersSearchObserver();
   });
 </script>
