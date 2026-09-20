@@ -357,6 +357,44 @@ test.describe("Modal unificado Editar usuario", () => {
     await expect(coordRow.locator("[data-chip]")).toHaveCount(0);
   });
 
+  test("modal: mesa participativa renderiza los 4 switches; mesa no participativa ninguno + texto", async ({
+    page,
+  }) => {
+    const ts = Date.now();
+    const mdaUname = `sw_mda_${ts}`;
+    const coordUname = `sw_coord_${ts}`;
+    const mdaUid = await seedUser(mdaUname, "agent", MDA_TI);
+    const coordUid = await seedUser(coordUname, "agent", COORD);
+
+    await loginAndGoToUsers(page);
+
+    // MDA TI: los 4 switches existen (enabled) dentro del modal.
+    await page.locator(`button[aria-label="Editar usuario ${mdaUname}"]`).click();
+    const mdaModal = page.locator(
+      `#modal-edit-user-${mdaUid} [data-testid="participaciones-block"]`,
+    );
+    await expect(mdaModal).toBeVisible();
+    for (const name of [
+      "enCronograma",
+      "asignableCubic",
+      "incluidoCalidad",
+      "asignableAgs",
+    ]) {
+      await expect(mdaModal.locator(`input[name="${name}"]`)).toBeEnabled();
+    }
+    await page.keyboard.press("Escape");
+
+    // Coordinación: no se renderiza ningún switch, sí el texto informativo.
+    await page.locator(`button[aria-label="Editar usuario ${coordUname}"]`).click();
+    const coordModal = page.locator(
+      `#modal-edit-user-${coordUid} [data-testid="participaciones-block"]`,
+    );
+    await expect(coordModal).toBeVisible();
+    await expect(coordModal.locator("input[type='checkbox']")).toHaveCount(0);
+    await expect(coordModal).toContainText(/no tiene secciones con participaciones/i);
+    await page.keyboard.press("Escape");
+  });
+
   test("supervisor MDA TI: cronograma deshabilitado y guardado fuerza enCronograma=false", async ({
     page,
     context,
