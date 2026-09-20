@@ -422,6 +422,7 @@ const isSupervisorRole = (role: string): boolean =>
                             size="sm"
                             color="btn-secondary"
                             title="Sugerir mesa según el usuario en InvGate"
+                            ariaLabel={`Sugerir mesa para ${u.username}`}
                             class="mb-1"
                           />
                         </div>
@@ -812,12 +813,8 @@ import { showToast } from "@lib/toastClient";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
-    const roleSelect = document.getElementById(
-      "change-role-select",
-    ) as HTMLSelectElement | null;
-    if (!roleSelect) return false;
+    if (!document.querySelector("[data-edit-user-btn]")) return false;
 
-    let lastSeenUsername = "";
     const adminUsernameInput = document.getElementById(
       "admin-username",
     ) as HTMLInputElement | null;
@@ -883,168 +880,82 @@ import { showToast } from "@lib/toastClient";
       }
     });
 
-    const suggestBtn = document.getElementById("suggest-helpdesk-btn") as HTMLButtonElement | null;
-    suggestBtn?.addEventListener("click", async () => {
-      // Leer el username desde el hidden input del modal (change-role-user-id)
-      // no alcanza; usamos el último username visto via change-role-btn.
-      if (!lastSeenUsername) return;
-
-      const originalHtml = suggestBtn.innerHTML;
-      suggestBtn.disabled = true;
-      suggestBtn.innerHTML =
-        '<span class="loading loading-spinner loading-sm"></span> Buscando…';
-
-      const result = await suggestMesaForUsername(lastSeenUsername);
-
-      suggestBtn.disabled = false;
-      suggestBtn.innerHTML = originalHtml;
-
-      if (!result.ok) {
-        showToast(result.message, "alert-error");
-        return;
-      }
-      if (!result.helpdesk) {
-        showToast(
-          "No se encontró una mesa para ese usuario en InvGate.",
-          "alert-warning",
-        );
-        return;
-      }
-      if (helpdeskSelect) {
-        selectOrAddHelpdeskOption(helpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
-        showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
-      }
-    });
-
-    const roleDescriptions = {
-      admin:
-        "Acceso total al sistema. Puede gestionar usuarios, configuraciones generales, ver el sistema de diseño y acceder a todas las herramientas de supervisión.",
-      supervisor:
-        "Acceso completo a la sección de Supervisión. Puede ingresar a Cronograma, Auditorías de Calidad y Asignación de Autogestiones. Acceso general al panel de administración excepto la creación de usuarios.",
-      team_leader:
-        "Acceso intermedio. Puede modificar cronogramas, controlar la asistencia del equipo, auditar la calidad y realizar asignaciones de autogestión. Acceso general al panel de administración excepto la creación de usuarios.",
-      referent:
-        "Acceso limitado a la sección de Supervisión. Únicamente tiene permisos para ingresar a la pantalla de Asignación de Autogestiones.",
-      agent:
-        "Acceso operativo básico. Consulta de catálogos y herramientas comunes. No tiene acceso a pantallas de Supervisión ni de Administración.",
-    };
-
-    const ROLE_OPTIONS_FULL = [
-      { value: "agent", label: "Agente" },
-      { value: "referent", label: "Referente" },
-      { value: "team_leader", label: "Team Leader" },
-      { value: "supervisor", label: "Supervisor" },
-      { value: "admin", label: "Administrador" },
-    ];
-
-    const helpdeskSelect = document.getElementById(
-      "change-role-helpdesk-select",
-    ) as HTMLSelectElement | null;
-
-    const rebuildRoleOptions = (
-      _helpdeskName: string | undefined,
-      preferredRole?: string,
-    ) => {
-      if (!roleSelect) return;
-      // Politica: cualquier rol en cualquier mesa. El rol define permisos,
-      // la mesa no restringe roles. El rol actual siempre se preserva.
-      const opts = ROLE_OPTIONS_FULL;
-      roleSelect.innerHTML = "";
-      for (const o of opts) {
-        const opt = document.createElement("option");
-        opt.value = o.value;
-        opt.textContent = o.label;
-        roleSelect.appendChild(opt);
-      }
-      roleSelect.value =
-        preferredRole && opts.some((o) => o.value === preferredRole)
-          ? preferredRole
-          : opts[0].value;
-      updateDesc(roleSelect.value as keyof typeof roleDescriptions);
-    };
-
-    helpdeskSelect?.addEventListener("change", () => {
-      const selected =
-        helpdeskSelect.selectedOptions[0]?.textContent ?? undefined;
-      rebuildRoleOptions(
-        selected?.replace(" (genérica)", "").trim() || undefined,
-        roleSelect?.value,
-      );
-    });
-
-    const modal = document.getElementById(
-      "modal-change-role",
-    ) as HTMLDialogElement | null;
-    const userIdInput = document.getElementById(
-      "change-role-user-id",
-    ) as HTMLInputElement | null;
-    const descEl = document.getElementById("role-permissions-desc");
-    const containerEl = document.getElementById("role-desc-container");
-
-    const updateDesc = (role: keyof typeof roleDescriptions) => {
-      if (descEl) {
-        descEl.textContent =
-          roleDescriptions[role] || "Sin descripción disponible.";
-      }
-      if (containerEl) {
-        containerEl.className =
-          "p-3 border rounded-lg text-xs space-y-1 transition-all duration-300";
-        if (role === "admin") {
-          containerEl.classList.add("bg-error/5", "border-error/30");
-        } else if (role === "supervisor") {
-          containerEl.classList.add("bg-info/5", "border-info/30");
-        } else if (role === "team_leader") {
-          containerEl.classList.add("bg-accent/5", "border-accent/30");
-        } else if (role === "referent") {
-          containerEl.classList.add("bg-warning/5", "border-warning/30");
-        } else {
-          containerEl.classList.add("bg-base-200", "border-base-300");
+    // Prefill del modal unificado por fila (rol, mesa, username, nombre, flags).
+    document.querySelectorAll<HTMLButtonElement>("[data-edit-user-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const userId = btn.getAttribute("data-user-id") || "";
+        const role = btn.getAttribute("data-user-role") || "agent";
+        const username = btn.getAttribute("data-user-username") || "";
+        const name = btn.getAttribute("data-user-name") || "";
+        const helpdesk = (btn.getAttribute("data-user-helpdesk") || "").trim();
+        let flags: Record<string, boolean> = {};
+        try {
+          flags = JSON.parse(btn.getAttribute("data-user-flags") || "{}");
+        } catch {
+          flags = {};
         }
-      }
-    };
 
-    roleSelect?.addEventListener("change", (e) => {
-      const val = (e.target as HTMLSelectElement)
-        .value as keyof typeof roleDescriptions;
-      updateDesc(val);
+        const roleSel = document.getElementById(`edit-user-role-${userId}`) as HTMLSelectElement | null;
+        const hdSel = document.getElementById(`edit-user-helpdesk-${userId}`) as HTMLSelectElement | null;
+        const unameInput = document.getElementById(`edit-user-username-${userId}`) as HTMLInputElement | null;
+        const nameInput = document.getElementById(`edit-user-name-${userId}`) as HTMLInputElement | null;
+
+        if (roleSel) roleSel.value = role;
+        if (unameInput) unameInput.value = username;
+        if (nameInput) nameInput.value = name;
+        if (hdSel) {
+          hdSel.value = "";
+          if (helpdesk) {
+            const match = Array.from(hdSel.options).find(
+              (o) => (o.textContent ?? "").trim() === helpdesk,
+            );
+            if (match) hdSel.value = match.value;
+          }
+        }
+        for (const [flag, checked] of Object.entries(flags)) {
+          const cb = document.querySelector<HTMLInputElement>(
+            `#modal-edit-user-${userId} input[name="${flag}"]`,
+          );
+          if (cb) cb.checked = checked;
+        }
+      });
     });
 
     document
-      .querySelectorAll('[data-action="change-role-btn"]')
+      .querySelectorAll<HTMLButtonElement>("[id^='suggest-helpdesk-btn-']")
       .forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const userId = btn.getAttribute("data-user-id");
-          const userRole = btn.getAttribute("data-user-role") || "agent";
-          const userHelpdesk = btn.getAttribute("data-user-helpdesk") || "";
-          const userUsername = btn.getAttribute("data-user-username") || "";
-          lastSeenUsername = userUsername;
+        btn.addEventListener("click", async () => {
+          const userId = btn.id.replace("suggest-helpdesk-btn-", "");
+          const unameInput = document.getElementById(
+            `edit-user-username-${userId}`,
+          ) as HTMLInputElement | null;
+          const hdSel = document.getElementById(
+            `edit-user-helpdesk-${userId}`,
+          ) as HTMLSelectElement | null;
+          const username = unameInput?.value.trim();
+          if (!username || !hdSel) return;
 
-          if (userIdInput && roleSelect && modal && helpdeskSelect) {
-            userIdInput.value = userId || "";
-            const targetName = userHelpdesk.trim();
-            helpdeskSelect.value = "";
-            if (targetName) {
-              const match = Array.from(helpdeskSelect.options).find(
-                (o) => (o.textContent ?? "").trim() === targetName,
-              );
-              if (match) helpdeskSelect.value = match.value;
-            }
-            const selectedName =
-              helpdeskSelect.selectedOptions[0]?.textContent ?? undefined;
-            rebuildRoleOptions(
-              selectedName?.replace(" (genérica)", "").trim() || undefined,
-              userRole,
-            );
-            modal.showModal();
-            // Sugerencia: al abrir con usuario sin mesa, llenar si InvGate lo resuelve.
-            if (!targetName && userUsername) {
-              suggestMesaForUsername(userUsername).then((result) => {
-                if (result.ok && result.helpdesk && !helpdeskSelect.value) {
-                  selectOrAddHelpdeskOption(helpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
-                }
-              });
-            }
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="loading loading-spinner loading-sm"></span> Buscando…';
+          const result = await suggestMesaForUsername(username);
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+
+          if (!result.ok) {
+            showToast(result.message, "alert-error");
+            return;
           }
+          if (!result.helpdesk) {
+            showToast(
+              "No se encontró una mesa para ese usuario en InvGate.",
+              "alert-warning",
+            );
+            return;
+          }
+          selectOrAddHelpdeskOption(hdSel, result.helpdesk.invgateId, result.helpdesk.name);
+          showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
         });
       });
 
