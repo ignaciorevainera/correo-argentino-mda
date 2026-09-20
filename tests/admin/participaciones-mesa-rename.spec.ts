@@ -132,22 +132,24 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     return u.id;
   }
 
-  test("helpdeskName stale + mesa canonica MDA TI: boton de participaciones visible", async ({
+  test("helpdeskName stale + mesa canonica MDA TI: modal con participaciones habilitadas", async ({
     page,
     context,
   }) => {
     const uname = `stale_btn_${Date.now()}`;
-    await seedUser(uname, mdaTiInvgateId, STALE_MDA_TI);
+    const uid = await seedUser(uname, mdaTiInvgateId, STALE_MDA_TI);
 
     await setSessionCookie(context, adminCookie);
     await page.goto("/admin/usuarios");
     await expect(
       page.locator(`[data-sort-username="${uname}"]`).first(),
     ).toBeVisible();
-    // El join debe resolver la mesa canonica participativa pese al stale name.
+    // El join debe resolver la mesa canonica participativa pese al stale name:
+    // los toggles del modal unificado quedan habilitados.
+    await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
     await expect(
-      page.locator(`button[aria-label="Participaciones de ${uname}"]`),
-    ).toHaveCount(1);
+      page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`),
+    ).toBeEnabled();
   });
 
   test("POST update-participaciones con helpdeskName stale responde 200", async ({
@@ -176,22 +178,23 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     expect(body.success).toBe(true);
   });
 
-  test("helpdeskName participativo pero mesa canonica Coord: sin boton", async ({
+  test("helpdeskName participativo pero mesa canonica Coord: sin participaciones editables", async ({
     page,
     context,
   }) => {
     const uname = `fake_part_${Date.now()}`;
     // Denormalizado PARECE participativo, pero helpdeskId apunta a Coord.
-    await seedUser(uname, coordInvgateId, MDA_TI);
+    const uid = await seedUser(uname, coordInvgateId, MDA_TI);
 
     await setSessionCookie(context, adminCookie);
     await page.goto("/admin/usuarios");
     await expect(
       page.locator(`[data-sort-username="${uname}"]`).first(),
     ).toBeVisible();
+    await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
     await expect(
-      page.locator(`button[aria-label="Participaciones de ${uname}"]`),
-    ).toHaveCount(0);
+      page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`),
+    ).toBeDisabled();
   });
 
   test("POST update-participaciones con mesa canonica Coord responde 400", async ({

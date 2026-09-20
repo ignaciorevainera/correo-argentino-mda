@@ -84,16 +84,18 @@ test.describe("Participaciones por mesa", () => {
     return u.id;
   }
 
-  test("usuario de mesa sin secciones de participación no tiene botón de participaciones", async ({ page }) => {
+  test("usuario de mesa sin secciones de participación no tiene participaciones editables", async ({ page }) => {
     const uname = `coord_p_${Date.now()}`;
-    await seedUser(uname, "agent", "TI_GSM_Mesa de Coord");
+    const uid = await seedUser(uname, "agent", "TI_GSM_Mesa de Coord");
     await page.context().addCookies([
       { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
     ]);
     await page.goto("http://localhost:4321/admin/usuarios");
     // Esperar contenido del island server:defer (la fila del usuario).
     await expect(page.locator(`[data-sort-username="${uname}"]`).first()).toBeVisible();
-    await expect(page.locator(`button[aria-label="Participaciones de ${uname}"]`)).toHaveCount(0);
+    await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
+    await expect(page.locator(`#modal-edit-user-${uid} input[name='asignableCubic']`)).toBeDisabled();
+    await expect(page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`)).toBeDisabled();
   });
 
   test("supervisor de MDA TI tiene enCronograma deshabilitado en el modal", async ({ page }) => {
@@ -104,8 +106,8 @@ test.describe("Participaciones por mesa", () => {
     ]);
     await page.goto("http://localhost:4321/admin/usuarios");
     await expect(page.locator(`[data-sort-username="${uname}"]`).first()).toBeVisible();
-    await page.locator(`button[aria-label="Participaciones de ${uname}"]`).click();
-    await expect(page.locator(`#modal-participaciones-${uid} input[name='enCronograma']`)).toBeDisabled();
+    await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
+    await expect(page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`)).toBeDisabled();
   });
 
   test("rol supervisor legacy ('Supervisor ') no figura en cronograma al guardar", async ({

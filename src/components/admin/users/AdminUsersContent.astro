@@ -42,7 +42,6 @@ const allUsers = await db
     // mesaSync renombra una mesa. Se usa para el gating de participaciones;
     // el badge/banner siguen mostrando el denormalizado (informativo).
     mesaName: mesas.name,
-    agentId: agents.id,
     agentName: agents.name,
     enCronograma: agents.enCronograma,
     asignableCubic: agents.asignableCubic,
@@ -218,6 +217,62 @@ const isSupervisorRole = (role: string): boolean =>
                         {u.username}
                       </span>
                     </div>
+                    {/* Chips indicadores: solo mesas participativas, por flag activo. */}
+                    {mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
+                      <div class="mt-1 flex flex-wrap items-center gap-1">
+                        {u.enCronograma && (
+                          <span
+                            class="badge badge-xs badge-primary"
+                            data-chip="cronograma"
+                            title="Figura en cronograma"
+                          >
+                            <Icon name="boxicons:calendar-filled" size={12} />
+                            <span class="sr-only">Cronograma</span>
+                          </span>
+                        )}
+                        {u.asignableCubic && (
+                          <span
+                            class="badge badge-xs badge-info"
+                            data-chip="cubics"
+                            title="Asignable a cubics"
+                          >
+                            <Icon name="boxicons:desktop-filled" size={12} />
+                            <span class="sr-only">Cubics</span>
+                          </span>
+                        )}
+                        {u.incluidoCalidad && (
+                          <span
+                            class="badge badge-xs badge-warning"
+                            data-chip="calidad"
+                            title="Incluido en calidad"
+                          >
+                            <Icon
+                              name="boxicons:bar-chart-big-filled"
+                              size={12}
+                            />
+                            <span class="sr-only">Calidad</span>
+                          </span>
+                        )}
+                        {u.asignableAgs && (
+                          <span
+                            class="badge badge-xs badge-accent"
+                            data-chip="ags"
+                            title="Asignable AGS"
+                          >
+                            <Icon name="boxicons:git-branch-filled" size={12} />
+                            <span class="sr-only">AGS</span>
+                          </span>
+                        )}
+                        {!u.enCronograma &&
+                          !u.asignableCubic &&
+                          !u.incluidoCalidad &&
+                          !u.asignableAgs && (
+                            <span class="badge badge-xs badge-ghost text-base-content/60">
+                              Sin participaciones
+                            </span>
+                          )}
+                      </div>
+                    )}
                   </div>
 
                   <div class="flex min-w-0 items-center gap-2">
@@ -271,26 +326,6 @@ const isSupervisorRole = (role: string): boolean =>
                   </div>
 
                   <div class="flex items-center justify-end gap-2">
-                    {u.agentId && mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs"
-                        onclick={`document.getElementById('modal-participaciones-${u.id}').showModal()`}
-                        aria-label={`Participaciones de ${u.username}`}
-                      >
-                        <Icon name="boxicons:checklist" size={16} />
-                      </button>
-                    )}
-                    {u.agentId && (
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs"
-                        onclick={`document.getElementById('modal-nombre-${u.id}').showModal()`}
-                        aria-label={`Editar nombre de ${u.username}`}
-                      >
-                        <Icon name="boxicons:user-circle" size={16} />
-                      </button>
-                    )}
                     <ActionRoleButton
                       data-action="change-role-btn"
                       data-user-id={u.id}
@@ -305,68 +340,42 @@ const isSupervisorRole = (role: string): boolean =>
                       ariaLabel={`Renombrar usuario ${u.username}`}
                     />
 
+                    <ActionEditButton
+                      onclick={`document.getElementById('modal-edit-user-${u.id}').showModal()`}
+                      ariaLabel={`Editar usuario ${u.username}`}
+                    />
+
                     <ActionPasswordButton
                       onclick={`document.getElementById('modal-reset-${u.id}').showModal()`}
                       ariaLabel={`Blanquear contraseña de ${u.username}`}
                     />
                   </div>
 
-                  {u.agentId && mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
-                    <Modal id={`modal-participaciones-${u.id}`}>
-                      <Fragment slot="content">
-                        <h3 class="text-base-content mb-1 text-base font-semibold">
-                          Participaciones
-                        </h3>
-                        <p class="text-base-content/60 mb-4 text-xs">
-                          Define dónde aparece{" "}
-                          <span class="font-mono font-semibold">{u.username}</span>.
-                          Desmarcar no borra historial.
-                        </p>
-                        <form method="POST" class="space-y-3" data-async-form>
-                          <input type="hidden" name="action" value="update-participaciones" />
-                          <input type="hidden" name="userId" value={u.id} />
-                          <label class="label cursor-pointer justify-start gap-3 py-1">
-                            <input
-                              type="checkbox"
-                              name="enCronograma"
-                              class="toggle toggle-sm toggle-secondary"
-                              checked={!!u.enCronograma}
-                              disabled={isSupervisorRole(u.role)}
-                              title="Un supervisor no figura en el cronograma como operador"
-                            />
-                            <span class="text-base-content text-sm">Cronograma</span>
-                          </label>
-                          <label class="label cursor-pointer justify-start gap-3 py-1">
-                            <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableCubic} />
-                            <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
-                          </label>
-                          <label class="label cursor-pointer justify-start gap-3 py-1">
-                            <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" checked={!!u.incluidoCalidad} />
-                            <span class="text-base-content text-sm">Auditorías de calidad</span>
-                          </label>
-                          <label class="label cursor-pointer justify-start gap-3 py-1">
-                            <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" checked={!!u.asignableAgs} />
-                            <span class="text-base-content text-sm">Asignación AGS</span>
-                          </label>
-                          <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
-                            <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
-                            <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
-                          </div>
-                        </form>
-                      </Fragment>
-                    </Modal>
-                  )}
-                  <Modal id={`modal-nombre-${u.id}`}>
+                  <Modal id={`modal-edit-user-${u.id}`}>
                     <Fragment slot="content">
                       <h3 class="text-base-content mb-1 text-base font-semibold">
-                        Nombre visible del agente
+                        Editar usuario
                       </h3>
+                      <p class="text-base-content/60 mb-4 text-xs">
+                        Actualizá el nombre de red, el nombre visible y las
+                        participaciones de{" "}
+                        <span class="font-mono font-semibold">{u.username}</span>.
+                      </p>
                       <form method="POST" class="space-y-3" data-async-form>
-                        <input type="hidden" name="action" value="update-name" />
+                        <input type="hidden" name="action" value="update-user" />
                         <input type="hidden" name="userId" value={u.id} />
                         <FormField
-                          id={`agent-name-${u.id}`}
-                          name="newName"
+                          id={`edit-user-username-${u.id}`}
+                          name="username"
+                          required
+                          label="Nombre de red"
+                          value={u.username}
+                          autocomplete="off"
+                          inputClass="input-sm"
+                        />
+                        <FormField
+                          id={`edit-user-name-${u.id}`}
+                          name="name"
                           required
                           label="Nombre completo"
                           placeholder={u.agentName || u.username}
@@ -375,9 +384,60 @@ const isSupervisorRole = (role: string): boolean =>
                           inputClass="input-sm"
                           helpText="Se propaga a los cronogramas guardados."
                         />
+                        <div class="space-y-2">
+                          <p class="text-base-content/70 text-xs font-semibold uppercase">
+                            Participaciones
+                          </p>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input
+                              type="checkbox"
+                              name="enCronograma"
+                              class="toggle toggle-sm toggle-secondary"
+                              checked={!!u.enCronograma}
+                              disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) || isSupervisorRole(u.role)}
+                              title="Un supervisor no figura en el cronograma como operador"
+                            />
+                            <span class="text-base-content text-sm">Cronograma</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input
+                              type="checkbox"
+                              name="asignableCubic"
+                              class="toggle toggle-sm toggle-secondary"
+                              checked={!!u.asignableCubic}
+                              disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
+                            />
+                            <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input
+                              type="checkbox"
+                              name="incluidoCalidad"
+                              class="toggle toggle-sm toggle-secondary"
+                              checked={!!u.incluidoCalidad}
+                              disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
+                            />
+                            <span class="text-base-content text-sm">Auditorías de calidad</span>
+                          </label>
+                          <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input
+                              type="checkbox"
+                              name="asignableAgs"
+                              class="toggle toggle-sm toggle-secondary"
+                              checked={!!u.asignableAgs}
+                              disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
+                            />
+                            <span class="text-base-content text-sm">Asignación AGS</span>
+                          </label>
+                          {!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
+                            <p class="text-base-content/50 text-xs">
+                              Esta mesa no tiene secciones con participaciones.
+                            </p>
+                          )}
+                        </div>
                         <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
                           <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
-                          <ActionConfirmButton type="submit" color="btn-secondary" label="Guardar" icon="boxicons:check-filled" />
+                          <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
                         </div>
                       </form>
                     </Fragment>

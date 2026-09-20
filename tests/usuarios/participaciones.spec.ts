@@ -203,7 +203,7 @@ test.describe("Participaciones de usuarios", () => {
 
     const row = page.locator(`article[data-sort-username="${username}"]`);
     await row.waitFor({ state: "visible", timeout: 10000 });
-    await row.locator('button[aria-label^="Participaciones"]').click();
+    await row.locator('button[aria-label^="Editar usuario"]').click();
 
     const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible();
