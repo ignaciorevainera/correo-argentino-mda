@@ -413,7 +413,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
   });
 
   // -------- Ciclo: cambio de rol + reset de participaciones ------------------
-  test("change-role: agent Coord -> supervisor MDA TI resetea participaciones", async () => {
+  test("update-user: agent Coord -> supervisor MDA TI resetea participaciones", async () => {
     const username = shortUsername("lfchg");
     const u = await createUserViaDb(username, "agent", coordId, COORD_HELPDESK);
     // La fila de agente existe y arranca sin participaciones (mesa no participativa).
@@ -429,11 +429,20 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       })
       .onConflictDoNothing();
 
+    // Contrato unificado `update-user`: payload completo. Los flags se
+    // reenvian en on (estado actual de la fila) salvo enCronograma, que el
+    // server fuerza a false para supervisor aunque llegue en on.
     const res = await adminForm(adminCookie, {
-      action: "change-role",
+      action: "update-user",
       userId: String(u.id),
+      username,
+      name: username.toUpperCase(),
       newRole: "supervisor",
       helpdesk: `${mdaId}|${MDA_TI_HELPDESK}`,
+      enCronograma: "on",
+      asignableCubic: "on",
+      incluidoCalidad: "on",
+      asignableAgs: "on",
     });
     expect(res.status).toBe(200);
     expect(res.json?.success).toBe(true);
@@ -465,10 +474,35 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     const coordAgent = matrix["agent|coord"];
     const mdaSup = matrix["supervisor|mda"];
 
+    // Valores actuales desde DB: el contrato unificado exige el payload
+    // completo y solo varia lo intencionado (flags).
+    async function currentPayload(u: CreatedUser): Promise<Record<string, string>> {
+      const [row] = await db
+        .select({
+          username: users.username,
+          role: users.role,
+          helpdeskId: users.helpdeskId,
+          helpdeskName: users.helpdeskName,
+        })
+        .from(users)
+        .where(eq(users.id, u.id));
+      const [agentRow] = await db
+        .select({ name: agents.name })
+        .from(agents)
+        .where(eq(agents.username, u.username));
+      return {
+        userId: String(u.id),
+        username: row.username,
+        name: agentRow?.name ?? u.username,
+        newRole: row.role,
+        helpdesk: row.helpdeskId != null ? `${row.helpdeskId}|${row.helpdeskName}` : "",
+      };
+    }
+
     // MDA TI agent: se aplica.
     const ok = await adminForm(adminCookie, {
-      action: "update-participaciones",
-      userId: String(mdaAgent.id),
+      ...(await currentPayload(mdaAgent)),
+      action: "update-user",
       enCronograma: "on",
       asignableCubic: "on",
     });
@@ -480,19 +514,25 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     expect(a1.enCronograma).toBe(true);
     expect(a1.asignableCubic).toBe(true);
 
-    // Coord agent: la mesa no tiene secciones participativas -> 400.
-    const blocked = await adminForm(adminCookie, {
-      action: "update-participaciones",
-      userId: String(coordAgent.id),
+    // Coord agent: la mesa no tiene secciones participativas -> el contrato
+    // unificado ya no deniega con 400: fuerza los flags a false (200).
+    const forced = await adminForm(adminCookie, {
+      ...(await currentPayload(coordAgent)),
+      action: "update-user",
       enCronograma: "on",
     });
-    expect(blocked.status).toBe(400);
-    expect(String(blocked.json?.error)).toContain("no tiene secciones");
+    expect(forced.status).toBe(200);
+    expect(forced.json?.success).toBe(true);
+    const [a2] = await db
+      .select({ enCronograma: agents.enCronograma })
+      .from(agents)
+      .where(eq(agents.username, coordAgent.username));
+    expect(a2.enCronograma).toBe(false);
 
     // MDA TI supervisor: enCronograma forzado a false server-side.
     const sup = await adminForm(adminCookie, {
-      action: "update-participaciones",
-      userId: String(mdaSup.id),
+      ...(await currentPayload(mdaSup)),
+      action: "update-user",
       enCronograma: "on",
       incluidoCalidad: "on",
     });

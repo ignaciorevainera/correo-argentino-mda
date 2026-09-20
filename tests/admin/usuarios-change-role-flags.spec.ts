@@ -128,23 +128,27 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
     return { userId: u.id, agentId: a.id };
   }
 
-  async function openChangeRole(page: Page, userId: number): Promise<void> {
+  async function openEditUser(page: Page, userId: number): Promise<void> {
     await login(page.context(), adminCookie);
     await page.goto("/admin/usuarios");
     const btn = page.locator(
-      `[data-action="change-role-btn"][data-user-id="${userId}"]`,
+      `[data-edit-user-btn][data-user-id="${userId}"]`,
     );
     await expect(btn).toBeVisible();
     await btn.click();
-    await expect(page.locator("#modal-change-role")).toBeVisible();
+    await expect(page.locator(`#modal-edit-user-${userId}`)).toBeVisible();
   }
 
-  async function pickHelpdesk(page: Page, mesaName: string): Promise<void> {
+  async function pickHelpdesk(
+    page: Page,
+    userId: number,
+    mesaName: string,
+  ): Promise<void> {
     const [m] = await db
       .select({ invgateId: mesas.invgateId })
       .from(mesas)
       .where(eq(mesas.name, mesaName));
-    const select = page.locator("#change-role-helpdesk-select");
+    const select = page.locator(`#edit-user-helpdesk-${userId}`);
     const value = `${m.invgateId}|${mesaName}`;
     const opt = select.locator(`option[value="${value}"]`);
     if ((await opt.count()) === 0) {
@@ -159,16 +163,18 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
     await select.selectOption(value);
   }
 
-  async function submitChangeRole(page: Page): Promise<void> {
+  async function submitEditUser(page: Page, userId: number): Promise<void> {
     const [resp] = await Promise.all([
       page.waitForResponse(
         (r) =>
           r.url().includes("/admin/usuarios") &&
           r.request().method() === "POST",
       ),
-      page.locator("#modal-change-role button[type='submit']").click(),
+      page.locator(`#modal-edit-user-${userId} button[type='submit']`).click(),
     ]);
     expect(resp.ok()).toBeTruthy();
+    expect(resp.headers()["content-type"]).toContain("application/json");
+    expect((await resp.json()).success).toBe(true);
     await page.waitForLoadState("load").catch(() => {});
   }
 
@@ -196,10 +202,10 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       asignableAgs: true,
     });
 
-    await openChangeRole(page, userId);
-    await pickHelpdesk(page, COORD);
-    await page.locator("#change-role-select").selectOption("agent");
-    await submitChangeRole(page);
+    await openEditUser(page, userId);
+    await pickHelpdesk(page, userId, COORD);
+    await page.locator(`#edit-user-role-${userId}`).selectOption("agent");
+    await submitEditUser(page, userId);
 
     await expect
       .poll(
@@ -233,10 +239,10 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       asignableAgs: true,
     });
 
-    await openChangeRole(page, userId);
-    await pickHelpdesk(page, MDA_TI);
-    await page.locator("#change-role-select").selectOption("referent");
-    await submitChangeRole(page);
+    await openEditUser(page, userId);
+    await pickHelpdesk(page, userId, MDA_TI);
+    await page.locator(`#edit-user-role-${userId}`).selectOption("referent");
+    await submitEditUser(page, userId);
 
     await expect
       .poll(
@@ -268,10 +274,10 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       asignableAgs: true,
     });
 
-    await openChangeRole(page, userId);
-    await pickHelpdesk(page, MDA_TI);
-    await page.locator("#change-role-select").selectOption("supervisor");
-    await submitChangeRole(page);
+    await openEditUser(page, userId);
+    await pickHelpdesk(page, userId, MDA_TI);
+    await page.locator(`#edit-user-role-${userId}`).selectOption("supervisor");
+    await submitEditUser(page, userId);
 
     await expect
       .poll(
@@ -318,15 +324,17 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
     await login(context, adminCookie);
 
     // context.request comparte el cookie jar con el contexto (a diferencia del
-    // fixture `request` suelto). Si el POST AJAX falla, el server devuelve 400
-    // aunque los cambios se apliquen por autocommit (bug better-sqlite3 async tx).
+    // fixture `request` suelto). Contrato unificado `update-user`: payload
+    // completo (username/name se devuelven sin cambios, solo varia la mesa).
     const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
     const res = await context.request.post(
       new URL("/admin/usuarios", baseURL).href,
       {
         form: {
-          action: "change-role",
+          action: "update-user",
           userId: String(userId),
+          username: uname,
+          name: uname,
           newRole: "agent",
           helpdesk: `${coord.invgateId}|${coord.name}`,
         },
@@ -364,10 +372,10 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       },
     );
 
-    await openChangeRole(page, userId);
-    await page.locator("#change-role-helpdesk-select").selectOption("");
-    await page.locator("#change-role-select").selectOption("agent");
-    await submitChangeRole(page);
+    await openEditUser(page, userId);
+    await page.locator(`#edit-user-helpdesk-${userId}`).selectOption("");
+    await page.locator(`#edit-user-role-${userId}`).selectOption("agent");
+    await submitEditUser(page, userId);
 
     await expect
       .poll(

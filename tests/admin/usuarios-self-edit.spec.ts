@@ -40,19 +40,31 @@ test.describe("Sin autoedición de usuario", () => {
     await db.delete(users).where(eq(users.id, adminId));
   });
 
-  test("change-role sobre sí mismo es rechazado y no altera el usuario", async ({
+  test("update-user sobre sí mismo es rechazado y no altera el usuario", async ({
     page,
   }) => {
+    // Host-agnostico: deriva dominio y URL del baseURL del proyecto.
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await page.context().addCookies([
-      { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
+      {
+        name: "session_id",
+        value: adminCookie,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
     ]);
-    await page.goto("http://localhost:4321/admin/usuarios");
+    await page.goto("/admin/usuarios");
 
     const btn = page.locator(
-      `[data-action="change-role-btn"][data-user-id="${adminId}"]`,
+      `[data-edit-user-btn][data-user-id="${adminId}"]`,
     );
     await btn.click();
-    await page.locator("#change-role-select").selectOption("agent");
+    await expect(page.locator(`#modal-edit-user-${adminId}`)).toBeVisible();
+    await page.locator(`#edit-user-role-${adminId}`).selectOption("agent");
+    // El admin sembrado por DB no tiene fila agents: el input nombre queda
+    // vacio y el `required` frenaria el submit. Se completa para que el POST
+    // llegue al server y el bloqueo de autoedicion responda el 400.
+    await page.locator(`#edit-user-name-${adminId}`).fill("Admin Self");
     // AsyncFormScript bindea también los forms de islas server:defer: el
     // submit es AJAX (Accept: application/json) y el error viaja en el JSON.
     // Los invariantes son: el error se muestra y el rol en DB sigue siendo
@@ -61,7 +73,7 @@ test.describe("Sin autoedición de usuario", () => {
       page.waitForResponse(
         (r) => r.url().includes("/admin/usuarios") && r.request().method() === "POST",
       ),
-      page.locator("#modal-change-role button[type='submit']").click(),
+      page.locator(`#modal-edit-user-${adminId} button[type='submit']`).click(),
     ]);
     expect(response.headers()["content-type"]).toContain("application/json");
     await expect(page.locator("#global-toast-container")).toContainText(

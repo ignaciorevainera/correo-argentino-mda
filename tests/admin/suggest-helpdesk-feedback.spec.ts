@@ -1,6 +1,6 @@
 // tests/admin/suggest-helpdesk-feedback.spec.ts
 //
-// El boton "Sugerir" del modal change-role debe usar el estilo de ActionButton
+// El boton "Sugerir" del modal unificado de edicion debe usar el estilo de
 // y dar feedback mientras consulta InvGate: loading (disabled + spinner) y toast
 // de exito/aviso/error segun la respuesta.
 import "dotenv/config";
@@ -56,15 +56,15 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
 
   async function openModal(page: any, target: { id: number }): Promise<void> {
     await page.goto("/admin/usuarios");
-    await page.locator(`[data-action="change-role-btn"][data-user-id="${target.id}"]`).click();
-    await expect(page.locator("#change-role-helpdesk-select")).toBeVisible();
+    await page.locator(`[data-edit-user-btn][data-user-id="${target.id}"]`).click();
+    await expect(page.locator(`#edit-user-helpdesk-${target.id}`)).toBeVisible();
   }
 
   test("usa el estilo ActionButton (btn-soft btn-secondary)", async ({ context, page }) => {
     const target = await seedTarget("agent");
     await login(context, adminSess);
     await openModal(page, target);
-    const btn = page.locator("#suggest-helpdesk-btn");
+    const btn = page.locator(`#suggest-helpdesk-btn-${target.id}`);
     await expect(btn).toBeVisible();
     const cls = (await btn.getAttribute("class")) || "";
     expect(cls).toContain("btn-soft");
@@ -75,8 +75,8 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
     const target = await seedTarget("agent");
     await login(context, adminSess);
     await openModal(page, target);
-    const sel = await page.locator("#change-role-helpdesk-select").boundingBox();
-    const btn = await page.locator("#suggest-helpdesk-btn").boundingBox();
+    const sel = await page.locator(`#edit-user-helpdesk-${target.id}`).boundingBox();
+    const btn = await page.locator(`#suggest-helpdesk-btn-${target.id}`).boundingBox();
     if (!sel || !btn) throw new Error("sin bounding box");
     // Mismo alto y misma base (el fieldset de DaisyUI agrega 4px abajo).
     expect(Math.abs(sel.height - btn.height)).toBeLessThanOrEqual(1);
@@ -95,7 +95,7 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
       });
     });
     await openModal(page, target);
-    const btn = page.locator("#suggest-helpdesk-btn");
+    const btn = page.locator(`#suggest-helpdesk-btn-${target.id}`);
     await btn.click();
 
     // Feedback inmediato: deshabilitado + spinner.
@@ -103,7 +103,7 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
     await expect(btn.locator(".loading")).toHaveCount(1);
 
     // Resultado positivo: opcion seleccionada + toast de exito + boton restaurado.
-    await expect(page.locator("#change-role-helpdesk-select")).toHaveValue("910010|TI_GSM_MDA TI");
+    await expect(page.locator(`#edit-user-helpdesk-${target.id}`)).toHaveValue("910010|TI_GSM_MDA TI");
     await expect(page.locator("#global-toast-container")).toContainText(/sugerida/i, { timeout: 5000 });
     await expect(btn).toBeEnabled();
   });
@@ -119,7 +119,7 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
       }),
     );
     await openModal(page, target);
-    const btn = page.locator("#suggest-helpdesk-btn");
+    const btn = page.locator(`#suggest-helpdesk-btn-${target.id}`);
     await btn.click();
     await expect(page.locator("#global-toast-container")).toContainText(/no se encontr/i, { timeout: 5000 });
     await expect(btn).toBeEnabled();
@@ -136,7 +136,7 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
       }),
     );
     await openModal(page, target);
-    const btn = page.locator("#suggest-helpdesk-btn");
+    const btn = page.locator(`#suggest-helpdesk-btn-${target.id}`);
     await btn.click();
     await expect(page.locator("#global-toast-container")).toContainText(/no se pudo/i, { timeout: 5000 });
     await expect(btn).toBeEnabled();

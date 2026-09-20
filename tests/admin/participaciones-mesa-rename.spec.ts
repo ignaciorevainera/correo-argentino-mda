@@ -152,21 +152,36 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     ).toBeEnabled();
   });
 
-  test("POST update-participaciones con helpdeskName stale responde 200", async ({
+  test("POST update-user con helpdeskName stale responde 200", async ({
     context,
   }) => {
     const uname = `stale_post_${Date.now()}`;
     const userId = await seedUser(uname, mdaTiInvgateId, STALE_MDA_TI);
     await setSessionCookie(context, adminCookie);
 
+    // Payload completo del contrato unificado: username/name/rol actuales se
+    // devuelven sin cambios (solo varian los flags); la mesa se envia por
+    // invgateId y el server resuelve el nombre canonico.
+    const [u] = await db
+      .select({ username: users.username, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId));
+    const [a] = await db
+      .select({ name: agents.name })
+      .from(agents)
+      .where(eq(agents.username, uname));
     const baseURL =
       test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
     const res = await context.request.post(
       new URL("/admin/usuarios", baseURL).href,
       {
         form: {
-          action: "update-participaciones",
+          action: "update-user",
           userId: String(userId),
+          username: u.username,
+          name: a.name,
+          newRole: u.role,
+          helpdesk: `${mdaTiInvgateId}|${MDA_TI}`,
           enCronograma: "on",
           asignableCubic: "on",
         },
@@ -192,34 +207,59 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
       page.locator(`[data-sort-username="${uname}"]`).first(),
     ).toBeVisible();
     await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
-    await expect(
-      page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`),
-    ).toBeDisabled();
+    // El modal unificado no renderiza switches para mesas sin secciones:
+    // el invariante es el bloque informativo y cero checkboxes.
+    const block = page.locator(
+      `#modal-edit-user-${uid} [data-testid="participaciones-block"]`,
+    );
+    await expect(block).toBeVisible();
+    await expect(block.locator("input[type='checkbox']")).toHaveCount(0);
+    await expect(block).toContainText(/no tiene secciones con participaciones/i);
   });
 
-  test("POST update-participaciones con mesa canonica Coord responde 400", async ({
+  test("POST update-user con mesa canonica Coord fuerza flags a false", async ({
     context,
   }) => {
     const uname = `fake_post_${Date.now()}`;
     const userId = await seedUser(uname, coordInvgateId, MDA_TI);
     await setSessionCookie(context, adminCookie);
 
+    // El contrato unificado ya no deniega con 400: fuerza los flags a false
+    // segun la mesa canonica (join users.helpdeskId -> mesas). El invariante
+    // de negocio se preserva: el nombre denormalizado participativo no otorga
+    // participaciones cuando la mesa canonica es Coord.
+    const [u] = await db
+      .select({ username: users.username, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId));
+    const [a] = await db
+      .select({ name: agents.name })
+      .from(agents)
+      .where(eq(agents.username, uname));
     const baseURL =
       test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
     const res = await context.request.post(
       new URL("/admin/usuarios", baseURL).href,
       {
         form: {
-          action: "update-participaciones",
+          action: "update-user",
           userId: String(userId),
+          username: u.username,
+          name: a.name,
+          newRole: u.role,
+          helpdesk: `${coordInvgateId}|${COORD}`,
           enCronograma: "on",
         },
         headers: { Accept: "application/json" },
       },
     );
-    expect(res.status()).toBe(400);
+    expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body.success).toBe(false);
-    expect(body.error).toContain("no tiene secciones con participaciones");
+    expect(body.success).toBe(true);
+    const [after] = await db
+      .select({ enCronograma: agents.enCronograma })
+      .from(agents)
+      .where(eq(agents.username, uname));
+    expect(after.enCronograma).toBe(false);
   });
 });
