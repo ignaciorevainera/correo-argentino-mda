@@ -23,6 +23,7 @@ import SectionCard from "@components/ui/SectionCard.astro";
 import Modal from "@components/ui/Modal.astro";
 import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+import ActionButton from "@components/ui/ActionButton.astro";
 
 interface Props {
   successMsg?: string;
@@ -663,14 +664,14 @@ const isSupervisorRole = (role: string): boolean =>
           ]}
           />
         </div>
-        <button
-          type="button"
+        <ActionButton
           id="suggest-helpdesk-btn"
-          class="btn btn-ghost btn-sm"
+          icon="boxicons:magic-wand"
+          label="Sugerir"
+          size="sm"
+          color="btn-secondary"
           title="Sugerir mesa según el usuario en InvGate"
-        >
-          Sugerir
-        </button>
+        />
       </div>
       <SelectField
         id="change-role-select"
@@ -851,6 +852,7 @@ const isSupervisorRole = (role: string): boolean =>
 
 <script>
 import { getCleanBase } from "@lib/baseUrl";
+import { showToast } from "@lib/toastClient";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
@@ -867,19 +869,31 @@ import { getCleanBase } from "@lib/baseUrl";
       "admin-helpdesk",
     ) as HTMLSelectElement | null;
 
+    type SuggestResult =
+      | { ok: true; helpdesk: { invgateId: number; name: string } | null }
+      | { ok: false; message: string };
+
     async function suggestMesaForUsername(
       username: string,
-    ): Promise<{ invgateId: number; name: string } | null> {
+    ): Promise<SuggestResult> {
       try {
         const res = await fetch(
           `${getCleanBase()}api/admin/suggest-helpdesk?username=${encodeURIComponent(username)}`,
           { credentials: "same-origin" },
         );
-        if (!res.ok) return null;
+        if (!res.ok) {
+          return {
+            ok: false,
+            message:
+              res.status === 401 || res.status === 403
+                ? "No tenés permiso para consultar mesas."
+                : "No se pudo consultar InvGate.",
+          };
+        }
         const json = await res.json();
-        return json?.helpdesk ?? null;
+        return { ok: true, helpdesk: json?.helpdesk ?? null };
       } catch {
-        return null;
+        return { ok: false, message: "Error de conexión al consultar InvGate." };
       }
     }
 
@@ -905,23 +919,44 @@ import { getCleanBase } from "@lib/baseUrl";
       const username = adminUsernameInput.value.trim();
       if (!username) return;
       if (adminHelpdeskSelect && !adminHelpdeskSelect.value) {
-        const hd = await suggestMesaForUsername(username);
-        if (hd) {
-          selectOrAddHelpdeskOption(adminHelpdeskSelect, hd.invgateId, hd.name);
+        const result = await suggestMesaForUsername(username);
+        if (result.ok && result.helpdesk) {
+          selectOrAddHelpdeskOption(adminHelpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
           refreshParticipacionesVisibility();
         }
       }
     });
 
-    const suggestBtn = document.getElementById("suggest-helpdesk-btn");
+    const suggestBtn = document.getElementById("suggest-helpdesk-btn") as HTMLButtonElement | null;
     suggestBtn?.addEventListener("click", async () => {
       // Leer el username desde el hidden input del modal (change-role-user-id)
       // no alcanza; usamos el último username visto via change-role-btn.
-      if (lastSeenUsername) {
-        const hd = await suggestMesaForUsername(lastSeenUsername);
-        if (hd && helpdeskSelect) {
-          selectOrAddHelpdeskOption(helpdeskSelect, hd.invgateId, hd.name);
-        }
+      if (!lastSeenUsername) return;
+
+      const originalHtml = suggestBtn.innerHTML;
+      suggestBtn.disabled = true;
+      suggestBtn.innerHTML =
+        '<span class="loading loading-spinner loading-sm"></span> Buscando…';
+
+      const result = await suggestMesaForUsername(lastSeenUsername);
+
+      suggestBtn.disabled = false;
+      suggestBtn.innerHTML = originalHtml;
+
+      if (!result.ok) {
+        showToast(result.message, "alert-error");
+        return;
+      }
+      if (!result.helpdesk) {
+        showToast(
+          "No se encontró una mesa para ese usuario en InvGate.",
+          "alert-warning",
+        );
+        return;
+      }
+      if (helpdeskSelect) {
+        selectOrAddHelpdeskOption(helpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
+        showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
       }
     });
 
@@ -1047,9 +1082,9 @@ import { getCleanBase } from "@lib/baseUrl";
             modal.showModal();
             // Sugerencia: al abrir con usuario sin mesa, llenar si InvGate lo resuelve.
             if (!targetName && userUsername) {
-              suggestMesaForUsername(userUsername).then((hd) => {
-                if (hd && !helpdeskSelect.value) {
-                  selectOrAddHelpdeskOption(helpdeskSelect, hd.invgateId, hd.name);
+              suggestMesaForUsername(userUsername).then((result) => {
+                if (result.ok && result.helpdesk && !helpdeskSelect.value) {
+                  selectOrAddHelpdeskOption(helpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
                 }
               });
             }
