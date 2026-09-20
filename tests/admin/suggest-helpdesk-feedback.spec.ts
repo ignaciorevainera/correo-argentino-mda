@@ -71,6 +71,18 @@ test.describe("Sugerir mesa: estilo y feedback", () => {
     expect(cls).toContain("btn-secondary");
   });
 
+  test("queda alineado con el select de mesa de ayuda", async ({ context, page }) => {
+    const target = await seedTarget("agent");
+    await login(context, adminSess);
+    await openModal(page, target);
+    const sel = await page.locator("#change-role-helpdesk-select").boundingBox();
+    const btn = await page.locator("#suggest-helpdesk-btn").boundingBox();
+    if (!sel || !btn) throw new Error("sin bounding box");
+    // Mismo alto y misma base (el fieldset de DaisyUI agrega 4px abajo).
+    expect(Math.abs(sel.height - btn.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sel.y + sel.height - (btn.y + btn.height))).toBeLessThanOrEqual(1);
+  });
+
   test("loading + toast de exito al sugerir", async ({ context, page }) => {
     const target = await seedTarget("agent");
     await login(context, adminSess);
