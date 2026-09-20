@@ -330,7 +330,7 @@ const isSupervisorRole = (role: string): boolean =>
                     <ActionEditButton
                       data-edit-user-btn
                       data-user-id={u.id}
-                      data-user-role={u.role}
+                      data-user-role={normalizeRole(u.role)}
                       data-user-username={u.username}
                       data-user-name={u.agentName ?? ""}
                       data-user-helpdesk={u.helpdeskName ?? ""}
@@ -395,7 +395,7 @@ const isSupervisorRole = (role: string): boolean =>
                             { value: "supervisor", label: "Supervisor" },
                             { value: "admin", label: "Administrador" },
                           ]}
-                          value={u.role}
+                          value={normalizeRole(u.role)}
                         />
 
                         <div class="flex items-end gap-2">
@@ -810,6 +810,7 @@ const isSupervisorRole = (role: string): boolean =>
 <script>
 import { getCleanBase } from "@lib/baseUrl";
 import { showToast } from "@lib/toastClient";
+import { normalizeRole } from "@lib/rbac";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
@@ -900,7 +901,11 @@ import { showToast } from "@lib/toastClient";
         const unameInput = document.getElementById(`edit-user-username-${userId}`) as HTMLInputElement | null;
         const nameInput = document.getElementById(`edit-user-name-${userId}`) as HTMLInputElement | null;
 
-        if (roleSel) roleSel.value = role;
+        if (roleSel) {
+          const canonical = normalizeRole(role);
+          const hasOption = Array.from(roleSel.options).some((o) => o.value === role);
+          roleSel.value = hasOption ? role : canonical;
+        }
         if (unameInput) unameInput.value = username;
         if (nameInput) nameInput.value = name;
         if (hdSel) {
@@ -940,22 +945,24 @@ import { showToast } from "@lib/toastClient";
           btn.innerHTML =
             '<span class="loading loading-spinner loading-sm"></span> Buscando…';
           const result = await suggestMesaForUsername(username);
-          btn.disabled = false;
-          btn.innerHTML = originalHtml;
-
-          if (!result.ok) {
-            showToast(result.message, "alert-error");
-            return;
+          try {
+            if (!result.ok) {
+              showToast(result.message, "alert-error");
+              return;
+            }
+            if (!result.helpdesk) {
+              showToast(
+                "No se encontró una mesa para ese usuario en InvGate.",
+                "alert-warning",
+              );
+              return;
+            }
+            selectOrAddHelpdeskOption(hdSel, result.helpdesk.invgateId, result.helpdesk.name);
+            showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
           }
-          if (!result.helpdesk) {
-            showToast(
-              "No se encontró una mesa para ese usuario en InvGate.",
-              "alert-warning",
-            );
-            return;
-          }
-          selectOrAddHelpdeskOption(hdSel, result.helpdesk.invgateId, result.helpdesk.name);
-          showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
         });
       });
 
