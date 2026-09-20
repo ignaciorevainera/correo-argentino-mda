@@ -24,7 +24,6 @@ import Modal from "@components/ui/Modal.astro";
 import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 import ActionButton from "@components/ui/ActionButton.astro";
-import SearchBar from "@components/ui/SearchBar.astro";
 
 interface Props {
   successMsg?: string;
@@ -141,25 +140,11 @@ const isSupervisorRole = (role: string): boolean =>
           }
         </div>
 
-        <SearchBar
-          id="admin-users-search"
-          placeholder="Buscar por usuario..."
-          ariaLabel="Buscar usuarios por nombre de red"
-          size="sm"
-          class="max-w-md"
-        />
-
         <DataTable
-          id="usuarios-table"
           ariaLabel="Listado de usuarios registrados"
           minWidthClass="min-w-160"
           headerGridClass={headerGridClass}
           rowGridClass={rowGridClass}
-          emptyStateTitle="Sin usuarios que coincidan"
-          emptyStateDescription="No encontramos usuarios ni mesas de ayuda para esa búsqueda. Probá con otro nombre, rol o mesa."
-          showClearButton
-          clearButtonText="Limpiar búsqueda"
-          clearButtonId="admin-users-search-clear"
         >
           <div slot="header">
             <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell
@@ -203,7 +188,6 @@ const isSupervisorRole = (role: string): boolean =>
                   data-sort-username={u.username}
                   data-sort-role={u.role}
                   data-sort-helpdesk={u.helpdeskName ?? ""}
-                  data-search-text={`${u.username} ${u.role.replace(/_/g, " ")} ${u.helpdeskName ?? ""}`}
                   class:list={[
                     rowGridClass,
                     "border-base-300 hover:bg-base-200/50 border-b px-5 py-4 transition-colors last:border-b-0",
@@ -230,10 +214,7 @@ const isSupervisorRole = (role: string): boolean =>
                       >
                         {u.username.slice(0, 2).toUpperCase()}
                       </div>
-                      <span
-                        class="text-base-content truncate font-mono font-medium"
-                        data-highlight-target
-                      >
+                      <span class="text-base-content truncate font-mono font-medium">
                         {u.username}
                       </span>
                     </div>
@@ -311,7 +292,6 @@ const isSupervisorRole = (role: string): boolean =>
                                 ? "badge-warning"
                                 : "badge-neutral",
                       ]}
-                      data-highlight-target
                     >
                       {u.role === "admin"
                         ? "Admin"
@@ -336,15 +316,11 @@ const isSupervisorRole = (role: string): boolean =>
                             ? "badge-primary"
                             : "badge-secondary",
                         ]}
-                        data-highlight-target
                       >
                         {u.helpdeskName}
                       </span>
                     ) : (
-                      <span
-                        class="text-base-content/40 text-xs italic"
-                        data-highlight-target
-                      >
+                      <span class="text-base-content/40 text-xs italic">
                         Sin mesa de ayuda
                       </span>
                     )}
@@ -1135,57 +1111,5 @@ import { showToast } from "@lib/toastClient";
 
   document.addEventListener("astro:page-load", () => {
     setupUsersObserver();
-  });
-</script>
-
-<script>
-  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
-
-  function initUsersSearch() {
-    const searchInput =
-      document.querySelector<HTMLInputElement>("#admin-users-search");
-    if (!searchInput) return false;
-    if (searchInput.dataset.usersSearchBound === "true") return true;
-
-    function applyFilters() {
-      const query = searchInput?.value.trim() ?? "";
-      const rows = document.querySelectorAll<HTMLElement>(
-        "#usuarios-table [data-table-row]",
-      );
-      rows.forEach((row) => {
-        const searchText = row.dataset.searchText || "";
-        const isVisible = matchesSearchQuery(query, [searchText]);
-        row.classList.toggle("hidden", !isVisible);
-        highlightSearchTargets(row, isVisible ? query : "");
-      });
-    }
-
-    searchInput.addEventListener("input", applyFilters);
-    const clearButton = document.getElementById("admin-users-search-clear");
-    clearButton?.addEventListener("click", () => {
-      searchInput.value = "";
-      applyFilters();
-      searchInput.focus();
-    });
-    searchInput.dataset.usersSearchBound = "true";
-    return true;
-  }
-
-  function setupUsersSearchObserver() {
-    if (initUsersSearch()) return;
-
-    const observer = new MutationObserver((_, obs) => {
-      if (initUsersSearch()) {
-        obs.disconnect();
-      }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
-  setupUsersSearchObserver();
-
-  document.addEventListener("astro:page-load", () => {
-    setupUsersSearchObserver();
   });
 </script>
