@@ -170,7 +170,9 @@ if (Astro.request.method === "POST") {
       helpdeskId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
     }
 
-    if (!newUsername || !newName) {
+    if (rawHelpdesk && helpdeskId == null) {
+      errorMsg = "Mesa de ayuda inválida.";
+    } else if (!newUsername || !newName) {
       errorMsg = "Nombre completo y nombre de red son obligatorios.";
     } else if (!newRole || !isValidRole(newRole)) {
       errorMsg = `Rol inválido: "${newRole ?? ""}".`;
@@ -381,6 +383,8 @@ if (Astro.request.method === "POST") {
         }
       }
     }
+  } else {
+    errorMsg = `Acción desconocida: "${action}".`;
   }
 
   if (isAjax) {
