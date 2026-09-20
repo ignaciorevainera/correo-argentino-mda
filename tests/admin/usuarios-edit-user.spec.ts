@@ -161,6 +161,37 @@ test.describe("Modal unificado Editar usuario", () => {
     await page.goto("/admin/usuarios");
   }
 
+  test("modal prefill: rol admin se preserva y lista 5 roles; sin-mesa no degrada", async ({
+    page,
+  }) => {
+    const uname = `edit_rolepref_${Date.now()}`;
+    const uid = await seedUser(uname, "admin", MDA_TI);
+    await loginAndGoToUsers(page);
+    await expect(
+      page.locator(`article[data-sort-username="${uname}"]`).first(),
+    ).toBeVisible();
+    await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
+
+    const modal = page.locator(`#modal-edit-user-${uid}`);
+    await expect(modal).toBeVisible();
+    const roleSelect = modal.locator(`#edit-user-role-${uid}`);
+    await expect(roleSelect).toHaveValue("admin");
+    expect(
+      (await roleSelect.locator("option").allTextContents()).map((t) =>
+        t.trim(),
+      ),
+    ).toEqual([
+      "Agente",
+      "Referente",
+      "Team Leader",
+      "Supervisor",
+      "Administrador",
+    ]);
+
+    await modal.locator(`#edit-user-helpdesk-${uid}`).selectOption("");
+    await expect(roleSelect).toHaveValue("admin");
+  });
+
   test("usuario MDA TI sin fila agents: el modal edita y crea la fila (self-heal)", async ({
     page,
   }) => {

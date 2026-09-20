@@ -302,7 +302,7 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       });
   });
 
-  test("POST JSON change-role responde 200 success y aplica cambios", async ({
+  test("POST JSON update-user responde 200 success y aplica cambios", async ({
     context,
   }) => {
     const uname = `json_cr_${Date.now()}`;
