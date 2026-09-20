@@ -334,6 +334,7 @@ const isSupervisorRole = (role: string): boolean =>
                       data-user-username={u.username}
                       data-user-name={u.agentName ?? ""}
                       data-user-helpdesk={u.helpdeskName ?? ""}
+                      data-user-helpdesk-id={u.helpdeskId ?? ""}
                       data-user-flags={JSON.stringify({
                         enCronograma: !!u.enCronograma,
                         asignableCubic: !!u.asignableCubic,
@@ -356,8 +357,8 @@ const isSupervisorRole = (role: string): boolean =>
                         Editar usuario
                       </h3>
                       <p class="text-base-content/60 mb-4 text-xs">
-                        Actualizá el nombre de red, el nombre visible y las
-                        participaciones de{" "}
+                        Actualizá el rol, la mesa de ayuda, el nombre de red,
+                        el nombre visible y las participaciones de{" "}
                         <span class="font-mono font-semibold">{u.username}</span>.
                       </p>
                       <form method="POST" class="space-y-3" data-async-form>
@@ -889,6 +890,7 @@ import { normalizeRole } from "@lib/rbac";
         const username = btn.getAttribute("data-user-username") || "";
         const name = btn.getAttribute("data-user-name") || "";
         const helpdesk = (btn.getAttribute("data-user-helpdesk") || "").trim();
+        const helpdeskId = (btn.getAttribute("data-user-helpdesk-id") || "").trim();
         let flags: Record<string, boolean> = {};
         try {
           flags = JSON.parse(btn.getAttribute("data-user-flags") || "{}");
@@ -910,7 +912,14 @@ import { normalizeRole } from "@lib/rbac";
         if (nameInput) nameInput.value = name;
         if (hdSel) {
           hdSel.value = "";
-          if (helpdesk) {
+          if (helpdeskId) {
+            // Match por id (prefijo del value "id|nombre"): robusto ante
+            // renombres de mesa y labels duplicados/"(sugerida)".
+            const byId = Array.from(hdSel.options).find(
+              (o) => o.value.split("|")[0] === helpdeskId,
+            );
+            if (byId) hdSel.value = byId.value;
+          } else if (helpdesk) {
             const match = Array.from(hdSel.options).find(
               (o) => (o.textContent ?? "").trim() === helpdesk,
             );

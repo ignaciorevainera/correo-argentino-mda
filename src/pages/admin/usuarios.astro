@@ -254,12 +254,14 @@ if (Astro.request.method === "POST") {
             .get();
 
           // Colisión de nombre visible (excluyendo la propia fila de agente).
+          // Comparación insensible a mayúsculas, igual que el vínculo por
+          // username, para no crear casi-duplicados ("Perez" vs "PEREZ").
           if (newName !== (agentRow?.name ?? "")) {
             const nameClash = tx
               .select({ id: agents.id })
               .from(agents)
               .where(
-                sql`${agents.name} = ${newName} and ${agents.id} <> ${agentRow?.id ?? -1}`,
+                sql`lower(${agents.name}) = ${newName.toLowerCase()} and ${agents.id} <> ${agentRow?.id ?? -1}`,
               )
               .get();
             if (nameClash) {
