@@ -80,8 +80,9 @@ const helpdeskOptions = (
   .filter((h) => !h.level_order && ALLOWED_HELPDESK_NAMES.includes(h.name ?? ""))
   .map((h) => ({ id: h.id, name: h.name ?? `Helpdesk #${h.id}` }));
 
-const headerGridClass = "grid-cols-[1fr_140px_180px_320px] gap-4";
-const rowGridClass = "grid grid-cols-[1fr_140px_180px_320px] items-center gap-4";
+const headerGridClass = "grid-cols-[1fr_104px_170px_180px_88px] gap-4";
+const rowGridClass =
+  "grid grid-cols-[1fr_104px_170px_180px_88px] items-center gap-4";
 
 // Normaliza variantes legacy ("Supervisor ", "Team Leader") en la UI; el
 // enforcement real vive server-side (normalizeRole en usuarios.astro).
@@ -152,7 +153,7 @@ const isSupervisorRole = (role: string): boolean =>
         <DataTable
           id="usuarios-table"
           ariaLabel="Listado de usuarios registrados"
-          minWidthClass="min-w-160"
+          minWidthClass="min-w-200"
           headerGridClass={headerGridClass}
           rowGridClass={rowGridClass}
           emptyStateTitle="Sin usuarios que coincidan"
@@ -171,6 +172,9 @@ const isSupervisorRole = (role: string): boolean =>
           <div slot="header">
             <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell
             >
+          </div>
+          <div slot="header">
+            <DataTableHeaderCell>Participaciones</DataTableHeaderCell>
           </div>
           <div slot="header" class="text-right">
             <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
@@ -231,15 +235,72 @@ const isSupervisorRole = (role: string): boolean =>
                         {u.username.slice(0, 2).toUpperCase()}
                       </div>
                       <span
-                        class="text-base-content truncate font-mono font-medium"
+                        class="text-base-content truncate font-mono text-sm font-medium"
                         data-highlight-target
                       >
                         {u.username}
                       </span>
                     </div>
-                    {/* Chips indicadores: solo mesas participativas, por flag activo. */}
+                  </div>
+
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span
+                      class:list={[
+                        "badge badge-xs font-bold tracking-wide whitespace-nowrap uppercase",
+                        u.role === "admin"
+                          ? "badge-error"
+                          : isSupervisorRole(u.role)
+                            ? "badge-info"
+                            : u.role === "team_leader" ||
+                                u.role === "team-leader" ||
+                                u.role === "team leader"
+                              ? "badge-accent"
+                              : u.role === "referent"
+                                ? "badge-warning"
+                                : "badge-neutral",
+                      ]}
+                      data-highlight-target
+                    >
+                      {u.role === "admin"
+                        ? "Admin"
+                        : isSupervisorRole(u.role)
+                          ? "Supervisor"
+                          : u.role === "team_leader" ||
+                              u.role === "team-leader" ||
+                              u.role === "team leader"
+                            ? "Team Leader"
+                            : u.role === "referent"
+                              ? "Referente"
+                              : "Agente"}
+                    </span>
+                  </div>
+
+                  <div class="flex min-w-0 items-center gap-2">
+                    {u.helpdeskName ? (
+                      <span
+                        class:list={[
+                          "badge badge-xs font-bold tracking-wide whitespace-nowrap uppercase",
+                          u.helpdeskName === MDA_TI_HELPDESK
+                            ? "badge-primary"
+                            : "badge-secondary",
+                        ]}
+                        data-highlight-target
+                      >
+                        {u.helpdeskName}
+                      </span>
+                    ) : (
+                      <span
+                        class="text-base-content/40 text-xs italic"
+                        data-highlight-target
+                      >
+                        Sin mesa de ayuda
+                      </span>
+                    )}
+                  </div>
+
+                  <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                     {mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
-                      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                      <>
                         {u.enCronograma && (
                           <span
                             class="badge badge-xs badge-primary"
@@ -287,66 +348,13 @@ const isSupervisorRole = (role: string): boolean =>
                           !u.asignableCubic &&
                           !u.incluidoCalidad &&
                           !u.asignableAgs && (
-                            <span class="badge badge-xs badge-ghost text-base-content/60">
+                            <span
+                              class="badge badge-xs badge-ghost text-base-content/60"
+                            >
                               Sin participaciones
                             </span>
                           )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div class="flex min-w-0 items-center gap-2">
-                    <span
-                      class:list={[
-                        "badge badge-sm font-bold tracking-wide whitespace-nowrap uppercase",
-                        u.role === "admin"
-                          ? "badge-error"
-                          : isSupervisorRole(u.role)
-                            ? "badge-info"
-                            : u.role === "team_leader" ||
-                                u.role === "team-leader" ||
-                                u.role === "team leader"
-                              ? "badge-accent"
-                              : u.role === "referent"
-                                ? "badge-warning"
-                                : "badge-neutral",
-                      ]}
-                      data-highlight-target
-                    >
-                      {u.role === "admin"
-                        ? "Admin"
-                        : isSupervisorRole(u.role)
-                          ? "Supervisor"
-                          : u.role === "team_leader" ||
-                              u.role === "team-leader" ||
-                              u.role === "team leader"
-                            ? "Team Leader"
-                            : u.role === "referent"
-                              ? "Referente"
-                              : "Agente"}
-                    </span>
-                  </div>
-
-                  <div class="flex min-w-0 items-center gap-2">
-                    {u.helpdeskName ? (
-                      <span
-                        class:list={[
-                          "badge badge-sm font-bold tracking-wide whitespace-nowrap uppercase",
-                          u.helpdeskName === MDA_TI_HELPDESK
-                            ? "badge-primary"
-                            : "badge-secondary",
-                        ]}
-                        data-highlight-target
-                      >
-                        {u.helpdeskName}
-                      </span>
-                    ) : (
-                      <span
-                        class="text-base-content/40 text-xs italic"
-                        data-highlight-target
-                      >
-                        Sin mesa de ayuda
-                      </span>
+                      </>
                     )}
                   </div>
 
