@@ -27,9 +27,7 @@ if (Astro.request.method === "POST") {
   // isSectionVisibleSync).
   const SELF_EDIT_BLOCKED_ACTIONS = new Set([
     "change-role",
-    "update-name",
     "update-user",
-    "rename-username",
     "update-participaciones",
   ]);
   const selfEditBlocked =
@@ -216,51 +214,6 @@ if (Astro.request.method === "POST") {
         );
       } catch (e) {
         errorMsg = "Error al actualizar participaciones.";
-      }
-    }
-  } else if (action === "update-name") {
-    const userId = Number(formData.get("userId"));
-    const newName = formData.get("newName")?.toString().trim();
-    if (userId && newName) {
-      try {
-        const [existingAgent] = await db
-          .select({ id: agents.id, name: agents.name })
-          .from(agents)
-          .innerJoin(
-            users,
-            sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
-          )
-          .where(eq(users.id, userId));
-
-        if (!existingAgent) {
-          errorMsg = "No existe fila de agente vinculada a este usuario.";
-        } else {
-          const oldName = existingAgent.name;
-
-          db.transaction((tx) => {
-            tx.update(agents)
-              .set({ name: newName })
-              .where(eq(agents.id, existingAgent.id))
-              .run();
-
-            if (oldName !== newName) {
-              tx.update(schedules)
-                .set({ agentName: newName })
-                .where(eq(schedules.agentName, oldName))
-                .run();
-            }
-          });
-
-          successMsg = "Nombre actualizado con éxito.";
-          await logAdminFromAstro(
-            Astro.locals,
-            oldName !== newName
-              ? `Renombró al agente de "${oldName}" a "${newName}" (propagado a cronogramas)`
-              : `Actualizó el nombre del agente a "${newName}"`,
-          );
-        }
-      } catch (e) {
-        errorMsg = "Error al actualizar el nombre. ¿Ya existe un agente con ese nombre?";
       }
     }
   } else if (action === "update-user") {
@@ -451,44 +404,6 @@ if (Astro.request.method === "POST") {
         } catch (e) {
           errorMsg = "Error al actualizar la contraseña.";
         }
-      }
-    }
-  } else if (action === "rename-username") {
-    const userId = Number(formData.get("userId"));
-    const newUsername = formData
-      .get("newUsername")
-      ?.toString()
-      .trim()
-      .toLowerCase();
-    if (userId && newUsername) {
-      try {
-        const [existing] = await db
-          .select({ username: users.username })
-          .from(users)
-          .where(eq(users.id, userId));
-        const oldUsername = existing?.username || "desconocido";
-
-        await db
-          .update(users)
-          .set({ username: newUsername })
-          .where(eq(users.id, userId));
-
-        await db
-          .update(agents)
-          .set({ username: newUsername })
-          .where(sql`lower(coalesce(${agents.username}, '')) = ${oldUsername.toLowerCase()}`);
-
-        successMsg = `Usuario renombrado a "${newUsername}" con éxito.`;
-        await logAdminFromAstro(
-          Astro.locals,
-          `Renombró al usuario de "${oldUsername}" a "${newUsername}"`,
-        );
-      } catch (e) {
-        console.error("[usuarios] Error al renombrar usuario:", e);
-        const msg = e instanceof Error ? e.message : String(e);
-        errorMsg = msg.includes("UNIQUE constraint failed")
-          ? "Error: Ese nombre de usuario ya existe."
-          : "Error al actualizar el usuario.";
       }
     }
   } else if (action === "change-role") {

@@ -427,4 +427,73 @@ test.describe("Modal unificado Editar usuario", () => {
       .where(eq(agents.username, uname));
     expect(after.enCronograma).toBe(false);
   });
+
+  test("autoedicion: update-user sobre el propio admin es rechazado", async ({
+    context,
+  }) => {
+    await setSessionCookie(context, adminCookie);
+    const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
+    const [before] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, adminId));
+
+    const res = await context.request.post(
+      new URL("/admin/usuarios", baseURL).href,
+      {
+        form: {
+          action: "update-user",
+          userId: String(adminId),
+          username: before.username,
+          name: "Auto Editado",
+        },
+        headers: { Accept: "application/json" },
+      },
+    );
+    expect(res.status()).toBe(400);
+    expect(String((await res.json()).error)).toContain(
+      "No podés editar tu propio usuario",
+    );
+
+    const [after] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, adminId));
+    expect(after.username).toBe(before.username);
+  });
+
+  test("username duplicado en update-user muestra error especifico", async ({
+    context,
+  }) => {
+    await setSessionCookie(context, adminCookie);
+    const unameA = `edit_dup_a_${Date.now()}`;
+    const unameB = `edit_dup_b_${Date.now()}`;
+    const uidA = await seedUser(unameA, "agent", MDA_TI);
+    await seedUser(unameB, "agent", MDA_TI);
+
+    const baseURL = test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
+    const res = await context.request.post(
+      new URL("/admin/usuarios", baseURL).href,
+      {
+        form: {
+          action: "update-user",
+          userId: String(uidA),
+          username: unameB,
+          name: `Dup Target ${Date.now()}`,
+        },
+        headers: { Accept: "application/json" },
+      },
+    );
+    expect(res.status()).toBe(400);
+    expect(String((await res.json()).error)).toContain(
+      "nombre de usuario ya existe",
+    );
+
+    // El username original no cambió.
+    const [after] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, uidA));
+    expect(after.username).toBe(unameA);
+  });
 });

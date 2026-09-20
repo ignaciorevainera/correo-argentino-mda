@@ -336,11 +336,6 @@ const isSupervisorRole = (role: string): boolean =>
                     />
 
                     <ActionEditButton
-                      onclick={`document.getElementById('modal-rename-${u.id}').showModal()`}
-                      ariaLabel={`Renombrar usuario ${u.username}`}
-                    />
-
-                    <ActionEditButton
                       onclick={`document.getElementById('modal-edit-user-${u.id}').showModal()`}
                       ariaLabel={`Editar usuario ${u.username}`}
                     />
@@ -393,7 +388,11 @@ const isSupervisorRole = (role: string): boolean =>
                               type="checkbox"
                               name="enCronograma"
                               class="toggle toggle-sm toggle-secondary"
-                              checked={!!u.enCronograma}
+                              checked={
+                                mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) &&
+                                !isSupervisorRole(u.role) &&
+                                !!u.enCronograma
+                              }
                               disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) || isSupervisorRole(u.role)}
                               title="Un supervisor no figura en el cronograma como operador"
                             />
@@ -404,7 +403,10 @@ const isSupervisorRole = (role: string): boolean =>
                               type="checkbox"
                               name="asignableCubic"
                               class="toggle toggle-sm toggle-secondary"
-                              checked={!!u.asignableCubic}
+                              checked={
+                                mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) &&
+                                !!u.asignableCubic
+                              }
                               disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
                             />
                             <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
@@ -414,7 +416,10 @@ const isSupervisorRole = (role: string): boolean =>
                               type="checkbox"
                               name="incluidoCalidad"
                               class="toggle toggle-sm toggle-secondary"
-                              checked={!!u.incluidoCalidad}
+                              checked={
+                                mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) &&
+                                !!u.incluidoCalidad
+                              }
                               disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
                             />
                             <span class="text-base-content text-sm">Auditorías de calidad</span>
@@ -424,7 +429,10 @@ const isSupervisorRole = (role: string): boolean =>
                               type="checkbox"
                               name="asignableAgs"
                               class="toggle toggle-sm toggle-secondary"
-                              checked={!!u.asignableAgs}
+                              checked={
+                                mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) &&
+                                !!u.asignableAgs
+                              }
                               disabled={!mesaHasParticipaciones(u.mesaName ?? u.helpdeskName)}
                             />
                             <span class="text-base-content text-sm">Asignación AGS</span>
@@ -443,51 +451,6 @@ const isSupervisorRole = (role: string): boolean =>
                     </Fragment>
                   </Modal>
                   {/* ── Modales (Fuera del flujo visual de la fila) ── */}
-                  <Modal id={`modal-rename-${u.id}`}>
-                    <Fragment slot="content">
-                      <h3 class="text-base-content mb-1 text-base font-semibold">
-                        Renombrar usuario
-                      </h3>
-                      <p class="text-base-content/60 mb-4 text-xs">
-                        Usuario actual:{" "}
-                        <span class="font-mono font-semibold">
-                          {u.username}
-                        </span>
-                      </p>
-                      <form method="POST" class="space-y-3" data-async-form>
-                        <input
-                          type="hidden"
-                          name="action"
-                          value="rename-username"
-                        />
-                        <input type="hidden" name="userId" value={u.id} />
-                        <FormField
-                          id={`new-username-${u.id}`}
-                          name="newUsername"
-                          required
-                          label="Nuevo nombre de red"
-                          placeholder={u.username}
-                          autocomplete="off"
-                          inputClass="input-sm"
-                        />
-                        <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
-                          <ActionCancelButton
-                            type="button"
-                            label="Cancelar"
-                            icon="boxicons:x-filled"
-                            variant="error"
-                            onclick="this.closest('dialog').close()"
-                          />
-                          <ActionConfirmButton
-                            type="submit"
-                            color="btn-secondary"
-                            label="Guardar"
-                            icon="boxicons:check-filled"
-                          />
-                        </div>
-                      </form>
-                    </Fragment>
-                  </Modal>
                   <Modal id={`modal-reset-${u.id}`}>
                     <Fragment slot="content">
                       <h3 class="text-base-content mb-1 text-base font-semibold">

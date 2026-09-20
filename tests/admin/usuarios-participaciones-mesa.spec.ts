@@ -74,7 +74,7 @@ test.describe("Participaciones por mesa", () => {
       .insert(users)
       .values({ username, password: "x", role, helpdeskId: m?.invgateId ?? null, helpdeskName })
       .returning({ id: users.id });
-    // Fila de agente vinculada (el botón de participaciones exige u.agentId).
+    // Fila de agente vinculada (los chips y el gating de participaciones la usan).
     await db
       .insert(agents)
       .values({ name: username.toUpperCase(), username, enCronograma: true })

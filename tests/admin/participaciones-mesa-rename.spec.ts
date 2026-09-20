@@ -122,7 +122,7 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
         helpdeskName,
       })
       .returning({ id: users.id });
-    // Fila de agente vinculada (el boton de participaciones exige u.agentId).
+    // Fila de agente vinculada (los chips y el gating de participaciones la usan).
     await db
       .insert(agents)
       .values({ name: username.toUpperCase(), username, enCronograma: true })
