@@ -216,6 +216,7 @@ Nota: en logon no interactivo, `npm`/`pm2` deben resolverse desde el PATH del us
 
 Correr **una única vez** al deployar B2, en este orden y **antes** de que `align-db-to-schema.mts`/`db:push` dropee `schedules.agent_name`. El auto-deploy no incluye migraciones.
 
+0. `git pull` (los scripts de B2 deben existir en el repo) y pausar la tarea programada de auto-deploy hasta terminar la migración; el build nuevo debe quedar en su lugar antes del restart del paso 5.
 1. Backup de la DB: `scripts\backup-db.bat`
 2. Dry-run y revisar el reporte: `npx tsx scripts/link-orphan-schedules.mts`
 3. Aplicar la reconciliación de huérfanos: `npx tsx scripts/link-orphan-schedules.mts --apply` (transacción síncrona + backup WAL-safe; idempotente, nunca borra filas)
