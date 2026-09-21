@@ -60,10 +60,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .where(eq(agents.name, originalName));
 
       // Si cambió el nombre, actualizar en cascada en la tabla schedules
+      // (el update de agents ya corrió arriba: buscar la fila por el nombre nuevo)
       if (name.trim() !== originalName) {
+        const [agentRow] = await db
+          .select({ id: agents.id })
+          .from(agents)
+          .where(eq(agents.name, name.trim()));
         await db
           .update(schedules)
-          .set({ agentName: name.trim() })
+          .set({ agentName: name.trim(), agentId: agentRow?.id ?? null })
           .where(eq(schedules.agentName, originalName));
       }
 

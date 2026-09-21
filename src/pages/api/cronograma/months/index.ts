@@ -135,6 +135,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           allInserts.push({
             agentName: op.name,
+            agentId: op.id,
             date: dateStr,
             status: "Franco",
             comment: "",

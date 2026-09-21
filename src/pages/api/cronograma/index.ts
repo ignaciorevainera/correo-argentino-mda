@@ -13,6 +13,7 @@ import { eq, and, desc, lt, like, sql } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
+import { buildNameToAgentId, resolveAgentIdByName } from "@lib/scheduleLinks";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
@@ -412,6 +413,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // Process each edit atomically inside a transaction (Transactions for Batch Edits)
+    // Dual-write agentId: map nombre->id cargado fuera del tx (better-sqlite3 exige callbacks sincronos).
+    const dbAgentsPost = await db
+      .select({ id: agents.id, name: agents.name })
+      .from(agents);
+    const nameToAgentIdPost = buildNameToAgentId(dbAgentsPost);
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
@@ -467,6 +473,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
+          const resolved = resolveAgentIdByName(nameToAgentIdPost, agentName).agentId;
+          if (resolved != null) updateData.agentId = resolved;
 
           tx.update(schedules)
             .set(updateData)
@@ -476,6 +484,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           tx.insert(schedules)
             .values({
               agentName,
+              agentId: resolveAgentIdByName(nameToAgentIdPost, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",
@@ -582,6 +591,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       return jsonResponse({ error: "Edits must be an array" }, 400);
     }
 
+    // Dual-write agentId: map nombre->id cargado fuera del tx (better-sqlite3 exige callbacks sincronos).
+    const dbAgentsPut = await db
+      .select({ id: agents.id, name: agents.name })
+      .from(agents);
+    const nameToAgentIdPut = buildNameToAgentId(dbAgentsPut);
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
@@ -636,6 +650,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
+          const resolved = resolveAgentIdByName(nameToAgentIdPut, agentName).agentId;
+          if (resolved != null) updateData.agentId = resolved;
 
           tx.update(schedules)
             .set(updateData)
@@ -645,6 +661,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           tx.insert(schedules)
             .values({
               agentName,
+              agentId: resolveAgentIdByName(nameToAgentIdPut, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",
