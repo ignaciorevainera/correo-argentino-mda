@@ -22,6 +22,7 @@ export type LinkOrphanReport = {
   agentsCreated: number;
   agentsReused: number;
   rowsLinked: number;
+  shellNames: Array<{ name: string; rows: number }>;
   orphansUnlinkable: string[];
   backupPath: string | null;
 };
@@ -31,6 +32,7 @@ type PlannedName = {
   trimmedName: string;
   targetId: number;
   create: boolean;
+  rowCount: number;
 };
 
 export async function runLinkOrphanSchedules(
@@ -48,32 +50,33 @@ export async function runLinkOrphanSchedules(
       name: string;
     }>;
     const nameToAgentId = buildNameToAgentId(agents);
-    const orphanNames = (
-      db
-        .prepare(
-          "SELECT DISTINCT agent_name FROM schedules WHERE agent_id IS NULL AND trim(agent_name) <> ''",
-        )
-        .all() as Array<{ agent_name: string }>
-    ).map((row) => row.agent_name);
-    const emptyNameRows = (
-      db
-        .prepare(
-          "SELECT COUNT(*) AS c FROM schedules WHERE agent_id IS NULL AND trim(agent_name) = ''",
-        )
-        .get() as { c: number }
-    ).c;
+    const orphanGroups = db
+      .prepare(
+        "SELECT agent_name, COUNT(*) AS c FROM schedules WHERE agent_id IS NULL GROUP BY agent_name ORDER BY agent_name",
+      )
+      .all() as Array<{ agent_name: string; c: number }>;
+
+    // Particion en JS: SQLite trim() solo saca espacios, JS trim() tambien
+    // tabs/NBSP. Los nombres solo-whitespace se reportan y NUNCA se insertan.
+    const linkableGroups: Array<{ rawName: string; rowCount: number }> = [];
+    let emptyNameRows = 0;
+    for (const group of orphanGroups) {
+      if (String(group.agent_name).trim() === "") {
+        emptyNameRows += group.c;
+        continue;
+      }
+      linkableGroups.push({ rawName: group.agent_name, rowCount: group.c });
+    }
 
     const findByLowerName = db.prepare(
       "SELECT id, name FROM agents WHERE lower(name) = lower(?)",
-    );
-    const countRowsByName = db.prepare(
-      "SELECT COUNT(*) AS c FROM schedules WHERE agent_id IS NULL AND agent_name = ?",
     );
 
     const report: LinkOrphanReport = {
       agentsCreated: 0,
       agentsReused: 0,
       rowsLinked: 0,
+      shellNames: [],
       orphansUnlinkable: [],
       backupPath: null,
     };
@@ -81,7 +84,7 @@ export async function runLinkOrphanSchedules(
     const plan: PlannedName[] = [];
     let simulatedId = -1;
 
-    for (const rawName of orphanNames) {
+    for (const { rawName, rowCount } of linkableGroups) {
       const trimmedName = rawName.trim();
       const resolved = resolveAgentIdByName(nameToAgentId, trimmedName);
 
@@ -123,10 +126,27 @@ export async function runLinkOrphanSchedules(
         report.agentsReused += 1;
       }
 
-      const rowCount = (countRowsByName.get(rawName) as { c: number }).c;
       report.rowsLinked += rowCount;
-      plan.push({ rawName, trimmedName, targetId, create });
+      plan.push({ rawName, trimmedName, targetId, create, rowCount });
     }
+
+    const shellRowsById = new Map<number, number>();
+    for (const item of plan) {
+      if (item.create) {
+        shellRowsById.set(item.targetId, item.rowCount);
+      } else if (item.targetId < 0) {
+        shellRowsById.set(
+          item.targetId,
+          (shellRowsById.get(item.targetId) ?? 0) + item.rowCount,
+        );
+      }
+    }
+    report.shellNames = plan
+      .filter((item) => item.create)
+      .map((item) => ({
+        name: item.trimmedName,
+        rows: shellRowsById.get(item.targetId) ?? item.rowCount,
+      }));
 
     if (emptyNameRows > 0) {
       report.orphansUnlinkable.push(`(nombre vacío): ${emptyNameRows} filas`);
@@ -158,10 +178,20 @@ export async function runLinkOrphanSchedules(
         realIdBySimulated.set(item.targetId, Number(info.lastInsertRowid));
       }
       for (const item of plan) {
-        const targetId = item.create
-          ? realIdBySimulated.get(item.targetId)
-          : item.targetId;
-        if (targetId == null) continue;
+        const targetId =
+          item.targetId < 0
+            ? realIdBySimulated.get(item.targetId)
+            : item.targetId;
+        if (targetId == null) {
+          throw new Error(
+            `Sin agente real para "${item.rawName}" (id simulado ${item.targetId})`,
+          );
+        }
+        if (targetId < 0) {
+          throw new Error(
+            `Id negativo al vincular "${item.rawName}" (${targetId})`,
+          );
+        }
         linkRows.run(targetId, item.rawName);
       }
     });
@@ -188,6 +218,16 @@ async function main(): Promise<void> {
   console.log(`agentes-shell a crear   : ${report.agentsCreated}`);
   console.log(`agentes existentes reuse: ${report.agentsReused}`);
   console.log(`schedules a vincular    : ${report.rowsLinked}`);
+  if (report.shellNames.length > 0) {
+    const shown = report.shellNames.slice(0, 20);
+    console.log("shells planificados:");
+    for (const shell of shown) {
+      console.log(`  - ${shell.name} (${shell.rows} filas)`);
+    }
+    if (report.shellNames.length > shown.length) {
+      console.log(`  … y ${report.shellNames.length - shown.length} más`);
+    }
+  }
   console.log(`huerfanos sin vincular  : ${report.orphansUnlinkable.length}`);
   if (report.orphansUnlinkable.length > 0) {
     for (const item of report.orphansUnlinkable) {
