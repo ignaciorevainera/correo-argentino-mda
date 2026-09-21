@@ -94,7 +94,8 @@ if (Astro.request.method === "POST") {
           // return a promise", hace rollback y las statements se ejecutan en
           // autocommit. Callback SÍNCRONO + .run()/.get().
           db.transaction((tx) => {
-            tx.insert(users)
+            const [newUser] = tx
+              .insert(users)
               .values({
                 username,
                 password: hashedPassword,
@@ -102,10 +103,11 @@ if (Astro.request.method === "POST") {
                 helpdeskId,
                 helpdeskName,
               })
-              .run();
+              .returning({ id: users.id })
+              .all();
 
             const existingAgent = tx
-              .select({ id: agents.id })
+              .select({ id: agents.id, userId: agents.userId })
               .from(agents)
               .where(
                 sql`lower(coalesce(${agents.username}, '')) = ${username}`,
@@ -114,14 +116,23 @@ if (Astro.request.method === "POST") {
 
             if (existingAgent) {
               tx.update(agents)
-                .set({ name, ...finalParticipaciones })
+                .set({
+                  name,
+                  // Vincula por id solo si la fila aún no tiene vínculo (respeta
+                  // un vínculo previo distinto: posible anomalía de datos).
+                  ...(existingAgent.userId == null ? { userId: newUser.id } : {}),
+                  ...finalParticipaciones,
+                })
                 .where(eq(agents.id, existingAgent.id))
                 .run();
             } else {
+              // El vínculo por id se establece al crear: evita que la cadena
+              // agents.id → users.id se degrade con usuarios nuevos.
               tx.insert(agents)
                 .values({
                   name,
                   username,
+                  userId: newUser.id,
                   ...finalParticipaciones,
                 })
                 .run();
@@ -242,6 +253,7 @@ if (Astro.request.method === "POST") {
             .select({
               id: agents.id,
               name: agents.name,
+              userId: agents.userId,
               enCronograma: agents.enCronograma,
               asignableCubic: agents.asignableCubic,
               incluidoCalidad: agents.incluidoCalidad,
@@ -292,13 +304,20 @@ if (Astro.request.method === "POST") {
 
           if (agentRow) {
             tx.update(agents)
-              .set({ name: newName, username: newUsername, ...finalFlags })
+              .set({
+                name: newName,
+                username: newUsername,
+                // Vincula por id solo si la fila aún no tiene vínculo
+                // (respeta un vínculo previo distinto: posible anomalía).
+                ...(agentRow.userId == null ? { userId } : {}),
+                ...finalFlags,
+              })
               .where(eq(agents.id, agentRow.id))
               .run();
           } else {
             // Self-heal: usuarios sin fila agents se crean en el mismo submit.
             tx.insert(agents)
-              .values({ name: newName, username: newUsername, ...finalFlags })
+              .values({ name: newName, username: newUsername, userId, ...finalFlags })
               .run();
           }
 

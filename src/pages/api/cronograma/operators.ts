@@ -47,30 +47,37 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .substring(0, 2)
         .toUpperCase();
 
-      // Actualizar registro en agents
-      await db
-        .update(agents)
-        .set({
-          name: name.trim(),
-          username: username ? username.trim() : null,
-          avatarInitials: initials,
-          location: location || "Monte Grande",
-          horarioDefault: horarioDefault || "",
-        })
-        .where(eq(agents.name, originalName));
+      // Rename atómico: agents + cascada a schedules en una sola
+      // transacción síncrona (better-sqlite3 no admite callbacks async).
+      db.transaction((tx) => {
+        // Actualizar registro en agents
+        tx.update(agents)
+          .set({
+            name: name.trim(),
+            username: username ? username.trim() : null,
+            avatarInitials: initials,
+            location: location || "Monte Grande",
+            horarioDefault: horarioDefault || "",
+          })
+          .where(eq(agents.name, originalName))
+          .run();
 
-      // Si cambió el nombre, actualizar en cascada en la tabla schedules
-      // (el update de agents ya corrió arriba: buscar la fila por el nombre nuevo)
-      if (name.trim() !== originalName) {
-        const [agentRow] = await db
-          .select({ id: agents.id })
-          .from(agents)
-          .where(eq(agents.name, name.trim()));
-        await db
-          .update(schedules)
-          .set({ agentName: name.trim(), agentId: agentRow?.id ?? null })
-          .where(eq(schedules.agentName, originalName));
-      }
+        // Si cambió el nombre, actualizar en cascada en la tabla schedules.
+        // Solo se toca agentId si la fila existe (si falta, no se borran
+        // vínculos previos: fail-safe).
+        if (name.trim() !== originalName) {
+          const [agentRow] = tx
+            .select({ id: agents.id })
+            .from(agents)
+            .where(eq(agents.name, name.trim()));
+          if (agentRow) {
+            tx.update(schedules)
+              .set({ agentName: name.trim(), agentId: agentRow.id })
+              .where(eq(schedules.agentName, originalName))
+              .run();
+          }
+        }
+      });
 
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
