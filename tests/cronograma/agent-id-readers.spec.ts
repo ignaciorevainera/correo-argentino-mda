@@ -83,4 +83,27 @@ test.describe("lectores de schedules por agentId", () => {
     expect(op.overrides["2026-05-11"]).toBeTruthy();
     expect(op.horarios_dias["2026-05-11"]).toBe("09:00-18:00");
   });
+
+  test("asistencia del operador refleja el plan de la fila con nombre stale (match por id)", async ({ context }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
+    ]);
+    const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
+    // GET /api/asistencia usa ?startDate=&endDate= y sirve getAttendanceData
+    // (src/pages/api/asistencia/index.ts). NOTA: /api/asistencia/operador/[id]
+    // usa ?year=&month= y tiene su propio lector name-keyed (otra tarea del plan B1).
+    const res = await context.request.get(
+      new URL("/api/asistencia?startDate=2026-05-11&endDate=2026-05-11", baseURL).href,
+    );
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const row = (body as any[]).find(
+      (r: any) => r.agentId === agent.id && r.date === "2026-05-11" && r.shiftType === "normal",
+    );
+    expect(row).toBeDefined();
+    // El plan del día debe venir de la fila vinculada por id (nombre stale).
+    expect(row.modalidadPlanificada).toBe("Trabajo");
+    expect(row.horarioEstipulado).toBe("09:00-18:00");
+  });
 });
