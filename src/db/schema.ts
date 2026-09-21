@@ -406,7 +406,6 @@ export const schedules = sqliteTable(
   "schedules",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    agentName: text("agent_name").notNull(),
     agentId: integer("agent_id").references(() => agents.id, {
       onDelete: "set null",
     }),
@@ -421,7 +420,6 @@ export const schedules = sqliteTable(
     isOverride: integer("is_override", { mode: "boolean" }).default(false),
   },
   (table) => ({
-    agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
     agentIdIdx: index("schedules_agent_id_idx").on(table.agentId),
     dateIdx: index("schedules_date_idx").on(table.date),
   }),

@@ -249,12 +249,9 @@ export async function getAttendanceData(startDate: string, endDate: string) {
     const isScheduledMonth = !!scheduledMonths[monthStr];
 
     dbAgents.forEach((agent) => {
-      // Find planned override/schedule for this date and agent
+      // Find planned override/schedule for this date and agent (vinculo por id)
       const plan = dbSchedules.find(
-        (s) =>
-          (s.agentId === agent.id ||
-            (s.agentId == null && s.agentName === agent.name)) &&
-          s.date === dateStr,
+        (s) => s.agentId === agent.id && s.date === dateStr,
       );
 
       let isSaturdayRotationShift = false;

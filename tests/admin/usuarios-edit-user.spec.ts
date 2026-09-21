@@ -280,9 +280,14 @@ test.describe("Modal unificado Editar usuario", () => {
       flags: { ...NO_FLAGS, enCronograma: true, asignableCubic: true },
     });
 
+    const [seededAgent] = await db
+      .select({ id: agents.id })
+      .from(agents)
+      .where(eq(agents.username, oldUname));
+    expect(seededAgent).toBeTruthy();
     const [sched] = await db
       .insert(schedules)
-      .values({ agentName: oldName, date: "2099-01-01", status: "normal" })
+      .values({ agentId: seededAgent.id, date: "2099-01-01", status: "normal" })
       .returning({ id: schedules.id });
     createdScheduleIds.push(sched.id);
 
@@ -334,15 +339,14 @@ test.describe("Modal unificado Editar usuario", () => {
     expect(agentRow.incluidoCalidad).toBe(true);
     expect(agentRow.asignableAgs).toBe(false);
 
-    // La fila de schedules conserva el nombre viejo: el rename ya no
-    // propaga a schedules (los lectores vinculan por agentId). La fila
-    // sembrada no tiene agentId, así que este test no cubre lectura; solo
-    // fija que el rename NO toca la tabla.
+    // El rename ya no propaga a schedules (los lectores vinculan por agentId):
+    // la fila sembrada queda intacta, sin cambios de status.
     const [schedRow] = await db
-      .select({ agentName: schedules.agentName })
+      .select({ status: schedules.status, agentId: schedules.agentId })
       .from(schedules)
       .where(eq(schedules.id, sched.id));
-    expect(schedRow.agentName).toBe(oldName);
+    expect(schedRow.status).toBe("normal");
+    expect(schedRow.agentId).toBe(seededAgent.id);
 
     createdAgentUsernames.push(oldUname, newUname);
   });

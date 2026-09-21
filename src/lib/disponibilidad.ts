@@ -94,12 +94,8 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       "Presencial Parque Patricios",
       "Home Office",
     ];
-    // Check if there is an override for this agent today
-    const schedule = dbSchedules.find(
-      (s) =>
-        s.agentId === agent.id ||
-        (s.agentId == null && s.agentName === agent.name),
-    );
+    // Check if there is an override for this agent today (vinculo por id)
+    const schedule = dbSchedules.find((s) => s.agentId === agent.id);
 
     let status = "Franco";
     let horario = "";

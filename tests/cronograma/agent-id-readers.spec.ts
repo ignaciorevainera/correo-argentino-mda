@@ -1,8 +1,7 @@
 // tests/cronograma/agent-id-readers.spec.ts
 //
-// Plan B1: los lectores de schedules usan agentId (fallback agentName solo si
-// agentId IS NULL). Prueba que una fila con nombre STALE sigue apareciendo
-// porque el vinculo por id manda.
+// Plan B2: los lectores de schedules usan exclusivamente agentId (la columna
+// agent_name ya no existe). Prueba que las filas se leen por vinculo de id.
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { createHmac } from "crypto";
@@ -45,11 +44,10 @@ test.describe("lectores de schedules por agentId", () => {
       .returning({ id: agents.id });
     createdAgentIds.push(agent.id);
 
-    // Fila con agentId correcto pero agentName STALE: solo un lector por id la ve.
+    // Fila vinculada por id: la unica forma de vinculo valida (B2).
     const [row] = await db
       .insert(schedules)
       .values({
-        agentName: `NOMBRE VIEJO ${ts}`,
         agentId: agent.id,
         date: "2026-05-11",
         status: "Trabajo",
@@ -83,7 +81,7 @@ test.describe("lectores de schedules por agentId", () => {
     if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
   });
 
-  test("GET 2026-05 refleja el override de la fila con nombre stale (match por id)", async ({ context }) => {
+  test("GET 2026-05 refleja el override de la fila vinculada por id", async ({ context }) => {
     const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await context.addCookies([
       { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
@@ -95,12 +93,12 @@ test.describe("lectores de schedules por agentId", () => {
     const [agent] = await db.select({ id: agents.id, name: agents.name }).from(agents).where(inArray(agents.id, createdAgentIds));
     const op = body.operators.find((o: any) => o.id === agent.id);
     expect(op).toBeDefined();
-    // El override del día 11 debe verse aunque el agentName de la fila sea viejo.
+    // El override del día 11 debe verse (vinculo exclusivo por id).
     expect(op.overrides["2026-05-11"]).toBeTruthy();
     expect(op.horarios_dias["2026-05-11"]).toBe("09:00-18:00");
   });
 
-  test("asistencia del operador refleja el plan de la fila con nombre stale (match por id)", async ({ context }) => {
+  test("asistencia del operador refleja el plan de la fila vinculada por id", async ({ context }) => {
     const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await context.addCookies([
       { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
@@ -108,7 +106,7 @@ test.describe("lectores de schedules por agentId", () => {
     const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
     // GET /api/asistencia usa ?startDate=&endDate= y sirve getAttendanceData
     // (src/pages/api/asistencia/index.ts). NOTA: /api/asistencia/operador/[id]
-    // usa ?year=&month= y ya matchea por agentId con fallback por nombre (B1).
+    // usa ?year=&month= y tambien matchea exclusivamente por agentId (B2).
     const res = await context.request.get(
       new URL("/api/asistencia?startDate=2026-05-11&endDate=2026-05-11", baseURL).href,
     );
@@ -118,7 +116,7 @@ test.describe("lectores de schedules por agentId", () => {
       (r: any) => r.agentId === agent.id && r.date === "2026-05-11" && r.shiftType === "normal",
     );
     expect(row).toBeDefined();
-    // El plan del día debe venir de la fila vinculada por id (nombre stale).
+    // El plan del día debe venir de la fila vinculada por id.
     expect(row.modalidadPlanificada).toBe("Trabajo");
     expect(row.horarioEstipulado).toBe("09:00-18:00");
   });
@@ -145,6 +143,9 @@ test.describe("lectores de schedules por agentId", () => {
       headers: { "Content-Type": "application/json" },
     });
     expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.saved).toBe(1);
+    expect(body.skipped).toBe(0);
 
     // Filtrado por (agentId, fecha): el agente de la fixture solo tiene la fila
     // sembrada para esa fecha; debe seguir habiendo UNA sola fila y con el
@@ -157,13 +158,6 @@ test.describe("lectores de schedules por agentId", () => {
     for (const r of rows) if (!createdScheduleIds.includes(r.id)) createdScheduleIds.push(r.id);
     expect(rows.length).toBe(1);
     expect(rows[0].status).toBe("Licencia");
-    // Mitad "sin duplicar": el nombre stale no debe haber creado ninguna fila.
-    const dupes = await db
-      .select({ id: schedules.id })
-      .from(schedules)
-      .where(eq(schedules.agentName, staleName));
-    for (const d of dupes) if (!createdScheduleIds.includes(d.id)) createdScheduleIds.push(d.id);
-    expect(dupes.length).toBe(0);
   });
 
   test("POST con agentId string resuelve y vincula por id numérico", async ({ context }) => {
@@ -192,13 +186,12 @@ test.describe("lectores de schedules por agentId", () => {
     expect(body.skipped).toBe(0);
 
     const rows = await db
-      .select({ id: schedules.id, status: schedules.status, agentId: schedules.agentId, agentName: schedules.agentName })
+      .select({ id: schedules.id, status: schedules.status, agentId: schedules.agentId })
       .from(schedules)
       .where(and(eq(schedules.agentId, agent.id), eq(schedules.date, "2026-05-12")));
     for (const r of rows) if (!createdScheduleIds.includes(r.id)) createdScheduleIds.push(r.id);
     expect(rows.length).toBe(1);
     expect(rows[0].agentId).toBe(agent.id);
-    expect(rows[0].agentName).toBe(agent.name); // canónico, no vacío
     expect(rows[0].status).toBe("Trabajo");
   });
 
@@ -239,11 +232,11 @@ test.describe("lectores de schedules por agentId", () => {
     ]);
     const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
 
-    // Fila del mes target con nombre STALE: el delete por nombre jamas la
-    // tocaria, pero el delete por agentId si.
+    // Fila del mes target vinculada por id: el delete por id la borra y la
+    // regeneracion la reemplaza.
     const [row] = await db
       .insert(schedules)
-      .values({ agentName: `STALE MES ${Date.now()}`, agentId: agent.id, date: "2027-01-15", status: "Trabajo", isOverride: true })
+      .values({ agentId: agent.id, date: "2027-01-15", status: "Trabajo", isOverride: true })
       .returning({ id: schedules.id });
     createdScheduleIds.push(row.id);
 

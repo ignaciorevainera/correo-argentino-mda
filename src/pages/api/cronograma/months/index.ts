@@ -43,7 +43,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const dbAgents = await db
       .select({
         id: agents.id,
-        name: agents.name,
         saturdayGroup: agents.saturdayGroup,
         saturdayHorario: agents.saturdayHorario,
       })
@@ -135,7 +134,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         for (let d = 1; d <= daysInMonth; d++) {
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           allInserts.push({
-            agentName: op.name,
             agentId: op.id,
             date: dateStr,
             status: "Franco",

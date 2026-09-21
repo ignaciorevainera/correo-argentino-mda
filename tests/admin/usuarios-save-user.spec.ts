@@ -305,7 +305,7 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     const mdaId = await mesaId(MDA);
     const [sched] = await db
       .insert(schedules)
-      .values({ agentName: oldName, date: "2026-02-01", status: "Trabajo" })
+      .values({ agentId, date: "2026-02-01", status: "Trabajo" })
       .returning({ id: schedules.id });
     createdScheduleIds.push(sched.id);
     createdUsernames.push(newUname);
@@ -332,15 +332,15 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       .where(eq(agents.id, agentId));
     expect(a.username).toBe(newUname);
     expect(a.name).toBe(newName);
-    // La fila de schedules conserva el nombre viejo: el rename ya no
-    // propaga a schedules (los lectores vinculan por agentId). La fila
-    // sembrada no tiene agentId, así que este test no cubre lectura; solo
-    // fija que el rename NO toca la tabla.
+    // El rename ya no propaga a schedules (los lectores vinculan por agentId):
+    // la fila sembrada queda intacta, sin cambios de status.
     const rows = await db
-      .select({ agentName: schedules.agentName })
+      .select({ status: schedules.status, agentId: schedules.agentId })
       .from(schedules)
       .where(eq(schedules.id, sched.id));
-    expect(rows[0].agentName).toBe(oldName);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("Trabajo");
+    expect(rows[0].agentId).toBe(agentId);
   });
 
   test("conflictos: username duplicado, nombre duplicado, usuario inexistente y autoedicion", async ({

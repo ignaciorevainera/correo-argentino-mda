@@ -8,7 +8,7 @@ import {
   saturdayRotationConfig,
   agentSaturdayGroups,
 } from "@db/schema";
-import { eq, and, or, isNull, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { requireReadAccess } from "@lib/rbac-middleware";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 
@@ -84,13 +84,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         .from(schedules)
         .where(
           and(
-            or(
-              eq(schedules.agentId, agentId),
-              and(
-                isNull(schedules.agentId),
-                eq(schedules.agentName, agent.name),
-              ),
-            ),
+            eq(schedules.agentId, agentId),
             gte(schedules.date, startDate),
             lte(schedules.date, endDate),
           ),

@@ -3,8 +3,6 @@ import { describe, it, expect } from "vitest";
 import {
   buildNameToAgentId,
   resolveAgentIdByName,
-  buildUsernameToUserId,
-  resolveUserIdByUsername,
 } from "../../src/lib/scheduleLinks";
 
 describe("buildNameToAgentId + resolveAgentIdByName", () => {
@@ -51,25 +49,5 @@ describe("buildNameToAgentId + resolveAgentIdByName", () => {
   it("nombre vacío/null", () => {
     expect(resolveAgentIdByName(map, "")).toEqual({ agentId: null, match: "none" });
     expect(resolveAgentIdByName(map, null)).toEqual({ agentId: null, match: "none" });
-  });
-});
-
-describe("buildUsernameToUserId + resolveUserIdByUsername", () => {
-  const users = [
-    { id: 10, username: "ramrojas" },
-    { id: 11, username: "FRNGONZALEZ" },
-  ];
-  const map = buildUsernameToUserId(users);
-
-  it("match por lower(username)", () => {
-    expect(resolveUserIdByUsername(map, "ramrojas")).toBe(10);
-    expect(resolveUserIdByUsername(map, "frngonzalez")).toBe(11);
-    expect(resolveUserIdByUsername(map, " FRNGONZALEZ ")).toBe(11);
-  });
-
-  it("sin match o username vacío → null", () => {
-    expect(resolveUserIdByUsername(map, "nadie")).toBeNull();
-    expect(resolveUserIdByUsername(map, "")).toBeNull();
-    expect(resolveUserIdByUsername(map, null)).toBeNull();
   });
 });

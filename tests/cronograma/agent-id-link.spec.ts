@@ -1,11 +1,13 @@
 // tests/cronograma/agent-id-link.spec.ts
 //
-// Dual-write: guardar un edit de cronograma debe dejar agent_id ademas de
-// agent_name. Requiere admin con mesa MDA TI (module cronograma write = TL+).
+// Plan B2: guardar un edit de cronograma escribe agent_id. El payload puede
+// seguir mandando agentName (compat de entrada), pero el writer lo resuelve
+// contra agents y guarda solo el id. Requiere admin con mesa MDA TI
+// (module cronograma write = TL+).
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { createHmac } from "crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../src/db/index";
 import { users, sessions, agents, schedules, mesas } from "../../src/db/schema";
 
@@ -59,6 +61,7 @@ test.describe("schedules.agentId dual-write", () => {
       { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
     ]);
 
+    // Sin agentId en el payload: debe resolver el nombre contra agents.
     const res = await context.request.post(new URL("/api/cronograma", baseURL).href, {
       data: { edits: [{ agentName: agent.name, date: "2026-04-07", status: "Trabajo" }] },
       headers: { "Content-Type": "application/json" },
@@ -66,12 +69,11 @@ test.describe("schedules.agentId dual-write", () => {
     expect(res.status()).toBe(200);
 
     const [row] = await db
-      .select({ id: schedules.id, agentId: schedules.agentId, agentName: schedules.agentName })
+      .select({ id: schedules.id, agentId: schedules.agentId })
       .from(schedules)
-      .where(eq(schedules.agentName, agent.name));
+      .where(and(eq(schedules.agentId, agent.id), eq(schedules.date, "2026-04-07")));
     expect(row).toBeDefined();
     createdScheduleIds.push(row.id);
-    expect(row.agentName).toBe(agent.name);
     expect(row.agentId).toBe(agent.id);
   });
 });
