@@ -454,6 +454,7 @@ export async function saveWeeklySchedule(
     ];
 
     const op = state.cronoData.find((o) => o.nombre === opName);
+    const opId = op?.id;
     const edits = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
@@ -491,6 +492,7 @@ export async function saveWeeklySchedule(
       }
 
       edits.push({
+        agentId: opId,
         agentName: opName,
         date: dateStr,
         status,
@@ -501,7 +503,7 @@ export async function saveWeeklySchedule(
       });
     }
 
-    const wsPayload: any = { agentName: opName };
+    const wsPayload: any = { agentId: opId, agentName: opName };
     if (mode === "all" || mode === "days") {
       wsPayload.esquema_semanal = currentWeeklyScheme;
     }

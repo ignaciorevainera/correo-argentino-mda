@@ -2385,13 +2385,19 @@ function setupEventListeners(): void {
     ?.addEventListener("click", async (e) => {
       const btn = e.currentTarget as HTMLButtonElement;
 
+      const idByName = new Map(
+        state.cronoData
+          .filter((o) => o.id != null)
+          .map((o) => [o.nombre, o.id as number]),
+      );
       const mergedEditsMap = new Map<
         string,
-        { agentName: string; date: string; status: string }
+        { agentId?: number; agentName: string; date: string; status: string }
       >();
 
       state.modifiedSchedules.forEach((m) => {
         mergedEditsMap.set(`${m.agentName}_${m.date}`, {
+          agentId: idByName.get(m.agentName),
           agentName: m.agentName,
           date: m.date,
           status: m.status,
@@ -2400,6 +2406,7 @@ function setupEventListeners(): void {
 
       Object.values(state.pendingEdits).forEach((p) => {
         mergedEditsMap.set(`${p.agentName}_${p.date}`, {
+          agentId: idByName.get(p.agentName),
           agentName: p.agentName,
           date: p.date,
           status: p.status,
