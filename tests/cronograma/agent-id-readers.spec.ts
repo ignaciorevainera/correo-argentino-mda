@@ -149,4 +149,70 @@ test.describe("lectores de schedules por agentId", () => {
     for (const d of dupes) if (!createdScheduleIds.includes(d.id)) createdScheduleIds.push(d.id);
     expect(dupes.length).toBe(0);
   });
+
+  test("POST con agentId string resuelve y vincula por id numérico", async ({ context }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
+    ]);
+    const [agent] = await db.select({ id: agents.id, name: agents.name }).from(agents).where(inArray(agents.id, createdAgentIds));
+
+    const res = await context.request.post(new URL("/api/cronograma", baseURL).href, {
+      data: {
+        edits: [
+          {
+            agentId: String(agent.id), // a propósito: string, debe coercionarse
+            date: "2026-05-12",
+            status: "Trabajo",
+            horario: "09:00-18:00",
+          },
+        ],
+      },
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.saved).toBe(1);
+    expect(body.skipped).toBe(0);
+
+    const rows = await db
+      .select({ id: schedules.id, status: schedules.status, agentId: schedules.agentId, agentName: schedules.agentName })
+      .from(schedules)
+      .where(and(eq(schedules.agentId, agent.id), eq(schedules.date, "2026-05-12")));
+    for (const r of rows) if (!createdScheduleIds.includes(r.id)) createdScheduleIds.push(r.id);
+    expect(rows.length).toBe(1);
+    expect(rows[0].agentId).toBe(agent.id);
+    expect(rows[0].agentName).toBe(agent.name); // canónico, no vacío
+    expect(rows[0].status).toBe("Trabajo");
+  });
+
+  test("POST con agentId desconocido omite el edit y lo cuenta como skipped", async ({ context }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
+    ]);
+
+    const res = await context.request.post(new URL("/api/cronograma", baseURL).href, {
+      data: {
+        edits: [
+          {
+            agentId: 999999999, // sin agente ni nombre: no hay nombre canónico
+            date: "2026-05-13",
+            status: "Trabajo",
+          },
+        ],
+      },
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.saved).toBe(0);
+    expect(body.skipped).toBe(1);
+
+    const rows = await db
+      .select({ id: schedules.id })
+      .from(schedules)
+      .where(eq(schedules.date, "2026-05-13"));
+    expect(rows.length).toBe(0);
+  });
 });

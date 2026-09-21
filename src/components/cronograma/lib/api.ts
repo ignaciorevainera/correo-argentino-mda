@@ -50,7 +50,8 @@ export async function fetchCronogramaData(
 }
 
 export interface EditPayload {
-  agentName: string;
+  agentId?: number;
+  agentName?: string;
   date: string;
   status?: string;
   comment?: string;
@@ -163,7 +164,8 @@ export async function deleteMonth(year: number, month: number): Promise<void> {
 }
 
 export interface WeeklySchedulePayload {
-  agentName: string;
+  agentId?: number;
+  agentName?: string;
   esquema_semanal: Record<string, string>;
   esquema_horario: Record<string, string>;
   esquema_break_inicio: Record<string, string>;

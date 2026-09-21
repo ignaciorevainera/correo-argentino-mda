@@ -364,7 +364,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = await request.json();
-    const { edits, weeklySchedules } = body; // Array of { agentName, date, status, comment, horario } or weeklySchedules
+    const { edits, weeklySchedules } = body; // edits: Array of { agentId?, agentName?, date, status, comment, horario, breakInicio, breakFin } (agentId es la clave preferida; agentName es fallback) + weeklySchedules opcionales
 
     let weeklyCount = 0;
 
@@ -379,7 +379,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
           esquema_break_inicio,
           esquema_break_fin,
         } = ws;
-        if (!agentId && !agentName) continue;
+        const agentIdNum = agentId != null && agentId !== "" ? Number(agentId) : undefined;
+        if (agentIdNum !== undefined && !Number.isInteger(agentIdNum)) {
+          return jsonResponse({ error: "agentId inválido." }, 400);
+        }
+        if (agentIdNum == null && !agentName) continue;
 
         const updateData: any = {};
         if (esquema_semanal !== undefined) {
@@ -396,11 +400,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
 
         if (Object.keys(updateData).length > 0) {
-          if (agentId) {
+          if (agentIdNum != null) {
             await db
               .update(agents)
               .set(updateData)
-              .where(eq(agents.id, agentId));
+              .where(eq(agents.id, agentIdNum));
           } else {
             await db
               .update(agents)
@@ -433,6 +437,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .from(agents);
     const nameToAgentIdPost = buildNameToAgentId(dbAgentsPost);
     const idToNamePost = new Map(dbAgentsPost.map((a) => [a.id, a.name]));
+    // Normalizar agentId (JSON puede traerlo como string) y validar antes del
+    // tx: dentro del callback no se puede retornar un 400 (better-sqlite3
+    // exige callbacks sincronos y el return no saldria del handler).
+    for (const edit of edits) {
+      const rawEditAgentId = edit?.agentId;
+      const coerced = rawEditAgentId != null && rawEditAgentId !== "" ? Number(rawEditAgentId) : undefined;
+      if (coerced !== undefined && !Number.isInteger(coerced)) {
+        return jsonResponse({ error: "agentId inválido." }, 400);
+      }
+      edit.agentId = coerced;
+    }
+    let saved = 0;
+    let skipped = 0;
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
@@ -445,7 +462,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
           breakInicio,
           breakFin,
         } = edit;
-        if ((!agentId && !agentName) || !date) continue;
+        // agentId ya viene normalizado (pre-tx); la guarda usa nullish exacto.
+        const agentIdNum = agentId != null && agentId !== "" ? Number(agentId) : undefined;
+        if ((agentIdNum == null && !agentName) || !date) {
+          skipped++;
+          continue;
+        }
 
         // Limpieza automática de horas extras si es fin de semana y el estado es Vacaciones o Licencia
         const dateObj = new Date(date + "T12:00:00");
@@ -454,11 +476,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
           isWeekendDay &&
           (status === "Licencia" || status === "Vacaciones")
         ) {
-          const agentList = agentId
+          const agentList = agentIdNum != null
             ? tx
                 .select({ id: agents.id })
                 .from(agents)
-                .where(eq(agents.id, agentId))
+                .where(eq(agents.id, agentIdNum))
                 .limit(1)
                 .all()
             : tx
@@ -484,8 +506,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .from(schedules)
           .where(
             and(
-              agentId
-                ? eq(schedules.agentId, agentId)
+              agentIdNum != null
+                ? eq(schedules.agentId, agentIdNum)
                 : eq(schedules.agentName, agentName),
               eq(schedules.date, date),
             ),
@@ -501,8 +523,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
-          if (agentId != null) {
-            updateData.agentId = agentId;
+          if (agentIdNum != null) {
+            updateData.agentId = agentIdNum;
           } else {
             const resolved = resolveAgentIdByName(nameToAgentIdPost, agentName).agentId;
             if (resolved != null) updateData.agentId = resolved;
@@ -512,15 +534,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
             .set(updateData)
             .where(eq(schedules.id, existing[0].id))
             .run();
+          saved++;
         } else {
-          // agentName es NOT NULL: completar canónicamente cuando el payload
-          // solo trae id (id->nombre vía mapa cargado fuera del tx).
-          const resolvedName = agentName ?? idToNamePost.get(agentId);
-          if (!resolvedName) continue;
+          // agentName es NOT NULL: preferir el nombre canónico cuando el id es
+          // conocido (el payload puede traer un nombre stale); fallback al
+          // nombre del payload si el id es desconocido.
+          const resolvedName = agentIdNum != null ? (idToNamePost.get(agentIdNum) ?? agentName) : agentName;
+          if (!resolvedName) {
+            skipped++;
+            continue;
+          }
           tx.insert(schedules)
             .values({
               agentName: resolvedName,
-              agentId: agentId ?? resolveAgentIdByName(nameToAgentIdPost, agentName).agentId,
+              agentId: agentIdNum ?? resolveAgentIdByName(nameToAgentIdPost, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",
@@ -530,6 +557,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
               isOverride: true,
             })
             .run();
+          saved++;
         }
       }
     });
@@ -543,14 +571,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
     if (editCount > 0) {
       logMessages.push(
-        `Guardó cambios en el cronograma (${editCount} registros)`,
+        `Guardó cambios en el cronograma (${saved} registros${skipped > 0 ? `, ${skipped} omitidos` : ""})`,
       );
     }
     if (logMessages.length > 0) {
       await logAdminFromAstro(locals, logMessages.join(" y "));
     }
 
-    return jsonResponse({ success: true });
+    return jsonResponse({
+      success: true,
+      saved,
+      skipped,
+      message: `Guardó ${saved} cambios en el cronograma${skipped > 0 ? ` (${skipped} omitidos)` : ""}`,
+    });
   } catch (error: any) {
     console.error("POST API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
@@ -584,7 +617,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           esquema_break_fin,
           locationId,
         } = ws;
-        if (!agentId && !agentName) continue;
+        const agentIdNum = agentId != null && agentId !== "" ? Number(agentId) : undefined;
+        if (agentIdNum !== undefined && !Number.isInteger(agentIdNum)) {
+          return jsonResponse({ error: "agentId inválido." }, 400);
+        }
+        if (agentIdNum == null && !agentName) continue;
 
         const updateData: any = {};
         if (esquema_semanal !== undefined) {
@@ -605,11 +642,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         }
 
         if (Object.keys(updateData).length > 0) {
-          if (agentId) {
+          if (agentIdNum != null) {
             await db
               .update(agents)
               .set(updateData)
-              .where(eq(agents.id, agentId));
+              .where(eq(agents.id, agentIdNum));
           } else {
             await db
               .update(agents)
@@ -641,6 +678,19 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       .from(agents);
     const nameToAgentIdPut = buildNameToAgentId(dbAgentsPut);
     const idToNamePut = new Map(dbAgentsPut.map((a) => [a.id, a.name]));
+    // Normalizar agentId (JSON puede traerlo como string) y validar antes del
+    // tx: dentro del callback no se puede retornar un 400 (better-sqlite3
+    // exige callbacks sincronos y el return no saldria del handler).
+    for (const edit of edits) {
+      const rawEditAgentId = edit?.agentId;
+      const coerced = rawEditAgentId != null && rawEditAgentId !== "" ? Number(rawEditAgentId) : undefined;
+      if (coerced !== undefined && !Number.isInteger(coerced)) {
+        return jsonResponse({ error: "agentId inválido." }, 400);
+      }
+      edit.agentId = coerced;
+    }
+    let saved = 0;
+    let skipped = 0;
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
@@ -653,7 +703,12 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           breakInicio,
           breakFin,
         } = edit;
-        if ((!agentId && !agentName) || !date) continue;
+        // agentId ya viene normalizado (pre-tx); la guarda usa nullish exacto.
+        const agentIdNum = agentId != null && agentId !== "" ? Number(agentId) : undefined;
+        if ((agentIdNum == null && !agentName) || !date) {
+          skipped++;
+          continue;
+        }
 
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
@@ -661,11 +716,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           isWeekendDay &&
           (status === "Licencia" || status === "Vacaciones")
         ) {
-          const agentList = agentId
+          const agentList = agentIdNum != null
             ? tx
                 .select({ id: agents.id })
                 .from(agents)
-                .where(eq(agents.id, agentId))
+                .where(eq(agents.id, agentIdNum))
                 .limit(1)
                 .all()
             : tx
@@ -691,8 +746,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           .from(schedules)
           .where(
             and(
-              agentId
-                ? eq(schedules.agentId, agentId)
+              agentIdNum != null
+                ? eq(schedules.agentId, agentIdNum)
                 : eq(schedules.agentName, agentName),
               eq(schedules.date, date),
             ),
@@ -708,8 +763,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
-          if (agentId != null) {
-            updateData.agentId = agentId;
+          if (agentIdNum != null) {
+            updateData.agentId = agentIdNum;
           } else {
             const resolved = resolveAgentIdByName(nameToAgentIdPut, agentName).agentId;
             if (resolved != null) updateData.agentId = resolved;
@@ -719,15 +774,20 @@ export const PUT: APIRoute = async ({ request, locals }) => {
             .set(updateData)
             .where(eq(schedules.id, existing[0].id))
             .run();
+          saved++;
         } else {
-          // agentName es NOT NULL: completar canónicamente cuando el payload
-          // solo trae id (id->nombre vía mapa cargado fuera del tx).
-          const resolvedName = agentName ?? idToNamePut.get(agentId);
-          if (!resolvedName) continue;
+          // agentName es NOT NULL: preferir el nombre canónico cuando el id es
+          // conocido (el payload puede traer un nombre stale); fallback al
+          // nombre del payload si el id es desconocido.
+          const resolvedName = agentIdNum != null ? (idToNamePut.get(agentIdNum) ?? agentName) : agentName;
+          if (!resolvedName) {
+            skipped++;
+            continue;
+          }
           tx.insert(schedules)
             .values({
               agentName: resolvedName,
-              agentId: agentId ?? resolveAgentIdByName(nameToAgentIdPut, agentName).agentId,
+              agentId: agentIdNum ?? resolveAgentIdByName(nameToAgentIdPut, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",
@@ -737,6 +797,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
               isOverride: true,
             })
             .run();
+          saved++;
         }
       }
     });
@@ -750,14 +811,19 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     }
     if (editCount > 0) {
       logMessages.push(
-        `Guardó cambios en el cronograma (${editCount} registros)`,
+        `Guardó cambios en el cronograma (${saved} registros${skipped > 0 ? `, ${skipped} omitidos` : ""})`,
       );
     }
     if (logMessages.length > 0) {
       await logAdminFromAstro(locals, logMessages.join(" y "));
     }
 
-    return jsonResponse({ success: true });
+    return jsonResponse({
+      success: true,
+      saved,
+      skipped,
+      message: `Guardó ${saved} cambios en el cronograma${skipped > 0 ? ` (${skipped} omitidos)` : ""}`,
+    });
   } catch (error: any) {
     console.error("PUT API Error:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
