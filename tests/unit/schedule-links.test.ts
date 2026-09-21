@@ -50,6 +50,7 @@ describe("buildNameToAgentId + resolveAgentIdByName", () => {
 
   it("nombre vacío/null", () => {
     expect(resolveAgentIdByName(map, "")).toEqual({ agentId: null, match: "none" });
+    expect(resolveAgentIdByName(map, null)).toEqual({ agentId: null, match: "none" });
   });
 });
 
