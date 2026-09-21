@@ -335,7 +335,9 @@ test.describe("Modal unificado Editar usuario", () => {
     expect(agentRow.asignableAgs).toBe(false);
 
     // La fila de schedules conserva el nombre viejo: el rename ya no
-    // propaga a schedules (los lectores vinculan por agentId).
+    // propaga a schedules (los lectores vinculan por agentId). La fila
+    // sembrada no tiene agentId, así que este test no cubre lectura; solo
+    // fija que el rename NO toca la tabla.
     const [schedRow] = await db
       .select({ agentName: schedules.agentName })
       .from(schedules)

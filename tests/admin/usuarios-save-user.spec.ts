@@ -333,7 +333,9 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     expect(a.username).toBe(newUname);
     expect(a.name).toBe(newName);
     // La fila de schedules conserva el nombre viejo: el rename ya no
-    // propaga a schedules (los lectores vinculan por agentId).
+    // propaga a schedules (los lectores vinculan por agentId). La fila
+    // sembrada no tiene agentId, así que este test no cubre lectura; solo
+    // fija que el rename NO toca la tabla.
     const rows = await db
       .select({ agentName: schedules.agentName })
       .from(schedules)
