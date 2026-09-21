@@ -313,6 +313,9 @@ export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
   username: text("username"),
+  userId: integer("user_id")
+    .unique()
+    .references(() => users.id, { onDelete: "set null" }),
   avatarInitials: text("avatar_initials"),
   notes: text("notes"),
   location: text("location").notNull().default("Monte Grande"),
@@ -404,6 +407,9 @@ export const schedules = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     agentName: text("agent_name").notNull(),
+    agentId: integer("agent_id").references(() => agents.id, {
+      onDelete: "set null",
+    }),
     date: text("date").notNull(),
     status: text("status").notNull(),
     comment: text("comment"),
@@ -416,6 +422,7 @@ export const schedules = sqliteTable(
   },
   (table) => ({
     agentNameIdx: index("schedules_agent_name_idx").on(table.agentName),
+    agentIdIdx: index("schedules_agent_id_idx").on(table.agentId),
     dateIdx: index("schedules_date_idx").on(table.date),
   }),
 );
