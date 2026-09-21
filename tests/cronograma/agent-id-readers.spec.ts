@@ -6,9 +6,9 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { createHmac } from "crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "../../src/db/index";
-import { users, sessions, agents, schedules, mesas } from "../../src/db/schema";
+import { users, sessions, agents, schedules, mesas, agentSaturdayGroups, saturdayRotationConfig } from "../../src/db/schema";
 
 const SECRET = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
 const MDA = "TI_GSM_MDA TI";
@@ -62,6 +62,22 @@ test.describe("lectores de schedules por agentId", () => {
 
   test.afterAll(async () => {
     if (createdScheduleIds.length) await db.delete(schedules).where(inArray(schedules.id, createdScheduleIds));
+    // La regeneracion de 2027-01 inserta filas para TODOS los agentes de la
+    // DB (no solo los de la fixture). Limpiar todo lo generado para ese mes
+    // (schedules por agentId + grupos sabatinos + config de rotacion).
+    const allAgentIds = (await db.select({ id: agents.id }).from(agents)).map((a) => a.id);
+    if (allAgentIds.length) {
+      await db
+        .delete(schedules)
+        .where(
+          and(
+            inArray(schedules.agentId, allAgentIds),
+            like(schedules.date, "2027-01-%"),
+          ),
+        );
+    }
+    await db.delete(agentSaturdayGroups).where(eq(agentSaturdayGroups.month, "2027-01"));
+    await db.delete(saturdayRotationConfig).where(eq(saturdayRotationConfig.month, "2027-01"));
     if (createdAgentIds.length) await db.delete(agents).where(inArray(agents.id, createdAgentIds));
     await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
     if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
@@ -214,5 +230,31 @@ test.describe("lectores de schedules por agentId", () => {
       .from(schedules)
       .where(eq(schedules.date, "2026-05-13"));
     expect(rows.length).toBe(0);
+  });
+
+  test("regenerar un mes borra por agentId (no por nombre)", async ({ context }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
+    ]);
+    const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
+
+    // Fila del mes target con nombre STALE: el delete por nombre jamas la
+    // tocaria, pero el delete por agentId si.
+    const [row] = await db
+      .insert(schedules)
+      .values({ agentName: `STALE MES ${Date.now()}`, agentId: agent.id, date: "2027-01-15", status: "Trabajo", isOverride: true })
+      .returning({ id: schedules.id });
+    createdScheduleIds.push(row.id);
+
+    // POST /api/cronograma/months: month 0-indexado (0 = Enero).
+    const res = await context.request.post(new URL("/api/cronograma/months", baseURL).href, {
+      data: { year: 2027, month: 0 },
+      headers: { "Content-Type": "application/json" },
+    });
+    expect([200, 201]).toContain(res.status());
+
+    const left = await db.select({ id: schedules.id }).from(schedules).where(eq(schedules.id, row.id));
+    expect(left.length).toBe(0);
   });
 });

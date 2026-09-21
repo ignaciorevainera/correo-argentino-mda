@@ -1,6 +1,6 @@
 ---
 import { db } from "@db/index";
-import { users, agents, schedules, mesas } from "@db/schema";
+import { users, agents, mesas } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -318,13 +318,6 @@ if (Astro.request.method === "POST") {
             // Self-heal: usuarios sin fila agents se crean en el mismo submit.
             tx.insert(agents)
               .values({ name: newName, username: newUsername, userId, ...finalFlags })
-              .run();
-          }
-
-          if (agentRow && agentRow.name !== newName) {
-            tx.update(schedules)
-              .set({ agentName: newName, agentId: agentRow.id })
-              .where(eq(schedules.agentName, agentRow.name))
               .run();
           }
 

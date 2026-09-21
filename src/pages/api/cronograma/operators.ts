@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
-import { agents, schedules } from "@db/schema";
+import { agents } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 
 import { requireWriteAccess } from "@lib/rbac-middleware";
@@ -47,8 +47,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .substring(0, 2)
         .toUpperCase();
 
-      // Rename atómico: agents + cascada a schedules en una sola
-      // transacción síncrona (better-sqlite3 no admite callbacks async).
+      // Actualización atómica de agents (better-sqlite3 no admite
+      // callbacks async).
       db.transaction((tx) => {
         // Actualizar registro en agents
         tx.update(agents)
@@ -61,22 +61,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
           })
           .where(eq(agents.name, originalName))
           .run();
-
-        // Si cambió el nombre, actualizar en cascada en la tabla schedules.
-        // Solo se toca agentId si la fila existe (si falta, no se borran
-        // vínculos previos: fail-safe).
-        if (name.trim() !== originalName) {
-          const [agentRow] = tx
-            .select({ id: agents.id })
-            .from(agents)
-            .where(eq(agents.name, name.trim()));
-          if (agentRow) {
-            tx.update(schedules)
-              .set({ agentName: name.trim(), agentId: agentRow.id })
-              .where(eq(schedules.agentName, originalName))
-              .run();
-          }
-        }
       });
 
       return new Response(JSON.stringify({ success: true }), {

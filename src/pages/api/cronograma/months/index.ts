@@ -115,13 +115,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     // 5. Transaction: Delete existing, insert schedules, insert agentSaturdayGroups, upsert saturdayRotationConfig
     await db.transaction((tx) => {
-      // 5.1 Batch delete schedules
+      // 5.1 Batch delete schedules (por agentId: los nombres stale no
+      // pueden dejar filas huérfanas en el mes)
       tx.delete(schedules)
         .where(
           and(
             inArray(
-              schedules.agentName,
-              dbAgents.map((a) => a.name),
+              schedules.agentId,
+              dbAgents.map((a) => a.id),
             ),
             like(schedules.date, `${monthPrefix}-%`),
           ),

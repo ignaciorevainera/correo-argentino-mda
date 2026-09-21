@@ -1,7 +1,7 @@
 // tests/admin/usuarios-edit-user.spec.ts
 // Feature: modal unificado "Editar usuario" en /admin/usuarios.
 // Cubre: self-heal de la fila agents (usuarios sin fila vinculada), edicion
-// simultanea de username + nombre visible + participaciones, propagacion a
+// simultanea de username + nombre visible + participaciones, NO propagacion a
 // schedules, chips indicadores por flag activo y forzado de enCronograma=false
 // para supervisores. El toast de exito debe sobrevivir el reload via
 // ?toast_msg&toast_type.
@@ -267,7 +267,7 @@ test.describe("Modal unificado Editar usuario", () => {
     createdAgentUsernames.push(uname);
   });
 
-  test("usuario MDA TI con fila: un submit actualiza username, nombre, flags y propaga schedules", async ({
+  test("usuario MDA TI con fila: un submit actualiza username, nombre, flags y NO toca schedules", async ({
     page,
   }) => {
     const ts = Date.now();
@@ -334,18 +334,13 @@ test.describe("Modal unificado Editar usuario", () => {
     expect(agentRow.incluidoCalidad).toBe(true);
     expect(agentRow.asignableAgs).toBe(false);
 
-    await expect
-      .poll(
-        async () =>
-          (
-            await db
-              .select({ agentName: schedules.agentName })
-              .from(schedules)
-              .where(eq(schedules.id, sched.id))
-          )[0]?.agentName,
-        { timeout: 10000 },
-      )
-      .toBe(newName);
+    // La fila de schedules conserva el nombre viejo: el rename ya no
+    // propaga a schedules (los lectores vinculan por agentId).
+    const [schedRow] = await db
+      .select({ agentName: schedules.agentName })
+      .from(schedules)
+      .where(eq(schedules.id, sched.id));
+    expect(schedRow.agentName).toBe(oldName);
 
     createdAgentUsernames.push(oldUname, newUname);
   });

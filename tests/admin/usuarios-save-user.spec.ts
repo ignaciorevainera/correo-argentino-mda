@@ -288,7 +288,7 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     expect(flags.incluidoCalidad).toBe(true);
   });
 
-  test("rename de username + nombre visible propaga schedules y actualiza agents.username", async ({
+  test("rename de username + nombre visible NO toca schedules", async ({
     context,
   }) => {
     const ts = Date.now();
@@ -332,11 +332,13 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       .where(eq(agents.id, agentId));
     expect(a.username).toBe(newUname);
     expect(a.name).toBe(newName);
+    // La fila de schedules conserva el nombre viejo: el rename ya no
+    // propaga a schedules (los lectores vinculan por agentId).
     const rows = await db
       .select({ agentName: schedules.agentName })
       .from(schedules)
       .where(eq(schedules.id, sched.id));
-    expect(rows[0].agentName).toBe(newName);
+    expect(rows[0].agentName).toBe(oldName);
   });
 
   test("conflictos: username duplicado, nombre duplicado, usuario inexistente y autoedicion", async ({
