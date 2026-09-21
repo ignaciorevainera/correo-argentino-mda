@@ -214,17 +214,24 @@ Nota: en logon no interactivo, `npm`/`pm2` deben resolverse desde el PATH del us
 
 ## Migración B2: vínculo de horarios por ID (drop de `agent_name`)
 
-Correr **una única vez** al deployar B2, en este orden y **antes** de que `align-db-to-schema.mts`/`db:push` dropee `schedules.agent_name`. El auto-deploy no incluye migraciones.
+Correr **una única vez** al deployar B2, **antes** de que `align-db-to-schema.mts`/`db:push` dropee `schedules.agent_name`. El auto-deploy no incluye migraciones. Todo el flujo está en **un solo script** (`bootstrap-plan-a-b2.mts`), idempotente, dry-run por defecto, backup WAL-safe.
 
-0. `git pull` (los scripts de B2 deben existir en el repo) y pausar la tarea programada de auto-deploy hasta terminar la migración; el build nuevo debe quedar en su lugar antes del restart del paso 5.
+### Caso pre-Plan-A (prod que nunca recibió Plan A: `schedules` sin `agent_id`, `agents` sin `user_id`)
+
+0. `git pull` (los scripts deben existir en el repo) y pausar la tarea programada de auto-deploy hasta terminar la migración.
 1. Backup de la DB: `scripts\backup-db.bat`
-2. Dry-run y revisar el reporte: `npx tsx scripts/link-orphan-schedules.mts`
-3. Aplicar la reconciliación de huérfanos: `npx tsx scripts/link-orphan-schedules.mts --apply` (transacción síncrona + backup WAL-safe; idempotente, nunca borra filas)
-4. Aplicar el schema: `npx tsx scripts/align-db-to-schema.mts`
-5. Reiniciar PM2: `pm2 restart all`
-6. Verificar: `npx drizzle-kit push` debe responder `No changes detected`
+2. Dry-run y revisar el reporte: `npx tsx scripts/bootstrap-plan-a-b2.mts`
+3. Aplicar: `npx tsx scripts/bootstrap-plan-a-b2.mts --apply` — agrega `schedules.agent_id` + `agents.user_id`, backfillea vínculos por nombre/username, crea shells para nombres sin agente, sanea `hidden_helpdesks` huérfanas y corre `align-db-to-schema.mts` al final (drop de `agent_name`, paridad, FK, integridad).
+4. Reiniciar PM2: `pm2 restart all`
+5. Verificar: `npx drizzle-kit push` debe responder `No changes detected`
 
-> Nunca correr `--apply` sin revisar el dry-run. Si se dropea `agent_name` antes del paso 3, los horarios huérfanos (`agent_id IS NULL`) no se pueden vincular y quedan invisibles para los lectores id-only (cronograma, asistencia, disponibilidad).
+> ⚠ El saneo borra filas de `hidden_helpdesks` cuyo `invgate_id` no exista en `mesas` (preferencias de ocultamiento, no críticas). Si `mesas` no existe, se crea vacía y se sanean todas las filas. El dry-run lo reporta.
+
+### Caso post-Plan-A (prod que ya corrió Plan A: tiene `agent_id`/`user_id`)
+
+Los pasos 2-3 del script son no-op; igual conviene ejecutarlo una vez (detecta el estado) o correr directo `npx tsx scripts/align-db-to-schema.mts`.
+
+> Nunca correr `--apply` sin revisar el dry-run. Si se dropea `agent_name` antes de vincular, los horarios huérfanos (`agent_id IS NULL`) no se pueden vincular y quedan invisibles para los lectores id-only (cronograma, asistencia, disponibilidad).
 
 ---
 
