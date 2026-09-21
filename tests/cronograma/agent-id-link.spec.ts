@@ -15,7 +15,7 @@ const SECRET = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod
 const MDA = "TI_GSM_MDA TI";
 const sign = (id: string) => `${id}.${createHmac("sha256", SECRET).update(id).digest("base64url")}`;
 
-test.describe("schedules.agentId dual-write", () => {
+test.describe("schedules.agentId: escritura id-only", () => {
   let adminId = 0;
   let adminCookie = "";
   const createdUserIds: number[] = [];

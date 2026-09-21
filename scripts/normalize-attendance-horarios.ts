@@ -155,8 +155,8 @@ const updateTx = sqlite.transaction(() => {
     // C. Prioridad 3: Turno en cronograma (schedules)
     if (!targetHorario) {
       const sched = sqlite
-        .prepare("SELECT status, horario, is_override FROM schedules WHERE agent_name = ? AND date = ?")
-        .get(agent.name, row.date) as any;
+        .prepare("SELECT status, horario, is_override FROM schedules WHERE agent_id = ? AND date = ?")
+        .get(agent.id, row.date) as any;
 
       if (sched) {
         if (

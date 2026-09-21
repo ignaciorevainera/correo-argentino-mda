@@ -5,6 +5,10 @@
 // historicos sin fila en agents y vincula sus schedules por nombre.
 // Dry-run por defecto. --apply escribe en transaccion sincrona tras backup
 // WAL-safe (db.backup). Idempotente. Nunca borra filas ni agentes.
+//
+// IMPORTANTE: correr ANTES de dropear schedules.agent_name (align-db-to-schema
+// o db:push). Orden: dry-run -> --apply -> align. Si la columna se dropea
+// primero, los huerfanos quedan invisibles para los lectores id-only.
 import Database from "better-sqlite3";
 import { existsSync } from "fs";
 import { dirname, join, basename } from "path";

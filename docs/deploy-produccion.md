@@ -212,6 +212,21 @@ Nota: en logon no interactivo, `npm`/`pm2` deben resolverse desde el PATH del us
 
 ---
 
+## Migración B2: vínculo de horarios por ID (drop de `agent_name`)
+
+Correr **una única vez** al deployar B2, en este orden y **antes** de que `align-db-to-schema.mts`/`db:push` dropee `schedules.agent_name`. El auto-deploy no incluye migraciones.
+
+1. Backup de la DB: `scripts\backup-db.bat`
+2. Dry-run y revisar el reporte: `npx tsx scripts/link-orphan-schedules.mts`
+3. Aplicar la reconciliación de huérfanos: `npx tsx scripts/link-orphan-schedules.mts --apply` (transacción síncrona + backup WAL-safe; idempotente, nunca borra filas)
+4. Aplicar el schema: `npx tsx scripts/align-db-to-schema.mts`
+5. Reiniciar PM2: `pm2 restart all`
+6. Verificar: `npx drizzle-kit push` debe responder `No changes detected`
+
+> Nunca correr `--apply` sin revisar el dry-run. Si se dropea `agent_name` antes del paso 3, los horarios huérfanos (`agent_id IS NULL`) no se pueden vincular y quedan invisibles para los lectores id-only (cronograma, asistencia, disponibilidad).
+
+---
+
 ## Errores comunes
 
 ### Apache devuelve 503 Service Unavailable
