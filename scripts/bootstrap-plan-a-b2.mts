@@ -64,13 +64,15 @@ export type BootstrapReport = {
 
 type ColInfo = { name: string; type: string; notnull: number; dflt_value: string | null };
 
-// DDL canonico de mesas (espejo de src/db/schema.ts). Se usa solo si la tabla
-// falta al momento del saneo; align la reconcilia igual (crea indices unicos).
+// DDL canonico de mesas (espejo de src/db/schema.ts, columna por columna).
+// Se usa solo si la tabla falta al momento del saneo. Incluye los UNIQUE de
+// invgate_id y name para que la tabla sea valida aun si align no corre
+// (--no-align); align igual reconcilia sus indices unicos con nombre.
 const MESAS_DDL = `
 CREATE TABLE IF NOT EXISTS "mesas" (
   "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-  "invgate_id" integer NOT NULL,
-  "name" text NOT NULL,
+  "invgate_id" integer NOT NULL UNIQUE,
+  "name" text NOT NULL UNIQUE,
   "display_name" text,
   "active" integer DEFAULT true NOT NULL,
   "last_synced_at" text NOT NULL
@@ -306,7 +308,7 @@ export async function runBootstrap(
         ? "sin huerfanas"
         : mesasExists
           ? `${hiddenOrphans} filas huerfanas (dry-run: a eliminar)`
-          : `${hiddenOrphans} filas (mesas ausente: todas serian huerfanas)`;
+          : `${hiddenOrphans} filas (mesas ausente: todas serian huerfanas; dry-run: a eliminar)`;
 
     const report: BootstrapReport = {
       phases: {
@@ -390,21 +392,24 @@ export async function runBootstrap(
           realIdBySimulated.set(shell.id, Number(info.lastInsertRowid));
         }
 
-        // Fase 2b + 3 — schedules.agent_id.
-        const linkRows = db.prepare(
-          "UPDATE schedules SET agent_id = ? WHERE agent_id IS NULL AND agent_name = ?",
-        );
-        for (const item of schedulePlan) {
-          const targetId =
-            item.targetId < 0
-              ? realIdBySimulated.get(item.targetId)
-              : item.targetId;
-          if (targetId == null || targetId < 0) {
-            throw new Error(
-              `Id invalido al vincular "${item.rawName}" (${item.targetId})`,
-            );
+        // Fase 2b + 3 — schedules.agent_id. Solo si la columna origen existe
+        // (post-B2 la dropea): con agent_name ausente no hay nada que vincular.
+        if (hasAgentName) {
+          const linkRows = db.prepare(
+            "UPDATE schedules SET agent_id = ? WHERE agent_id IS NULL AND agent_name = ?",
+          );
+          for (const item of schedulePlan) {
+            const targetId =
+              item.targetId < 0
+                ? realIdBySimulated.get(item.targetId)
+                : item.targetId;
+            if (targetId == null || targetId < 0) {
+              throw new Error(
+                `Id invalido al vincular "${item.rawName}" (${item.targetId})`,
+              );
+            }
+            linkRows.run(targetId, item.rawName);
           }
-          linkRows.run(targetId, item.rawName);
         }
       });
       tx();
@@ -485,7 +490,9 @@ async function main(): Promise<void> {
   console.log(`schedules vinculados    : ${report.schedulesLinked}`);
   console.log(`shells creados          : ${report.shellsCreated}`);
   console.log(`filas -> shells         : ${report.rowsLinkedToShells}`);
-  console.log(`hidden_helpdesks saneo  : ${report.hiddenHelpdesksPruned}`);
+  console.log(
+    `hidden_helpdesks ${apply ? "saneadas" : "a sanear (dry-run)"} : ${report.hiddenHelpdesksPruned}`,
+  );
 
   if (report.schedulesCaseInsensitive.length > 0) {
     console.log(`\nmatches case-insensitive (${report.schedulesCaseInsensitive.length}):`);

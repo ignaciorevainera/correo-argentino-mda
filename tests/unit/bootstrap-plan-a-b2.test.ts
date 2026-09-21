@@ -83,15 +83,15 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function rows<T>(sql: string): T[] {
-  const db = new Database(dbPath);
+function rows<T>(sql: string, path: string = dbPath): T[] {
+  const db = new Database(path);
   const out = db.prepare(sql).all() as T[];
   db.close();
   return out;
 }
 
-function columnNames(table: string): string[] {
-  return rows<{ name: string }>(`PRAGMA table_info("${table}")`).map((c) => c.name);
+function columnNames(table: string, path: string = dbPath): string[] {
+  return rows<{ name: string }>(`PRAGMA table_info("${table}")`, path).map((c) => c.name);
 }
 
 describe("runBootstrap", () => {
@@ -282,5 +282,126 @@ describe("runBootstrap", () => {
         .c,
     ).toBe(1);
     expect(rows<{ c: number }>("SELECT COUNT(*) c FROM agents")[0].c).toBe(5);
+  });
+
+  // Fix 1: path prod real (DB pre-Plan-A sin tabla mesas). El saneo debe crear
+  // mesas canonica, vaciar hidden_helpdesks huerfanas y dejar backup.
+  it("prod path sin mesas: crea mesas canonica, vacia hidden_helpdesks y reporta backup", async () => {
+    exec("DROP TABLE mesas");
+    exec(`
+      INSERT INTO hidden_helpdesks (invgate_id, hidden_by, hidden_at) VALUES
+        (999, 'u', '2026-01-01'),
+        (1000, 'u', '2026-01-01');
+    `);
+
+    const report = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+
+    expect(columnNames("mesas")).toContain("invgate_id");
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(0);
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM hidden_helpdesks")[0].c).toBe(0);
+    expect(report.hiddenHelpdesksPruned).toBe(2);
+    expect(report.phases.saneo).toContain("mesas creada vacia");
+    expect(report.backupPath).toBeTruthy();
+    expect(existsSync(report.backupPath!)).toBe(true);
+  });
+
+  // Fix 4b: la mesas creada por el bootstrap debe matchear la firma canonica
+  // (columnas/tipos/notnull/default/pk) y exponer los UNIQUE de invgate_id/name.
+  it("mesas creada por el bootstrap matchea la firma canonica", async () => {
+    exec("DROP TABLE mesas");
+    exec(
+      "INSERT INTO hidden_helpdesks (invgate_id, hidden_by, hidden_at) VALUES (999, 'u', '2026-01-01')",
+    );
+    await runBootstrap({ dbPath, apply: true, skipAlign: true });
+
+    const info = rows<{
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+      pk: number;
+    }>("PRAGMA table_info(mesas)");
+    expect(
+      info.map((c) => [c.name, c.type, c.notnull, c.dflt_value, c.pk]),
+    ).toEqual([
+      ["id", "INTEGER", 1, null, 1],
+      ["invgate_id", "INTEGER", 1, null, 0],
+      ["name", "TEXT", 1, null, 0],
+      ["display_name", "TEXT", 0, null, 0],
+      ["active", "INTEGER", 1, "true", 0],
+      ["last_synced_at", "TEXT", 1, null, 0],
+    ]);
+
+    const uniques = rows<{ name: string; unique: number }>("PRAGMA index_list(mesas)").filter(
+      (i) => i.unique === 1,
+    );
+    expect(uniques.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Fix 2: dry-run primero y apply despues sobre la MISMA DB, con segundo
+  // apply idempotente (0 counts, sin error).
+  it("dry-run -> apply sobre la misma DB y segundo apply idempotente", async () => {
+    const dry = await runBootstrap({ dbPath, apply: false, skipAlign: true });
+    expect(dry.columnsAdded).toHaveLength(3);
+    expect(dry.agentsLinked).toBe(2);
+    expect(dry.schedulesLinked).toBe(5);
+    expect(dry.backupPath).toBeNull();
+    expect(columnNames("schedules")).not.toContain("agent_id");
+    expect(columnNames("agents")).not.toContain("user_id");
+
+    const applied = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+    expect(applied.columnsAdded).toHaveLength(3);
+    expect(applied.agentsLinked).toBe(2);
+    expect(applied.schedulesLinked).toBe(5);
+    expect(columnNames("schedules")).toContain("agent_id");
+    expect(columnNames("agents")).toContain("user_id");
+    expect(
+      rows<{ c: number }>("SELECT COUNT(*) c FROM schedules WHERE agent_id IS NULL")[0].c,
+    ).toBe(0);
+
+    const second = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+    expect(second.agentsLinked).toBe(0);
+    expect(second.schedulesLinked).toBe(0);
+    expect(second.shellsCreated).toBe(0);
+    expect(second.rowsLinkedToShells).toBe(0);
+    expect(second.columnsAdded).toHaveLength(0);
+  });
+
+  // Fix 3: DB post-B2 (schedules sin agent_name). El script debe no-opear en
+  // schedules (0 vinculados, sin crash), agregar columnas faltantes y respetar
+  // skipAlign.
+  it("post-B2 (sin agent_name): no-op en schedules y agrega columnas faltantes", async () => {
+    const postB2 = join(dir, "post-b2.db");
+    const db = new Database(postB2);
+    db.exec(`
+      CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL);
+      CREATE TABLE agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        username TEXT,
+        location TEXT NOT NULL DEFAULT 'Monte Grande',
+        horario_default TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id INTEGER REFERENCES agents(id),
+        date TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      INSERT INTO users (id, username) VALUES (1, 'jperez');
+      INSERT INTO agents (id, name, username) VALUES (1, 'Juan Perez', 'jperez');
+      INSERT INTO schedules (agent_id, date, status) VALUES (1, '2026-01-01', 'Trabajo');
+    `);
+    db.close();
+
+    const report = await runBootstrap({ dbPath: postB2, apply: true, skipAlign: true });
+
+    expect(report.schedulesLinked).toBe(0);
+    expect(report.shellsCreated).toBe(0);
+    expect(report.rowsLinkedToShells).toBe(0);
+    expect(report.agentsLinked).toBe(1);
+    expect(report.alignRan).toBe(false);
+    expect(columnNames("agents", postB2)).toContain("user_id");
+    expect(columnNames("schedules", postB2)).toContain("agent_id");
   });
 });
