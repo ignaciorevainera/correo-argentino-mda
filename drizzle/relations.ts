@@ -11,10 +11,6 @@ import {
   sessions,
   regions,
   provinces,
-  operators,
-  operatorShifts,
-  operatorSchedules,
-  workLocations,
   auditParameters,
   auditScores,
   qualityAudits,
@@ -128,36 +124,6 @@ export const provincesRelations = relations(provinces, ({ one, many }) => ({
 export const regionsRelations = relations(regions, ({ many }) => ({
   provinces: many(provinces),
   technologyReferents: many(technologyReferents),
-}));
-
-export const operatorShiftsRelations = relations(operatorShifts, ({ one }) => ({
-  operator: one(operators, {
-    fields: [operatorShifts.operatorId],
-    references: [operators.id],
-  }),
-}));
-
-export const operatorsRelations = relations(operators, ({ one, many }) => ({
-  operatorShifts: many(operatorShifts),
-  operatorSchedules: many(operatorSchedules),
-  workLocation: one(workLocations, {
-    fields: [operators.locationId],
-    references: [workLocations.id],
-  }),
-}));
-
-export const operatorSchedulesRelations = relations(
-  operatorSchedules,
-  ({ one }) => ({
-    operator: one(operators, {
-      fields: [operatorSchedules.operatorId],
-      references: [operators.id],
-    }),
-  }),
-);
-
-export const workLocationsRelations = relations(workLocations, ({ many }) => ({
-  operators: many(operators),
 }));
 
 export const auditScoresRelations = relations(auditScores, ({ one }) => ({

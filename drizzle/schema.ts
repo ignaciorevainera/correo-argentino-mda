@@ -202,41 +202,9 @@ export const offices = sqliteTable(
   ],
 );
 
-export const operatorShifts = sqliteTable("operator_shifts", {
-  id: integer().primaryKey({ autoIncrement: true }).notNull(),
-  operatorId: text("operator_id")
-    .notNull()
-    .references(() => operators.id, { onDelete: "cascade" }),
-  type: text().notNull(),
-  shiftStart: text("shift_start").notNull(),
-  shiftEnd: text("shift_end").notNull(),
-  breakTime: text("break_time").notNull(),
-});
-
 export const workLocations = sqliteTable("work_locations", {
   id: text().primaryKey().notNull(),
   name: text().notNull(),
-});
-
-export const operatorSchedules = sqliteTable("operator_schedules", {
-  id: integer().primaryKey({ autoIncrement: true }).notNull(),
-  operatorId: text("operator_id")
-    .notNull()
-    .references(() => operators.id, { onDelete: "cascade" }),
-  dayOfWeek: text("day_of_week").notNull(),
-  modality: text().notNull(),
-  shiftStart: text("shift_start"),
-  shiftEnd: text("shift_end"),
-  breakTime: text("break_time"),
-});
-
-export const operators = sqliteTable("operators", {
-  id: text().primaryKey().notNull(),
-  name: text().notNull(),
-  status: text().default("disponible").notNull(),
-  locationId: text("location_id").references(() => workLocations.id),
-  currentMode: text("current_mode").default("presencial").notNull(),
-  lastAutogestionAssignedAt: integer("last_autogestion_assigned_at"),
 });
 
 export const auditParameters = sqliteTable(
