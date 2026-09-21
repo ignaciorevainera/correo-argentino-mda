@@ -372,13 +372,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       weeklyCount = weeklySchedules.length;
       for (const ws of weeklySchedules) {
         const {
+          agentId,
           agentName,
           esquema_semanal,
           esquema_horario,
           esquema_break_inicio,
           esquema_break_fin,
         } = ws;
-        if (!agentName) continue;
+        if (!agentId && !agentName) continue;
 
         const updateData: any = {};
         if (esquema_semanal !== undefined) {
@@ -395,10 +396,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
         }
 
         if (Object.keys(updateData).length > 0) {
-          await db
-            .update(agents)
-            .set(updateData)
-            .where(eq(agents.name, agentName));
+          if (agentId) {
+            await db
+              .update(agents)
+              .set(updateData)
+              .where(eq(agents.id, agentId));
+          } else {
+            await db
+              .update(agents)
+              .set(updateData)
+              .where(eq(agents.name, agentName));
+          }
         }
       }
 
@@ -424,9 +432,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .select({ id: agents.id, name: agents.name })
       .from(agents);
     const nameToAgentIdPost = buildNameToAgentId(dbAgentsPost);
+    const idToNamePost = new Map(dbAgentsPost.map((a) => [a.id, a.name]));
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
+          agentId,
           agentName,
           date,
           status,
@@ -435,7 +445,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           breakInicio,
           breakFin,
         } = edit;
-        if (!agentName || !date) continue;
+        if ((!agentId && !agentName) || !date) continue;
 
         // Limpieza automática de horas extras si es fin de semana y el estado es Vacaciones o Licencia
         const dateObj = new Date(date + "T12:00:00");
@@ -444,12 +454,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
           isWeekendDay &&
           (status === "Licencia" || status === "Vacaciones")
         ) {
-          const agentList = tx
-            .select({ id: agents.id })
-            .from(agents)
-            .where(eq(agents.name, agentName))
-            .limit(1)
-            .all();
+          const agentList = agentId
+            ? tx
+                .select({ id: agents.id })
+                .from(agents)
+                .where(eq(agents.id, agentId))
+                .limit(1)
+                .all()
+            : tx
+                .select({ id: agents.id })
+                .from(agents)
+                .where(eq(agents.name, agentName))
+                .limit(1)
+                .all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(
@@ -466,7 +483,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
           .select()
           .from(schedules)
           .where(
-            and(eq(schedules.agentName, agentName), eq(schedules.date, date)),
+            and(
+              agentId
+                ? eq(schedules.agentId, agentId)
+                : eq(schedules.agentName, agentName),
+              eq(schedules.date, date),
+            ),
           )
           .limit(1)
           .all();
@@ -479,18 +501,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
-          const resolved = resolveAgentIdByName(nameToAgentIdPost, agentName).agentId;
-          if (resolved != null) updateData.agentId = resolved;
+          if (agentId != null) {
+            updateData.agentId = agentId;
+          } else {
+            const resolved = resolveAgentIdByName(nameToAgentIdPost, agentName).agentId;
+            if (resolved != null) updateData.agentId = resolved;
+          }
 
           tx.update(schedules)
             .set(updateData)
             .where(eq(schedules.id, existing[0].id))
             .run();
         } else {
+          // agentName es NOT NULL: completar canónicamente cuando el payload
+          // solo trae id (id->nombre vía mapa cargado fuera del tx).
+          const resolvedName = agentName ?? idToNamePost.get(agentId);
+          if (!resolvedName) continue;
           tx.insert(schedules)
             .values({
-              agentName,
-              agentId: resolveAgentIdByName(nameToAgentIdPost, agentName).agentId,
+              agentName: resolvedName,
+              agentId: agentId ?? resolveAgentIdByName(nameToAgentIdPost, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",
@@ -546,6 +576,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       weeklyCount = weeklySchedules.length;
       for (const ws of weeklySchedules) {
         const {
+          agentId,
           agentName,
           esquema_semanal,
           esquema_horario,
@@ -553,7 +584,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           esquema_break_fin,
           locationId,
         } = ws;
-        if (!agentName) continue;
+        if (!agentId && !agentName) continue;
 
         const updateData: any = {};
         if (esquema_semanal !== undefined) {
@@ -574,10 +605,17 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         }
 
         if (Object.keys(updateData).length > 0) {
-          await db
-            .update(agents)
-            .set(updateData)
-            .where(eq(agents.name, agentName));
+          if (agentId) {
+            await db
+              .update(agents)
+              .set(updateData)
+              .where(eq(agents.id, agentId));
+          } else {
+            await db
+              .update(agents)
+              .set(updateData)
+              .where(eq(agents.name, agentName));
+          }
         }
       }
 
@@ -602,9 +640,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       .select({ id: agents.id, name: agents.name })
       .from(agents);
     const nameToAgentIdPut = buildNameToAgentId(dbAgentsPut);
+    const idToNamePut = new Map(dbAgentsPut.map((a) => [a.id, a.name]));
     await db.transaction((tx) => {
       for (const edit of edits) {
         const {
+          agentId,
           agentName,
           date,
           status,
@@ -613,7 +653,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           breakInicio,
           breakFin,
         } = edit;
-        if (!agentName || !date) continue;
+        if ((!agentId && !agentName) || !date) continue;
 
         const dateObj = new Date(date + "T12:00:00");
         const isWeekendDay = dateObj.getDay() === 0 || dateObj.getDay() === 6;
@@ -621,12 +661,19 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           isWeekendDay &&
           (status === "Licencia" || status === "Vacaciones")
         ) {
-          const agentList = tx
-            .select({ id: agents.id })
-            .from(agents)
-            .where(eq(agents.name, agentName))
-            .limit(1)
-            .all();
+          const agentList = agentId
+            ? tx
+                .select({ id: agents.id })
+                .from(agents)
+                .where(eq(agents.id, agentId))
+                .limit(1)
+                .all()
+            : tx
+                .select({ id: agents.id })
+                .from(agents)
+                .where(eq(agents.name, agentName))
+                .limit(1)
+                .all();
           if (agentList.length > 0) {
             tx.delete(weekendOvertimeShifts)
               .where(
@@ -643,7 +690,12 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           .select()
           .from(schedules)
           .where(
-            and(eq(schedules.agentName, agentName), eq(schedules.date, date)),
+            and(
+              agentId
+                ? eq(schedules.agentId, agentId)
+                : eq(schedules.agentName, agentName),
+              eq(schedules.date, date),
+            ),
           )
           .limit(1)
           .all();
@@ -656,18 +708,26 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           if (breakInicio !== undefined) updateData.breakInicio = breakInicio;
           if (breakFin !== undefined) updateData.breakFin = breakFin;
           updateData.isOverride = true;
-          const resolved = resolveAgentIdByName(nameToAgentIdPut, agentName).agentId;
-          if (resolved != null) updateData.agentId = resolved;
+          if (agentId != null) {
+            updateData.agentId = agentId;
+          } else {
+            const resolved = resolveAgentIdByName(nameToAgentIdPut, agentName).agentId;
+            if (resolved != null) updateData.agentId = resolved;
+          }
 
           tx.update(schedules)
             .set(updateData)
             .where(eq(schedules.id, existing[0].id))
             .run();
         } else {
+          // agentName es NOT NULL: completar canónicamente cuando el payload
+          // solo trae id (id->nombre vía mapa cargado fuera del tx).
+          const resolvedName = agentName ?? idToNamePut.get(agentId);
+          if (!resolvedName) continue;
           tx.insert(schedules)
             .values({
-              agentName,
-              agentId: resolveAgentIdByName(nameToAgentIdPut, agentName).agentId,
+              agentName: resolvedName,
+              agentId: agentId ?? resolveAgentIdByName(nameToAgentIdPut, agentName).agentId,
               date,
               status: status !== undefined ? status : "Franco",
               comment: comment || "",

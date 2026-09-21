@@ -6,7 +6,7 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { createHmac } from "crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../src/db/index";
 import { users, sessions, agents, schedules, mesas } from "../../src/db/schema";
 
@@ -105,5 +105,48 @@ test.describe("lectores de schedules por agentId", () => {
     // El plan del día debe venir de la fila vinculada por id (nombre stale).
     expect(row.modalidadPlanificada).toBe("Trabajo");
     expect(row.horarioEstipulado).toBe("09:00-18:00");
+  });
+
+  test("POST con agentId y nombre stale actualiza la fila existente sin duplicar", async ({ context }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await context.addCookies([
+      { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
+    ]);
+    const [agent] = await db.select({ id: agents.id, name: agents.name }).from(agents).where(inArray(agents.id, createdAgentIds));
+
+    const staleName = `NOMBRE STALE ${Date.now()}`; // a propósito: no debe usarse
+    const res = await context.request.post(new URL("/api/cronograma", baseURL).href, {
+      data: {
+        edits: [
+          {
+            agentId: agent.id,
+            agentName: staleName,
+            date: "2026-05-11",
+            status: "Licencia",
+          },
+        ],
+      },
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(res.status()).toBe(200);
+
+    // Filtrado por (agentId, fecha): el agente de la fixture solo tiene la fila
+    // sembrada para esa fecha; debe seguir habiendo UNA sola fila y con el
+    // status nuevo. Sin match por id, el nombre stale INSERTaría un duplicado.
+    const rows = await db
+      .select({ id: schedules.id, status: schedules.status, agentId: schedules.agentId })
+      .from(schedules)
+      .where(and(eq(schedules.agentId, agent.id), eq(schedules.date, "2026-05-11")));
+    // Rastrear ids nuevos para que el afterAll limpie aunque haya duplicado (red).
+    for (const r of rows) if (!createdScheduleIds.includes(r.id)) createdScheduleIds.push(r.id);
+    expect(rows.length).toBe(1);
+    expect(rows[0].status).toBe("Licencia");
+    // Mitad "sin duplicar": el nombre stale no debe haber creado ninguna fila.
+    const dupes = await db
+      .select({ id: schedules.id })
+      .from(schedules)
+      .where(eq(schedules.agentName, staleName));
+    for (const d of dupes) if (!createdScheduleIds.includes(d.id)) createdScheduleIds.push(d.id);
+    expect(dupes.length).toBe(0);
   });
 });
