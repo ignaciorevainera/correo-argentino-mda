@@ -92,7 +92,7 @@ test.describe("lectores de schedules por agentId", () => {
     const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
     // GET /api/asistencia usa ?startDate=&endDate= y sirve getAttendanceData
     // (src/pages/api/asistencia/index.ts). NOTA: /api/asistencia/operador/[id]
-    // usa ?year=&month= y tiene su propio lector name-keyed (otra tarea del plan B1).
+    // usa ?year=&month= y ya matchea por agentId con fallback por nombre (B1).
     const res = await context.request.get(
       new URL("/api/asistencia?startDate=2026-05-11&endDate=2026-05-11", baseURL).href,
     );
