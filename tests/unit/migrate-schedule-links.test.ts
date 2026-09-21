@@ -34,7 +34,7 @@ function seed(): void {
   db.exec(DDL);
   db.prepare("INSERT INTO users (id, username) VALUES (1, 'ramrojas'), (2, 'frngonzalez')").run();
   db.prepare(
-    "INSERT INTO agents (id, name, username, user_id) VALUES (1, 'Rojas Ramiro', 'ramrojas', NULL), (2, 'González Franco', 'frngonzalez', NULL), (3, 'Sin Login', NULL, NULL), (4, 'Fantasma', 'nadie_existe', NULL)",
+    "INSERT INTO agents (id, name, username, user_id) VALUES (1, 'Rojas Ramiro', 'ramrojas', NULL), (2, 'González Franco', 'frngonzalez', NULL), (3, 'Sin Login', NULL, NULL), (4, 'Fantasma', 'nadie_existe', NULL), (5, 'Dup Uno', 'dupuser', NULL), (6, 'Dup Dos', 'DUPUSER', NULL)",
   ).run();
   db.prepare(
     "INSERT INTO schedules (agent_name, agent_id, date, status) VALUES ('Rojas Ramiro', NULL, '2026-01-01', 'Trabajo'), ('rojas ramiro', NULL, '2026-01-02', 'Trabajo'), ('Nadie Existe', NULL, '2026-01-03', 'Trabajo'), ('Sin Login', NULL, '2026-01-04', 'Trabajo')",
@@ -89,7 +89,18 @@ describe("runMigrateScheduleLinks", () => {
   it("nunca borra filas", async () => {
     await runMigrateScheduleLinks({ dbPath, apply: true });
     expect(rows<{ c: number }>("SELECT COUNT(*) c FROM schedules")[0].c).toBe(4);
-    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM agents")[0].c).toBe(4);
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM agents")[0].c).toBe(6);
     expect(rows<{ c: number }>("SELECT COUNT(*) c FROM users")[0].c).toBe(2);
+  });
+
+  it("usernames duplicados entre agentes no reciben userId y se reportan", async () => {
+    const report = await runMigrateScheduleLinks({ dbPath, apply: false });
+    expect(report.agentsDuplicateUsername.length).toBeGreaterThan(0);
+    const applied = await runMigrateScheduleLinks({ dbPath, apply: true });
+    expect(
+      rows<{ user_id: number | null }>(
+        "SELECT user_id FROM agents WHERE name IN ('Dup Uno','Dup Dos') ORDER BY id",
+      ).map((r) => r.user_id),
+    ).toEqual([null, null]);
   });
 });
