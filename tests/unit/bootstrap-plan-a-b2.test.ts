@@ -28,6 +28,20 @@ CREATE TABLE schedules (
   date TEXT NOT NULL,
   status TEXT NOT NULL
 );
+CREATE TABLE mesas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invgate_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  display_name TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  last_synced_at TEXT NOT NULL
+);
+CREATE TABLE hidden_helpdesks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invgate_id INTEGER NOT NULL,
+  hidden_by TEXT NOT NULL,
+  hidden_at TEXT NOT NULL
+);
 `;
 
 let dir: string;
@@ -209,6 +223,51 @@ describe("runBootstrap", () => {
     expect(dry.alignRan).toBe(false);
     const applied = await runBootstrap({ dbPath, apply: true, skipAlign: true });
     expect(applied.alignRan).toBe(false);
+  });
+
+  it("saneo apply: elimina hidden_helpdesks huerfanas y preserva las validas", async () => {
+    exec(`
+      INSERT INTO mesas (invgate_id, name, last_synced_at) VALUES (10, 'Mesa 10', '2026-01-01');
+      INSERT INTO hidden_helpdesks (invgate_id, hidden_by, hidden_at) VALUES
+        (10, 'u', '2026-01-01'),
+        (999, 'u', '2026-01-01'),
+        (1000, 'u', '2026-01-01');
+    `);
+
+    const report = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+
+    expect(report.hiddenHelpdesksPruned).toBe(2);
+    expect(report.phases.saneo).toContain("2");
+    expect(
+      rows<{ invgate_id: number }>("SELECT invgate_id FROM hidden_helpdesks ORDER BY invgate_id").map(
+        (r) => r.invgate_id,
+      ),
+    ).toEqual([10]);
+  });
+
+  it("saneo dry-run: cuenta huerfanas sin borrar ninguna fila", async () => {
+    exec(`
+      INSERT INTO mesas (invgate_id, name, last_synced_at) VALUES (10, 'Mesa 10', '2026-01-01');
+      INSERT INTO hidden_helpdesks (invgate_id, hidden_by, hidden_at) VALUES
+        (10, 'u', '2026-01-01'),
+        (999, 'u', '2026-01-01'),
+        (1000, 'u', '2026-01-01');
+    `);
+
+    const report = await runBootstrap({ dbPath, apply: false, skipAlign: true });
+
+    expect(report.hiddenHelpdesksPruned).toBe(2);
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM hidden_helpdesks")[0].c).toBe(3);
+  });
+
+  it("saneo: sin tabla hidden_helpdesks o sin huerfanas -> 0, no crash", async () => {
+    const noOrphans = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+    expect(noOrphans.hiddenHelpdesksPruned).toBe(0);
+
+    exec("DROP TABLE hidden_helpdesks");
+    const noTable = await runBootstrap({ dbPath, apply: true, skipAlign: true });
+    expect(noTable.hiddenHelpdesksPruned).toBe(0);
+    expect(noTable.phases.saneo).toContain("sin tabla");
   });
 
   it("apply dos veces no duplica shells", async () => {

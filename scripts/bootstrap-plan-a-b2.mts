@@ -13,11 +13,17 @@
 //   2. Backfill: agents.user_id <- users.id por lower(username) unico;
 //      schedules.agent_id <- agents.id por nombre (exacto -> case-insensitive).
 //   3. Reconciliacion de huerfanos: nombres sin agente -> agente-shell inerte.
+//   3b. Saneo hidden_helpdesks: si la tabla tiene filas cuyo invgate_id no
+//       existe en mesas, se eliminan ANTES del align. align crea mesas (vacia
+//       si falta) y reconstruye hidden_helpdesks con el FK nuevo; pero solo
+//       chequea huerfanos de FK si la tabla padre (mesas) ya existia en el
+//       snapshot previo al rebuild. Por eso garantizamos mesas + prune aca.
 //   4. Align final: subproceso scripts/align-db-to-schema.mts (solo --apply).
 //
 // Dry-run por defecto. --apply hace backup WAL-safe y escribe en UNA
 // transaccion sincrona, luego corre la Fase 4 (que tiene su propio backup).
-// Nunca borra filas ni agentes.
+// Nunca borra filas ni agentes (el saneo de hidden_helpdesks es la unica
+// excepcion: solo elimina filas huerfanas sin padre posible).
 import Database from "better-sqlite3";
 import { execSync } from "child_process";
 import { existsSync } from "fs";
@@ -39,6 +45,7 @@ export type BootstrapReport = {
     columns: string;
     backfill: string;
     orphans: string;
+    saneo: string;
     align: string;
   };
   columnsAdded: string[];
@@ -50,14 +57,36 @@ export type BootstrapReport = {
   schedulesAmbiguous: string[];
   shellsCreated: number;
   rowsLinkedToShells: number;
+  hiddenHelpdesksPruned: number;
   backupPath: string | null;
   alignRan: boolean;
 };
 
 type ColInfo = { name: string; type: string; notnull: number; dflt_value: string | null };
 
+// DDL canonico de mesas (espejo de src/db/schema.ts). Se usa solo si la tabla
+// falta al momento del saneo; align la reconcilia igual (crea indices unicos).
+const MESAS_DDL = `
+CREATE TABLE IF NOT EXISTS "mesas" (
+  "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "invgate_id" integer NOT NULL,
+  "name" text NOT NULL,
+  "display_name" text,
+  "active" integer DEFAULT true NOT NULL,
+  "last_synced_at" text NOT NULL
+);
+`;
+
 function tableInfo(db: Database.Database, table: string): ColInfo[] {
   return db.prepare(`PRAGMA table_info("${table}")`).all() as ColInfo[];
+}
+
+function tableExists(db: Database.Database, table: string): boolean {
+  return (
+    db
+      .prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name=?")
+      .get(table) as { c: number }
+  ).c > 0;
 }
 
 function hasIndex(db: Database.Database, name: string): boolean {
@@ -249,6 +278,36 @@ export async function runBootstrap(
       }
     }
 
+    // ── Fase 3b — saneo hidden_helpdesks ────────────────────────────────────
+    // Filas cuyo invgate_id no existe en mesas. align reconstruye
+    // hidden_helpdesks con FK -> mesas.invgate_id; si hay huerfanas el rebuild
+    // falla el foreign_key_check. align solo chequea huerfanos de FK si mesas
+    // YA existia en su snapshot, asi que garantizamos mesas + prune aca.
+    const hiddenExists = tableExists(db, "hidden_helpdesks");
+    const mesasExists = tableExists(db, "mesas");
+    let hiddenOrphans = 0;
+    if (hiddenExists) {
+      hiddenOrphans = mesasExists
+        ? (db
+            .prepare(
+              "SELECT COUNT(*) c FROM hidden_helpdesks WHERE invgate_id NOT IN (SELECT invgate_id FROM mesas)",
+            )
+            .get() as { c: number }).c
+        : // mesas aun no existe: align la crea vacia -> todas las filas huerfanas.
+          (db.prepare("SELECT COUNT(*) c FROM hidden_helpdesks").get() as {
+            c: number;
+          }).c;
+    }
+    const saneoWork = hiddenExists && hiddenOrphans > 0;
+
+    const saneoPlan = !hiddenExists
+      ? "sin tabla hidden_helpdesks"
+      : hiddenOrphans === 0
+        ? "sin huerfanas"
+        : mesasExists
+          ? `${hiddenOrphans} filas huerfanas (dry-run: a eliminar)`
+          : `${hiddenOrphans} filas (mesas ausente: todas serian huerfanas)`;
+
     const report: BootstrapReport = {
       phases: {
         diagnostics:
@@ -257,6 +316,7 @@ export async function runBootstrap(
         columns: `${columnsAdded.length} cambios planificados`,
         backfill: `${agentLinks.length} agents, ${schedulesLinked} schedules`,
         orphans: `${shellNames.length} shells, ${rowsLinkedToShells} filas`,
+        saneo: saneoPlan,
         align: skipAlign ? "omitido (skipAlign)" : "pendiente (fase 4)",
       },
       columnsAdded,
@@ -268,6 +328,7 @@ export async function runBootstrap(
       schedulesAmbiguous,
       shellsCreated: shellNames.length,
       rowsLinkedToShells,
+      hiddenHelpdesksPruned: hiddenOrphans,
       backupPath: null,
       alignRan: false,
     };
@@ -286,12 +347,14 @@ export async function runBootstrap(
     }
 
     // ── Apply ───────────────────────────────────────────────────────────────
-    if (hasWork) {
+    if (hasWork || saneoWork) {
       const backupPath = dbPath.replace(/\.db$/, "") +
         `.bak-bootstrap-${Date.now()}.db`;
       await db.backup(backupPath);
       report.backupPath = backupPath;
+    }
 
+    if (hasWork) {
       const shellInsert = buildShellInsertDef(db);
       const tx = db.transaction(() => {
         // Fase 1 — DDL.
@@ -354,6 +417,26 @@ export async function runBootstrap(
       report.phases.orphans = "sin cambios";
     }
 
+    // ── Fase 3b — saneo (apply) ─────────────────────────────────────────────
+    if (saneoWork) {
+      const tx = db.transaction(() => {
+        if (!mesasExists) db.exec(MESAS_DDL);
+        db.prepare(
+          "DELETE FROM hidden_helpdesks WHERE invgate_id NOT IN (SELECT invgate_id FROM mesas)",
+        ).run();
+      });
+      tx();
+      report.hiddenHelpdesksPruned = hiddenOrphans;
+      report.phases.saneo =
+        `${hiddenOrphans} filas hidden_helpdesks eliminadas` +
+        (mesasExists ? "" : " (mesas creada vacia)");
+    } else {
+      report.hiddenHelpdesksPruned = 0;
+      report.phases.saneo = !hiddenExists
+        ? "sin tabla hidden_helpdesks"
+        : "sin huerfanas";
+    }
+
     // ── Fase 4 — align final ────────────────────────────────────────────────
     if (skipAlign) {
       report.phases.align = "omitido (skipAlign)";
@@ -390,6 +473,7 @@ async function main(): Promise<void> {
   console.log(`  1 columnas    : ${report.phases.columns}`);
   console.log(`  2 backfill    : ${report.phases.backfill}`);
   console.log(`  3 huerfanos   : ${report.phases.orphans}`);
+  console.log(`  saneo         : ${report.phases.saneo}`);
   console.log(`  4 align       : ${report.phases.align}`);
 
   if (report.columnsAdded.length > 0) {
@@ -401,6 +485,7 @@ async function main(): Promise<void> {
   console.log(`schedules vinculados    : ${report.schedulesLinked}`);
   console.log(`shells creados          : ${report.shellsCreated}`);
   console.log(`filas -> shells         : ${report.rowsLinkedToShells}`);
+  console.log(`hidden_helpdesks saneo  : ${report.hiddenHelpdesksPruned}`);
 
   if (report.schedulesCaseInsensitive.length > 0) {
     console.log(`\nmatches case-insensitive (${report.schedulesCaseInsensitive.length}):`);
