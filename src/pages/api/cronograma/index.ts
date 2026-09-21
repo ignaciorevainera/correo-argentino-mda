@@ -189,7 +189,13 @@ export const GET: APIRoute = async ({ url }) => {
     // 8. Combinar schedules sobre la base
     const merged = baseline.map((operator: any) => {
       const name = operator.nombre;
-      const opOverrides = dbSchedules.filter((s) => s.agentName === name);
+      // Preferir el vinculo por id (Plan A/B1); caer al nombre solo para filas
+      // aun no backfilleadas (agentId IS NULL).
+      const opOverrides = dbSchedules.filter(
+        (s) =>
+          s.agentId === operator.id ||
+          (s.agentId == null && s.agentName === name),
+      );
 
       const newAsistencia = { ...operator.asistencia };
       const newComentarios: Record<string, string> = {};
