@@ -12,7 +12,7 @@ export type ResolvedAgentId = {
   match: NameMatch;
 };
 
-const normalizeName = (value: string): string =>
+export const normalizeName = (value: string): string =>
   value.trim().replace(/\s+/g, " ").toLowerCase();
 
 export function buildNameToAgentId(
