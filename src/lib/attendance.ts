@@ -1,13 +1,14 @@
 import { db } from "@db/index";
 import {
   agents,
+  users,
   schedules,
   operatorAttendance,
   saturdayRotationConfig,
   agentSaturdayGroups,
   weekendOvertimeShifts,
 } from "@db/schema";
-import { and, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
 
 // Helper to generate dates in range (inclusive, max 31 days)
 export function getDatesInRange(startStr: string, endStr: string): string[] {
@@ -82,7 +83,7 @@ export async function getAttendanceData(startDate: string, endDate: string) {
     .select({
       id: agents.id,
       name: agents.name,
-      username: agents.username,
+      username: users.username,
       location: agents.location,
       horarioDefault: agents.horarioDefault,
       esquemaSemanal: agents.esquemaSemanal,
@@ -90,7 +91,8 @@ export async function getAttendanceData(startDate: string, endDate: string) {
       saturdayGroup: agents.saturdayGroup,
       saturdayHorario: agents.saturdayHorario,
     })
-    .from(agents);
+    .from(agents)
+    .leftJoin(users, eq(agents.userId, users.id));
 
   // 2. Fetch schedules for this date range
   const dbSchedules = await db

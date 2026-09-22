@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import {
   agents,
+  users,
   operatorAttendance,
   schedules,
   weekendOvertimeShifts,
@@ -27,7 +28,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
       .select({
         id: agents.id,
         name: agents.name,
-        username: agents.username,
+        username: users.username,
         location: agents.location,
         avatarInitials: agents.avatarInitials,
         horarioDefault: agents.horarioDefault,
@@ -35,6 +36,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
         saturdayHorario: agents.saturdayHorario,
       })
       .from(agents)
+      .leftJoin(users, eq(agents.userId, users.id))
       .where(eq(agents.id, agentId))
       .limit(1)
       .then((res) => res[0]);

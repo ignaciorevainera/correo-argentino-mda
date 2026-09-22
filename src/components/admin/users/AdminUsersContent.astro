@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
-import { sql, eq, and, or } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -45,10 +45,7 @@ const allUsers = await db
     asignableAgs: agents.asignableAgs,
   })
   .from(users)
-  .leftJoin(
-    agents,
-    sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
-  )
+  .leftJoin(agents, eq(agents.userId, users.id))
   .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId));
 
 const usersConMesaInactiva = await db

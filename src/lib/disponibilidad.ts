@@ -1,5 +1,5 @@
 import { db } from "@db/index";
-import { agents, schedules, assignmentLock } from "@db/schema";
+import { agents, users, schedules, assignmentLock } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos
@@ -61,7 +61,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
     .select({
       id: agents.id,
       name: agents.name,
-      username: agents.username,
+      username: users.username,
       location: agents.location,
       horarioDefault: agents.horarioDefault,
       esquemaSemanal: agents.esquemaSemanal,
@@ -79,6 +79,7 @@ export async function getDisponibilidadHoy(): Promise<AgentDisponibilidad[]> {
       asignableAgs: agents.asignableAgs,
     })
     .from(agents)
+    .leftJoin(users, eq(agents.userId, users.id))
     .where(eq(agents.enCronograma, true));
 
   // 2. Fetch today's persistent schedule overrides

@@ -62,7 +62,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       .from(agents)
       .where(
         and(
-          eq(agents.username, locals.user!.username),
+          eq(agents.userId, locals.user!.id),
           eq(agents.enCronograma, true),
         ),
       )

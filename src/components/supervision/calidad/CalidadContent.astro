@@ -10,6 +10,7 @@ import Modal from "@components/ui/Modal.astro";
 import { db } from "@db/index";
 import {
   agents,
+  users,
   qualityAudits,
   auditParameters,
   auditScores,
@@ -63,8 +64,14 @@ if (!selectorMonthsList.includes(selectedMonth)) {
 
 // Fetch all agents (small table, ~30 rows)
 const allAgents = await db
-  .select({ id: agents.id, name: agents.name, username: agents.username })
+  .select({
+    id: agents.id,
+    name: agents.name,
+    userId: agents.userId,
+    username: users.username,
+  })
   .from(agents)
+  .leftJoin(users, eq(agents.userId, users.id))
   .where(eq(agents.incluidoCalidad, true))
   .orderBy(agents.name);
 
@@ -128,8 +135,7 @@ let agentNotFound = false;
 
 if (isAgent) {
   const matched = allAgents.find(
-    (a) =>
-      a.username?.toLowerCase().trim() === user.username.toLowerCase().trim(),
+    (a) => a.userId != null && a.userId === user.id,
   );
   if (matched) {
     finalAgents = [matched];

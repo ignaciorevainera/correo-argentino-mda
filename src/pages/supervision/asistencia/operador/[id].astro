@@ -4,7 +4,7 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import { Icon } from "astro-icon/components";
 import { getCleanBase } from "@lib/baseUrl";
 import { db } from "@db/index";
-import { agents } from "@db/schema";
+import { agents, users } from "@db/schema";
 import { eq } from "drizzle-orm";
 
 const cleanBase = getCleanBase();
@@ -16,8 +16,15 @@ if (isNaN(agentId)) {
 }
 
 const agent = await db
-  .select()
+  .select({
+    id: agents.id,
+    name: agents.name,
+    username: users.username,
+    location: agents.location,
+    avatarInitials: agents.avatarInitials,
+  })
   .from(agents)
+  .leftJoin(users, eq(agents.userId, users.id))
   .where(eq(agents.id, agentId))
   .limit(1)
   .then((res) => res[0]);
@@ -30,11 +37,12 @@ const allAgents = await db
   .select({
     id: agents.id,
     name: agents.name,
-    username: agents.username,
+    username: users.username,
     location: agents.location,
     avatarInitials: agents.avatarInitials,
   })
   .from(agents)
+  .leftJoin(users, eq(agents.userId, users.id))
   .orderBy(agents.name);
 
 const currentYear = new Date().getFullYear();

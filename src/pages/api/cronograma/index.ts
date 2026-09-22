@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import {
   agents,
+  users,
   schedules,
   saturdayRotationConfig,
   weekendOvertimeConfig,
@@ -116,7 +117,7 @@ export const GET: APIRoute = async ({ url }) => {
       .select({
         id: agents.id,
         name: agents.name,
-        username: agents.username,
+        username: users.username,
         location: agents.location,
         horarioDefault: agents.horarioDefault,
         esquemaSemanal: agents.esquemaSemanal,
@@ -130,6 +131,7 @@ export const GET: APIRoute = async ({ url }) => {
         enCronograma: agents.enCronograma,
       })
       .from(agents)
+      .leftJoin(users, eq(agents.userId, users.id))
       .where(eq(agents.enCronograma, true));
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)

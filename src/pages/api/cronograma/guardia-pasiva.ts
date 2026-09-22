@@ -119,10 +119,7 @@ export const GET: APIRoute = async ({ url }) => {
         empFullname: employees.fullname,
       })
       .from(users)
-      .leftJoin(
-        agents,
-        sql`lower(${agents.username}) = lower(${users.username})`,
-      )
+      .leftJoin(agents, eq(agents.userId, users.id))
       .leftJoin(
         employees,
         sql`lower(${employees.username}) = lower(${users.username})`,
@@ -168,10 +165,7 @@ export const GET: APIRoute = async ({ url }) => {
         name: agents.name,
       })
       .from(agents)
-      .innerJoin(
-        users,
-        sql`lower(${agents.username}) = lower(${users.username})`,
-      )
+      .innerJoin(users, eq(agents.userId, users.id))
       .where(
         and(
           inArray(users.role, ["referent", "supervisor", "team_leader", "admin"]),
