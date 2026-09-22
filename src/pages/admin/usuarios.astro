@@ -7,6 +7,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { isValidRole, normalizeRole } from "@lib/rbac";
 import { mesaHasParticipaciones, MDA_TI_HELPDESK } from "@lib/helpdeskAccess";
+import { findAgentByUserId, findUnlinkedAgentByName } from "@lib/agentProfile";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
 
@@ -118,32 +119,26 @@ if (Astro.request.method === "POST") {
               .returning({ id: users.id })
               .all();
 
-            const existingAgent = tx
-              .select({ id: agents.id, userId: agents.userId })
-              .from(agents)
-              .where(
-                sql`lower(coalesce(${agents.username}, '')) = ${username}`,
-              )
-              .get();
+            // Adopción: shell de cronograma/migración con el mismo nombre
+            // visible y sin usuario. Se reutiliza la fila para no perder
+            // historial (schedules, asistencia, calidad, overtime).
+            const existingAgent = findUnlinkedAgentByName(tx, name!);
 
             if (existingAgent) {
               tx.update(agents)
                 .set({
                   name,
-                  // Vincula por id solo si la fila aún no tiene vínculo (respeta
-                  // un vínculo previo distinto: posible anomalía de datos).
-                  ...(existingAgent.userId == null ? { userId: newUser.id } : {}),
+                  userId: newUser.id,
                   ...finalParticipaciones,
                 })
                 .where(eq(agents.id, existingAgent.id))
                 .run();
             } else {
               // El vínculo por id se establece al crear: evita que la cadena
-              // agents.id → users.id se degrade con usuarios nuevos.
+              // agents.id -> users.id se degrade con usuarios nuevos.
               tx.insert(agents)
                 .values({
                   name,
-                  username,
                   userId: newUser.id,
                   ...finalParticipaciones,
                 })
@@ -273,26 +268,15 @@ if (Astro.request.method === "POST") {
             }
           }
 
-          // Fila de agente vinculada (por username actual).
-          const agentRow = tx
-            .select({
-              id: agents.id,
-              name: agents.name,
-              userId: agents.userId,
-              enCronograma: agents.enCronograma,
-              asignableCubic: agents.asignableCubic,
-              incluidoCalidad: agents.incluidoCalidad,
-              asignableAgs: agents.asignableAgs,
-            })
-            .from(agents)
-            .where(
-              sql`lower(coalesce(${agents.username}, '')) = ${oldUsername.toLowerCase()}`,
-            )
-            .get();
+          // Fila vinculada por id. Fallback: shell huérfano con el nombre
+          // nuevo (adopción en el mismo submit, preserva historial).
+          const agentRow =
+            findAgentByUserId(tx, userId) ??
+            (newName ? findUnlinkedAgentByName(tx, newName) : undefined);
 
           // Colisión de nombre visible (excluyendo la propia fila de agente).
-          // Comparación insensible a mayúsculas, igual que el vínculo por
-          // username, para no crear casi-duplicados ("Perez" vs "PEREZ").
+          // Comparación insensible a mayúsculas, igual que la adopción por
+          // nombre, para no crear casi-duplicados ("Perez" vs "PEREZ").
           if (newName !== (agentRow?.name ?? "")) {
             const nameClash = tx
               .select({ id: agents.id })
@@ -331,9 +315,8 @@ if (Astro.request.method === "POST") {
             tx.update(agents)
               .set({
                 name: newName,
-                username: newUsername,
                 // Vincula por id solo si la fila aún no tiene vínculo
-                // (respeta un vínculo previo distinto: posible anomalía).
+                // (shell adoptado o anomalía de datos previa).
                 ...(agentRow.userId == null ? { userId } : {}),
                 ...finalFlags,
               })
@@ -341,9 +324,7 @@ if (Astro.request.method === "POST") {
               .run();
           } else {
             // Self-heal: usuarios sin fila agents se crean en el mismo submit.
-            tx.insert(agents)
-              .values({ name: newName, username: newUsername, userId, ...finalFlags })
-              .run();
+            tx.insert(agents).values({ name: newName, userId, ...finalFlags }).run();
           }
 
           // Audit: solo deltas reales.
