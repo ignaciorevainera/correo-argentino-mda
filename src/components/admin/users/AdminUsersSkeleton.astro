@@ -3,7 +3,6 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import SectionCard from "@components/ui/SectionCard.astro";
 
 const headerGridClass = "grid-cols-[1fr_104px_170px_180px_88px] gap-4";
 const rowGridClass =
@@ -17,94 +16,70 @@ const rowGridClass =
       description="Alta de operadores, asignación de roles y revisión de accesos activos en el portal."
     />
 
-    <div class="mb-6 flex justify-start">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div class="skeleton h-12 w-96 rounded-xl"></div>
+      <div class="skeleton h-10 w-40 rounded-lg"></div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Form Skeleton -->
-      <div class="lg:order-2">
-        <SectionCard class="shadow-md">
-          <div class="skeleton h-6 w-32 rounded"></div>
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <div class="skeleton h-3 w-24 rounded"></div>
-              <div class="skeleton h-10 w-full rounded-lg"></div>
-            </div>
-            <div class="space-y-2">
-              <div class="skeleton h-3 w-24 rounded"></div>
-              <div class="skeleton h-10 w-full rounded-lg"></div>
-            </div>
-            <div class="space-y-2">
-              <div class="skeleton h-3 w-24 rounded"></div>
-              <div class="skeleton h-10 w-full rounded-lg"></div>
-            </div>
-            <div class="skeleton mt-2 h-10 w-full rounded-lg"></div>
-          </div>
-        </SectionCard>
+    <!-- Table Skeleton -->
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center justify-between gap-4">
+        <h2 class="text-base-content text-lg font-semibold">
+          Usuarios registrados
+        </h2>
+        <div class="skeleton h-5 w-8 rounded-full"></div>
       </div>
 
-      <!-- Table Skeleton -->
-      <div class="space-y-3 lg:order-1 lg:col-span-2">
-        <div class="flex items-center justify-between gap-4">
-          <h2 class="text-base-content text-lg font-semibold">
-            Usuarios registrados
-          </h2>
-          <div class="skeleton h-5 w-8 rounded-full"></div>
+      <div
+        class="skeleton h-8 w-full max-w-md rounded-lg"
+        data-testid="usuarios-search-skeleton"
+      ></div>
+
+      <DataTable
+        ariaLabel="Cargando usuarios..."
+        minWidthClass="min-w-200"
+        headerGridClass={headerGridClass}
+        rowGridClass={rowGridClass}
+      >
+        <div slot="header">
+          <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="role">Rol</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Participaciones</DataTableHeaderCell>
+        </div>
+        <div slot="header" class="text-right">
+          <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
         </div>
 
-        <div
-          class="skeleton h-9 w-full max-w-md rounded-lg"
-          data-testid="usuarios-search-skeleton"
-        ></div>
-
-        <DataTable
-          ariaLabel="Cargando usuarios..."
-          minWidthClass="min-w-200"
-          headerGridClass={headerGridClass}
-          rowGridClass={rowGridClass}
-        >
-          <div slot="header">
-            <DataTableHeaderCell sortKey="username">Usuario</DataTableHeaderCell
+        {
+          Array.from({ length: 4 }).map(() => (
+            <div
+              class:list={[
+                rowGridClass,
+                "border-base-300 border-b px-5 py-4 last:border-b-0",
+              ]}
             >
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="role">Rol</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell>
-          </div>
-          <div slot="header">
-            <DataTableHeaderCell>Participaciones</DataTableHeaderCell>
-          </div>
-          <div slot="header" class="text-right">
-            <DataTableHeaderCell align="right">Acciones</DataTableHeaderCell>
-          </div>
-
-          {
-            Array.from({ length: 4 }).map(() => (
-              <div
-                class:list={[
-                  rowGridClass,
-                  "border-base-300 border-b px-4 py-4 last:border-b-0",
-                ]}
-              >
-                <div class="flex items-center gap-4">
-                  <div class="skeleton size-8 rounded-full" />
-                  <div class="skeleton h-4 w-24 rounded" />
-                </div>
-                <div class="skeleton h-5 w-16 rounded-full" />
-                <div class="skeleton h-5 w-28 rounded-full" />
-                <div class="skeleton h-4 w-24 rounded-full" />
-                <div class="flex justify-end gap-3">
-                  <div class="skeleton h-8 w-8 rounded-lg" />
-                  <div class="skeleton h-8 w-8 rounded-lg" />
-                </div>
+              <div class="flex items-center gap-4">
+                <div class="skeleton size-8 rounded-full" />
+                <div class="skeleton h-4 w-24 rounded" />
               </div>
-            ))
-          }
-        </DataTable>
-      </div>
+              <div class="skeleton h-5 w-16 rounded-full" />
+              <div class="skeleton h-5 w-28 rounded-full" />
+              <div class="skeleton h-4 w-24 rounded-full" />
+              <div class="flex justify-end gap-3">
+                <div class="skeleton size-10 rounded-lg" />
+                <div class="skeleton size-10 rounded-lg" />
+              </div>
+            </div>
+          ))
+        }
+      </DataTable>
     </div>
   </div>
 </PageContainer>

@@ -104,6 +104,7 @@ test.describe("Participaciones de usuarios", () => {
     const username = uniq();
 
     await page.goto("/admin/usuarios");
+    await page.click("#btn-nuevo-usuario");
     await page.waitForSelector("#nuevo-usuario-form");
 
     await page.fill("#admin-username", username);
@@ -169,6 +170,7 @@ test.describe("Participaciones de usuarios", () => {
     const username = uniq();
 
     await page.goto("/admin/usuarios");
+    await page.click("#btn-nuevo-usuario");
     await page.waitForSelector("#nuevo-usuario-form");
 
     await page.fill("#admin-username", username);

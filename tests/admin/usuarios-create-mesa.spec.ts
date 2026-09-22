@@ -43,8 +43,10 @@ test.describe("Alta de usuario requiere mesa de ayuda", () => {
       { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
     ]);
     await page.goto("http://localhost:4321/admin/usuarios");
+    await page.click("#btn-nuevo-usuario");
+    await expect(page.locator("#modal-create-user")).toBeVisible();
 
-    const form = page.locator("form:has(input[name='action'][value='create'])");
+    const form = page.locator("#modal-create-user form");
     const uname = `sinmesa_${Date.now()}`;
     await form.locator("input[name='name']").fill("Test Sin Mesa");
     await form.locator("input[name='username']").fill(uname);

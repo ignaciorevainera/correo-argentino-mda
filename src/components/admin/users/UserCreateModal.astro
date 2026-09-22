@@ -1,0 +1,139 @@
+---
+import Modal from "@components/ui/Modal.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import SelectField from "@components/ui/forms/SelectField.astro";
+import PasswordField from "@components/ui/forms/PasswordField.astro";
+import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
+import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+
+interface Props {
+  helpdeskOptions: { id: number; name: string }[];
+}
+
+const { helpdeskOptions } = Astro.props;
+---
+
+<Modal
+  id="modal-create-user"
+  title="Nuevo usuario"
+  icon="boxicons:user-plus-filled"
+  size="2xl"
+  class="max-h-[85dvh] overflow-y-auto"
+>
+  <Fragment slot="content">
+    <p class="text-base-content/60 mb-4 text-xs">
+      Alta de operadores del portal. La mesa de ayuda gobierna las secciones
+      visibles; las participaciones se preseleccionan según el rol.
+    </p>
+
+    <form
+      method="POST"
+      class="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      data-async-form
+      id="nuevo-usuario-form"
+    >
+      <FormField
+        id="admin-username"
+        name="username"
+        required
+        label="Nombre de red"
+        placeholder="ej: jgonzalez"
+        autocomplete="off"
+        helpText="Credencial de dominio del operador."
+      />
+
+      <FormField
+        id="admin-fullname"
+        name="name"
+        required
+        label="Nombre completo"
+        placeholder="ej: Juan González"
+        autocomplete="off"
+        helpText="Se muestra en cronograma, asistencia y reportes."
+      />
+
+      <PasswordField
+        id="admin-password"
+        name="password"
+        required
+        label="Contraseña inicial"
+        confirmPassword={true}
+        confirmLabel="Repetir contraseña"
+        confirmInline={true}
+        autocomplete="new-password"
+        class="sm:col-span-2"
+      />
+
+      <SelectField
+        id="admin-role"
+        name="role"
+        label="Rol en sistema"
+        options={[
+          { value: "agent", label: "Agente" },
+          { value: "referent", label: "Referente" },
+          { value: "team_leader", label: "Team Leader" },
+          { value: "supervisor", label: "Supervisor" },
+          { value: "admin", label: "Administrador" },
+        ]}
+        helpText="Define el nivel de acceso a módulos del portal."
+      />
+
+      <SelectField
+        id="admin-helpdesk"
+        name="helpdesk"
+        label="Mesa de ayuda"
+        options={[
+          { value: "", label: "Seleccioná una mesa (obligatorio)" },
+          ...helpdeskOptions.map((hd) => ({
+            value: `${hd.id}|${hd.name}`,
+            label: hd.name,
+          })),
+        ]}
+        helpText="Mesa de InvGate que gobierna qué secciones ve el usuario. Obligatoria."
+      />
+
+      <div id="participaciones-fields" class="space-y-2 sm:col-span-2">
+        <p class="text-base-content/70 text-xs font-semibold uppercase">
+          Participaciones
+        </p>
+        <label class="label cursor-pointer justify-start gap-3 py-1">
+          <input type="checkbox" name="enCronograma" class="toggle toggle-sm toggle-secondary" />
+          <span class="text-base-content text-sm">Cronograma</span>
+        </label>
+        <label class="label cursor-pointer justify-start gap-3 py-1">
+          <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" />
+          <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
+        </label>
+        <label class="label cursor-pointer justify-start gap-3 py-1">
+          <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" />
+          <span class="text-base-content text-sm">Auditorías de calidad</span>
+        </label>
+        <label class="label cursor-pointer justify-start gap-3 py-1">
+          <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" />
+          <span class="text-base-content text-sm">Asignación AGS</span>
+        </label>
+        <p class="text-base-content/50 text-xs">
+          Se preseleccionan según el rol elegido. Ajustables luego.
+        </p>
+      </div>
+
+      <input type="hidden" name="action" value="create" />
+
+      <div class="border-base-200 flex items-center justify-end gap-2 border-t pt-3 sm:col-span-2">
+        <ActionCancelButton
+          type="button"
+          label="Cancelar"
+          icon="boxicons:x-filled"
+          variant="error"
+          onclick="this.closest('dialog').close()"
+        />
+        <ActionConfirmButton
+          type="submit"
+          color="btn-secondary"
+          label="Dar de alta"
+          icon="boxicons:user-check-filled"
+        />
+      </div>
+    </form>
+  </Fragment>
+</Modal>

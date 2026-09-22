@@ -9,6 +9,7 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
+import ActionButton from "@components/ui/ActionButton.astro";
 import { invgateGet } from "@lib/invgateClient";
 import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
 import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
@@ -19,19 +20,13 @@ import FormLegend from "@components/ui/forms/FormLegend.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
 import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
-import SectionCard from "@components/ui/SectionCard.astro";
 import Modal from "@components/ui/Modal.astro";
+import UserCreateModal from "@components/admin/users/UserCreateModal.astro";
 import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
-import ActionButton from "@components/ui/ActionButton.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 
-interface Props {
-  successMsg?: string;
-  errorMsg?: string;
-}
-
-const { successMsg = "", errorMsg = "" } = Astro.props;
+const currentUserId = Astro.locals.user?.id ?? 0;
 
 const allUsers = await db
   .select({
@@ -111,7 +106,7 @@ const isSupervisorRole = (role: string): boolean =>
     </div>
   )}
 
-  <div class="mb-6 flex justify-start">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
     <button
       type="button"
       class="btn btn-soft btn-lg btn-accent gap-2"
@@ -120,11 +115,20 @@ const isSupervisorRole = (role: string): boolean =>
       <Icon name="boxicons:universal-access-filled" size={24} />
       Ver tabla comparativa de permisos por rol
     </button>
+    <ActionButton
+      id="btn-nuevo-usuario"
+      icon="boxicons:user-plus-filled"
+      label="Nuevo usuario"
+      size="default"
+      color="btn-secondary"
+      title="Dar de alta un nuevo usuario"
+      ariaLabel="Dar de alta un nuevo usuario"
+    />
   </div>
 
-  <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
+  <div>
     <!-- ─── Table: Usuarios registrados ─── -->
-    <section class="lg:order-1" aria-labelledby="tabla-usuarios">
+    <section aria-labelledby="tabla-usuarios">
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-4">
           <h2
@@ -373,11 +377,25 @@ const isSupervisorRole = (role: string): boolean =>
                         incluidoCalidad: !!u.incluidoCalidad,
                         asignableAgs: !!u.asignableAgs,
                       })}
+                      class={u.id === currentUserId ? "btn-disabled" : undefined}
+                      disabled={u.id === currentUserId}
+                      title={
+                        u.id === currentUserId
+                          ? "No podés modificar tu propia cuenta"
+                          : undefined
+                      }
                       onclick={`document.getElementById('modal-edit-user-${u.id}').showModal()`}
                       ariaLabel={`Editar usuario ${u.username}`}
                     />
 
                     <ActionPasswordButton
+                      class={u.id === currentUserId ? "btn-disabled" : undefined}
+                      disabled={u.id === currentUserId}
+                      title={
+                        u.id === currentUserId
+                          ? "No podés blanquear tu propia contraseña acá"
+                          : undefined
+                      }
                       onclick={`document.getElementById('modal-reset-${u.id}').showModal()`}
                       ariaLabel={`Blanquear contraseña de ${u.username}`}
                     />
@@ -431,34 +449,20 @@ const isSupervisorRole = (role: string): boolean =>
                           value={normalizeRole(u.role)}
                         />
 
-                        <div class="flex items-end gap-2">
-                          <div class="grow">
-                            <SelectField
-                              id={`edit-user-helpdesk-${u.id}`}
-                              name="helpdesk"
-                              label="Mesa de ayuda"
-                              selectClass="select-sm"
-                              options={[
-                                { value: "", label: "Sin mesa de ayuda" },
-                                ...helpdeskOptions.map((hd) => ({
-                                  value: `${hd.id}|${hd.name}`,
-                                  label: hd.name,
-                                })),
-                              ]}
-                              value={`${u.helpdeskId ?? ""}|${u.helpdeskName ?? ""}`}
-                            />
-                          </div>
-                          <ActionButton
-                            id={`suggest-helpdesk-btn-${u.id}`}
-                            icon="boxicons:magic-wand"
-                            label="Sugerir"
-                            size="sm"
-                            color="btn-secondary"
-                            title="Sugerir mesa según el usuario en InvGate"
-                            ariaLabel={`Sugerir mesa para ${u.username}`}
-                            class="mb-1"
-                          />
-                        </div>
+                        <SelectField
+                          id={`edit-user-helpdesk-${u.id}`}
+                          name="helpdesk"
+                          label="Mesa de ayuda"
+                          selectClass="select-sm"
+                          options={[
+                            { value: "", label: "Sin mesa de ayuda" },
+                            ...helpdeskOptions.map((hd) => ({
+                              value: `${hd.id}|${hd.name}`,
+                              label: hd.name,
+                            })),
+                          ]}
+                          value={`${u.helpdeskId ?? ""}|${u.helpdeskName ?? ""}`}
+                        />
                         {
                           mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) ? (
                             <fieldset
@@ -581,132 +585,11 @@ const isSupervisorRole = (role: string): boolean =>
         </DataTable>
       </div>
     </section>
-
-    <!-- ─── Form: Nuevo usuario ─── -->
-    <section class="order-first lg:order-2" aria-labelledby="form-nuevo-usuario">
-      <SectionCard class="shadow-md lg:sticky lg:top-0 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <h2 id="form-nuevo-usuario" class="card-title gap-2 text-base">
-          <div
-            aria-hidden="true"
-            class="bg-secondary/10 text-secondary inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          >
-            <Icon name="boxicons:user-plus-filled" size={18} />
-          </div>
-          Nuevo usuario
-        </h2>
-
-        <script is:inline define:vars={{ successMsg, errorMsg }}>
-          // La isla server:defer se inyecta después del evento load del documento:
-          // mostrar el toast de inmediato si load ya pasó.
-          const showToastMsg = () => {
-            if (successMsg) window.showToast?.(successMsg, "alert-success");
-            if (errorMsg) window.showToast?.(errorMsg, "alert-error");
-          };
-          if (document.readyState === "complete") {
-            showToastMsg();
-          } else {
-            window.addEventListener("load", showToastMsg);
-          }
-        </script>
-
-        <form method="POST" class="space-y-4" data-async-form id="nuevo-usuario-form">
-          <FormField
-            id="admin-username"
-            name="username"
-            required
-            label="Nombre de red"
-            placeholder="ej: jgonzalez"
-            autocomplete="off"
-            helpText="Credencial de dominio del operador."
-          />
-
-          <PasswordField
-            id="admin-password"
-            name="password"
-            required
-            label="Contraseña inicial"
-            confirmPassword={true}
-            confirmLabel="Repetir contraseña"
-            autocomplete="new-password"
-          />
-
-          <FormField
-            id="admin-fullname"
-            name="name"
-            required
-            label="Nombre completo"
-            placeholder="ej: Juan González"
-            autocomplete="off"
-            helpText="Se muestra en cronograma, asistencia y reportes."
-          />
-
-          <SelectField
-            id="admin-role"
-            name="role"
-            label="Rol en sistema"
-            options={[
-              { value: "agent", label: "Agente" },
-              { value: "referent", label: "Referente" },
-              { value: "team_leader", label: "Team Leader" },
-              { value: "supervisor", label: "Supervisor" },
-              { value: "admin", label: "Administrador" },
-            ]}
-            helpText="Define el nivel de acceso a módulos del portal."
-          />
-
-          <div id="participaciones-fields" class="space-y-2">
-            <p class="text-base-content/70 text-xs font-semibold uppercase">
-              Participaciones
-            </p>
-            <label class="label cursor-pointer justify-start gap-3 py-1">
-              <input type="checkbox" name="enCronograma" class="toggle toggle-sm toggle-secondary" />
-              <span class="text-base-content text-sm">Cronograma</span>
-            </label>
-            <label class="label cursor-pointer justify-start gap-3 py-1">
-              <input type="checkbox" name="asignableCubic" class="toggle toggle-sm toggle-secondary" />
-              <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
-            </label>
-            <label class="label cursor-pointer justify-start gap-3 py-1">
-              <input type="checkbox" name="incluidoCalidad" class="toggle toggle-sm toggle-secondary" />
-              <span class="text-base-content text-sm">Auditorías de calidad</span>
-            </label>
-            <label class="label cursor-pointer justify-start gap-3 py-1">
-              <input type="checkbox" name="asignableAgs" class="toggle toggle-sm toggle-secondary" />
-              <span class="text-base-content text-sm">Asignación AGS</span>
-            </label>
-            <p class="text-base-content/50 text-xs">
-              Se preseleccionan según el rol elegido. Ajustables luego.
-            </p>
-          </div>
-
-          <SelectField
-            id="admin-helpdesk"
-            name="helpdesk"
-            label="Mesa de ayuda"
-            options={[
-              { value: "", label: "Seleccioná una mesa (obligatorio)" },
-              ...helpdeskOptions.map((hd) => ({
-                value: `${hd.id}|${hd.name}`,
-                label: hd.name,
-              })),
-            ]}
-            helpText="Mesa de InvGate que gobierna qué secciones ve el usuario. Obligatoria."
-          />
-
-          <input type="hidden" name="action" value="create" />
-          <ActionConfirmButton
-            type="submit"
-            color="btn-secondary"
-            label="Dar de alta"
-            icon="boxicons:user-check-filled"
-            class="mt-2 w-full"
-          />
-        </form>
-      </SectionCard>
-    </section>
   </div>
   </div>
 </PageContainer>
+
+<UserCreateModal helpdeskOptions={helpdeskOptions} />
 
 <Modal
   id="modal-permissions-matrix"
@@ -842,12 +725,13 @@ const isSupervisorRole = (role: string): boolean =>
 
 <script>
 import { getCleanBase } from "@lib/baseUrl";
-import { showToast } from "@lib/toastClient";
 import { normalizeRole } from "@lib/rbac";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
-    if (!document.querySelector("[data-edit-user-btn]")) return false;
+    const createBtn = document.getElementById("btn-nuevo-usuario");
+    if (createBtn?.dataset.usersAdminBound === "true") return true;
+    if (!document.querySelector("[data-edit-user-btn]") && !createBtn) return false;
 
     const adminUsernameInput = document.getElementById(
       "admin-username",
@@ -967,46 +851,6 @@ import { normalizeRole } from "@lib/rbac";
       });
     });
 
-    document
-      .querySelectorAll<HTMLButtonElement>("[id^='suggest-helpdesk-btn-']")
-      .forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const userId = btn.id.replace("suggest-helpdesk-btn-", "");
-          const unameInput = document.getElementById(
-            `edit-user-username-${userId}`,
-          ) as HTMLInputElement | null;
-          const hdSel = document.getElementById(
-            `edit-user-helpdesk-${userId}`,
-          ) as HTMLSelectElement | null;
-          const username = unameInput?.value.trim();
-          if (!username || !hdSel) return;
-
-          const originalHtml = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML =
-            '<span class="loading loading-spinner loading-sm"></span> Buscando…';
-          const result = await suggestMesaForUsername(username);
-          try {
-            if (!result.ok) {
-              showToast(result.message, "alert-error");
-              return;
-            }
-            if (!result.helpdesk) {
-              showToast(
-                "No se encontró una mesa para ese usuario en InvGate.",
-                "alert-warning",
-              );
-              return;
-            }
-            selectOrAddHelpdeskOption(hdSel, result.helpdesk.invgateId, result.helpdesk.name);
-            showToast(`Mesa sugerida: ${result.helpdesk.name}`, "alert-success");
-          } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-          }
-        });
-      });
-
     const PARTICIPATION_PRESETS: Record<string, Record<string, boolean>> = {
       agent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
       referent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
@@ -1050,6 +894,19 @@ import { normalizeRole } from "@lib/rbac";
     }
     altaHelpdeskSelect?.addEventListener("change", refreshParticipacionesVisibility);
     refreshParticipacionesVisibility();
+
+    const createDialog = document.getElementById("modal-create-user") as HTMLDialogElement | null;
+    const createForm = document.getElementById("nuevo-usuario-form") as HTMLFormElement | null;
+    if (createBtn && createDialog && createForm) {
+      createBtn.addEventListener("click", () => {
+        createForm.querySelectorAll(".pwd-error").forEach((el) => el.classList.add("hidden"));
+        createForm.reset();
+        applyPresets(altaRoleSelect?.value || "agent");
+        refreshParticipacionesVisibility();
+        createDialog.showModal();
+      });
+      createBtn.dataset.usersAdminBound = "true";
+    }
 
     return true;
   }
