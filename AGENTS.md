@@ -1,5 +1,17 @@
 # Portal MDA — Agent Guide
 
+## Testing policy
+
+- **Never** write unit tests after writing the code.
+- **Prefer E2E tests as the only testing mechanism.** Use them to verify complex functionality. After E2E runs, produce a verifiable, reproducible artifact: Playwright HTML report + traces (`playwright show-report`, trace viewer).
+- When testing a system in isolation, **FIRST** write all the ways it could fail, **THEN** write the code.
+
+### Test quality (when implementing with TDD)
+
+- Tautological tests are harmful.
+- Change-detector tests are harmful.
+- Do not create regression tests for bug fixes without a genuine gap in behavior testing.
+
 ## General workflow
 
 - **Read docs first** before writing code: `docs/DESIGN.md` (visual system), `docs/CONTEXT.md` (conventions, infra), `docs/lessons.md` (known errors)
@@ -21,7 +33,7 @@
 ## Testing
 
 - `npx playwright test` — E2E tests (`tests/**/*.spec.ts`). Workers: 1 (serial). Requires dev server at `http://localhost:4321`.
-- `npx vitest run` — unit tests (`tests/unit/**/*.test.ts`, no server needed). Config: `vitest.config.ts`.
+- Artifact after runs: HTML report + traces (see Testing policy).
 - No CI — tests run manually.
 
 ## DB & Drizzle
