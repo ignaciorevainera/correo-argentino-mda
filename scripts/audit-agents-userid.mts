@@ -22,9 +22,14 @@ const doSave = args.includes("--save");
 const doCheck = args.includes("--check");
 const baselinePath = `${dbPath}.audit-baseline.json`;
 
+if (!existsSync(dbPath)) {
+  console.error(`No existe la DB: ${dbPath}`);
+  process.exit(1);
+}
+
 const db = new Database(dbPath, { readonly: true });
 const tableCols = (table: string) =>
-  (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+  (db.prepare(`PRAGMA table_info("${table}")`).all() as { name: string }[]).map((c) => c.name);
 const scalar = (sql: string) => (db.prepare(sql).get() as { c: number }).c;
 
 const errors: string[] = [];
@@ -43,10 +48,10 @@ const tables = (db
   .sort();
 for (const table of tables) {
   const cols = tableCols(table);
-  counts[`${table}.total`] = scalar(`SELECT COUNT(*) c FROM ${table}`);
+  counts[`${table}.total`] = scalar(`SELECT COUNT(*) c FROM "${table}"`);
   if (cols.includes("agent_id")) {
     counts[`${table}.agent_id_null`] = scalar(
-      `SELECT COUNT(*) c FROM ${table} WHERE agent_id IS NULL`,
+      `SELECT COUNT(*) c FROM "${table}" WHERE agent_id IS NULL`,
     );
   }
 }
@@ -86,6 +91,11 @@ if (doCheck) {
         errors.push(`PELIGRO perdida de datos: ${key} paso de ${baseline[key]} a ${value}.`);
       }
     }
+    for (const key of Object.keys(baseline)) {
+      if (!(key in counts)) {
+        errors.push(`PELIGRO clave desaparecida: ${key} existe en baseline pero no en conteos actuales.`);
+      }
+    }
   }
 }
 
@@ -96,7 +106,7 @@ if (doSave) {
 
 console.log(`\nConteos (${dbPath}):`);
 for (const [key, value] of Object.entries(counts)) console.log(`  ${key}: ${value}`);
-console.log(`  agents.username_pendiente: ${hasUsername ? counts["agents.username_pendiente"] : "n/a (columna dropeada)"}`);
+if (!hasUsername) console.log(`  agents.username_pendiente: n/a (columna dropeada)`);
 
 if (errors.length > 0) {
   console.error(`\nAUDIT FAIL (${errors.length}):`);
