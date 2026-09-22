@@ -134,6 +134,7 @@ export type BootstrapReport = {
   rowsLinkedToShells: number;
   hiddenHelpdesksPruned: number;
   mesasSynced: { added: number; updated: number };
+  mesasSkippedNameConflict: string[];
   mdaTiInvgateId: number | null;
   usersAssignedToMesa: number;
   agentsFlagsUpdated: number;
@@ -244,11 +245,11 @@ function phase5Populate(
   const hasUserMesa =
     userCols.has("helpdesk_id") && userCols.has("helpdesk_name");
   const hasFlags = flagCols.every((c) => agentCols.has(c));
+  const hasUserLink = agentCols.has("user_id");
+  // Las columnas/tabla que el align agrega. Si faltan, la fase NO puede mutar,
+  // pero igual previsualiza los counts planificados (dry-run honesto pre-align).
+  const colsReady = mesasExists && hasUserMesa && hasFlags;
 
-  if (!mesasExists || !hasUserMesa || !hasFlags) {
-    report.phases.populate = "omitido (requiere align)";
-    return;
-  }
   if (fetchError) {
     report.phases.populate = `error en fetch de mesas: ${fetchError}`;
     return;
@@ -258,18 +259,45 @@ function phase5Populate(
     return;
   }
 
-  // Dedupe por invgateId: la lista llega a una columna UNIQUE.
+  // Dedupe por invgateId Y por name: ambas columnas son UNIQUE. Si un name ya
+  // existe bajo un invgate_id distinto, el upsert ON CONFLICT(invgate_id)
+  // chocaria contra UNIQUE(name) y abortaria la tx: se saltea y se reporta.
+  const existingByName = new Map<string, number>();
+  if (mesasExists) {
+    for (const r of db
+      .prepare("SELECT invgate_id, name FROM mesas")
+      .all() as Array<{ invgate_id: number; name: string }>) {
+      existingByName.set(r.name, r.invgate_id);
+    }
+  }
+  const skippedNameConflict: string[] = [];
   const seen = new Set<number>();
+  const plannedNames = new Set<string>();
   const list = mesasList.filter((m) => {
     if (seen.has(m.invgateId)) return false;
     seen.add(m.invgateId);
+    const conflictId = existingByName.get(m.name);
+    if (conflictId !== undefined && conflictId !== m.invgateId) {
+      skippedNameConflict.push(
+        `${m.name} (invgate_id ${m.invgateId} vs existente ${conflictId})`,
+      );
+      return false;
+    }
+    if (plannedNames.has(m.name)) {
+      skippedNameConflict.push(`${m.name} (nombre duplicado en fetch)`);
+      return false;
+    }
+    plannedNames.add(m.name);
     return true;
   });
+  report.mesasSkippedNameConflict = skippedNameConflict;
 
   const existingIds = new Set<number>(
-    (db.prepare("SELECT invgate_id FROM mesas").all() as Array<{
-      invgate_id: number;
-    }>).map((r) => r.invgate_id),
+    mesasExists
+      ? (db.prepare("SELECT invgate_id FROM mesas").all() as Array<{
+          invgate_id: number;
+        }>).map((r) => r.invgate_id)
+      : [],
   );
   let added = 0;
   let updated = 0;
@@ -281,10 +309,12 @@ function phase5Populate(
   // Resolver MDA TI: la fila local (si el upsert ya corrio) o, en dry-run,
   // la recien traida de InvGate.
   let mdaTiInvgateId: number | null = null;
-  const localRow = db
-    .prepare("SELECT invgate_id FROM mesas WHERE name = ? AND active = 1")
-    .get(MDA_TI_HELPDESK) as { invgate_id: number } | undefined;
-  if (localRow) mdaTiInvgateId = localRow.invgate_id;
+  if (mesasExists) {
+    const localRow = db
+      .prepare("SELECT invgate_id FROM mesas WHERE name = ? AND active = 1")
+      .get(MDA_TI_HELPDESK) as { invgate_id: number } | undefined;
+    if (localRow) mdaTiInvgateId = localRow.invgate_id;
+  }
   if (mdaTiInvgateId == null) {
     const fetchedRow = list.find((m) => m.name === MDA_TI_HELPDESK);
     if (fetchedRow) mdaTiInvgateId = fetchedRow.invgateId;
@@ -292,10 +322,12 @@ function phase5Populate(
   if (mdaTiInvgateId == null) {
     report.mesasSynced = { added, updated };
     report.mdaTiInvgateId = null;
-    if (apply) {
+    if (apply && colsReady) {
       throw new Error(`no se encontró la mesa ${MDA_TI_HELPDESK} en InvGate`);
     }
-    report.phases.populate = `mesa "${MDA_TI_HELPDESK}" ausente en InvGate (dry-run)`;
+    report.phases.populate = colsReady
+      ? `mesa "${MDA_TI_HELPDESK}" ausente en InvGate (dry-run)`
+      : `preview (requiere align para aplicar): mesa "${MDA_TI_HELPDESK}" ausente en InvGate`;
     return;
   }
 
@@ -310,11 +342,23 @@ function phase5Populate(
     userRows.map((u) => [String(u.username ?? "").toLowerCase(), u.role]),
   );
 
-  const hasUserLink = agentCols.has("user_id");
+  // Preview del conteo de users aun sin columnas helpdesk (pre-align): sin
+  // columna no hay nada asignado -> todos los users cuentan como a-asignar.
+  const usersAssignedToMesa = hasUserMesa
+    ? (db
+        .prepare(`SELECT COUNT(*) c FROM users WHERE ${userWhere}`)
+        .get(mdaTiInvgateId, MDA_TI_HELPDESK) as { c: number }).c
+    : (db.prepare("SELECT COUNT(*) c FROM users").get() as { c: number }).c;
+
+  // El calculo de flags es puro (rol del user): se computa aun sin columnas de
+  // flags. Si faltan, current = 0 -> todo cuenta como a-setear.
+  const flagSelect = hasFlags
+    ? "en_cronograma, asignable_cubic, incluido_calidad, asignable_ags"
+    : "0 AS en_cronograma, 0 AS asignable_cubic, 0 AS incluido_calidad, 0 AS asignable_ags";
   const agents = db
     .prepare(
       `SELECT id, username, ${hasUserLink ? "user_id" : "NULL AS user_id"}, ` +
-        "en_cronograma, asignable_cubic, incluido_calidad, asignable_ags FROM agents",
+        `${flagSelect} FROM agents`,
     )
     .all() as Array<{
     id: number;
@@ -353,17 +397,29 @@ function phase5Populate(
 
   report.mesasSynced = { added, updated };
   report.mdaTiInvgateId = mdaTiInvgateId;
+  report.usersAssignedToMesa = usersAssignedToMesa;
   report.agentsFlagsUpdated = flagPlan.length;
 
+  const conflictNote = skippedNameConflict.length
+    ? `, ${skippedNameConflict.length} mesas salteadas por nombre`
+    : "";
+
+  // Columnas faltantes: preview honesto, mutacion gated (ni dry-run ni apply
+  // escriben hasta que corra el align).
+  if (!colsReady) {
+    report.phases.populate =
+      "preview (requiere align para aplicar): " +
+      `${added} mesas nuevas, ${updated} actualizadas, ` +
+      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+      conflictNote;
+    return;
+  }
+
   if (!apply) {
-    report.usersAssignedToMesa = (
-      db
-        .prepare(`SELECT COUNT(*) c FROM users WHERE ${userWhere}`)
-        .get(mdaTiInvgateId, MDA_TI_HELPDESK) as { c: number }
-    ).c;
     report.phases.populate =
       `dry-run: ${added} mesas nuevas, ${updated} actualizadas, ` +
-      `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags`;
+      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+      conflictNote;
     return;
   }
 
@@ -399,7 +455,8 @@ function phase5Populate(
 
   report.phases.populate =
     `${added} mesas nuevas, ${updated} actualizadas, ` +
-    `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags`;
+    `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+    conflictNote;
 }
 
 export async function runBootstrap(
@@ -599,6 +656,7 @@ export async function runBootstrap(
       rowsLinkedToShells,
       hiddenHelpdesksPruned: hiddenOrphans,
       mesasSynced: { added: 0, updated: 0 },
+      mesasSkippedNameConflict: [],
       mdaTiInvgateId: null,
       usersAssignedToMesa: 0,
       agentsFlagsUpdated: 0,
@@ -650,7 +708,10 @@ export async function runBootstrap(
     }
 
     // ── Apply ───────────────────────────────────────────────────────────────
-    if (hasWork || saneoWork) {
+    // Backup si hay trabajo de fases 1-3, saneo, o populate: --apply --populate
+    // sobre una DB ya migrada (hasWork/saneoWork=false) igual escribe mesas,
+    // users y flags, y debe respetar el contrato de backup WAL-safe.
+    if (hasWork || saneoWork || (apply && populate)) {
       const backupPath = dbPath.replace(/\.db$/, "") +
         `.bak-bootstrap-${Date.now()}.db`;
       await db.backup(backupPath);
@@ -814,6 +875,14 @@ async function main(): Promise<void> {
     console.log(
       `agents flags            : ${report.agentsFlagsUpdated} ${apply ? "actualizados" : "a actualizar (dry-run)"}`,
     );
+    if (report.mesasSkippedNameConflict.length > 0) {
+      console.log(
+        `mesas salteadas (nombre) : ${report.mesasSkippedNameConflict.length}`,
+      );
+      for (const m of report.mesasSkippedNameConflict.slice(0, 20)) {
+        console.log(`  - ${m}`);
+      }
+    }
   }
 
   if (report.schedulesCaseInsensitive.length > 0) {

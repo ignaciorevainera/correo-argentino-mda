@@ -623,4 +623,110 @@ describe("runBootstrap --populate (Fase 5)", () => {
       }),
     ).rejects.toThrow(/no se encontró la mesa TI_GSM_MDA TI en InvGate/);
   });
+
+  // Fix 1: populate-only sobre DB ya migrada (hasWork=false, saneoWork=false)
+  // igual escribe -> el backup DEBE crearse.
+  it("--apply --populate sin work (DB alineada): crea backup y segundo run tambien", async () => {
+    exec("ALTER TABLE agents ADD COLUMN user_id INTEGER");
+    exec("ALTER TABLE schedules ADD COLUMN agent_id INTEGER");
+    exec("CREATE INDEX schedules_agent_id_idx ON schedules(agent_id)");
+    exec("DELETE FROM schedules");
+    exec("UPDATE agents SET user_id = 1 WHERE name = 'Juan Perez'");
+    exec("UPDATE agents SET user_id = 2 WHERE name = 'Maria Rojas'");
+
+    const first = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(first.columnsAdded).toHaveLength(0);
+    expect(first.backupPath).toBeTruthy();
+    expect(existsSync(first.backupPath!)).toBe(true);
+    expect(first.usersAssignedToMesa).toBe(3);
+
+    const second = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+    expect(second.backupPath).toBeTruthy();
+    expect(existsSync(second.backupPath!)).toBe(true);
+    expect(second.usersAssignedToMesa).toBe(0);
+    expect(second.agentsFlagsUpdated).toBe(0);
+  });
+
+  // Fix 2: pre-align (sin columnas helpdesk/flags) -> dry-run previsualiza los
+  // counts planificados, no escribe y no crashea.
+  it("dry-run pre-align: previsualiza counts sin columnas, sin escribir", async () => {
+    const prePath = join(dir, "pre-align.db");
+    const db = new Database(prePath);
+    db.exec(`
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'agent'
+      );
+      CREATE TABLE agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        username TEXT,
+        location TEXT NOT NULL DEFAULT 'Monte Grande',
+        horario_default TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      INSERT INTO users (id, username, role) VALUES
+        (1, 'jperez', 'agent'), (2, 'mrojas', 'agent'), (3, 'fsuarez', 'agent');
+      INSERT INTO agents (id, name, username) VALUES
+        (1, 'Juan Perez', 'jperez'), (2, 'Maria Rojas', 'mrojas');
+    `);
+    db.close();
+
+    const report = await runBootstrap({
+      dbPath: prePath,
+      apply: false,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(report.usersAssignedToMesa).toBe(3);
+    expect(report.agentsFlagsUpdated).toBe(2);
+    expect(report.mdaTiInvgateId).toBe(999);
+    expect(report.phases.populate).toContain("preview");
+
+    // Nada escrito: no hay tabla mesas ni columnas.
+    expect(columnNames("agents", prePath)).not.toContain("user_id");
+    expect(columnNames("schedules", prePath)).not.toContain("agent_id");
+  });
+
+  // Fix 3: name UNIQUE colisionando con un invgate_id distinto -> se saltea y
+  // reporta en vez de abortar la tx.
+  it("mesa con nombre ya existente bajo otro invgate_id: se saltea y reporta", async () => {
+    exec(
+      "INSERT INTO mesas (invgate_id, name, last_synced_at) VALUES (5, 'Otra', '2026-01-01')",
+    );
+
+    const report = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(report.mesasSkippedNameConflict).toHaveLength(1);
+    expect(report.mesasSkippedNameConflict[0]).toContain("Otra");
+    expect(report.mesasSynced).toEqual({ added: 1, updated: 0 });
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(2);
+  });
 });
