@@ -343,6 +343,7 @@ describe("runBootstrap", () => {
       ["name", "TEXT", 1, null, 0],
       ["display_name", "TEXT", 0, null, 0],
       ["active", "INTEGER", 1, "true", 0],
+      ["assignable", "INTEGER", 1, "false", 0],
       ["last_synced_at", "TEXT", 1, null, 0],
     ]);
 
@@ -425,6 +426,19 @@ const MESAS_FETCH = [
   { invgateId: 1, name: "Otra", displayName: null },
 ];
 const fetchMesasOk = async () => MESAS_FETCH;
+
+// Fetch con las dos mesas permitidas (MDA TI + Coord) y una no permitida.
+const MESAS_FETCH_ASSIGNABLE = [
+  { invgateId: 999, name: "TI_GSM_MDA TI", displayName: null },
+  { invgateId: 2, name: "TI_GSM_Mesa de Coord", displayName: null },
+  { invgateId: 1, name: "Otra", displayName: null },
+];
+
+// La columna assignable la agrega el align; el DDL base de tests es pre-Plan-A
+// y no la trae.
+function addAssignableColumn(): void {
+  exec("ALTER TABLE mesas ADD COLUMN assignable INTEGER NOT NULL DEFAULT 0");
+}
 
 // Seed POST-align para Fase 5: agrega agents.user_id (normalmente lo hace la
 // Fase 1), un user por rol y su agente vinculado. El superuser se linkea por
@@ -728,5 +742,95 @@ describe("runBootstrap --populate (Fase 5)", () => {
     expect(report.mesasSkippedNameConflict[0]).toContain("Otra");
     expect(report.mesasSynced).toEqual({ added: 1, updated: 0 });
     expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(2);
+  });
+
+  // Gap assignable: el one-shot debe dejar el select de alta/edicion con MDA TI
+  // y Coord habilitadas (equivalente a seed-assignable-mesas.mts).
+  it("apply: marca assignable=1 solo en ALLOWED_HELPDESK_NAMES", async () => {
+    seedRoles();
+    addAssignableColumn();
+
+    const report = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => MESAS_FETCH_ASSIGNABLE,
+    });
+
+    expect(report.mesasAssignableSeeded).toBe(2);
+    expect(report.phases.populate).toContain("2 mesas assignable=1");
+    expect(
+      rows<{ name: string; assignable: number }>(
+        "SELECT name, assignable FROM mesas ORDER BY name",
+      ),
+    ).toEqual([
+      { name: "Otra", assignable: 0 },
+      { name: "TI_GSM_MDA TI", assignable: 1 },
+      { name: "TI_GSM_Mesa de Coord", assignable: 1 },
+    ]);
+  });
+
+  it("dry-run: reporta assignables planificadas sin escribir", async () => {
+    addAssignableColumn();
+
+    const report = await runBootstrap({
+      dbPath,
+      apply: false,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => MESAS_FETCH_ASSIGNABLE,
+    });
+
+    expect(report.mesasAssignableSeeded).toBe(2);
+    expect(report.phases.populate).toContain("2 mesas assignable=1");
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(0);
+  });
+
+  it("idempotente: segundo apply --populate no remarca assignables", async () => {
+    seedRoles();
+    addAssignableColumn();
+    await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => MESAS_FETCH_ASSIGNABLE,
+    });
+    const second = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => MESAS_FETCH_ASSIGNABLE,
+    });
+
+    expect(second.mesasAssignableSeeded).toBe(0);
+    expect(
+      rows<{ name: string; assignable: number }>(
+        "SELECT name, assignable FROM mesas ORDER BY name",
+      ),
+    ).toEqual([
+      { name: "Otra", assignable: 0 },
+      { name: "TI_GSM_MDA TI", assignable: 1 },
+      { name: "TI_GSM_Mesa de Coord", assignable: 1 },
+    ]);
+  });
+
+  it("sin columna assignable (--no-align): omite seed con nota, sin crash", async () => {
+    seedRoles();
+
+    const report = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => MESAS_FETCH_ASSIGNABLE,
+    });
+
+    expect(report.mesasAssignableSeeded).toBe(0);
+    expect(report.phases.populate).toContain("assignable");
+    expect(report.phases.populate).toContain("omitido");
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(3);
   });
 });

@@ -22,9 +22,14 @@
 //   5. Populate (solo con --populate, corre DESPUES del align): trae las mesas
 //      de InvGate y las upsertea en mesas; asigna todos los users sin mesa a
 //      MDA TI (helpdesk_id/helpdesk_name, requeridos por resolveSessionMesa);
-//      y setea los 4 flags de participacion de agents segun el rol del user
-//      vinculado (agents.user_id, fallback username). Sin esto la DB queda
-//      "sin mesa" (fail-closed) y GET /api/cronograma filtra 0 operadores.
+//      setea los 4 flags de participacion de agents segun el rol del user
+//      vinculado (agents.user_id, fallback username); y marca assignable=1 en
+//      las mesas de ALLOWED_HELPDESK_NAMES (MDA TI + Mesa de Coord), mismo
+//      efecto que seed-assignable-mesas.mts (sin esto el select de alta/edicion
+//      de usuario solo ofrece MDA TI, que esta exenta por codigo). Sin esto la
+//      DB queda "sin mesa" (fail-closed) y GET /api/cronograma filtra 0
+//      operadores. Si la columna mesas.assignable aun no existe (pre-align con
+//      --no-align), el seed de assignables se omite con nota explicita.
 //      Requiere env INVGATE_API_KEY / INVGATE_BASE_URL / INVGATE_API_USERNAME
 //      (carga dotenv). Usa fetchInvGateMesas() y hace el upsert con la conexion
 //      propia del script (NUNCA syncMesas(): escribe la DB por defecto).
@@ -43,7 +48,7 @@ import {
   resolveAgentIdByName,
 } from "../src/lib/scheduleLinks";
 import { normalizeRole } from "../src/lib/rbac";
-import { MDA_TI_HELPDESK } from "../src/lib/helpdeskAccess";
+import { MDA_TI_HELPDESK, ALLOWED_HELPDESK_NAMES } from "../src/lib/helpdeskAccess";
 
 export type BootstrapOptions = {
   dbPath: string;
@@ -138,6 +143,7 @@ export type BootstrapReport = {
   mdaTiInvgateId: number | null;
   usersAssignedToMesa: number;
   agentsFlagsUpdated: number;
+  mesasAssignableSeeded: number;
   backupPath: string | null;
   alignRan: boolean;
 };
@@ -148,6 +154,10 @@ type ColInfo = { name: string; type: string; notnull: number; dflt_value: string
 // Se usa solo si la tabla falta al momento del saneo. Incluye los UNIQUE de
 // invgate_id y name para que la tabla sea valida aun si align no corre
 // (--no-align); align igual reconcilia sus indices unicos con nombre.
+// `assignable` ya viene con default false (curacion manual del select de
+// alta/edicion de usuario); la Fase 5 lo pone en 1 para ALLOWED_HELPDESK_NAMES.
+// El default se escribe `false` (no `0`) para matchear la firma canonica que
+// emite drizzle y que align usa para decidir si reconstruye la tabla.
 const MESAS_DDL = `
 CREATE TABLE IF NOT EXISTS "mesas" (
   "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -155,6 +165,7 @@ CREATE TABLE IF NOT EXISTS "mesas" (
   "name" text NOT NULL UNIQUE,
   "display_name" text,
   "active" integer DEFAULT true NOT NULL,
+  "assignable" integer DEFAULT false NOT NULL,
   "last_synced_at" text NOT NULL
 );
 `;
@@ -262,12 +273,29 @@ function phase5Populate(
   // Dedupe por invgateId Y por name: ambas columnas son UNIQUE. Si un name ya
   // existe bajo un invgate_id distinto, el upsert ON CONFLICT(invgate_id)
   // chocaria contra UNIQUE(name) y abortaria la tx: se saltea y se reporta.
-  const existingByName = new Map<string, number>();
+  // `assignable` se lee aparte: si la columna no existe (pre-align) se planifica
+  // el seed en 0 y se omite la mutacion con nota.
+  const hasAssignableCol =
+    mesasExists &&
+    tableInfo(db, "mesas").some((c) => c.name === "assignable");
+  const existingByName = new Map<
+    string,
+    { invgateId: number; assignable: number }
+  >();
   if (mesasExists) {
-    for (const r of db
-      .prepare("SELECT invgate_id, name FROM mesas")
-      .all() as Array<{ invgate_id: number; name: string }>) {
-      existingByName.set(r.name, r.invgate_id);
+    const sql =
+      "SELECT invgate_id, name" +
+      (hasAssignableCol ? ", assignable" : ", 0 AS assignable") +
+      " FROM mesas";
+    for (const r of db.prepare(sql).all() as Array<{
+      invgate_id: number;
+      name: string;
+      assignable: number;
+    }>) {
+      existingByName.set(r.name, {
+        invgateId: r.invgate_id,
+        assignable: r.assignable ? 1 : 0,
+      });
     }
   }
   const skippedNameConflict: string[] = [];
@@ -276,10 +304,10 @@ function phase5Populate(
   const list = mesasList.filter((m) => {
     if (seen.has(m.invgateId)) return false;
     seen.add(m.invgateId);
-    const conflictId = existingByName.get(m.name);
-    if (conflictId !== undefined && conflictId !== m.invgateId) {
+    const existing = existingByName.get(m.name);
+    if (existing !== undefined && existing.invgateId !== m.invgateId) {
       skippedNameConflict.push(
-        `${m.name} (invgate_id ${m.invgateId} vs existente ${conflictId})`,
+        `${m.name} (invgate_id ${m.invgateId} vs existente ${existing.invgateId})`,
       );
       return false;
     }
@@ -291,6 +319,26 @@ function phase5Populate(
     return true;
   });
   report.mesasSkippedNameConflict = skippedNameConflict;
+
+  // Plan del seed assignable: mesas de ALLOWED_HELPDESK_NAMES que quedarian en
+  // 0 tras el upsert (las ya asignables no cuentan -> idempotente). Con la
+  // columna ausente el plan es 0 y la mutacion se omite.
+  const allowedNames = new Set(ALLOWED_HELPDESK_NAMES);
+  const assignablePlan = new Set<string>();
+  if (hasAssignableCol) {
+    for (const [name, row] of existingByName) {
+      if (allowedNames.has(name) && !row.assignable) assignablePlan.add(name);
+    }
+    for (const m of list) {
+      if (allowedNames.has(m.name) && !existingByName.has(m.name)) {
+        assignablePlan.add(m.name);
+      }
+    }
+  }
+  report.mesasAssignableSeeded = assignablePlan.size;
+  const assignableNote = hasAssignableCol
+    ? `${assignablePlan.size} mesas assignable=1`
+    : "seed assignable omitido (columna mesas.assignable ausente)";
 
   const existingIds = new Set<number>(
     mesasExists
@@ -410,7 +458,8 @@ function phase5Populate(
     report.phases.populate =
       "preview (requiere align para aplicar): " +
       `${added} mesas nuevas, ${updated} actualizadas, ` +
-      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags, ` +
+      assignableNote +
       conflictNote;
     return;
   }
@@ -418,7 +467,8 @@ function phase5Populate(
   if (!apply) {
     report.phases.populate =
       `dry-run: ${added} mesas nuevas, ${updated} actualizadas, ` +
-      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+      `${usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags, ` +
+      assignableNote +
       conflictNote;
     return;
   }
@@ -434,6 +484,18 @@ function phase5Populate(
     );
     for (const m of list) {
       upsert.run(m.invgateId, m.name, m.displayName ?? null, now);
+    }
+
+    // Seed assignable (equivalente a seed-assignable-mesas.mts): las mesas
+    // permitidas en el select de alta/edicion quedan en 1. Idempotente.
+    if (hasAssignableCol) {
+      const placeholders = ALLOWED_HELPDESK_NAMES.map(() => "?").join(", ");
+      const seeded = db
+        .prepare(
+          `UPDATE mesas SET assignable = 1 WHERE assignable = 0 AND name IN (${placeholders})`,
+        )
+        .run(...ALLOWED_HELPDESK_NAMES);
+      report.mesasAssignableSeeded = seeded.changes;
     }
 
     const assigned = db
@@ -455,7 +517,10 @@ function phase5Populate(
 
   report.phases.populate =
     `${added} mesas nuevas, ${updated} actualizadas, ` +
-    `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags` +
+    `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags, ` +
+    (hasAssignableCol
+      ? `${report.mesasAssignableSeeded} mesas assignable=1`
+      : "seed assignable omitido (columna mesas.assignable ausente)") +
     conflictNote;
 }
 
@@ -660,6 +725,7 @@ export async function runBootstrap(
       mdaTiInvgateId: null,
       usersAssignedToMesa: 0,
       agentsFlagsUpdated: 0,
+      mesasAssignableSeeded: 0,
       backupPath: null,
       alignRan: false,
     };
@@ -874,6 +940,9 @@ async function main(): Promise<void> {
     );
     console.log(
       `agents flags            : ${report.agentsFlagsUpdated} ${apply ? "actualizados" : "a actualizar (dry-run)"}`,
+    );
+    console.log(
+      `mesas assignable=1      : ${report.mesasAssignableSeeded} ${apply ? "marcadas" : "a marcar (dry-run)"}`,
     );
     if (report.mesasSkippedNameConflict.length > 0) {
       console.log(

@@ -57,6 +57,7 @@ test.describe("Búsqueda de usuarios", () => {
     username: string,
     role: string,
     helpdeskName: string | null,
+    fullName?: string,
   ): Promise<void> {
     const [u] = await db
       .insert(users)
@@ -64,6 +65,9 @@ test.describe("Búsqueda de usuarios", () => {
       .returning({ id: users.id });
     createdUserIds.push(u.id);
     createdUsernames.push(username);
+    if (fullName) {
+      await db.insert(agents).values({ username, name: fullName });
+    }
   }
 
   async function login(page: Page, signed: string): Promise<void> {
@@ -142,6 +146,68 @@ test.describe("Búsqueda de usuarios", () => {
 
     await page.fill("#admin-users-search", "coord");
     await expect(row.locator("mark")).toHaveText(/coord/i);
+  });
+
+  test("filtra por nombre completo y muestra la columna Nombre", async ({
+    page,
+  }) => {
+    const ts = Date.now();
+    const gonzalez = `0search_nombre_${ts}`;
+    const other = `0search_otronombre_${ts}`;
+    await seedUser(gonzalez, "agent", null, `Gonzalez Ana ${ts}`);
+    await seedUser(other, "agent", null, `Perez Luis ${ts}`);
+
+    await login(page, adminCookie);
+    await page.goto("/admin/usuarios");
+    const row = page.locator(`[data-sort-username="${gonzalez}"]`).first();
+    await expect(row).toBeVisible();
+
+    await page.fill("#admin-users-search", "Gonzalez");
+    await expect(row).toBeVisible();
+    await expect(
+      row.locator("[data-highlight-target]", { hasText: "Gonzalez" }),
+    ).toBeVisible();
+    await expect(
+      page.locator(`[data-sort-username="${other}"]`).first(),
+    ).toBeHidden();
+  });
+
+  test("destaca la coincidencia en la columna Nombre", async ({ page }) => {
+    const ts = Date.now();
+    const user = `0search_hlname_${ts}`;
+    await seedUser(user, "agent", null, `Ramirez Coord ${ts}`);
+
+    await login(page, adminCookie);
+    await page.goto("/admin/usuarios");
+    const row = page.locator(`[data-sort-username="${user}"]`).first();
+    await expect(row).toBeVisible();
+
+    await page.fill("#admin-users-search", "Ramirez");
+    const nameCell = row.locator("[data-highlight-target]", {
+      hasText: "Ramirez",
+    });
+    await expect(nameCell.locator("mark")).toHaveText("Ramirez");
+  });
+
+  test("la columna Nombre aparece entre Usuario y Rol", async ({ page }) => {
+    await login(page, adminCookie);
+    await page.goto("/admin/usuarios");
+    const sortKeys = page.locator(
+      "#usuarios-table [data-table-header] [data-table-sort-key]",
+    );
+    await expect(sortKeys.nth(0)).toHaveAttribute(
+      "data-table-sort-key",
+      "username",
+    );
+    await expect(sortKeys.nth(1)).toHaveAttribute(
+      "data-table-sort-key",
+      "name",
+    );
+    await expect(sortKeys.nth(2)).toHaveAttribute(
+      "data-table-sort-key",
+      "role",
+    );
+    await expect(sortKeys.nth(1)).toContainText(/nombre/i);
   });
 
   test("sin resultados muestra el empty state y permite limpiar", async ({
