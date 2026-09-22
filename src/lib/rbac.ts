@@ -55,6 +55,7 @@ const ALL_ROLES: Role[] = [
 export const routePermissions: RoutePermission[] = [
   { path: "/admin/usuarios-sin-ubicacion", roles: ["admin"] },
   { path: "/admin/usuarios", roles: ["admin"] },
+  { path: "/admin/usuarios/mesas-de-ayuda", roles: ["admin"] },
   { path: "/admin/auditoria", roles: ["admin"] },
   { path: "/admin/feedback", roles: ["admin"] },
   { path: "/admin/permisos", roles: ["admin"] },

@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and, or } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -10,9 +10,8 @@ import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import ActionButton from "@components/ui/ActionButton.astro";
-import { invgateGet } from "@lib/invgateClient";
-import type { InvgateHelpdeskAndLevel } from "@/types/invgate";
-import { ALLOWED_HELPDESK_NAMES, PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
+import { PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
+import { getCleanBase } from "@lib/baseUrl";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import { normalizeRole } from "@lib/rbac";
 import FormField from "@components/ui/forms/FormField.astro";
@@ -67,13 +66,16 @@ const usersConMesaInactivaMostrados = usersConMesaInactiva.slice(
 const usersConMesaInactivaRestantes =
   usersConMesaInactiva.length - usersConMesaInactivaMostrados.length;
 
-const hdResult =
-  await invgateGet<InvgateHelpdeskAndLevel[]>("helpdesksandlevels");
-const helpdeskOptions = (
-  hdResult.ok && Array.isArray(hdResult.data) ? hdResult.data : []
-)
-  .filter((h) => !h.level_order && ALLOWED_HELPDESK_NAMES.includes(h.name ?? ""))
-  .map((h) => ({ id: h.id, name: h.name ?? `Helpdesk #${h.id}` }));
+const helpdeskOptions = await db
+  .select({ id: mesas.invgateId, name: mesas.name })
+  .from(mesas)
+  .where(
+    and(
+      eq(mesas.active, true),
+      or(eq(mesas.assignable, true), eq(mesas.name, MDA_TI_HELPDESK)),
+    ),
+  )
+  .orderBy(mesas.name);
 
 const headerGridClass = "grid-cols-[1fr_104px_170px_180px_88px] gap-4";
 const rowGridClass =
@@ -107,23 +109,34 @@ const isSupervisorRole = (role: string): boolean =>
   )}
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <button
-      type="button"
-      class="btn btn-soft btn-lg btn-accent gap-2"
-      onclick="document.getElementById('modal-permissions-matrix').showModal()"
-    >
-      <Icon name="boxicons:universal-access-filled" size={24} />
-      Ver tabla comparativa de permisos por rol
-    </button>
-    <ActionButton
-      id="btn-nuevo-usuario"
-      icon="boxicons:user-plus-filled"
-      label="Nuevo usuario"
-      size="default"
-      color="btn-secondary"
-      title="Dar de alta un nuevo usuario"
-      ariaLabel="Dar de alta un nuevo usuario"
-    />
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        class="btn btn-soft btn-lg btn-accent gap-2"
+        onclick="document.getElementById('modal-permissions-matrix').showModal()"
+      >
+        <Icon name="boxicons:universal-access-filled" size={24} />
+        Ver tabla comparativa de permisos por rol
+      </button>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <a
+        href={`${getCleanBase()}admin/usuarios/mesas-de-ayuda`}
+        class="btn btn-soft btn-lg gap-2"
+      >
+        <Icon name="boxicons:headphone-mic" size={24} />
+        Mesas asignables
+      </a>
+      <ActionButton
+        id="btn-nuevo-usuario"
+        icon="boxicons:user-plus-filled"
+        label="Nuevo usuario"
+        size="default"
+        color="btn-secondary"
+        title="Dar de alta un nuevo usuario"
+        ariaLabel="Dar de alta un nuevo usuario"
+      />
+    </div>
   </div>
 
   <div>
@@ -768,32 +781,58 @@ import { normalizeRole } from "@lib/rbac";
       }
     }
 
+    const SUGGEST_MSG_ID = "admin-helpdesk-suggest-msg";
+
+    function clearHelpdeskSuggestionMessage(): void {
+      document.getElementById(SUGGEST_MSG_ID)?.remove();
+    }
+
+    function showHelpdeskSuggestionMessage(
+      select: HTMLSelectElement,
+      text: string,
+    ): void {
+      clearHelpdeskSuggestionMessage();
+      const msg = document.createElement("p");
+      msg.id = SUGGEST_MSG_ID;
+      msg.className = "text-warning mt-1 text-xs";
+      msg.textContent = text;
+      select.insertAdjacentElement("afterend", msg);
+    }
+
+    // Solo se ofrece la sugerencia si la mesa ya figura entre las opciones
+    // asignables (activas y habilitadas). Si no, se avisa en vez de inyectar
+    // una opción no asignable.
     function selectOrAddHelpdeskOption(
       select: HTMLSelectElement,
       invgateId: number,
-      name: string,
-    ): void {
-      const value = `${invgateId}|${name}`;
-      const existing = Array.from(select.options).find((o) => o.value === value);
-      if (existing) {
-        select.value = value;
-        return;
+    ): boolean {
+      const byId = Array.from(select.options).find(
+        (o) => o.value.split("|")[0] === String(invgateId),
+      );
+      if (byId) {
+        select.value = byId.value;
+        clearHelpdeskSuggestionMessage();
+        return true;
       }
-      const opt = document.createElement("option");
-      opt.value = value;
-      opt.textContent = `${name} (sugerida)`;
-      select.appendChild(opt);
-      select.value = value;
+      showHelpdeskSuggestionMessage(
+        select,
+        "La mesa sugerida no está habilitada para asignación.",
+      );
+      return false;
     }
 
     adminUsernameInput?.addEventListener("blur", async () => {
       const username = adminUsernameInput.value.trim();
       if (!username) return;
+      clearHelpdeskSuggestionMessage();
       if (adminHelpdeskSelect && !adminHelpdeskSelect.value) {
         const result = await suggestMesaForUsername(username);
         if (result.ok && result.helpdesk) {
-          selectOrAddHelpdeskOption(adminHelpdeskSelect, result.helpdesk.invgateId, result.helpdesk.name);
-          refreshParticipacionesVisibility();
+          const applied = selectOrAddHelpdeskOption(
+            adminHelpdeskSelect,
+            result.helpdesk.invgateId,
+          );
+          if (applied) refreshParticipacionesVisibility();
         }
       }
     });
@@ -892,7 +931,10 @@ import { normalizeRole } from "@lib/rbac";
       const name = altaHelpdeskSelect?.value?.split("|")[1]?.trim() ?? "";
       participacionesFields?.classList.toggle("hidden", !participationMesas.includes(name));
     }
-    altaHelpdeskSelect?.addEventListener("change", refreshParticipacionesVisibility);
+    altaHelpdeskSelect?.addEventListener("change", () => {
+      clearHelpdeskSuggestionMessage();
+      refreshParticipacionesVisibility();
+    });
     refreshParticipacionesVisibility();
 
     const createDialog = document.getElementById("modal-create-user") as HTMLDialogElement | null;
@@ -900,6 +942,7 @@ import { normalizeRole } from "@lib/rbac";
     if (createBtn && createDialog && createForm) {
       createBtn.addEventListener("click", () => {
         createForm.querySelectorAll(".pwd-error").forEach((el) => el.classList.add("hidden"));
+        clearHelpdeskSuggestionMessage();
         createForm.reset();
         applyPresets(altaRoleSelect?.value || "agent");
         refreshParticipacionesVisibility();

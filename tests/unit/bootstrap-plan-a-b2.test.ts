@@ -428,7 +428,7 @@ const fetchMesasOk = async () => MESAS_FETCH;
 
 // Seed POST-align para Fase 5: agrega agents.user_id (normalmente lo hace la
 // Fase 1), un user por rol y su agente vinculado. El superuser se linkea por
-// user_id; team_leader/referent prueban el mapeo de flags.
+// user_id; team_leader prueba el mapeo parcial y referent el completo.
 function seedRoles(): void {
   exec("ALTER TABLE agents ADD COLUMN user_id INTEGER");
   exec(`
@@ -462,7 +462,6 @@ describe("participationFlagsForRole", () => {
       asignableAgs: false,
     };
     expect(participationFlagsForRole("team_leader")).toEqual(lead);
-    expect(participationFlagsForRole("referent")).toEqual(lead);
     const all = {
       enCronograma: true,
       asignableCubic: true,
@@ -471,6 +470,7 @@ describe("participationFlagsForRole", () => {
     };
     expect(participationFlagsForRole("agent")).toEqual(all);
     expect(participationFlagsForRole("admin")).toEqual(all);
+    expect(participationFlagsForRole("referent")).toEqual(all);
 
     for (const unknown of ["", "unknown", "ROOT", "   ", null as unknown as string]) {
       expect(participationFlagsForRole(unknown)).toEqual({
@@ -546,7 +546,7 @@ describe("runBootstrap --populate (Fase 5)", () => {
 
     expect(flags("Sup Uno")).toEqual([0, 0, 0, 0]);
     expect(flags("Lead Uno")).toEqual([1, 1, 0, 0]);
-    expect(flags("Ref Uno")).toEqual([1, 1, 0, 0]);
+    expect(flags("Ref Uno")).toEqual([1, 1, 1, 1]);
     expect(flags("Ag Uno")).toEqual([1, 1, 1, 1]);
     expect(flags("Adm Uno")).toEqual([1, 1, 1, 1]);
     expect(flags("Juan Perez")).toEqual([1, 1, 1, 1]);

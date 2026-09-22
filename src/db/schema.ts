@@ -921,6 +921,10 @@ export const mesas = sqliteTable("mesas", {
   name: text("name").notNull().unique(),
   displayName: text("display_name"),
   active: integer("active", { mode: "boolean" }).notNull().default(true),
+  // Curacion manual: si la mesa puede elegirse en el select de alta/edicion de
+  // usuario. Separado de `active` (ciclo de vida del sync de InvGate). La mesa
+  // principal MDA TI siempre es asignable (exenta del toggle).
+  assignable: integer("assignable", { mode: "boolean" }).notNull().default(false),
   lastSyncedAt: text("last_synced_at").notNull(),
 });
 

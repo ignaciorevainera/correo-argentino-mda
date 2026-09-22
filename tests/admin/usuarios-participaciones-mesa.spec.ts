@@ -37,6 +37,7 @@ test.describe("Participaciones por mesa", () => {
             name: d.name,
             displayName: null,
             active: true,
+            assignable: true,
             lastSyncedAt: new Date().toISOString(),
           })
           .onConflictDoNothing();

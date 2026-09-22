@@ -1,0 +1,325 @@
+---
+import { db } from "@db/index";
+import { mesas, users } from "@db/schema";
+import { sql, isNotNull } from "drizzle-orm";
+import { getCsrfTokenForSession } from "@lib/csrf";
+import { getModulePermissions, hasPermission } from "@lib/rbac";
+import { ALLOWED_HELPDESK_NAMES, MDA_TI_HELPDESK, isSectionVisibleSync } from "@lib/helpdeskAccess";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+
+const headerGridClass = "grid-cols-[1fr_110px_110px_120px] gap-4";
+const rowGridClass =
+  "grid grid-cols-[1fr_110px_110px_120px] items-center gap-4";
+
+const [mesaRows, userCountRows] = await Promise.all([
+  db.select().from(mesas),
+  db
+    .select({ helpdeskId: users.helpdeskId, total: sql<number>`count(*)` })
+    .from(users)
+    .where(isNotNull(users.helpdeskId))
+    .groupBy(users.helpdeskId),
+]);
+
+const mesaList = [...mesaRows].sort((a, b) => a.name.localeCompare(b.name));
+
+// users.helpdeskId referencia mesas.invgateId; normalizamos el conteo a mesas.id.
+const countByInvgateId = new Map<number, number>();
+for (const row of userCountRows) {
+  if (row.helpdeskId != null) {
+    countByInvgateId.set(row.helpdeskId, Number(row.total));
+  }
+}
+const mesaUserCount = new Map<number, number>();
+for (const m of mesaList) {
+  mesaUserCount.set(m.id, countByInvgateId.get(m.invgateId) ?? 0);
+}
+
+// Resumen read-only: qué ve cada mesa curada (derivado del hardcode, no editable).
+const SECTION_LABELS: Array<{ label: string; href: string }> = [
+  { label: "Supervisión (cronograma, calidad, AGS)", href: "/supervision" },
+  { label: "Control de asistencia", href: "/supervision/asistencia" },
+  { label: "Terminales (cubics)", href: "/inventario-terminales/cubics" },
+  { label: "Títulos", href: "/titulos" },
+  { label: "Panel de administración", href: "/admin" },
+];
+
+const user = Astro.locals.user;
+const permisosPerms = getModulePermissions("permisos", user.role);
+const canWrite = permisosPerms.canWrite;
+
+// El más reciente entre todas las mesas sincronizadas.
+const lastSyncedAt = mesaList.reduce<string | null>((acc, m) => {
+  const t = m.lastSyncedAt ?? null;
+  return !t || (acc && Date.parse(acc) >= Date.parse(t)) ? acc : t;
+}, null);
+---
+
+<div
+  id="permisos-root"
+  data-can-write={canWrite ? "1" : "0"}
+  data-csrf-token={getCsrfTokenForSession(Astro.locals.sessionId)}
+  class="space-y-4"
+>
+  <div class="flex flex-wrap items-center gap-3">
+    {canWrite && (
+      <button type="button" id="mesas-sync" class="btn btn-primary btn-sm">
+        <span class="sync-label">Sincronizar desde InvGate</span>
+        <span class="loading loading-spinner loading-xs hidden" aria-hidden="true"></span>
+      </button>
+    )}
+    {mesaList.length > 0 && (
+      <span class="text-base-content/60 text-xs">
+        Última sincronización: {lastSyncedAt ?? "—"}
+      </span>
+    )}
+  </div>
+
+  <!-- Resumen read-only: qué secciones puede abrir un usuario de cada mesa. -->
+  <div class="card bg-base-100 border-base-300 border rounded-lg">
+    <div class="card-body gap-3 p-4">
+      <div>
+        <h3 class="text-base-content text-sm font-semibold">
+          ¿Qué ve un usuario de esta mesa?
+        </h3>
+        <p class="text-base-content/60 mt-1 text-xs">
+          Resumen de solo lectura: qué secciones puede abrir una persona con rol
+          <span class="font-mono">agent</span> que ya pertenece a la mesa. Es
+          independiente del interruptor <span class="font-mono">Asignable</span>
+          de la tabla: ese controla si la mesa se puede elegir al crear o editar
+          un usuario, no qué ve ese usuario. Las reglas viven en el repositorio;
+          cambiarlas requiere deploy.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-start gap-3">
+        {ALLOWED_HELPDESK_NAMES.map((mesaName) => (
+          <div class="border-base-300 bg-base-200/40 rounded-lg border p-3 min-w-52">
+            <div class="font-mono mb-2 text-xs font-semibold">{mesaName}</div>
+            <ul class="text-base-content/70 space-y-1 text-xs">
+              {SECTION_LABELS.map((s) => {
+                // Dos capas apiladas: primero la mesa, después el rol. Se
+                // evalúan por separado para mostrar el motivo real del ✗.
+                const byMesa = isSectionVisibleSync(mesaName, "agent", s.href);
+                const byRol = hasPermission(s.href, "agent");
+                const visible = byMesa && byRol;
+                const reason = !byMesa ? "por mesa" : "por rol agent";
+                return (
+                  <li class="flex items-center gap-2">
+                    <span
+                      class:list={["badge badge-xs", visible ? "badge-success" : "badge-error"]}
+                    >
+                      {visible ? "✓" : "✗"}
+                    </span>
+                    {s.label}
+                    {!visible && (
+                      <span class="text-error/70 text-[10px] whitespace-nowrap">
+                        ({reason})
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div class="text-base-content/50 flex flex-wrap items-center gap-3 text-xs">
+        <span class="flex items-center gap-1">
+          <span class="badge badge-success badge-xs">✓</span> Visible
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="badge badge-error badge-xs">✗</span> No visible, tapado
+          por la mesa
+        </span>
+        <span class="flex items-center gap-1">
+          <span class="badge badge-error badge-xs">✗</span> No visible, tapado
+          por el rol agent
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <DataTable
+    id="mesas-table"
+    ariaLabel="Listado de mesas de ayuda"
+    headerGridClass={headerGridClass}
+    rowGridClass={rowGridClass}
+    emptyStateTitle="No hay mesas"
+    emptyStateDescription='Usá "Sincronizar desde InvGate" para traerlas.'
+  >
+    <div slot="header">
+      <DataTableHeaderCell sortKey="name">Nombre</DataTableHeaderCell>
+    </div>
+    <div slot="header">
+      <DataTableHeaderCell>InvGate ID</DataTableHeaderCell>
+    </div>
+    <div slot="header">
+      <DataTableHeaderCell>Usuarios</DataTableHeaderCell>
+    </div>
+    <div slot="header">
+      <DataTableHeaderCell>Asignable</DataTableHeaderCell>
+    </div>
+
+    {mesaList.map((m) => {
+      const isPrincipal = m.name === MDA_TI_HELPDESK;
+      const toggleDisabled = !canWrite || !m.active || isPrincipal;
+      const toggleChecked = isPrincipal ? true : m.assignable;
+      const toggleTitle = isPrincipal
+        ? "Mesa principal: siempre asignable"
+        : !m.active
+          ? "Mesa inactiva en InvGate"
+          : !canWrite
+            ? "Sin permiso de escritura"
+            : "Permitir elegir esta mesa al asignar usuarios";
+      return (
+        <article
+          data-table-row
+          data-sort-name={m.name}
+          class:list={[
+            rowGridClass,
+            "border-base-300 hover:bg-base-200/50 border-b px-4 py-3 transition-colors last:border-b-0",
+            !m.active && "opacity-50",
+          ]}
+        >
+          <div class="min-w-0">
+            <span class="inline-flex items-center gap-2 font-mono text-sm">
+              {m.name}
+              {!m.active && (
+                <span class="badge badge-warning badge-sm">Inactiva en InvGate</span>
+              )}
+            </span>
+          </div>
+          <div class="font-mono text-sm">{m.invgateId}</div>
+          <div>
+            <span
+              class:list={[
+                "badge badge-sm",
+                (mesaUserCount.get(m.id) ?? 0) > 0 ? "badge-success" : "badge-ghost",
+              ]}
+            >
+              {mesaUserCount.get(m.id) ?? 0}
+            </span>
+          </div>
+          <div>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-secondary"
+              data-assignable-toggle
+              data-invgate-id={m.invgateId}
+              data-mesa-name={m.name}
+              checked={toggleChecked}
+              disabled={toggleDisabled}
+              title={toggleTitle}
+              aria-label={`Asignable: ${m.name}`}
+            />
+          </div>
+        </article>
+      );
+    })}
+  </DataTable>
+</div>
+
+<script>
+  import { showToast } from "@lib/toastClient";
+  import { getCleanBase } from "@lib/baseUrl";
+
+  const root = document.getElementById("permisos-root");
+  if (root) {
+    async function postJson(url: string, body: unknown): Promise<any> {
+      const csrfToken = root!.getAttribute("data-csrf-token") || "";
+      let res: Response;
+      try {
+        res = await fetch(getCleanBase() + url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...(body as object), csrf_token: csrfToken }),
+        });
+      } catch {
+        throw new Error("Error de conexión. Verifica tu red e intenta nuevamente.");
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? `Error ${res.status}`);
+      return json;
+    }
+
+    async function syncMesas(): Promise<void> {
+      const out = await postJson("api/admin/permisos/mesas/sync", {});
+      const affected = Array.isArray(out?.affectedUsers) ? out.affectedUsers : [];
+      // El toast se pasa por query params (patron ToastContainer) para que
+      // sobreviva al reload que refresca la tabla de mesas: un showToast()
+      // seguido de reload jamas llega a verse.
+      const url = new URL(window.location.href);
+      if (affected.length > 0) {
+        url.searchParams.set(
+          "toast_msg",
+          `Mesas sincronizadas. ${affected.length} usuario(s) con mesa desactivada requieren reasignación en /admin/usuarios`,
+        );
+        url.searchParams.set("toast_type", "warning");
+      } else {
+        url.searchParams.set("toast_msg", "Mesas sincronizadas desde InvGate");
+        url.searchParams.set("toast_type", "success");
+      }
+      window.location.replace(url.toString());
+    }
+
+    document.getElementById("mesas-sync")?.addEventListener("click", async () => {
+      if (!confirm("¿Sincronizar mesas desde InvGate? Esta operación puede tardar varios segundos.")) {
+        return;
+      }
+      const btn = document.getElementById("mesas-sync") as HTMLButtonElement | null;
+      const label = btn?.querySelector(".sync-label") as HTMLSpanElement | null;
+      const spinner = btn?.querySelector(".loading-spinner") as HTMLSpanElement | null;
+      if (btn) btn.disabled = true;
+      label?.classList.add("hidden");
+      spinner?.classList.remove("hidden");
+      try {
+        await syncMesas();
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : "No se pudo contactar InvGate", "alert-error");
+      } finally {
+        if (btn) btn.disabled = false;
+        label?.classList.remove("hidden");
+        spinner?.classList.add("hidden");
+      }
+    });
+
+    // Toggle "Asignable" por mesa: actualiza sin recargar la página.
+    async function toggleAssignable(input: HTMLInputElement): Promise<void> {
+      const invgateId = Number(input.getAttribute("data-invgate-id"));
+      const mesaName = input.getAttribute("data-mesa-name") || "";
+      const target = input.checked;
+      input.disabled = true;
+      try {
+        const out = await postJson("api/admin/permisos/mesas/assignable", {
+          invgateId,
+          assignable: target,
+        });
+        const finalState =
+          typeof out?.assignable === "boolean" ? out.assignable : target;
+        input.checked = finalState;
+        showToast(
+          `${finalState ? "Habilitada" : "Deshabilitada"} la mesa "${mesaName}" para asignación`,
+          "alert-success",
+        );
+      } catch (err) {
+        // Revierte el estado optimista del checkbox ante cualquier fallo.
+        input.checked = !target;
+        showToast(
+          err instanceof Error ? err.message : "No se pudo actualizar la mesa",
+          "alert-error",
+        );
+      } finally {
+        input.disabled = false;
+      }
+    }
+
+    root.addEventListener("change", (e) => {
+      const el = e.target as HTMLElement | null;
+      if (!el || !el.matches("input[data-assignable-toggle]")) return;
+      void toggleAssignable(el as HTMLInputElement);
+    });
+  }
+</script>

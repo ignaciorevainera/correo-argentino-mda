@@ -86,6 +86,7 @@ test.describe("Participaciones de usuarios", () => {
           name: MDA_TI_MESA,
           displayName: null,
           active: true,
+          assignable: true,
           lastSyncedAt: new Date().toISOString(),
         })
         .onConflictDoNothing();

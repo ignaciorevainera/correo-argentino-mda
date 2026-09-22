@@ -70,9 +70,9 @@ const NO_PARTICIPATION: ParticipationFlags = {
 };
 
 // Mapeo rol -> flags de participacion (Fase 5). Roles conocidos: supervisor
-// no participa; team_leader/referent figuran en cronograma y cubics pero no
-// en calidad/AGS; agent/admin participan en todo. Cualquier rol desconocido
-// (o vacio) cae a todos-false (fail-closed, igual que mesas).
+// no participa; team_leader figura en cronograma y cubics pero no en
+// calidad/AGS; agent/admin/referent participan en todo. Cualquier rol
+// desconocido (o vacio) cae a todos-false (fail-closed, igual que mesas).
 export function participationFlagsForRole(role: string): ParticipationFlags {
   const cleaned = String(role ?? "")
     .toLowerCase()
@@ -93,7 +93,6 @@ export function participationFlagsForRole(role: string): ParticipationFlags {
     case "supervisor":
       return { ...NO_PARTICIPATION };
     case "team_leader":
-    case "referent":
       return {
         enCronograma: true,
         asignableCubic: true,
@@ -102,6 +101,7 @@ export function participationFlagsForRole(role: string): ParticipationFlags {
       };
     case "agent":
     case "admin":
+    case "referent":
       return {
         enCronograma: true,
         asignableCubic: true,

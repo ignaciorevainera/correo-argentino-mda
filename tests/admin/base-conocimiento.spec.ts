@@ -39,20 +39,18 @@ test.describe("Sección Base de conocimiento", () => {
     await db.delete(users).where(eq(users.id, adminId));
   });
 
-  test("página 200 con sidebar y empty-state por mesa", async ({ page }) => {
+  test("oculta del nav pero la página responde por URL directa", async ({ page }) => {
     await page.context().addCookies([
       { name: "session_id", value: adminCookie, domain: "localhost", path: "/" },
     ]);
     await page.goto("http://localhost:4321/base-conocimiento");
 
     await expect(page).toHaveTitle(/Base de conocimiento/);
-    // Sidebar: sección propia + link
+    // Oculta de la navegación (sidebar) — se mostrará cuando haya artículos
     await expect(
-      page
-        .locator("nav a[href='/base-conocimiento'], aside a[href='/base-conocimiento']")
-        .first(),
-    ).toBeVisible();
-    // Empty-state con mesa del usuario (sin mesa → fallback)
+      page.locator("nav a[href='/base-conocimiento'], aside a[href='/base-conocimiento']"),
+    ).toHaveCount(0);
+    // La ruta sigue viva por URL directa: empty-state con mesa del usuario
     await expect(page.locator("#base-conocimiento-root")).toContainText(
       "Contenido para Sin mesa de ayuda",
     );

@@ -237,8 +237,8 @@ Si la DB es vieja (era master), tras el align `users` queda sin mesa (`helpdesk_
   | Rol | cronograma | cubic | calidad | AGS |
   |---|---|---|---|---|
   | `supervisor` | ✗ | ✗ | ✗ | ✗ |
-  | `team_leader`, `referent` | ✓ | ✓ | ✗ | ✗ |
-  | `agent`, `admin` | ✓ | ✓ | ✓ | ✓ |
+  | `team_leader` | ✓ | ✓ | ✗ | ✗ |
+  | `agent`, `admin`, `referent` | ✓ | ✓ | ✓ | ✓ |
 
 - Idempotente y con backup. En dry-run pre-align muestra el preview (conteos) pero no escribe.
 - Asume que **todos** los usuarios pertenecen a MDA TI (caso actual). Si hubiera usuarios de otra mesa, revisar el reporte antes de aplicar.
@@ -248,6 +248,15 @@ Si la DB es vieja (era master), tras el align `users` queda sin mesa (`helpdesk_
 Los pasos 2-3 del script son no-op; igual conviene ejecutarlo una vez (detecta el estado) o correr directo `npx tsx scripts/align-db-to-schema.mts`. `--populate` sigue siendo útil si faltan mesas/asignaciones.
 
 > Nunca correr `--apply` sin revisar el dry-run. Si se dropea `agent_name` antes de vincular, los horarios huérfanos (`agent_id IS NULL`) no se pueden vincular y quedan invisibles para los lectores id-only (cronograma, asistencia, disponibilidad).
+
+### Mesa asignable (`mesas.assignable`)
+
+`align-db-to-schema.mts`/`db:push` agrega `mesas.assignable` (default `false`): tras la migración, ninguna mesa es elegible en el select de alta/edición de usuario salvo MDA TI (exenta por código). Correr una vez, tras el align:
+
+1. Dry-run: `npx tsx scripts/seed-assignable-mesas.mts`
+2. Aplicar: `npx tsx scripts/seed-assignable-mesas.mts --apply` (backup WAL-safe, idempotente; marca `true` las mesas de `ALLOWED_HELPDESK_NAMES`)
+
+Luego el admin cura el resto de mesas desde `/admin/usuarios/mesas-de-ayuda`. (Equivalente al paso de migración B2 de arriba; si la DB es vieja, correrlo junto con el `--populate`.)
 
 ---
 

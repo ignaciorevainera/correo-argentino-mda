@@ -8,11 +8,11 @@ import {
 } from "../../../src/lib/helpdeskAccess";
 
 describe("sección Base de conocimiento", () => {
-  it("está registrada en navSections con su item", () => {
+  it("está oculta de navSections (se retomará cuando haya artículos)", () => {
     const section = navSections.find((s) => s.id === "base-conocimiento");
-    expect(section).toBeDefined();
-    expect(section?.label).toBe("Base de conocimiento");
-    expect(section?.items.map((i) => i.href)).toContain("/base-conocimiento");
+    expect(section).toBeUndefined();
+    const hrefs = navSections.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).not.toContain("/base-conocimiento");
   });
 
   it("/base-conocimiento está whitelisteada para todos los roles (default-deny)", () => {

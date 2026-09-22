@@ -40,10 +40,7 @@ test.describe("Sin autoedición de usuario", () => {
     await db.delete(users).where(eq(users.id, adminId));
   });
 
-  test("update-user sobre sí mismo es rechazado y no altera el usuario", async ({
-    page,
-  }) => {
-    // Host-agnostico: deriva dominio y URL del baseURL del proyecto.
+  test("UI deshabilita los botones de la fila propia", async ({ page }) => {
     const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await page.context().addCookies([
       {
@@ -55,31 +52,55 @@ test.describe("Sin autoedición de usuario", () => {
     ]);
     await page.goto("/admin/usuarios");
 
-    const btn = page.locator(
+    const editBtn = page.locator(
       `[data-edit-user-btn][data-user-id="${adminId}"]`,
     );
-    await btn.click();
-    await expect(page.locator(`#modal-edit-user-${adminId}`)).toBeVisible();
-    await page.locator(`#edit-user-role-${adminId}`).selectOption("agent");
-    // El admin sembrado por DB no tiene fila agents: el input nombre queda
-    // vacio y el `required` frenaria el submit. Se completa para que el POST
-    // llegue al server y el bloqueo de autoedicion responda el 400.
-    await page.locator(`#edit-user-name-${adminId}`).fill("Admin Self");
-    // AsyncFormScript bindea también los forms de islas server:defer: el
-    // submit es AJAX (Accept: application/json) y el error viaja en el JSON.
-    // Los invariantes son: el error se muestra y el rol en DB sigue siendo
-    // admin.
-    const [response] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().includes("/admin/usuarios") && r.request().method() === "POST",
-      ),
-      page.locator(`#modal-edit-user-${adminId} button[type='submit']`).click(),
+    await expect(editBtn).toBeDisabled();
+    await expect(editBtn).toHaveClass(/btn-disabled/);
+    // Las filas de otros usuarios siguen editables (no es una tabla vacía).
+    await expect(
+      page.locator("[data-edit-user-btn]:not([disabled])").first(),
+    ).toBeAttached();
+
+    // El modal propio no se abre: el click nativo en un <button> disabled no
+    // dispara el onclick.
+    await editBtn.click({ force: true });
+    await expect(
+      page.locator(`#modal-edit-user-${adminId}`),
+    ).not.toBeVisible();
+  });
+
+  test("update-user sobre sí mismo es rechazado y no altera el usuario", async ({
+    page,
+  }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await page.context().addCookies([
+      {
+        name: "session_id",
+        value: adminCookie,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
     ]);
-    expect(response.headers()["content-type"]).toContain("application/json");
-    await expect(page.locator("#global-toast-container")).toContainText(
-      "No podés editar tu propio usuario",
-      { timeout: 10000 },
-    );
+    await page.goto("/admin/usuarios");
+
+    // El botón de la UI ya está deshabilitado, así que el contrato server se
+    // cubre con el POST directo (Accept: application/json = misma vía AJAX
+    // que usa AsyncFormScript).
+    const response = await page.request.post("/admin/usuarios", {
+      headers: { Accept: "application/json" },
+      form: {
+        action: "update-user",
+        userId: String(adminId),
+        role: "agent",
+        username: `admin_selftest_${adminId}`,
+        name: "Admin Self",
+      },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toContain("No podés editar tu propio usuario");
 
     const [row] = await db
       .select({ role: users.role })

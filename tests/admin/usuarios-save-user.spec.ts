@@ -58,6 +58,7 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
             name: d.name,
             displayName: null,
             active: true,
+            assignable: true,
             lastSyncedAt: new Date().toISOString(),
           })
           .onConflictDoNothing();

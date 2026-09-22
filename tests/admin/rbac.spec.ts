@@ -42,6 +42,7 @@ test.beforeAll(async () => {
         name: mesaName,
         displayName: null,
         active: true,
+        assignable: true,
         lastSyncedAt: new Date().toISOString(),
       })
       .onConflictDoNothing();

@@ -6,7 +6,7 @@ import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { isValidRole, normalizeRole } from "@lib/rbac";
-import { mesaHasParticipaciones } from "@lib/helpdeskAccess";
+import { mesaHasParticipaciones, MDA_TI_HELPDESK } from "@lib/helpdeskAccess";
 import AdminUsersContent from "@components/admin/users/AdminUsersContent.astro";
 import AdminUsersSkeleton from "@components/admin/users/AdminUsersSkeleton.astro";
 
@@ -68,8 +68,20 @@ if (Astro.request.method === "POST") {
     } else {
       const [row] = await db.select().from(mesas).where(eq(mesas.invgateId, helpdeskId));
       mesaRow = row;
-      if (!mesaRow || !mesaRow.active) {
-        errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
+      if (
+        !mesaRow ||
+        !mesaRow.active ||
+        (!mesaRow.assignable && mesaRow.name !== MDA_TI_HELPDESK)
+      ) {
+        errorMsg = "La mesa de ayuda seleccionada no existe o no está habilitada.";
+      } else if (
+        normalizeRole(role) === "admin" &&
+        mesaRow.name !== MDA_TI_HELPDESK
+      ) {
+        // El rol admin es un rol adicional solo de MDA TI: ninguna otra mesa
+        // (Coordinación ni futuras) puede tener administradores.
+        errorMsg =
+          "El rol administrador solo puede asignarse a la mesa MDA TI.";
       } else {
         // Nombre canónico desde DB, nunca del cliente.
         helpdeskName = mesaRow.name;
@@ -221,12 +233,25 @@ if (Astro.request.method === "POST") {
           let mesaName: string | null = null;
           if (helpdeskId != null) {
             const mesa = tx
-              .select({ name: mesas.name, active: mesas.active })
+              .select({ name: mesas.name, active: mesas.active, assignable: mesas.assignable })
               .from(mesas)
               .where(eq(mesas.invgateId, helpdeskId))
               .get();
-            if (!mesa || !mesa.active) {
-              errorMsg = "La mesa de ayuda seleccionada no existe o está inactiva.";
+            if (
+              !mesa ||
+              !mesa.active ||
+              (!mesa.assignable && mesa.name !== MDA_TI_HELPDESK)
+            ) {
+              errorMsg = "La mesa de ayuda seleccionada no existe o no está habilitada.";
+              return;
+            }
+            if (
+              normalizeRole(newRole) === "admin" &&
+              mesa.name !== MDA_TI_HELPDESK
+            ) {
+              // El rol admin es un rol adicional solo de MDA TI.
+              errorMsg =
+                "El rol administrador solo puede asignarse a la mesa MDA TI.";
               return;
             }
             mesaName = mesa.name;

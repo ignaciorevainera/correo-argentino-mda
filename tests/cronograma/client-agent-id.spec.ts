@@ -75,6 +75,7 @@ test.describe("el cliente manda agentId", () => {
         name: MDA,
         displayName: null,
         active: true,
+        assignable: true,
         lastSyncedAt: new Date().toISOString(),
       })
       .onConflictDoNothing();

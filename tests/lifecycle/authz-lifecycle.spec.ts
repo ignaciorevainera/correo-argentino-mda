@@ -113,7 +113,7 @@ const ROUTES = {
   cubics_create: "/inventario-terminales/cubics/create",
   admin_root: "/admin",
   admin_usuarios: "/admin/usuarios",
-  admin_permisos: "/admin/permisos",
+  admin_mesas_ayuda: "/admin/usuarios/mesas-de-ayuda",
   admin_auditoria: "/admin/auditoria",
   admin_feedback: "/admin/feedback",
 } as const;
@@ -144,7 +144,7 @@ function expectedAllowed(role: RoleKey, mesa: MesaKey, key: RouteKey): boolean {
     case "admin_root":
       return superior; // rbac: admin/supervisor/team_leader
     case "admin_usuarios":
-    case "admin_permisos":
+    case "admin_mesas_ayuda":
     case "admin_auditoria":
     case "admin_feedback":
       return false; // rbac: admin only
@@ -394,6 +394,20 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
         expect(status, `admin GET ${ROUTES[key]}`).toBe(200);
       }
     }
+  });
+
+  test("legacy /admin/permisos: admin redirige 302 a la nueva ruta; no-admin bloqueado", async () => {
+    const adm = await getStatus(adminCookie, "/admin/permisos");
+    expect([301, 302, 303, 307, 308]).toContain(adm.status);
+    expect(adm.location ?? "").toContain("/admin/usuarios/mesas-de-ayuda");
+
+    const agent = matrix["agent|mda"];
+    const denied = await getStatus(agent.cookie, "/admin/permisos");
+    const is3xx = denied.status >= 300 && denied.status < 400;
+    const blocked = is3xx
+      ? (denied.location ?? "").includes("toast_msg")
+      : denied.status === 401 || denied.status === 403;
+    expect(blocked).toBe(true);
   });
 
   // -------- Fail-closed mesa inactiva ---------------------------------------

@@ -23,7 +23,7 @@ test.describe("lectores de schedules por agentId", () => {
   test.beforeAll(async () => {
     await db
       .insert(mesas)
-      .values({ invgateId: 910010, name: MDA, displayName: null, active: true, lastSyncedAt: new Date().toISOString() })
+      .values({ invgateId: 910010, name: MDA, displayName: null, active: true, assignable: true, lastSyncedAt: new Date().toISOString() })
       .onConflictDoNothing();
     const [mda] = await db.select({ invgateId: mesas.invgateId }).from(mesas).where(eq(mesas.name, MDA));
 
