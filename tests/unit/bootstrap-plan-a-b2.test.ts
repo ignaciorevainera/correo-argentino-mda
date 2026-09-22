@@ -7,12 +7,22 @@ import Database from "better-sqlite3";
 import { mkdtempSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { runBootstrap } from "../../scripts/bootstrap-plan-a-b2.mts";
+import {
+  runBootstrap,
+  participationFlagsForRole,
+} from "../../scripts/bootstrap-plan-a-b2.mts";
 
+// DDL pre-Plan-A. Las columnas align-only que la Fase 5 necesita
+// (users.helpdesk_id/helpdesk_name, agents flags) existen ya para poder
+// ejercitar el populate con skipAlign: true. agents.user_id NO esta: la
+// agrega la Fase 1 en --apply (y se agrega a mano en los seeds de populate).
 const DDL = `
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL
+  username TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'agent',
+  helpdesk_id INTEGER,
+  helpdesk_name TEXT
 );
 CREATE TABLE agents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +30,11 @@ CREATE TABLE agents (
   username TEXT,
   avatar_initials TEXT,
   location TEXT NOT NULL DEFAULT 'Monte Grande',
-  horario_default TEXT NOT NULL DEFAULT ''
+  horario_default TEXT NOT NULL DEFAULT '',
+  en_cronograma INTEGER NOT NULL DEFAULT 0,
+  asignable_cubic INTEGER NOT NULL DEFAULT 0,
+  incluido_calidad INTEGER NOT NULL DEFAULT 0,
+  asignable_ags INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,8 +44,8 @@ CREATE TABLE schedules (
 );
 CREATE TABLE mesas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  invgate_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
+  invgate_id INTEGER NOT NULL UNIQUE,
+  name TEXT NOT NULL UNIQUE,
   display_name TEXT,
   active INTEGER NOT NULL DEFAULT 1,
   last_synced_at TEXT NOT NULL
@@ -403,5 +417,210 @@ describe("runBootstrap", () => {
     expect(report.alignRan).toBe(false);
     expect(columnNames("agents", postB2)).toContain("user_id");
     expect(columnNames("schedules", postB2)).toContain("agent_id");
+  });
+});
+
+const MESAS_FETCH = [
+  { invgateId: 999, name: "TI_GSM_MDA TI", displayName: null },
+  { invgateId: 1, name: "Otra", displayName: null },
+];
+const fetchMesasOk = async () => MESAS_FETCH;
+
+// Seed POST-align para Fase 5: agrega agents.user_id (normalmente lo hace la
+// Fase 1), un user por rol y su agente vinculado. El superuser se linkea por
+// user_id; team_leader/referent prueban el mapeo de flags.
+function seedRoles(): void {
+  exec("ALTER TABLE agents ADD COLUMN user_id INTEGER");
+  exec(`
+    INSERT INTO users (id, username, role) VALUES
+      (10, 'sup1', 'supervisor'),
+      (11, 'lead1', 'team_leader'),
+      (12, 'ref1', 'referent'),
+      (13, 'ag1', 'agent'),
+      (14, 'adm1', 'admin');
+    INSERT INTO agents (id, name, username, user_id) VALUES
+      (10, 'Sup Uno', 'sup1', 10),
+      (11, 'Lead Uno', 'lead1', 11),
+      (12, 'Ref Uno', 'ref1', 12),
+      (13, 'Ag Uno', 'ag1', 13),
+      (14, 'Adm Uno', 'adm1', 14);
+  `);
+}
+
+describe("participationFlagsForRole", () => {
+  it("mapea los 5 roles y cae a false para desconocidos", () => {
+    expect(participationFlagsForRole("supervisor")).toEqual({
+      enCronograma: false,
+      asignableCubic: false,
+      incluidoCalidad: false,
+      asignableAgs: false,
+    });
+    const lead = {
+      enCronograma: true,
+      asignableCubic: true,
+      incluidoCalidad: false,
+      asignableAgs: false,
+    };
+    expect(participationFlagsForRole("team_leader")).toEqual(lead);
+    expect(participationFlagsForRole("referent")).toEqual(lead);
+    const all = {
+      enCronograma: true,
+      asignableCubic: true,
+      incluidoCalidad: true,
+      asignableAgs: true,
+    };
+    expect(participationFlagsForRole("agent")).toEqual(all);
+    expect(participationFlagsForRole("admin")).toEqual(all);
+
+    for (const unknown of ["", "unknown", "ROOT", "   ", null as unknown as string]) {
+      expect(participationFlagsForRole(unknown)).toEqual({
+        enCronograma: false,
+        asignableCubic: false,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      });
+    }
+  });
+});
+
+describe("runBootstrap --populate (Fase 5)", () => {
+  it("dry-run: no escribe y reporta planned counts + mdaTi", async () => {
+    const report = await runBootstrap({
+      dbPath,
+      apply: false,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(report.mdaTiInvgateId).toBe(999);
+    expect(report.mesasSynced).toEqual({ added: 2, updated: 0 });
+    expect(report.usersAssignedToMesa).toBe(3); // users 1,2,3
+    expect(report.agentsFlagsUpdated).toBe(2); // Juan, Maria (agent)
+    expect(report.phases.populate).toContain("dry-run");
+
+    // No escribio nada.
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(0);
+    expect(
+      rows<{ c: number }>("SELECT COUNT(*) c FROM users WHERE helpdesk_id IS NOT NULL")[0].c,
+    ).toBe(0);
+    expect(
+      rows<{ c: number }>(
+        "SELECT COUNT(*) c FROM agents WHERE en_cronograma = 1 OR asignable_cubic = 1 OR incluido_calidad = 1 OR asignable_ags = 1",
+      )[0].c,
+    ).toBe(0);
+  });
+
+  it("apply: upsertea mesas, asigna users a MDA TI y setea flags por rol", async () => {
+    seedRoles();
+
+    const report = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(report.mdaTiInvgateId).toBe(999);
+    expect(report.mesasSynced).toEqual({ added: 2, updated: 0 });
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(2);
+    expect(
+      rows<{ c: number }>(
+        "SELECT COUNT(*) c FROM users WHERE helpdesk_id = 999 AND helpdesk_name = 'TI_GSM_MDA TI'",
+      )[0].c,
+    ).toBe(8); // users 1,2,3 + 10..14
+    expect(report.usersAssignedToMesa).toBe(8);
+
+    const flags = (name: string): number[] => {
+      const r = rows<{
+        en_cronograma: number;
+        asignable_cubic: number;
+        incluido_calidad: number;
+        asignable_ags: number;
+      }>(
+        `SELECT en_cronograma, asignable_cubic, incluido_calidad, asignable_ags FROM agents WHERE name = '${name}'`,
+      )[0];
+      return [r.en_cronograma, r.asignable_cubic, r.incluido_calidad, r.asignable_ags];
+    };
+
+    expect(flags("Sup Uno")).toEqual([0, 0, 0, 0]);
+    expect(flags("Lead Uno")).toEqual([1, 1, 0, 0]);
+    expect(flags("Ref Uno")).toEqual([1, 1, 0, 0]);
+    expect(flags("Ag Uno")).toEqual([1, 1, 1, 1]);
+    expect(flags("Adm Uno")).toEqual([1, 1, 1, 1]);
+    expect(flags("Juan Perez")).toEqual([1, 1, 1, 1]);
+  });
+
+  it("idempotente: segundo apply --populate no reasigna ni cambia flags", async () => {
+    seedRoles();
+    await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+    const second = await runBootstrap({
+      dbPath,
+      apply: true,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: fetchMesasOk,
+    });
+
+    expect(second.usersAssignedToMesa).toBe(0);
+    expect(second.agentsFlagsUpdated).toBe(0);
+    expect(second.mesasSynced).toEqual({ added: 0, updated: 2 });
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(2);
+  });
+
+  it("fetch falla en --apply --populate: rechaza y DB intacta", async () => {
+    await expect(
+      runBootstrap({
+        dbPath,
+        apply: true,
+        skipAlign: true,
+        populate: true,
+        fetchMesas: async () => {
+          throw new Error("boom-red");
+        },
+      }),
+    ).rejects.toThrow(/boom-red/);
+
+    // El fetch corre antes de escribir: nada se tocó.
+    expect(rows<{ c: number }>("SELECT COUNT(*) c FROM mesas")[0].c).toBe(0);
+    expect(
+      rows<{ c: number }>("SELECT COUNT(*) c FROM users WHERE helpdesk_id IS NOT NULL")[0].c,
+    ).toBe(0);
+    expect(columnNames("schedules")).not.toContain("agent_id");
+  });
+
+  it("fetch falla en dry-run: reporta error, no crash", async () => {
+    const report = await runBootstrap({
+      dbPath,
+      apply: false,
+      skipAlign: true,
+      populate: true,
+      fetchMesas: async () => {
+        throw new Error("boom-red");
+      },
+    });
+    expect(report.phases.populate).toContain("error en fetch de mesas");
+    expect(report.phases.populate).toContain("boom-red");
+  });
+
+  it("MDA TI ausente en --apply --populate: rechaza con mensaje claro", async () => {
+    await expect(
+      runBootstrap({
+        dbPath,
+        apply: true,
+        skipAlign: true,
+        populate: true,
+        fetchMesas: async () => [
+          { invgateId: 1, name: "Otra", displayName: null },
+        ],
+      }),
+    ).rejects.toThrow(/no se encontró la mesa TI_GSM_MDA TI en InvGate/);
   });
 });

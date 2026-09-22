@@ -19,11 +19,21 @@
 //       chequea huerfanos de FK si la tabla padre (mesas) ya existia en el
 //       snapshot previo al rebuild. Por eso garantizamos mesas + prune aca.
 //   4. Align final: subproceso scripts/align-db-to-schema.mts (solo --apply).
+//   5. Populate (solo con --populate, corre DESPUES del align): trae las mesas
+//      de InvGate y las upsertea en mesas; asigna todos los users sin mesa a
+//      MDA TI (helpdesk_id/helpdesk_name, requeridos por resolveSessionMesa);
+//      y setea los 4 flags de participacion de agents segun el rol del user
+//      vinculado (agents.user_id, fallback username). Sin esto la DB queda
+//      "sin mesa" (fail-closed) y GET /api/cronograma filtra 0 operadores.
+//      Requiere env INVGATE_API_KEY / INVGATE_BASE_URL / INVGATE_API_USERNAME
+//      (carga dotenv). Usa fetchInvGateMesas() y hace el upsert con la conexion
+//      propia del script (NUNCA syncMesas(): escribe la DB por defecto).
 //
 // Dry-run por defecto. --apply hace backup WAL-safe y escribe en UNA
-// transaccion sincrona, luego corre la Fase 4 (que tiene su propio backup).
-// Nunca borra filas ni agentes (el saneo de hidden_helpdesks es la unica
-// excepcion: solo elimina filas huerfanas sin padre posible).
+// transaccion sincrona, luego corre la Fase 4 (que tiene su propio backup) y
+// la Fase 5 (--populate). Nunca borra filas ni agentes (el saneo de
+// hidden_helpdesks es la unica excepcion: solo elimina filas huerfanas sin
+// padre posible).
 import Database from "better-sqlite3";
 import { execSync } from "child_process";
 import { existsSync } from "fs";
@@ -32,12 +42,76 @@ import {
   buildNameToAgentId,
   resolveAgentIdByName,
 } from "../src/lib/scheduleLinks";
+import { normalizeRole } from "../src/lib/rbac";
+import { MDA_TI_HELPDESK } from "../src/lib/helpdeskAccess";
 
 export type BootstrapOptions = {
   dbPath: string;
   apply: boolean;
   skipAlign?: boolean;
+  populate?: boolean;
+  fetchMesas?: () => Promise<
+    Array<{ invgateId: number; name: string; displayName: string | null }>
+  >;
 };
+
+export type ParticipationFlags = {
+  enCronograma: boolean;
+  asignableCubic: boolean;
+  incluidoCalidad: boolean;
+  asignableAgs: boolean;
+};
+
+const NO_PARTICIPATION: ParticipationFlags = {
+  enCronograma: false,
+  asignableCubic: false,
+  incluidoCalidad: false,
+  asignableAgs: false,
+};
+
+// Mapeo rol -> flags de participacion (Fase 5). Roles conocidos: supervisor
+// no participa; team_leader/referent figuran en cronograma y cubics pero no
+// en calidad/AGS; agent/admin participan en todo. Cualquier rol desconocido
+// (o vacio) cae a todos-false (fail-closed, igual que mesas).
+export function participationFlagsForRole(role: string): ParticipationFlags {
+  const cleaned = String(role ?? "")
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const known = new Set([
+    "admin",
+    "supervisor",
+    "team leader",
+    "referent",
+    "referente",
+    "agent",
+  ]);
+  if (!known.has(cleaned)) return { ...NO_PARTICIPATION };
+
+  switch (normalizeRole(role)) {
+    case "supervisor":
+      return { ...NO_PARTICIPATION };
+    case "team_leader":
+    case "referent":
+      return {
+        enCronograma: true,
+        asignableCubic: true,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      };
+    case "agent":
+    case "admin":
+      return {
+        enCronograma: true,
+        asignableCubic: true,
+        incluidoCalidad: true,
+        asignableAgs: true,
+      };
+    default:
+      return { ...NO_PARTICIPATION };
+  }
+}
 
 export type BootstrapReport = {
   phases: {
@@ -47,6 +121,7 @@ export type BootstrapReport = {
     orphans: string;
     saneo: string;
     align: string;
+    populate: string;
   };
   columnsAdded: string[];
   agentsLinked: number;
@@ -58,6 +133,10 @@ export type BootstrapReport = {
   shellsCreated: number;
   rowsLinkedToShells: number;
   hiddenHelpdesksPruned: number;
+  mesasSynced: { added: number; updated: number };
+  mdaTiInvgateId: number | null;
+  usersAssignedToMesa: number;
+  agentsFlagsUpdated: number;
   backupPath: string | null;
   alignRan: boolean;
 };
@@ -136,10 +215,197 @@ function buildShellInsertDef(db: Database.Database): {
   return { sql, extras };
 }
 
+type MesaFetched = {
+  invgateId: number;
+  name: string;
+  displayName?: string | null;
+};
+
+// Fase 5 — populate (idempotente). Detecta columnas/tabla directamente (no
+// asume que el align corrio): si faltan, se omite con mensaje explicito.
+// Toda la escritura va en UNA transaccion sincrona; el fetch de mesas ya
+// ocurrio ANTES (en runBootstrap). Nunca llama a syncMesas().
+function phase5Populate(
+  db: Database.Database,
+  apply: boolean,
+  report: BootstrapReport,
+  mesasList: MesaFetched[] | null,
+  fetchError: string | null,
+): void {
+  const mesasExists = tableExists(db, "mesas");
+  const userCols = new Set(tableInfo(db, "users").map((c) => c.name));
+  const agentCols = new Set(tableInfo(db, "agents").map((c) => c.name));
+  const flagCols = [
+    "en_cronograma",
+    "asignable_cubic",
+    "incluido_calidad",
+    "asignable_ags",
+  ];
+  const hasUserMesa =
+    userCols.has("helpdesk_id") && userCols.has("helpdesk_name");
+  const hasFlags = flagCols.every((c) => agentCols.has(c));
+
+  if (!mesasExists || !hasUserMesa || !hasFlags) {
+    report.phases.populate = "omitido (requiere align)";
+    return;
+  }
+  if (fetchError) {
+    report.phases.populate = `error en fetch de mesas: ${fetchError}`;
+    return;
+  }
+  if (!mesasList) {
+    report.phases.populate = "omitido (sin datos de mesas)";
+    return;
+  }
+
+  // Dedupe por invgateId: la lista llega a una columna UNIQUE.
+  const seen = new Set<number>();
+  const list = mesasList.filter((m) => {
+    if (seen.has(m.invgateId)) return false;
+    seen.add(m.invgateId);
+    return true;
+  });
+
+  const existingIds = new Set<number>(
+    (db.prepare("SELECT invgate_id FROM mesas").all() as Array<{
+      invgate_id: number;
+    }>).map((r) => r.invgate_id),
+  );
+  let added = 0;
+  let updated = 0;
+  for (const m of list) {
+    if (existingIds.has(m.invgateId)) updated++;
+    else added++;
+  }
+
+  // Resolver MDA TI: la fila local (si el upsert ya corrio) o, en dry-run,
+  // la recien traida de InvGate.
+  let mdaTiInvgateId: number | null = null;
+  const localRow = db
+    .prepare("SELECT invgate_id FROM mesas WHERE name = ? AND active = 1")
+    .get(MDA_TI_HELPDESK) as { invgate_id: number } | undefined;
+  if (localRow) mdaTiInvgateId = localRow.invgate_id;
+  if (mdaTiInvgateId == null) {
+    const fetchedRow = list.find((m) => m.name === MDA_TI_HELPDESK);
+    if (fetchedRow) mdaTiInvgateId = fetchedRow.invgateId;
+  }
+  if (mdaTiInvgateId == null) {
+    report.mesasSynced = { added, updated };
+    report.mdaTiInvgateId = null;
+    if (apply) {
+      throw new Error(`no se encontró la mesa ${MDA_TI_HELPDESK} en InvGate`);
+    }
+    report.phases.populate = `mesa "${MDA_TI_HELPDESK}" ausente en InvGate (dry-run)`;
+    return;
+  }
+
+  const userWhere =
+    "helpdesk_id IS NULL OR helpdesk_id <> ? OR helpdesk_name IS NULL OR helpdesk_name <> ?";
+
+  const userRows = db
+    .prepare("SELECT id, username, role FROM users")
+    .all() as Array<{ id: number; username: string; role: string }>;
+  const roleById = new Map(userRows.map((u) => [u.id, u.role]));
+  const roleByUsername = new Map(
+    userRows.map((u) => [String(u.username ?? "").toLowerCase(), u.role]),
+  );
+
+  const hasUserLink = agentCols.has("user_id");
+  const agents = db
+    .prepare(
+      `SELECT id, username, ${hasUserLink ? "user_id" : "NULL AS user_id"}, ` +
+        "en_cronograma, asignable_cubic, incluido_calidad, asignable_ags FROM agents",
+    )
+    .all() as Array<{
+    id: number;
+    username: string | null;
+    user_id: number | null;
+    en_cronograma: number;
+    asignable_cubic: number;
+    incluido_calidad: number;
+    asignable_ags: number;
+  }>;
+
+  const flagPlan: Array<{ id: number; target: number[] }> = [];
+  for (const agent of agents) {
+    let role: string | null = null;
+    if (agent.user_id != null) role = roleById.get(agent.user_id) ?? null;
+    if (role == null && agent.username) {
+      role = roleByUsername.get(String(agent.username).toLowerCase()) ?? null;
+    }
+    const flags = participationFlagsForRole(role ?? "");
+    const target = [
+      flags.enCronograma ? 1 : 0,
+      flags.asignableCubic ? 1 : 0,
+      flags.incluidoCalidad ? 1 : 0,
+      flags.asignableAgs ? 1 : 0,
+    ];
+    const current = [
+      agent.en_cronograma ? 1 : 0,
+      agent.asignable_cubic ? 1 : 0,
+      agent.incluido_calidad ? 1 : 0,
+      agent.asignable_ags ? 1 : 0,
+    ];
+    if (target.some((v, i) => v !== current[i])) {
+      flagPlan.push({ id: agent.id, target });
+    }
+  }
+
+  report.mesasSynced = { added, updated };
+  report.mdaTiInvgateId = mdaTiInvgateId;
+  report.agentsFlagsUpdated = flagPlan.length;
+
+  if (!apply) {
+    report.usersAssignedToMesa = (
+      db
+        .prepare(`SELECT COUNT(*) c FROM users WHERE ${userWhere}`)
+        .get(mdaTiInvgateId, MDA_TI_HELPDESK) as { c: number }
+    ).c;
+    report.phases.populate =
+      `dry-run: ${added} mesas nuevas, ${updated} actualizadas, ` +
+      `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags`;
+    return;
+  }
+
+  const tx = db.transaction(() => {
+    const now = new Date().toISOString();
+    const upsert = db.prepare(
+      "INSERT INTO mesas (invgate_id, name, display_name, active, last_synced_at) " +
+        "VALUES (?, ?, ?, 1, ?) " +
+        "ON CONFLICT(invgate_id) DO UPDATE SET " +
+        "name = excluded.name, display_name = excluded.display_name, " +
+        "active = 1, last_synced_at = excluded.last_synced_at",
+    );
+    for (const m of list) {
+      upsert.run(m.invgateId, m.name, m.displayName ?? null, now);
+    }
+
+    const assigned = db
+      .prepare(
+        `UPDATE users SET helpdesk_id = ?, helpdesk_name = ? WHERE ${userWhere}`,
+      )
+      .run(mdaTiInvgateId, MDA_TI_HELPDESK, mdaTiInvgateId, MDA_TI_HELPDESK);
+    report.usersAssignedToMesa = assigned.changes;
+
+    const upd = db.prepare(
+      "UPDATE agents SET en_cronograma = ?, asignable_cubic = ?, " +
+        "incluido_calidad = ?, asignable_ags = ? WHERE id = ?",
+    );
+    for (const p of flagPlan) {
+      upd.run(p.target[0], p.target[1], p.target[2], p.target[3], p.id);
+    }
+  });
+  tx();
+
+  report.phases.populate =
+    `${added} mesas nuevas, ${updated} actualizadas, ` +
+    `${report.usersAssignedToMesa} users -> mesa, ${flagPlan.length} agents flags`;
+}
+
 export async function runBootstrap(
   options: BootstrapOptions,
 ): Promise<BootstrapReport> {
-  const { dbPath, apply, skipAlign = false } = options;
+  const { dbPath, apply, skipAlign = false, populate = false } = options;
   if (!existsSync(dbPath)) {
     throw new Error(`No existe la DB: ${dbPath}`);
   }
@@ -320,6 +586,7 @@ export async function runBootstrap(
         orphans: `${shellNames.length} shells, ${rowsLinkedToShells} filas`,
         saneo: saneoPlan,
         align: skipAlign ? "omitido (skipAlign)" : "pendiente (fase 4)",
+        populate: populate ? "pendiente (fase 5)" : "omitido (sin --populate)",
       },
       columnsAdded,
       agentsLinked: agentLinks.length,
@@ -331,9 +598,38 @@ export async function runBootstrap(
       shellsCreated: shellNames.length,
       rowsLinkedToShells,
       hiddenHelpdesksPruned: hiddenOrphans,
+      mesasSynced: { added: 0, updated: 0 },
+      mdaTiInvgateId: null,
+      usersAssignedToMesa: 0,
+      agentsFlagsUpdated: 0,
       backupPath: null,
       alignRan: false,
     };
+
+    // ── Fase 5 — fetch de mesas (antes de cualquier escritura) ───────────────
+    // Se trae antes del apply para que un fallo de red/env aborte el --apply
+    // sin haber escrito nada (la DB queda intacta). El upsert/assign real
+    // corre despues del align. Con fetchMesas inyectado (tests) no se importa
+    // dotenv ni mesaSync (que abriria la DB por defecto).
+    let mesasList: MesaFetched[] | null = null;
+    let mesasFetchError: string | null = null;
+    if (populate) {
+      try {
+        if (options.fetchMesas) {
+          mesasList = await options.fetchMesas();
+        } else {
+          await import("dotenv/config");
+          const { fetchInvGateMesas } = await import(
+            "../src/lib/permissions/mesaSync"
+          );
+          mesasList = await fetchInvGateMesas();
+        }
+      } catch (error) {
+        mesasFetchError =
+          error instanceof Error ? error.message : String(error);
+        if (apply) throw error;
+      }
+    }
 
     const hasWork =
       columnsAdded.length > 0 ||
@@ -345,6 +641,11 @@ export async function runBootstrap(
       report.phases.align = skipAlign
         ? "omitido (skipAlign)"
         : "pendiente: correr align-db-to-schema tras --apply";
+      if (populate) {
+        phase5Populate(db, false, report, mesasList, mesasFetchError);
+      } else {
+        report.phases.populate = "omitido (sin --populate)";
+      }
       return report;
     }
 
@@ -445,12 +746,19 @@ export async function runBootstrap(
     // ── Fase 4 — align final ────────────────────────────────────────────────
     if (skipAlign) {
       report.phases.align = "omitido (skipAlign)";
-      return report;
+    } else {
+      const cmd = `npx tsx scripts/align-db-to-schema.mts "${dbPath}"`;
+      execSync(cmd, { cwd: process.cwd(), stdio: "inherit" });
+      report.alignRan = true;
+      report.phases.align = "ejecutado (align-db-to-schema)";
     }
-    const cmd = `npx tsx scripts/align-db-to-schema.mts "${dbPath}"`;
-    execSync(cmd, { cwd: process.cwd(), stdio: "inherit" });
-    report.alignRan = true;
-    report.phases.align = "ejecutado (align-db-to-schema)";
+
+    // ── Fase 5 — populate (corre DESPUES del align) ─────────────────────────
+    if (populate) {
+      phase5Populate(db, apply, report, mesasList, mesasFetchError);
+    } else {
+      report.phases.populate = "omitido (sin --populate)";
+    }
     return report;
   } finally {
     db.close();
@@ -461,13 +769,14 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const apply = args.includes("--apply");
   const skipAlign = args.includes("--no-align");
+  const populate = args.includes("--populate");
   const dbFlagIndex = args.indexOf("--db");
   const dbPath =
     dbFlagIndex !== -1 && args[dbFlagIndex + 1]
       ? args[dbFlagIndex + 1]
       : join(process.cwd(), "database", "mda.db");
 
-  const report = await runBootstrap({ dbPath, apply, skipAlign });
+  const report = await runBootstrap({ dbPath, apply, skipAlign, populate });
 
   console.log(
     `\nbootstrap-plan-a-b2 — ${apply ? "APPLY" : "DRY-RUN"}`,
@@ -480,6 +789,7 @@ async function main(): Promise<void> {
   console.log(`  3 huerfanos   : ${report.phases.orphans}`);
   console.log(`  saneo         : ${report.phases.saneo}`);
   console.log(`  4 align       : ${report.phases.align}`);
+  console.log(`  5 populate    : ${report.phases.populate}`);
 
   if (report.columnsAdded.length > 0) {
     console.log("\nColumnas/indices planificados:");
@@ -493,6 +803,18 @@ async function main(): Promise<void> {
   console.log(
     `hidden_helpdesks ${apply ? "saneadas" : "a sanear (dry-run)"} : ${report.hiddenHelpdesksPruned}`,
   );
+  if (populate) {
+    console.log(
+      `mesas InvGate          : ${report.mesasSynced.added} nuevas, ${report.mesasSynced.updated} actualizadas`,
+    );
+    console.log(`MDA TI invgate_id       : ${report.mdaTiInvgateId ?? "(ausente)"}`);
+    console.log(
+      `users -> mesa           : ${report.usersAssignedToMesa} ${apply ? "asignados" : "a asignar (dry-run)"}`,
+    );
+    console.log(
+      `agents flags            : ${report.agentsFlagsUpdated} ${apply ? "actualizados" : "a actualizar (dry-run)"}`,
+    );
+  }
 
   if (report.schedulesCaseInsensitive.length > 0) {
     console.log(`\nmatches case-insensitive (${report.schedulesCaseInsensitive.length}):`);
@@ -518,6 +840,7 @@ async function main(): Promise<void> {
   if (!apply) {
     console.log("\nUsá --apply para escribir (crea backup WAL-safe y corre el align).");
     console.log("Usá --no-align para omitir la fase 4.");
+    console.log("Usá --populate para la fase 5 (mesas InvGate + users->mesa + flags por rol).");
   } else if (!report.alignRan) {
     console.log(
       "\nFase 4 omitida: corré `npx tsx scripts/align-db-to-schema.mts " +
