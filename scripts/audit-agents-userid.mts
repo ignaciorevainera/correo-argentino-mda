@@ -92,6 +92,7 @@ if (doCheck) {
       }
     }
     for (const key of Object.keys(baseline)) {
+      if (key === "agents.username_pendiente" && !hasUsername) continue;
       if (!(key in counts)) {
         errors.push(`PELIGRO clave desaparecida: ${key} existe en baseline pero no en conteos actuales.`);
       }
