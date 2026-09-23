@@ -102,11 +102,16 @@ test.describe("el cliente manda agentId", () => {
       .values({ id: sess, userId: admin.id, expiresAt: Date.now() + 3600000 });
     adminCookie = sign(sess);
 
+    const [agentUser] = await db
+      .insert(users)
+      .values({ username: `cl_agent_${ts}`, password: "x", role: "agent" })
+      .returning({ id: users.id });
+    createdUserIds.push(agentUser.id);
     const [agent] = await db
       .insert(agents)
       .values({
         name: `Cliente Agent ${ts}`,
-        username: `cl_agent_${ts}`,
+        userId: agentUser.id,
         enCronograma: true,
       })
       .returning({ id: agents.id, name: agents.name });

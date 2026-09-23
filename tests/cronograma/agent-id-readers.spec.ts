@@ -38,9 +38,14 @@ test.describe("lectores de schedules por agentId", () => {
     await db.insert(sessions).values({ id: sess, userId: adminId, expiresAt: Date.now() + 3600000 });
     adminCookie = sign(sess);
 
+    const [agentUser] = await db
+      .insert(users)
+      .values({ username: `reader_agent_${ts}`, password: "x", role: "agent" })
+      .returning({ id: users.id });
+    createdUserIds.push(agentUser.id);
     const [agent] = await db
       .insert(agents)
-      .values({ name: `Reader Agent ${ts}`, username: `reader_agent_${ts}`, enCronograma: true })
+      .values({ name: `Reader Agent ${ts}`, userId: agentUser.id, enCronograma: true })
       .returning({ id: agents.id });
     createdAgentIds.push(agent.id);
 

@@ -82,7 +82,7 @@ test.describe("Ciclo de vida del cronograma del agente", () => {
 
   test.afterAll(async () => {
     if (agentId) await db.delete(schedules).where(eq(schedules.agentId, agentId));
-    if (username) await db.delete(agents).where(eq(agents.username, username));
+    if (userId) await db.delete(agents).where(eq(agents.userId, userId));
     if (userId) await db.delete(sessions).where(eq(sessions.userId, userId));
     if (username) await db.delete(users).where(eq(users.username, username));
     if (adminSessionId) await db.delete(sessions).where(eq(sessions.id, adminSessionId));
@@ -128,7 +128,7 @@ test.describe("Ciclo de vida del cronograma del agente", () => {
     const [ag] = await db
       .select({ id: agents.id, userId: agents.userId, enCronograma: agents.enCronograma })
       .from(agents)
-      .where(eq(agents.username, username));
+      .where(eq(agents.userId, userId));
     agentId = ag.id;
     expect(ag.userId).toBe(userId); // vinculo por id
     expect(ag.enCronograma).toBe(true);

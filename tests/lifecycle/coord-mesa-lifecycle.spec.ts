@@ -79,7 +79,7 @@ async function readUser(userId: number) {
   return row;
 }
 
-async function readAgent(username: string) {
+async function readAgent(userId: number) {
   const [row] = await db
     .select({
       id: agents.id,
@@ -91,7 +91,7 @@ async function readAgent(username: string) {
       asignableAgs: agents.asignableAgs,
     })
     .from(agents)
-    .where(eq(agents.username, username));
+    .where(eq(agents.userId, userId));
   return row;
 }
 
@@ -119,11 +119,9 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
   let coordId = 0;
 
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
 
-  function register(id: number, username: string): void {
+  function register(id: number): void {
     createdUserIds.push(id);
-    createdUsernames.push(username);
   }
 
   // Alta via POST real. Devuelve el id persistido (o lanza si falla).
@@ -152,7 +150,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
       .from(users)
       .where(eq(users.username, username));
     expect(row, `usuario ${username} persistido`).toBeTruthy();
-    register(row.id, username);
+    register(row.id);
     return row.id;
   }
 
@@ -200,7 +198,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
       })
       .returning({ id: users.id });
     adminUserId = admin.id;
-    register(admin.id, adminUsername);
+    register(admin.id);
     adminSessionId = `sess_coord_${Date.now()}`;
     await db.insert(sessions).values({
       id: adminSessionId,
@@ -217,10 +215,8 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     if (adminSessionId) {
       await db.delete(sessions).where(eq(sessions.id, adminSessionId));
     }
-    if (createdUsernames.length > 0) {
-      await db.delete(agents).where(inArray(agents.username, createdUsernames));
-    }
     if (createdUserIds.length > 0) {
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
   });
@@ -252,7 +248,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     expect(userRow.helpdeskName).toBe(COORD_HELPDESK);
 
     // agents: fila vinculada por id y flags sanitizados (mesa no participativa).
-    const agentRow = await readAgent(username);
+    const agentRow = await readAgent(userId);
     expect(agentRow, "fila agents creada").toBeTruthy();
     expect(agentRow.userId).toBe(userId);
     expect(agentRow.enCronograma).toBe(false);
@@ -352,7 +348,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
       { enCronograma: "on", asignableCubic: "on", incluidoCalidad: "on", asignableAgs: "on" },
     );
 
-    const agentRow = await readAgent(username);
+    const agentRow = await readAgent(userId);
     expect(agentRow.userId).toBe(userId);
     expect(agentRow.enCronograma).toBe(false);
     expect(agentRow.asignableCubic).toBe(false);
@@ -373,7 +369,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
       { id: mdaId, name: MDA_TI_HELPDESK },
       { enCronograma: "on", asignableCubic: "on", incluidoCalidad: "on", asignableAgs: "on" },
     );
-    const before = await readAgent(username);
+    const before = await readAgent(userId);
     expect(before.enCronograma).toBe(true);
     expect(before.asignableCubic).toBe(true);
 
@@ -390,7 +386,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
 
     const userRow = await readUser(userId);
     expect(userRow.helpdeskName).toBe(COORD_HELPDESK);
-    const after = await readAgent(username);
+    const after = await readAgent(userId);
     expect(after.userId).toBe(userId);
     expect(after.enCronograma).toBe(false);
     expect(after.asignableCubic).toBe(false);
@@ -411,7 +407,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
       { enCronograma: "on", asignableCubic: "on", incluidoCalidad: "on", asignableAgs: "on" },
     );
 
-    const start = await readAgent(username);
+    const start = await readAgent(userId);
     expect(start.userId).toBe(userId);
     expect(start.enCronograma).toBe(false);
     expect(start.asignableCubic).toBe(false);
@@ -429,7 +425,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     const onMdaUser = await readUser(userId);
     expect(onMdaUser).toBeTruthy();
     expect(onMdaUser.helpdeskName).toBe(MDA_TI_HELPDESK);
-    const onMdaAgent = await readAgent(username);
+    const onMdaAgent = await readAgent(userId);
     expect(onMdaAgent.userId, "vinculo preservado al pasar a MDA TI").toBe(userId);
     expect(onMdaAgent.enCronograma).toBe(true);
     expect(onMdaAgent.asignableCubic).toBe(true);
@@ -449,7 +445,7 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     const backUser = await readUser(userId);
     expect(backUser, "usuario persiste tras volver a Coord").toBeTruthy();
     expect(backUser.helpdeskName).toBe(COORD_HELPDESK);
-    const backAgent = await readAgent(username);
+    const backAgent = await readAgent(userId);
     expect(backAgent.userId, "vinculo preservado al volver a Coord").toBe(userId);
     expect(backAgent.enCronograma).toBe(false);
     expect(backAgent.asignableCubic).toBe(false);

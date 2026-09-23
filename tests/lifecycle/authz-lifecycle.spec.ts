@@ -167,7 +167,6 @@ interface CreatedUser {
 }
 
 const createdUserIds: number[] = [];
-const createdUsernames: string[] = [];
 const allSessionIds: string[] = [];
 let adminSessionId = "";
 let adminCookie = "";
@@ -184,9 +183,8 @@ function shortUsername(prefix: string): string {
   return `${prefix}${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function registerCreatedUser(id: number, username: string): void {
+function registerCreatedUser(id: number): void {
   createdUserIds.push(id);
-  createdUsernames.push(username);
 }
 
 async function insertSession(userId: number): Promise<{ id: string; cookie: string }> {
@@ -211,7 +209,7 @@ async function createUserViaDb(
     .values({ username, password: "x", role, helpdeskId, helpdeskName })
     .returning({ id: users.id });
   const { id: sessionId, cookie } = await insertSession(u.id);
-  registerCreatedUser(u.id, username);
+  registerCreatedUser(u.id);
   return { id: u.id, username, sessionId, cookie, role, helpdeskId, helpdeskName };
 }
 
@@ -257,7 +255,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
         helpdeskName: MDA_TI_HELPDESK,
       })
       .returning({ id: users.id });
-    registerCreatedUser(admin.id, adminUsername);
+    registerCreatedUser(admin.id);
     const s = await insertSession(admin.id);
     adminSessionId = s.id;
     adminCookie = s.cookie;
@@ -305,7 +303,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
           .where(eq(users.username, username));
         expect(row, `usuario ${username} persistido`).toBeTruthy();
         const { id: sessionId, cookie } = await insertSession(row.id);
-        registerCreatedUser(row.id, username);
+        registerCreatedUser(row.id);
         matrix[`${role}|${mesa}`] = {
           id: row.id,
           username,
@@ -335,10 +333,8 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       await db.delete(sessions).where(inArray(sessions.id, allSessionIds));
     }
     await db.delete(mesas).where(eq(mesas.invgateId, inactiveMesaId));
-    if (createdUsernames.length > 0) {
-      await db.delete(agents).where(inArray(agents.username, createdUsernames));
-    }
     if (createdUserIds.length > 0) {
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
   });
@@ -435,7 +431,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       .insert(agents)
       .values({
         name: username.toUpperCase(),
-        username,
+        userId: u.id,
         enCronograma: true,
         asignableCubic: true,
         incluidoCalidad: true,
@@ -476,7 +472,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
         asignableAgs: agents.asignableAgs,
       })
       .from(agents)
-      .where(eq(agents.username, username));
+      .where(eq(agents.userId, u.id));
     expect(agentRow.enCronograma).toBe(false); // supervisor nunca figura
     // supervisor MDA TI es mesa participativa -> no se resetean los otros flags
     expect(agentRow.asignableCubic).toBe(true);
@@ -503,7 +499,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       const [agentRow] = await db
         .select({ name: agents.name })
         .from(agents)
-        .where(eq(agents.username, u.username));
+        .where(eq(agents.userId, u.id));
       return {
         userId: String(u.id),
         username: row.username,
@@ -524,7 +520,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     const [a1] = await db
       .select({ enCronograma: agents.enCronograma, asignableCubic: agents.asignableCubic })
       .from(agents)
-      .where(eq(agents.username, mdaAgent.username));
+      .where(eq(agents.userId, mdaAgent.id));
     expect(a1.enCronograma).toBe(true);
     expect(a1.asignableCubic).toBe(true);
 
@@ -540,7 +536,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     const [a2] = await db
       .select({ enCronograma: agents.enCronograma })
       .from(agents)
-      .where(eq(agents.username, coordAgent.username));
+      .where(eq(agents.userId, coordAgent.id));
     expect(a2.enCronograma).toBe(false);
 
     // MDA TI supervisor: enCronograma forzado a false server-side.
@@ -554,7 +550,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     const [a3] = await db
       .select({ enCronograma: agents.enCronograma, incluidoCalidad: agents.incluidoCalidad })
       .from(agents)
-      .where(eq(agents.username, mdaSup.username));
+      .where(eq(agents.userId, mdaSup.id));
     expect(a3.enCronograma).toBe(false);
     expect(a3.incluidoCalidad).toBe(true);
   });
@@ -592,7 +588,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       .from(users)
       .where(eq(users.username, username));
     expect(row.helpdeskName).toBe(MDA_TI_HELPDESK);
-    registerCreatedUser(row.id, username);
+    registerCreatedUser(row.id);
   });
 
   test("no-admin no puede crear usuarios via POST /admin/usuarios", async () => {
@@ -643,7 +639,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       .select({ id: users.id })
       .from(users)
       .where(eq(users.username, firstUsername));
-    registerCreatedUser(firstRow.id, firstUsername);
+    registerCreatedUser(firstRow.id);
 
     const secondUsername = shortUsername("lfdn2");
     const resName = await adminForm(adminCookie, {

@@ -32,7 +32,6 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
   let adminSess = "";
   const createdUserIds: number[] = [];
   const createdSessions: string[] = [];
-  const createdUsernames: string[] = [];
 
   test.beforeAll(async () => {
     await db
@@ -56,8 +55,11 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
 
   test.afterAll(async () => {
     for (const s of createdSessions) await db.delete(sessions).where(eq(sessions.id, s));
-    for (const uname of createdUsernames) await db.delete(agents).where(eq(agents.username, uname));
-    if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
+    if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
+      await db.delete(users).where(inArray(users.id, createdUserIds));
+    }
     await db.delete(users).where(eq(users.id, adminId));
   });
 
@@ -74,7 +76,6 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
     await db.insert(sessions).values({ id: sess, userId: u.id, expiresAt: Date.now() + 86400000 });
     createdUserIds.push(u.id);
     createdSessions.push(sess);
-    createdUsernames.push(uname);
     return { sess, uname };
   }
 
