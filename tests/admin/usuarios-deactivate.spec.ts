@@ -98,4 +98,33 @@ test.describe("Baja de usuarios (soft-delete)", () => {
 
     await db.delete(users).where(eq(users.id, target.id));
   });
+
+  test("un usuario inactivo es expulsado en su próximo request", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const ts = Date.now();
+    const sessionId = `sess_inactive_${ts}`;
+    const [inactive] = await db
+      .insert(users)
+      .values({ username: `inactive_${ts}`, password: "x", role: "agent", active: false })
+      .returning({ id: users.id });
+    await db.insert(sessions).values({
+      id: sessionId,
+      userId: inactive.id,
+      expiresAt: Date.now() + 86400000,
+    });
+
+    await page.context().addCookies([
+      {
+        name: "session_id",
+        value: sign(sessionId),
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
+    ]);
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/login/);
+
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+    await db.delete(users).where(eq(users.id, inactive.id));
+  });
 });
