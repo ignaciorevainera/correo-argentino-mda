@@ -231,24 +231,48 @@ test.describe("Baja de usuarios (soft-delete)", () => {
     ]);
     const ts = Date.now();
     const uname = `cal_inactive_${ts}`;
-    const [u] = await db
-      .insert(users)
-      .values({ username: uname, password: "x", role: "agent", active: false })
-      .returning({ id: users.id });
-    const [a] = await db
-      .insert(agents)
-      .values({
-        name: `inactive-${ts}`,
-        username: uname,
-        userId: u.id,
-        incluidoCalidad: true,
-      })
-      .returning({ id: agents.id });
+    let inactiveUserId: number | undefined;
+    let inactiveAgentId: number | undefined;
+    let activeAgentId: number | undefined;
 
-    await page.goto("/supervision/calidad-operadores");
-    await expect(page.locator(`text=inactive-${ts}`)).toHaveCount(0);
+    try {
+      const [u] = await db
+        .insert(users)
+        .values({ username: uname, password: "x", role: "agent", active: false })
+        .returning({ id: users.id });
+      inactiveUserId = u.id;
+      const [a] = await db
+        .insert(agents)
+        .values({
+          name: `inactive-${ts}`,
+          username: uname,
+          userId: u.id,
+          incluidoCalidad: true,
+        })
+        .returning({ id: agents.id });
+      inactiveAgentId = a.id;
 
-    await db.delete(agents).where(eq(agents.id, a.id));
-    await db.delete(users).where(eq(users.id, u.id));
+      const [activeAgent] = await db
+        .insert(agents)
+        .values({
+          name: `active-${ts}`,
+          incluidoCalidad: true,
+        })
+        .returning({ id: agents.id });
+      activeAgentId = activeAgent.id;
+
+      await page.goto("/supervision/calidad-operadores");
+
+      // Positive control: espera a que el server island renderice la lista real.
+      await expect(page.getByText(`active-${ts}`, { exact: true })).toBeVisible();
+      await expect(page.locator(`text=inactive-${ts}`)).toHaveCount(0);
+    } finally {
+      if (inactiveAgentId !== undefined)
+        await db.delete(agents).where(eq(agents.id, inactiveAgentId));
+      if (activeAgentId !== undefined)
+        await db.delete(agents).where(eq(agents.id, activeAgentId));
+      if (inactiveUserId !== undefined)
+        await db.delete(users).where(eq(users.id, inactiveUserId));
+    }
   });
 });

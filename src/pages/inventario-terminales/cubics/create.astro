@@ -6,6 +6,7 @@ import {
   agents,
   cubicAssignments,
   operatorAttendance,
+  users,
 } from "@db/schema";
 import { eq, asc, and } from "drizzle-orm";
 import FormField from "@components/ui/forms/FormField.astro";
@@ -15,6 +16,7 @@ import { logAdminFromAstro } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import SectionCard from "@components/ui/SectionCard.astro";
 import FormShell from "@components/ui/FormShell.astro";
+import { activeAgentCondition } from "@lib/activeUsers";
 const cleanBase = getCleanBase();
 
 const isNew = true;
@@ -167,7 +169,8 @@ const allAgents = await db
       eq(operatorAttendance.date, todayStr),
     ),
   )
-  .where(eq(agents.asignableCubic, true))
+  .leftJoin(users, eq(users.id, agents.userId))
+  .where(and(eq(agents.asignableCubic, true), activeAgentCondition()))
   .orderBy(asc(agents.name));
 
 const agentShiftMap = new Map<number, "Diurno" | "Nocturno">();

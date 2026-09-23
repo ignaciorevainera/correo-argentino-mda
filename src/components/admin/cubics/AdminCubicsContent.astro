@@ -1,7 +1,7 @@
 ---
 import { getCleanBase } from "@lib/baseUrl";
 import { db } from "@db/index";
-import { cubics, agents, operatorAttendance, users } from "@db/schema";
+import { cubics, agents, operatorAttendance } from "@db/schema";
 import { asc, and, eq } from "drizzle-orm";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -12,7 +12,6 @@ import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionDeleteButton from "@components/ui/ActionDeleteButton.astro";
 import { getShiftType } from "@lib/cubics";
 import OperatorAvatar from "@components/cubics/OperatorAvatar.astro";
-import { activeAgentCondition } from "@lib/activeUsers";
 
 const allCubics = await db.query.cubics.findMany({
   orderBy: [asc(cubics.name)],
@@ -44,9 +43,7 @@ const allAgents = await db
       eq(operatorAttendance.agentId, agents.id),
       eq(operatorAttendance.date, todayStr),
     ),
-  )
-  .leftJoin(users, eq(users.id, agents.userId))
-  .where(activeAgentCondition());
+  );
 
 const agentShiftMap = new Map<number, "Diurno" | "Nocturno">();
 for (const agent of allAgents) {

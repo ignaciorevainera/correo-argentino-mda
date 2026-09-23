@@ -178,6 +178,7 @@ export const GET: APIRoute = async ({ url }) => {
         and(
           inArray(users.role, ["referent", "supervisor", "team_leader", "admin"]),
           eq(agents.enCronograma, true),
+          activeUserCondition(),
         ),
       )
       .orderBy(agents.name);
