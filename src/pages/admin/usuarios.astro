@@ -427,12 +427,15 @@ if (Astro.request.method === "POST") {
           // Proteger al último admin activo: sin admins nadie puede reactivar
           // ni crear usuarios.
           if (normalizeRole(target.role) === "admin") {
-            const otherAdmins = tx
-              .select({ id: users.id })
+            const otherActiveUsers = tx
+              .select({ id: users.id, role: users.role })
               .from(users)
-              .where(and(eq(users.role, "admin"), eq(users.active, true), sql`${users.id} <> ${userId}`))
+              .where(and(eq(users.active, true), sql`${users.id} <> ${userId}`))
               .all();
-            if (otherAdmins.length === 0) {
+            const hasOtherActiveAdmin = otherActiveUsers.some(
+              (u) => normalizeRole(u.role) === "admin",
+            );
+            if (!hasOtherActiveAdmin) {
               errorMsg = "No podés desactivar al último administrador activo.";
               return;
             }
