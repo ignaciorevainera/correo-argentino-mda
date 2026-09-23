@@ -107,24 +107,39 @@ test.describe("Baja de usuarios (soft-delete)", () => {
       .insert(users)
       .values({ username: `inactive_${ts}`, password: "x", role: "agent", active: false })
       .returning({ id: users.id });
-    await db.insert(sessions).values({
-      id: sessionId,
-      userId: inactive.id,
-      expiresAt: Date.now() + 86400000,
-    });
 
-    await page.context().addCookies([
-      {
-        name: "session_id",
-        value: sign(sessionId),
-        domain: new URL(baseURL).hostname,
-        path: "/",
-      },
-    ]);
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/login/);
+    try {
+      await db.insert(sessions).values({
+        id: sessionId,
+        userId: inactive.id,
+        expiresAt: Date.now() + 86400000,
+      });
 
-    await db.delete(sessions).where(eq(sessions.id, sessionId));
-    await db.delete(users).where(eq(users.id, inactive.id));
+      await page.context().addCookies([
+        {
+          name: "session_id",
+          value: sign(sessionId),
+          domain: new URL(baseURL).hostname,
+          path: "/",
+        },
+      ]);
+      await page.goto("/");
+
+      await expect(page).toHaveURL(/\/login/);
+
+      const cookies = await page.context().cookies();
+      expect(cookies.some((c) => c.name === "session_id")).toBe(false);
+
+      const remaining = await db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId));
+      expect(remaining).toHaveLength(0);
+
+      await expect(page.getByText("Tu cuenta fue desactivada")).toBeVisible();
+    } finally {
+      await db.delete(sessions).where(eq(sessions.id, sessionId));
+      await db.delete(users).where(eq(users.id, inactive.id));
+    }
   });
 });
