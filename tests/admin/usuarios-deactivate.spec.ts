@@ -158,28 +158,24 @@ test.describe("Baja de usuarios (soft-delete)", () => {
       })
       .returning({ id: users.id });
 
-    // Aísla la capa de login: el POST en sí no debe emitir cookie de sesión ni
-    // redirigir al home. Sin esto el test pasa igual porque el middleware
-    // expulsa al inactivo en el request siguiente (falso positivo).
-    const res = await page.request.post("/login", {
-      form: { username, password },
-      maxRedirects: 0,
-    });
-    expect(res.headers()["location"] ?? "").toMatch(/\/login/);
-    expect(res.headers()["set-cookie"] ?? "").not.toContain("session_id");
-
-    await page.goto("/login");
-    await page.fill("#login-username", username);
-    await page.fill("#login-password", password);
-    await page.click("button[type=submit]");
-    // El login válido redirige a cleanBase; el inactivo debe quedar en /login
-    // con el toast de cuenta desactivada.
-    await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByText("Tu cuenta fue desactivada")).toBeVisible();
-
-    const cookies = await page.context().cookies();
-    expect(cookies.find((c) => c.name === "session_id")).toBeUndefined();
-
-    await db.delete(users).where(eq(users.id, u.id));
+    try {
+      // Aísla la capa de login: el POST en sí no debe emitir cookie de sesión ni
+      // redirigir al home. Un flujo de browser no discrimina porque el middleware
+      // (Task 5) re-expulsa al inactivo y muestra el mismo toast.
+      const res = await page.request.post("/login", {
+        form: { username, password },
+        maxRedirects: 0,
+      });
+      const location = res.headers()["location"] ?? "";
+      expect(location).toMatch(/\/login/);
+      expect(location).toContain("toast_type=warning");
+      expect(location).toContain(
+        encodeURIComponent("Tu cuenta fue desactivada"),
+      );
+      expect(res.headers()["set-cookie"] ?? "").not.toContain("session_id");
+    } finally {
+      await db.delete(sessions).where(eq(sessions.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
   });
 });
