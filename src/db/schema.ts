@@ -6,6 +6,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 
 import { relations, sql } from "drizzle-orm";
@@ -19,6 +20,11 @@ export const users = sqliteTable("users", {
     onDelete: "set null",
   }),
   helpdeskName: text("helpdesk_name"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  disabledAt: integer("disabled_at", { mode: "timestamp" }),
+  disabledBy: integer("disabled_by").references((): AnySQLiteColumn => users.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const employees = sqliteTable("employees", {
