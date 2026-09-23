@@ -44,7 +44,6 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
   let adminId: number;
   let adminCookie: string;
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
 
   test.beforeAll(async () => {
     // Asegurar mesas por NOMBRE (invgateId puede variar según el entorno).
@@ -89,10 +88,9 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
 
   test.afterAll(async () => {
     await db.delete(sessions).where(eq(sessions.id, adminSession));
-    for (const uname of createdUsernames) {
-      await db.delete(agents).where(eq(agents.username, uname));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -122,10 +120,9 @@ test.describe("change-role sanitiza participaciones al mover de mesa", () => {
       .returning({ id: users.id });
     const [a] = await db
       .insert(agents)
-      .values({ name: username, username, ...flags })
+      .values({ name: username, userId: u.id, ...flags })
       .returning({ id: agents.id });
     createdUserIds.push(u.id);
-    createdUsernames.push(username);
     return { userId: u.id, agentId: a.id };
   }
 

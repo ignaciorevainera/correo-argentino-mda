@@ -16,7 +16,6 @@ test.describe("Participaciones por mesa", () => {
   let adminSession: string;
   let adminId: number;
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
 
   test.beforeAll(async () => {
     // Asegurar mesas por NOMBRE (invgateId puede variar según el entorno).
@@ -58,10 +57,9 @@ test.describe("Participaciones por mesa", () => {
 
   test.afterAll(async () => {
     await db.delete(sessions).where(eq(sessions.id, adminSession));
-    for (const uname of createdUsernames) {
-      await db.delete(agents).where(eq(agents.username, uname));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -88,10 +86,9 @@ test.describe("Participaciones por mesa", () => {
     // Fila de agente vinculada (los chips y el gating de participaciones la usan).
     await db
       .insert(agents)
-      .values({ name: username.toUpperCase(), username, enCronograma: true })
+      .values({ name: username.toUpperCase(), userId: u.id, enCronograma: true })
       .onConflictDoNothing();
     createdUserIds.push(u.id);
-    createdUsernames.push(username);
     return u.id;
   }
 
@@ -143,7 +140,7 @@ test.describe("Participaciones por mesa", () => {
     const [a] = await db
       .select({ name: agents.name })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, uid));
     const res = await context.request.post(
       `${await baseURL()}/admin/usuarios`,
       {
@@ -163,7 +160,7 @@ test.describe("Participaciones por mesa", () => {
     const [row] = await db
       .select({ enCronograma: agents.enCronograma })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, uid));
     expect(row.enCronograma).toBe(false);
   });
 });

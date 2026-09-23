@@ -36,7 +36,6 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
   let adminUsername: string;
   let adminCookie: string;
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
   const createdScheduleIds: number[] = [];
 
   test.beforeAll(async () => {
@@ -99,10 +98,9 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     if (createdScheduleIds.length > 0) {
       await db.delete(schedules).where(inArray(schedules.id, createdScheduleIds));
     }
-    for (const uname of createdUsernames) {
-      await db.delete(agents).where(eq(agents.username, uname));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -145,10 +143,9 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       .returning({ id: users.id });
     const [a] = await db
       .insert(agents)
-      .values({ name: agentName, username, ...flags })
+      .values({ name: agentName, userId: u.id, ...flags })
       .returning({ id: agents.id });
     createdUserIds.push(u.id);
-    createdUsernames.push(username);
     return { userId: u.id, agentId: a.id, agentName };
   }
 
@@ -309,7 +306,6 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       .values({ agentId, date: "2026-02-01", status: "Trabajo" })
       .returning({ id: schedules.id });
     createdScheduleIds.push(sched.id);
-    createdUsernames.push(newUname);
 
     const res = await post(context, {
       userId: String(userId),
@@ -317,6 +313,7 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       name: newName,
       newRole: "agent",
       helpdesk: `${mdaId}|${MDA}`,
+      enCronograma: "on",
     });
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -327,11 +324,14 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
       .from(users)
       .where(eq(users.id, userId));
     expect(u.username).toBe(newUname);
+    // Plan B: la identidad del agente es user_id. El rename de red actualiza
+    // users.username; la fila agents conserva su id y su nombre visible se
+    // actualiza por el campo `name` del form (no por el username).
     const [a] = await db
-      .select({ name: agents.name, username: agents.username })
+      .select({ name: agents.name, userId: agents.userId })
       .from(agents)
       .where(eq(agents.id, agentId));
-    expect(a.username).toBe(newUname);
+    expect(a.userId).toBe(userId);
     expect(a.name).toBe(newName);
     // El rename ya no propaga a schedules (los lectores vinculan por agentId):
     // la fila sembrada queda intacta, sin cambios de status.
@@ -342,6 +342,18 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("Trabajo");
     expect(rows[0].agentId).toBe(agentId);
+
+    // El username del operador en el payload del cronograma viene del join
+    // users por user_id: refleja el username NUEVO tras el rename.
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const payloadRes = await context.request.get(
+      new URL("/api/cronograma?month=2026-02", baseURL).href,
+    );
+    expect(payloadRes.status()).toBe(200);
+    const cronograma = await payloadRes.json();
+    const op = cronograma.operators.find((o: any) => o.id === agentId);
+    expect(op).toBeTruthy();
+    expect(op.username).toBe(newUname);
   });
 
   test("conflictos: username duplicado, nombre duplicado, usuario inexistente y autoedicion", async ({
@@ -422,7 +434,7 @@ test.describe("update-user unificado (rol + mesa + flags + rename)", () => {
     const agentSelf = await db
       .select({ id: agents.id })
       .from(agents)
-      .where(eq(agents.username, selfUname));
+      .where(eq(agents.userId, adminId));
     expect(agentSelf.length).toBe(0);
   });
 });

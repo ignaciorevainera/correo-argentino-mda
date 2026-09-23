@@ -148,10 +148,16 @@ test.describe("Participaciones de usuarios", () => {
     const created = await waitForUserInDb(username);
     expect(created).toBe(true);
 
+    const [createdUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username));
+    expect(createdUser).toBeTruthy();
+
     const [agentRow] = await db
       .select()
       .from(agents)
-      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+      .where(eq(agents.userId, createdUser.id));
 
     expect(agentRow).toBeTruthy();
     expect(agentRow!.enCronograma).toBe(true);
@@ -159,10 +165,8 @@ test.describe("Participaciones de usuarios", () => {
     expect(agentRow!.incluidoCalidad).toBe(false);
     expect(agentRow!.asignableAgs).toBe(false);
 
-    await db
-      .delete(agents)
-      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
-    await db.delete(users).where(eq(users.username, username));
+    await db.delete(agents).where(eq(agents.userId, createdUser.id));
+    await db.delete(users).where(eq(users.id, createdUser.id));
   });
 
   test("toggle OFF de enCronograma saca al agente del listado", async ({
@@ -228,15 +232,19 @@ test.describe("Participaciones de usuarios", () => {
       false,
     );
 
+    const [createdUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username));
+    expect(createdUser).toBeTruthy();
+
     const [agentRow] = await db
       .select()
       .from(agents)
-      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
+      .where(eq(agents.userId, createdUser.id));
     expect(agentRow).toBeTruthy();
 
-    await db
-      .delete(agents)
-      .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
-    await db.delete(users).where(eq(users.username, username));
+    await db.delete(agents).where(eq(agents.userId, createdUser.id));
+    await db.delete(users).where(eq(users.id, createdUser.id));
   });
 });

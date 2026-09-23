@@ -31,7 +31,6 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
   let adminCookie: string;
   const createdMesaInvgateIds: number[] = [];
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
 
   let mdaTiInvgateId: number;
   let coordInvgateId: number;
@@ -93,10 +92,9 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
 
   test.afterAll(async () => {
     await db.delete(sessions).where(eq(sessions.id, adminSession));
-    for (const uname of createdUsernames) {
-      await db.delete(agents).where(eq(agents.username, uname));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -126,10 +124,9 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     // Fila de agente vinculada (los chips y el gating de participaciones la usan).
     await db
       .insert(agents)
-      .values({ name: username.toUpperCase(), username, enCronograma: true })
+      .values({ name: username.toUpperCase(), userId: u.id, enCronograma: true })
       .onConflictDoNothing();
     createdUserIds.push(u.id);
-    createdUsernames.push(username);
     return u.id;
   }
 
@@ -170,7 +167,7 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     const [a] = await db
       .select({ name: agents.name })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, userId));
     const baseURL =
       test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
     const res = await context.request.post(
@@ -236,7 +233,7 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     const [a] = await db
       .select({ name: agents.name })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, userId));
     const baseURL =
       test.info().project.use.baseURL ?? "http://127.0.0.1:4321";
     const res = await context.request.post(
@@ -260,7 +257,7 @@ test.describe("Gating de participaciones con mesa renombrada (join canonico)", (
     const [after] = await db
       .select({ enCronograma: agents.enCronograma })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, userId));
     expect(after.enCronograma).toBe(false);
   });
 });

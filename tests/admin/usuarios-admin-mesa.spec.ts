@@ -30,7 +30,7 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
   let adminCookie: string;
   let mdaInvgateId: number;
   let coordInvgateId: number;
-  const createdUsernames: string[] = [];
+  const createdUserIds: number[] = [];
 
   test.beforeAll(async () => {
     // Asegurar mesas por NOMBRE (invgateId varia segun entorno) y leer el
@@ -89,9 +89,10 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
 
   test.afterAll(async () => {
     await db.delete(sessions).where(eq(sessions.id, adminSession));
-    if (createdUsernames.length > 0) {
-      await db.delete(agents).where(inArray(agents.username, createdUsernames));
-      await db.delete(users).where(inArray(users.username, createdUsernames));
+    if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
+      await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
   });
@@ -117,9 +118,9 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
       .returning({ id: users.id });
     const [a] = await db
       .insert(agents)
-      .values({ name: `${username}_NAME`, username })
+      .values({ name: `${username}_NAME`, userId: u.id })
       .returning({ id: agents.id });
-    createdUsernames.push(username);
+    createdUserIds.push(u.id);
     return { userId: u.id, agentId: a.id };
   }
 
@@ -172,7 +173,7 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
     const agentRows = await db
       .select({ id: agents.id })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.name, `${uname}_NAME`));
     expect(agentRows.length).toBe(0);
   });
 
@@ -200,7 +201,7 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
     expect(rows.length).toBe(1);
     expect(rows[0].role).toBe("admin");
     expect(rows[0].helpdeskName).toBe(MDA_TI);
-    createdUsernames.push(uname);
+    createdUserIds.push(rows[0].id);
   });
 
   test("CREATE: role=agent + Coordinacion -> success (otros roles permitidos)", async ({
@@ -227,7 +228,7 @@ test.describe("rol admin restringido a mesa MDA TI", () => {
     expect(rows.length).toBe(1);
     expect(rows[0].role).toBe("agent");
     expect(rows[0].helpdeskName).toBe(COORD);
-    createdUsernames.push(uname);
+    createdUserIds.push(rows[0].id);
   });
 
   test("UPDATE: agente en Coordinacion -> newRole=admin rechazado y rol intacto", async ({

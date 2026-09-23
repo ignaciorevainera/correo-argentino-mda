@@ -7,7 +7,7 @@ import "dotenv/config";
 import { test, expect, type Page } from "@playwright/test";
 import { db } from "../../src/db/index";
 import { users, agents, sessions } from "../../src/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
 
 const SECRET_KEY = process.env.SESSION_SECRET || "fallback-secret-do-not-use-in-prod";
@@ -50,10 +50,16 @@ async function cleanupAdmin(ctx: AdminTestContext): Promise<void> {
 }
 
 async function cleanupUser(username: string): Promise<void> {
-  await db
-    .delete(agents)
-    .where(sql`lower(coalesce(${agents.username}, '')) = ${username.toLowerCase()}`);
-  await db.delete(users).where(eq(users.username, username));
+  // Identidad por user_id (Plan B): el agente se vincula vía agents.userId,
+  // se borra primero la fila agents y recien despues el usuario.
+  const [u] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username));
+  if (u) {
+    await db.delete(agents).where(eq(agents.userId, u.id));
+    await db.delete(users).where(eq(users.id, u.id));
+  }
 }
 
 const uniq = () =>
@@ -209,15 +215,18 @@ test.describe("Modal de alta de usuario", () => {
 
     await expect
       .poll(
-        async () =>
-          (
-            await db
-              .select({ enCronograma: agents.enCronograma })
-              .from(agents)
-              .where(
-                sql`lower(coalesce(${agents.username}, '')) = ${uname.toLowerCase()}`,
-              )
-          )[0]?.enCronograma,
+        async () => {
+          const [u] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.username, uname));
+          if (!u) return undefined;
+          const [a] = await db
+            .select({ enCronograma: agents.enCronograma })
+            .from(agents)
+            .where(eq(agents.userId, u.id));
+          return a?.enCronograma;
+        },
         { timeout: 10000 },
       )
       .toBe(false);

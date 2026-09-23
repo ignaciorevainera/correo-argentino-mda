@@ -46,7 +46,6 @@ test.describe("Modal unificado Editar usuario", () => {
   let mdaTiInvgateId: number;
   let coordInvgateId: number;
   const createdUserIds: number[] = [];
-  const createdAgentUsernames: string[] = [];
   const createdScheduleIds: number[] = [];
 
   test.beforeAll(async () => {
@@ -112,12 +111,9 @@ test.describe("Modal unificado Editar usuario", () => {
     if (createdScheduleIds.length > 0) {
       await db.delete(schedules).where(inArray(schedules.id, createdScheduleIds));
     }
-    if (createdAgentUsernames.length > 0) {
-      await db
-        .delete(agents)
-        .where(inArray(agents.username, createdAgentUsernames));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -149,10 +145,9 @@ test.describe("Modal unificado Editar usuario", () => {
     if (opts.withAgent !== false) {
       await db.insert(agents).values({
         name: opts.agentName ?? username.toUpperCase(),
-        username,
+        userId: u.id,
         ...(opts.flags ?? NO_FLAGS),
       });
-      createdAgentUsernames.push(username);
     }
     return u.id;
   }
@@ -240,7 +235,8 @@ test.describe("Modal unificado Editar usuario", () => {
       { timeout: 10000 },
     );
 
-    // Self-heal: se crea la fila agents con nombre y flags enviados.
+    // Self-heal: se crea la fila agents (vinculada por user_id) con nombre y
+    // flags enviados.
     await expect
       .poll(
         async () => {
@@ -253,7 +249,7 @@ test.describe("Modal unificado Editar usuario", () => {
               asignableAgs: agents.asignableAgs,
             })
             .from(agents)
-            .where(eq(agents.username, uname));
+            .where(eq(agents.userId, uid));
           return a ?? null;
         },
         { timeout: 10000 },
@@ -265,7 +261,6 @@ test.describe("Modal unificado Editar usuario", () => {
         incluidoCalidad: true,
         asignableAgs: false,
       });
-    createdAgentUsernames.push(uname);
   });
 
   test("usuario MDA TI con fila: un submit actualiza username, nombre, flags y NO toca schedules", async ({
@@ -284,7 +279,7 @@ test.describe("Modal unificado Editar usuario", () => {
     const [seededAgent] = await db
       .select({ id: agents.id })
       .from(agents)
-      .where(eq(agents.username, oldUname));
+      .where(eq(agents.userId, uid));
     expect(seededAgent).toBeTruthy();
     const [sched] = await db
       .insert(schedules)
@@ -329,11 +324,14 @@ test.describe("Modal unificado Editar usuario", () => {
       )
       .toBe(newUname);
 
+    // Plan B: la identidad del agente es user_id. El rename de red toca solo
+    // users.username; el nombre visible se actualiza por el campo `name`.
     const [agentRow] = await db
       .select()
       .from(agents)
-      .where(eq(agents.username, newUname));
+      .where(eq(agents.userId, uid));
     expect(agentRow).toBeTruthy();
+    expect(agentRow.userId).toBe(uid);
     expect(agentRow.name).toBe(newName);
     expect(agentRow.enCronograma).toBe(true);
     expect(agentRow.asignableCubic).toBe(false);
@@ -349,7 +347,14 @@ test.describe("Modal unificado Editar usuario", () => {
     expect(schedRow.status).toBe("normal");
     expect(schedRow.agentId).toBe(seededAgent.id);
 
-    createdAgentUsernames.push(oldUname, newUname);
+    // El username del operador en el payload del cronograma viene del join
+    // users por user_id: refleja el username NUEVO tras el rename.
+    const payloadRes = await page.request.get("/api/cronograma?month=2099-01");
+    expect(payloadRes.status()).toBe(200);
+    const cronograma = await payloadRes.json();
+    const op = cronograma.operators.find((o: any) => o.id === seededAgent.id);
+    expect(op).toBeTruthy();
+    expect(op.username).toBe(newUname);
   });
 
   test("chips de participacion: MDA TI muestra flags activos, Coordinacion no muestra", async ({
@@ -469,7 +474,7 @@ test.describe("Modal unificado Editar usuario", () => {
             await db
               .select({ enCronograma: agents.enCronograma })
               .from(agents)
-              .where(eq(agents.username, uname))
+              .where(eq(agents.userId, uid))
           )[0]?.enCronograma,
         { timeout: 10000 },
       )
@@ -497,7 +502,7 @@ test.describe("Modal unificado Editar usuario", () => {
     const [after] = await db
       .select({ enCronograma: agents.enCronograma })
       .from(agents)
-      .where(eq(agents.username, uname));
+      .where(eq(agents.userId, uid));
     expect(after.enCronograma).toBe(false);
   });
 

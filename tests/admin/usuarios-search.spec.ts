@@ -20,7 +20,6 @@ test.describe("Búsqueda de usuarios", () => {
   let adminSession: string;
   let adminId: number;
   const createdUserIds: number[] = [];
-  const createdUsernames: string[] = [];
 
   test.beforeAll(async () => {
     const ts = Date.now();
@@ -44,10 +43,9 @@ test.describe("Búsqueda de usuarios", () => {
 
   test.afterAll(async () => {
     await db.delete(sessions).where(eq(sessions.id, adminSession));
-    for (const uname of createdUsernames) {
-      await db.delete(agents).where(eq(agents.username, uname));
-    }
     if (createdUserIds.length > 0) {
+      // Agents primero (identidad por user_id), despues users.
+      await db.delete(agents).where(inArray(agents.userId, createdUserIds));
       await db.delete(users).where(inArray(users.id, createdUserIds));
     }
     await db.delete(users).where(eq(users.id, adminId));
@@ -64,9 +62,9 @@ test.describe("Búsqueda de usuarios", () => {
       .values({ username, password: "x", role, helpdeskName })
       .returning({ id: users.id });
     createdUserIds.push(u.id);
-    createdUsernames.push(username);
     if (fullName) {
-      await db.insert(agents).values({ username, name: fullName });
+      // Nombre visible vinculado por user_id (el listado hace join por userId).
+      await db.insert(agents).values({ name: fullName, userId: u.id });
     }
   }
 
