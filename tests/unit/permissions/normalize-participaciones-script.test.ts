@@ -165,6 +165,27 @@ describe("runNormalize — apply", () => {
     expect(report.skippedNoAgent).toBe(1); // ghost
   });
 
+  it("link roto (user_id NULL): user cae en skippedNoAgent y su agente no se toca", async () => {
+    const before = await runNormalize({ dbPath });
+    expect(before.skippedNoAgent).toBe(1); // solo ghost
+
+    // Rompe el vinculo de ti_sup (simula user_id perdido / nunca backfilleado).
+    const db = new Database(dbPath);
+    db.prepare("UPDATE agents SET user_id = NULL WHERE name = 'TI SUP'").run();
+    db.close();
+
+    const report = await runNormalize({ dbPath, apply: true });
+    expect(report.skippedNoAgent).toBe(2); // ghost + ti_sup desvinculado
+    // ti_sup ya no se evalua: solo coord_agent y nomesa_ref cambian.
+    expect(report.affected).toBe(2);
+    expect(report.updated).toBe(2);
+
+    // El agente del user desvinculado queda con sus flags stale (intacto).
+    expect(flagsByName("TI SUP")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.coord_agent)).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
+    expect(flags(users.nomesa_ref)).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
+  });
+
   it("no borra filas", async () => {
     await runNormalize({ dbPath, apply: true });
     const db = new Database(dbPath, { readonly: true });
@@ -209,17 +230,5 @@ describe("runNormalize — error paths", () => {
     expect(flags(users.coord_agent)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
     expect(flags(users.nomesa_ref)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
     expect(backups()).toHaveLength(0);
-  });
-
-  it("renombrar username de users no desvincula: el join es por user_id", async () => {
-    const db = new Database(dbPath);
-    db.prepare("UPDATE users SET username = 'TI_AGENT' WHERE username = 'ti_agent'").run();
-    db.prepare("UPDATE users SET username = 'TI_SUP' WHERE username = 'ti_sup'").run();
-    db.close();
-
-    const report = await runNormalize({ dbPath });
-    // El vinculo user_id sobrevive al rename: sigue habiendo solo 1 sin agent.
-    expect(report.skippedNoAgent).toBe(1); // solo ghost
-    expect(report.affected).toBe(3); // ti_sup, coord_agent, nomesa_ref
   });
 });

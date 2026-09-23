@@ -419,6 +419,75 @@ describe("runBootstrap", () => {
     expect(columnNames("agents", postB2)).toContain("user_id");
     expect(columnNames("schedules", postB2)).toContain("agent_id");
   });
+
+  // Plan B: agents.username ya dropeada (Task 9). La fase 2a debe saltearse
+  // con mensaje explicito (no-op, sin error) y el resto de las fases debe
+  // completar sin throw, tanto en dry-run como en apply.
+  it("post-drop (agents sin username): fase 2 se saltea con mensaje y el resto corre", async () => {
+    const postDrop = join(dir, "post-drop.db");
+    const db = new Database(postDrop);
+    db.exec(`
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'agent'
+      );
+      CREATE TABLE agents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        user_id INTEGER REFERENCES users(id),
+        location TEXT NOT NULL DEFAULT 'Monte Grande',
+        horario_default TEXT NOT NULL DEFAULT '',
+        en_cronograma INTEGER NOT NULL DEFAULT 0,
+        asignable_cubic INTEGER NOT NULL DEFAULT 0,
+        incluido_calidad INTEGER NOT NULL DEFAULT 0,
+        asignable_ags INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_name TEXT NOT NULL,
+        agent_id INTEGER REFERENCES agents(id),
+        date TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      INSERT INTO users (id, username) VALUES (1, 'jperez');
+      INSERT INTO agents (id, name, user_id) VALUES (1, 'Juan Perez', NULL);
+      INSERT INTO schedules (agent_name, agent_id, date, status) VALUES
+        ('Juan Perez', NULL, '2026-01-01', 'Trabajo'),
+        ('Desconocido', NULL, '2026-01-02', 'Trabajo');
+    `);
+    db.close();
+    expect(columnNames("agents", postDrop)).not.toContain("username");
+
+    const SKIP_MSG = "agents.username ya no existe: fase 2 no aplica";
+
+    const dry = await runBootstrap({ dbPath: postDrop, apply: false, skipAlign: true });
+    expect(dry.phases.backfill).toBe(SKIP_MSG);
+    expect(dry.agentsLinked).toBe(0);
+    expect(dry.agentsNoUser).toHaveLength(0);
+    // Fases posteriores completan sin throw.
+    expect(dry.schedulesLinked).toBe(1); // Juan Perez por nombre
+    expect(dry.shellsCreated).toBe(1); // Desconocido
+    expect(dry.phases.saneo).toContain("sin tabla");
+    expect(dry.alignRan).toBe(false);
+
+    const applied = await runBootstrap({ dbPath: postDrop, apply: true, skipAlign: true });
+    expect(applied.phases.backfill).toBe(SKIP_MSG);
+    expect(applied.agentsLinked).toBe(0);
+    expect(applied.schedulesLinked).toBe(1);
+    expect(applied.shellsCreated).toBe(1);
+    expect(applied.alignRan).toBe(false);
+    // Sin username no hay matcheo: el user_id del agente sigue intacto.
+    expect(
+      rows<{ user_id: number | null }>(
+        "SELECT user_id FROM agents WHERE name = 'Juan Perez'",
+        postDrop,
+      )[0].user_id,
+    ).toBeNull();
+    expect(
+      rows<{ c: number }>("SELECT COUNT(*) c FROM schedules WHERE agent_id IS NULL", postDrop)[0].c,
+    ).toBe(0);
+  });
 });
 
 const MESAS_FETCH = [
