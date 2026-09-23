@@ -17,7 +17,9 @@ function signSessionId(sessionId: string): string {
 
 const stamp = Date.now();
 const MESA_NAME = `TI_GSM_Test_Mesa_${stamp}`;
-const mesaInvgateId = 900_000 + (stamp % 90_000);
+const mesaInvgateId = 991_000 + (stamp % 8_000);
+const WITH_MESA_USERNAME = `nav_mesa_yes_${stamp}`;
+const WITHOUT_MESA_USERNAME = `nav_mesa_no_${stamp}`;
 
 let withMesaUserId = 0;
 let withoutMesaUserId = 0;
@@ -35,7 +37,7 @@ test.beforeAll(async () => {
   const [withMesa] = await db
     .insert(users)
     .values({
-      username: `nav_mesa_yes_${stamp}`,
+      username: WITH_MESA_USERNAME,
       password: "hashed_fake_password",
       role: "agent",
       helpdeskId: mesaInvgateId,
@@ -53,7 +55,7 @@ test.beforeAll(async () => {
   const [withoutMesa] = await db
     .insert(users)
     .values({
-      username: `nav_mesa_no_${stamp}`,
+      username: WITHOUT_MESA_USERNAME,
       password: "hashed_fake_password",
       role: "agent",
     })
@@ -94,8 +96,15 @@ test.describe("Navbar dropdown mesa display", () => {
 
     const title = page.locator("nav.navbar .dropdown .menu-title").first();
     await expect(title).toBeVisible();
-    await expect(title.locator("span").nth(1)).toHaveText("Agente");
-    await expect(title.locator("span").nth(2)).toHaveText(MESA_NAME);
+
+    const username = title.locator("span", { hasText: WITH_MESA_USERNAME });
+    const role = title.locator("span", { hasText: "Agente" });
+    const mesa = title.locator("[data-user-mesa]");
+
+    await expect(username).toBeVisible();
+    await expect(role).toHaveText("Agente");
+    await expect(mesa).toHaveText(MESA_NAME);
+    await expect(mesa).toBeBelow(role);
   });
 
   test("dropdown shows Sin mesa below role when user has no mesa", async ({
@@ -116,7 +125,14 @@ test.describe("Navbar dropdown mesa display", () => {
 
     const title = page.locator("nav.navbar .dropdown .menu-title").first();
     await expect(title).toBeVisible();
-    await expect(title.locator("span").nth(1)).toHaveText("Agente");
-    await expect(title.locator("span").nth(2)).toHaveText("Sin mesa");
+
+    const username = title.locator("span", { hasText: WITHOUT_MESA_USERNAME });
+    const role = title.locator("span", { hasText: "Agente" });
+    const mesa = title.locator("[data-user-mesa]");
+
+    await expect(username).toBeVisible();
+    await expect(role).toHaveText("Agente");
+    await expect(mesa).toHaveText("Sin mesa");
+    await expect(mesa).toBeBelow(role);
   });
 });
