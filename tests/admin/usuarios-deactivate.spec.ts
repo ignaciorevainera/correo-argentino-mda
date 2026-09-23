@@ -66,4 +66,36 @@ test.describe("Baja de usuarios (soft-delete)", () => {
       .where(eq(users.id, adminId));
     expect(row.active).toBe(true);
   });
+
+  test("reactiva un usuario desactivado", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await page.context().addCookies([
+      {
+        name: "session_id",
+        value: adminCookie,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
+    ]);
+    const ts = Date.now();
+    const [target] = await db
+      .insert(users)
+      .values({ username: `deact_target_${ts}`, password: "x", role: "agent", active: false, disabledAt: new Date() })
+      .returning({ id: users.id });
+
+    const response = await page.request.post("/admin/usuarios", {
+      headers: { Accept: "application/json" },
+      form: { action: "reactivate-user", userId: String(target.id) },
+    });
+    expect(response.status()).toBe(200);
+
+    const [row] = await db
+      .select({ active: users.active, disabledAt: users.disabledAt })
+      .from(users)
+      .where(eq(users.id, target.id));
+    expect(row.active).toBe(true);
+    expect(row.disabledAt).toBeNull();
+
+    await db.delete(users).where(eq(users.id, target.id));
+  });
 });

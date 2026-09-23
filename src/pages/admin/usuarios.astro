@@ -462,6 +462,49 @@ if (Astro.request.method === "POST") {
         errorMsg = "Error al desactivar el usuario.";
       }
     }
+  } else if (action === "reactivate-user") {
+    const userId = Number(formData.get("userId"));
+
+    if (normalizeRole(Astro.locals.user?.role ?? "") !== "admin") {
+      errorMsg = "No autorizado para reactivar usuarios.";
+    } else if (!userId) {
+      errorMsg = "Usuario inválido.";
+    } else {
+      let audit: string | null = null;
+      try {
+        db.transaction((tx) => {
+          const target = tx
+            .select({ username: users.username, active: users.active })
+            .from(users)
+            .where(eq(users.id, userId))
+            .get();
+
+          if (!target) {
+            errorMsg = "Usuario no encontrado.";
+            return;
+          }
+          if (target.active) {
+            // Idempotente: ya está activo.
+            return;
+          }
+
+          tx.update(users)
+            .set({ active: true, disabledAt: null, disabledBy: null })
+            .where(eq(users.id, userId))
+            .run();
+
+          audit = `Reactivó al usuario "${target.username}"`;
+        });
+
+        if (!errorMsg && audit) {
+          successMsg = "Usuario reactivado con éxito.";
+          await logAdminFromAstro(Astro.locals, audit);
+        }
+      } catch (e) {
+        console.error("[usuarios] Error al reactivar usuario:", e);
+        errorMsg = "Error al reactivar el usuario.";
+      }
+    }
   } else if (action === "reset-password") {
     const userId = Number(formData.get("userId"));
     const newPassword = formData.get("newPassword")?.toString();
