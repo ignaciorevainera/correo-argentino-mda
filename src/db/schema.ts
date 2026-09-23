@@ -312,7 +312,6 @@ export const cubics = sqliteTable("cubics", {
 export const agents = sqliteTable("agents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
-  username: text("username"),
   userId: integer("user_id")
     .unique()
     .references(() => users.id, { onDelete: "set null" }),
