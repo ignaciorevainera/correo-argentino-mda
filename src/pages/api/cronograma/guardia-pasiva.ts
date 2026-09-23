@@ -10,6 +10,7 @@ import {
 import { eq, inArray, sql, and } from "drizzle-orm";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { jsonResponse } from "@lib/apiResponse";
+import { activeUserCondition } from "@lib/activeUsers";
 
 const DEFAULT_SUPERVISOR = "Tomasi Alejandro";
 
@@ -131,6 +132,7 @@ export const GET: APIRoute = async ({ url }) => {
         and(
           inArray(users.role, ["admin", "supervisor", "team_leader"]),
           eq(agents.enCronograma, true),
+          activeUserCondition(),
         ),
       );
 

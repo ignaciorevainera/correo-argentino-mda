@@ -2,7 +2,7 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { db } from "../../src/db/index";
-import { users, sessions } from "../../src/db/schema";
+import { users, sessions, agents } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
 
@@ -217,5 +217,38 @@ test.describe("Baja de usuarios (soft-delete)", () => {
       await db.delete(sessions).where(eq(sessions.userId, u.id));
       await db.delete(users).where(eq(users.id, u.id));
     }
+  });
+
+  test("un agente de usuario inactivo no aparece en el selector de calidad", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await page.context().addCookies([
+      {
+        name: "session_id",
+        value: adminCookie,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
+    ]);
+    const ts = Date.now();
+    const uname = `cal_inactive_${ts}`;
+    const [u] = await db
+      .insert(users)
+      .values({ username: uname, password: "x", role: "agent", active: false })
+      .returning({ id: users.id });
+    const [a] = await db
+      .insert(agents)
+      .values({
+        name: `inactive-${ts}`,
+        username: uname,
+        userId: u.id,
+        incluidoCalidad: true,
+      })
+      .returning({ id: agents.id });
+
+    await page.goto("/supervision/calidad-operadores");
+    await expect(page.locator(`text=inactive-${ts}`)).toHaveCount(0);
+
+    await db.delete(agents).where(eq(agents.id, a.id));
+    await db.delete(users).where(eq(users.id, u.id));
   });
 });
