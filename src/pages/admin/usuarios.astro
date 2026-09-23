@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { passwordSchema, hashPassword } from "@lib/security";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { logAdminFromAstro } from "@lib/auditLogger";
@@ -390,6 +390,73 @@ if (Astro.request.method === "POST") {
         } else {
           errorMsg = "Error al actualizar el usuario.";
         }
+      }
+    }
+  } else if (action === "deactivate-user") {
+    const userId = Number(formData.get("userId"));
+
+    // Defensa en profundidad: la página ya es admin-only por RBAC, pero la
+    // acción revalida el rol del actor antes de mutar.
+    if (normalizeRole(Astro.locals.user?.role ?? "") !== "admin") {
+      errorMsg = "No autorizado para desactivar usuarios.";
+    } else if (!userId) {
+      errorMsg = "Usuario inválido.";
+    } else if (userId === Astro.locals.user.id) {
+      // Requerimiento explícito: nadie se da de baja a sí mismo.
+      errorMsg = "No podés desactivar tu propio usuario.";
+    } else {
+      let audit: string | null = null;
+      try {
+        db.transaction((tx) => {
+          const target = tx
+            .select({ username: users.username, role: users.role, active: users.active })
+            .from(users)
+            .where(eq(users.id, userId))
+            .get();
+
+          if (!target) {
+            errorMsg = "Usuario no encontrado.";
+            return;
+          }
+          if (!target.active) {
+            // Idempotente: ya está inactivo.
+            errorMsg = "";
+            return;
+          }
+
+          // Proteger al último admin activo: sin admins nadie puede reactivar
+          // ni crear usuarios.
+          if (normalizeRole(target.role) === "admin") {
+            const otherAdmins = tx
+              .select({ id: users.id })
+              .from(users)
+              .where(and(eq(users.role, "admin"), eq(users.active, true), sql`${users.id} <> ${userId}`))
+              .all();
+            if (otherAdmins.length === 0) {
+              errorMsg = "No podés desactivar al último administrador activo.";
+              return;
+            }
+          }
+
+          tx.update(users)
+            .set({
+              active: false,
+              disabledAt: new Date(),
+              disabledBy: Astro.locals.user.id,
+            })
+            .where(eq(users.id, userId))
+            .run();
+
+          audit = `Desactivó al usuario "${target.username}"`;
+        });
+
+        if (!errorMsg && audit) {
+          successMsg = "Usuario desactivado con éxito.";
+          await logAdminFromAstro(Astro.locals, audit);
+        }
+      } catch (e) {
+        console.error("[usuarios] Error al desactivar usuario:", e);
+        errorMsg = "Error al desactivar el usuario.";
       }
     }
   } else if (action === "reset-password") {
