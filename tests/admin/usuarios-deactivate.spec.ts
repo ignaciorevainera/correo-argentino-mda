@@ -275,4 +275,108 @@ test.describe("Baja de usuarios (soft-delete)", () => {
         await db.delete(users).where(eq(users.id, inactiveUserId));
     }
   });
+
+  test("un no-admin no puede desactivar usuarios", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const ts = Date.now();
+    const agentSession = `sess_no_admin_${ts}`;
+    let agentId: number | undefined;
+
+    try {
+      const [agent] = await db
+        .insert(users)
+        .values({ username: `agent_no_admin_${ts}`, password: "x", role: "agent" })
+        .returning({ id: users.id });
+      agentId = agent.id;
+      await db.insert(sessions).values({
+        id: agentSession,
+        userId: agentId,
+        expiresAt: Date.now() + 86400000,
+      });
+
+      await page.context().addCookies([
+        {
+          name: "session_id",
+          value: sign(agentSession),
+          domain: new URL(baseURL).hostname,
+          path: "/",
+        },
+      ]);
+
+      const response = await page.request.post("/admin/usuarios", {
+        maxRedirects: 0,
+        headers: { Accept: "application/json" },
+        form: { action: "deactivate-user", userId: String(adminId) },
+      });
+
+      // El RBAC del middleware expulsa al no-admin con un 302 a "/" antes de
+      // llegar al handler; se toleran 401/403 por si el orden cambia.
+      expect([302, 401, 403]).toContain(response.status());
+
+      const [row] = await db
+        .select({ active: users.active })
+        .from(users)
+        .where(eq(users.id, adminId));
+      expect(row.active).toBe(true);
+    } finally {
+      await db.delete(sessions).where(eq(sessions.id, agentSession));
+      if (agentId !== undefined)
+        await db.delete(users).where(eq(users.id, agentId));
+    }
+  });
+
+  test("un admin puede desactivar a otro admin cuando hay más de uno activo", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const ts = Date.now();
+    const otherAdminSession = `sess_other_admin_${ts}`;
+    let otherAdminId: number | undefined;
+
+    try {
+      const [otherAdmin] = await db
+        .insert(users)
+        .values({
+          username: `otherAdmin_${ts}`,
+          password: "x",
+          role: "admin",
+          active: true,
+        })
+        .returning({ id: users.id });
+      otherAdminId = otherAdmin.id;
+      await db.insert(sessions).values({
+        id: otherAdminSession,
+        userId: otherAdminId,
+        expiresAt: Date.now() + 86400000,
+      });
+
+      await page.context().addCookies([
+        {
+          name: "session_id",
+          value: sign(otherAdminSession),
+          domain: new URL(baseURL).hostname,
+          path: "/",
+        },
+      ]);
+
+      const response = await page.request.post("/admin/usuarios", {
+        headers: { Accept: "application/json" },
+        form: { action: "deactivate-user", userId: String(adminId) },
+      });
+      expect(response.status()).toBe(200);
+
+      const [row] = await db
+        .select({ active: users.active })
+        .from(users)
+        .where(eq(users.id, adminId));
+      expect(row.active).toBe(false);
+    } finally {
+      // adminId lo usan beforeAll/otros tests: reactivar SIEMPRE.
+      await db
+        .update(users)
+        .set({ active: true, disabledAt: null, disabledBy: null })
+        .where(eq(users.id, adminId));
+      await db.delete(sessions).where(eq(sessions.id, otherAdminSession));
+      if (otherAdminId !== undefined)
+        await db.delete(users).where(eq(users.id, otherAdminId));
+    }
+  });
 });
