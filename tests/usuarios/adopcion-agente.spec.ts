@@ -88,11 +88,24 @@ test.describe("Adopción de shell huérfano en el alta", () => {
     if (scheduleId) {
       await db.delete(schedules).where(eq(schedules.id, scheduleId));
     }
+    // Modo falla: si la adopción rompe e inserta una fila NUEVA con
+    // userId = usuario creado, borrar solo shellId + usuario la dejaría
+    // huérfana (FK ON DELETE SET NULL) y chocaría el UNIQUE de agents.name
+    // en la próxima corrida. Resolver el id del usuario primero y borrar
+    // TODAS sus filas agents antes de borrar el usuario (patrón cleanupUser
+    // de tests/admin/usuarios-create-modal.spec.ts).
+    if (createdUsername) {
+      const [u] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.username, createdUsername));
+      if (u) {
+        await db.delete(agents).where(eq(agents.userId, u.id));
+        await db.delete(users).where(eq(users.id, u.id));
+      }
+    }
     if (shellId) {
       await db.delete(agents).where(eq(agents.id, shellId));
-    }
-    if (createdUsername) {
-      await db.delete(users).where(eq(users.username, createdUsername));
     }
     await cleanupAdmin(adminCtx);
   });
@@ -100,10 +113,12 @@ test.describe("Adopción de shell huérfano en el alta", () => {
   test("alta adopta shell huérfano por nombre y preserva historial", async ({
     page,
   }) => {
-    // Setup: shell huérfano (sin userId) + fila de historial por agentId.
+    // Setup: shell huérfano (sin userId, enCronograma false) + fila de
+    // historial por agentId. El false sembrado prueba que el flag del form
+    // se propaga via el spread de adopción (no que el shell ya lo traía).
     const [shell] = await db
       .insert(agents)
-      .values({ name: SHELL_NAME, enCronograma: true })
+      .values({ name: SHELL_NAME, enCronograma: false })
       .returning({ id: agents.id });
     shellId = shell.id;
 
@@ -168,12 +183,16 @@ test.describe("Adopción de shell huérfano en el alta", () => {
     const [adopted] = await db
       .select({
         id: agents.id,
+        name: agents.name,
         userId: agents.userId,
         enCronograma: agents.enCronograma,
       })
       .from(agents)
       .where(eq(agents.id, shellId));
     expect(adopted.userId).toBe(user.id);
+    // El .set({ name }) de la adopción aplica el case-variant del form.
+    expect(adopted.name).toBe(FORM_NAME);
+    // Flag del form (checkbox on) propagado: el shell sembró en false.
     expect(adopted.enCronograma).toBe(true);
 
     // Assert 3: el historial sigue apuntando al mismo agents.id.
