@@ -2,6 +2,7 @@
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
 import { sql, eq, and, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import DataTable from "@components/ui/DataTable.astro";
@@ -27,6 +28,8 @@ import SearchBar from "@components/ui/SearchBar.astro";
 
 const currentUserId = Astro.locals.user?.id ?? 0;
 
+const disabledByUser = alias(users, "disabled_by_user");
+
 const allUsers = await db
   .select({
     id: users.id,
@@ -37,6 +40,7 @@ const allUsers = await db
     active: users.active,
     disabledAt: users.disabledAt,
     disabledBy: users.disabledBy,
+    disabledByUsername: disabledByUser.username,
     // Nombre canonico via join: users.helpdeskName puede quedar stale cuando
     // mesaSync renombra una mesa. Se usa para el gating de participaciones;
     // el badge/banner siguen mostrando el denormalizado (informativo).
@@ -52,7 +56,8 @@ const allUsers = await db
     agents,
     sql`lower(coalesce(${agents.username}, '')) = ${users.username}`,
   )
-  .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId));
+  .leftJoin(mesas, eq(users.helpdeskId, mesas.invgateId))
+  .leftJoin(disabledByUser, eq(users.disabledBy, disabledByUser.id));
 
 const activeUsers = allUsers.filter((u) => u.active);
 const inactiveUsers = allUsers.filter((u) => !u.active);
@@ -84,9 +89,9 @@ const helpdeskOptions = await db
   .orderBy(mesas.name);
 
 const headerGridClass =
-  "grid-cols-[1fr_180px_104px_170px_180px_88px] gap-4";
+  "grid-cols-[1fr_180px_104px_170px_180px_184px] gap-4";
 const rowGridClass =
-  "grid grid-cols-[1fr_180px_104px_170px_180px_88px] items-center gap-4";
+  "grid grid-cols-[1fr_180px_104px_170px_180px_184px] items-center gap-4";
 
 // Normaliza variantes legacy ("Supervisor ", "Team Leader") en la UI; el
 // enforcement real vive server-side (normalizeRole en usuarios.astro).
@@ -220,10 +225,14 @@ const isSupervisorRole = (role: string): boolean =>
                 </div>
                 <div class="space-y-1 text-center">
                   <p class="text-sm font-semibold">
-                    No hay usuarios registrados
+                    {inactiveUsers.length > 0
+                      ? "No hay usuarios activos"
+                      : "No hay usuarios registrados"}
                   </p>
                   <p class="text-xs">
-                    Creá el primer usuario desde el formulario.
+                    {inactiveUsers.length > 0
+                      ? "Los usuarios desactivados aparecen abajo en Usuarios inactivos."
+                      : "Creá el primer usuario desde el formulario."}
                   </p>
                 </div>
               </div>
@@ -436,10 +445,15 @@ const isSupervisorRole = (role: string): boolean =>
                     <ActionButton
                       id={`deactivate-user-${u.id}`}
                       icon="boxicons:user-minus"
-                      label="Desactivar"
-                      size="sm"
+                      size="default"
                       color="btn-error"
-                      title="Desactivar este usuario"
+                      class={u.id === currentUserId ? "btn-disabled" : undefined}
+                      disabled={u.id === currentUserId}
+                      title={
+                        u.id === currentUserId
+                          ? "No podés desactivar tu propio usuario"
+                          : "Desactivar este usuario"
+                      }
                       ariaLabel={`Desactivar usuario ${u.username}`}
                       onclick={`document.getElementById('modal-deactivate-${u.id}').showModal()`}
                     />
@@ -633,7 +647,7 @@ const isSupervisorRole = (role: string): boolean =>
                         <span class="font-mono font-semibold">{u.username}</span>
                         {" "}({u.agentName || "sin nombre"}, rol {u.role})? No
                         podrá iniciar sesión. Podés reactivarlo luego desde la
-                        pestaña Inactivos.
+                        sección Usuarios inactivos.
                       </p>
                       <form method="POST" class="flex justify-end gap-2" data-async-form>
                         <input type="hidden" name="action" value="deactivate-user" />
@@ -677,7 +691,9 @@ const isSupervisorRole = (role: string): boolean =>
                 <span class="text-base-content/50 text-xs">
                   {u.disabledAt
                     ? `Desactivado el ${u.disabledAt.toLocaleDateString("es-AR")}`
-                    : "Desactivado"}
+                    : "Desactivado"}{u.disabledByUsername
+                    ? ` por ${u.disabledByUsername}`
+                    : ""}
                 </span>
               </div>
               <form method="POST" data-async-form>

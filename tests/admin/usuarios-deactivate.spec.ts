@@ -160,15 +160,27 @@ test.describe("Baja de usuarios (soft-delete)", () => {
       .values({ username, password: "x", role: "agent" })
       .returning({ id: users.id });
 
-    await page.goto("/admin/usuarios");
-    await page.click(`#deactivate-user-${target.id}`);
-    await page.locator(`#modal-deactivate-${target.id} button[type=submit]`).click();
-    await page.waitForLoadState("networkidle");
+    try {
+      await page.goto("/admin/usuarios");
+      await page.click(`#deactivate-user-${target.id}`);
+      await page
+        .locator(`#modal-deactivate-${target.id} button[type=submit]`)
+        .click();
+      await page.waitForLoadState("networkidle");
 
-    await expect(page.locator(`text=${username}`).first()).toBeVisible();
-    await expect(page.locator("[data-inactive-user-row]").first()).toBeVisible();
+      await expect(page.locator(`#deactivate-user-${target.id}`)).toHaveCount(0);
+      await expect(
+        page.locator("[data-inactive-user-row]", { hasText: username }),
+      ).toHaveCount(1);
 
-    await db.delete(users).where(eq(users.id, target.id));
+      const [row] = await db
+        .select({ active: users.active })
+        .from(users)
+        .where(eq(users.id, target.id));
+      expect(row.active).toBe(false);
+    } finally {
+      await db.delete(users).where(eq(users.id, target.id));
+    }
   });
 
   test("login de usuario inactivo es rechazado", async ({ page }) => {
