@@ -41,7 +41,8 @@ test.beforeAll(async () => {
       password: "hashed_fake_password",
       role: "agent",
       helpdeskId: mesaInvgateId,
-      helpdeskName: MESA_NAME,
+      // Stale intencional: prueba que gana el nombre canonico del join (mesas.name).
+      helpdeskName: `STALE_${stamp}`,
     })
     .returning({ id: users.id });
   withMesaUserId = withMesa.id;
@@ -106,6 +107,8 @@ test.describe("Navbar dropdown mesa display", () => {
     await expect(mesa).toHaveText(MESA_NAME);
     const mesaBox = await mesa.boundingBox();
     const roleBox = await role.boundingBox();
+    expect(mesaBox).not.toBeNull();
+    expect(roleBox).not.toBeNull();
     expect(mesaBox!.y).toBeGreaterThan(roleBox!.y);
   });
 
@@ -137,6 +140,8 @@ test.describe("Navbar dropdown mesa display", () => {
     await expect(mesa).toHaveText("Sin mesa");
     const mesaBox = await mesa.boundingBox();
     const roleBox = await role.boundingBox();
+    expect(mesaBox).not.toBeNull();
+    expect(roleBox).not.toBeNull();
     expect(mesaBox!.y).toBeGreaterThan(roleBox!.y);
   });
 });
