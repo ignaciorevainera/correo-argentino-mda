@@ -20,8 +20,8 @@
  *
  * Mesa canonica: join `users.helpdesk_id = mesas.invgate_id` -> `mesas.name`.
  * NO se usa `users.helpdesk_name` (denormalizado, puede estar stale).
- * Vinculo users<->agents case-insensitive:
- * `lower(coalesce(agents.username,'')) = lower(users.username)`.
+ * Vinculo users<->agents: `agents.user_id = users.id` (Plan B; sobrevive al
+ * drop de `agents.username`).
  *
  * Uso:
  *   npx tsx scripts/normalize-participaciones.mts               # dry-run
@@ -39,7 +39,7 @@ import {
 } from "./lib/normalizeParticipaciones.mts";
 
 export type NormalizeChange = {
-  username: string;
+  name: string | null;
   mesaName: string | null;
   role: string;
   before: ParticipationFlags;
@@ -59,7 +59,7 @@ export type NormalizeReport = {
 
 type AgentRow = {
   userId: number;
-  username: string;
+  name: string | null;
   role: string;
   mesaName: string | null;
   agentId: number | null;
@@ -72,9 +72,9 @@ type AgentRow = {
 const SELECT_ROWS = `
   SELECT
     u.id AS userId,
-    u.username AS username,
     u.role AS role,
     m.name AS mesaName,
+    a.name AS name,
     a.id AS agentId,
     a.en_cronograma AS en_cronograma,
     a.asignable_cubic AS asignable_cubic,
@@ -82,14 +82,14 @@ const SELECT_ROWS = `
     a.asignable_ags AS asignable_ags
   FROM users u
   LEFT JOIN mesas m ON m.invgate_id = u.helpdesk_id
-  LEFT JOIN agents a ON lower(coalesce(a.username, '')) = lower(u.username)
+  LEFT JOIN agents a ON a.user_id = u.id
 `;
 
 const COUNT_USERS_WITHOUT_AGENT = `
   SELECT COUNT(*) AS c
   FROM users u
   WHERE NOT EXISTS (
-    SELECT 1 FROM agents a WHERE lower(coalesce(a.username, '')) = lower(u.username)
+    SELECT 1 FROM agents a WHERE a.user_id = u.id
   )
 `;
 
@@ -160,7 +160,7 @@ export async function runNormalize(opts: {
       const after = normalizeFlags(r.mesaName, r.role, before);
       if (!flagsEqual(before, after)) {
         changes.push({
-          username: r.username,
+          name: r.name,
           mesaName: r.mesaName,
           role: r.role,
           before,
@@ -232,7 +232,7 @@ function printReport(report: NormalizeReport): void {
     console.log(`Usuarios afectados (${report.changes.length}):`);
     for (const c of report.changes) {
       console.log(
-        `  - ${c.username} [mesa=${c.mesaName ?? "sin mesa"}, rol=${c.role}]`,
+        `  - ${c.name ?? "?"} [mesa=${c.mesaName ?? "sin mesa"}, rol=${c.role}]`,
       );
       console.log(`      antes : ${fmtFlags(c.before)}`);
       console.log(`      despues: ${fmtFlags(c.after)}`);

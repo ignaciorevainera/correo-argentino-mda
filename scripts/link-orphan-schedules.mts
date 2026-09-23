@@ -1,7 +1,7 @@
 // scripts/link-orphan-schedules.mts
 //
 // Backfill one-time de schedules huerfanos (agent_id IS NULL):
-// crea agentes-shell (username/user_id NULL, flags false) para los nombres
+// crea agentes-shell (user_id NULL, flags false) para los nombres
 // historicos sin fila en agents y vincula sus schedules por nombre.
 // Dry-run por defecto. --apply escribe en transaccion sincrona tras backup
 // WAL-safe (db.backup). Idempotente. Nunca borra filas ni agentes.
@@ -169,7 +169,7 @@ export async function runLinkOrphanSchedules(
 
     const tx = db.transaction(() => {
       const insertAgent = db.prepare(
-        "INSERT INTO agents (name, username, user_id, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags) VALUES (?, NULL, NULL, 0, 0, 0, 0)",
+        "INSERT INTO agents (name, user_id, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags) VALUES (?, NULL, 0, 0, 0, 0)",
       );
       const linkRows = db.prepare(
         "UPDATE schedules SET agent_id = ? WHERE agent_id IS NULL AND agent_name = ?",

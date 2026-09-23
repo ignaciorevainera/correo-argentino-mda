@@ -247,6 +247,9 @@ function phase5Populate(
   const mesasExists = tableExists(db, "mesas");
   const userCols = new Set(tableInfo(db, "users").map((c) => c.name));
   const agentCols = new Set(tableInfo(db, "agents").map((c) => c.name));
+  // Tolera el drop de agents.username (Plan B): sin la columna se selecta sin
+  // ella y el fallback de rol por username se omite (queda solo user_id).
+  const hasAgentUsername = agentCols.has("username");
   const flagCols = [
     "en_cronograma",
     "asignable_cubic",
@@ -405,12 +408,13 @@ function phase5Populate(
     : "0 AS en_cronograma, 0 AS asignable_cubic, 0 AS incluido_calidad, 0 AS asignable_ags";
   const agents = db
     .prepare(
-      `SELECT id, username, ${hasUserLink ? "user_id" : "NULL AS user_id"}, ` +
+      `SELECT id, ${hasAgentUsername ? "username, " : ""}` +
+        `${hasUserLink ? "user_id" : "NULL AS user_id"}, ` +
         `${flagSelect} FROM agents`,
     )
     .all() as Array<{
     id: number;
-    username: string | null;
+    username?: string | null;
     user_id: number | null;
     en_cronograma: number;
     asignable_cubic: number;
@@ -422,7 +426,7 @@ function phase5Populate(
   for (const agent of agents) {
     let role: string | null = null;
     if (agent.user_id != null) role = roleById.get(agent.user_id) ?? null;
-    if (role == null && agent.username) {
+    if (role == null && hasAgentUsername && agent.username) {
       role = roleByUsername.get(String(agent.username).toLowerCase()) ?? null;
     }
     const flags = participationFlagsForRole(role ?? "");
@@ -543,6 +547,7 @@ export async function runBootstrap(
     const hasAgentId = scheduleCols.has("agent_id");
     const hasAgentName = scheduleCols.has("agent_name");
     const hasUserId = agentCols.has("user_id");
+    const hasUsername = agentCols.has("username");
     const hasAgentIdIdx = hasIndex(db, "schedules_agent_id_idx");
 
     // ── Fase 1 — plan de columnas ───────────────────────────────────────────
@@ -564,41 +569,47 @@ export async function runBootstrap(
     }
 
     // ── Fase 2a — backfill agents.user_id ───────────────────────────────────
+    // Tolera el drop de agents.username (Plan B): sin la columna no hay clave
+    // de matcheo -> la fase se saltea (no-op, sin error) y el resto sigue.
+    const unameSel = hasUsername ? "username, " : "";
     const agentSelect = hasUserId
-      ? "SELECT id, name, username, user_id FROM agents"
-      : "SELECT id, name, username, NULL AS user_id FROM agents";
+      ? `SELECT id, name, ${unameSel}user_id FROM agents`
+      : `SELECT id, name, ${unameSel}NULL AS user_id FROM agents`;
     const agents = db.prepare(agentSelect).all() as Array<{
       id: number;
       name: string;
-      username: string | null;
+      username?: string | null;
       user_id: number | null;
     }>;
-    const users = db.prepare("SELECT id, username FROM users").all() as Array<{
-      id: number;
-      username: string;
-    }>;
-
-    const usersByLower = new Map<string, number[]>();
-    for (const u of users) {
-      const key = String(u.username ?? "").toLowerCase();
-      const list = usersByLower.get(key) ?? [];
-      list.push(u.id);
-      usersByLower.set(key, list);
-    }
 
     const agentsNoUser: string[] = [];
     const agentLinks: Array<{ agentId: number; userId: number }> = [];
-    for (const agent of agents) {
-      if (agent.user_id != null) continue; // ya vinculado (idempotente)
-      const uname = String(agent.username ?? "").trim();
-      if (!uname) continue; // sin username de portal: no aplica
-      const candidates = usersByLower.get(uname.toLowerCase()) ?? [];
-      if (candidates.length === 1) {
-        agentLinks.push({ agentId: agent.id, userId: candidates[0] });
-      } else if (candidates.length > 1) {
-        agentsNoUser.push(`${agent.name} (${uname}) [ambiguo]`);
-      } else {
-        agentsNoUser.push(`${agent.name} (${uname})`);
+    if (hasUsername) {
+      const users = db.prepare("SELECT id, username FROM users").all() as Array<{
+        id: number;
+        username: string;
+      }>;
+
+      const usersByLower = new Map<string, number[]>();
+      for (const u of users) {
+        const key = String(u.username ?? "").toLowerCase();
+        const list = usersByLower.get(key) ?? [];
+        list.push(u.id);
+        usersByLower.set(key, list);
+      }
+
+      for (const agent of agents) {
+        if (agent.user_id != null) continue; // ya vinculado (idempotente)
+        const uname = String(agent.username ?? "").trim();
+        if (!uname) continue; // sin username de portal: no aplica
+        const candidates = usersByLower.get(uname.toLowerCase()) ?? [];
+        if (candidates.length === 1) {
+          agentLinks.push({ agentId: agent.id, userId: candidates[0] });
+        } else if (candidates.length > 1) {
+          agentsNoUser.push(`${agent.name} (${uname}) [ambiguo]`);
+        } else {
+          agentsNoUser.push(`${agent.name} (${uname})`);
+        }
       }
     }
 
@@ -704,7 +715,9 @@ export async function runBootstrap(
           `agent_id=${hasAgentId ? "ok" : "falta"}, user_id=${hasUserId ? "ok" : "falta"}, ` +
           `agent_name=${hasAgentName ? "presente (pre-Plan-A)" : "ausente (post-B2)"}`,
         columns: `${columnsAdded.length} cambios planificados`,
-        backfill: `${agentLinks.length} agents, ${schedulesLinked} schedules`,
+        backfill: hasUsername
+          ? `${agentLinks.length} agents, ${schedulesLinked} schedules`
+          : "agents.username ya no existe: fase 2 no aplica",
         orphans: `${shellNames.length} shells, ${rowsLinkedToShells} filas`,
         saneo: saneoPlan,
         align: skipAlign ? "omitido (skipAlign)" : "pendiente (fase 4)",
@@ -842,7 +855,9 @@ export async function runBootstrap(
       });
       tx();
       report.phases.columns = `${columnsAdded.length} aplicados`;
-      report.phases.backfill = `${agentLinks.length} agents, ${schedulesLinked} schedules vinculados`;
+      report.phases.backfill = hasUsername
+        ? `${agentLinks.length} agents, ${schedulesLinked} schedules vinculados`
+        : "agents.username ya no existe: fase 2 no aplica";
       report.phases.orphans = `${shellNames.length} shells, ${rowsLinkedToShells} filas`;
     } else {
       report.phases.columns = "sin cambios";

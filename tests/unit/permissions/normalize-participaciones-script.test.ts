@@ -28,7 +28,7 @@ const DDL = `
   CREATE TABLE agents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    username TEXT,
+    user_id INTEGER,
     en_cronograma INTEGER NOT NULL DEFAULT 0,
     asignable_cubic INTEGER NOT NULL DEFAULT 0,
     incluido_calidad INTEGER NOT NULL DEFAULT 0,
@@ -41,6 +41,7 @@ const COORD_ID = 501;
 
 let workDir: string;
 let dbPath: string;
+let users: Record<string, number>;
 
 function seed(): void {
   const db = new Database(dbPath);
@@ -55,27 +56,29 @@ function seed(): void {
   );
   // Nota: helpdesk_name deliberadamente stale/vacio para probar que se usa la
   // mesa canonica via join y no la denormalizada.
-  insertUser.run("ti_agent", "agent", MDA_TI_ID);
-  insertUser.run("ti_sup", "supervisor", MDA_TI_ID);
-  insertUser.run("coord_agent", "agent", COORD_ID);
-  insertUser.run("nomesa_ref", "referent", null);
-  insertUser.run("ghost", "agent", MDA_TI_ID); // sin agent vinculado
+  users = {
+    ti_agent: Number(insertUser.run("ti_agent", "agent", MDA_TI_ID).lastInsertRowid),
+    ti_sup: Number(insertUser.run("ti_sup", "supervisor", MDA_TI_ID).lastInsertRowid),
+    coord_agent: Number(insertUser.run("coord_agent", "agent", COORD_ID).lastInsertRowid),
+    nomesa_ref: Number(insertUser.run("nomesa_ref", "referent", null).lastInsertRowid),
+    ghost: Number(insertUser.run("ghost", "agent", MDA_TI_ID).lastInsertRowid), // sin agent vinculado
+  };
 
   const insertAgent = db.prepare(
-    `INSERT INTO agents (name, username, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags)
+    `INSERT INTO agents (name, user_id, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags)
      VALUES (?, ?, ?, ?, ?, ?)`,
   );
-  insertAgent.run("TI AGENT", "ti_agent", 1, 1, 1, 1);
-  insertAgent.run("TI SUP", "ti_sup", 1, 1, 1, 1);
-  insertAgent.run("COORD AGENT", "coord_agent", 1, 1, 1, 1);
-  insertAgent.run("NOMESA REF", "nomesa_ref", 1, 1, 1, 1);
+  insertAgent.run("TI AGENT", users.ti_agent, 1, 1, 1, 1);
+  insertAgent.run("TI SUP", users.ti_sup, 1, 1, 1, 1);
+  insertAgent.run("COORD AGENT", users.coord_agent, 1, 1, 1, 1);
+  insertAgent.run("NOMESA REF", users.nomesa_ref, 1, 1, 1, 1);
   // Agente huerfano (sin user): no debe tocarse.
-  insertAgent.run("ORPHAN", "orphan_agent", 1, 1, 1, 1);
+  insertAgent.run("ORPHAN", null, 1, 1, 1, 1);
 
   db.close();
 }
 
-function flags(username: string): {
+function agentFlags(where: string, value: number | string): {
   en: number;
   cubic: number;
   cal: number;
@@ -85,11 +88,19 @@ function flags(username: string): {
   const row = db
     .prepare(
       `SELECT en_cronograma en, asignable_cubic cubic, incluido_calidad cal, asignable_ags ags
-       FROM agents WHERE username = ?`,
+       FROM agents WHERE ${where}`,
     )
-    .get(username) as any;
+    .get(value) as any;
   db.close();
   return row;
+}
+
+function flags(userId: number): ReturnType<typeof agentFlags> {
+  return agentFlags("user_id = ?", userId);
+}
+
+function flagsByName(name: string): ReturnType<typeof agentFlags> {
+  return agentFlags("name = ?", name);
 }
 
 function backups(): string[] {
@@ -116,9 +127,9 @@ describe("runNormalize — dry-run", () => {
     expect(backups()).toHaveLength(0);
 
     // Flags intactos.
-    expect(flags("ti_sup")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
-    expect(flags("coord_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
-    expect(flags("nomesa_ref")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.ti_sup)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.coord_agent)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.nomesa_ref)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
   });
 });
 
@@ -131,15 +142,15 @@ describe("runNormalize — apply", () => {
     expect(backups()).toHaveLength(1);
 
     // ti_agent (mesa participativa, agent): sin cambios.
-    expect(flags("ti_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.ti_agent)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
     // ti_sup: solo enCronograma a false.
-    expect(flags("ti_sup")).toEqual({ en: 0, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.ti_sup)).toEqual({ en: 0, cubic: 1, cal: 1, ags: 1 });
     // coord_agent: los 4 a false.
-    expect(flags("coord_agent")).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
+    expect(flags(users.coord_agent)).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
     // nomesa_ref: los 4 a false.
-    expect(flags("nomesa_ref")).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
+    expect(flags(users.nomesa_ref)).toEqual({ en: 0, cubic: 0, cal: 0, ags: 0 });
     // Agente sin user: intacto.
-    expect(flags("orphan_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flagsByName("ORPHAN")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
 
     // Segunda corrida: sin cambios (idempotente), sin nuevo backup.
     const second = await runNormalize({ dbPath, apply: true });
@@ -194,20 +205,20 @@ describe("runNormalize — error paths", () => {
     expect(err!.message).toContain("sin cambios");
 
     // Ningun flag cambio y no quedo backup.
-    expect(flags("ti_sup")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
-    expect(flags("coord_agent")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
-    expect(flags("nomesa_ref")).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.ti_sup)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.coord_agent)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
+    expect(flags(users.nomesa_ref)).toEqual({ en: 1, cubic: 1, cal: 1, ags: 1 });
     expect(backups()).toHaveLength(0);
   });
 
-  it("join case-insensitive: user con mayusculas se vincula igual", async () => {
+  it("renombrar username de users no desvincula: el join es por user_id", async () => {
     const db = new Database(dbPath);
     db.prepare("UPDATE users SET username = 'TI_AGENT' WHERE username = 'ti_agent'").run();
     db.prepare("UPDATE users SET username = 'TI_SUP' WHERE username = 'ti_sup'").run();
     db.close();
 
     const report = await runNormalize({ dbPath });
-    // ti_agent mayusculas sigue vinculado (mesa participativa + agent: sin cambios).
+    // El vinculo user_id sobrevive al rename: sigue habiendo solo 1 sin agent.
     expect(report.skippedNoAgent).toBe(1); // solo ghost
     expect(report.affected).toBe(3); // ti_sup, coord_agent, nomesa_ref
   });

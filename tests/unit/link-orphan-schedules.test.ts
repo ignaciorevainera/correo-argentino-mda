@@ -10,7 +10,6 @@ const DDL = `
 CREATE TABLE agents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
-  username TEXT,
   user_id INTEGER,
   en_cronograma INTEGER NOT NULL DEFAULT 0,
   asignable_cubic INTEGER NOT NULL DEFAULT 0,
@@ -129,22 +128,20 @@ describe("runLinkOrphanSchedules", () => {
     ).toBe(1);
   });
 
-  it("agentes-shell quedan inertes (sin username/user_id, flags en 0)", async () => {
+  it("agentes-shell quedan inertes (sin user_id, flags en 0)", async () => {
     await runLinkOrphanSchedules({ dbPath, apply: true });
     const shells = rows<{
-      username: string | null;
-      user_id: number | null;
+      userId: number | null;
       en_cronograma: number;
       asignable_cubic: number;
       incluido_calidad: number;
       asignable_ags: number;
     }>(
-      "SELECT username, user_id, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags FROM agents WHERE name IN ('Arce Franco','Nadie') ORDER BY name",
+      "SELECT user_id AS userId, en_cronograma, asignable_cubic, incluido_calidad, asignable_ags FROM agents WHERE name IN ('Arce Franco','Nadie') ORDER BY name",
     );
     expect(shells.length).toBe(2);
     for (const shell of shells) {
-      expect(shell.username).toBeNull();
-      expect(shell.user_id).toBeNull();
+      expect(shell.userId).toBeNull();
       expect(shell.en_cronograma).toBe(0);
       expect(shell.asignable_cubic).toBe(0);
       expect(shell.incluido_calidad).toBe(0);
