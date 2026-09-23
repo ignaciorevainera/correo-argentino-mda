@@ -51,14 +51,16 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 // ── OperatorFormModal ──
 {
   const src = await read("src/components/cronograma/subcomponents/OperatorFormModal.astro");
-  assert.match(src, /boxicons:user-plus-filled/, "OperatorForm: user-plus filled");
-  assert.doesNotMatch(src, /boxicons:user-plus"/, "OperatorForm: sin user-plus no-filled");
-  assert.doesNotMatch(src, /boxicons:edit-alt"/, "OperatorForm: edit-alt filled");
+  assert.match(src, /boxicons:edit-alt-filled/, "OperatorForm: edit-alt filled");
+  assert.doesNotMatch(src, /boxicons:user-plus/, "OperatorForm: sin user-plus (alta fuera del cronograma)");
+  assert.doesNotMatch(src, /boxicons:edit-alt"/, "OperatorForm: edit-alt filled sin forma corta");
   assert.match(src, /variant="error"/, "OperatorForm: cancelar variant=error");
   assert.match(src, /icon="boxicons:x-filled"/, "OperatorForm: cancelar x-filled");
-  for (const id of ["cancel-new-op", "confirm-new-op", "cancel-edit-op", "confirm-edit-op"]) {
+  for (const id of ["cancel-edit-op", "confirm-edit-op"]) {
     assert.ok(src.includes(id), `OperatorForm: id ${id} preservado`);
   }
+  assert.ok(!src.includes("mode="), "OperatorForm: sin prop mode (solo edicion)");
+  assert.ok(!src.includes("edit-op-username"), "OperatorForm: sin campo username (identidad en /admin/usuarios)");
   assert.doesNotMatch(src, /<form method="dialog">/, "OperatorForm: sin form dialog vestigial");
 }
 

@@ -1421,15 +1421,6 @@ function setupEventListeners(): void {
       }
     });
 
-  // New Operator Modal Handlers
-  const newOpModal = document.getElementById("new-operator-modal") as
-    (HTMLDialogElement & { showModal: () => void; close: () => void }) | null;
-  const openNewOpBtn = document.getElementById("open-new-op-modal");
-
-  openNewOpBtn?.addEventListener("click", () => {
-    newOpModal?.showModal();
-  });
-
   // Holidays Modal Trigger
   const holidaysModal = document.getElementById("holidays-modal") as
     (HTMLDialogElement & { showModal: () => void; close: () => void }) | null;
@@ -1544,7 +1535,6 @@ function setupEventListeners(): void {
     if (editOpBtn) {
       event.stopPropagation();
       const originalName = editOpBtn.dataset.editOpName;
-      const username = editOpBtn.dataset.editOpUsername;
       const location = editOpBtn.dataset.editOpLocation;
       const schedule = editOpBtn.dataset.editOpSchedule;
 
@@ -1554,16 +1544,12 @@ function setupEventListeners(): void {
       const nameInput = document.getElementById(
         "edit-op-name",
       ) as HTMLInputElement | null;
-      const usernameInput = document.getElementById(
-        "edit-op-username",
-      ) as HTMLInputElement | null;
       const locSelect = document.getElementById(
         "edit-op-location",
       ) as HTMLSelectElement | null;
 
       if (originalNameInput) originalNameInput.value = originalName || "";
       if (nameInput) nameInput.value = originalName || "";
-      if (usernameInput) usernameInput.value = username || "";
       if (locSelect) locSelect.value = location || "Monte Grande";
 
       const editOpModal = document.getElementById("edit-operator-modal") as

@@ -12,7 +12,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const body = await request.json();
-    const { originalName, name, username, location, horarioDefault } = body;
+    const { originalName, name, location, horarioDefault } = body;
 
     if (originalName) {
       // --- ACTUALIZACIÓN DE OPERADOR ---
@@ -54,7 +54,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         tx.update(agents)
           .set({
             name: name.trim(),
-            username: username ? username.trim() : null,
             avatarInitials: initials,
             location: location || "Monte Grande",
             horarioDefault: horarioDefault || "",

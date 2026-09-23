@@ -1304,7 +1304,6 @@ export function renderMonthly(): void {
   } else {
     sortedOps.forEach((op, opIdx) => {
       const stats = { P: 0, HO: 0, L: 0 };
-      const username = op.username || "";
       dates.forEach((d) => {
         const s = op.asistencia[d];
         if (
@@ -1403,7 +1402,7 @@ export function renderMonthly(): void {
                   ${actionEditButtonHtml({
                     ariaLabel: "Editar operador",
                     actionClass: "edit-op-btn",
-                    attrs: `data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-username="${escapeHtml(username)}" data-edit-op-location="${escapeHtml(op.location || "Monte Grande")}" data-edit-op-schedule="${escapeHtml(op.horario || "")}" title="Editar operador"`,
+                    attrs: `data-edit-op-name="${escapeHtml(op.nombre)}" data-edit-op-location="${escapeHtml(op.location || "Monte Grande")}" data-edit-op-schedule="${escapeHtml(op.horario || "")}" title="Editar operador"`,
                   })}
                   ${actionDeleteButtonHtml({
                     ariaLabel: "Eliminar operador",

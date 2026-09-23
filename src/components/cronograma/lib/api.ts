@@ -115,17 +115,8 @@ export async function saveOperatorRules(
 export interface OperatorPayload {
   originalName?: string;
   name: string;
-  username?: string;
   location?: string;
   horarioDefault?: string;
-}
-
-export async function createOperator(operator: OperatorPayload): Promise<any> {
-  return fetchJSON<any>("/api/cronograma/operators", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(operator),
-  });
 }
 
 export async function editOperator(
