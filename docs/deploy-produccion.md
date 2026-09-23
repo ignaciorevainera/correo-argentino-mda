@@ -281,18 +281,21 @@ Luego el admin cura el resto de mesas desde `/admin/usuarios/mesas-de-ayuda`.
 Orden crítico:
 
 ```
+0. Pausar la tarea programada de auto-deploy (mismo criterio que el checklist B2): el .bat corre
+   align-db-to-schema y dropearía agents.username sin pasar los gates de los pasos 5 y 7
 1. scripts\backup-db.bat                               # backup de database/mda.db
 2. pm2 stop mda-ping-cubics sync-legacy-inventory sync-users sync-office-links
                                                        # + detener el proceso Astro: la DB no puede estar en uso durante el rebuild de tablas
 3. git pull (rama mergeada) + npm install + npm run build
-4. npx tsx scripts/bootstrap-plan-a-b2.mts              # dry-run: solo si el paso 5 reporta vínculos pendientes
-   npx tsx scripts/bootstrap-plan-a-b2.mts --apply      # aplicar solo en ese caso
+4. npm run audit:agents-userid                         # detector sin flags: si reporta vínculos pendientes
+   npx tsx scripts/bootstrap-plan-a-b2.mts             #   → dry-run del bootstrap
+   npx tsx scripts/bootstrap-plan-a-b2.mts --apply     #   → aplicar; repetir el audit hasta AUDIT OK
 5. npm run audit:agents-userid -- --save                # debe dar AUDIT OK (si FAIL: vincular pendientes antes de seguir; no dropear)
 6. npx tsx scripts/align-db-to-schema.mts               # dropea agents.username (backup automático mda.bak-align-*.db, foreign_key_check + integrity_check)
 7. npm run audit:agents-userid -- --check               # AUDIT OK, sin claves con conteo decreciente
 8. pm2 start ecosystem.config.cjs
 9. smoke: login admin → alta de usuario en /admin/usuarios → verificar que aparece en /supervision/cronograma,
-   AGS (/supervision/asignacion-ags), calidad y asistencia; editar ubicación desde cronograma
+   /supervision/asignacion-autogestiones, calidad y asistencia; editar ubicación desde cronograma
 ```
 
 - **Rollback:** restaurar el backup del paso 1 (`copy` sobre `database/mda.db`) + redeploy del commit anterior. El drop no es reversible in-place sin el backup.
