@@ -104,7 +104,9 @@ test.describe("Navbar dropdown mesa display", () => {
     await expect(username).toBeVisible();
     await expect(role).toHaveText("Agente");
     await expect(mesa).toHaveText(MESA_NAME);
-    await expect(mesa).toBeBelow(role);
+    const mesaBox = await mesa.boundingBox();
+    const roleBox = await role.boundingBox();
+    expect(mesaBox!.y).toBeGreaterThan(roleBox!.y);
   });
 
   test("dropdown shows Sin mesa below role when user has no mesa", async ({
@@ -133,6 +135,8 @@ test.describe("Navbar dropdown mesa display", () => {
     await expect(username).toBeVisible();
     await expect(role).toHaveText("Agente");
     await expect(mesa).toHaveText("Sin mesa");
-    await expect(mesa).toBeBelow(role);
+    const mesaBox = await mesa.boundingBox();
+    const roleBox = await role.boundingBox();
+    expect(mesaBox!.y).toBeGreaterThan(roleBox!.y);
   });
 });
