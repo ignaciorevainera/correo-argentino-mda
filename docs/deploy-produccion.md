@@ -273,6 +273,34 @@ Luego el admin cura el resto de mesas desde `/admin/usuarios/mesas-de-ayuda`.
 
 ---
 
+## Migración Plan B — drop de `agents.username`
+
+- **Alcance:** el código de la rama `feat/agents-userid-plan-b` elimina la columna `agents.username`; la identidad usuario↔agente queda 100% por `agents.user_id`.
+- **NO usar `scripts/auto-deploy.bat` para este release:** los lectores por `user_id` deben pasar el audit antes de servir tráfico.
+
+Orden crítico:
+
+```
+1. scripts\backup-db.bat                               # backup de database/mda.db
+2. pm2 stop mda-ping-cubics sync-legacy-inventory sync-users sync-office-links
+                                                       # + detener el proceso Astro: la DB no puede estar en uso durante el rebuild de tablas
+3. git pull (rama mergeada) + npm install + npm run build
+4. npx tsx scripts/bootstrap-plan-a-b2.mts              # dry-run: solo si el paso 5 reporta vínculos pendientes
+   npx tsx scripts/bootstrap-plan-a-b2.mts --apply      # aplicar solo en ese caso
+5. npm run audit:agents-userid -- --save                # debe dar AUDIT OK (si FAIL: vincular pendientes antes de seguir; no dropear)
+6. npx tsx scripts/align-db-to-schema.mts               # dropea agents.username (backup automático mda.bak-align-*.db, foreign_key_check + integrity_check)
+7. npm run audit:agents-userid -- --check               # AUDIT OK, sin claves con conteo decreciente
+8. pm2 start ecosystem.config.cjs
+9. smoke: login admin → alta de usuario en /admin/usuarios → verificar que aparece en /supervision/cronograma,
+   AGS (/supervision/asignacion-ags), calidad y asistencia; editar ubicación desde cronograma
+```
+
+- **Rollback:** restaurar el backup del paso 1 (`copy` sobre `database/mda.db`) + redeploy del commit anterior. El drop no es reversible in-place sin el backup.
+- **Nota:** los snapshots generados en `drizzle/` quedaron con la columna vieja; `npm run db:push` es no-op seguro (diff contra schema actual) pero el runbook oficial de DDL es `align-db-to-schema.mts`, nunca `drizzle-kit migrate`.
+- **Verificación mínima post-deploy:** `npx playwright test tests/admin tests/usuarios tests/cronograma tests/lifecycle` (requiere dev/prod en 4321).
+
+---
+
 ## Errores comunes
 
 ### Apache devuelve 503 Service Unavailable
