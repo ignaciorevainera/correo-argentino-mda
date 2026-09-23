@@ -55,7 +55,9 @@ test.describe("schedules.agentId: escritura id-only", () => {
   test.afterAll(async () => {
     if (createdScheduleIds.length) await db.delete(schedules).where(inArray(schedules.id, createdScheduleIds));
     if (createdAgentIds.length) await db.delete(agents).where(inArray(agents.id, createdAgentIds));
-    await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
+    if (createdUserIds.length > 0) {
+      await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
+    }
     if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
   });
 

@@ -82,7 +82,7 @@ test.describe("Ciclo de vida del cronograma del agente", () => {
 
   test.afterAll(async () => {
     if (agentId) await db.delete(schedules).where(eq(schedules.agentId, agentId));
-    if (userId) await db.delete(agents).where(eq(agents.userId, userId));
+    if (agentId) await db.delete(agents).where(eq(agents.id, agentId));
     if (userId) await db.delete(sessions).where(eq(sessions.userId, userId));
     if (username) await db.delete(users).where(eq(users.username, username));
     if (adminSessionId) await db.delete(sessions).where(eq(sessions.id, adminSessionId));
@@ -129,8 +129,8 @@ test.describe("Ciclo de vida del cronograma del agente", () => {
       .select({ id: agents.id, userId: agents.userId, enCronograma: agents.enCronograma })
       .from(agents)
       .where(eq(agents.userId, userId));
+    expect(ag, "fila agents vinculada").toBeTruthy();
     agentId = ag.id;
-    expect(ag.userId).toBe(userId); // vinculo por id
     expect(ag.enCronograma).toBe(true);
 
     // 2) Crear edit de cronograma por agentId.

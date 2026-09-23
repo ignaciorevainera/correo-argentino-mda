@@ -82,7 +82,9 @@ test.describe("lectores de schedules por agentId", () => {
     await db.delete(agentSaturdayGroups).where(eq(agentSaturdayGroups.month, "2027-01"));
     await db.delete(saturdayRotationConfig).where(eq(saturdayRotationConfig.month, "2027-01"));
     if (createdAgentIds.length) await db.delete(agents).where(inArray(agents.id, createdAgentIds));
-    await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
+    if (createdUserIds.length > 0) {
+      await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
+    }
     if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
   });
 

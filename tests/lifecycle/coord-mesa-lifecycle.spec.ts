@@ -92,6 +92,7 @@ async function readAgent(userId: number) {
     })
     .from(agents)
     .where(eq(agents.userId, userId));
+  expect(row, "fila agents").toBeTruthy();
   return row;
 }
 
@@ -250,7 +251,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     // agents: fila vinculada por id y flags sanitizados (mesa no participativa).
     const agentRow = await readAgent(userId);
     expect(agentRow, "fila agents creada").toBeTruthy();
-    expect(agentRow.userId).toBe(userId);
     expect(agentRow.enCronograma).toBe(false);
     expect(agentRow.asignableCubic).toBe(false);
     expect(agentRow.incluidoCalidad).toBe(false);
@@ -349,7 +349,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     );
 
     const agentRow = await readAgent(userId);
-    expect(agentRow.userId).toBe(userId);
     expect(agentRow.enCronograma).toBe(false);
     expect(agentRow.asignableCubic).toBe(false);
     expect(agentRow.incluidoCalidad).toBe(false);
@@ -387,7 +386,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     const userRow = await readUser(userId);
     expect(userRow.helpdeskName).toBe(COORD_HELPDESK);
     const after = await readAgent(userId);
-    expect(after.userId).toBe(userId);
     expect(after.enCronograma).toBe(false);
     expect(after.asignableCubic).toBe(false);
     expect(after.incluidoCalidad).toBe(false);
@@ -408,7 +406,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     );
 
     const start = await readAgent(userId);
-    expect(start.userId).toBe(userId);
     expect(start.enCronograma).toBe(false);
     expect(start.asignableCubic).toBe(false);
 
@@ -426,7 +423,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     expect(onMdaUser).toBeTruthy();
     expect(onMdaUser.helpdeskName).toBe(MDA_TI_HELPDESK);
     const onMdaAgent = await readAgent(userId);
-    expect(onMdaAgent.userId, "vinculo preservado al pasar a MDA TI").toBe(userId);
     expect(onMdaAgent.enCronograma).toBe(true);
     expect(onMdaAgent.asignableCubic).toBe(true);
     expect(onMdaAgent.incluidoCalidad).toBe(true);
@@ -446,7 +442,6 @@ test.describe("Ciclo de vida usuario mesa Coordinacion (no participativa)", () =
     expect(backUser, "usuario persiste tras volver a Coord").toBeTruthy();
     expect(backUser.helpdeskName).toBe(COORD_HELPDESK);
     const backAgent = await readAgent(userId);
-    expect(backAgent.userId, "vinculo preservado al volver a Coord").toBe(userId);
     expect(backAgent.enCronograma).toBe(false);
     expect(backAgent.asignableCubic).toBe(false);
     expect(backAgent.incluidoCalidad).toBe(false);
