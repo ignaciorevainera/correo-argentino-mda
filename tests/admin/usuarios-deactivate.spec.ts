@@ -143,6 +143,34 @@ test.describe("Baja de usuarios (soft-delete)", () => {
     }
   });
 
+  test("flujo UI: desactivar oculta de activos y muestra en inactivos", async ({ page }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await page.context().addCookies([
+      {
+        name: "session_id",
+        value: adminCookie,
+        domain: new URL(baseURL).hostname,
+        path: "/",
+      },
+    ]);
+    const ts = Date.now();
+    const username = `ui_deact_${ts}`;
+    const [target] = await db
+      .insert(users)
+      .values({ username, password: "x", role: "agent" })
+      .returning({ id: users.id });
+
+    await page.goto("/admin/usuarios");
+    await page.click(`#deactivate-user-${target.id}`);
+    await page.locator(`#modal-deactivate-${target.id} button[type=submit]`).click();
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.locator(`text=${username}`).first()).toBeVisible();
+    await expect(page.locator("[data-inactive-user-row]").first()).toBeVisible();
+
+    await db.delete(users).where(eq(users.id, target.id));
+  });
+
   test("login de usuario inactivo es rechazado", async ({ page }) => {
     const ts = Date.now();
     const username = `inactive_login_${ts}`;
