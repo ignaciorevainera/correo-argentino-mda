@@ -45,6 +45,7 @@
 - **Connection**: `src/db/index.ts` via `better-sqlite3`
 - After schema changes, always run `npm run db:push`
 - **Runbook `scripts/normalize-participaciones.mts`** (one-time, idempotente, corrige participaciones stale de `agents`): (1) **dry-run primero**: `npx tsx scripts/normalize-participaciones.mts`; (2) en prod, antes de aplicar, verificar el vinculo `agents.username ↔ users.username` — el reporte muestra `skippedNoAgent` (usuarios sin agente vinculado que NO se tocan); (3) recien entonces `npx tsx scripts/normalize-participaciones.mts --apply`, que crea un backup **WAL-safe** en `database/` (via `db.backup()`, incluye `-wal`) y escribe en transaccion sincrona. Nunca borra filas.
+- **Backfill `scripts/backfill-asistencia.mts`** (one-time, idempotente, inicializa `agents.en_asistencia`; corre solo dentro de `auto-deploy.bat` tras el align): misma mecánica (dry-run por defecto, `--apply` con backup WAL-safe y tx síncrona); aborta si falta la columna. Política: mesa participativa (hoy solo MDA TI) + rol no supervisor + `en_cronograma` ⇒ `en_asistencia=1`; resto ⇒ 0; agentes legacy **sin usuario vinculado** conservan `en_cronograma` (no hay mesa/rol que evaluar). Invariante: `enAsistencia ⊆ enCronograma`. No correr `--apply` sin revisar el dry-run.
 
 ## Stack & style
 
@@ -107,5 +108,5 @@
 ## PM2 production
 
 - `ecosystem.config.cjs` — 5 processes: Astro SSR (port 4321), mda-ping-cubics, sync-legacy-inventory, sync-users, sync-office-links
-- `scripts/auto-deploy.bat` — git pull → pm2 kill → npm install → build (verify-build) → pm2 start
+- `scripts/auto-deploy.bat` — git pull → pm2 kill → npm install → align-db-to-schema → backfill-asistencia --apply → build (verify-build) → pm2 start
 - `scripts/backup-db.bat` — copies `database/mda.db` to backup directory

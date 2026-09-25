@@ -181,11 +181,15 @@ cd C:\Projects\correo-argentino-mda
 git pull origin master
 call pm2 kill
 call npm install
+call npx tsx scripts/align-db-to-schema.mts
+call npx tsx scripts/backfill-asistencia.mts --apply
 call npm run build
 call pm2 start ecosystem.config.cjs
 ```
 
 `pm2 kill` corre ANTES de `npm install`: con procesos Node/PM2 vivos, Windows no permite reemplazar binarios nativos (`.node`) y deja `node_modules` inconsistente → el build genera un manifest SSR sin `rootDir` → crash loop en runtime. `npm run build` incluye el guard `scripts/verify-build.mjs` que aborta si `rootDir` falta. Ver `docs/lessons.md` (2026-09-07).
+
+Entre `npm install` y el build el auto-deploy alinea la DB host (`align-db-to-schema.mts`, idempotente, con backup) y corre el backfill one-time de `agents.en_asistencia` (`backfill-asistencia.mts --apply`, dry-run revisable a mano). Si cualquiera falla, aborta sin reiniciar PM2.
 
 ### Tarea programada (Windows)
 

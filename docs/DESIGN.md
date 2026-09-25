@@ -510,7 +510,7 @@ Familia de botones de accion para CRUDs, todas con icono y tooltip:
 | Ruta                         | Descripcion                            |
 | ---------------------------- | -------------------------------------- |
 | `/admin`                     | Dashboard admin con resumen de sistema |
-| `/admin/usuarios`            | CRUD de usuarios + participaciones (enCronograma, asignableCubic, incluidoCalidad, asignableAgs) |
+| `/admin/usuarios`            | CRUD de usuarios + participaciones (enCronograma, enAsistencia, asignableCubic, incluidoCalidad, asignableAgs) |
 | `/admin/contactos`           | CRUD de contactos y categorias         |
 | `/admin/recursos`            | CRUD de enlaces y categorias           |
 | `/admin/auditoria`           | Logs de auditoria                      |

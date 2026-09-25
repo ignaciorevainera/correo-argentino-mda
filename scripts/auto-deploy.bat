@@ -21,14 +21,21 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo 5. Compilando la nueva version de Astro (incluye guard verify-build)...
+echo 5. Inicializando el flag de asistencia (idempotente, con backup)...
+call npx tsx scripts/backfill-asistencia.mts --apply
+if errorlevel 1 (
+    echo [MDA Auto-Deploy] ERROR: backfill de asistencia fallo. PM2 NO reiniciado.
+    exit /b 1
+)
+
+echo 6. Compilando la nueva version de Astro (incluye guard verify-build)...
 call npm run build
 if errorlevel 1 (
     echo [MDA Auto-Deploy] ERROR: build fallo. Iniciando PM2 con version anterior de la DB no es seguro; revisar.
     exit /b 1
 )
 
-echo 6. Reiniciando el proceso en PM2...
+echo 7. Reiniciando el proceso en PM2...
 call pm2 start ecosystem.config.cjs
 if errorlevel 1 goto :error
 

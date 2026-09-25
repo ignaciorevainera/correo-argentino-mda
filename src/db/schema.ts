@@ -346,6 +346,12 @@ export const agents = sqliteTable("agents", {
   enCronograma: integer("en_cronograma", { mode: "boolean" })
     .notNull()
     .default(false),
+  // Control de asistencia. Invariante: enAsistencia ⊆ enCronograma (un
+  // operador no puede tener asistencia sin figurar en cronograma, porque
+  // asistencia controla el cumplimiento de los horarios del cronograma).
+  enAsistencia: integer("en_asistencia", { mode: "boolean" })
+    .notNull()
+    .default(false),
   asignableCubic: integer("asignable_cubic", { mode: "boolean" })
     .notNull()
     .default(false),

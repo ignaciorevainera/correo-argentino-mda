@@ -40,6 +40,7 @@ const allUsers = await db
     mesaName: mesas.name,
     agentName: agents.name,
     enCronograma: agents.enCronograma,
+    enAsistencia: agents.enAsistencia,
     asignableCubic: agents.asignableCubic,
     incluidoCalidad: agents.incluidoCalidad,
     asignableAgs: agents.asignableAgs,
@@ -342,6 +343,16 @@ const isSupervisorRole = (role: string): boolean =>
                             <span class="sr-only">Cronograma</span>
                           </span>
                         )}
+                        {u.enAsistencia && (
+                          <span
+                            class="badge badge-xs badge-secondary"
+                            data-chip="asistencia"
+                            title="Control de asistencia"
+                          >
+                            <Icon name="boxicons:user-check" size={12} />
+                            <span class="sr-only">Asistencia</span>
+                          </span>
+                        )}
                         {u.asignableCubic && (
                           <span
                             class="badge badge-xs badge-info"
@@ -376,6 +387,7 @@ const isSupervisorRole = (role: string): boolean =>
                           </span>
                         )}
                         {!u.enCronograma &&
+                          !u.enAsistencia &&
                           !u.asignableCubic &&
                           !u.incluidoCalidad &&
                           !u.asignableAgs && (
@@ -400,6 +412,7 @@ const isSupervisorRole = (role: string): boolean =>
                       data-user-helpdesk-id={u.helpdeskId ?? ""}
                       data-user-flags={JSON.stringify({
                         enCronograma: !!u.enCronograma,
+                        enAsistencia: !!u.enAsistencia,
                         asignableCubic: !!u.asignableCubic,
                         incluidoCalidad: !!u.incluidoCalidad,
                         asignableAgs: !!u.asignableAgs,
@@ -503,12 +516,25 @@ const isSupervisorRole = (role: string): boolean =>
                                 <input
                                   type="checkbox"
                                   name="enCronograma"
+                                  id={`edit-enCronograma-${u.id}`}
                                   class="toggle toggle-sm toggle-secondary"
                                   checked={!isSupervisorRole(u.role) && !!u.enCronograma}
                                   disabled={isSupervisorRole(u.role)}
                                   title="Un supervisor no figura en el cronograma como operador"
                                 />
                                 <span class="text-base-content text-sm">Cronograma</span>
+                              </label>
+                              <label class="label cursor-pointer justify-start gap-3 py-1">
+                                <input
+                                  type="checkbox"
+                                  name="enAsistencia"
+                                  id={`edit-enAsistencia-${u.id}`}
+                                  class="toggle toggle-sm toggle-secondary"
+                                  checked={!isSupervisorRole(u.role) && !!u.enAsistencia}
+                                  disabled={isSupervisorRole(u.role) || !u.enCronograma}
+                                  title="Control de asistencia (requiere cronograma)"
+                                />
+                                <span class="text-base-content text-sm">Asistencia</span>
                               </label>
                               <label class="label cursor-pointer justify-start gap-3 py-1">
                                 <input
@@ -900,16 +926,39 @@ import { normalizeRole } from "@lib/rbac";
           );
           if (cb) cb.checked = checked;
         }
+
+        const cronEdit = document.getElementById(
+          `edit-enCronograma-${userId}`,
+        ) as HTMLInputElement | null;
+        if (cronEdit && cronEdit.dataset.asistenciaBound !== "true") {
+          cronEdit.dataset.asistenciaBound = "true";
+          cronEdit.addEventListener("change", () =>
+            syncAsistenciaToggle(
+              `edit-enCronograma-${userId}`,
+              `edit-enAsistencia-${userId}`,
+            ),
+          );
+        }
       });
     });
 
     const PARTICIPATION_PRESETS: Record<string, Record<string, boolean>> = {
-      agent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
-      referent: { enCronograma: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
-      team_leader: { enCronograma: true, asignableCubic: true, incluidoCalidad: false, asignableAgs: false },
-      supervisor: { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
-      admin: { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
+      agent: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
+      referent: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
+      team_leader: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: false, asignableAgs: false },
+      supervisor: { enCronograma: false, enAsistencia: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
+      admin: { enCronograma: false, enAsistencia: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
     };
+
+    // Asistencia ⊆ cronograma: el toggle de asistencia solo se habilita con
+    // cronograma activo (y nunca para supervisores). Al deshabilitarse, se apaga.
+    function syncAsistenciaToggle(cronId: string, asistId: string) {
+      const cron = document.getElementById(cronId) as HTMLInputElement | null;
+      const asist = document.getElementById(asistId) as HTMLInputElement | null;
+      if (!cron || !asist) return;
+      asist.disabled = !cron.checked || cron.disabled;
+      if (asist.disabled) asist.checked = false;
+    }
 
     function applyPresets(role: string) {
       const preset = PARTICIPATION_PRESETS[role];
@@ -922,6 +971,15 @@ import { normalizeRole } from "@lib/rbac";
         cb.checked = checked;
         cb.disabled = role === "supervisor" && flagName === "enCronograma";
       }
+      syncAsistenciaToggle("create-enCronograma", "create-enAsistencia");
+    }
+
+    const createCronToggle = document.getElementById("create-enCronograma") as HTMLInputElement | null;
+    if (createCronToggle && createCronToggle.dataset.asistenciaBound !== "true") {
+      createCronToggle.dataset.asistenciaBound = "true";
+      createCronToggle.addEventListener("change", () =>
+        syncAsistenciaToggle("create-enCronograma", "create-enAsistencia"),
+      );
     }
 
     const altaRoleSelect = document.getElementById("admin-role") as HTMLSelectElement | null;

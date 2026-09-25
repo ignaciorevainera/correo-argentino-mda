@@ -84,7 +84,7 @@ Copiar `.env.example` a `.env` y llenar valores. **Nunca committear `.env`.**
 - **Mesa obligatoria:** al crear usuario se exige mesa activa; nombre canonico desde `mesas.name`. Mesa inactiva/borrada/desconocida → fail-closed (`resolveSessionMesa`): usuario queda "sin mesa" (solo paginas comunes) hasta reasignacion.
 - **Banner de `/admin/usuarios`:** solo se muestra para usuarios con **mesa inactiva** (`mesas.active = false`), fail-closed, con cap de 20 + contador de restantes. Los usuarios sin mesa (`helpdeskId` NULL) o con mesa huerfana NO se listan (siguen fail-closed y visibles en la tabla con su badge).
 - **Participaciones:** gating por mesa **canonica**: el selector de participaciones (y el alta/update-user) resuelve la mesa via `LEFT JOIN users→mesas` (`mesas.name`) con fallback al denormalizado `users.helpdeskName` solo si el join no resuelve (usuario huerfano); luego `mesaHasParticipaciones`. Solo mesas en `PARTICIPATION_HELPDESK_NAMES` (hoy MDA TI). El supervisor no figura: `enCronograma` forzado a `false` server-side (`normalizeRole`).
-- **Edición de usuario (modal único):** `/admin/usuarios` usa un solo modal "Editar usuario" que postea `action=update-user` y edita en una única transacción síncrona: rol, mesa de ayuda (canónica desde `mesas.name`), `users.username`, `agents.name` y los 4 flags de participación. Renombrar el nombre visible ya no toca `schedules` (B2: el vínculo es por id). La fila `agents` se resuelve por `lower(username)` y se crea si falta (self-heal). Colisiones de `users.username`/`agents.name` se detectan dentro de la tx con mensaje específico. Mesa no participativa ⇒ flags a false; supervisor ⇒ `enCronograma=false`. La contraseña se blanquea con el CTA separado (`reset-password`). Snapshot leído dentro de la tx (sin TOCTOU).
+- **Edición de usuario (modal único):** `/admin/usuarios` usa un solo modal "Editar usuario" que postea `action=update-user` y edita en una única transacción síncrona: rol, mesa de ayuda (canónica desde `mesas.name`), `users.username`, `agents.name` y los 5 flags de participación (`enCronograma`, `enAsistencia`, `asignableCubic`, `incluidoCalidad`, `asignableAgs`). El switch de **asistencia** solo se muestra en mesas participativas (hoy MDA TI); fuera de ellas no figura y el server lo fuerza a false. Invariante: `enAsistencia ⊆ enCronograma` (apagar cronograma apaga asistencia; el modal lo sincroniza en vivo). Renombrar el nombre visible ya no toca `schedules` (B2: el vínculo es por id). La fila `agents` se resuelve por `lower(username)` y se crea si falta (self-heal). Colisiones de `users.username`/`agents.name` se detectan dentro de la tx con mensaje específico. Mesa no participativa ⇒ flags a false; supervisor ⇒ `enCronograma=false`. La contraseña se blanquea con el CTA separado (`reset-password`). Snapshot leído dentro de la tx (sin TOCTOU).
 - **Vínculo de horarios 100% por ID:** `schedules.agentId` → `agents.id` → `agents.userId` → `users.id` (FKs nullable, `onDelete: set null`). `schedules.agentName` fue eliminada (Plan B2): el cliente manda `agentId`; el servidor acepta `agentName` solo como clave de resolución contra `agents.name` (nombres únicos) para compatibilidad. Los 4 lectores y todos los writers usan id. El rename de un operador ya no toca `schedules`. La regeneración de meses borra por `agentId`. Los flags de participación son solo visibilidad. `agents` es el **perfil de operador** (puede existir sin usuario de portal, `username` NULL): guarda configuración de horarios, ubicación, notas y capacidades.
   - **Orden de migración en prod (obligatorio antes de que align/`db:push` dropee `agent_name`):** (1) backup, (2) `npx tsx scripts/link-orphan-schedules.mts` dry-run, (3) `--apply` (vincula huérfanos), (4) `npx tsx scripts/align-db-to-schema.mts`, (5) restart PM2. Si se dropea la columna antes de aplicar la reconciliación, los huérfanos quedan invisibles para los lectores id-only. Nunca correr `--apply` sin dry-run revisado.
 - **`/admin/usuarios/mesas-de-ayuda`:** gestion de mesas — sync InvGate (CSRF + rate-limit, devuelve `affectedUsers` con banner de reasignacion en `/admin/usuarios`), toggle `Asignable` por mesa (endpoint `POST /api/admin/permisos/mesas/assignable`, auditado) y resumen read-only de visibilidad. El resumen evalua **ambas capas** (`isSectionVisibleSync` ∧ `hasPermission`) para un rol `agent`, asi que refleja el acceso real (p.ej. `/admin` sale ✗ para agentes MDA TI). El endpoint rechaza 400 si se intenta deshabilitar MDA TI.
@@ -303,7 +303,7 @@ BaseLayout (flex flex-col min-h-screen)
 | Ruta                         | Descripcion                            |
 | ---------------------------- | -------------------------------------- |
 | `/admin`                     | Dashboard admin con resumen de sistema |
-| `/admin/usuarios`            | CRUD de usuarios + participaciones (enCronograma, asignableCubic, incluidoCalidad, asignableAgs) |
+| `/admin/usuarios`            | CRUD de usuarios + participaciones (enCronograma, enAsistencia, asignableCubic, incluidoCalidad, asignableAgs) |
 | `/admin/contactos`           | CRUD de contactos y categorias         |
 | `/admin/recursos`            | CRUD de enlaces y categorias           |
 | `/admin/auditoria`           | Logs de auditoria                      |
@@ -366,8 +366,10 @@ BaseLayout (flex flex-col min-h-screen)
 
 | Script                     | Descripcion                                               |
 | -------------------------- | --------------------------------------------------------- |
-| `auto-deploy.bat`          | git pull → pm2 kill → npm install → build (verify) → pm2 start |
+| `auto-deploy.bat`          | git pull → pm2 kill → npm install → align-db-to-schema → backfill-asistencia → build (verify) → pm2 start |
 | `backup-db.bat`            | Copia `database/mda.db` con timestamp                     |
+| `align-db-to-schema.mts`   | Alinea la DB host con `src/db/schema.ts` (backup + paridad + integridad) |
+| `backfill-asistencia.mts`  | One-time idempotente: inicializa `agents.en_asistencia` (dry-run por defecto; `--apply` con backup) |
 | `verify-build.mjs`         | Guard post-build: valida `rootDir` en `dist/server/entry.mjs` |
 | `ping-worker.ts`           | Worker PM2 de ping a cubics                               |
 | `sync-legacy-inventory.ts` | Worker PM2 de sincronizacion de inventario                |
@@ -382,7 +384,7 @@ BaseLayout (flex flex-col min-h-screen)
 - Config: `drizzle.config.ts` (sqlite dialect, schema `./src/db/schema.ts`, out `./drizzle`)
 - Conexion: `src/db/index.ts` via `better-sqlite3`
 - Despues de cambios de schema, ejecutar `npm run db:push`
-- Deploy en prod: correr `scripts/align-db-to-schema.mts` (hace backup) antes del restart de PM2; `drizzle-kit push` debe quedar limpio ("No changes detected")
+- Deploy en prod: correr `scripts/align-db-to-schema.mts` (hace backup) y luego `scripts/backfill-asistencia.mts --apply` antes del restart de PM2 (el `auto-deploy.bat` ya los encadena); `drizzle-kit push` debe quedar limpio ("No changes detected")
 - Las tablas de permisos DB (routes, modules, route_access, module_access, permission_audit_batches) fueron eliminadas de schema y DB
 - Para explorar datos: `npm run db:studio`
 

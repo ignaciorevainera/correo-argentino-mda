@@ -7,7 +7,7 @@ import {
   agentSaturdayGroups,
   weekendOvertimeShifts,
 } from "@db/schema";
-import { and, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, sql, lt, desc } from "drizzle-orm";
 
 // Helper to generate dates in range (inclusive, max 31 days)
 export function getDatesInRange(startStr: string, endStr: string): string[] {
@@ -77,7 +77,9 @@ export function calculateCompliance(
 export async function getAttendanceData(startDate: string, endDate: string) {
   const dates = getDatesInRange(startDate, endDate);
 
-  // 1. Fetch all agents
+  // 1. Fetch all agents que participan de asistencia (enAsistencia=true).
+  // Un agente de una mesa sin participaciones (Coord/MDC) o con el flag
+  // apagado no figura en el control de asistencia.
   const dbAgents = await db
     .select({
       id: agents.id,
@@ -90,7 +92,8 @@ export async function getAttendanceData(startDate: string, endDate: string) {
       saturdayGroup: agents.saturdayGroup,
       saturdayHorario: agents.saturdayHorario,
     })
-    .from(agents);
+    .from(agents)
+    .where(eq(agents.enAsistencia, true));
 
   // 2. Fetch schedules for this date range
   const dbSchedules = await db
