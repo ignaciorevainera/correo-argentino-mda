@@ -41,6 +41,7 @@ if (Astro.request.method === "POST") {
     const rawHelpdesk = formData.get("helpdesk")?.toString() ?? "";
     const participaciones = {
       enCronograma: formData.get("enCronograma") === "on",
+      enAsistencia: formData.get("enAsistencia") === "on",
       asignableCubic: formData.get("asignableCubic") === "on",
       incluidoCalidad: formData.get("incluidoCalidad") === "on",
       asignableAgs: formData.get("asignableAgs") === "on",
@@ -95,9 +96,16 @@ if (Astro.request.method === "POST") {
       } else {
         const finalParticipaciones = mesaHasParticipaciones(mesaRow?.name)
           ? participaciones
-          : { enCronograma: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false };
+          : { enCronograma: false, enAsistencia: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false };
         // Un supervisor no figura en el cronograma como operador (forzado).
-        if (normalizeRole(role) === "supervisor") finalParticipaciones.enCronograma = false;
+        if (normalizeRole(role) === "supervisor") {
+          finalParticipaciones.enCronograma = false;
+          finalParticipaciones.enAsistencia = false;
+        }
+        // Invariante: asistencia ⊆ cronograma.
+        if (!finalParticipaciones.enCronograma) {
+          finalParticipaciones.enAsistencia = false;
+        }
 
         try {
           const hashedPassword = await hashPassword(password);
@@ -153,7 +161,7 @@ if (Astro.request.method === "POST") {
           successMsg = `Usuario "${username}" creado con éxito.`;
           await logAdminFromAstro(
             Astro.locals,
-            `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${finalParticipaciones.enCronograma ? "sí" : "no"}, cubic=${finalParticipaciones.asignableCubic ? "sí" : "no"}, calidad=${finalParticipaciones.incluidoCalidad ? "sí" : "no"}, AGS=${finalParticipaciones.asignableAgs ? "sí" : "no"}`,
+            `Creó al usuario "${name}" (${username}) con rol ${role}. Participaciones: cronograma=${finalParticipaciones.enCronograma ? "sí" : "no"}, asistencia=${finalParticipaciones.enAsistencia ? "sí" : "no"}, cubic=${finalParticipaciones.asignableCubic ? "sí" : "no"}, calidad=${finalParticipaciones.incluidoCalidad ? "sí" : "no"}, AGS=${finalParticipaciones.asignableAgs ? "sí" : "no"}`,
           );
         } catch (e) {
           console.error("[usuarios] Error al crear usuario:", e);
@@ -180,6 +188,7 @@ if (Astro.request.method === "POST") {
     const rawHelpdesk = formData.get("helpdesk")?.toString() ?? "";
     const submitted = {
       enCronograma: formData.get("enCronograma") === "on",
+      enAsistencia: formData.get("enAsistencia") === "on",
       asignableCubic: formData.get("asignableCubic") === "on",
       incluidoCalidad: formData.get("incluidoCalidad") === "on",
       asignableAgs: formData.get("asignableAgs") === "on",
@@ -202,6 +211,7 @@ if (Astro.request.method === "POST") {
     } else {
       const FLAG_LABELS = {
         enCronograma: "cronograma",
+        enAsistencia: "asistencia",
         asignableCubic: "cubic",
         incluidoCalidad: "calidad",
         asignableAgs: "AGS",
@@ -280,6 +290,7 @@ if (Astro.request.method === "POST") {
               name: agents.name,
               userId: agents.userId,
               enCronograma: agents.enCronograma,
+              enAsistencia: agents.enAsistencia,
               asignableCubic: agents.asignableCubic,
               incluidoCalidad: agents.incluidoCalidad,
               asignableAgs: agents.asignableAgs,
@@ -310,8 +321,11 @@ if (Astro.request.method === "POST") {
           // Flags efectivos: mesa no participativa o supervisor fuerzan false.
           const mesaParticipativa = mesaHasParticipaciones(mesaName);
           const isSupervisor = normalizeRole(newRole) === "supervisor";
+          const cronogramaOn = mesaParticipativa && !isSupervisor && submitted.enCronograma;
           const finalFlags = {
-            enCronograma: mesaParticipativa && !isSupervisor && submitted.enCronograma,
+            enCronograma: cronogramaOn,
+            // Invariante: asistencia ⊆ cronograma.
+            enAsistencia: cronogramaOn && submitted.enAsistencia,
             asignableCubic: mesaParticipativa && submitted.asignableCubic,
             incluidoCalidad: mesaParticipativa && submitted.incluidoCalidad,
             asignableAgs: mesaParticipativa && submitted.asignableAgs,

@@ -123,6 +123,7 @@ test.describe("Participaciones por mesa", () => {
     await expect(page.locator(`[data-sort-username="${uname}"]`).first()).toBeVisible();
     await page.locator(`button[aria-label="Editar usuario ${uname}"]`).click();
     await expect(page.locator(`#modal-edit-user-${uid} input[name='enCronograma']`)).toBeDisabled();
+    await expect(page.locator(`#modal-edit-user-${uid} input[name='enAsistencia']`)).toBeDisabled();
   });
 
   test("rol supervisor legacy ('Supervisor ') no figura en cronograma al guardar", async ({

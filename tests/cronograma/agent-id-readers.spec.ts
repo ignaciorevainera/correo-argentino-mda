@@ -40,7 +40,7 @@ test.describe("lectores de schedules por agentId", () => {
 
     const [agent] = await db
       .insert(agents)
-      .values({ name: `Reader Agent ${ts}`, username: `reader_agent_${ts}`, enCronograma: true })
+      .values({ name: `Reader Agent ${ts}`, username: `reader_agent_${ts}`, enCronograma: true, enAsistencia: true })
       .returning({ id: agents.id });
     createdAgentIds.push(agent.id);
 

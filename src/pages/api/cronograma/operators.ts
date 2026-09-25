@@ -99,7 +99,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     }
     await db
       .update(agents)
-      .set({ enCronograma: false })
+      .set({ enCronograma: false, enAsistencia: false })
       .where(eq(agents.name, name));
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
