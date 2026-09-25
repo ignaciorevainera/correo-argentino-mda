@@ -10,7 +10,11 @@ import { Icon } from "astro-icon/components";
 import ActionEditButton from "@components/ui/ActionEditButton.astro";
 import ActionPasswordButton from "@components/ui/ActionPasswordButton.astro";
 import ActionButton from "@components/ui/ActionButton.astro";
-import { PARTICIPATION_HELPDESK_NAMES, MDA_TI_HELPDESK, mesaHasParticipaciones } from "@lib/helpdeskAccess";
+import {
+  PARTICIPATION_HELPDESK_NAMES,
+  MDA_TI_HELPDESK,
+  mesaHasParticipaciones,
+} from "@lib/helpdeskAccess";
 import { getCleanBase } from "@lib/baseUrl";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import { normalizeRole } from "@lib/rbac";
@@ -78,8 +82,7 @@ const helpdeskOptions = await db
   )
   .orderBy(mesas.name);
 
-const headerGridClass =
-  "grid-cols-[1fr_180px_104px_170px_180px_88px] gap-4";
+const headerGridClass = "grid-cols-[1fr_180px_104px_170px_180px_88px] gap-4";
 const rowGridClass =
   "grid grid-cols-[1fr_180px_104px_170px_180px_88px] items-center gap-4";
 
@@ -98,19 +101,24 @@ const isSupervisorRole = (role: string): boolean =>
     description="Alta de operadores, asignación de roles y revisión de accesos activos en el portal."
   />
 
-
-  {usersConMesaInactiva.length > 0 && (
-    <div role="alert" class="alert alert-warning">
-      <Icon name="boxicons:x-circle" size={24} />
-      <span class="min-w-0 break-words">
-        <strong>{usersConMesaInactiva.length}</strong> usuario(s) tienen una mesa
-        de ayuda desactivada y requieren reasignación:
-        {usersConMesaInactivaMostrados.map((u) => `${u.username} (${u.mesaName})`).join(", ")}{usersConMesaInactivaRestantes > 0
-          ? ` y ${usersConMesaInactivaRestantes} más`
-          : ""}.
-      </span>
-    </div>
-  )}
+  {
+    usersConMesaInactiva.length > 0 && (
+      <div role="alert" class="alert alert-warning">
+        <Icon name="boxicons:x-circle" size={24} />
+        <span class="min-w-0 wrap-break-word">
+          <strong>{usersConMesaInactiva.length}</strong> usuario(s) tienen una
+          mesa de ayuda desactivada y requieren reasignación:
+          {usersConMesaInactivaMostrados
+            .map((u) => `${u.username} (${u.mesaName})`)
+            .join(", ")}
+          {usersConMesaInactivaRestantes > 0
+            ? ` y ${usersConMesaInactivaRestantes} más`
+            : ""}
+          .
+        </span>
+      </div>
+    )
+  }
 
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-3">
@@ -192,8 +200,7 @@ const isSupervisorRole = (role: string): boolean =>
             <DataTableHeaderCell sortKey="role">Rol</DataTableHeaderCell>
           </div>
           <div slot="header">
-            <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell
-            >
+            <DataTableHeaderCell sortKey="helpdesk">Mesa</DataTableHeaderCell>
           </div>
           <div slot="header">
             <DataTableHeaderCell>Participaciones</DataTableHeaderCell>
@@ -330,59 +337,59 @@ const isSupervisorRole = (role: string): boolean =>
                     )}
                   </div>
 
-                  <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <div class="flex min-w-0 flex-wrap items-center gap-2 pr-6">
                     {mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) && (
                       <>
                         {u.enCronograma && (
                           <span
-                            class="badge badge-xs badge-primary"
+                            class="badge badge-sm badge-primary tooltip tooltip-top"
                             data-chip="cronograma"
-                            title="Figura en cronograma"
+                            data-tip="Figura en cronograma"
                           >
-                            <Icon name="boxicons:calendar-filled" size={12} />
+                            <Icon name="boxicons:calendar-filled" size={14} />
                             <span class="sr-only">Cronograma</span>
                           </span>
                         )}
                         {u.enAsistencia && (
                           <span
-                            class="badge badge-xs badge-secondary"
+                            class="badge badge-sm badge-secondary tooltip tooltip-top"
                             data-chip="asistencia"
-                            title="Control de asistencia"
+                            data-tip="Control de asistencia"
                           >
-                            <Icon name="boxicons:user-check" size={12} />
+                            <Icon name="boxicons:user-check-filled" size={14} />
                             <span class="sr-only">Asistencia</span>
                           </span>
                         )}
                         {u.asignableCubic && (
                           <span
-                            class="badge badge-xs badge-info"
+                            class="badge badge-sm badge-info tooltip tooltip-top"
                             data-chip="cubics"
-                            title="Asignable a cubics"
+                            data-tip="Asignable a cubics"
                           >
-                            <Icon name="boxicons:desktop-filled" size={12} />
+                            <Icon name="boxicons:desktop-filled" size={14} />
                             <span class="sr-only">Cubics</span>
                           </span>
                         )}
                         {u.incluidoCalidad && (
                           <span
-                            class="badge badge-xs badge-warning"
+                            class="badge badge-sm badge-warning tooltip tooltip-top"
                             data-chip="calidad"
-                            title="Incluido en calidad"
+                            data-tip="Incluido en calidad"
                           >
                             <Icon
                               name="boxicons:bar-chart-big-filled"
-                              size={12}
+                              size={14}
                             />
                             <span class="sr-only">Calidad</span>
                           </span>
                         )}
                         {u.asignableAgs && (
                           <span
-                            class="badge badge-xs badge-accent"
+                            class="badge badge-sm badge-accent tooltip tooltip-top"
                             data-chip="ags"
-                            title="Asignable AGS"
+                            data-tip="Asignable AGS"
                           >
-                            <Icon name="boxicons:git-branch-filled" size={12} />
+                            <Icon name="boxicons:git-branch-filled" size={14} />
                             <span class="sr-only">AGS</span>
                           </span>
                         )}
@@ -391,9 +398,7 @@ const isSupervisorRole = (role: string): boolean =>
                           !u.asignableCubic &&
                           !u.incluidoCalidad &&
                           !u.asignableAgs && (
-                            <span
-                              class="badge badge-xs badge-ghost text-base-content/60"
-                            >
+                            <span class="text-base-content/60 text-xs italic">
                               Sin participaciones
                             </span>
                           )}
@@ -417,7 +422,9 @@ const isSupervisorRole = (role: string): boolean =>
                         incluidoCalidad: !!u.incluidoCalidad,
                         asignableAgs: !!u.asignableAgs,
                       })}
-                      class={u.id === currentUserId ? "btn-disabled" : undefined}
+                      class={
+                        u.id === currentUserId ? "btn-disabled" : undefined
+                      }
                       disabled={u.id === currentUserId}
                       title={
                         u.id === currentUserId
@@ -429,7 +436,9 @@ const isSupervisorRole = (role: string): boolean =>
                     />
 
                     <ActionPasswordButton
-                      class={u.id === currentUserId ? "btn-disabled" : undefined}
+                      class={
+                        u.id === currentUserId ? "btn-disabled" : undefined
+                      }
                       disabled={u.id === currentUserId}
                       title={
                         u.id === currentUserId
@@ -447,12 +456,19 @@ const isSupervisorRole = (role: string): boolean =>
                         Editar usuario
                       </h3>
                       <p class="text-base-content/60 mb-4 text-xs">
-                        Actualizá el rol, la mesa de ayuda, el nombre de red,
-                        el nombre visible y las participaciones de{" "}
-                        <span class="font-mono font-semibold">{u.username}</span>.
+                        Actualizá el rol, la mesa de ayuda, el nombre de red, el
+                        nombre visible y las participaciones de{" "}
+                        <span class="font-mono font-semibold">
+                          {u.username}
+                        </span>
+                        .
                       </p>
                       <form method="POST" class="space-y-3" data-async-form>
-                        <input type="hidden" name="action" value="update-user" />
+                        <input
+                          type="hidden"
+                          name="action"
+                          value="update-user"
+                        />
                         <input type="hidden" name="userId" value={u.id} />
                         <FormField
                           id={`edit-user-username-${u.id}`}
@@ -503,82 +519,109 @@ const isSupervisorRole = (role: string): boolean =>
                           ]}
                           value={`${u.helpdeskId ?? ""}|${u.helpdeskName ?? ""}`}
                         />
-                        {
-                          mesaHasParticipaciones(u.mesaName ?? u.helpdeskName) ? (
-                            <fieldset
-                              class="fieldset"
-                              data-testid="participaciones-block"
-                            >
-                              <FormLegend class="text-base-content/70">
-                                Participaciones
-                              </FormLegend>
-                              <label class="label cursor-pointer justify-start gap-3 py-1">
-                                <input
-                                  type="checkbox"
-                                  name="enCronograma"
-                                  id={`edit-enCronograma-${u.id}`}
-                                  class="toggle toggle-sm toggle-secondary"
-                                  checked={!isSupervisorRole(u.role) && !!u.enCronograma}
-                                  disabled={isSupervisorRole(u.role)}
-                                  title="Un supervisor no figura en el cronograma como operador"
-                                />
-                                <span class="text-base-content text-sm">Cronograma</span>
-                              </label>
-                              <label class="label cursor-pointer justify-start gap-3 py-1">
-                                <input
-                                  type="checkbox"
-                                  name="enAsistencia"
-                                  id={`edit-enAsistencia-${u.id}`}
-                                  class="toggle toggle-sm toggle-secondary"
-                                  checked={!isSupervisorRole(u.role) && !!u.enAsistencia}
-                                  disabled={isSupervisorRole(u.role) || !u.enCronograma}
-                                  title="Control de asistencia (requiere cronograma)"
-                                />
-                                <span class="text-base-content text-sm">Asistencia</span>
-                              </label>
-                              <label class="label cursor-pointer justify-start gap-3 py-1">
-                                <input
-                                  type="checkbox"
-                                  name="asignableCubic"
-                                  class="toggle toggle-sm toggle-secondary"
-                                  checked={!!u.asignableCubic}
-                                />
-                                <span class="text-base-content text-sm">Asignación de PCs (cubics)</span>
-                              </label>
-                              <label class="label cursor-pointer justify-start gap-3 py-1">
-                                <input
-                                  type="checkbox"
-                                  name="incluidoCalidad"
-                                  class="toggle toggle-sm toggle-secondary"
-                                  checked={!!u.incluidoCalidad}
-                                />
-                                <span class="text-base-content text-sm">Auditorías de calidad</span>
-                              </label>
-                              <label class="label cursor-pointer justify-start gap-3 py-1">
-                                <input
-                                  type="checkbox"
-                                  name="asignableAgs"
-                                  class="toggle toggle-sm toggle-secondary"
-                                  checked={!!u.asignableAgs}
-                                />
-                                <span class="text-base-content text-sm">Asignación AGS</span>
-                              </label>
-                            </fieldset>
-                          ) : (
-                            <div
-                              class="alert alert-ghost items-start gap-2 py-2"
-                              data-testid="participaciones-block"
-                            >
-                              <Icon name="boxicons:info-circle" size={18} />
-                              <span class="text-base-content/70 text-xs">
-                                Esta mesa no tiene secciones con participaciones.
+                        {mesaHasParticipaciones(
+                          u.mesaName ?? u.helpdeskName,
+                        ) ? (
+                          <fieldset
+                            class="fieldset"
+                            data-testid="participaciones-block"
+                          >
+                            <FormLegend class="text-base-content/70">
+                              Participaciones
+                            </FormLegend>
+                            <label class="label cursor-pointer justify-start gap-3 py-1">
+                              <input
+                                type="checkbox"
+                                name="enCronograma"
+                                id={`edit-enCronograma-${u.id}`}
+                                class="toggle toggle-sm toggle-secondary"
+                                checked={
+                                  !isSupervisorRole(u.role) && !!u.enCronograma
+                                }
+                                disabled={isSupervisorRole(u.role)}
+                                title="Un supervisor no figura en el cronograma como operador"
+                              />
+                              <span class="text-base-content text-sm">
+                                Cronograma
                               </span>
-                            </div>
-                          )
-                        }
+                            </label>
+                            <label class="label cursor-pointer justify-start gap-3 py-1">
+                              <input
+                                type="checkbox"
+                                name="enAsistencia"
+                                id={`edit-enAsistencia-${u.id}`}
+                                class="toggle toggle-sm toggle-secondary"
+                                checked={
+                                  !isSupervisorRole(u.role) && !!u.enAsistencia
+                                }
+                                disabled={
+                                  isSupervisorRole(u.role) || !u.enCronograma
+                                }
+                                title="Control de asistencia (requiere cronograma)"
+                              />
+                              <span class="text-base-content text-sm">
+                                Asistencia
+                              </span>
+                            </label>
+                            <label class="label cursor-pointer justify-start gap-3 py-1">
+                              <input
+                                type="checkbox"
+                                name="asignableCubic"
+                                class="toggle toggle-sm toggle-secondary"
+                                checked={!!u.asignableCubic}
+                              />
+                              <span class="text-base-content text-sm">
+                                Asignación de PCs (cubics)
+                              </span>
+                            </label>
+                            <label class="label cursor-pointer justify-start gap-3 py-1">
+                              <input
+                                type="checkbox"
+                                name="incluidoCalidad"
+                                class="toggle toggle-sm toggle-secondary"
+                                checked={!!u.incluidoCalidad}
+                              />
+                              <span class="text-base-content text-sm">
+                                Auditorías de calidad
+                              </span>
+                            </label>
+                            <label class="label cursor-pointer justify-start gap-3 py-1">
+                              <input
+                                type="checkbox"
+                                name="asignableAgs"
+                                class="toggle toggle-sm toggle-secondary"
+                                checked={!!u.asignableAgs}
+                              />
+                              <span class="text-base-content text-sm">
+                                Asignación AGS
+                              </span>
+                            </label>
+                          </fieldset>
+                        ) : (
+                          <div
+                            class="alert alert-ghost items-start gap-2 py-2"
+                            data-testid="participaciones-block"
+                          >
+                            <Icon name="boxicons:info-circle" size={18} />
+                            <span class="text-base-content/70 text-xs">
+                              Esta mesa no tiene secciones con participaciones.
+                            </span>
+                          </div>
+                        )}
                         <div class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3">
-                          <ActionCancelButton type="button" label="Cancelar" icon="boxicons:x-filled" variant="error" onclick="this.closest('dialog').close()" />
-                          <ActionConfirmButton type="submit" color="btn-primary" label="Guardar" icon="boxicons:check-filled" />
+                          <ActionCancelButton
+                            type="button"
+                            label="Cancelar"
+                            icon="boxicons:x-filled"
+                            variant="error"
+                            onclick="this.closest('dialog').close()"
+                          />
+                          <ActionConfirmButton
+                            type="submit"
+                            color="btn-primary"
+                            label="Guardar"
+                            icon="boxicons:check-filled"
+                          />
                         </div>
                       </form>
                     </Fragment>
@@ -648,7 +691,7 @@ const isSupervisorRole = (role: string): boolean =>
   title="Matriz de permisos por rol"
   icon="boxicons:universal-access-filled"
   size="full"
-  class="!w-fit max-w-[calc(100vw-1rem)] !p-3 sm:!p-4"
+  class="w-fit! max-w-[calc(100vw-1rem)] p-3! sm:p-4!"
 >
   <Fragment slot="content">
     <p class="text-base-content/60 mb-4 text-xs">
@@ -776,14 +819,15 @@ const isSupervisorRole = (role: string): boolean =>
 <AsyncFormScript />
 
 <script>
-import { getCleanBase } from "@lib/baseUrl";
-import { normalizeRole } from "@lib/rbac";
+  import { getCleanBase } from "@lib/baseUrl";
+  import { normalizeRole } from "@lib/rbac";
   // La validación de contraseñas es gestionada internamente por el componente PasswordField
 
   function initUsersAdmin() {
     const createBtn = document.getElementById("btn-nuevo-usuario");
     if (createBtn?.dataset.usersAdminBound === "true") return true;
-    if (!document.querySelector("[data-edit-user-btn]") && !createBtn) return false;
+    if (!document.querySelector("[data-edit-user-btn]") && !createBtn)
+      return false;
 
     const adminUsernameInput = document.getElementById(
       "admin-username",
@@ -816,7 +860,10 @@ import { normalizeRole } from "@lib/rbac";
         const json = await res.json();
         return { ok: true, helpdesk: json?.helpdesk ?? null };
       } catch {
-        return { ok: false, message: "Error de conexión al consultar InvGate." };
+        return {
+          ok: false,
+          message: "Error de conexión al consultar InvGate.",
+        };
       }
     }
 
@@ -877,77 +924,123 @@ import { normalizeRole } from "@lib/rbac";
     });
 
     // Prefill del modal unificado por fila (rol, mesa, username, nombre, flags).
-    document.querySelectorAll<HTMLButtonElement>("[data-edit-user-btn]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const userId = btn.getAttribute("data-user-id") || "";
-        const role = btn.getAttribute("data-user-role") || "agent";
-        const username = btn.getAttribute("data-user-username") || "";
-        const name = btn.getAttribute("data-user-name") || "";
-        const helpdesk = (btn.getAttribute("data-user-helpdesk") || "").trim();
-        const helpdeskId = (btn.getAttribute("data-user-helpdesk-id") || "").trim();
-        let flags: Record<string, boolean> = {};
-        try {
-          flags = JSON.parse(btn.getAttribute("data-user-flags") || "{}");
-        } catch {
-          flags = {};
-        }
-
-        const roleSel = document.getElementById(`edit-user-role-${userId}`) as HTMLSelectElement | null;
-        const hdSel = document.getElementById(`edit-user-helpdesk-${userId}`) as HTMLSelectElement | null;
-        const unameInput = document.getElementById(`edit-user-username-${userId}`) as HTMLInputElement | null;
-        const nameInput = document.getElementById(`edit-user-name-${userId}`) as HTMLInputElement | null;
-
-        if (roleSel) {
-          const canonical = normalizeRole(role);
-          const hasOption = Array.from(roleSel.options).some((o) => o.value === role);
-          roleSel.value = hasOption ? role : canonical;
-        }
-        if (unameInput) unameInput.value = username;
-        if (nameInput) nameInput.value = name;
-        if (hdSel) {
-          hdSel.value = "";
-          if (helpdeskId) {
-            // Match por id (prefijo del value "id|nombre"): robusto ante
-            // renombres de mesa y labels duplicados/"(sugerida)".
-            const byId = Array.from(hdSel.options).find(
-              (o) => o.value.split("|")[0] === helpdeskId,
-            );
-            if (byId) hdSel.value = byId.value;
-          } else if (helpdesk) {
-            const match = Array.from(hdSel.options).find(
-              (o) => (o.textContent ?? "").trim() === helpdesk,
-            );
-            if (match) hdSel.value = match.value;
+    document
+      .querySelectorAll<HTMLButtonElement>("[data-edit-user-btn]")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const userId = btn.getAttribute("data-user-id") || "";
+          const role = btn.getAttribute("data-user-role") || "agent";
+          const username = btn.getAttribute("data-user-username") || "";
+          const name = btn.getAttribute("data-user-name") || "";
+          const helpdesk = (
+            btn.getAttribute("data-user-helpdesk") || ""
+          ).trim();
+          const helpdeskId = (
+            btn.getAttribute("data-user-helpdesk-id") || ""
+          ).trim();
+          let flags: Record<string, boolean> = {};
+          try {
+            flags = JSON.parse(btn.getAttribute("data-user-flags") || "{}");
+          } catch {
+            flags = {};
           }
-        }
-        for (const [flag, checked] of Object.entries(flags)) {
-          const cb = document.querySelector<HTMLInputElement>(
-            `#modal-edit-user-${userId} input[name="${flag}"]`,
-          );
-          if (cb) cb.checked = checked;
-        }
 
-        const cronEdit = document.getElementById(
-          `edit-enCronograma-${userId}`,
-        ) as HTMLInputElement | null;
-        if (cronEdit && cronEdit.dataset.asistenciaBound !== "true") {
-          cronEdit.dataset.asistenciaBound = "true";
-          cronEdit.addEventListener("change", () =>
-            syncAsistenciaToggle(
-              `edit-enCronograma-${userId}`,
-              `edit-enAsistencia-${userId}`,
-            ),
-          );
-        }
+          const roleSel = document.getElementById(
+            `edit-user-role-${userId}`,
+          ) as HTMLSelectElement | null;
+          const hdSel = document.getElementById(
+            `edit-user-helpdesk-${userId}`,
+          ) as HTMLSelectElement | null;
+          const unameInput = document.getElementById(
+            `edit-user-username-${userId}`,
+          ) as HTMLInputElement | null;
+          const nameInput = document.getElementById(
+            `edit-user-name-${userId}`,
+          ) as HTMLInputElement | null;
+
+          if (roleSel) {
+            const canonical = normalizeRole(role);
+            const hasOption = Array.from(roleSel.options).some(
+              (o) => o.value === role,
+            );
+            roleSel.value = hasOption ? role : canonical;
+          }
+          if (unameInput) unameInput.value = username;
+          if (nameInput) nameInput.value = name;
+          if (hdSel) {
+            hdSel.value = "";
+            if (helpdeskId) {
+              // Match por id (prefijo del value "id|nombre"): robusto ante
+              // renombres de mesa y labels duplicados/"(sugerida)".
+              const byId = Array.from(hdSel.options).find(
+                (o) => o.value.split("|")[0] === helpdeskId,
+              );
+              if (byId) hdSel.value = byId.value;
+            } else if (helpdesk) {
+              const match = Array.from(hdSel.options).find(
+                (o) => (o.textContent ?? "").trim() === helpdesk,
+              );
+              if (match) hdSel.value = match.value;
+            }
+          }
+          for (const [flag, checked] of Object.entries(flags)) {
+            const cb = document.querySelector<HTMLInputElement>(
+              `#modal-edit-user-${userId} input[name="${flag}"]`,
+            );
+            if (cb) cb.checked = checked;
+          }
+
+          const cronEdit = document.getElementById(
+            `edit-enCronograma-${userId}`,
+          ) as HTMLInputElement | null;
+          if (cronEdit && cronEdit.dataset.asistenciaBound !== "true") {
+            cronEdit.dataset.asistenciaBound = "true";
+            cronEdit.addEventListener("change", () =>
+              syncAsistenciaToggle(
+                `edit-enCronograma-${userId}`,
+                `edit-enAsistencia-${userId}`,
+              ),
+            );
+          }
+        });
       });
-    });
 
     const PARTICIPATION_PRESETS: Record<string, Record<string, boolean>> = {
-      agent: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
-      referent: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: true, asignableAgs: true },
-      team_leader: { enCronograma: true, enAsistencia: true, asignableCubic: true, incluidoCalidad: false, asignableAgs: false },
-      supervisor: { enCronograma: false, enAsistencia: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
-      admin: { enCronograma: false, enAsistencia: false, asignableCubic: false, incluidoCalidad: false, asignableAgs: false },
+      agent: {
+        enCronograma: true,
+        enAsistencia: true,
+        asignableCubic: true,
+        incluidoCalidad: true,
+        asignableAgs: true,
+      },
+      referent: {
+        enCronograma: true,
+        enAsistencia: true,
+        asignableCubic: true,
+        incluidoCalidad: true,
+        asignableAgs: true,
+      },
+      team_leader: {
+        enCronograma: true,
+        enAsistencia: true,
+        asignableCubic: true,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      },
+      supervisor: {
+        enCronograma: false,
+        enAsistencia: false,
+        asignableCubic: false,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      },
+      admin: {
+        enCronograma: false,
+        enAsistencia: false,
+        asignableCubic: false,
+        incluidoCalidad: false,
+        asignableAgs: false,
+      },
     };
 
     // Asistencia ⊆ cronograma: el toggle de asistencia solo se habilita con
@@ -966,7 +1059,9 @@ import { normalizeRole } from "@lib/rbac";
       const form = document.getElementById("nuevo-usuario-form");
       if (!form) return;
       for (const [flagName, checked] of Object.entries(preset)) {
-        const cb = form.querySelector<HTMLInputElement>(`input[name="${flagName}"]`);
+        const cb = form.querySelector<HTMLInputElement>(
+          `input[name="${flagName}"]`,
+        );
         if (!cb) continue;
         cb.checked = checked;
         cb.disabled = role === "supervisor" && flagName === "enCronograma";
@@ -974,15 +1069,22 @@ import { normalizeRole } from "@lib/rbac";
       syncAsistenciaToggle("create-enCronograma", "create-enAsistencia");
     }
 
-    const createCronToggle = document.getElementById("create-enCronograma") as HTMLInputElement | null;
-    if (createCronToggle && createCronToggle.dataset.asistenciaBound !== "true") {
+    const createCronToggle = document.getElementById(
+      "create-enCronograma",
+    ) as HTMLInputElement | null;
+    if (
+      createCronToggle &&
+      createCronToggle.dataset.asistenciaBound !== "true"
+    ) {
       createCronToggle.dataset.asistenciaBound = "true";
       createCronToggle.addEventListener("change", () =>
         syncAsistenciaToggle("create-enCronograma", "create-enAsistencia"),
       );
     }
 
-    const altaRoleSelect = document.getElementById("admin-role") as HTMLSelectElement | null;
+    const altaRoleSelect = document.getElementById(
+      "admin-role",
+    ) as HTMLSelectElement | null;
     altaRoleSelect?.addEventListener("change", (e) => {
       applyPresets((e.target as HTMLSelectElement).value);
     });
@@ -992,15 +1094,24 @@ import { normalizeRole } from "@lib/rbac";
     let participationMesas: string[] = [];
     try {
       participationMesas = JSON.parse(
-        (document.querySelector<HTMLElement>("[data-participation-mesas]")?.dataset.participationMesas as string) || "[]",
+        (document.querySelector<HTMLElement>("[data-participation-mesas]")
+          ?.dataset.participationMesas as string) || "[]",
       );
     } catch {
       participationMesas = [];
-    }    const altaHelpdeskSelect = document.getElementById("admin-helpdesk") as HTMLSelectElement | null;
-    const participacionesFields = document.getElementById("participaciones-fields");
+    }
+    const altaHelpdeskSelect = document.getElementById(
+      "admin-helpdesk",
+    ) as HTMLSelectElement | null;
+    const participacionesFields = document.getElementById(
+      "participaciones-fields",
+    );
     function refreshParticipacionesVisibility(): void {
       const name = altaHelpdeskSelect?.value?.split("|")[1]?.trim() ?? "";
-      participacionesFields?.classList.toggle("hidden", !participationMesas.includes(name));
+      participacionesFields?.classList.toggle(
+        "hidden",
+        !participationMesas.includes(name),
+      );
     }
     altaHelpdeskSelect?.addEventListener("change", () => {
       clearHelpdeskSuggestionMessage();
@@ -1008,11 +1119,17 @@ import { normalizeRole } from "@lib/rbac";
     });
     refreshParticipacionesVisibility();
 
-    const createDialog = document.getElementById("modal-create-user") as HTMLDialogElement | null;
-    const createForm = document.getElementById("nuevo-usuario-form") as HTMLFormElement | null;
+    const createDialog = document.getElementById(
+      "modal-create-user",
+    ) as HTMLDialogElement | null;
+    const createForm = document.getElementById(
+      "nuevo-usuario-form",
+    ) as HTMLFormElement | null;
     if (createBtn && createDialog && createForm) {
       createBtn.addEventListener("click", () => {
-        createForm.querySelectorAll(".pwd-error").forEach((el) => el.classList.add("hidden"));
+        createForm
+          .querySelectorAll(".pwd-error")
+          .forEach((el) => el.classList.add("hidden"));
         clearHelpdeskSuggestionMessage();
         createForm.reset();
         applyPresets(altaRoleSelect?.value || "agent");
@@ -1045,11 +1162,15 @@ import { normalizeRole } from "@lib/rbac";
 </script>
 
 <script>
-  import { matchesSearchQuery, highlightSearchTargets } from "@lib/clientSearch";
+  import {
+    matchesSearchQuery,
+    highlightSearchTargets,
+  } from "@lib/clientSearch";
 
   function initUsersSearch() {
-    const searchInput =
-      document.querySelector<HTMLInputElement>("#admin-users-search");
+    const searchInput = document.querySelector<HTMLInputElement>(
+      "#admin-users-search",
+    );
     if (!searchInput) return false;
     if (searchInput.dataset.usersSearchBound === "true") return true;
 
