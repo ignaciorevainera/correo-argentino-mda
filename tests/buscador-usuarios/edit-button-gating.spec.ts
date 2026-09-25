@@ -38,9 +38,11 @@ async function searchCard(page: Page, username: string) {
   await expect(
     page.locator(".card:not(.skeleton-debounced)").first(),
   ).toBeVisible({ timeout: 15000 });
-  return page.locator(".card").filter({
+  const card = page.locator(".card").filter({
     has: page.locator(".user-card-username-btn", { hasText: username }),
   });
+  await expect(card).toHaveCount(1);
+  return card;
 }
 
 test("sin sesión no ve el botón de editar", async ({ page }) => {
