@@ -36,7 +36,8 @@ import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
 import { MDA_TI_HELPDESK } from "@lib/helpdeskAccess";
 
 const user = Astro.locals.user;
-const showCubicsTab = user?.helpdeskName === MDA_TI_HELPDESK;
+const showCubicsTab =
+  user?.id !== 0 && (user?.role === "admin" || user?.helpdeskName === MDA_TI_HELPDESK);
 const isAllowedAdmin = user
   ? isAllowed("Administrar Contenido", user.role)
   : false;
@@ -55,7 +56,9 @@ const sortBy = (resolvedParams.get("sortBy") || undefined) as
 const sortOrder = (resolvedParams.get("sortOrder") || undefined) as
   | SortOrder
   | undefined;
-const activeTab = resolvedParams.get("inventory_tabs") || "terminales";
+const requestedTab = resolvedParams.get("inventory_tabs") || "terminales";
+const activeTab =
+  requestedTab === "cubics" && !showCubicsTab ? "terminales" : requestedTab;
 
 const todayStr = new Date().toLocaleDateString("en-CA", {
   timeZone: "America/Argentina/Buenos_Aires",
@@ -194,7 +197,11 @@ const inventoryTabs = [
       activeValue={activeTab}
       name="inventory_tabs"
       id="inventory-view-switcher"
-      class="grid w-full grid-cols-4"
+      class={
+        showCubicsTab
+          ? "grid w-full grid-cols-4"
+          : "grid w-full grid-cols-3"
+      }
       containerClass="w-full"
     />
   </div>

@@ -78,7 +78,7 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
     return { sess, uname };
   }
 
-  test("Coordinacion/agent NO ve accesos no permitidos por rol/mesa (Inventario/App admin)", async ({ context, page }) => {
+  test("Coordinacion/agent ve accesos públicos y no ve rutas restringidas", async ({ context, page }) => {
     const { sess } = await seedUser("agent", COORD);
     await login(context, sess);
     await page.goto("/");
@@ -87,9 +87,8 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
     // Tarjeta de Cronograma del panel (aria-label "Abrir Cronograma") ausente.
     await expect(card(page, /^Abrir Cronograma$/i)).toHaveCount(0);
     await expect(card(page, /^Abrir Calidad$/i)).toHaveCount(0);
-    // Inventario de terminales: agent de Coordinación no tiene acceso a cubics;
-    // el card NO debe figurar (ni bloqueado).
-    await expect(card(page, /^Abrir Inventario de terminales$/i)).toHaveCount(0);
+    await expect(card(page, /^Abrir Inventario de terminales$/i)).toBeVisible();
+    await expect(card(page, /^Abrir Aplicativos$/i)).toBeVisible();
     // Comunes permitidos.
     await expect(card(page, /^Abrir Títulos$/i)).toBeVisible();
     await expect(card(page, /^Abrir Contactos$/i)).toBeVisible();

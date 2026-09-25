@@ -68,8 +68,7 @@ export function isSectionVisibleSync(
     const coordBlocked = [
       "/supervision",
       "/admin",
-      "/inventario-terminales",
-      "/recursos/aplicativos",
+      "/inventario-terminales/cubics",
     ];
     const blocked =
       coordBlocked.some((s) => lower === s || lower.startsWith(`${s}/`)) ||
