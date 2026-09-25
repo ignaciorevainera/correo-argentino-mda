@@ -7,8 +7,9 @@ import { logAdminAction } from "@lib/auditLogger";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const PATCH: APIRoute = async ({ params, request, locals }) => {
-  const denied = await requireWriteAccess(locals, "usuarios");
-  if (denied) return denied;
+  if (!locals.user || locals.user.id === 0) {
+    return jsonError("Sesión no iniciada", 401);
+  }
 
   const { dni } = params;
   if (!dni) {
@@ -18,6 +19,11 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   try {
     const body = await request.json();
     const { interno, telefono, sucursal } = body;
+
+    if (sucursal !== undefined) {
+      const denied = await requireWriteAccess(locals, "usuarios");
+      if (denied) return denied;
+    }
 
     const existing = await db
       .select()

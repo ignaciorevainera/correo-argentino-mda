@@ -1,9 +1,6 @@
 import "dotenv/config";
 import { test, expect, type BrowserContext } from "@playwright/test";
-import {
-  createTestUserAndSession,
-  cleanupTestUser,
-} from "../helpers/auth";
+import { createTestUserAndSession, cleanupTestUser } from "../helpers/auth";
 import { db } from "../../src/db/index";
 import { employees } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -69,10 +66,28 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
     expect(row.interno).toBe("0000");
   });
 
-  test("agent logueado → 403 y no modifica", async ({ context }) => {
+  test("agente logueado → 200 y modifica interno y teléfono", async ({
+    context,
+  }) => {
     await login(context, agentUser.signedSessionId);
     const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
-      data: { interno: "HACK" },
+      data: { interno: "7777", telefono: "11 5555-0000" },
+    });
+    expect(res.status()).toBe(200);
+    const [row] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.dni, TEST_DNI));
+    expect(row.interno).toBe("7777");
+    expect(row.telefono).toBe("11 5555-0000");
+  });
+
+  test("agente logueado no puede cambiar sucursal → 403", async ({
+    context,
+  }) => {
+    await login(context, agentUser.signedSessionId);
+    const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
+      data: { interno: "7777", sucursal: "HACK" },
     });
     expect(res.status()).toBe(403);
     const [row] = await db
@@ -80,9 +95,10 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
       .from(employees)
       .where(eq(employees.dni, TEST_DNI));
     expect(row.interno).toBe("0000");
+    expect(row.sucursal).toBe("");
   });
 
-  test("admin logueado → 200 y modifica", async ({ context }) => {
+  test("admin logueado → 200 y modifica interno", async ({ context }) => {
     await login(context, adminUser.signedSessionId);
     const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
       data: { interno: "1234" },
@@ -93,5 +109,18 @@ test.describe("PATCH /api/usuarios/[dni] authz", () => {
       .from(employees)
       .where(eq(employees.dni, TEST_DNI));
     expect(row.interno).toBe("1234");
+  });
+
+  test("admin logueado → 200 y modifica sucursal", async ({ context }) => {
+    await login(context, adminUser.signedSessionId);
+    const res = await context.request.patch(`/api/usuarios/${TEST_DNI}`, {
+      data: { sucursal: "CABA" },
+    });
+    expect(res.status()).toBe(200);
+    const [row] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.dni, TEST_DNI));
+    expect(row.sucursal).toBe("CABA");
   });
 });
