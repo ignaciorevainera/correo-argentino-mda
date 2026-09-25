@@ -6,6 +6,9 @@ import ActionNetUserButton from "@components/ui/ActionNetUserButton.astro";
 
 const userRole = Astro.locals.user?.role || "";
 const isAdmin = userRole === "admin";
+const isAuthenticated = Boolean(
+  Astro.locals.user && Astro.locals.user.id !== 0,
+);
 ---
 
 <template id="user-card-template">
@@ -179,7 +182,11 @@ const isAdmin = userRole === "admin";
         class="card-actions border-base-200 mt-2 flex w-full items-center justify-end gap-2 border-t pt-3"
       >
         <ActionNetUserButton data-net-user-btn ariaLabel="Ver grupos de red" />
-        <ActionEditButton data-edit-user-btn ariaLabel="Editar contacto" />
+        {
+          isAuthenticated && (
+            <ActionEditButton data-edit-user-btn ariaLabel="Editar contacto" />
+          )
+        }
         {
           isAdmin && (
             <ActionInvGateButton
