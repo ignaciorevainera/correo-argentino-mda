@@ -696,7 +696,7 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
     expect(String(admRes.json?.error)).toContain("CSRF");
   });
 
-  test("PATCH /api/usuarios/[dni]: agent 403, admin pasa el guard", async () => {
+  test("PATCH /api/usuarios/[dni]: agent y admin pasan el guard (dni inexistente → 404)", async () => {
     const agent = matrix["agent|mda"];
     const agentRes = await fetchManual("/api/usuarios/99999999", {
       method: "PATCH",
@@ -704,7 +704,8 @@ test.describe("Ciclo de vida de usuario y autorización efectiva", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ telefono: "123" }),
     });
-    expect(agentRes.status).toBe(403);
+    // Sin sucursal en el body no hay guard admin -> sesion autenticada basta; dni no existe.
+    expect(agentRes.status).toBe(404);
 
     const adminRes = await fetchManual("/api/usuarios/99999999", {
       method: "PATCH",
