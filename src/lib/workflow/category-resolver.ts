@@ -162,3 +162,49 @@ export async function resolveAutomationCategoryId(): Promise<number> {
     `No se pudo resolver la categoría "Automatización de sucursal". ${automationNamed ? `Candidatas con nombre similar: ${automationNamed}. ` : ""}Verificá la ruta o configurá INVGATE_AUTOMATION_CATEGORY_ID.`,
   );
 }
+
+/** Cache por proceso del mapa id → ruta normalizada. */
+let cachedPathMap: Map<number, string> | null = null;
+const CATEGORY_PATHS_CACHE_KEY = "automation.category_paths";
+
+/**
+ * Mapa `category_id → ruta completa normalizada` de todo el árbol de InvGate
+ * (cache 24 h, memoria + SQLite). Lo usa el matcher de etapas para agrupar
+ * tickets por ruta cuando el título no alcanza. Devuelve un mapa vacío si falla.
+ */
+export async function getCategoryPathMap(): Promise<Map<number, string>> {
+  if (cachedPathMap) {
+    return cachedPathMap;
+  }
+
+  const persisted =
+    readPersistedCache<Record<string, string>>(CATEGORY_PATHS_CACHE_KEY);
+  if (persisted) {
+    cachedPathMap = new Map(
+      Object.entries(persisted).map(([key, value]) => [Number(key), value]),
+    );
+    return cachedPathMap;
+  }
+
+  const result = await getCategories();
+  if (!result.ok) {
+    return new Map();
+  }
+
+  const byId = new Map(result.data.map((node) => [node.id, node]));
+  const map = new Map<number, string>();
+  for (const node of result.data) {
+    map.set(
+      node.id,
+      fullPathOf(node, byId).map(normalizeForCompare).join(" » "),
+    );
+  }
+
+  cachedPathMap = map;
+  writePersistedCache(
+    CATEGORY_PATHS_CACHE_KEY,
+    Object.fromEntries(map),
+    CATEGORY_CACHE_TTL_MS,
+  );
+  return map;
+}

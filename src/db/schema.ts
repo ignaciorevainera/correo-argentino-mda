@@ -1084,6 +1084,20 @@ export const workflowStageTickets = sqliteTable(
     matchDescription: text("match_description", { mode: "json" })
       .$type<string[]>()
       .default([]),
+    /**
+     * Sufijo de la ruta de categoría de InvGate que también matchea esta card
+     * (ej: "Central Paq. » Implementación"). Se compara contra la ruta completa
+     * del ticket hijo (coincidencia por sufijo), cubriendo casos con título
+     * genérico o duplicado que el label no distingue.
+     */
+    matchCategory: text("match_category"),
+    /**
+     * true = los tickets matcheados se muestran anidados como sub-nodos de una
+     * card madre (mismo tratamiento que el equipamiento 1.1/1.2/1.3).
+     */
+    nestChildren: integer("nest_children", { mode: "boolean" })
+      .notNull()
+      .default(false),
     /** Etiqueta display si difiere del matchLabel; cae al matchLabel si es null. */
     displayName: text("display_name"),
     /** false = ticket informativo/registro (no bloquea la etapa). */

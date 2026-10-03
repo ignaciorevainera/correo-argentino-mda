@@ -6,7 +6,10 @@ import AutomatizacionDetalleContent from "./_components/AutomatizacionDetalleCon
 import AutomationBackLink from "./_components/AutomationBackLink.astro";
 import AutomationEmptyState from "./_components/AutomationEmptyState.astro";
 import { resolveUrl } from "@lib/url";
-import { resolveAutomationDetail } from "@lib/workflow/resolver";
+import {
+  invalidateAutomationDetail,
+  resolveAutomationDetail,
+} from "@lib/workflow/resolver";
 import type { AutomationDetail } from "@lib/workflow/resolver";
 import { isLoggedIn, normalizeRole } from "@lib/rbac";
 
@@ -18,10 +21,17 @@ const user = Astro.locals.user;
 const canQuery = isLoggedIn(user);
 const canClose = normalizeRole(user.role) === "admin";
 
+// Tras una mutación local (guardar datos, cerrar, reabrir) el cliente recarga
+// con ?refresh=1 para que este request ignore el cache en memoria del detalle.
+const forceRefresh = Astro.url.searchParams.get("refresh") === "1";
+
 let detail: AutomationDetail | null = null;
 let loadError = "";
 
 if (isValidId && canQuery) {
+  if (forceRefresh) {
+    invalidateAutomationDetail(automationId);
+  }
   try {
     const result = await resolveAutomationDetail(automationId);
     if (result.ok) {

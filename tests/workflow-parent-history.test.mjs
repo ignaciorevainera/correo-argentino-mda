@@ -24,6 +24,7 @@ const check = (name, condition) => {
 };
 
 const PREFIX = "ZZTEST";
+const accentId = 999999906;
 const ids = [999999901, 999999902, 999999903, 999999904, 999999905];
 // Muy por encima de cualquier dato real de InvGate para que el orden por
 // updatedAt sea determinista en `listRecentAutomationParents`.
@@ -114,6 +115,30 @@ try {
     pageSize: 10,
   });
   check("write-back cambia la clasificación", activeAfter.total === 2);
+
+  // Búsqueda insensible a acentos/ñ: "nandu acentico" -> "Ñandú Acéntico".
+  ids.push(accentId);
+  upsertAutomationParents([
+    {
+      id: accentId,
+      prettyId: `#${accentId}`,
+      branchCode: "ZZTESTACC",
+      branchName: "Ñandú Acéntico",
+      displayName: "Automatización ZZTEST Ñandú Acéntico",
+      statusId: 2,
+      isActive: true,
+      createdAt: base + 50,
+      updatedAt: base + 50,
+      closedAt: null,
+    },
+  ]);
+  const accent = listAutomationParentsPage({ q: "nandu acentico" });
+  check(
+    "búsqueda insensible a acentos",
+    accent.total === 1 && accent.items[0].id === accentId,
+  );
+  const accentByCode = listAutomationParentsPage({ q: "zztestacc" });
+  check("búsqueda por código con prefijo", accentByCode.total === 1);
 } finally {
   cleanup();
 }

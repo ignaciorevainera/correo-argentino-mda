@@ -102,9 +102,7 @@ if (
 
   if (recentParents.length === 0) {
     recentParents = [...fallbackParents]
-      .sort(
-        (a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt,
-      )
+      .sort((a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt)
       .slice(0, 4);
   }
 
@@ -142,8 +140,7 @@ function buildListHref(overrides: {
   const nextQ = overrides.q === undefined ? q : (overrides.q ?? "");
   const nextStatus =
     overrides.status === undefined ? status : (overrides.status ?? "all");
-  const nextPage =
-    overrides.page === undefined ? page : overrides.page;
+  const nextPage = overrides.page === undefined ? page : overrides.page;
 
   const params = new URLSearchParams();
   if (nextQ) params.set("q", nextQ);
@@ -203,25 +200,11 @@ function buildListHref(overrides: {
           )
         ) : (
           <>
-            <div class="mb-2 flex flex-wrap items-center justify-between gap-3 px-4">
-              <div class="flex items-center gap-3">
-                <span
-                  class="badge badge-ghost badge-lg text-base-content font-semibold"
-                >
-                  {totalParents}
-                </span>
-                <span class="text-base-content/60 text-sm">
-                  {hasListFilters
-                    ? totalParents === 1
-                      ? "automatización encontrada"
-                      : "automatizaciones encontradas"
-                    : "automatizaciones registradas"}
-                </span>
-              </div>
+            <div class="mb-2 flex flex-wrap items-center gap-x-3">
               <div class="flex flex-wrap items-center gap-3">
                 <form
                   method="get"
-                  class="w-full sm:w-72"
+                  class="flex w-full items-center gap-2 sm:w-auto"
                   role="search"
                   data-automation-search-form
                 >
@@ -231,39 +214,13 @@ function buildListHref(overrides: {
                     value={q}
                     placeholder="Buscar por NIS o sucursal..."
                     ariaLabel="Buscar automatización por NIS o nombre de sucursal"
-                    class="w-full"
+                    class="automation-search w-full sm:w-72"
                     clearable
                   />
                   {status !== "all" && (
                     <input type="hidden" name="status" value={status} />
                   )}
                 </form>
-
-                <div
-                  class="join"
-                  role="group"
-                  aria-label="Filtrar automatizaciones por estado"
-                >
-                  {statusFilters.map((filter) => (
-                    <a
-                      href={buildListHref({
-                        status:
-                          filter.key === "all" ? null : filter.key,
-                        page: null,
-                      })}
-                      aria-current={filter.key === status ? "true" : false}
-                      class:list={[
-                        "join-item border-base-300 bg-base-200 text-base-content/70 border px-3 py-1.5 text-sm font-medium",
-                        "cursor-pointer transition-colors duration-200",
-                        "hover:border-steel-azure-700 hover:bg-steel-azure-700 hover:text-white",
-                        filter.key === status &&
-                          "border-secondary bg-secondary text-white hover:border-steel-azure-700 hover:bg-steel-azure-700",
-                      ]}
-                    >
-                      {filter.label}
-                    </a>
-                  ))}
-                </div>
 
                 <a
                   href={buildListHref({ refresh: true })}
@@ -279,6 +236,7 @@ function buildListHref(overrides: {
               </div>
             </div>
 
+            <div data-automation-results>
             {!hasListFilters && (
               <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <section class="flex flex-col gap-3 lg:col-span-2">
@@ -329,13 +287,51 @@ function buildListHref(overrides: {
               </div>
             )}
 
-            <section class="flex flex-col gap-3">
-              <h2 class="text-base-content/60 text-sm font-semibold tracking-wide uppercase">
-                Todas las automatizaciones
-              </h2>
+            <section class="flex flex-col gap-3 my-3">
+              <article class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <h2 class="text-base-content/60 text-sm font-semibold tracking-wide uppercase">
+                    {hasListFilters
+                      ? totalParents === 1
+                        ? "automatización encontrada"
+                        : "automatizaciones encontradas"
+                      : "automatizaciones totales"}
+                  </h2>
+                  <span class="badge badge-ghost badge-lg text-base-content font-semibold">
+                    {totalParents}
+                  </span>
+                </div>
+
+                <div
+                  class="join"
+                  role="group"
+                  aria-label="Filtrar automatizaciones por estado"
+                >
+                  {statusFilters.map((filter) => (
+                    <a
+                      href={buildListHref({
+                        status: filter.key === "all" ? null : filter.key,
+                        page: null,
+                      })}
+                      aria-current={filter.key === status ? "true" : false}
+                      class:list={[
+                        "join-item border-base-300 bg-base-200 text-base-content/70 border px-3 py-1.5 text-sm font-medium",
+                        "cursor-pointer transition-colors duration-200",
+                        "hover:border-steel-azure-700 hover:bg-steel-azure-700 hover:text-white",
+                        filter.key === status &&
+                          "border-secondary bg-secondary hover:border-steel-azure-700 hover:bg-steel-azure-700 text-white",
+                      ]}
+                    >
+                      {filter.label}
+                    </a>
+                  ))}
+                </div>
+              </article>
+
               <AutomationParentsList
                 items={allParents}
                 statusNames={statusNames}
+                defaultOpenId={q ? (allParents[0]?.id ?? null) : null}
                 emptyMessage={
                   hasListFilters
                     ? "Ninguna automatización coincide con la búsqueda o el filtro."
@@ -352,9 +348,20 @@ function buildListHref(overrides: {
                 </div>
               )}
             </section>
+            </div>
           </>
         )}
       </>
     )
   }
 </PageContainer>
+
+<style is:global>
+  /* El input de búsqueda usa type="search": Chromium agrega su propia "×" de
+     limpiar además de la del componente. Se oculta la nativa. */
+  .automation-search input[type="search"]::-webkit-search-cancel-button,
+  .automation-search input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+</style>

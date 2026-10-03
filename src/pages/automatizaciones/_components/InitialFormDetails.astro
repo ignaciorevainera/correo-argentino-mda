@@ -27,6 +27,14 @@ const {
 } = Astro.props;
 const parsed = form.parsed;
 
+/**
+ * Campos "Otros datos" sin ruido: se omite el NIS (es el código de sucursal,
+ * ya visible en el título) y la card entera si no queda nada relevante.
+ */
+const otherFields =
+  parsed?.otherFields.filter((field) => !/^nis$/i.test(field.label.trim())) ??
+  [];
+
 const region = parsed?.sucursal?.region ?? location?.region ?? null;
 const locality = parsed?.sucursal?.locality ?? location?.locality ?? null;
 const sucursalPrimary =
@@ -123,9 +131,9 @@ const showRawText = parsed === null;
           </InfoGroupCard>
         )}
 
-        {parsed.otherFields.length > 0 && (
-          <InfoGroupCard title="Otros datos" primary="—">
-            {parsed.otherFields.map((field) => (
+        {otherFields.length > 0 && (
+          <InfoGroupCard title="Otros datos">
+            {otherFields.map((field) => (
               <InitialFormFieldRow label={field.label} value={field.value} />
             ))}
           </InfoGroupCard>

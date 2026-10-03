@@ -9,6 +9,8 @@ interface TicketValues {
   displayName: string | null;
   aliases: string[] | null;
   matchDescription: string[] | null;
+  matchCategory: string | null;
+  nestChildren: boolean;
   blocking: boolean;
   kind: string;
   position: number;
@@ -31,6 +33,7 @@ const kindOptions = [
   { value: "form", label: "Formulario" },
   { value: "manual", label: "Manual" },
   { value: "subprocess", label: "Subproceso" },
+  { value: "auto", label: "Tarea a Soporte TI" },
 ];
 
 const idFor = (prefix: string): string =>
@@ -154,4 +157,26 @@ const formClass = isEdit
       ? "Frases que matchean la card cuando el título no alcanza (títulos duplicados)."
       : "Opcional: frases que matchean la card cuando el título no alcanza."}
   />
+  <FormField
+    id={idFor("tcat")}
+    name="matchCategory"
+    label="Categoría InvGate — sufijo de ruta (opcional)"
+    value={isEdit ? (ticket!.matchCategory ?? "") : undefined}
+    inputClass="input-sm font-mono"
+    class="md:col-span-full"
+    helpText={isEdit
+      ? "Matchea por ruta de categoría cuando el título no distingue (ej: 'Central Paq. » Implementación')."
+      : "Opcional: sufijo de ruta de categoría de InvGate que también matchea esta card."}
+  />
+  <label class="flex items-center gap-2 md:col-span-full">
+    <input
+      type="checkbox"
+      name="nestChildren"
+      class="toggle toggle-sm"
+      checked={isEdit ? ticket!.nestChildren : false}
+    />
+    <span class="text-base-content/70 text-sm">
+      Anidar los tickets matcheados como sub-nodos
+    </span>
+  </label>
 </form>

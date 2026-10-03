@@ -298,7 +298,7 @@ const canEditManualData = canClose && detail !== null;
         jefeLegajo={detail.initialForm?.parsed?.jefe?.legajo ?? null}
         jefeZonal={detail.initialForm?.parsed?.jefeZonal ?? null}
         contactNumber={detail.manualData?.contactNumber ?? null}
-        openingHours={detail.openingHours}
+        openingHours={detail.manualData?.openingHours ?? null}
         notes={detail.manualData?.notes ?? null}
       />
     )
@@ -307,9 +307,9 @@ const canEditManualData = canClose && detail !== null;
 
 <script>
   import { actions } from "astro:actions";
-  import { navigate } from "astro:transitions/client";
   import { showToast } from "@/lib/toastClient";
   import { setBusy } from "@/lib/clientBusy";
+  import { refreshAutomationDetail } from "@/lib/automationDetailClient";
 
   document.addEventListener("click", async (event) => {
     const target = event.target;
@@ -331,6 +331,6 @@ const canEditManualData = canClose && detail !== null;
     }
 
     showToast("Caso reabierto", "alert-success");
-    navigate(window.location.href);
+    void refreshAutomationDetail();
   });
 </script>

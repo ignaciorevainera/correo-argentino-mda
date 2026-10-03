@@ -111,11 +111,8 @@ const LINK_DEFS: readonly { match: string; label: string }[] = [
 const TECH_DEFS: readonly { label: string; match: string[]; date?: boolean }[] =
   [
     { label: "Rango IP", match: ["rangoips"] },
-    { label: "IPs adicionales", match: ["ipsadicionales"] },
-    { label: "Hostnames", match: ["hostnamesadicional", "enviarhostname"] },
     { label: "Punto de venta", match: ["puntodeventa"] },
     { label: "Carpeta BUI", match: ["carpetabui"] },
-    { label: "Acceso VDIs al rango", match: ["accesovdis"] },
     { label: "Fecha de apertura", match: ["fechadeapertura"], date: true },
   ];
 
@@ -131,12 +128,42 @@ function findValue(
   }
   for (const fragment of fragments) {
     for (const [key, value] of variables) {
+      // Los flags booleanos ("booleanhostnamesadicionales") contienen el nombre
+      // de la variable real como substring: excluirlos evita devolver
+      // "Activado" en lugar del valor real (p. ej. la lista de hostnames).
+      if (key.startsWith("boolean")) continue;
       if (key.includes(fragment) && value) {
         return value;
       }
     }
   }
   return "";
+}
+
+/**
+ * Datos del servidor MOA derivados de variables del workflow:
+ * - IP: primeros 3 octetos de `rangoips` + ".231" (el último octeto del rango
+ *   es de ejemplo).
+ * - Nombre: `nis` + "308".
+ * Null si faltan el rango o el NIS.
+ */
+export function deriveServerInfo(
+  variables: Map<string, string>,
+): { ip: string; name: string } | null {
+  const range = (variables.get("rangoips") ?? "").trim();
+  const nis = (variables.get("nis") ?? "").trim();
+  if (!range || !nis) {
+    return null;
+  }
+  const octets = range.split(".").filter(Boolean);
+  if (octets.length < 3) {
+    return null;
+  }
+  const prefix = octets.slice(0, 3).join(".");
+  if (!/^\d+\.\d+\.\d+$/.test(prefix)) {
+    return null;
+  }
+  return { ip: `${prefix}.231`, name: `${nis}308` };
 }
 
 /** Semáforo por estado: verde para resuelto, amarillo para pendiente/negativo. */

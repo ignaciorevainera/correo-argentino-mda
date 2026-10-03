@@ -22,7 +22,10 @@ import {
   buildAutomationDisplayName,
 } from "./branch-title";
 import { branchNameFromDescription } from "./branch-display";
-import { resolveAutomationCategoryId } from "./category-resolver";
+import {
+  getCategoryPathMap,
+  resolveAutomationCategoryId,
+} from "./category-resolver";
 import { parseInitialForm } from "./initial-form";
 import type { ParsedInitialForm, JefeFormDetails } from "./initial-form";
 import {
@@ -52,9 +55,11 @@ import type { WorkflowInitialFields } from "@lib/invgate/automation/workflow-req
 import { resolveSectorNames } from "@lib/invgate/automation/helpdesk-names";
 import {
   buildAutomationBoard,
+  deriveServerInfo,
   parseWorkflowVariables,
 } from "./workflow-variables";
 import type { AutomationBoard } from "./workflow-variables";
+import { normalizeLabel } from "./labels";
 import {
   AUTO_CLOSE_REASON,
   getClosure,
@@ -107,6 +112,8 @@ export interface AutomationNode {
   rawStatusId: number;
   /** Nombre del estado de InvGate (p. ej. "En espera"); null si no se resolvió. */
   rawStatusName: string | null;
+  /** Ruta de categoría de InvGate normalizada (match por etapa); null si no se resolvió. */
+  categoryPath: string | null;
   /** Fecha programada parseada de la descripción (p. ej. "6 oct 2026"). */
   scheduledFor: string | null;
   /** Epoch de creación; null cuando el bulk no devolvió detalles del request. */
@@ -458,6 +465,7 @@ function buildRequestNodes(
   links: readonly InvgateIncidentLink[],
   incidentsById: Record<string, InvgateAutomationIncident>,
   statusNames: Readonly<Record<number, string>>,
+  categoryPaths: ReadonlyMap<number, string>,
 ): AutomationNode[] {
   const nodes = links.map((link) => {
     const incident = incidentsById[String(link.id)];
@@ -480,6 +488,7 @@ function buildRequestNodes(
         lifecycle: mapRequestStatusToLifecycle(-1),
         rawStatusId: -1,
         rawStatusName: null,
+        categoryPath: null,
         scheduledFor: null,
         createdAt: null,
         invgateUrl: deriveInvGateUiUrl(link.id),
@@ -502,6 +511,7 @@ function buildRequestNodes(
       lifecycle: mapRequestStatusToLifecycle(incident.status_id),
       rawStatusId: incident.status_id,
       rawStatusName: statusNames[incident.status_id] ?? null,
+      categoryPath: categoryPaths.get(incident.category_id) ?? null,
       scheduledFor: parseScheduledDate(description),
       createdAt: incident.created_at,
       invgateUrl: deriveInvGateUiUrl(incident.id),
@@ -515,21 +525,89 @@ function buildRequestNodes(
   return sortChronologically(nodes);
 }
 
-/** Convierte las tareas internas de un request al modelo de la card. */
+/**
+ * Convierte las tareas internas de un request al modelo de la card. Deduplica
+ * por nombre normalizado: InvGate arrastra réplicas exactas (p. ej. "Crear
+ * carpeta para Servicios BUI" x3 por cargas repetidas) que no aportan nada.
+ */
 function toAutomationTasks(
   tasks: readonly InvgateIncidentTask[],
 ): AutomationTask[] {
-  return tasks.map((task) => ({
-    refId: task.task_id,
-    name: task.name,
-    lifecycle: mapTaskStatusToLifecycle(task.status),
-    assignedGroupId:
-      typeof task.helpdesk_id === "number" ? task.helpdesk_id : null,
-    assignedId: typeof task.agent_id === "number" ? task.agent_id : null,
-    completedAt:
-      typeof task.completed_at === "number" ? task.completed_at : null,
-    sectorName: null,
-  }));
+  const seen = new Set<string>();
+  const result: AutomationTask[] = [];
+  for (const task of tasks) {
+    const key = normalizeLabel(task.name ?? "");
+    if (key.length > 0) {
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+    }
+    result.push({
+      refId: task.task_id,
+      name: task.name,
+      lifecycle: mapTaskStatusToLifecycle(task.status),
+      assignedGroupId:
+        typeof task.helpdesk_id === "number" ? task.helpdesk_id : null,
+      assignedId: typeof task.agent_id === "number" ? task.agent_id : null,
+      completedAt:
+        typeof task.completed_at === "number" ? task.completed_at : null,
+      sectorName: null,
+    });
+  }
+  return result;
+}
+
+/** Variable de workflow "activa" (Activado/Sí/Finalizado/...). */
+function isTruthyFlag(value: string | undefined): boolean {
+  return Boolean(
+    value &&
+      /^(si|sí|true|1|activado|activo|finalizado|realizado|conectado|ok)/i.test(
+        value.trim(),
+      ),
+  );
+}
+
+/**
+ * matchLabels de ítems form/manual que se dan por completados a partir de las
+ * variables del workflow (no generan ticket):
+ * - GDI/VDI ← `accesovdisarangoips`.
+ * - Hostnames ← `hostnamesadicional` (lista real) o su flag booleano.
+ * - Configuración de server ← nombre + IP del servidor MOA derivados.
+ */
+function formatHostnames(raw: string): string | null {
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(" - ") : null;
+}
+
+function computeSatisfiedStageItems(
+  variables: Map<string, string>,
+): Map<string, string | null> {
+  const satisfied = new Map<string, string | null>();
+  if (isTruthyFlag(variables.get("accesovdisarangoips"))) {
+    satisfied.set(normalizeLabel("Habilitación de terminales de GDI"), null);
+  }
+  const hostnames = (variables.get("hostnamesadicional") ?? "").trim();
+  if (
+    hostnames.length > 0 ||
+    isTruthyFlag(variables.get("booleanhostnamesadicionales"))
+  ) {
+    satisfied.set(
+      normalizeLabel("Solicitud de Hostnames"),
+      formatHostnames(hostnames),
+    );
+  }
+  const server = deriveServerInfo(variables);
+  if (server) {
+    satisfied.set(
+      normalizeLabel("Configuración serv"),
+      `${server.name} · ${server.ip}`,
+    );
+  }
+  return satisfied;
 }
 
 /**
@@ -719,6 +797,7 @@ async function resolveAutomationDetailUncached(
   const workflowRequestPromise = getWorkflowRequest(automationId);
   const categoryIdPromise = resolveAutomationCategoryId();
   categoryIdPromise.catch(() => {});
+  const categoryPathsPromise = getCategoryPathMap();
 
   const links = await fetchLinksAndIds(automationId);
   if (!links.ok) {
@@ -760,7 +839,13 @@ async function resolveAutomationDetailUncached(
   const statusNames = buildStatusNameLookup(
     statusesResult.ok ? statusesResult.data : null,
   );
-  const nodes = buildRequestNodes(linkData, detailsResult.data, statusNames);
+  const categoryPaths = await categoryPathsPromise;
+  const nodes = buildRequestNodes(
+    linkData,
+    detailsResult.data,
+    statusNames,
+    categoryPaths,
+  );
 
   // Tareas internas por request vinculado → se muestran dentro de su card.
   const tasksByRef = new Map<number, InvgateIncidentTask[]>();
@@ -877,7 +962,8 @@ async function resolveAutomationDetailUncached(
       formSource = { createdAt: parentIncident.created_at, text: "" };
     }
   }
-  const board = buildAutomationBoard(parseWorkflowVariables(workflowRequest));
+  const workflowVariables = parseWorkflowVariables(workflowRequest);
+  const board = buildAutomationBoard(workflowVariables);
 
   // Override manual del portal (datos del jefe/contacto cargados a mano).
   const manualData = getManualData(automationId);
@@ -940,6 +1026,7 @@ async function resolveAutomationDetailUncached(
     stages = buildStageGroups(nodes, template, {
       finalized: isFinalizedStatus(parentIncident.status_id),
       workflowKind,
+      satisfiedItems: computeSatisfiedStageItems(workflowVariables),
     });
   }
 

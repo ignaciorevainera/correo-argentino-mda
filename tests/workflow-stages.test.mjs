@@ -466,6 +466,106 @@ check(
   );
 }
 
+// Ítems form/manual satisfechos por variables del workflow -> completed.
+{
+  const tpl = {
+    stages: [
+      {
+        id: 1,
+        name: "Etapa",
+        description: null,
+        position: 1,
+        gateItemId: null,
+      },
+    ],
+    tickets: [
+      {
+        id: 1,
+        stageId: 1,
+        matchLabel: "Solicitud de Hostnames",
+        displayName: null,
+        blocking: true,
+        kind: "form",
+        position: 1,
+      },
+      {
+        id: 2,
+        stageId: 1,
+        matchLabel: "Otra gestión",
+        displayName: null,
+        blocking: true,
+        kind: "form",
+        position: 2,
+      },
+    ],
+  };
+  const result = buildStageGroups([], tpl, {
+    workflowKind: "workflow",
+    satisfiedItems: new Map([
+      [normalizeLabel("Solicitud de Hostnames"), "B0106W101 - B0106W102"],
+    ]),
+  });
+  const hostnames = result.groups[0].items.find(
+    (item) => item.template.matchLabel === "Solicitud de Hostnames",
+  );
+  const other = result.groups[0].items.find(
+    (item) => item.template.matchLabel === "Otra gestión",
+  );
+  check(
+    "satisfiedItems marca el form completado con detalle (y no el resto)",
+    hostnames?.completed === true &&
+      hostnames?.detail === "B0106W101 - B0106W102" &&
+      other?.completed === false,
+  );
+}
+
+// Match por categoría (sufijo de ruta de InvGate).
+{
+  const tpl = {
+    stages: [
+      {
+        id: 1,
+        name: "Etapa",
+        description: null,
+        position: 1,
+        scope: "workflow",
+        gateItemId: null,
+      },
+    ],
+    tickets: [
+      {
+        id: 1,
+        stageId: 1,
+        matchLabel: "Validación Central PAQ",
+        aliases: [],
+        displayName: "Actualización de Central PAQ",
+        matchCategory: "Central Paq. » Implementación",
+        blocking: true,
+        kind: "ticket",
+        position: 1,
+      },
+    ],
+  };
+  const result = buildStageGroups(
+    [
+      node({
+        refId: 10,
+        stepLabel: "AUTSUC #1",
+        title: "AUTSUC #1 - Actualizar",
+        categoryPath:
+          "ops_admin track and trace » aplicaciones » central paq. » implementacion",
+      }),
+    ],
+    tpl,
+    { workflowKind: "workflow" },
+  );
+  const item = result.groups[0].items[0];
+  check(
+    "match por sufijo de categoría",
+    item.nodes.length === 1 && item.nodes[0].refId === 10 && !item.missing,
+  );
+}
+
 if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exit(1);

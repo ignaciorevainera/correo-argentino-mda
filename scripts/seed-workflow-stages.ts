@@ -31,9 +31,13 @@ interface SeedTicket {
   aliases?: string[];
   /** Frases de la descripción que matchean cuando el label no alcanza. */
   matchDescription?: string[];
+  /** Sufijo de ruta de categoría de InvGate que también matchea la card. */
+  matchCategory?: string;
+  /** Anidar los tickets matcheados como sub-nodos de una card madre. */
+  nestChildren?: boolean;
   blocking: boolean;
-  /** Naturaleza: ticket (default), formulario, manual o subproceso. */
-  kind?: "ticket" | "form" | "manual" | "subprocess";
+  /** Naturaleza: ticket (default), formulario, manual, subproceso o auto. */
+  kind?: "ticket" | "form" | "manual" | "subprocess" | "auto";
 }
 
 interface SeedStage {
@@ -146,26 +150,22 @@ const SEED: SeedStage[] = [
     scope: "workflow",
     description:
       "Configuración del server, red y servicios. Los registros (SmartPoints, PDV, CAI) se agrupan en M&F y no bloquean la etapa.",
-    gateMatchLabel: "Solicitud de equipamiento",
     tickets: [
       {
+        // El server MOA ya no se gestiona por ticket: se resuelve por variables
+        // (nombre + IP). Por eso es manual y sin aliases que atrapen tickets de
+        // configuración de PCs en sitio.
         matchLabel: "Configuración serv",
         displayName: "Configuración de server",
-        aliases: SERVER_ALIASES,
-        blocking: true,
-        kind: "ticket",
+        aliases: [],
+        blocking: false,
+        kind: "auto",
       },
       {
         matchLabel: "Solicitud de Hostnames",
         displayName: "Solicitud de hostnames",
         blocking: true,
         kind: "form",
-      },
-      {
-        matchLabel: "Dirección IP",
-        displayName: "Configuración de red / direccionamiento IP",
-        blocking: true,
-        kind: "ticket",
       },
       {
         matchLabel: "Habilitación de servicios M&F",
@@ -184,24 +184,11 @@ const SEED: SeedStage[] = [
     ],
   },
   {
-    name: "Etapa 3 — Validación y Go / No Go",
-    scope: "workflow",
-    description:
-      "Punto de control exclusivo del workflow AUTSUC previo al pase a implementación.",
-    tickets: [{ matchLabel: "Punto de control Go / No Go", blocking: false, kind: "form" }],
-  },
-  {
     name: "Etapa 4 — Implementación",
     scope: "workflow",
     description:
-      "Instalaciones por Servicio Técnico, altas de usuarios y actualización de sistemas centrales.",
+      "Altas de usuarios y actualización de sistemas centrales (la instalación en sitio ya se cubre en la etapa 1).",
     tickets: [
-      {
-        matchLabel: "Solicitud de asistencia técnica",
-        displayName: "Instalaciones por Servicio Técnico",
-        blocking: true,
-        kind: "ticket",
-      },
       {
         matchLabel: "Alta operador Mosaic",
         displayName: "Alta de usuarios Mosaic",
@@ -212,13 +199,23 @@ const SEED: SeedStage[] = [
       {
         matchLabel: "Validación Central PAQ",
         displayName: "Actualización de Central PAQ",
+        matchCategory: "Central Paq. » Implementación",
         blocking: true,
+        kind: "ticket",
+      },
+      {
+        matchLabel: "Actualización SOP Central",
+        displayName: "Actualización SOP Central",
+        matchCategory: "SOP Central » Implementación",
+        blocking: false,
         kind: "ticket",
       },
       {
         matchLabel: "Baja de usuarios en SOP Central",
         displayName: "Gestión de bajas de servicios de Giros",
         aliases: ["Solicitud baja de usuarios SOP Central"],
+        matchCategory: "BAJA Giros y Transferencias Sucursales",
+        nestChildren: true,
         blocking: true,
         kind: "ticket",
       },
@@ -238,10 +235,10 @@ const SEED: SeedStage[] = [
     ],
   },
   {
-    name: "Etapa 5 — Cierre",
+    name: "Acciones finales y cierre de la automatización",
     scope: "workflow",
     description:
-      "Validación final de terminales y aplicativos (Revisión de estado general) y cierre del workflow.",
+      "Validación final de terminales y aplicativos, actualización de ubicación y cierre del workflow.",
     tickets: [
       {
         matchLabel: "Revisión general",
@@ -249,6 +246,12 @@ const SEED: SeedStage[] = [
         aliases: REVIEW_ALIASES,
         blocking: false,
         kind: "manual",
+      },
+      {
+        matchLabel: "Actualizar Ubicación",
+        displayName: "Solicitud de actualización de ubicación en InvGate",
+        blocking: false,
+        kind: "ticket",
       },
     ],
   },
@@ -284,11 +287,6 @@ const SEED: SeedStage[] = [
       {
         matchLabel: "Solicitud de Hostnames",
         displayName: "Solicitud de hostnames",
-        blocking: false,
-      },
-      {
-        matchLabel: "Dirección IP",
-        displayName: "Configuración de red / direccionamiento IP",
         blocking: false,
       },
       {
@@ -452,15 +450,22 @@ async function seedWorkflowStages() {
             matchLabel: ticketSeed.matchLabel,
             blocking: ticketSeed.blocking,
             kind: ticketSeed.kind ?? "ticket",
+            matchCategory: ticketSeed.matchCategory ?? null,
+            nestChildren: ticketSeed.nestChildren ?? false,
             position: ticketPosition,
             // No pisar displayName/aliases editados a mano: solo completarlos.
+            // Excepción: un `aliases: []` explícito en la seed limpia los
+            // aliases (señal de que el template dejó de matchear por alias).
             ...(existingTicket.displayName?.trim()
               ? {}
               : { displayName: ticketSeed.displayName ?? null }),
-            ...(Array.isArray(existingTicket.aliases) &&
-            existingTicket.aliases.length > 0
-              ? {}
-              : { aliases: ticketSeed.aliases ?? [] }),
+            ...(ticketSeed.aliases !== undefined &&
+            ticketSeed.aliases.length === 0
+              ? { aliases: [] }
+              : Array.isArray(existingTicket.aliases) &&
+                  existingTicket.aliases.length > 0
+                ? {}
+                : { aliases: ticketSeed.aliases ?? [] }),
             ...(Array.isArray(existingTicket.matchDescription) &&
             existingTicket.matchDescription.length > 0
               ? {}
@@ -474,6 +479,8 @@ async function seedWorkflowStages() {
           displayName: ticketSeed.displayName ?? null,
           aliases: ticketSeed.aliases ?? [],
           matchDescription: ticketSeed.matchDescription ?? [],
+          matchCategory: ticketSeed.matchCategory ?? null,
+          nestChildren: ticketSeed.nestChildren ?? false,
           blocking: ticketSeed.blocking,
           kind: ticketSeed.kind ?? "ticket",
           position: ticketPosition,
@@ -483,6 +490,21 @@ async function seedWorkflowStages() {
         );
       }
       ticketPosition += 1;
+    }
+  }
+
+  // Pruning: las etapas que ya no están en el SEED se eliminan (el seed es la
+  // fuente de verdad del template; la cascada borra sus tickets). Cubre quitar
+  // etapas y renombrarlas (la vieja cae, la nueva se crea arriba).
+  const seedStageKeys = new Set(SEED.map((stage) => normalizeLabel(stage.name)));
+  for (const [key, existing] of stageByName) {
+    if (!seedStageKeys.has(key)) {
+      await db
+        .delete(workflowStages)
+        .where(eqStage(existing.id));
+      console.log(
+        `Etapa eliminada (fuera del seed): "${existing.name}" (#${existing.id})`,
+      );
     }
   }
 

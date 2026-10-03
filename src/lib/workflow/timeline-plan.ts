@@ -12,7 +12,7 @@ import { stripAutomationEmbeddedRefs } from "./branch-title";
  */
 
 export type PlannedCardKind =
-  "ticket" | "missing" | "registration" | "form" | "manual";
+  "ticket" | "missing" | "registration" | "form" | "manual" | "auto";
 
 export interface PlannedCard {
   kind: PlannedCardKind;
@@ -56,6 +56,7 @@ export function ghostNode(stepLabel: string): AutomationNode {
     lifecycle: "pending",
     rawStatusId: 0,
     rawStatusName: null,
+    categoryPath: null,
     scheduledFor: null,
     createdAt: null,
     invgateUrl: "",
@@ -188,23 +189,56 @@ export function planGrouping(
 
           if (!ticketLike && item.nodes.length === 0) {
             cards.push({
-              kind: item.kind === "manual" ? "manual" : "form",
-              node: ghostNode(item.label),
+              kind:
+                item.kind === "manual"
+                  ? "manual"
+                  : item.kind === "auto"
+                    ? "auto"
+                    : "form",
+              node: {
+                ...ghostNode(item.label),
+                description: item.detail ?? "",
+                lifecycle: item.completed ? "completed" : "pending",
+              },
               stepNumber: nextStep(),
               isLast: false,
             });
             return cards;
           }
 
-          for (const node of item.nodes) {
-            cards.push({
+          if (item.template.nestChildren && item.nodes.length > 0) {
+            // Los tickets matcheados se agrupan en una card madre con sub-nodos
+            // (mismo tratamiento que el equipamiento 1.1/1.2/1.3).
+            const [parent, ...rest] = item.nodes;
+            const parentCard: PlannedCard = {
               kind: "ticket",
-              node,
+              node: parent,
               displayLabel: item.label,
               stepNumber: nextStep(),
               isLast: false,
-              ...(item.kind === "subprocess" ? { subprocess: true } : {}),
-            });
+              children: rest.map((node) => ({
+                kind: "ticket" as const,
+                node,
+                displayLabel: resolveNodeDisplayLabel(
+                  node.title,
+                  node.stepLabel,
+                ),
+                stepNumber: 0,
+                isLast: false,
+              })),
+            };
+            cards.push(parentCard);
+          } else {
+            for (const node of item.nodes) {
+              cards.push({
+                kind: "ticket",
+                node,
+                displayLabel: item.label,
+                stepNumber: nextStep(),
+                isLast: false,
+                ...(item.kind === "subprocess" ? { subprocess: true } : {}),
+              });
+            }
           }
 
           if (item.missing && showMissing && ticketLike) {

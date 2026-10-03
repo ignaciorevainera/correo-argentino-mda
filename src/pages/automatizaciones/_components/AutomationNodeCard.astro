@@ -44,9 +44,14 @@ const ghostBadge = {
   },
   form: { label: "Vía formulario", cls: "badge-soft badge-info" },
   manual: { label: "Gestión manual", cls: "badge-soft badge-neutral" },
+  auto: { label: "Tarea a Soporte TI", cls: "badge-soft badge-info" },
 } as const;
 
-const badge = isTicket ? null : ghostBadge[kind as keyof typeof ghostBadge];
+// En nodos completados solo se muestra el badge de estado (Completado).
+const badge =
+  isTicket || node.lifecycle === "completed"
+    ? null
+    : ghostBadge[kind as keyof typeof ghostBadge];
 
 const stepLabel = displayLabel?.trim() || node.stepLabel;
 const blockedLabel =
@@ -58,7 +63,7 @@ const blockedLabel =
 <li class="relative flex gap-4 pb-6 last:pb-0">
   <div class="flex w-3 shrink-0 flex-col items-center">
     {
-      isTicket ? (
+      isTicket || node.lifecycle === "completed" ? (
         <span
           aria-hidden="true"
           title={NODE_LIFECYCLE_LABELS[node.lifecycle]}
@@ -84,11 +89,11 @@ const blockedLabel =
   <article
     class:list={[
       "min-w-0 flex-1 rounded-xl p-4",
-      isTicket
-        ? node.lifecycle === "completed"
-          ? "bg-success/10"
-          : "bg-base-200/40"
-        : "bg-base-200/20",
+      node.lifecycle === "completed"
+        ? "bg-success/10"
+        : isTicket
+          ? "bg-base-200/40"
+          : "bg-base-200/20",
     ]}
   >
     <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
@@ -134,6 +139,13 @@ const blockedLabel =
             </p>
           )
         }
+        {
+          !isTicket && node.description && (
+            <p class="text-base-content/70 mt-0.5 text-sm">
+              {node.description}
+            </p>
+          )
+        }
       </div>
 
       <div class="flex shrink-0 flex-col items-end gap-1">
@@ -165,10 +177,8 @@ const blockedLabel =
           )
         }
         {
-          !isTicket && (
-            <span class="text-base-content/40 text-xs italic">
-              Sin ticket aún
-            </span>
+          !isTicket && node.lifecycle === "completed" && (
+            <WorkflowNodeBadge lifecycle="completed" />
           )
         }
       </div>

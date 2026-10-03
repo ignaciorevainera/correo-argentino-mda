@@ -63,6 +63,8 @@ function parseTicketFields(fd: FormData): {
   displayName: string | null;
   aliases: string[];
   matchDescription: string[];
+  matchCategory: string | null;
+  nestChildren: boolean;
   blocking: boolean;
   kind: string;
   position: number;
@@ -71,9 +73,13 @@ function parseTicketFields(fd: FormData): {
   const displayName = fd.get("displayName")?.toString().trim() || null;
   const aliases = parseAliases(fd.get("aliases")?.toString());
   const matchDescription = parseAliases(fd.get("matchDescription")?.toString());
+  const matchCategory = fd.get("matchCategory")?.toString().trim() || null;
+  const nestChildren = fd.get("nestChildren") != null;
   const blocking = fd.get("blocking") != null;
   const kindRaw = fd.get("kind")?.toString() ?? "ticket";
-  const kind = ["ticket", "form", "manual", "subprocess"].includes(kindRaw)
+  const kind = ["ticket", "form", "manual", "subprocess", "auto"].includes(
+    kindRaw,
+  )
     ? kindRaw
     : "ticket";
   const position = Number.parseInt(fd.get("position")?.toString() ?? "", 10);
@@ -83,7 +89,17 @@ function parseTicketFields(fd: FormData): {
   if (Number.isNaN(position) || position < 0) {
     throw new Error("El orden del ticket debe ser un entero mayor o igual a 0.");
   }
-  return { matchLabel, displayName, aliases, matchDescription, blocking, kind, position };
+  return {
+    matchLabel,
+    displayName,
+    aliases,
+    matchDescription,
+    matchCategory,
+    nestChildren,
+    blocking,
+    kind,
+    position,
+  };
 }
 
 function parseFieldLimit(error: unknown): string {

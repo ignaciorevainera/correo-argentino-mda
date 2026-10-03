@@ -1,6 +1,7 @@
 import {
   parseWorkflowVariables,
   buildAutomationBoard,
+  deriveServerInfo,
 } from "../src/lib/workflow/workflow-variables";
 
 /**
@@ -122,12 +123,49 @@ check(
 
 const techByLabel = new Map((board?.tech ?? []).map((t) => [t.label, t.value]));
 check("rango IP", techByLabel.get("Rango IP") === "10.245.221.0");
-check("hostnames", techByLabel.get("Hostnames") === "B0106W101");
+check(
+  "hostnames ya no es campo técnico (pasa al nodo)",
+  !techByLabel.has("Hostnames"),
+);
+check(
+  "acceso VDIs ya no es campo técnico (pasa al nodo)",
+  !techByLabel.has("Acceso VDIs al rango"),
+);
 check("punto de venta", techByLabel.get("Punto de venta") === "9768");
 check(
   "fecha de apertura formateada",
   typeof techByLabel.get("Fecha de apertura") === "string" &&
     techByLabel.get("Fecha de apertura").includes("2026"),
+);
+
+// Un flag booleano no debe "ganarle" a la variable real por substring.
+const booleanOnly = buildAutomationBoard(
+  parseWorkflowVariables({
+    current_variables_values: [
+      { name: "booleanHostnamesAdicionales", value: "Activado" },
+    ],
+  }),
+);
+const booleanTech = new Map(
+  (booleanOnly?.tech ?? []).map((t) => [t.label, t.value]),
+);
+check("boolean no genera la fila Hostnames", !booleanTech.has("Hostnames"));
+
+check(
+  "deriveServerInfo deriva ip y nombre",
+  (() => {
+    const s = deriveServerInfo(
+      new Map([
+        ["rangoips", "10.246.16.0"],
+        ["nis", "B1046"],
+      ]),
+    );
+    return s?.ip === "10.246.16.231" && s?.name === "B1046308";
+  })(),
+);
+check(
+  "deriveServerInfo null sin rango",
+  deriveServerInfo(new Map([["nis", "B1046"]])) === null,
 );
 
 check("sin variables no hay tablero", buildAutomationBoard(new Map()) === null);

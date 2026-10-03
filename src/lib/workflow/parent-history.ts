@@ -7,14 +7,17 @@ import {
   like,
   notInArray,
   or,
+  sql,
   type SQL,
 } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db } from "@/db";
 import { automationParents } from "@/db/schema";
 import { ACTIVE_STATUS_IDS, isActiveStatus } from "./automation-status";
 import { listClosures } from "./closures";
 import type { AutomationClosure } from "./closures";
 import type { AutomationSummary } from "./discovery";
+import { normalizeForCompare } from "./labels";
 import { nowSeconds } from "./time";
 
 /**
@@ -134,6 +137,38 @@ export interface AutomationParentsPage {
 
 export const AUTOMATION_PARENTS_PAGE_SIZE = 20;
 
+/** Acentos/ñ que se aplanan en SQLite para búsquedas insensibles a tildes. */
+const SEARCH_ACCENTS: readonly (readonly [string, string])[] = [
+  ["á", "a"],
+  ["é", "e"],
+  ["í", "i"],
+  ["ó", "o"],
+  ["ú", "u"],
+  ["ü", "u"],
+  ["ñ", "n"],
+  ["Á", "A"],
+  ["É", "E"],
+  ["Í", "I"],
+  ["Ó", "O"],
+  ["Ú", "U"],
+  ["Ü", "U"],
+  ["Ñ", "N"],
+];
+
+/**
+ * Expresión de columna normalizada para búsqueda: aplana acentos/ñ y baja a
+ * minúsculas en SQL (SQLite no es accent-insensitive y su `lower()` solo cubre
+ * ASCII). El término se normaliza con `normalizeForCompare` para que ambos
+ * lados coincidan ("guillon" → "Guillón").
+ */
+function normalizedSearchColumn(column: AnySQLiteColumn): SQL {
+  let expr: SQL = sql`${column}`;
+  for (const [from, to] of SEARCH_ACCENTS) {
+    expr = sql`replace(${expr}, ${from}, ${to})`;
+  }
+  return sql`lower(${expr})`;
+}
+
 function buildParentsWhere(
   q: string,
   status: AutomationParentStatusFilter,
@@ -143,13 +178,13 @@ function buildParentsWhere(
   const term = q.trim();
 
   if (term) {
-    const pattern = `%${term}%`;
+    const pattern = `%${normalizeForCompare(term)}%`;
     conditions.push(
       or(
-        like(automationParents.branchCode, pattern),
-        like(automationParents.prettyId, pattern),
-        like(automationParents.branchName, pattern),
-        like(automationParents.displayName, pattern),
+        like(normalizedSearchColumn(automationParents.branchCode), pattern),
+        like(normalizedSearchColumn(automationParents.prettyId), pattern),
+        like(normalizedSearchColumn(automationParents.branchName), pattern),
+        like(normalizedSearchColumn(automationParents.displayName), pattern),
       ),
     );
   }

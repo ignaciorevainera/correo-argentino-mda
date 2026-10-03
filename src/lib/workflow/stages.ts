@@ -7,7 +7,11 @@ import {
 import { asc } from "drizzle-orm";
 import type { AutomationNode } from "./resolver";
 import { stripAutomationEmbeddedRefs } from "./branch-title";
-import { normalizeLabel, stripLeadingOrdinals } from "./labels";
+import {
+  normalizeForCompare,
+  normalizeLabel,
+  stripLeadingOrdinals,
+} from "./labels";
 import { compareChronologically } from "./sort";
 
 /**
@@ -30,7 +34,13 @@ export type StageStatus = "waiting" | "in_progress" | "completed";
  * - `subprocess`: ticket generado por un subproceso (se matchea igual).
  * `form`/`manual` nunca cuentan como faltantes bloqueantes.
  */
-export type StageItemKind = "ticket" | "form" | "manual" | "subprocess";
+export type StageItemKind =
+  | "ticket"
+  | "form"
+  | "manual"
+  | "subprocess"
+  /** Resuelto automáticamente por tareas/variables (p. ej. server MOA). */
+  | "auto";
 
 /** Ítems que pueden existir como ticket hijo (y por ende faltar). */
 export function isTicketLikeKind(kind: StageItemKind): boolean {
@@ -89,6 +99,8 @@ export interface StageItemGroup {
   missing: boolean;
   /** Todos los nodos matcheados en estado terminal resuelto. */
   completed: boolean;
+  /** Detalle derivado de variables (p. ej. hostnames o nombre+IP del server). */
+  detail: string | null;
 }
 
 export interface StageGroup {
@@ -315,10 +327,20 @@ function itemStageForNodes(nodes: readonly AutomationNode[]): StageStatus {
 export function buildStageGroups(
   nodes: readonly AutomationNode[],
   template: WorkflowTemplate | null,
-  options: { finalized?: boolean; workflowKind?: WorkflowKind } = {},
+  options: {
+    finalized?: boolean;
+    workflowKind?: WorkflowKind;
+    /**
+     * Ítems form/manual/auto resueltos por variables del workflow:
+     * matchLabel (normalizado) → detalle a mostrar (o null). p. ej.
+     * "solicitud de hostnames" → "B0106W101 - B0106W102".
+     */
+    satisfiedItems?: ReadonlyMap<string, string | null>;
+  } = {},
 ): StageGrouping {
   const finalized = options.finalized ?? false;
   const workflowKind = options.workflowKind ?? "workflow";
+  const satisfiedItems = options.satisfiedItems;
   const stagelessNodes: AutomationNode[] = [];
   if (!template || template.stages.length === 0) {
     return {
@@ -382,6 +404,7 @@ export function buildStageGroups(
       nodes: [],
       missing: true,
       completed: false,
+      detail: null,
     });
   }
 
@@ -441,6 +464,22 @@ export function buildStageGroups(
         best = score;
       }
     }
+    if (best > 0) {
+      return best;
+    }
+    // Fallback por categoría: la ruta del ticket termina con el sufijo
+    // configurado (cubre títulos genéricos/duplicados que el label no distingue).
+    const matchCategory = itemGroup.template.matchCategory?.trim();
+    if (matchCategory && node.categoryPath) {
+      const suffix = normalizeForCompare(matchCategory);
+      if (
+        suffix.length > 0 &&
+        (node.categoryPath === suffix ||
+          node.categoryPath.endsWith(` » ${suffix}`))
+      ) {
+        best = 0.95;
+      }
+    }
     return best;
   };
 
@@ -468,6 +507,15 @@ export function buildStageGroups(
     // Los ítems de formulario/manual no esperan ticket: nunca son "faltantes".
     if (!isTicketLikeKind(itemGroup.kind)) {
       itemGroup.missing = false;
+      // Se dan por completados si una variable del workflow lo indica; el
+      // detalle (hostnames, nombre+IP del server) se muestra en el nodo.
+      const detail = satisfiedItems?.get(
+        normalizeLabel(itemGroup.template.matchLabel),
+      );
+      if (detail !== undefined) {
+        itemGroup.completed = true;
+        itemGroup.detail = detail;
+      }
     }
   }
 

@@ -40,20 +40,63 @@ import AutomatizacionesContent from "./_components/AutomatizacionesContent.astro
 
   hydrateOpenProgressCards(document);
 
-  // Búsqueda server-side: debounce del submit para no navegar en cada tecla.
+  // Búsqueda "live": debounce + fetch del listado y swap del contenedor de
+  // resultados, sin recargar la página ni perder el foco del input. El form
+  // queda como fallback no-JS (Enter).
+  const SEARCH_INPUT_ID = "automatizaciones-search";
+  const RESULTS_SELECTOR = "[data-automation-results]";
   let searchTimer: number | undefined;
+  let searchController: AbortController | undefined;
+
+  function openFirstResultCard(): void {
+    const first = document.querySelector<HTMLDetailsElement>(
+      `${RESULTS_SELECTOR} details.group`,
+    );
+    if (first && !first.open) first.open = true;
+  }
+
+  async function runLiveSearch(rawValue: string): Promise<void> {
+    const url = new URL(window.location.href);
+    const query = rawValue.trim();
+    if (query) url.searchParams.set("q", query);
+    else url.searchParams.delete("q");
+    url.searchParams.delete("page");
+
+    searchController?.abort();
+    searchController = new AbortController();
+    try {
+      const res = await fetch(url, {
+        headers: { "x-requested-with": "fetch" },
+        signal: searchController.signal,
+      });
+      if (!res.ok) return;
+      const html = await res.text();
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const next = parsed.querySelector(RESULTS_SELECTOR);
+      const current = document.querySelector(RESULTS_SELECTOR);
+      if (next && current) current.innerHTML = next.innerHTML;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}`,
+      );
+      if (query) openFirstResultCard();
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        console.error("[automatizaciones] búsqueda falló:", error);
+      }
+    }
+  }
+
   document.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
-    if (target.id !== "automatizaciones-search") return;
-
-    const form = target.closest<HTMLFormElement>(
-      "[data-automation-search-form]",
-    );
-    if (!form) return;
-
+    if (target.id !== SEARCH_INPUT_ID) return;
     window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => form.requestSubmit(), 400);
+    searchTimer = window.setTimeout(
+      () => void runLiveSearch(target.value),
+      300,
+    );
   });
 
   // Si el server sirvió un snapshot vencido, esperar el scan en background y

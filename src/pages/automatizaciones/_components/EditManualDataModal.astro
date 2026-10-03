@@ -119,9 +119,9 @@ const {
 
 <script>
   import { actions } from "astro:actions";
-  import { navigate } from "astro:transitions/client";
   import { showToast } from "@/lib/toastClient";
   import { setBusy, readFieldValue } from "@/lib/clientBusy";
+  import { refreshAutomationDetail } from "@/lib/automationDetailClient";
 
   document.addEventListener("click", async (event) => {
     const target = event.target;
@@ -170,7 +170,10 @@ const {
       return;
     }
 
+    const modal = document.getElementById("edit-manual-data-modal");
+    if (modal instanceof HTMLDialogElement) modal.close();
+
     showToast("Datos actualizados", "alert-success");
-    navigate(window.location.href);
+    void refreshAutomationDetail();
   });
 </script>
