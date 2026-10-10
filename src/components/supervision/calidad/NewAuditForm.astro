@@ -1,0 +1,3037 @@
+---
+import { Icon } from "astro-icon/components";
+import Modal from "@components/ui/Modal.astro";
+import FormField from "@components/ui/forms/FormField.astro";
+import FormLegend from "@components/ui/forms/FormLegend.astro";
+import MonthSelect from "@components/ui/MonthSelect.astro";
+import CriterionRow from "@components/supervision/calidad/CriterionRow.astro";
+import type { AuditParameter, QualityCall } from "@/types/quality";
+import { getCleanBase } from "@lib/baseUrl";
+
+interface Props {
+  allAgents: Array<{ id: number; name: string; username: string | null }>;
+  allParameters: AuditParameter[];
+  selectedMonth: string;
+  preselectedAgentId?: number;
+  approvedTitles: string[];
+  initialAudit?: QualityCall;
+}
+
+const {
+  allAgents,
+  allParameters,
+  selectedMonth,
+  preselectedAgentId,
+  approvedTitles,
+  initialAudit,
+} = Astro.props;
+
+const cleanBase = getCleanBase();
+const invgateWebBase = (import.meta.env.INVGATE_BASE_URL || "")
+  .replace(/\/api\/v1\/?$/, "")
+  .replace(/\/$/, "");
+
+// Group parameters by channel and section
+const wiseCallParams = allParameters.filter(
+  (p) =>
+    (p.channel === "wise_call" || !p.channel) &&
+    p.code !== "call_ticket_reclamo_novedad",
+);
+const wiseCallS1Params = wiseCallParams.filter(
+  (p) =>
+    p.section === "items" ||
+    p.category === "Items" ||
+    p.category === "Interacción con Usuario",
+);
+const wiseCallS2Params = wiseCallParams.filter(
+  (p) =>
+    (p.section === "ticket" ||
+      p.category === "Ticket" ||
+      p.category === "Gestión del Ticket") &&
+    p.code !== "call_ticket_reclamo_novedad",
+);
+
+const wiseEmailParams = allParameters.filter(
+  (p) =>
+    p.channel === "wise_email" &&
+    p.code !== "email_mda_reclamo_novedad",
+);
+const wiseEmailS1Params = wiseEmailParams.filter(
+  (p) =>
+    p.section === "items" ||
+    p.category === "Items" ||
+    p.category === "Interacción con Usuario",
+);
+const wiseEmailS2Params = wiseEmailParams.filter(
+  (p) =>
+    (p.section === "mda" || p.category === "MDA") &&
+    p.code !== "email_mda_reclamo_novedad",
+);
+
+const invgateAgParams = allParameters.filter(
+  (p) => p.channel === "invgate_ticket",
+);
+const invgateAgS1Params = invgateAgParams.filter((p) => p.section === "items");
+const invgateAgS2Params = invgateAgParams.filter((p) => p.section === "mda");
+
+const sumWeight = (list: AuditParameter[]) =>
+  list.reduce((acc, p) => acc + (p.weight ?? 0), 0);
+
+// 14 meses hacia atrás: el supervisor puede cargar auditorías de un periodo anterior.
+const monthOptions = (() => {
+  const names = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+  const now = new Date();
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return {
+      value: `${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`,
+      label: `${names[d.getMonth()]} ${d.getFullYear()}`,
+    };
+  });
+})();
+
+const effectiveAgentId = preselectedAgentId ?? (initialAudit as any)?.agentId;
+const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIComponent(selectedMonth)}${effectiveAgentId ? `&agentId=${encodeURIComponent(String(effectiveAgentId))}` : ""}`;
+---
+
+<div
+  id="new-audit-form-container"
+  class="mx-auto w-full max-w-[1440px] pb-4 [--audit-bar-top:6rem] [--audit-aside-max:32rem]"
+  data-approved-titles={JSON.stringify(approvedTitles)}
+  data-clean-base={cleanBase}
+  data-invgate-web-base={invgateWebBase}
+  data-initial-audit={JSON.stringify(initialAudit || null)}
+>
+  <form id="audit-form" method="POST">
+    <input
+      type="hidden"
+      name="id"
+      id="form-audit-id"
+      value={initialAudit ? String(initialAudit.id) : ""}
+    />
+    <input type="hidden" name="month" id="form-month" value={selectedMonth} />
+    <input
+      type="hidden"
+      name="channelType"
+      id="form-channel-type"
+      value={initialAudit?.channelType || "wise_call"}
+    />
+    <input
+      type="hidden"
+      name="recordingUrl"
+      id="form-recording-url"
+      value={initialAudit?.recordingUrl || ""}
+    />
+
+    <!-- 
+      Cabecera superior: única fila compacta con navegación, título, badge y acciones.
+      Fondo opaco y sticky al ras del scroller (sin pestañas aquí adentro).
+    -->
+    <header
+      id="audit-top-header"
+      class="audit-sticky-stack sticky -top-4 z-30 -mx-4 -mt-4 border-b border-base-200 bg-base-100 px-4 py-2.5 md:-top-6 md:-mx-6 md:-mt-6 md:px-6"
+    >
+      <div
+        class="mx-auto flex max-w-[1440px] items-center gap-3"
+      >
+        <a
+          href={returnUrl}
+          id="btn-back-evaluations"
+          class="btn btn-ghost btn-sm btn-square shrink-0 text-base-content/70 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+          title="Volver a evaluaciones"
+          aria-label="Volver a evaluaciones"
+        >
+          <Icon name="boxicons:arrow-left" size={18} aria-hidden="true" />
+        </a>
+
+        <div class="hidden h-5 w-px shrink-0 bg-base-300 sm:block"></div>
+
+        <div class="min-w-0 flex-1">
+          <h1
+            class="text-sm leading-tight font-bold tracking-tight text-balance text-base-content sm:text-lg"
+          >
+            {initialAudit ? "Editar auditoría de calidad" : "Nueva auditoría de calidad"}
+          </h1>
+          <p
+            class="hidden truncate text-xs text-base-content/60 md:block"
+          >
+            {
+              initialAudit
+                ? "Modificación de evaluación y recálculo de puntaje en vivo."
+                : "Evaluación asistida con puntaje en vivo sobre los criterios del periodo."
+            }
+          </p>
+        </div>
+
+        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            id="btn-header-help"
+            class="btn btn-circle btn-ghost btn-sm text-base-content/60 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+            title="Guía de evaluación"
+            aria-label="Guía de evaluación"
+          >
+            <Icon name="boxicons:help-circle" size={18} aria-hidden="true" />
+          </button>
+          <div class="hidden h-5 w-px shrink-0 bg-base-300 sm:block"></div>
+          {
+            /*
+             * Orden deliberado: la ayuda ( neutra) queda a la izquierda y el
+             * bloque de acciones a la derecha: [destructivo] [primaria], que es
+             * la convención del repo (ver `FormShell.astro:52-63`, que usa
+             * `justify-end` con Cancelar `variant="error"` antes de Guardar).
+             * Pegar "Eliminar" entre el ? y "Guardar" lo acercaba a la acción
+             * primaria y lo separaba de su contexto.
+             */
+            initialAudit && (
+              <button
+                type="button"
+                id="btn-delete-audit"
+                class="btn btn-sm btn-error btn-outline shrink-0 gap-1.5 rounded-lg px-3 text-xs font-bold hover:scale-98 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 sm:text-sm"
+                title="Eliminar auditoría"
+                aria-label="Eliminar auditoría"
+              >
+                <Icon name="boxicons:trash" size={16} aria-hidden="true" />
+                <span>Eliminar</span>
+              </button>
+            )
+          }
+          <button
+            type="submit"
+            id="btn-header-save"
+            class="btn btn-sm shrink-0 gap-1.5 rounded-lg border border-transparent bg-secondary text-secondary-content px-3.5 text-xs font-bold shadow-xs hover:border-transparent hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:text-sm"
+            title="Guardar auditoría"
+            aria-label="Guardar auditoría"
+          >
+            <Icon name="boxicons:save-filled" size={16} aria-hidden="true" />
+            <span>Guardar auditoría</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. BARRA DE CONFIGURACIÓN: QUIÉN, CUÁNDO, QUÉ CANAL Y CON QUÉ CASO -->
+    <section
+      id="audit-config-bar"
+      class="mt-4 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-xs sm:p-5"
+      aria-label="Configuración de la evaluación"
+    >
+      <div id="card-attention-data" class="grid grid-cols-12 items-start gap-x-4 gap-y-3.5">
+        {/*
+          Operador a evaluar. El `grid-cols-[minmax(0,1fr)]` es obligatorio: sin él
+          la columna 1fr usa min-content y el <select> con options largos empuja
+          la fila y se superpone con Periodo y Canal.
+        */}
+        <fieldset
+          class="fieldset col-span-12 grid-cols-[minmax(0,1fr)] md:col-span-5"
+        >
+          <FormLegend>
+            <Icon name="boxicons:user-filled" size={15} class="text-secondary" aria-hidden="true" />
+            Operador a evaluar
+            <span class="text-error" aria-hidden="true">*</span>
+          </FormLegend>
+          {/*
+            Select nativo (no la clase `select` de daisyUI): aquella pinta el
+            option largo por fuera de su caja y el texto invade "Periodo". Acá
+            el `truncate` + `overflow-hidden` sí recortan.
+          */}
+          <div class="relative min-w-0">
+            <select
+              name="agentId"
+              id="form-agent-id"
+              aria-label="Operador a evaluar"
+              class="w-full min-w-0 appearance-none truncate rounded-lg border border-base-200 bg-base-200/40 py-2 pr-9 pl-3 text-sm text-base-content focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              required
+            >
+            <option value="" disabled selected={!preselectedAgentId}>
+              Seleccionar operador…
+            </option>
+            {
+              allAgents.map((agent) => (
+                <option
+                  value={agent.id}
+                  selected={agent.id === preselectedAgentId}
+                  data-username={agent.username || ""}
+                >
+                  {agent.name} {agent.username ? `(@${agent.username})` : ""}
+                </option>
+              ))
+            }
+            </select>
+            <Icon
+              name="boxicons:chevron-down"
+              size={18}
+              class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-base-content/50"
+              aria-hidden="true"
+            />
+          </div>
+        </fieldset>
+
+        <!-- Periodo evaluado -->
+        <fieldset class="fieldset col-span-12 min-w-0 sm:col-span-6 md:col-span-3">
+          <FormLegend>
+            <Icon name="boxicons:calendar-filled" size={15} class="text-secondary" aria-hidden="true" />
+            Periodo
+          </FormLegend>
+          <MonthSelect
+            id="form-month-select"
+            options={monthOptions}
+            selected={selectedMonth}
+            aria-label="Periodo a evaluar"
+            class="w-full min-w-0 border-base-200 bg-base-100 font-medium"
+          />
+        </fieldset>
+
+        <!-- Canal de atención -->
+        <fieldset class="fieldset col-span-12 min-w-0 md:col-span-4">
+          <FormLegend id="channel-selector-label">
+            <Icon name="boxicons:broadcast" size={15} class="text-secondary" aria-hidden="true" />
+            Canal de atención
+          </FormLegend>
+          <div
+            id="channel-selector-join"
+            role="group"
+            aria-labelledby="channel-selector-label"
+            class="grid grid-cols-3 gap-1 rounded-xl border border-secondary/20 bg-secondary/5 p-1"
+          >
+            <button
+              type="button"
+              class="channel-btn btn btn-sm btn-active gap-1.5 rounded-lg border border-transparent bg-secondary px-2 text-xs font-bold text-secondary-content shadow-2xs hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              data-channel="wise_call"
+            >
+              <Icon name="boxicons:phone-ring" size={15} aria-hidden="true" />
+              <span class="truncate">Llamada Wise</span>
+            </button>
+            <button
+              type="button"
+              class="channel-btn btn btn-sm gap-1.5 rounded-lg border border-transparent px-2 text-xs font-medium text-base-content/70 hover:bg-base-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              data-channel="wise_email"
+            >
+              <Icon name="boxicons:envelope" size={15} aria-hidden="true" />
+              <span class="truncate">Mail Wise</span>
+            </button>
+            <button
+              type="button"
+              class="channel-btn btn btn-sm gap-1.5 rounded-lg border border-transparent px-2 text-xs font-medium text-base-content/70 hover:bg-base-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              data-channel="invgate_ticket"
+            >
+              <Icon name="boxicons:handshake" size={15} aria-hidden="true" />
+              <span class="truncate">Autogestión</span>
+            </button>
+          </div>
+        </fieldset>
+
+        <!-- Nro Caso / Llamada -->
+        <fieldset class="fieldset col-span-12 min-w-0 md:col-span-4">
+          <FormLegend>Nro caso / llamada</FormLegend>
+          <div class="join w-full">
+            <input
+              type="text"
+              id="form-call-id"
+              name="callId"
+              value={initialAudit?.callId || ""}
+              aria-label="Nro de caso o llamada"
+              autocomplete="off"
+              spellcheck="false"
+              inputmode="numeric"
+              placeholder="Ej: 534787…"
+              class="input input-sm join-item w-full min-w-0 border-base-200 bg-base-200/40 font-mono text-sm focus:outline-none focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+            />
+            <button
+              type="button"
+              id="btn-fetch-wise-api"
+              class="btn btn-square btn-sm join-item btn-secondary shrink-0 shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              title="Buscar caso en Wise CX"
+              aria-label="Buscar caso en Wise CX"
+            >
+              <Icon name="boxicons:search" size={16} is:inline aria-hidden="true" />
+            </button>
+          </div>
+        </fieldset>
+
+        <!-- Nro Ticket InvGate -->
+        <fieldset class="fieldset col-span-12 min-w-0 md:col-span-4">
+          <FormLegend>Nro ticket InvGate</FormLegend>
+          <div class="join w-full">
+            <input
+              type="text"
+              id="form-ticket-id"
+              name="ticketId"
+              value={initialAudit?.ticketId || ""}
+              aria-label="Nro ticket InvGate"
+              autocomplete="off"
+              spellcheck="false"
+              inputmode="numeric"
+              placeholder="Ej: 88442…"
+              class="input input-sm join-item w-full min-w-0 border-base-200 bg-base-200/40 font-mono text-sm focus:outline-none focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+            />
+            <button
+              type="button"
+              id="btn-fetch-invgate-api"
+              class="btn btn-square btn-sm join-item btn-secondary shrink-0 shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              title="Buscar ticket en InvGate"
+              aria-label="Buscar ticket en InvGate"
+            >
+              <Icon name="boxicons:search" size={16} is:inline aria-hidden="true" />
+              <span id="btn-fetch-invgate-label" class="sr-only">Buscar</span>
+            </button>
+          </div>
+        </fieldset>
+
+        <!-- Fecha de atención -->
+        <div class="col-span-12 min-w-0 md:col-span-4">
+          <FormField
+            id="form-date"
+            name="date"
+            value={initialAudit?.date?.substring(0, 10)}
+            label="Fecha de atención"
+            type="date"
+            required
+            size="sm"
+            inputClass="border-base-200 bg-base-200/40 font-medium"
+          />
+        </div>
+      </div>
+
+      <!-- Resumen + leyenda de los 3 estados -->
+      <div
+        class="mt-3.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-base-200/70 pt-2.5"
+      >
+        <p
+          id="config-summary-text"
+          class="flex items-center gap-1.5 text-xs font-medium text-base-content/60"
+        >
+          <Icon name="boxicons:info-circle" size={14} class="shrink-0 text-secondary" aria-hidden="true" />
+          Configuración aplicada: {wiseCallParams.length} criterios
+        </p>
+        <ul
+          class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xxs font-medium text-base-content/60"
+          aria-label="Estados posibles de un criterio"
+        >
+          <li class="flex items-center gap-1.5">
+            <span
+              class="inline-block size-2 rounded-full bg-base-300"
+              aria-hidden="true"
+            ></span>
+            Cumple (sin descuento)
+          </li>
+          <li class="flex items-center gap-1.5">
+            <span
+              class="inline-block size-2 rounded-full bg-error"
+              aria-hidden="true"
+            ></span>
+            No cumple (descuenta el peso)
+          </li>
+          <li class="flex items-center gap-1.5">
+            <span
+              class="inline-block size-2 rounded-full bg-base-content/25"
+              aria-hidden="true"
+            ></span>
+            N/A (no penaliza)
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3. CUERPO: CRITERIOS A LA IZQUIERDA, PUNTAJE Y CONTEXTO SIEMPRE A LA VISTA -->
+    <div
+      id="audit-workspace-grid"
+      class="mt-4 grid grid-cols-1 items-start gap-4 pb-14 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-5 lg:pb-2 xl:grid-cols-[minmax(0,1fr)_27rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]"
+    >
+      <div
+        id="audit-col-left"
+        aria-label="Criterios de evaluación"
+        class="min-w-0 space-y-3.5"
+      >
+        <!-- Pestañas de navegación de secciones de criterios -->
+        <nav
+          id="audit-section-tabs"
+          aria-label="Secciones de la evaluación"
+          class="scrollbar-hide flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xs"
+        >
+          {
+            [
+              { tab: "1", label: "1. Interacción en llamada" },
+              { tab: "2", label: "2. Gestión del Ticket" },
+            ].map((s, i) => (
+              <button
+                type="button"
+                data-section-tab={s.tab}
+                aria-current={i === 0 ? "true" : undefined}
+                class="btn btn-sm shrink-0 gap-2 rounded-xl border border-base-300 bg-base-200/60 px-3 font-semibold text-base-content shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/20"
+              >
+                <span data-section-label class="truncate text-base-content/90 font-medium">
+                  {s.label}
+                </span>
+                <span
+                  data-section-badge
+                  class="badge badge-sm border-0 bg-base-100 font-mono font-bold tabular-nums text-base-content/70"
+                >
+                  --
+                </span>
+              </button>
+            ))
+          }
+        </nav>
+
+        <!-- CANAL 1: LLAMADAS WISE -->
+        <div id="channel-checklist-wise_call" class="channel-checklist space-y-3.5">
+          <section
+            id="section-wise-call-1"
+            data-section-card="1"
+            data-section-label="1. Interacción en llamada"
+            data-section-weight={sumWeight(wiseCallS1Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    1. Interacción en llamada
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(wiseCallS1Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Cortesía, saludo, escucha atenta, sondeo y control de la
+                  conversación.
+                </p>
+              </div>
+
+              <div
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+                role="group"
+                aria-label="Acciones masivas de la sección"
+              >
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  data-target-group="wise-call-s1"
+                  data-action="check-all"
+                  title="Marcar todos como Cumple"
+                >
+                  <Icon name="boxicons:checkbox-checked" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Todos</span>
+                </button>
+                <div class="mx-0.5 h-3 w-px bg-base-300"></div>
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                  data-target-group="wise-call-s1"
+                  data-action="uncheck-all"
+                  title="Marcar todos como No cumple"
+                >
+                  <Icon name="boxicons:checkbox" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Ninguno</span>
+                </button>
+              </div>
+            </header>
+
+            <div data-checklist-group="wise-call-s1" class="divide-y divide-base-200/70">
+              {
+                wiseCallS1Params.map((p) => (
+                  <CriterionRow param={p} section="items" />
+                ))
+              }
+            </div>
+          </section>
+
+          <section
+            id="section-wise-call-2"
+            data-section-card="2"
+            data-section-label="2. Gestión del Ticket"
+            data-section-weight={sumWeight(wiseCallS2Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    2. Gestión del Ticket
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(wiseCallS2Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Calidad del registro, clasificación, tipificación y exactitud
+                  del ticket en InvGate.
+                </p>
+              </div>
+
+              <!-- Modo de la sección: ticket generado o consulta sobre uno previo -->
+              <div
+                id="ticket-mode-join"
+                role="group"
+                aria-label="Origen del ticket"
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+              >
+                <button
+                  type="button"
+                  class="ticket-mode-btn btn btn-xs btn-active gap-1.5 rounded-md border border-transparent bg-secondary px-2.5 text-xxs font-bold text-secondary-content shadow-xs hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="nuevo"
+                  title="Evaluar los parámetros del ticket generado"
+                >
+                  <Icon name="boxicons:file-plus" size={13} aria-hidden="true" />
+                  <span>Ticket nuevo</span>
+                </button>
+                <button
+                  type="button"
+                  class="ticket-mode-btn btn btn-xs gap-1.5 rounded-md border border-transparent px-2.5 text-xxs font-medium text-base-content/70 hover:bg-base-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="reclamo"
+                  title="Consulta sobre un ticket preexistente: la sección completa sin penalizaciones"
+                >
+                  <Icon name="boxicons:badge-check" size={13} aria-hidden="true" />
+                  <span>Reclamo / Novedad</span>
+                </button>
+              </div>
+              <input
+                type="hidden"
+                name="callTicketMode"
+                id="call-ticket-mode"
+                value="nuevo"
+              />
+              <input
+                type="hidden"
+                name="callGeneratedTicket"
+                id="toggle-call-generated-ticket"
+                value="true"
+              />
+              <input
+                type="hidden"
+                name="isReclamoNovedad"
+                id="form-is-reclamo-novedad"
+                value="false"
+              />
+            </header>
+
+            <!-- Acciones masivas -->
+            <div
+              id="wise-call-ticket-actions"
+              class="flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-200/40 px-3 py-1.5"
+            >
+              <span class="text-xs font-medium text-base-content/60">
+                Parámetros a evaluar
+              </span>
+              <div
+                class="inline-flex items-center gap-0.5 rounded-lg border border-base-200 bg-base-100 p-0.5"
+                role="group"
+                aria-label="Acciones masivas de la sección"
+              >
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-200 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  data-target-group="wise-call-s2"
+                  data-action="check-all"
+                  title="Marcar todos como Cumple"
+                >
+                  <Icon name="boxicons:checkbox-checked" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Todos</span>
+                </button>
+                <div class="mx-0.5 h-3 w-px bg-base-300"></div>
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-200 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                  data-target-group="wise-call-s2"
+                  data-action="uncheck-all"
+                  title="Marcar todos como No cumple"
+                >
+                  <Icon name="boxicons:checkbox" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Ninguno</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Modo reclamo / novedad: la sección completa sin evaluar parámetros -->
+            <div
+              id="wise-call-reclamo-card"
+              class="mt-3 hidden flex-col items-center justify-center gap-2 rounded-xl border border-success/25 bg-success/5 p-6 text-center"
+            >
+              <div class="rounded-full bg-success/15 p-2.5 text-success">
+                <Icon name="boxicons:badge-check" size={24} aria-hidden="true" />
+              </div>
+              <h3 class="text-sm font-bold text-base-content text-balance">
+                Reclamo / novedad sobre un ticket previo
+              </h3>
+              <p class="max-w-md text-xs leading-relaxed text-base-content/70">
+                La atención fue una consulta sobre un ticket que ya existía.
+                Esta sección completa sin penalizar los parámetros del ticket.
+              </p>
+              <span class="badge badge-sm border-0 bg-success font-bold text-success-content">
+                Sección 2 completa
+              </span>
+            </div>
+
+            <div
+              id="wise-call-ticket-block"
+              data-checklist-group="wise-call-s2"
+              class="divide-y divide-base-200/70"
+            >
+              {
+                wiseCallS2Params.map((p) => (
+                  <CriterionRow param={p} section="ticket" />
+                ))
+              }
+            </div>
+          </section>
+        </div>
+
+        <!-- CANAL 2: MAILS WISE -->
+        <div
+          id="channel-checklist-wise_email"
+          class="channel-checklist hidden space-y-3.5"
+        >
+          <section
+            id="section-wise-email-1"
+            data-section-card="1"
+            data-section-label="1. Gestión del correo"
+            data-section-weight={sumWeight(wiseEmailS1Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    1. Gestión del correo y la respuesta
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(wiseEmailS1Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Interpretación, procedimientos, redacción y seguimiento del
+                  reclamo.
+                </p>
+              </div>
+
+              <div
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+                role="group"
+                aria-label="Acciones masivas de la sección"
+              >
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  data-target-group="wise-email-s1"
+                  data-action="check-all"
+                  title="Marcar todos como Cumple"
+                >
+                  <Icon name="boxicons:checkbox-checked" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Todos</span>
+                </button>
+                <div class="mx-0.5 h-3 w-px bg-base-300"></div>
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                  data-target-group="wise-email-s1"
+                  data-action="uncheck-all"
+                  title="Marcar todos como No cumple"
+                >
+                  <Icon name="boxicons:checkbox" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Ninguno</span>
+                </button>
+              </div>
+            </header>
+
+            <div
+              data-checklist-group="wise-email-s1"
+              class="divide-y divide-base-200/70"
+            >
+              {
+                wiseEmailS1Params.map((p) => (
+                  <CriterionRow param={p} section="items" />
+                ))
+              }
+            </div>
+          </section>
+
+          <section
+            id="section-wise-email-2"
+            data-section-card="2"
+            data-section-label="2. Registro del ticket en MDA"
+            data-section-weight={sumWeight(wiseEmailS2Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    2. Registro del ticket en MDA
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(wiseEmailS2Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Registro, tipificación y seguimiento del ticket generado en la
+                  mesa.
+                </p>
+              </div>
+
+              <!-- Origen del ticket: registro generado en MDA o consulta previa -->
+              <div
+                id="email-ticket-mode-join"
+                role="group"
+                aria-label="Origen del ticket"
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+              >
+                <button
+                  type="button"
+                  class="email-ticket-mode-btn btn btn-xs btn-active gap-1.5 rounded-md border border-transparent bg-secondary px-2.5 text-xxs font-bold text-secondary-content shadow-xs hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="nuevo"
+                  title="Evaluar los parámetros del registro generado en MDA"
+                >
+                  <Icon name="boxicons:file-plus" size={13} aria-hidden="true" />
+                  <span>Ticket nuevo</span>
+                </button>
+                <button
+                  type="button"
+                  class="email-ticket-mode-btn btn btn-xs gap-1.5 rounded-md border border-transparent px-2.5 text-xxs font-medium text-base-content/70 hover:bg-base-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="reclamo"
+                  title="Consulta sobre un ticket preexistente: la sección completa sin penalizaciones"
+                >
+                  <Icon name="boxicons:badge-check" size={13} aria-hidden="true" />
+                  <span>Reclamo / Novedad</span>
+                </button>
+                <button
+                  type="button"
+                  class="email-ticket-mode-btn btn btn-xs gap-1.5 rounded-md border border-transparent px-2.5 text-xxs font-medium text-base-content/70 hover:bg-base-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="ninguno"
+                  title="No aplica: no se evalúa la sección de ticket MDA y el puntaje total es el de la sección 1"
+                >
+                  <Icon name="boxicons:minus-square" size={13} aria-hidden="true" />
+                  <span>No aplica</span>
+                </button>
+              </div>
+            </header>
+
+            <!-- Acciones masivas -->
+            <div
+              id="wise-email-mda-actions"
+              class="flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-200/40 px-3 py-1.5"
+            >
+              <span class="text-xs font-medium text-base-content/60">
+                Parámetros a evaluar
+              </span>
+              <div
+                class="inline-flex items-center gap-0.5 rounded-lg border border-base-200 bg-base-100 p-0.5"
+                role="group"
+                aria-label="Acciones masivas de la sección"
+              >
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-200 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  data-target-group="wise-email-s2"
+                  data-action="check-all"
+                  title="Marcar todos como Cumple"
+                >
+                  <Icon name="boxicons:checkbox-checked" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Todos</span>
+                </button>
+                <div class="mx-0.5 h-3 w-px bg-base-300"></div>
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-200 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                  data-target-group="wise-email-s2"
+                  data-action="uncheck-all"
+                  title="Marcar todos como No cumple"
+                >
+                  <Icon name="boxicons:checkbox" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Ninguno</span>
+                </button>
+              </div>
+            </div>
+
+            <input
+              type="checkbox"
+              name="appliesMda"
+              id="toggle-applies-mda"
+              aria-label="Aplica sección MDA"
+              class="sr-only"
+              checked
+            />
+            <input
+              type="hidden"
+              name="emailTicketMode"
+              id="email-ticket-mode"
+              value="nuevo"
+            />
+
+            <!-- Reclamo / Novedad: la sección se completa sin penalizaciones -->
+            <div
+              id="wise-email-reclamo-card"
+              class="hidden flex-col items-center gap-2 rounded-xl border border-success/20 bg-success/5 p-5 text-center"
+            >
+              <div class="rounded-full bg-success/15 p-2.5 text-success">
+                <Icon name="boxicons:badge-check" size={22} aria-hidden="true" />
+              </div>
+              <h3 class="text-sm font-bold text-base-content text-balance">
+                Reclamo / Novedad existente
+              </h3>
+              <p class="max-w-sm text-xs leading-relaxed text-base-content/70">
+                La atención correspondió a una consulta sobre un registro
+                preexistente. Esta sección queda completa, sin penalizaciones.
+              </p>
+              <span class="badge badge-sm gap-1 border-0 bg-success/15 font-bold text-success">
+                <Icon name="boxicons:check" size={13} aria-hidden="true" />
+                <span>Sección 2 completa</span>
+              </span>
+            </div>
+
+            <div
+              id="wise-email-ticket-block"
+              data-checklist-group="wise-email-s2"
+              class="divide-y divide-base-200/70"
+            >
+              {
+                wiseEmailS2Params.map((p) => (
+                  <CriterionRow param={p} section="mda" />
+                ))
+              }
+            </div>
+          </section>
+        </div>
+
+        <!-- CANAL 3: AUTOGESTIÓN INVGATE -->
+        <div
+          id="channel-checklist-invgate_ticket"
+          class="channel-checklist hidden space-y-3.5"
+        >
+          <section
+            id="section-invgate-1"
+            data-section-card="1"
+            data-section-label="1. Gestión de la solicitud"
+            data-section-weight={sumWeight(invgateAgS1Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    1. Gestión de la solicitud
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(invgateAgS1Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Análisis, sondeo, procedimiento y corrección de la autogestión.
+                </p>
+              </div>
+
+              <div
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+                role="group"
+                aria-label="Acciones masivas de la sección"
+              >
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  data-target-group="invgate-ag-s1"
+                  data-action="check-all"
+                  title="Marcar todos como Cumple"
+                >
+                  <Icon name="boxicons:checkbox-checked" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Todos</span>
+                </button>
+                <div class="mx-0.5 h-3 w-px bg-base-300"></div>
+                <button
+                  type="button"
+                  class="toggle-all-section-btn btn btn-xs gap-1 rounded-md px-2 font-semibold text-base-content/70 hover:bg-base-100 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50"
+                  data-target-group="invgate-ag-s1"
+                  data-action="uncheck-all"
+                  title="Marcar todos como No cumple"
+                >
+                  <Icon name="boxicons:checkbox" size={14} class="shrink-0" aria-hidden="true" />
+                  <span>Ninguno</span>
+                </button>
+              </div>
+            </header>
+
+            <div
+              data-checklist-group="invgate-ag-s1"
+              class="divide-y divide-base-200/70"
+            >
+              {
+                invgateAgS1Params.map((p) => (
+                  <CriterionRow param={p} section="items" />
+                ))
+              }
+            </div>
+          </section>
+
+          <section
+            id="section-invgate-2"
+            data-section-card="2"
+            data-section-label="2. Ítems de categoría MDA"
+            data-section-weight={sumWeight(invgateAgS2Params)}
+            class="scroll-mt-28 rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs sm:p-5"
+          >
+            <header
+              class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5 border-b border-base-200 pb-3"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="text-base font-bold text-base-content text-balance">
+                    2. Ítems de categoría MDA
+                  </h2>
+                  <span
+                    class="badge badge-sm border-0 bg-base-200/70 font-mono font-bold tabular-nums text-base-content/60"
+                  >
+                    Hasta −{sumWeight(invgateAgS2Params)}&nbsp;pts
+                  </span>
+                </div>
+                <p class="mt-0.5 text-xs text-base-content/60">
+                  Solo aplica si la autogestión quedó radicada en la mesa.
+                </p>
+              </div>
+
+              <div
+                id="invgate-ticket-mode-join"
+                role="group"
+                aria-label="Radicación en MDA"
+                class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-base-200 bg-base-200/50 p-0.5"
+              >
+                <button
+                  type="button"
+                  class="invgate-ticket-mode-btn btn btn-xs btn-active gap-1.5 rounded-md border border-transparent bg-secondary px-2.5 text-xxs font-bold text-secondary-content shadow-xs hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="si"
+                  title="Evaluar los parámetros de la categoría MDA"
+                >
+                  <Icon name="boxicons:handshake" size={13} aria-hidden="true" />
+                  <span>Queda en MDA</span>
+                </button>
+                <button
+                  type="button"
+                  class="invgate-ticket-mode-btn btn btn-xs gap-1.5 rounded-md border border-transparent px-2.5 text-xxs font-medium text-base-content/70 hover:bg-base-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                  data-mode="no"
+                  title="No aplica: no se evalúa la sección 2 y el puntaje total es el de la sección 1"
+                >
+                  <Icon name="boxicons:minus-square" size={13} aria-hidden="true" />
+                  <span>No aplica</span>
+                </button>
+              </div>
+              <input
+                type="hidden"
+                name="staysInMda"
+                id="invgate-stays-mda"
+                value={initialAudit ? String(initialAudit.staysInMda ?? true) : "true"}
+              />
+            </header>
+
+            <div
+              id="invgate-ag-mda-block"
+              data-checklist-group="invgate-ag-s2"
+              class="divide-y divide-base-200/70"
+            >
+              {
+                invgateAgS2Params.map((p) => (
+                  <CriterionRow param={p} section="mda" />
+                ))
+              }
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <aside
+        id="audit-col-right"
+        aria-label="Puntaje y contexto de la atención"
+        class="min-w-0 space-y-3.5 lg:sticky lg:top-[var(--audit-bar-top,7rem)] lg:max-h-[var(--audit-aside-max,32rem)] lg:overflow-y-auto lg:overscroll-contain lg:pb-2"
+      >
+        <!-- PUNTAJE EN VIVO -->
+        <div
+          id="card-realtime-score"
+          class="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <h2
+              class="flex items-center gap-2 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
+            >
+              <Icon
+                name="boxicons:bar-chart-big-filled"
+                size={16}
+                class="text-secondary"
+                aria-hidden="true"
+              />
+              Puntaje en vivo
+            </h2>
+            <span
+              id="footer-status-badge"
+              data-tone="success"
+              class="badge badge-sm border-0 font-bold data-[tone=success]:bg-success/15 data-[tone=success]:text-success data-[tone=warning]:bg-warning/15 data-[tone=warning]:text-warning data-[tone=error]:bg-error/15 data-[tone=error]:text-error"
+            >
+              Excelente
+            </span>
+          </div>
+
+          <div class="mt-3 flex items-end justify-between gap-3">
+            <div class="min-w-0">
+              <span
+                class="block text-xxs font-bold tracking-wider text-base-content/50 uppercase"
+              >
+                Total
+              </span>
+              <span
+                id="preview-total"
+                data-tone="success"
+                aria-live="polite"
+                class="font-mono text-4xl leading-none font-black tracking-tight tabular-nums data-[tone=success]:text-success data-[tone=warning]:text-warning data-[tone=error]:text-error"
+              >
+                100%
+              </span>
+            </div>
+
+            <dl class="shrink-0 text-right">
+              <div id="preview-s1-block">
+                <dt
+                  class="text-xxs font-semibold text-base-content/50"
+                >
+                  Sección 1
+                </dt>
+                <dd
+                  id="preview-s1"
+                  class="font-mono text-base leading-tight font-bold tabular-nums text-base-content"
+                >
+                  100%
+                </dd>
+              </div>
+              <div id="preview-s2-block" class="mt-1.5">
+                <dt
+                  class="text-xxs font-semibold text-base-content/50"
+                >
+                  Sección 2
+                </dt>
+                <dd
+                  id="preview-s2"
+                  class="font-mono text-base leading-tight font-bold tabular-nums text-base-content"
+                >
+                  100%
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <progress
+            id="score-progress-bar"
+            class="progress progress-success mt-3 h-2 w-full transition-[--progress-color] duration-300 motion-reduce:transition-none"
+            value="100"
+            max="100"
+          ></progress>
+
+          <div
+            class="mt-2 flex items-center justify-between gap-2 text-xxs font-medium text-base-content/60"
+          >
+            <span id="score-criteria-progress" class="flex items-center gap-1.5">
+              <Icon
+                name="boxicons:check-circle"
+                size={14}
+                id="score-progress-icon"
+                class="shrink-0 text-success"
+                aria-hidden="true"
+              />
+              <span data-progress-text aria-live="polite">Sin desvíos</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- CONTEXTO DEL CASO: lo que se completa con la búsqueda -->
+        <section
+          class="rounded-2xl border border-base-200 bg-base-100 shadow-2xs"
+          aria-label="Contexto del caso"
+        >
+          <h2
+            class="flex items-center gap-2 border-b border-base-200 px-4 py-2.5 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
+          >
+            <Icon name="boxicons:folder" size={16} class="text-secondary" aria-hidden="true" />
+            Contexto del caso
+          </h2>
+
+          <div class="space-y-2.5 p-3">
+            <!-- Audio de la atención -->
+            <div
+              id="tv-audio-container"
+              class="hidden rounded-xl border border-secondary/25 bg-secondary/5 p-2.5"
+            >
+              <div class="mb-1.5 flex items-center justify-between gap-2">
+                <span
+                  class="flex items-center gap-1.5 text-xs font-bold tracking-wider text-base-content/70 uppercase"
+                >
+                  <Icon name="boxicons:volume-full" size={14} class="text-secondary" aria-hidden="true" />
+                  Audio
+                </span>
+                <div class="flex items-center gap-1.5">
+                  {/*
+                    Deshabilitado a propósito: el detalle técnico crudo de Wise CX
+                    (fetch-metadata?raw=1) queda en pausa hasta que se defina su uso.
+                    Para habilitarlo: quitar `disabled` y las clases
+                    `pointer-events-none opacity-40` acá, y sacar el `disabled = true`
+                    que `populateTicketViewer` le aplica.
+                  */}
+                  <button
+                    type="button"
+                    id="btn-inspect-wise-detail"
+                    class="btn btn-circle btn-ghost btn-xs text-secondary opacity-40 pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                    title="Ver detalle técnico de la llamada"
+                    aria-label="Ver detalle técnico de la llamada"
+                    disabled
+                  >
+                    <Icon name="boxicons:phone-ring" size={13} aria-hidden="true" />
+                  </button>
+                  <span
+                    class="badge badge-xs border-0 bg-success/15 font-semibold text-success"
+                  >
+                    Disponible
+                  </span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <audio
+                  id="tv-audio-player"
+                  controls
+                  aria-label="Grabación de audio de la atención"
+                  class="h-8 w-full"
+                  preload="metadata"></audio>
+                <a
+                  id="tv-audio-download"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  class="btn btn-neutral btn-xs shrink-0 gap-1 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral/60"
+                  title="Descargar audio"
+                  aria-label="Descargar archivo de audio MP3"
+                >
+                  <Icon name="boxicons:archive-arrow-down" size={13} aria-hidden="true" />
+                  <span>MP3</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Ticket InvGate -->
+            <div
+              id="card-ticket-context"
+              class="rounded-xl border border-base-200 bg-base-200/40 p-2.5"
+            >
+              <div class="flex items-center justify-between gap-1.5">
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <Icon
+                    name="boxicons:ticket-filled"
+                    size={15}
+                    class="shrink-0 text-secondary"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate text-xs font-bold tracking-wider text-base-content/70 uppercase">
+                    Ticket InvGate
+                  </span>
+                  <span
+                    id="ticket-context-badge"
+                    class="badge badge-xs truncate border-0 bg-base-200 font-medium text-base-content/60"
+                  >
+                    Sin ticket cargado
+                  </span>
+                </div>
+                <div class="flex shrink-0 items-center gap-0.5">
+                  {/*
+                    Deshabilitado a propósito: el detalle técnico crudo de InvGate
+                    (fetch-metadata?raw=1) queda en pausa hasta que se defina su uso.
+                    Para habilitarlo: quitar `disabled` y las clases
+                    `pointer-events-none opacity-40` acá, y en `populateTicketViewer`
+                    cambiar el `disabled = true` por `disabled = false` + quitar esas
+                    clases (mismo tratamiento que `#btn-inspect-wise-detail`).
+                  */}
+                  <button
+                    type="button"
+                    id="btn-inspect-invgate-detail"
+                    class="btn btn-circle btn-ghost btn-xs pointer-events-none text-secondary opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                    title="Ver detalle técnico del ticket"
+                    aria-label="Ver detalle técnico del ticket"
+                    disabled
+                  >
+                    <Icon name="boxicons:terminal" size={13} aria-hidden="true" />
+                  </button>
+                  <a
+                    id="btn-open-invgate-ticket"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-circle btn-ghost btn-xs pointer-events-none text-secondary opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                    title="Abrir en InvGate"
+                    aria-label="Abrir ticket en InvGate"
+                  >
+                    <Icon name="boxicons:window-arrow-out" size={13} aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+
+              <p
+                id="ticket-empty-state"
+                class="mt-1.5 text-xxs text-base-content/50"
+              >
+                Cargá el ticket para ver título, categoría y estado.
+              </p>
+
+              <div id="ticket-viewer-content" class="mt-2 hidden space-y-2">
+                <div class="rounded-lg bg-base-100 p-2">
+                  <span
+                    class="block text-xxs font-semibold text-base-content/50 uppercase"
+                  >
+                    Título
+                  </span>
+                  <p id="tv-title" class="mt-0.5 text-xs font-semibold text-base-content break-words line-clamp-2">
+                    -
+                  </p>
+                  <div id="tv-title-match-badge" class="mt-1"></div>
+                </div>
+                <dl class="grid grid-cols-2 gap-1.5 text-xs">
+                  <div class="min-w-0 rounded-lg bg-base-100 p-1.5">
+                    <dt class="text-base-content/50">Categoría</dt>
+                    <dd id="tv-category" class="truncate font-semibold">-</dd>
+                  </div>
+                  <div class="min-w-0 rounded-lg bg-base-100 p-1.5">
+                    <dt class="text-base-content/50">Prioridad</dt>
+                    <dd id="tv-priority" class="truncate font-semibold">-</dd>
+                  </div>
+                  <div class="min-w-0 rounded-lg bg-base-100 p-1.5">
+                    <dt class="text-base-content/50">Estado</dt>
+                    <dd id="tv-status" class="truncate font-semibold">-</dd>
+                  </div>
+                  <div class="min-w-0 rounded-lg bg-base-100 p-1.5">
+                    <dt class="text-base-content/50">Solicitante</dt>
+                    <dd id="tv-creator" class="truncate font-semibold">-</dd>
+                  </div>
+                  <div class="col-span-2 hidden">
+                    <dd id="tv-created-by">-</dd>
+                    <dd id="tv-helpdesk">-</dd>
+                    <dd id="tv-source">-</dd>
+                    <div id="tv-source-match-badge"></div>
+                    <dd id="tv-response-time">-</dd>
+                    <div id="tv-description">-</div>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <!-- Tiempos técnicos -->
+            <div class="rounded-xl border border-base-200 bg-base-200/40 p-2.5">
+              <h3
+                class="mb-2 flex items-center gap-1.5 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
+              >
+                <Icon name="boxicons:timer" size={15} class="text-secondary" aria-hidden="true" />
+                Tiempos técnicos
+              </h3>
+              <div class="grid grid-cols-2 gap-2">
+                <div id="meta-duration-container">
+                  <FormField
+                    id="form-duration"
+                    name="duration"
+                    value={initialAudit?.duration || ""}
+                    label="Duración"
+                    placeholder="Ej: 02:15…"
+                    size="xs"
+                    autocomplete="off"
+                    spellcheck="false"
+                    inputClass="bg-base-100 font-mono"
+                  />
+                </div>
+                <div id="meta-ring-container">
+                  <FormField
+                    id="form-ring-time"
+                    name="ringTime"
+                    value={initialAudit?.ringTime || ""}
+                    label="Ringueo"
+                    placeholder="Ej: 00:30…"
+                    size="xs"
+                    autocomplete="off"
+                    spellcheck="false"
+                    inputClass="bg-base-100 font-mono"
+                  />
+                </div>
+                <div id="meta-creation-container" class="hidden">
+                  <FormField
+                    id="form-creation-time"
+                    name="creationTime"
+                    value={initialAudit?.creationTime || ""}
+                    label="Creación"
+                    placeholder="YYYY-MM-DD HH:MM…"
+                    size="xs"
+                    autocomplete="off"
+                    spellcheck="false"
+                    inputClass="bg-base-100 font-mono"
+                  />
+                </div>
+                <div id="meta-take-container" class="hidden">
+                  <FormField
+                    id="form-take-time"
+                    name="takeTime"
+                    value={initialAudit?.takeTime || ""}
+                    label="Toma / Lectura"
+                    placeholder="00:00:00…"
+                    size="xs"
+                    autocomplete="off"
+                    spellcheck="false"
+                    inputClass="bg-base-100 font-mono"
+                  />
+                  <p id="take-time-hint" class="hidden text-xxs font-semibold text-secondary"></p>
+                </div>
+                <div id="meta-pas-container" class="hidden col-span-2">
+                  <label class="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="isPas"
+                      id="form-is-pas"
+                      checked={initialAudit?.isPas ?? false}
+                      class="checkbox checkbox-primary checkbox-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    />
+                    <span class="text-xs font-bold">Es caso PAS</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Devolución final -->
+        <div
+          id="card-summary-notes"
+          class="rounded-2xl border border-base-200 bg-base-100 p-4 shadow-2xs"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <h2
+              class="flex items-center gap-2 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
+            >
+              <Icon name="boxicons:note" size={16} class="text-secondary" aria-hidden="true" />
+              Observaciones finales
+            </h2>
+          </div>
+
+          <p
+            id="summary-improvements-desc"
+            class="mt-2 rounded-xl bg-base-200/50 p-2.5 text-xs leading-relaxed text-base-content/70 break-words"
+          >
+            Sin penalizaciones registradas.
+          </p>
+
+          <div class="mt-2.5">
+            <label
+              for="form-notes"
+              class="mb-1 block text-xs font-semibold text-base-content/70"
+            >
+              Feedback general al operador
+            </label>
+            <textarea
+              id="form-notes"
+              name="notes"
+              rows="3"
+              placeholder="Escribí la devolución de coaching o el contexto de la auditoría…"
+              class="textarea w-full resize-y rounded-xl border-base-200 bg-base-100 text-sm leading-relaxed focus:outline-none focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+            >{initialAudit?.notes || ""}</textarea>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </form>
+
+  <!-- Guía de evaluación -->
+  <dialog id="audit-help-modal" class="modal">
+    <div class="modal-box max-w-lg rounded-2xl p-5">
+      <div
+        class="flex items-center justify-between gap-2 border-b border-base-200 pb-3"
+      >
+        <h2
+          class="flex items-center gap-2 text-base font-bold text-base-content text-balance"
+        >
+          <Icon name="boxicons:help-circle" size={20} class="text-secondary" aria-hidden="true" />
+          Cómo se completa la evaluación
+        </h2>
+        <form method="dialog">
+          <button
+            class="btn btn-circle btn-ghost btn-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            aria-label="Cerrar la guía"
+          >
+            <Icon name="boxicons:x" size={18} aria-hidden="true" />
+          </button>
+        </form>
+      </div>
+
+      <div class="space-y-3 py-4 text-sm leading-relaxed text-base-content/80">
+        <p>
+          Cada criterio tiene un peso: es el porcentaje que se descuenta de la
+          sección si el criterio queda en <strong>No cumple</strong>.
+        </p>
+        <ul class="space-y-1.5 text-xs">
+          <li>
+            <strong>Cumple:</strong> el criterio se cumple y no descuenta nada.
+          </li>
+          <li>
+            <strong>No cumple:</strong> se descuenta el peso del criterio. Es el
+            único estado que penaliza.
+          </li>
+          <li>
+            <strong>N/A:</strong> el criterio no era aplicable a esta atención;
+            queda fuera del cálculo.
+          </li>
+        </ul>
+        <p class="text-xs">
+          El puntaje total se calcula con los subtotales de cada sección y se
+          actualiza mientras evaluás. Si la atención fue una consulta sobre un
+          ticket que ya existía, elegí <em>Reclamo / Novedad</em> en la sección
+          2: esa sección completa sin penalizar.
+        </p>
+      </div>
+
+      <div class="modal-action border-t border-base-200 pt-3">
+        <form method="dialog">
+          <button class="btn btn-secondary btn-sm rounded-xl px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60">Entendido</button>
+        </form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Cerrar</button></form>
+  </dialog>
+
+  <!-- Modal de Detalle Técnico (Wise CX / InvGate) -->
+  <Modal id="modal-case-detail" size="2xl" fixedFooter>
+    <div slot="content" class="space-y-4">
+      <div class="flex items-center gap-2 border-b border-base-200 pb-3">
+        <Icon name="boxicons:terminal" id="modal-case-detail-icon-terminal" size={20} class="shrink-0 text-secondary" aria-hidden="true" />
+        <Icon name="boxicons:phone-ring" id="modal-case-detail-icon-phone" size={20} class="hidden shrink-0 text-secondary" aria-hidden="true" />
+        <div class="min-w-0">
+          <h3 id="modal-case-detail-title" class="text-sm font-bold text-base-content truncate">
+            Detalle técnico
+          </h3>
+          <p id="modal-case-detail-subtitle" class="text-xs text-base-content/60 truncate">
+            Datos crudos obtenidos de la API
+          </p>
+        </div>
+      </div>
+
+      <!-- Spinner / cargando -->
+      <div id="modal-case-detail-loading" class="flex flex-col items-center justify-center gap-3 py-10">
+        <span class="loading loading-spinner loading-md text-secondary"></span>
+        <p class="text-xs font-medium text-base-content/60">Consultando API externa…</p>
+      </div>
+
+      <!-- Error state -->
+      <div id="modal-case-detail-error" class="hidden alert alert-error alert-sm rounded-xl text-xs">
+        <Icon name="boxicons:alert-circle" size={16} aria-hidden="true" />
+        <span id="modal-case-detail-error-msg">Error al cargar los datos.</span>
+      </div>
+
+      <!-- JSON content -->
+      <div id="modal-case-detail-body" class="hidden space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xxs font-semibold uppercase tracking-wider text-base-content/60">
+            Respuesta estructurada (JSON)
+          </span>
+          <button
+            type="button"
+            id="modal-case-detail-copy-btn"
+            class="btn btn-ghost btn-xs gap-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            title="Copiar JSON al portapapeles"
+          >
+            <Icon name="boxicons:copy" size={13} aria-hidden="true" />
+            <span id="modal-case-detail-copy-text">Copiar</span>
+          </button>
+        </div>
+        <pre
+          id="modal-case-detail-json"
+          class="max-h-96 overflow-auto rounded-xl border border-base-200 bg-base-200/50 p-3 font-mono text-xs leading-relaxed text-base-content select-all"
+        ></pre>
+      </div>
+    </div>
+
+    <div slot="actions" class="flex justify-end">
+      <form method="dialog">
+        <button type="submit" id="modal-case-detail-close-btn" class="btn btn-neutral btn-sm rounded-xl px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral/60">Cerrar</button>
+      </form>
+    </div>
+  </Modal>
+</div>
+
+<style is:global>
+  /* Hide the horizontal scrollbar of the section tabs without losing scroll */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+</style>
+
+<script>
+  import { actions } from "astro:actions";
+  import { getCleanBase } from "@lib/baseUrl";
+  import { showToast, type ToastType } from "@lib/toastClient";
+  import { calculateMultiChannelAuditScores } from "@lib/qualityCalculator";
+  import type { EvaluationParameter } from "@/types/quality";
+  import { matchApprovedTitle, cleanHtmlText } from "@/lib/titleNormalizer";
+
+  const STATE_LABEL: Record<string, string> = {
+    cumple: "Cumple",
+    nocumple: "No cumple",
+    na: "N/A",
+  };
+
+  // Clases literales: Tailwind escanea el fuente, no puede resolver `progress-${x}`.
+  const SCORE_TONE: Record<string, { progress: string; label: string; text: string }> = {
+    success: { progress: "progress-success", label: "Excelente", text: "text-success" },
+    warning: { progress: "progress-warning", label: "Aceptable", text: "text-warning" },
+    error: { progress: "progress-error", label: "Requiere atención", text: "text-error" },
+  };
+
+  const ALERT_TONE: Record<string, string> = {
+    success: "alert-success",
+    error: "alert-error",
+    warning: "alert-warning",
+    info: "alert-info",
+  };
+
+  function initNewAuditForm() {
+    const container = document.getElementById("new-audit-form-container");
+    if (!container) return false;
+    if (container.dataset.formBound === "true") return true;
+    container.dataset.formBound = "true";
+    const form = document.getElementById("audit-form") as HTMLFormElement;
+
+    const cleanBase = getCleanBase();
+    let approvedTitles: string[] = [];
+    try {
+      approvedTitles = container?.dataset.approvedTitles
+        ? JSON.parse(container.dataset.approvedTitles)
+        : [];
+    } catch {
+      approvedTitles = [];
+    }
+
+    const formChannelType = document.getElementById("form-channel-type") as HTMLInputElement | null;
+    const channelButtons = document.querySelectorAll(".channel-btn");
+
+    const formMonth = document.getElementById("form-month") as HTMLInputElement | null;
+    const formMonthSelect = document.getElementById("form-month-select") as HTMLSelectElement | null;
+    formMonthSelect?.addEventListener("change", () => {
+      if (formMonth) formMonth.value = formMonthSelect.value;
+      markAsInProgress();
+    });
+
+    const wiseSearchInput = document.getElementById("form-call-id") as HTMLInputElement | null;
+    const btnFetchWise = document.getElementById("btn-fetch-wise-api") as HTMLButtonElement | null;
+
+    const invgateSearchInput = document.getElementById("form-ticket-id") as HTMLInputElement | null;
+    const btnFetchInvgate = document.getElementById("btn-fetch-invgate-api") as HTMLButtonElement | null;
+
+    const invgateWebBase = container?.dataset.invgateWebBase || "";
+    const btnOpenInvgateTicket = document.getElementById("btn-open-invgate-ticket") as HTMLAnchorElement | null;
+    const btnInspectInvgate = document.getElementById("btn-inspect-invgate-detail") as HTMLButtonElement | null;
+    const btnInspectWise = document.getElementById("btn-inspect-wise-detail") as HTMLButtonElement | null;
+
+    const modalCaseDetail = document.getElementById("modal-case-detail") as HTMLDialogElement | null;
+    const modalCaseDetailTitle = document.getElementById("modal-case-detail-title");
+    const modalCaseDetailSubtitle = document.getElementById("modal-case-detail-subtitle");
+    const modalIconTerminal = document.getElementById("modal-case-detail-icon-terminal");
+    const modalIconPhone = document.getElementById("modal-case-detail-icon-phone");
+    const modalLoading = document.getElementById("modal-case-detail-loading");
+    const modalError = document.getElementById("modal-case-detail-error");
+    const modalErrorMsg = document.getElementById("modal-case-detail-error-msg");
+    const modalBody = document.getElementById("modal-case-detail-body");
+    const modalJson = document.getElementById("modal-case-detail-json");
+    const modalCopyBtn = document.getElementById("modal-case-detail-copy-btn");
+    const modalCopyText = document.getElementById("modal-case-detail-copy-text");
+
+    function syncInvgateDeepLink() {
+      if (!btnOpenInvgateTicket) return;
+      const ticketId = invgateSearchInput?.value.trim();
+      if (!invgateWebBase || !ticketId) {
+        btnOpenInvgateTicket.setAttribute("aria-disabled", "true");
+        btnOpenInvgateTicket.classList.add("opacity-40", "pointer-events-none");
+        btnOpenInvgateTicket.removeAttribute("href");
+      } else {
+        btnOpenInvgateTicket.removeAttribute("aria-disabled");
+        btnOpenInvgateTicket.classList.remove("opacity-40", "pointer-events-none");
+        btnOpenInvgateTicket.href = `${invgateWebBase}/requests/show/index/id/${encodeURIComponent(ticketId)}`;
+      }
+    }
+
+    invgateSearchInput?.addEventListener("input", syncInvgateDeepLink);
+    syncInvgateDeepLink();
+
+    // Live Ticket Viewer Elements
+    const ticketContextBadge = document.getElementById("ticket-context-badge");
+    const ticketEmptyState = document.getElementById("ticket-empty-state");
+    const ticketViewerContent = document.getElementById("ticket-viewer-content");
+    const tvTitle = document.getElementById("tv-title");
+    const tvTitleMatchBadge = document.getElementById("tv-title-match-badge");
+    const tvCategory = document.getElementById("tv-category");
+    const tvPriority = document.getElementById("tv-priority");
+    const tvStatus = document.getElementById("tv-status");
+    const tvCreator = document.getElementById("tv-creator");
+    const tvCreatedBy = document.getElementById("tv-created-by");
+    const tvHelpdesk = document.getElementById("tv-helpdesk");
+    const tvSource = document.getElementById("tv-source");
+    const tvSourceMatchBadge = document.getElementById("tv-source-match-badge");
+    const tvResponseTime = document.getElementById("tv-response-time");
+    const tvDescription = document.getElementById("tv-description");
+
+    const formDuration = document.getElementById("form-duration") as HTMLInputElement | null;
+    const formRingTime = document.getElementById("form-ring-time") as HTMLInputElement | null;
+    const formCreationTime = document.getElementById("form-creation-time") as HTMLInputElement | null;
+    const formTakeTime = document.getElementById("form-take-time") as HTMLInputElement | null;
+    const formTakeHint = document.getElementById("take-time-hint");
+    const formDate = document.getElementById("form-date") as HTMLInputElement | null;
+    const formAgentSelect = document.getElementById("form-agent-id") as HTMLSelectElement | null;
+    const formCallIdEl = document.getElementById("form-call-id") as HTMLInputElement | null;
+    const formIsPas = document.getElementById("form-is-pas") as HTMLInputElement | null;
+
+    let isFormDirty = false;
+    let isSubmitting = false;
+    // Precargar una auditoría existente dispara setItemState() -> markAsInProgress().
+    // Sin esto, abrir una auditoría para editar marcaba el formulario como sucio y
+    // "Volver" pedía confirmación aunque el supervisor no hubiera tocado nada.
+    let isHydrating = false;
+
+    function markAsInProgress() {
+      if (isHydrating) return;
+      isFormDirty = true;
+    }
+    formAgentSelect?.addEventListener("change", () => {
+      markAsInProgress();
+      if (btnBack && formAgentSelect.value) {
+        try {
+          const currentHref = btnBack.getAttribute("href") || "";
+          const u = new URL(currentHref, window.location.origin);
+          u.searchParams.set("agentId", formAgentSelect.value);
+          btnBack.setAttribute("href", `${u.pathname}${u.search}`);
+        } catch {}
+      }
+    });
+
+    window.addEventListener("beforeunload", (e) => {
+      if (isFormDirty && !isSubmitting) {
+        e.preventDefault();
+      }
+    });
+
+    const btnBack = document.getElementById("btn-back-evaluations");
+    btnBack?.addEventListener("click", (e) => {
+      if (isFormDirty && !isSubmitting) {
+        if (!confirm("Hay cambios sin guardar en la evaluación. ¿Deseás salir de todas formas?")) {
+          e.preventDefault();
+        }
+      }
+    });
+
+    // Audio player
+    const tvAudioContainer = document.getElementById("tv-audio-container");
+    const tvAudioPlayer = document.getElementById("tv-audio-player") as HTMLAudioElement | null;
+    const tvAudioDownload = document.getElementById("tv-audio-download") as HTMLAnchorElement | null;
+    const formRecordingUrl = document.getElementById("form-recording-url") as HTMLInputElement | null;
+
+    const toggleCallGeneratedTicket = document.getElementById("toggle-call-generated-ticket") as HTMLInputElement | null;
+    const callTicketModeBtns = document.querySelectorAll(".ticket-mode-btn");
+    const callTicketModeInput = document.getElementById("call-ticket-mode") as HTMLInputElement | null;
+    const formIsReclamoInput = document.getElementById("form-is-reclamo-novedad") as HTMLInputElement | null;
+    const wiseCallTicketActions = document.getElementById("wise-call-ticket-actions");
+    const wiseCallReclamoCard = document.getElementById("wise-call-reclamo-card");
+    const wiseCallTicketBlock = document.getElementById("wise-call-ticket-block");
+
+    const emailTicketModeInput = document.getElementById("email-ticket-mode") as HTMLInputElement | null;
+
+    const toggleStaysMda = document.getElementById("invgate-stays-mda") as HTMLInputElement | null;
+
+    const btnHeaderHelp = document.getElementById("btn-header-help");
+    const helpModal = document.getElementById("audit-help-modal") as HTMLDialogElement | null;
+    btnHeaderHelp?.addEventListener("click", () => {
+      helpModal?.showModal();
+    });
+
+    /*
+      La columna derecha es sticky dentro del scroller (`main`), debajo del header.
+      Medimos el alto del header sticky y publicamos el alto disponible para que
+      la columna derecha pueda hacer scroll interno sin desbordar el viewport.
+    */
+    const rootEl = document.getElementById("new-audit-form-container");
+    const topStackEl = document.getElementById("audit-top-header");
+
+    let stickyMetricsRaf = 0;
+    function syncStickyMetrics() {
+      if (stickyMetricsRaf) cancelAnimationFrame(stickyMetricsRaf);
+      stickyMetricsRaf = requestAnimationFrame(() => {
+        if (!rootEl || !topStackEl) return;
+        const scroller = topStackEl.closest("main") as HTMLElement | null;
+        if (!scroller) return;
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        const scrollerPaddingTop = parseFloat(getComputedStyle(scroller).paddingTop) || 0;
+        const gap = rem * 0.75;
+        const headerH = topStackEl.offsetHeight;
+        const topOffset = Math.max(0, headerH + gap - scrollerPaddingTop);
+        const scrollerBottom = scroller.getBoundingClientRect().bottom;
+        const headerBottom = topStackEl.getBoundingClientRect().bottom;
+        const available = scrollerBottom - headerBottom - (gap * 2);
+        rootEl.style.setProperty("--audit-bar-top", `${topOffset.toFixed(1)}px`);
+        rootEl.style.setProperty("--audit-aside-max", `${Math.max(available, rem * 16).toFixed(1)}px`);
+      });
+    }
+
+    if (topStackEl) {
+      syncStickyMetrics();
+      const ro = new ResizeObserver(syncStickyMetrics);
+      ro.observe(topStackEl);
+      window.addEventListener("resize", syncStickyMetrics, { passive: true });
+    }
+
+    // Las pestañas siguen al canal activo: mismo número de secciones, otro contenido.
+    const sectionTabs = Array.from(
+      document.querySelectorAll<HTMLElement>("#audit-section-tabs [data-section-tab]"),
+    );
+
+    function syncSectionTabs() {
+      const checklist = document.getElementById(
+        `channel-checklist-${formChannelType?.value || "wise_call"}`,
+      );
+      if (!checklist) return;
+      sectionTabs.forEach((tab) => {
+        const card = checklist.querySelector<HTMLElement>(
+          `[data-section-card="${tab.dataset.sectionTab}"]`,
+        );
+        if (!card) return;
+        tab.dataset.targetId = card.id;
+        const label = tab.querySelector("[data-section-label]");
+        const nextLabel = card.dataset.sectionLabel;
+        if (label && nextLabel) label.textContent = nextLabel;
+      });
+    }
+
+    sectionTabs.forEach((tab) => {
+      tab.addEventListener("click", (e) => {
+        e.preventDefault();
+        const targetId = tab.dataset.targetId;
+        const targetCard = targetId
+          ? document.getElementById(targetId)
+          : document.querySelector(`[data-section-card="${tab.dataset.sectionTab}"]`);
+        const scroller = topStackEl?.closest("main") || document.querySelector("main");
+        if (!targetCard || !scroller) return;
+
+        // Desplazamiento controlado dentro de <main> evitando hash jumps que desfasen el layout
+        const scrollerRect = scroller.getBoundingClientRect();
+        const cardRect = targetCard.getBoundingClientRect();
+        const headerH = topStackEl?.offsetHeight || 0;
+        const targetScrollTop = scroller.scrollTop + (cardRect.top - scrollerRect.top) - headerH - 12;
+
+        scroller.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: "smooth",
+        });
+
+        // Asegurar que contenedores de pantalla fija no queden desfasados
+        const drawer = scroller.closest(".drawer-content");
+        if (drawer && drawer.scrollTop !== 0) drawer.scrollTop = 0;
+        if (window.scrollY !== 0) window.scrollTo(0, 0);
+      });
+    });
+
+    function highlightSectionTab(sectionIndex: string) {
+      sectionTabs.forEach((tab) => {
+        if (tab.dataset.sectionTab === sectionIndex) {
+          tab.setAttribute("aria-current", "true");
+          tab.classList.add("border-base-300", "bg-base-200/80", "text-base-content");
+          tab.classList.remove("border-transparent", "bg-transparent", "text-base-content/65");
+        } else {
+          tab.removeAttribute("aria-current");
+          tab.classList.remove("border-base-300", "bg-base-200/80", "text-base-content");
+          tab.classList.add("border-transparent", "bg-transparent", "text-base-content/65");
+        }
+      });
+    }
+
+    const sectionCards = document.querySelectorAll<HTMLElement>("[data-section-card]");
+    if (sectionCards.length > 0) {
+      const spy = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              highlightSectionTab((entry.target as HTMLElement).dataset.sectionCard || "");
+            }
+          });
+        },
+        { rootMargin: "-45% 0px -50% 0px" },
+      );
+      sectionCards.forEach((card) => spy.observe(card));
+    }
+
+    const configSummaryText = document.getElementById("config-summary-text");
+    function updateConfigSummary() {
+      const checklist = document.getElementById(
+        `channel-checklist-${formChannelType?.value || "wise_call"}`,
+      );
+      if (!configSummaryText || !checklist) return;
+      const checkboxes = Array.from(
+        checklist.querySelectorAll<HTMLInputElement>(".audit-checkbox"),
+      );
+      const weight = checkboxes.reduce(
+        (acc, cb) => acc + (parseFloat(cb.dataset.weight || "0") || 0),
+        0,
+      );
+      configSummaryText.textContent = `${checkboxes.length} criterios en este canal · penalización máxima: ${weight} pts`;
+    }
+
+    function setAudioPlayer(recordingUrl?: string | null, caseNumber?: string) {
+      if (!tvAudioContainer || !tvAudioPlayer) return;
+      if (recordingUrl && recordingUrl.trim()) {
+        // El proxy real es download-audio: el origen de Wise CX no es CORS-friendly
+        // para el <audio> del navegador.
+        const fileName = `grabacion-caso-${caseNumber || wiseSearchInput?.value || "llamada"}`;
+        const proxyUrl = `${cleanBase}api/calidad/download-audio?url=${encodeURIComponent(recordingUrl.trim())}&filename=${encodeURIComponent(fileName)}.mp3`;
+        tvAudioPlayer.src = proxyUrl;
+        if (tvAudioDownload) {
+          tvAudioDownload.href = `${proxyUrl}&download=1`;
+          tvAudioDownload.setAttribute("download", `${fileName}.mp3`);
+        }
+        if (formRecordingUrl) formRecordingUrl.value = recordingUrl.trim();
+        tvAudioContainer.classList.remove("hidden");
+      } else {
+        tvAudioPlayer.pause();
+        tvAudioPlayer.removeAttribute("src");
+        if (formRecordingUrl) formRecordingUrl.value = "";
+        tvAudioContainer.classList.add("hidden");
+      }
+    }
+
+    function resetAudioPlayer() {
+      setAudioPlayer(null);
+    }
+
+    function resetTicketViewer() {
+      if (ticketContextBadge) {
+        ticketContextBadge.textContent = "Sin ticket cargado";
+        ticketContextBadge.className =
+          "badge badge-xs truncate border-0 bg-base-200 font-medium text-base-content/60";
+      }
+      if (ticketEmptyState) ticketEmptyState.classList.remove("hidden");
+      if (ticketViewerContent) ticketViewerContent.classList.add("hidden");
+      if (tvTitle) tvTitle.textContent = "-";
+      if (tvTitleMatchBadge) tvTitleMatchBadge.innerHTML = "";
+      if (tvCategory) tvCategory.textContent = "-";
+      if (tvPriority) tvPriority.textContent = "-";
+      if (tvStatus) tvStatus.textContent = "-";
+      if (tvCreator) tvCreator.textContent = "-";
+      if (tvCreatedBy) tvCreatedBy.textContent = "-";
+      if (tvHelpdesk) tvHelpdesk.textContent = "-";
+      if (tvSource) tvSource.textContent = "-";
+      if (tvSourceMatchBadge) tvSourceMatchBadge.innerHTML = "";
+      if (tvResponseTime) tvResponseTime.textContent = "-";
+      if (tvDescription) tvDescription.textContent = "-";
+      if (btnInspectInvgate) {
+        btnInspectInvgate.classList.add("opacity-40", "pointer-events-none");
+      }
+      clearAllRuleBadges();
+    }
+
+    function setParamRuleBadge(checkboxName: string, active: boolean, text: string = "Regla") {
+      const badge = document.querySelector(`[data-rule-badge="${checkboxName}"]`);
+      if (!badge) return;
+      if (active) {
+        badge.textContent = text;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    function clearAllRuleBadges() {
+      document.querySelectorAll(".rule-auto-badge").forEach((el) => {
+        el.classList.add("hidden");
+      });
+    }
+
+    /**
+     * El estado se escribe en un atributo (`data-criterion-state` + `aria-pressed`)
+     * y lo pinta el CSS: así no hay clases que sincronizar a mano.
+     */
+    function setItemState(item: HTMLElement, state: "cumple" | "nocumple" | "na") {
+      const checkbox = item.querySelector(".audit-checkbox") as HTMLInputElement | null;
+
+      item.dataset.criterionState = state;
+
+      // Si el supervisor decide el estado a mano, el badge de regla deja de aplicar:
+      // decir "desactivado por regla" sobre un criterio en Cumple se contradice.
+      item.querySelector(".rule-auto-badge")?.classList.add("hidden");
+
+      const statusBadge = item.querySelector(".criteria-status-badge");
+      if (statusBadge) statusBadge.textContent = STATE_LABEL[state] || state;
+
+      item.querySelectorAll<HTMLButtonElement>(".state-btn").forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.state === state));
+      });
+
+      if (checkbox) {
+        if (state === "nocumple") {
+          checkbox.checked = false;
+          checkbox.dataset.isNa = "false";
+        } else {
+          // "cumple" y "na" se envían marcados; la penalización la decide el estado.
+          checkbox.checked = true;
+          checkbox.dataset.isNa = state === "na" ? "true" : "false";
+        }
+      }
+
+      markAsInProgress();
+      recalculateScores();
+    }
+
+    // Bind 3-state buttons
+    document.querySelectorAll(".checklist-item").forEach((item) => {
+      const htmlItem = item as HTMLElement;
+      item.querySelectorAll<HTMLButtonElement>(".state-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const state = btn.dataset.state as "cumple" | "nocumple" | "na";
+          if (state) setItemState(htmlItem, state);
+        });
+      });
+    });
+
+    // Auto-evaluación del parámetro Título
+    function evaluateTicketTitle(titleStr: string) {
+      if (!titleStr) return;
+      const channel = formChannelType?.value || "wise_call";
+      let checkboxName = "call_ticket_titulo";
+      if (channel === "wise_email") checkboxName = "email_mda_titulo";
+      else if (channel === "invgate_ticket") checkboxName = "ag_titulo";
+
+      const checkbox = document.querySelector(`input[name="${checkboxName}"]`) as HTMLInputElement | null;
+      const item = checkbox?.closest(".checklist-item") as HTMLElement | null;
+      const match = matchApprovedTitle(titleStr, approvedTitles);
+
+      if (tvTitleMatchBadge) {
+        if (match.matched) {
+          tvTitleMatchBadge.innerHTML = `
+            <span class="badge badge-xs badge-soft badge-success font-semibold" title="Coincide con: ${match.matchedTitle}">
+              Título homologado
+            </span>
+          `;
+          if (item) setItemState(item, "cumple");
+          setParamRuleBadge(checkboxName, false);
+        } else {
+          tvTitleMatchBadge.innerHTML = `
+            <span class="badge badge-xs badge-soft badge-warning font-semibold" title="No coincide con el catálogo de títulos">
+              Título no homologado
+            </span>
+          `;
+          if (item) setItemState(item, "nocumple");
+          setParamRuleBadge(checkboxName, true, "Desactivado por regla");
+        }
+      }
+      recalculateScores();
+    }
+
+    // Auto-evaluación del parámetro Origen
+    function evaluateTicketSource(sourceStr: string) {
+      const channel = formChannelType?.value || "wise_call";
+      if (channel === "invgate_ticket") {
+        if (tvSourceMatchBadge) tvSourceMatchBadge.innerHTML = "";
+        return;
+      }
+
+      let checkboxName = "";
+      let isValid = false;
+
+      const norm = (sourceStr || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+
+      if (channel === "wise_call") {
+        checkboxName = "call_ticket_origen";
+        isValid = norm.includes("tel") || norm.includes("llamada");
+      } else if (channel === "wise_email") {
+        checkboxName = "email_mda_origen";
+        isValid = norm.includes("corr") || norm.includes("mail");
+      }
+
+      if (!checkboxName) return;
+
+      const checkbox = document.querySelector(`input[name="${checkboxName}"]`) as HTMLInputElement | null;
+      const item = checkbox?.closest(".checklist-item") as HTMLElement | null;
+
+      if (tvSourceMatchBadge) {
+        tvSourceMatchBadge.innerHTML = isValid
+          ? `<span class="badge badge-xs badge-soft badge-success font-semibold" title="El origen coincide con el canal">Origen válido</span>`
+          : `<span class="badge badge-xs badge-soft badge-warning font-semibold" title="El origen no coincide con el canal">Origen no coincide</span>`;
+      }
+
+      if (item) setItemState(item, isValid ? "cumple" : "nocumple");
+      setParamRuleBadge(checkboxName, !isValid, "Origen incorrecto");
+
+      recalculateScores();
+    }
+
+    function populateTicketViewer(data: any) {
+      const title = data.title || data.rawDetails?.title || "Sin título";
+      const category = data.category || data.rawDetails?.category || "Sin categoría";
+      const priority = data.priority || data.rawDetails?.priority || "Media";
+      const status = data.status || data.rawDetails?.status || "Abierto";
+      const creator = data.customer || data.creator || data.rawDetails?.customer || data.rawDetails?.creator || "Desconocido";
+      const createdBy = data.createdBy || data.rawDetails?.createdBy || creator;
+      const helpdesk = data.helpdesk || data.rawDetails?.helpdesk || "Sin mesa asignada";
+      const source = data.source || data.rawDetails?.source || "Sin origen";
+      const description = data.description || data.rawDetails?.description || "Sin descripción disponible";
+
+      if (tvTitle) tvTitle.textContent = title;
+      if (tvCategory) tvCategory.textContent = category;
+      if (tvPriority) tvPriority.textContent = priority;
+      if (tvStatus) tvStatus.textContent = status;
+      if (tvCreator) tvCreator.textContent = creator;
+      if (tvCreatedBy) tvCreatedBy.textContent = createdBy;
+      if (tvHelpdesk) tvHelpdesk.textContent = helpdesk;
+      if (tvSource) tvSource.textContent = source;
+
+      if (tvResponseTime) {
+        const human = data.rawDetails?.responseHuman;
+        tvResponseTime.textContent = data.takeTime ? `${data.takeTime}${human ? ` (${human})` : ""}` : "-";
+      }
+
+      if (formTakeHint) {
+        if (data.rawDetails?.reassignedWithoutComment) {
+          formTakeHint.textContent = `Sin comentarios. Verificar en InvGate.`;
+          formTakeHint.classList.remove("hidden");
+        } else {
+          const human = data.rawDetails?.responseHuman;
+          if (human) {
+            formTakeHint.textContent = `~${human}`;
+            formTakeHint.classList.remove("hidden");
+          } else if (data.takeTime) {
+            formTakeHint.textContent = "";
+            formTakeHint.classList.add("hidden");
+          }
+        }
+      }
+
+      if (tvDescription) tvDescription.textContent = cleanHtmlText(description);
+
+      if (ticketContextBadge) {
+        ticketContextBadge.textContent = "Ticket cargado";
+        ticketContextBadge.className =
+          "badge badge-xs truncate border-0 bg-success/15 font-semibold text-success";
+      }
+      if (ticketEmptyState) ticketEmptyState.classList.add("hidden");
+      if (ticketViewerContent) ticketViewerContent.classList.remove("hidden");
+      // El inspector crudo de InvGate sigue deshabilitado a propósito, aunque el
+      // ticket se haya cargado: es el punto a revertir cuando se lo habilite.
+      if (btnInspectInvgate) {
+        btnInspectInvgate.disabled = true;
+        btnInspectInvgate.classList.add("opacity-40", "pointer-events-none");
+      }
+
+      syncInvgateDeepLink();
+
+      if (data.title || data.rawDetails?.title) {
+        evaluateTicketTitle(data.title || data.rawDetails?.title);
+      }
+      if (data.source || data.rawDetails?.source) {
+        evaluateTicketSource(data.source || data.rawDetails?.source);
+      }
+    }
+
+    // Única puerta a la API de metadatos. Valida status y content-type ANTES de
+    // parsear: una ruta inexistente devuelve el HTML 404 de Astro y `res.json()`
+    // tiraba "Unexpected token '<'", que se leía como error de red al usuario.
+    async function fetchMetadata(params: Record<string, string>) {
+      const qs = Object.entries(params)
+        .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+        .join("&");
+      const res = await fetch(`${cleanBase}api/calidad/fetch-metadata?${qs}`);
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        console.error(`[fetch-metadata] Respuesta no JSON (${res.status} ${ct})`, await res.text());
+        return { ok: false as const, data: null, error: `El servicio no respondió correctamente (HTTP ${res.status}).` };
+      }
+      const json = await res.json();
+      if (!res.ok || !json.data) {
+        return { ok: false as const, data: null, error: json.error || "Sin datos." };
+      }
+      return { ok: true as const, data: json.data, error: null };
+    }
+
+    // Autocompleta los campos técnicos que el caso trae resueltos.
+    function applyTechnicalFields(d: any, { overwrite }: { overwrite: boolean }) {
+      const set = (el: HTMLInputElement | null, v?: string) => {
+        if (el && v && (overwrite || !el.value)) el.value = v;
+      };
+      set(formDate, d.date);
+      set(formDuration, d.duration);
+      set(formRingTime, d.ringTime);
+      set(formCreationTime, d.creationTime);
+      set(formTakeTime, d.takeTime);
+    }
+
+    const CHANNEL_LABEL: Record<string, string> = {
+      wise_call: "Llamada Wise",
+      wise_email: "Mail Wise",
+      invgate_ticket: "Autogestión",
+    };
+
+    // FETCH WISE CX API
+    btnFetchWise?.addEventListener("click", async () => {
+      const id = wiseSearchInput?.value.trim();
+      if (!id) {
+        showNotification("Ingresá un número de caso para buscar.", "warning");
+        wiseSearchInput?.focus();
+        return;
+      }
+
+      const channel = formChannelType?.value || "wise_call";
+      setFetchLoading(btnFetchWise, true);
+
+      try {
+        const { ok, data: d, error } = await fetchMetadata({
+          channel,
+          id,
+          source: "wise",
+        });
+
+        if (!ok) {
+          showNotification(error || "No se encontró el caso en Wise CX. Revisá el número.", "error");
+          resetTicketViewer();
+          resetAudioPlayer();
+          return;
+        }
+
+        // Autoconmutación de canal si el caso es de otro tipo.
+        let channelSwitched = false;
+        if (d.detectedChannel && formChannelType && d.detectedChannel !== formChannelType.value) {
+          const targetBtn = document.querySelector(
+            `.channel-btn[data-channel="${d.detectedChannel}"]`,
+          ) as HTMLButtonElement | null;
+          if (targetBtn) {
+            targetBtn.click();
+            channelSwitched = true;
+          }
+        }
+
+        applyTechnicalFields(d, { overwrite: true });
+        if (formCallIdEl && d.caseNumber) formCallIdEl.value = d.caseNumber;
+        const incidentId = d.rawDetails?.incidentId;
+        if (invgateSearchInput && !invgateSearchInput.value && incidentId) {
+          invgateSearchInput.value = String(incidentId);
+          syncInvgateDeepLink();
+        }
+        setAudioPlayer(d.recordingUrl, d.caseNumber);
+
+        if (d.title || d.category || d.status) {
+          populateTicketViewer(d);
+        } else {
+          resetTicketViewer();
+        }
+
+        const base = `Caso ${d.caseNumber || id}${d.operator ? ` de ${d.operator}` : ""}${d.duration ? ` (${d.duration})` : ""}.`;
+        showNotification(
+          channelSwitched
+            ? `${base} Detectado como ${CHANNEL_LABEL[d.detectedChannel] || d.detectedChannel}: se cambió el canal.`
+            : base,
+          channelSwitched ? "info" : "success",
+        );
+      } catch (err) {
+        console.error("[Wise CX] Error de red:", err);
+        showNotification("No pudimos consultar Wise CX. Revisá el número e intentá de nuevo.", "error");
+        resetTicketViewer();
+        resetAudioPlayer();
+      } finally {
+        setFetchLoading(btnFetchWise, false);
+      }
+    });
+
+    wiseSearchInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        btnFetchWise?.click();
+      }
+    });
+
+    // FETCH INVGATE API
+    async function fetchInvGateTicket() {
+      const id = invgateSearchInput?.value.trim();
+      if (!id) {
+        showNotification("Ingresá un número de ticket para buscar.", "warning");
+        invgateSearchInput?.focus();
+        return;
+      }
+
+      setFetchLoading(btnFetchInvgate, true);
+
+      // El endpoint resuelve el operador desde agentId cuando viene en la URL.
+      const agentId = formAgentSelect?.value ? `&agentId=${encodeURIComponent(formAgentSelect.value)}` : "";
+
+      try {
+        const { ok, data: d, error } = await fetchMetadata({
+          channel: "invgate_ticket",
+          id,
+          source: `invgate${agentId}`,
+        });
+
+        if (!ok) {
+          showNotification(error || "No se encontró el ticket en InvGate. Revisá el número.", "error");
+          resetTicketViewer();
+          return;
+        }
+
+        applyTechnicalFields(d, { overwrite: false });
+        if (formIsPas && typeof d.isPas === "boolean") formIsPas.checked = d.isPas;
+
+        if (invgateSearchInput && d.caseNumber) invgateSearchInput.value = d.caseNumber;
+        syncInvgateDeepLink();
+
+        populateTicketViewer(d);
+
+        showNotification(
+          d.rawDetails?.reassignedWithoutComment
+            ? `Ticket ${d.caseNumber || id} cargado. Sin comentarios del operador: verificá en InvGate.`
+            : `Ticket ${d.caseNumber || id} cargado${d.isPas ? " (PAS)" : ""}.`,
+          d.rawDetails?.reassignedWithoutComment ? "warning" : "success",
+        );
+      } catch (err) {
+        console.error("[InvGate] Error de red:", err);
+        showNotification("No pudimos consultar InvGate. Revisá el número e intentá de nuevo.", "error");
+        resetTicketViewer();
+      } finally {
+        setFetchLoading(btnFetchInvgate, false);
+      }
+    }
+
+    btnFetchInvgate?.addEventListener("click", fetchInvGateTicket);
+    invgateSearchInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        fetchInvGateTicket();
+      }
+    });
+
+    // Modal de Detalle Técnico (on-demand vía raw=1)
+    // Hoy ningún botón lo dispara: `#btn-inspect-wise-detail` y
+    // `#btn-inspect-invgate-detail` arrancan y quedan deshabilitados a propósito.
+    async function openTechnicalDetail(source: "wise" | "invgate") {
+      if (!modalCaseDetail) return;
+
+      const id = source === "wise"
+        ? wiseSearchInput?.value.trim()
+        : invgateSearchInput?.value.trim();
+
+      if (!id) {
+        showNotification("Buscá el caso primero para consultar su detalle técnico.", "warning");
+        return;
+      }
+
+      // Configurar encabezado del modal e icono según el origen
+      if (source === "wise") {
+        if (modalCaseDetailTitle) modalCaseDetailTitle.textContent = `Detalle técnico: Llamada Wise CX #${id}`;
+        if (modalCaseDetailSubtitle) modalCaseDetailSubtitle.textContent = "Datos completos retornados por la API de Wise CX";
+        modalIconPhone?.classList.remove("hidden");
+        modalIconTerminal?.classList.add("hidden");
+      } else {
+        if (modalCaseDetailTitle) modalCaseDetailTitle.textContent = `Detalle técnico: Ticket InvGate #${id}`;
+        if (modalCaseDetailSubtitle) modalCaseDetailSubtitle.textContent = "Datos completos retornados por la API de InvGate Service Desk";
+        modalIconPhone?.classList.add("hidden");
+        modalIconTerminal?.classList.remove("hidden");
+      }
+
+      // Resetear estado visual del modal
+      modalLoading?.classList.remove("hidden");
+      modalError?.classList.add("hidden");
+      modalBody?.classList.add("hidden");
+      if (modalJson) modalJson.textContent = "";
+      if (modalCopyText) modalCopyText.textContent = "Copiar";
+
+      modalCaseDetail.showModal();
+
+      try {
+        const channel = source === "wise" ? (formChannelType?.value || "wise_call") : "invgate_ticket";
+        const agentId = formAgentSelect?.value ? `&agentId=${encodeURIComponent(formAgentSelect.value)}` : "";
+        const querySource = source === "wise" ? "wise" : `invgate${agentId}`;
+
+        const { ok, data: d, error } = await fetchMetadata({
+          channel,
+          id,
+          source: querySource,
+          raw: "1",
+        });
+
+        if (!ok || !d) {
+          modalLoading?.classList.add("hidden");
+          if (modalErrorMsg) modalErrorMsg.textContent = error || "No se pudo recuperar el detalle técnico.";
+          modalError?.classList.remove("hidden");
+          return;
+        }
+
+        const rawData = d.raw !== undefined ? d.raw : (d.rawDetails || d);
+        if (modalJson) {
+          modalJson.textContent = JSON.stringify(rawData, null, 2);
+        }
+        modalLoading?.classList.add("hidden");
+        modalBody?.classList.remove("hidden");
+      } catch (err) {
+        console.error("[Modal Detalle Técnico] Error de consulta:", err);
+        modalLoading?.classList.add("hidden");
+        if (modalErrorMsg) modalErrorMsg.textContent = "Error inesperado al consultar la API.";
+        modalError?.classList.remove("hidden");
+      }
+    }
+
+    btnInspectInvgate?.addEventListener("click", () => openTechnicalDetail("invgate"));
+    btnInspectWise?.addEventListener("click", () => openTechnicalDetail("wise"));
+
+    modalCopyBtn?.addEventListener("click", async () => {
+      if (!modalJson?.textContent) return;
+      try {
+        await navigator.clipboard.writeText(modalJson.textContent);
+        if (modalCopyText) modalCopyText.textContent = "¡Copiado!";
+        setTimeout(() => {
+          if (modalCopyText) modalCopyText.textContent = "Copiar";
+        }, 2000);
+      } catch (err) {
+        console.warn("[Modal Detalle Técnico] No se pudo copiar al portapapeles:", err);
+      }
+    });
+
+    function setFetchLoading(btn: HTMLButtonElement | null, loading: boolean) {
+      if (!btn) return;
+      btn.disabled = loading;
+      if (loading) btn.classList.add("loading");
+      else btn.classList.remove("loading");
+    }
+
+    const TOAST_MAP: Record<string, ToastType> = {
+      success: "alert-success",
+      error: "alert-error",
+      warning: "alert-warning",
+      info: "alert-info",
+    };
+
+    function showNotification(msg: string, type: "success" | "error" | "warning" | "info" = "info", durationMs = 4000) {
+      showToast(msg, TOAST_MAP[type] || "alert-info", durationMs);
+    }
+
+    // CONMUTADOR DE CANALES
+    channelButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const channel = btn.getAttribute("data-channel");
+        if (!channel || !formChannelType) return;
+
+        formChannelType.value = channel;
+
+        channelButtons.forEach((b) => {
+          b.classList.remove("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "hover:bg-secondary/90");
+          b.classList.add("font-medium", "text-base-content/70", "hover:bg-base-100/80");
+        });
+        btn.classList.add("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "hover:bg-secondary/90");
+        btn.classList.remove("font-medium", "text-base-content/70", "hover:bg-base-100/80");
+
+        document.querySelectorAll(".channel-checklist").forEach((block) => {
+          block.classList.add("hidden");
+        });
+        const activeChecklist = document.getElementById(`channel-checklist-${channel}`);
+        if (activeChecklist) {
+          activeChecklist.classList.remove("hidden");
+        }
+
+        const metaDurationContainer = document.getElementById("meta-duration-container");
+        const metaRingContainer = document.getElementById("meta-ring-container");
+        const metaCreationContainer = document.getElementById("meta-creation-container");
+        const metaTakeContainer = document.getElementById("meta-take-container");
+        const metaPasContainer = document.getElementById("meta-pas-container");
+
+        if (channel === "wise_call") {
+          metaDurationContainer?.classList.remove("hidden");
+          metaRingContainer?.classList.remove("hidden");
+          metaCreationContainer?.classList.add("hidden");
+          metaTakeContainer?.classList.add("hidden");
+          metaPasContainer?.classList.add("hidden");
+        } else if (channel === "wise_email") {
+          metaDurationContainer?.classList.add("hidden");
+          metaRingContainer?.classList.add("hidden");
+          metaCreationContainer?.classList.remove("hidden");
+          metaTakeContainer?.classList.remove("hidden");
+          metaPasContainer?.classList.add("hidden");
+        } else if (channel === "invgate_ticket") {
+          metaDurationContainer?.classList.add("hidden");
+          metaRingContainer?.classList.add("hidden");
+          metaCreationContainer?.classList.remove("hidden");
+          metaTakeContainer?.classList.remove("hidden");
+          metaPasContainer?.classList.remove("hidden");
+        }
+
+        markAsInProgress();
+        syncSectionTabs();
+        updateConfigSummary();
+        recalculateScores();
+      });
+    });
+
+    // MODO TICKET MAIL WISE: NUEVO VS RECLAMO / NOVEDAD.
+    // Espejo del de Llamada: en reclamo la sección 2 vale 100% y no se penaliza.
+    const emailTicketModeBtns = document.querySelectorAll(".email-ticket-mode-btn");
+    const wiseEmailMdaActions = document.getElementById("wise-email-mda-actions");
+    const wiseEmailReclamoCard = document.getElementById("wise-email-reclamo-card");
+    const wiseEmailTicketBlock = document.getElementById("wise-email-ticket-block");
+
+    function paintModeButtons(btns: NodeListOf<Element>, active: string) {
+      btns.forEach((b) => {
+        const isActive = b.getAttribute("data-mode") === active;
+        b.classList.toggle("btn-active", isActive);
+        b.classList.toggle("bg-secondary", isActive);
+        b.classList.toggle("text-secondary-content", isActive);
+        b.classList.toggle("font-bold", isActive);
+        b.classList.toggle("shadow-xs", isActive);
+        b.classList.toggle("text-base-content/70", !isActive);
+        b.classList.toggle("font-medium", !isActive);
+        // El hover neutro pisaba al color activo y lo dejaba en blanco al
+        // pasar el mouse. Mismo criterio que el conmutador de canales: se
+        // saca el hover inactivo y se pone el del color activo.
+        b.classList.toggle("hover:bg-base-100", !isActive);
+        b.classList.toggle("hover:bg-secondary/90", isActive);
+        b.setAttribute("aria-pressed", String(isActive));
+      });
+    }
+
+    function setEmailTicketMode(mode: "nuevo" | "reclamo" | "ninguno") {
+      if (!emailTicketModeInput) return;
+      emailTicketModeInput.value = mode;
+      if (formIsReclamoInput && (formChannelType?.value || "wise_call") === "wise_email") {
+        formIsReclamoInput.value = mode === "reclamo" ? "true" : "false";
+      }
+      paintModeButtons(emailTicketModeBtns, mode);
+
+      if (mode === "reclamo") {
+        wiseEmailMdaActions?.classList.add("hidden");
+        wiseEmailTicketBlock?.classList.add("hidden");
+        wiseEmailReclamoCard?.classList.remove("hidden");
+        wiseEmailReclamoCard?.classList.add("flex");
+      } else {
+        // "ninguno" también oculta los parámetros: sin ticket MDA no hay
+        // nada que evaluar y el total queda en el de la sección 1.
+        wiseEmailMdaActions?.classList.toggle("hidden", mode === "ninguno");
+        wiseEmailTicketBlock?.classList.toggle("hidden", mode === "ninguno");
+        wiseEmailReclamoCard?.classList.add("hidden");
+        wiseEmailReclamoCard?.classList.remove("flex");
+      }
+
+      markAsInProgress();
+      recalculateScores();
+    }
+
+    emailTicketModeBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setEmailTicketMode(
+          (btn.getAttribute("data-mode") as "nuevo" | "reclamo" | "ninguno") || "nuevo",
+        );
+      });
+    });
+
+    // CalidadContent lo invoca al abrir una auditoría ya guardada, para que un
+    // reclamo guardado no vuelva a puntuar como ticket nuevo.
+    (window as any).setAuditEmailTicketMode = setEmailTicketMode;
+
+    // MODO TICKET LLAMADA: NUEVO VS RECLAMO / NOVEDAD
+    function setCallTicketMode(mode: "nuevo" | "reclamo" | "ninguno") {
+      if (!callTicketModeInput) return;
+      callTicketModeInput.value = mode;
+      if (formIsReclamoInput) formIsReclamoInput.value = mode === "reclamo" ? "true" : "false";
+      paintModeButtons(callTicketModeBtns, mode);
+
+      if (mode === "reclamo") {
+        wiseCallTicketActions?.classList.add("hidden");
+        wiseCallTicketBlock?.classList.add("hidden");
+        wiseCallReclamoCard?.classList.remove("hidden");
+        wiseCallReclamoCard?.classList.add("flex");
+      } else {
+        wiseCallTicketActions?.classList.toggle("hidden", mode === "ninguno");
+        wiseCallTicketBlock?.classList.toggle("hidden", mode === "ninguno");
+        wiseCallReclamoCard?.classList.add("hidden");
+        wiseCallReclamoCard?.classList.remove("flex");
+      }
+
+      markAsInProgress();
+      recalculateScores();
+    }
+
+    callTicketModeBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setCallTicketMode(
+          (btn.getAttribute("data-mode") as "nuevo" | "reclamo" | "ninguno") || "nuevo",
+        );
+      });
+    });
+
+    // CalidadContent lo invoca al abrir una auditoría ya guardada.
+    (window as any).setAuditTicketMode = setCallTicketMode;
+
+    // MODO AUTOGESTIÓN: QUEDA EN MDA VS NO APLICA.
+    // Mismo patrón que los otros dos selectores: al desactivar se esconden los
+    // parámetros de la sección 2 y el total pasa a ser el de la sección 1.
+    const invgateModeBtns = document.querySelectorAll(".invgate-ticket-mode-btn");
+    const invgateMdaBlock = document.getElementById("invgate-ag-mda-block");
+
+    function setInvgateTicketMode(mode: "si" | "no") {
+      if (!toggleStaysMda) return;
+      toggleStaysMda.value = mode === "si" ? "true" : "false";
+      paintModeButtons(invgateModeBtns, mode);
+      invgateMdaBlock?.classList.toggle("hidden", mode === "no");
+      markAsInProgress();
+      recalculateScores();
+    }
+
+    invgateModeBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setInvgateTicketMode((btn.getAttribute("data-mode") as "si" | "no") || "si");
+      });
+    });
+
+    (window as any).setAuditInvgateMode = setInvgateTicketMode;
+
+    // CHECK-ALL / UNCHECK-ALL
+    document.querySelectorAll(".toggle-all-section-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetGroup = btn.getAttribute("data-target-group");
+        const action = btn.getAttribute("data-action");
+        if (!targetGroup) return;
+
+        const groupContainer = document.querySelector(`[data-checklist-group="${targetGroup}"]`);
+        if (!groupContainer) return;
+
+        const items = groupContainer.querySelectorAll<HTMLElement>(".checklist-item");
+        items.forEach((item) => {
+          if (action === "check-all") setItemState(item, "cumple");
+          else if (action === "uncheck-all") setItemState(item, "nocumple");
+        });
+
+        recalculateScores();
+      });
+    });
+
+    // TOGGLE NOTAS INLINE
+    document.querySelectorAll('[data-action="toggle-obs"]').forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const item = btn.closest(".checklist-item");
+        if (!item) return;
+        const wrapper = item.querySelector(".criteria-obs-wrapper");
+        if (!wrapper) return;
+
+        const willOpen = wrapper.classList.contains("hidden");
+        wrapper.classList.toggle("hidden");
+        btn.setAttribute("aria-expanded", String(willOpen));
+        if (willOpen) {
+          markAsInProgress();
+          const textarea = wrapper.querySelector("textarea") as HTMLTextAreaElement | null;
+          textarea?.focus();
+        }
+      });
+    });
+
+    // CÁLCULO DE SCORE EN TIEMPO REAL
+    function recalculateScores() {
+      const channel = formChannelType?.value || "wise_call";
+      const activeContainer = document.getElementById(`channel-checklist-${channel}`);
+      if (!activeContainer) return;
+
+      const checkboxes = Array.from(
+        activeContainer.querySelectorAll<HTMLInputElement>(".audit-checkbox"),
+      );
+
+      const totalCriteria = checkboxes.length;
+      // Los tres estados son una decisión activa del supervisor: no existe un
+      // estado "pendiente". Contamos los desvíos (No cumple / N/A) en vez de los
+      // checkboxes marcados, porque "No cumple" es una evaluación válida y no un
+      // criterio sin completar.
+      let failedCriteria = 0;
+      let naCriteria = 0;
+      let hasSection2 = true;
+
+      const isReclamo =
+        channel === "wise_email"
+          ? emailTicketModeInput?.value === "reclamo"
+          : channel === "wise_call"
+            ? callTicketModeInput?.value === "reclamo"
+            : false;
+
+      if (channel === "invgate_ticket") hasSection2 = toggleStaysMda ? toggleStaysMda.value === "true" : true;
+      // Espejo de la acción: sin ticket MDA la sección 2 se deshabilita y el
+      // total pasa a ser el de la sección 1.
+      if (channel === "wise_email" && emailTicketModeInput?.value === "ninguno")
+        hasSection2 = false;
+      if (channel === "wise_call" && callTicketModeInput?.value === "ninguno")
+        hasSection2 = false;
+
+      checkboxes.forEach((cb) => {
+        if (cb.dataset.isNa === "true") naCriteria++;
+        else if (!cb.checked) failedCriteria++;
+      });
+
+      /*
+        El puntaje lo calcula `calculateMultiChannelAuditScores`, el MISMO módulo que
+        usa el backend al guardar. Antes el preview reimplementaba la fórmula y las
+        dos versiones divergieron: en wise_call la canónica trata los pesos como
+        puntos sobre una base de 45/55, no como porcentajes, así que el preview
+        mostraba 90% donde correspondía 78%.
+      */
+      // Espejo exacto de lo que ve el backend: `score = checkbox.checked`. El N/A
+        // viaja marcado (setItemState lo marca) y por eso NO penaliza; excluirlo
+        // acá haría que el preview mostrara unscore que la base nunca guarda.
+      const compliant = new Set<string>(
+        checkboxes.filter((cb) => cb.checked).map((cb) => cb.name),
+      );
+      const { section1Score: s1Score, section2Score: rawS2, totalScore: rawTotal } =
+        calculateMultiChannelAuditScores(
+          channel as EvaluationParameter["channel"],
+          checkboxes.map((cb) => ({
+            code: cb.name,
+            name: cb.name,
+            weight: parseFloat(cb.dataset.weight || "0"),
+            section: (cb.dataset.section || "items") as EvaluationParameter["section"],
+            channel: (channel || "wise_call") as EvaluationParameter["channel"],
+            order: 0,
+          })),
+          compliant,
+          hasSection2,
+          isReclamo,
+        );
+
+      const s2Score = hasSection2 ? rawS2 : 0;
+      const total = Math.max(0, Math.min(100, rawTotal));
+
+      const tone = total >= 90 ? "success" : total >= 80 ? "warning" : "error";
+
+      const pS1 = document.getElementById("preview-s1");
+      const pS2 = document.getElementById("preview-s2");
+      const pS2Block = document.getElementById("preview-s2-block");
+      const pTotal = document.getElementById("preview-total");
+      const footerScore = document.getElementById("footer-score-preview");
+      const footerStatus = document.getElementById("footer-status-badge");
+      const progressBar = document.getElementById("score-progress-bar") as HTMLProgressElement | null;
+      const progressText = document.querySelector("#score-criteria-progress [data-progress-text]");
+      const footerHint = document.getElementById("audit-footer-hint");
+
+      if (pS1) pS1.textContent = `${s1Score}%`;
+      if (pS2) pS2.textContent = hasSection2 ? `${s2Score}%` : "N/A";
+      if (pS2Block) pS2Block.style.opacity = hasSection2 ? "1" : "0.4";
+
+      // El tono viaja en `data-tone`: el CSS aplica el color (sin clases dinámicas).
+      [pTotal, footerScore, footerStatus].forEach((el) => {
+        if (!el) return;
+        el.dataset.tone = tone;
+        if (el === footerScore) el.textContent = `${total}%`;
+      });
+      if (pTotal) pTotal.textContent = `${total}%`;
+      if (footerStatus) footerStatus.textContent = SCORE_TONE[tone].label;
+      if (progressBar) {
+        progressBar.value = total;
+        progressBar.classList.remove("progress-success", "progress-warning", "progress-error");
+        progressBar.classList.add(SCORE_TONE[tone].progress);
+      }
+      const progressIcon = document.getElementById("score-progress-icon");
+      if (progressIcon) {
+        const icon = progressIcon.querySelector("svg");
+        if (icon) icon.setAttribute("class", `shrink-0 ${SCORE_TONE[tone].text}`);
+      }
+      if (progressText) {
+        // Solo se nombran las categorías que realmente tienen desvíos.
+        const parts: string[] = [];
+        if (failedCriteria) parts.push(`${failedCriteria} sin cumplir`);
+        if (naCriteria) parts.push(`${naCriteria} N/A`);
+        progressText.textContent =
+          parts.length === 0
+            ? `Sin desvíos en ${totalCriteria} criterios`
+            : `${parts.join(" · ")} de ${totalCriteria}`;
+      }
+      if (footerHint) {
+        footerHint.textContent =
+          failedCriteria === 0
+            ? naCriteria > 0
+              ? `${totalCriteria - naCriteria} criterios en Cumple · ${naCriteria} N/A. Guardá la auditoría cuando quieras.`
+              : `${totalCriteria} criterios en Cumple. Guardá la auditoría cuando quieras.`
+            : `${failedCriteria} ${failedCriteria === 1 ? "criterio sin cumplir" : "criterios sin cumplir"} sobre ${totalCriteria}. Revisá la devolución antes de guardar.`;
+      }
+
+      sectionTabs.forEach((tab) => {
+        const badge = tab.querySelector("[data-section-badge]");
+        if (!badge) return;
+        badge.textContent = tab.dataset.sectionTab === "1" ? `${s1Score}%` : hasSection2 ? `${s2Score}%` : "N/A";
+      });
+
+      const improvementsDesc = document.getElementById("summary-improvements-desc");
+      if (improvementsDesc) {
+        improvementsDesc.textContent =
+          total === 100
+            ? "Sin penalizaciones registradas: la atención cumple todos los criterios evaluados."
+            : `Penalización acumulada: −${100 - total}% sobre la base ideal.`;
+      }
+    }
+
+    // SUBMIT HANDLER
+    const SAVE_ICON = `<svg class="size-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14a2 2 0 0 0 2-2V7.414a2 2 0 0 0-.293-.707l-3.414-3.414A2 2 0 0 0 16.586 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/></svg>`;
+    const restoreSubmitButtons = (buttons: HTMLButtonElement[]) => {
+      buttons.forEach((btn) => {
+        btn.disabled = false;
+        btn.innerHTML = `${SAVE_ICON}<span>Guardar auditoría</span>`;
+      });
+    };
+
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const submitButtons = Array.from(
+          form.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+        );
+        isSubmitting = true;
+        submitButtons.forEach((btn) => {
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="loading loading-spinner loading-xs" aria-hidden="true"></span> <span>Guardando…</span>';
+        });
+        const restore = () => {
+          isSubmitting = false;
+          restoreSubmitButtons(submitButtons);
+        };
+
+        const showSubmitError = (msg: string, focusTarget?: HTMLElement | null) => {
+          restore();
+          showNotification(msg, "error", 6000);
+          if (focusTarget) {
+            focusTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+            focusTarget.focus({ preventScroll: true });
+          }
+        };
+
+        const formData = new FormData(form as HTMLFormElement);
+        const agentIdVal = (formData.get("agentId") as string)?.trim();
+        if (!agentIdVal) {
+          showSubmitError("Debe seleccionar un operador a evaluar.", formAgentSelect);
+          return;
+        }
+
+        if (callTicketModeInput) formData.set("callTicketMode", callTicketModeInput.value);
+        if (emailTicketModeInput) formData.set("emailTicketMode", emailTicketModeInput.value);
+        if (formIsReclamoInput) formData.set("isReclamoNovedad", formIsReclamoInput.value);
+        if (toggleCallGeneratedTicket) formData.set("callGeneratedTicket", toggleCallGeneratedTicket.checked ? "true" : "false");
+        if (toggleStaysMda) formData.set("staysInMda", toggleStaysMda.value);
+
+        const activeChannel = (formData.get("channelType") as string) || "wise_call";
+        const callIdVal = (formData.get("callId") as string)?.trim() || "";
+        const ticketIdVal = (formData.get("ticketId") as string)?.trim() || "";
+
+        if (activeChannel === "wise_call" && !callIdVal) {
+          showSubmitError("El Nro de caso / ID de llamada es requerido.", wiseSearchInput);
+          return;
+        }
+
+        if (activeChannel === "wise_email" && !callIdVal) {
+          showSubmitError("El Nro de caso / Mail Wise es requerido.", wiseSearchInput);
+          return;
+        }
+
+        if (activeChannel === "invgate_ticket") {
+          if (!ticketIdVal && !callIdVal) {
+            showSubmitError("El Nro de caso / Ticket AG es requerido.", invgateSearchInput);
+            return;
+          }
+          if (!callIdVal) formData.set("callId", ticketIdVal);
+        }
+
+        const auditIdInputVal = (document.getElementById("form-audit-id") as HTMLInputElement)?.value;
+        if (auditIdInputVal) {
+          formData.set("id", auditIdInputVal);
+        }
+
+        if (!formData.get("duration")) formData.set("duration", "00:00");
+        if (!formData.has("notes")) formData.set("notes", "");
+
+        try {
+          const result = await actions.saveAudit(formData);
+          if (result.error) {
+            console.error("Validation error:", result.error);
+            showSubmitError(`Error al validar el formulario: ${result.error.message || "Verifique los campos requeridos."}`);
+          } else if (result.data?.success) {
+            isFormDirty = false;
+            const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
+            if (formData.get("month")) redirectUrl.searchParams.set("month", formData.get("month") as string);
+            if (agentIdVal) redirectUrl.searchParams.set("agentId", agentIdVal);
+            redirectUrl.searchParams.set("toast_msg", "Auditoría guardada con éxito.");
+            redirectUrl.searchParams.set("toast_type", "success");
+            window.location.href = redirectUrl.toString();
+          } else {
+            showSubmitError("Error al guardar la auditoría.");
+          }
+        } catch (err) {
+          console.error("Save audit error:", err);
+          showSubmitError("Ocurrió un error inesperado al guardar la auditoría.");
+        }
+      });
+    }
+
+    // HIDRATACIÓN DE AUDITORÍA EXISTENTE (MODO EDICIÓN)
+    let initialAuditData: any = null;
+    try {
+      initialAuditData = container.dataset.initialAudit
+        ? JSON.parse(container.dataset.initialAudit)
+        : null;
+    } catch {
+      initialAuditData = null;
+    }
+
+    if (initialAuditData) {
+      isHydrating = true;
+      try {
+      // 1. Activar canal correspondiente
+      const targetChannel = initialAuditData.channelType || "wise_call";
+      const targetBtn = document.querySelector(`.channel-btn[data-channel="${targetChannel}"]`) as HTMLButtonElement | null;
+      if (targetBtn) {
+        targetBtn.click();
+      }
+
+      // 2. Modo del ticket en llamada o mail: reclamo, sin ticket, o nuevo.
+      // "No aplica" es un estado distinto de "reclamo": deshabilita la
+      // sección 2 en vez de eximirla, así que el total es el de la sección 1.
+      const resolveTicketMode = (ct: string): "reclamo" | "ninguno" | "nuevo" => {
+        if (initialAuditData.isReclamoNovedad) return "reclamo";
+        if (ct === "wise_call" && initialAuditData.appliesMda === false) return "ninguno";
+        if (ct === "wise_email" && initialAuditData.appliesMda === false) return "ninguno";
+        return "nuevo";
+      };
+      if (targetChannel === "wise_call") {
+        setCallTicketMode(resolveTicketMode(targetChannel));
+      } else if (targetChannel === "wise_email") {
+        setEmailTicketMode(resolveTicketMode(targetChannel));
+      } else if (targetChannel === "invgate_ticket") {
+        setInvgateTicketMode(initialAuditData.staysInMda === false ? "no" : "si");
+      }
+
+      // 3. Montar audio si tiene grabación
+      if (initialAuditData.recordingUrl) {
+        setAudioPlayer(initialAuditData.recordingUrl, initialAuditData.callId);
+      }
+
+      // 4. Precargar estado de criterios (cumple vs nocumple) y observaciones
+      const s1Details = initialAuditData.section1?.details || {};
+      const s2Details = initialAuditData.section2?.details || {};
+      const comments = initialAuditData.comments || {};
+
+      document.querySelectorAll(".checklist-item").forEach((item) => {
+        const htmlItem = item as HTMLElement;
+        const cb = htmlItem.querySelector(".audit-checkbox") as HTMLInputElement | null;
+        if (!cb) return;
+        const code = cb.name;
+
+        // Si existe evaluación registrada
+        if (s1Details.hasOwnProperty(code) || s2Details.hasOwnProperty(code)) {
+          const isPassed = s1Details.hasOwnProperty(code) ? !!s1Details[code] : !!s2Details[code];
+          setItemState(htmlItem, isPassed ? "cumple" : "nocumple");
+        }
+
+        // Observación individual de coaching
+        if (comments[code]) {
+          const obsWrapper = htmlItem.querySelector(".criteria-obs-wrapper");
+          const obsBtn = htmlItem.querySelector('[data-action="toggle-obs"]');
+          const obsTextarea = obsWrapper?.querySelector("textarea") as HTMLTextAreaElement | null;
+          if (obsWrapper && obsTextarea) {
+            obsTextarea.value = comments[code];
+            obsWrapper.classList.remove("hidden");
+            obsBtn?.setAttribute("aria-expanded", "true");
+          }
+        }
+      });
+
+      // 5. Botón de eliminación de auditoría
+      const btnDeleteAudit = document.getElementById("btn-delete-audit");
+      if (btnDeleteAudit) {
+        btnDeleteAudit.addEventListener("click", async () => {
+          if (!initialAuditData.id) return;
+          if (confirm("¿Estás seguro de que querés eliminar esta auditoría?")) {
+            const originalHtml = btnDeleteAudit.innerHTML;
+            btnDeleteAudit.setAttribute("disabled", "true");
+            btnDeleteAudit.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Eliminando…';
+
+            try {
+              const deleteForm = new FormData();
+              deleteForm.append("id", String(initialAuditData.id));
+
+              const result = await actions.deleteAudit(deleteForm);
+              if (result.data?.success) {
+                isFormDirty = false;
+                const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
+                if (initialAuditData.month) redirectUrl.searchParams.set("month", initialAuditData.month);
+                if (initialAuditData.agentId) redirectUrl.searchParams.set("agentId", String(initialAuditData.agentId));
+                redirectUrl.searchParams.set("toast_msg", "Auditoría eliminada con éxito.");
+                redirectUrl.searchParams.set("toast_type", "success");
+                window.location.href = redirectUrl.toString();
+              } else {
+                showNotification("Error al eliminar la auditoría.", "error");
+                btnDeleteAudit.removeAttribute("disabled");
+                btnDeleteAudit.innerHTML = originalHtml;
+              }
+            } catch (err) {
+              console.error("Delete audit error:", err);
+              showNotification("Ocurrió un error inesperado al eliminar la auditoría.", "error");
+              btnDeleteAudit.removeAttribute("disabled");
+              btnDeleteAudit.innerHTML = originalHtml;
+            }
+          }
+        });
+      }
+      } finally {
+        isHydrating = false;
+        isFormDirty = false;
+      }
+    }
+
+    syncSectionTabs();
+    updateConfigSummary();
+    recalculateScores();
+    return true;
+  }
+
+  function setupNewAuditObserver() {
+    if (initNewAuditForm()) return;
+    const observer = new MutationObserver((_, obs) => {
+      if (initNewAuditForm()) {
+        obs.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  setupNewAuditObserver();
+  document.addEventListener("astro:page-load", setupNewAuditObserver);
+</script>

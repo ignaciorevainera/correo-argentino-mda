@@ -1,0 +1,124 @@
+---
+import { Icon } from "astro-icon/components";
+import type { AuditParameter } from "@/types/quality";
+
+interface Props {
+  param: AuditParameter;
+  section: "items" | "ticket" | "mda";
+}
+
+const { param: p, section } = Astro.props;
+
+const weight = p.weight ?? 0;
+// El borde del textarea es secondary en toda la fila: antes seguía al acento
+// de la sección y mezclaba dos azules distintos para el mismo control.
+---
+
+{/*
+  Fila de criterio: texto cómodo a la izquierda, control de 3 estados y nota
+  alineados en columnas fijas (xl+) para que el ojo baje en vertical.
+  El estado vive en `data-criterion-state`; el CSS lo paints (borde + badge),
+  por eso setItemState() no manipula clases.
+*/}
+<div
+  class="checklist-item group grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2.5 border-l-[3px] border-l-base-300 py-3 pr-1 pl-4 transition-colors motion-reduce:transition-none hover:bg-base-200/40 data-[criterion-state=nocumple]:border-l-error data-[criterion-state=nocumple]:bg-error/5 data-[criterion-state=na]:border-l-base-content/25 xl:grid-cols-[minmax(0,1fr)_3.5rem_15rem_2.25rem] xl:items-center xl:gap-x-3"
+  data-criterion-state="cumple"
+>
+  {/* Espejo del estado para el backend: lo gobierna el control de la fila. */}
+  <input
+    type="checkbox"
+    name={p.code}
+    class="audit-checkbox sr-only"
+    data-weight={weight}
+    data-section={section}
+    aria-label={`Cumple criterio ${p.name}`}
+    checked
+  />
+
+  <div
+    class="col-span-2 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 xl:col-span-1"
+  >
+    <span class="text-sm leading-snug font-medium text-base-content break-words">
+      {p.name}
+    </span>
+    <span
+      class="criteria-status-badge badge badge-sm border-0 bg-base-200/70 font-semibold text-base-content/60 data-[criterion-state=nocumple]:bg-error/15 data-[criterion-state=nocumple]:text-error data-[criterion-state=na]:bg-base-300 data-[criterion-state=na]:text-base-content/70"
+    >
+      Cumple
+    </span>
+    <span
+      class="rule-auto-badge badge badge-sm hidden border-0 bg-warning/20 font-semibold text-warning"
+      data-rule-badge={p.code}
+    >
+      Regla
+    </span>
+  </div>
+
+  {/* En xl el envoltorio se disuelve: sus hijos pasan a ser columnas del grid. */}
+  <div class="col-span-2 flex items-center gap-2 xl:contents">
+    <span
+      class="shrink-0 text-right font-mono text-xxs tabular-nums text-base-content/50 xl:w-full"
+      title={weight
+        ? `Descuenta ${weight}% del puntaje de la sección`
+        : "Este criterio no descuenta puntos"}
+    >
+      {weight ? `−${weight}\u00A0%` : "—"}
+    </span>
+
+    <div
+      role="group"
+      aria-label={`Estado de evaluación para ${p.name}`}
+      class="criteria-state-join grid min-w-0 flex-1 grid-cols-3 gap-1 rounded-lg border border-base-200 bg-base-200/60 p-1 xl:w-full xl:flex-none xl:grid-cols-[4.75rem_1fr_2.75rem]"
+    >
+      <button
+        type="button"
+        aria-pressed="true"
+        class="state-btn h-7 min-h-7 truncate rounded-md px-2 text-xs font-medium whitespace-nowrap text-base-content/55 transition-colors motion-reduce:transition-none hover:bg-base-100/70 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 aria-pressed:bg-base-100 aria-pressed:font-bold aria-pressed:text-base-content aria-pressed:shadow-xs aria-pressed:ring-1 aria-pressed:ring-base-300"
+        data-state="cumple"
+      >
+        Cumple
+      </button>
+      <button
+        type="button"
+        aria-pressed="false"
+        class="state-btn h-7 min-h-7 truncate rounded-md px-1 text-xs font-medium whitespace-nowrap text-base-content/55 transition-colors motion-reduce:transition-none hover:bg-base-100/70 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/60 aria-pressed:bg-error/15 aria-pressed:font-bold aria-pressed:text-error aria-pressed:ring-1 aria-pressed:ring-error/40"
+        data-state="nocumple"
+      >
+        No cumple
+      </button>
+      <button
+        type="button"
+        aria-pressed="false"
+        class="state-btn h-7 min-h-7 truncate rounded-md px-2 text-xs font-medium whitespace-nowrap text-base-content/55 transition-colors motion-reduce:transition-none hover:bg-base-100/70 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/40 aria-pressed:bg-base-300 aria-pressed:font-bold aria-pressed:text-base-content aria-pressed:ring-1 aria-pressed:ring-base-content/15"
+        data-state="na"
+      >
+        N/A
+      </button>
+    </div>
+
+    <button
+      type="button"
+      class="btn btn-circle btn-ghost btn-sm shrink-0 text-base-content/40 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:justify-self-center"
+      data-action="toggle-obs"
+      aria-expanded="false"
+      aria-controls={`obs-${p.code}`}
+      aria-label={`Observación sobre ${p.name}`}
+      title="Añadir observación de coaching"
+    >
+      <Icon name="boxicons:pencil" size={16} aria-hidden="true" />
+    </button>
+  </div>
+
+  <div class="criteria-obs-wrapper col-span-2 hidden xl:col-span-4">
+    <label class="sr-only" for={`obs-${p.code}`}>
+      Observación sobre {p.name}
+    </label>
+    <textarea
+      id={`obs-${p.code}`}
+      name={`${p.code}_comment`}
+      rows="2"
+      placeholder="Escribí la justificación o el coaching de este criterio…"
+      class="textarea w-full resize-y rounded-xl border-base-200 bg-base-100 text-sm leading-relaxed focus:border-secondary focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+    ></textarea>
+  </div>
+</div>

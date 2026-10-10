@@ -1,0 +1,304 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  isAgent?: boolean;
+}
+
+const { isAgent = false } = Astro.props;
+---
+
+<div class:list={[isAgent ? "col-span-full" : "w-full", "relative"]}>
+  <!-- Barra de Control Sticky Superior: Botón Cerrar accesible durante el scroll -->
+  <div class="sticky top-0 z-30 flex justify-end pb-2 pointer-events-none">
+    <button
+      id="btn-back-to-summary"
+      type="button"
+      class="btn btn-sm btn-circle bg-base-100/90 hover:bg-base-200 border border-base-300 text-base-content/70 hover:text-base-content shadow-sm pointer-events-auto backdrop-blur-xs transition-all"
+      title={isAgent ? "Volver" : "Cerrar ficha"}
+      aria-label={isAgent ? "Volver" : "Cerrar ficha"}
+    >
+      <Icon name={isAgent ? "boxicons:arrow-to-left" : "boxicons:x"} size={20} />
+    </button>
+  </div>
+
+  <!-- Encabezado Compacto y Banda de Métricas -->
+  <div class="bg-base-100 border-base-200/80 rounded-2xl border p-4 shadow-xs sm:p-5">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <!-- Izquierda: Avatar + Nombre + Legajo/User + Período -->
+      <div class="flex items-center gap-3.5 min-w-0">
+        <div
+          class="bg-secondary/10 text-secondary border-secondary/20 flex size-12 shrink-0 items-center justify-center rounded-xl border text-lg font-black tracking-wider shadow-2xs"
+          id="detail-avatar"
+        >
+          --
+        </div>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3
+              class="text-base-content text-xl sm:text-2xl font-black tracking-tight truncate"
+              id="detail-name"
+            >
+              --
+            </h3>
+            <span
+              id="detail-id"
+              class="badge badge-sm badge-ghost font-mono text-3xs font-semibold text-base-content/70"
+            >
+              --
+            </span>
+          </div>
+          <div class="text-base-content/60 mt-0.5 flex items-center gap-2 text-xs font-medium">
+            <span class="flex items-center gap-1">
+              <Icon name="boxicons:calendar" size={14} class="text-secondary shrink-0" />
+              <span id="detail-month" class="font-semibold text-base-content/80">--</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Derecha: Score Mensual Integrado + Menú Acciones + Botón Cerrar -->
+      <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-base-200/60">
+        <!-- Score Mensual Principal Compacto -->
+        <div class="flex items-baseline gap-2 bg-base-200/50 border border-base-200/80 rounded-xl px-3.5 py-1.5 shadow-2xs">
+          <span class="text-3xs font-black uppercase tracking-wider text-base-content/50">Score Mes</span>
+          <span
+            class="text-secondary text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none"
+            id="detail-score"
+          >
+            --%
+          </span>
+        </div>
+
+        <!-- Acciones Secundarias: Dropdown Exportar -->
+        <details class="dropdown dropdown-end" id="operator-export-dropdown">
+          <summary
+            class="btn btn-sm btn-ghost border border-base-200/80 text-xs font-bold gap-1 text-base-content/70 hover:text-base-content rounded-xl list-none cursor-pointer"
+            title="Opciones de exportación"
+            aria-label="Opciones de exportación"
+          >
+            <Icon name="boxicons:archive-arrow-down" size={16} />
+            <span class="hidden md:inline">Exportar</span>
+            <Icon name="boxicons:chevron-down" size={14} class="opacity-60" />
+          </summary>
+          <ul
+            class="dropdown-content menu bg-base-100 rounded-box border-base-200 z-50 w-52 border p-1.5 shadow-lg text-xs font-medium mt-1"
+          >
+            <li>
+              <button
+                id="btn-export-excel-operator"
+                type="button"
+                class="flex items-center gap-2 py-2 text-base-content/80 hover:text-secondary"
+                title="Exportar Reporte del Operador a Excel (.xlsx)"
+                onclick="this.closest('details')?.removeAttribute('open')"
+              >
+                <Icon name="boxicons:table" size={16} class="text-secondary" />
+                <span>Exportar Excel</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="flex items-center gap-2 py-2 text-base-content/80 hover:text-secondary"
+                onclick="this.closest('details')?.removeAttribute('open'); window.print()"
+                title="Imprimir o guardar reporte en PDF"
+              >
+                <Icon name="boxicons:printer" size={16} class="text-secondary" />
+                <span>Imprimir Reporte</span>
+              </button>
+            </li>
+          </ul>
+        </details>
+      </div>
+    </div>
+
+    <!-- Banda de 5 Métricas Compactas: el score por canal reemplaza a S1/S2.
+         Promediar las dos secciones mezclaba tres mediciones distintas
+         (Interacción / Gestión del Correo / Gestión del Caso) en un número
+         que no significaba nada comparable entre operadores. -->
+    <div class="mt-4 pt-3.5 border-t border-base-200/70 grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
+      <!-- Métrica 1: Score Anterior -->
+      <div class="bg-base-200/40 border border-base-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-3xs text-base-content/50 font-bold uppercase tracking-wider">vs Mes Anterior</span>
+        <span id="detail-stat-diff" class="text-base sm:text-lg font-black font-mono mt-0.5 text-base-content">
+          Sin datos
+        </span>
+      </div>
+
+      <!-- Métrica 2: Duración Media (AHT) -->
+      <div class="bg-base-200/40 border border-base-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-3xs text-base-content/50 font-bold uppercase tracking-wider">Duración Media (AHT)</span>
+        <span id="detail-stat-aht" class="text-base sm:text-lg font-black font-mono mt-0.5 text-base-content">
+          Sin datos
+        </span>
+      </div>
+
+      <!-- Métricas 3-5: Score por canal -->
+      <div class="bg-base-200/40 border border-base-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-3xs text-base-content/50 font-bold uppercase tracking-wider">Llamadas Wise</span>
+        <span
+          id="detail-stat-wise_call"
+          class="text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/40"
+        >--</span>
+      </div>
+
+      <div class="bg-base-200/40 border border-base-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-3xs text-base-content/50 font-bold uppercase tracking-wider">Mails Wise</span>
+        <span
+          id="detail-stat-wise_email"
+          class="text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/40"
+        >--</span>
+      </div>
+
+      <div class="bg-base-200/40 border border-base-200/60 rounded-xl p-2.5 flex flex-col justify-between">
+        <span class="text-3xs text-base-content/50 font-bold uppercase tracking-wider">Autogestiones</span>
+        <span
+          id="detail-stat-invgate_ticket"
+          class="text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/40"
+        >--</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* Secondary Content: Tendencia Histórica y Resumen de Calidad (2 columnas en desktop, 1 en mobile) */}
+<div class="mt-4 grid gap-3.5 sm:grid-cols-2">
+  {/* Tendencia */}
+  <div class="bg-base-100 border border-base-200/80 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
+    <div class="flex items-center justify-between mb-2">
+      <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+        <Icon name="boxicons:chart-line" size={16} />
+        Tendencia Histórica
+      </h4>
+      <span class="text-3xs font-bold text-base-content/40 uppercase tracking-wider">Últimos 6 meses</span>
+    </div>
+    <div
+      class="flex-1 flex flex-col items-center justify-center min-h-[5.5rem] py-1"
+      id="detail-history-chart"
+    >
+      {/* dynamic bars / chart */}
+    </div>
+  </div>
+
+  {/* Resumen de Calidad / Áreas de Mejora Dinámica */}
+  <div id="detail-card-insights" class="bg-base-100 border border-base-200/80 rounded-2xl p-4 shadow-2xs flex flex-col justify-between transition-colors">
+    <div class="flex items-center justify-between mb-2" id="detail-insights-header">
+      <h4 id="detail-insights-title" class="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-base-content/70">
+        <span id="detail-insights-icon-container">
+          <Icon name="boxicons:check-circle" size={16} class="text-secondary" />
+        </span>
+        <span id="detail-insights-title-text">Resumen de Calidad</span>
+      </h4>
+      <span id="detail-insights-badge" class="badge badge-xs badge-secondary font-bold">100% Óptimo</span>
+    </div>
+    <ul
+      class="text-base-content/80 space-y-2 text-xs font-medium flex-1 flex flex-col justify-center"
+      id="detail-insights"
+    >
+      {/* dynamic insights */}
+    </ul>
+  </div>
+</div>
+
+{/* Observaciones del Mes (Compacto) */}
+<div class="bg-base-100 border border-base-200/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs mt-3.5">
+  <div class="flex items-center justify-between mb-1.5">
+    <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+      <Icon name="boxicons:note" size={16} class="text-secondary" />
+      Observaciones del Mes
+    </h4>
+  </div>
+  <p
+    id="detail-month-summary"
+    class="text-base-content/80 text-xs font-medium whitespace-pre-line leading-relaxed empty:hidden cursor-pointer hover:bg-base-200/40 p-1.5 rounded-lg transition-colors border border-transparent hover:border-base-300/50"
+    title="Clic para editar observaciones"
+  >
+    {/* dynamic summary */}
+  </p>
+  <div id="detail-month-summary-empty" class="pt-0.5">
+    {!isAgent ? (
+      <button
+        id="btn-add-observation-placeholder"
+        type="button"
+        class="w-full text-left py-2 px-3 rounded-xl border border-dashed border-base-300 hover:border-secondary/50 hover:bg-base-200/50 text-xs text-base-content/50 hover:text-secondary flex items-center gap-2 transition-colors cursor-pointer group"
+      >
+        <Icon name="boxicons:plus-circle" size={16} class="text-base-content/40 group-hover:text-secondary" />
+        <span id="btn-add-observation-label" class="font-medium">Añadir observación del mes...</span>
+      </button>
+    ) : (
+      <p class="text-base-content/40 text-xs font-medium italic">
+        No hay observaciones para este mes.
+      </p>
+    )}
+  </div>
+</div>
+
+{/* Section Titulo y Tabs de Canales */}
+<div class="border-base-200/80 flex flex-col gap-3.5 border-b pb-3.5 mt-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h4 class="text-base-content/90 flex items-center gap-2 text-sm font-bold tracking-wider uppercase">
+        <Icon name="boxicons:chart-bar-columns" size={20} class="text-secondary" />
+        Evaluaciones de Calidad del Operador
+      </h4>
+      <p class="text-base-content/50 text-xs">Cuota mensual requerida: 4 Llamadas Wise + 4 Mails Wise + 4 Autogestiones (12 en total)</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {!isAgent && (
+        <button
+          id="btn-new-audit"
+          type="button"
+          class="btn btn-sm btn-secondary rounded-xl text-xs font-bold uppercase gap-1.5 shadow-2xs"
+        >
+          <Icon name="boxicons:plus" size={16} />
+          Nueva Auditoría
+        </button>
+      )}
+    </div>
+  </div>
+
+  <!-- Tabs de separación por Canal / Filtro -->
+  <div class="tabs tabs-boxed bg-base-200/60 p-1 w-fit flex flex-wrap gap-1" id="operator-channel-tabs">
+    <button
+      type="button"
+      class="tab tab-active operator-channel-tab text-xs font-bold gap-1.5 rounded-lg"
+      data-channel="all"
+    >
+      <Icon name="boxicons:layers" size={15} />
+      <span>Todas</span>
+      <span class="badge badge-xs badge-neutral ml-1 font-mono font-bold" id="tab-count-all">0</span>
+    </button>
+    <button
+      type="button"
+      class="tab operator-channel-tab text-xs font-bold gap-1.5 rounded-lg"
+      data-channel="wise_call"
+    >
+      <Icon name="boxicons:phone-ring" size={15} />
+      <span>Llamadas Wise</span>
+      <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-wise_call">0/4</span>
+    </button>
+    <button
+      type="button"
+      class="tab operator-channel-tab text-xs font-bold gap-1.5 rounded-lg"
+      data-channel="wise_email"
+    >
+      <Icon name="boxicons:envelope" size={15} />
+      <span>Mails Wise</span>
+      <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-wise_email">0/4</span>
+    </button>
+    <button
+      type="button"
+      class="tab operator-channel-tab text-xs font-bold gap-1.5 rounded-lg"
+      data-channel="invgate_ticket"
+    >
+      <Icon name="boxicons:handshake" size={15} />
+      <span>Autogestiones</span>
+      <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-invgate_ticket">0/4</span>
+    </button>
+  </div>
+</div>
+
+{/* Grid de Auditorías del Canal Activo */}
+<div class="space-y-3 mt-4" id="detail-calls-container">
+  {/* Renderizado dinámico vía JS */}
+</div>

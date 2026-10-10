@@ -21,7 +21,6 @@ export interface QualityCall {
   date: string;
   month: string;
   notes: string;
-  isCriticalFailure: boolean;
   // Specific multi-channel metadata
   ringTime?: string;
   creationTime?: string;
@@ -31,6 +30,7 @@ export interface QualityCall {
   staysInMda?: boolean;
   isReclamoNovedad?: boolean;
   recordingUrl?: string | null;
+  comments?: Record<string, string>;
   section1: {
     score: number;
     maxScore: number;
@@ -56,7 +56,6 @@ export interface QualityAuditRecord {
   date: string;
   month: string;
   notes: string | null;
-  isCriticalFailure: boolean;
   ringTime: string | null;
   creationTime: string | null;
   takeTime: string | null;
@@ -90,7 +89,6 @@ export interface OperatorQuality {
   quotaFulfilled?: boolean;
   prevAverageScore?: number;
   prevCallsCount?: number;
-  prevCriticalCount?: number;
 }
 
 export interface AuditParameter {

@@ -343,7 +343,6 @@ async function main() {
         channelParams,
         compliantCodes,
         hasSection2,
-        audit.isCriticalFailure,
         isReclamoNovedad,
       );
 

@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   calculateMultiChannelAuditScores,
   calculateOperatorChannelStats,
+  getChannelAverageBadgeClass,
+  getChannelAverageTextClass,
+  hasSection2,
+  hasSection2Evaluated,
 } from "../../src/lib/qualityCalculator";
 import {
   WISE_CALL_PARAMETERS,
@@ -206,6 +210,68 @@ describe("Multi-Channel Quality Calculator", () => {
       expect(stats.wiseCallsCount).toBe(2);
       expect(stats.wiseEmailsCount).toBe(1);
       expect(stats.invgateAgCount).toBe(0);
+    });
+  });
+
+  describe("Section 2 applicability", () => {
+    it("treats a call without a generated ticket as not applicable", () => {
+      const a = { channelType: "wise_call", appliesMda: false, staysInMda: true };
+      expect(hasSection2(a)).toBe(false);
+      expect(hasSection2Evaluated(a)).toBe(false);
+    });
+
+    it("treats an email with no MDA ticket as not applicable", () => {
+      const a = { channelType: "wise_email", appliesMda: false, staysInMda: true };
+      expect(hasSection2(a)).toBe(false);
+      expect(hasSection2Evaluated(a)).toBe(false);
+    });
+
+    it("treats an autogestion that did not stay in MDA as not applicable", () => {
+      const a = { channelType: "invgate_ticket", appliesMda: true, staysInMda: false };
+      expect(hasSection2(a)).toBe(false);
+      expect(hasSection2Evaluated(a)).toBe(false);
+    });
+
+    // Frontera entre los dos helpers: el reclamo APLICA (por eso renderCallCard
+    // sigue mostrando el desglose con badge "N/A (Reclamo)") pero NO fue
+    // evaluado (por eso no aporta fallos a Insights ni entra al promedio).
+    // Si alguien fusiona los helpers en uno, este test lo corta.
+    it("keeps reclamo applicable but not evaluated", () => {
+      const a = {
+        channelType: "wise_call",
+        appliesMda: true,
+        staysInMda: true,
+        isReclamoNovedad: true,
+      };
+      expect(hasSection2(a)).toBe(true);
+      expect(hasSection2Evaluated(a)).toBe(false);
+    });
+
+    it("treats a standard call with a ticket as fully evaluated", () => {
+      const a = {
+        channelType: "wise_call",
+        appliesMda: true,
+        staysInMda: true,
+        isReclamoNovedad: false,
+      };
+      expect(hasSection2(a)).toBe(true);
+      expect(hasSection2Evaluated(a)).toBe(true);
+    });
+
+    it("defaults a legacy audit without channelType to wise_call semantics", () => {
+      expect(hasSection2({ appliesMda: null })).toBe(true);
+      expect(hasSection2({ appliesMda: false })).toBe(false);
+    });
+  });
+
+  describe("Channel average tone", () => {
+    it("shares one threshold between badge and text variants", () => {
+      // 80 cae en warning: el badge y el texto tienen que coincidir.
+      expect(getChannelAverageBadgeClass(80)).toContain("warning");
+      expect(getChannelAverageTextClass(80)).toBe("text-warning");
+      expect(getChannelAverageTextClass(90)).toBe("text-success");
+      expect(getChannelAverageTextClass(60)).toBe("text-error");
+      expect(getChannelAverageTextClass(null)).toBe("text-base-content/40");
     });
   });
 });

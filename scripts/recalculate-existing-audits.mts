@@ -84,7 +84,7 @@ async function main() {
         channelParams,
         compliantCodes,
         hasSection2,
-        audit.isCriticalFailure || false,
+        audit.isReclamoNovedad,
       );
 
     console.log(`Audit #${audit.id} (Call: ${audit.callId}, Ch: ${channel}):`);

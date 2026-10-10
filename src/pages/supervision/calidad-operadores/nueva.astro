@@ -1,0 +1,172 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import NewAuditForm from "@components/supervision/calidad/NewAuditForm.astro";
+import { db } from "@db/index";
+import { agents, users, auditParameters, qualityAudits, auditScores } from "@db/schema";
+import { and, eq } from "drizzle-orm";
+import { activeAgentCondition } from "@lib/activeUsers";
+import { getResolvedSearchParams } from "@lib/navigation";
+import { getCleanBase } from "@lib/baseUrl";
+import { getApprovedTitlesList } from "@/lib/qualityTitleMatcher";
+import { normalizeRole, hasPermission } from "@lib/rbac";
+import type { AuditParameter, QualityCall } from "@/types/quality";
+
+const user = Astro.locals.user;
+const role = normalizeRole(user.role);
+
+// Restricción: rol agent no puede crear ni editar auditorías
+if (role === "agent" || !hasPermission("/supervision/calidad-operadores/nueva", role)) {
+  return Astro.redirect("/supervision/calidad-operadores");
+}
+
+const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
+const cleanBase = getCleanBase();
+
+const currentActualMonth = (() => {
+  const now = new Date();
+  const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+  const yyyy = now.getFullYear();
+  return `${mm}-${yyyy}`;
+})();
+
+const monthParam = searchParams.get("month");
+let selectedMonth = monthParam || currentActualMonth;
+
+const agentIdParam = searchParams.get("agentId") || searchParams.get("operator");
+let preselectedAgentId = agentIdParam ? parseInt(agentIdParam, 10) : undefined;
+
+const auditIdParam = searchParams.get("auditId");
+let initialAudit: QualityCall | undefined = undefined;
+
+if (auditIdParam) {
+  const auditId = parseInt(auditIdParam, 10);
+  if (!isNaN(auditId)) {
+    const [auditRecord] = await db
+      .select()
+      .from(qualityAudits)
+      .where(eq(qualityAudits.id, auditId))
+      .limit(1);
+
+    if (auditRecord) {
+      if (!preselectedAgentId) {
+        preselectedAgentId = auditRecord.agentId;
+      }
+      if (!monthParam && auditRecord.month) {
+        selectedMonth = auditRecord.month;
+      }
+
+      const scores = await db
+        .select({
+          parameterId: auditScores.parameterId,
+          score: auditScores.score,
+          comment: auditScores.comment,
+          code: auditParameters.code,
+          section: auditParameters.section,
+          category: auditParameters.category,
+        })
+        .from(auditScores)
+        .leftJoin(auditParameters, eq(auditParameters.id, auditScores.parameterId))
+        .where(eq(auditScores.auditId, auditId));
+
+      const s1Details: Record<string, boolean> = {};
+      const s2Details: Record<string, boolean> = {};
+      const s1Comments: Record<string, string> = {};
+      const s2Comments: Record<string, string> = {};
+      const allComments: Record<string, string> = {};
+
+      for (const s of scores) {
+        if (!s.code) continue;
+        const isS1 =
+          s.section === "items" ||
+          s.category === "Items" ||
+          s.category === "Interacción con Usuario";
+        const val = !!s.score;
+        if (isS1) {
+          s1Details[s.code] = val;
+        } else {
+          s2Details[s.code] = val;
+        }
+
+        if (s.comment && s.comment.trim()) {
+          const trimmed = s.comment.trim();
+          allComments[s.code] = trimmed;
+          if (isS1) {
+            s1Comments[s.code] = trimmed;
+          } else {
+            s2Comments[s.code] = trimmed;
+          }
+        }
+      }
+
+      initialAudit = {
+        id: auditRecord.id,
+        channelType: auditRecord.channelType as any,
+        callId: auditRecord.callId,
+        ticketId: auditRecord.ticketId,
+        duration: auditRecord.duration,
+        date: auditRecord.date,
+        month: auditRecord.month,
+        notes: auditRecord.notes || "",
+        ringTime: auditRecord.ringTime || undefined,
+        creationTime: auditRecord.creationTime || undefined,
+        takeTime: auditRecord.takeTime || undefined,
+        isPas: auditRecord.isPas,
+        appliesMda: auditRecord.appliesMda,
+        staysInMda: auditRecord.staysInMda,
+        isReclamoNovedad: auditRecord.isReclamoNovedad,
+        recordingUrl: auditRecord.recordingUrl,
+        comments: allComments,
+        section1: {
+          score: auditRecord.section1Score,
+          maxScore: 100,
+          details: s1Details,
+          comments: s1Comments,
+        },
+        section2: {
+          score: auditRecord.section2Score,
+          maxScore: 100,
+          details: s2Details,
+          comments: s2Comments,
+        },
+        totalScore: auditRecord.totalScore,
+      };
+    }
+  }
+}
+
+// Fetch all agents included in quality
+const allAgents = await db
+  .select({ id: agents.id, name: agents.name, username: agents.username })
+  .from(agents)
+  .leftJoin(users, eq(users.id, agents.userId))
+  .where(and(eq(agents.incluidoCalidad, true), activeAgentCondition()))
+  .orderBy(agents.name);
+
+// Fetch active audit parameters
+const allParameters = await db
+  .select()
+  .from(auditParameters)
+  .orderBy(auditParameters.order);
+
+const activeParameters = allParameters.filter(
+  (p) => p.active !== false,
+) as unknown as AuditParameter[];
+const approvedTitles = await getApprovedTitlesList();
+---
+
+<BaseLayout title={initialAudit ? "Editar Auditoría de Calidad" : "Nueva Auditoría de Calidad"}>
+  <a
+    href="#audit-form"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:btn focus:btn-primary focus:btn-sm focus:shadow-md"
+  >
+    Saltar al formulario
+  </a>
+  <NewAuditForm
+    allAgents={allAgents}
+    allParameters={activeParameters}
+    selectedMonth={selectedMonth}
+    preselectedAgentId={preselectedAgentId}
+    approvedTitles={approvedTitles}
+    initialAudit={initialAudit}
+  />
+</BaseLayout>

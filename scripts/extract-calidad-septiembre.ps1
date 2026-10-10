@@ -326,11 +326,15 @@ try {
 
             $rawTicket = CleanStr $arr[($b + 9), 24]
             $ticketId = $rawTicket
+            # Sin ticket MDA la celda viene vacía. Antes se copiaba el callId
+            # como fallback, lo que pintaba el id del mail en la columna de
+            # ticket (31 de 84 mails quedaron con ticket_id == call_id) y lo
+            # hacía indistinguible de un ticket real. Igual que wise_call: "N/A".
             if ($ticketId -eq "") {
-                $ticketId = if ($callId -ne "") { $callId } else { "N/A" }
+                $ticketId = "N/A"
             }
             if ($callId -eq "") {
-                $callId = $ticketId
+                $callId = "N/A"
             }
 
             $appliesMda = ParseBoolVal $arr[($b + 11), 23]

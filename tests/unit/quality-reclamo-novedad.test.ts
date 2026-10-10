@@ -18,7 +18,6 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_CALL_PARAMETERS,
         compliantCodes,
         true, // hasSection2
-        false, // isCriticalFailure
         true, // isReclamoNovedad = true!
       );
 
@@ -42,7 +41,6 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_CALL_PARAMETERS,
         compliantCodes,
         true,
-        false,
         true, // isReclamoNovedad = true
       );
 
@@ -66,7 +64,6 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_CALL_PARAMETERS,
         compliantCodes,
         true,
-        false,
         false, // isReclamoNovedad = false
       );
 
@@ -88,7 +85,6 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_EMAIL_PARAMETERS,
         compliantCodes,
         true, // hasSection2
-        false,
         true, // isReclamoNovedad = true
       );
 
@@ -112,7 +108,6 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_EMAIL_PARAMETERS,
         compliantCodes,
         true,
-        false,
         true, // isReclamoNovedad = true
       );
 
@@ -136,13 +131,72 @@ describe("Quality Calculator - Reclamo / Novedad Logic", () => {
         WISE_EMAIL_PARAMETERS,
         compliantCodes,
         true,
-        false,
         false, // isReclamoNovedad = false
       );
 
       expect(res.section1Score).toBe(100);
       expect(res.section2Score).toBe(90);
       expect(res.totalScore).toBe(95);
+    });
+
+    // "No aplica" (hasSection2=false) NO es un reclamo: deshabilita la
+    // sección 2, mientras que el reclamo la exime al 100%. Por eso el reclamo
+    // pone un piso del 50% al total (puede promediar 0 con 100) y el "sin
+    // ticket" no: el total es el de la sección 1 y puede llegar a 0.
+    it("makes the total equal section 1 when the mail had no MDA ticket", () => {
+      // Fallar 4 items de 50 puntos deja S1 en 50%.
+      const compliantCodes = new Set(
+        WISE_EMAIL_PARAMETERS.filter(
+          (p) =>
+            p.section === "items" &&
+            !["email_procedimientos", "email_gestion_herramientas", "email_resolucion", "email_seguimiento"].includes(p.code),
+        ).map((p) => p.code),
+      );
+
+      const sinTicket = calculateMultiChannelAuditScores(
+        "wise_email",
+        WISE_EMAIL_PARAMETERS,
+        compliantCodes,
+        false, // hasSection2 = false
+        false,
+      );
+      expect(sinTicket.section1Score).toBe(50);
+      expect(sinTicket.totalScore).toBe(50);
+
+      // El mismo mail como reclamo: el total sube a 75 y no puede bajar de 50.
+      const comoReclamo = calculateMultiChannelAuditScores(
+        "wise_email",
+        WISE_EMAIL_PARAMETERS,
+        compliantCodes,
+        true,
+        true,
+      );
+      expect(comoReclamo.section2Score).toBe(100);
+      expect(comoReclamo.totalScore).toBe(75);
+    });
+
+    it("lets a disastrous section 1 reach 0 without a ticket, but never with a reclamo", () => {
+      // Ningún item con peso cumplido: S1 = 0.
+      const nadaCumplido = new Set<string>();
+      const masTodos = new Set(WISE_EMAIL_PARAMETERS.map((p) => p.code));
+
+      const sinTicket = calculateMultiChannelAuditScores(
+        "wise_email",
+        WISE_EMAIL_PARAMETERS,
+        nadaCumplido,
+        false,
+        false,
+      );
+      expect(sinTicket.totalScore).toBe(0);
+
+      const comoReclamo = calculateMultiChannelAuditScores(
+        "wise_email",
+        WISE_EMAIL_PARAMETERS,
+        masTodos,
+        true,
+        true,
+      );
+      expect(comoReclamo.totalScore).toBe(100);
     });
   });
 });

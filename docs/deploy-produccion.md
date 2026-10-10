@@ -66,7 +66,7 @@ npm install
 copy .env.example .env
 ```
 
-Completá las 6 variables en `.env`. En producción prestá atención a:
+Completá las variables en `.env`. En producción prestá atención a:
 
 | Variable               | Valor de ejemplo en producción                                             |
 | ---------------------- | -------------------------------------------------------------------------- |
@@ -75,6 +75,9 @@ Completá las 6 variables en `.env`. En producción prestá atención a:
 | `INVGATE_API_KEY`      | La API key real de InvGate                                                 |
 | `INVGATE_BASE_URL`     | `https://correoargentino.sd.cloud.invgate.net/api/v1/`                     |
 | `INVGATE_API_USERNAME` | `portalmda`                                                                |
+| `WISE_CX_BASE_URL`     | `https://api.wcx.cloud`                                                    |
+| `WISE_CX_API_KEY`      | La API key real de Wise CX                                                 |
+| `WISE_CX_API_USER`     | Usuario asociado a la API key en Wise CX                                   |
 | `EXTERNAL_STORAGE_DIR` | `C:\data\mda-storage` (ruta absoluta fuera del proyecto)                   |
 | `SESSION_COOKIE_SECURE` | `true` en `ecosystem.config.cjs` (solo cuando HTTPS está activo) |
 

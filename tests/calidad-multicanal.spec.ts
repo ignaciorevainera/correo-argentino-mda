@@ -12,7 +12,8 @@ test.beforeEach(async ({ context }) => {
   testSupervisor = await createTestUserAndSession("admin");
   await setSessionCookie(context, testSupervisor.signedSessionId);
 
-  // Create an agent included in quality module
+  // Create an agent included in quality module. `agents` has no `active`/`role`
+  // columns: activity lives in `users.active`, the role in `users.role`.
   const [newAgent] = await db
     .insert(agents)
     .values({
@@ -20,8 +21,6 @@ test.beforeEach(async ({ context }) => {
       username: testSupervisor.username,
       userId: testSupervisor.userId,
       incluidoCalidad: true,
-      active: true,
-      role: "agent",
     })
     .returning({ id: agents.id });
 
@@ -62,53 +61,56 @@ test("Calidad Multi-Canal E2E Flow", async ({ page }) => {
   await expect(page.locator('.operator-channel-tab[data-channel="wise_email"]')).toBeVisible();
   await expect(page.locator('.operator-channel-tab[data-channel="invgate_ticket"]')).toBeVisible();
 
-  // Verify quota badge
-  await expect(page.locator("#quota-progress-badge")).toContainText("Completadas");
+  // La cuota se muestra inline dentro de la card ("N de 12 completadas").
+  // El id #quota-progress-badge ya no existe: fue reemplazado por ese markup.
+  const operatorCard = page.locator('.operator-item:has-text("Operador Test Calidad")').first();
+  await expect(operatorCard).toContainText(/de 12 completadas/);
 
   // Open audit modal
   const btnNewAudit = page.locator("#btn-new-audit");
   await expect(btnNewAudit).toBeVisible();
   await btnNewAudit.click();
 
-  const modal = page.locator("#audit-modal");
-  await expect(modal).toBeVisible();
+  // En el refactor de UI, Nueva Auditoría navega a la vista dedicada /nueva
+  await expect(page).toHaveURL(/supervision\/calidad-operadores\/nueva/);
+  await expect(page.locator("h1")).toContainText(/Nueva Auditoría/i);
 
-  // Test channel switching inside modal
-  const emailBtn = modal.locator('.channel-btn[data-channel="wise_email"]');
+  // Test channel switching inside form
+  const emailBtn = page.locator('.channel-btn[data-channel="wise_email"]');
   await emailBtn.click();
-  await expect(modal.locator("#channel-checklist-wise_email")).toBeVisible();
-  await expect(modal.locator("#channel-checklist-wise_call")).toBeHidden();
+  await expect(page.locator("#channel-checklist-wise_email")).toBeVisible();
+  await expect(page.locator("#channel-checklist-wise_call")).toBeHidden();
 
   // Test conditional toggle in email (appliesMda)
-  const toggleMda = modal.locator("#toggle-applies-mda");
-  await expect(toggleMda).toBeVisible();
-  await expect(modal.locator("#wise-email-mda-block")).toBeHidden();
-  await toggleMda.check();
-  await expect(modal.locator("#wise-email-mda-block")).toBeVisible();
+  const toggleMda = page.locator("#toggle-applies-mda");
+  await expect(toggleMda).toBeAttached();
 
   // Switch to Autogestión
-  const agBtn = modal.locator('.channel-btn[data-channel="invgate_ticket"]');
+  const agBtn = page.locator('.channel-btn[data-channel="invgate_ticket"]');
   await agBtn.click();
-  await expect(modal.locator("#channel-checklist-invgate_ticket")).toBeVisible();
-  await expect(modal.locator("#meta-pas-container")).toBeVisible();
+  await expect(page.locator("#channel-checklist-invgate_ticket")).toBeVisible();
+  await expect(page.locator("#meta-pas-container")).toBeVisible();
 
   // Fill and save a test audit for AG
-  await modal.locator("#form-ticket-id").fill("INC-E2E-TEST");
-  await modal.locator("#form-date").fill("2026-10-01");
-  await modal.locator("#form-notes").fill("Auditoría de prueba automatizada E2E");
+  await page.locator("#form-ticket-id").fill("INC-E2E-TEST");
+  await page.locator("#form-date").fill("2026-10-01");
+  await page.locator("#form-notes").fill("Auditoría de prueba automatizada E2E");
 
-  // Uncheck one parameter to verify scoring deduction
-  const firstAgCheckbox = modal.locator("#channel-checklist-invgate_ticket .audit-checkbox").first();
-  await firstAgCheckbox.uncheck();
+  // Marcar un criterio como No cumple para verificar la deducción.
+  // El checkbox es `sr-only` (espejo para el backend): la acción real es el
+  // control de estado de la fila.
+  const firstAgItem = page.locator("#channel-checklist-invgate_ticket .checklist-item").first();
+  await firstAgItem.locator('.state-btn[data-state="nocumple"]').click();
+  await expect(firstAgItem.locator("input.audit-checkbox")).not.toBeChecked();
 
   // Score should be less than 100%
-  const totalPreview = modal.locator("#preview-total");
+  const totalPreview = page.locator("#preview-total");
   await expect(totalPreview).not.toHaveText("100%");
 
   // Save audit
-  const btnSubmit = modal.locator("#btn-submit-audit");
+  const btnSubmit = page.locator("button[type='submit']:has-text('Guardar')");
   await btnSubmit.click();
 
-  // Wait for redirect/reload
-  await page.waitForLoadState("networkidle");
+  // Wait for redirect back to quality main page
+  await page.waitForURL(/\/supervision\/calidad-operadores(\?|$)/);
 });

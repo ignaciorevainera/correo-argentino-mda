@@ -1,25 +1,52 @@
 ---
+import type { HTMLAttributes } from "astro/types";
+
 interface MonthOption {
   value: string;
   label: string;
 }
 
-interface Props {
+interface Props extends HTMLAttributes<"select"> {
   id: string;
   options?: MonthOption[];
   selected?: string;
   class?: string;
 }
 
-const { id, options = [], selected = "", class: className = "" } = Astro.props;
+const { id, options = [], selected = "", class: className = "", ...rest } = Astro.props;
 ---
 
-<select id={id} class:list={["select select-sm gap-2", className]}>
+<select id={id} class:list={["select select-sm gap-2 bg-base-100", className]} {...rest}>
   {
     options.map((opt) => (
-      <option value={opt.value} selected={opt.value === selected}>
+      <option value={opt.value} selected={opt.value === selected} class="bg-base-100 text-base-content">
         {opt.label}
       </option>
     ))
   }
 </select>
+
+<style>
+  select,
+  select:focus,
+  select option,
+  select optgroup {
+    background-color: var(--color-base-100, #efefef) !important;
+    color: var(--color-base-content, #0c0c0c) !important;
+  }
+
+  /* Asegurar que la barra de desplazamiento y su gutter no sean transparentes */
+  select::-webkit-scrollbar {
+    width: 8px;
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  select::-webkit-scrollbar-track {
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  select::-webkit-scrollbar-thumb {
+    background-color: var(--color-base-300, #cacdce);
+    border-radius: 4px;
+  }
+</style>

@@ -51,15 +51,29 @@
 - [x] **Track: Auto-detección y Conmutación de Canal (Llamada vs Mail) en Búsqueda Wise CX**
   *Link: [./tracks/calidad_wise_autodetect_channel_20261003/index.md](./tracks/calidad_wise_autodetect_channel_20261003/index.md)*
 ---
+- [x] **Track: Refactor UI de Calidad: Barra Superior, Grilla de Operadores y Sección de Auditoría**
+  *Link: [./tracks/calidad_ui_refactor_20261005/index.md](./tracks/calidad_ui_refactor_20261005/index.md)*
+---
+- [x] **Track: Refactor Visual de Grilla y Tarjetas de Operadores en Calidad**
+  *Link: [./tracks/calidad_grid_cards_refactor_20261005/index.md](./tracks/calidad_grid_cards_refactor_20261005/index.md)*
+---
+- [x] **Track: Refactor y Modernización del Modal de Parámetros de Calidad**
+  *Link: [./tracks/calidad_parameters_modal_refactor_20261005/index.md](./tracks/calidad_parameters_modal_refactor_20261005/index.md)*
+---
 - [x] **Track: Modal de Calidad — Lógica Reclamo/Novedad, Tildar/Destildar Masivo y Exportación Excel/CSV**
-- [ ] **Track: Unificación de Búsqueda API en Campos de Atención y Enlace Directo InvGate**
+  *Link: [./tracks/calidad_reclamo_checkall_export_20261006/index.md](./tracks/calidad_reclamo_checkall_export_20261006/index.md)*
+---
+- [x] **Track: Unificación de Búsqueda API en Campos de Atención y Enlace Directo InvGate**
   *Link: [./tracks/calidad_busqueda_unificada_campos_20261007/index.md](./tracks/calidad_busqueda_unificada_campos_20261007/index.md)*
-
-
-
-
-
-
+---
+- [x] **Track: Adaptación e Integración de Features de Calidad en Refactor de UI**
+  *Link: [./tracks/calidad_adaptacion_features_ui_20261008/index.md](./tracks/calidad_adaptacion_features_ui_20261008/index.md)*
+---
+- [x] **Track: Refactor Integral UI/UX de Ficha de Operador (OperatorDetailsPanel)**
+  *Link: [./tracks/calidad_operator_detail_refactor_20261008/index.md](./tracks/calidad_operator_detail_refactor_20261008/index.md)*
+---
+- [x] **Track: Rediseño de Pantalla Completa: Nueva Auditoría de Calidad**
+  *Link: [./tracks/calidad_nueva_auditoria_pantalla_completa_20261008/index.md](./tracks/calidad_nueva_auditoria_pantalla_completa_20261008/index.md)*
 
 
 

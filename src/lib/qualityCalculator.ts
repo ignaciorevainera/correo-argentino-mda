@@ -1,4 +1,3 @@
-import { QUALITY_CONFIG } from "@/config/quality";
 import type { AuditParameter, ChannelType, EvaluationParameter } from "@/types/quality";
 
 export interface MultiChannelScoreResult {
@@ -12,7 +11,6 @@ export function calculateMultiChannelAuditScores(
   parameters: (EvaluationParameter | AuditParameter)[],
   compliantIdsOrCodes: Set<number | string>,
   hasSection2: boolean,
-  isCriticalFailure = false,
   isReclamoNovedad = false,
 ): MultiChannelScoreResult {
   let s1Deductions = 0;
@@ -130,21 +128,6 @@ export function calculateOperatorChannelStats(audits: { channelType?: string; to
   };
 }
 
-// Legacy helper for backward compatibility
-export function calculateAuditScores(
-  parameters: AuditParameter[],
-  checkedParameterIdsOrCodes: Set<number | string>,
-  isCriticalFailure: boolean,
-) {
-  return calculateMultiChannelAuditScores(
-    "wise_call",
-    parameters,
-    checkedParameterIdsOrCodes,
-    true,
-    isCriticalFailure,
-  );
-}
-
 export interface ChannelAveragesResult {
   wiseCallsAvg: number | null;
   wiseCallsCount: number;
@@ -152,6 +135,8 @@ export interface ChannelAveragesResult {
   wiseEmailsCount: number;
   invgateTicketAvg: number | null;
   invgateTicketCount: number;
+  invgateAgAvg: number | null;
+  invgateAgCount: number;
   totalCount: number;
   overallAvg: number | null;
 }
@@ -197,6 +182,8 @@ export function calculateChannelAverages(
     wiseEmailsCount: emails.length,
     invgateTicketAvg,
     invgateTicketCount: tickets.length,
+    invgateAgAvg: invgateTicketAvg,
+    invgateAgCount: tickets.length,
     totalCount: audits.length,
     overallAvg,
   };
@@ -207,16 +194,52 @@ export function formatChannelAverageScore(avg: number | null | undefined): strin
   return `${Math.round(avg)}%`;
 }
 
+type AverageTone = "empty" | "success" | "warning" | "error";
+
+// Umbral único compartido por el badge del tab y el texto de la banda de
+// métricas: si se separan, el mismo 80% se pinta verde en un lado y ámbar en
+// el otro.
+function channelAverageTone(avg: number | null | undefined): AverageTone {
+  if (avg === null || avg === undefined || isNaN(avg)) return "empty";
+  if (avg >= 85) return "success";
+  if (avg >= 70) return "warning";
+  return "error";
+}
+
 export function getChannelAverageBadgeClass(avg: number | null | undefined): string {
-  if (avg === null || avg === undefined || isNaN(avg)) {
-    return "badge badge-xs badge-ghost";
-  }
-  if (avg >= 85) {
-    return "badge badge-xs badge-success text-success-content font-bold";
-  }
-  if (avg >= 70) {
-    return "badge badge-xs badge-warning text-warning-content font-bold";
-  }
-  return "badge badge-xs badge-error text-error-content font-bold";
+  const tone = channelAverageTone(avg);
+  if (tone === "empty") return "badge badge-xs badge-ghost";
+  return `badge badge-xs badge-${tone} text-${tone}-content font-bold`;
+}
+
+export function getChannelAverageTextClass(avg: number | null | undefined): string {
+  const tone = channelAverageTone(avg);
+  return tone === "empty" ? "text-base-content/40" : `text-${tone}`;
+}
+
+export interface Section2ApplicabilityInput {
+  channelType?: string | null;
+  appliesMda?: boolean | null;
+  staysInMda?: boolean | null;
+  isReclamoNovedad?: boolean | null;
+}
+
+/**
+ * ¿Aplica la Sección 2? (llamada con ticket, mail con ticket MDA, AG que
+ * permanece en MDA). Los reclamos siguen dando `true`: eximidos ≠ no aplicables.
+ */
+export function hasSection2(a: Section2ApplicabilityInput): boolean {
+  const channel = a.channelType || "wise_call";
+  if (channel === "wise_call") return a.appliesMda ?? true;
+  if (channel === "wise_email") return Boolean(a.appliesMda);
+  return Boolean(a.staysInMda);
+}
+
+/**
+ * ¿Se evaluó la Sección 2 criterio a criterio? Excluye reclamos, donde el
+ * score es 100 automático y los parámetros se persisten sin evaluar.
+ */
+export function hasSection2Evaluated(a: Section2ApplicabilityInput): boolean {
+  return hasSection2(a) && !a.isReclamoNovedad;
 }
 

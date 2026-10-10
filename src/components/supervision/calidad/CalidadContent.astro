@@ -20,15 +20,10 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import { activeAgentCondition } from "@lib/activeUsers";
 import { getResolvedSearchParams } from "@lib/navigation";
-import { formatMonthLabel } from "@lib/monthUtils";
+import { formatMonthLabel, MONTH_LABELS } from "@lib/monthUtils";
 import { getCleanBase } from "@lib/baseUrl";
-import AuditModal from "./AuditModal.astro";
-import {
-  calculateOperatorChannelStats,
-  calculateChannelAverages,
-  formatChannelAverageScore,
-  getChannelAverageBadgeClass,
-} from "@lib/qualityCalculator";
+import OperatorDetailsPanel from "./OperatorDetailsPanel.astro";
+import { calculateOperatorChannelStats } from "@lib/qualityCalculator";
 import type { ChannelType } from "@/types/quality";
 
 
@@ -179,13 +174,22 @@ const operatorsQuality = finalAgents.map((agent) => {
     .reverse()
     .map((m) => {
       const monthAudits = agentAudits.filter((a) => a.month === m);
-      return monthAudits.length > 0
-        ? Math.round(
-            monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
-              monthAudits.length,
-          )
-        : 0;
-    });
+      const [mm] = m.split("-");
+      const shortLabel = MONTH_LABELS[mm] ? MONTH_LABELS[mm].substring(0, 3) : mm;
+      return {
+        month: m,
+        label: shortLabel,
+        count: monthAudits.length,
+        score:
+          monthAudits.length > 0
+            ? Math.round(
+                monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+                  monthAudits.length,
+              )
+            : null,
+      };
+    })
+    .filter((h): h is { month: string; label: string; count: number; score: number } => h.score !== null);
 
   const channelStats = calculateOperatorChannelStats(currentMonthAudits);
 
@@ -218,7 +222,6 @@ const operatorsQuality = finalAgents.map((agent) => {
       date: audit.date,
       month: audit.month,
       notes: audit.notes || "",
-      isCriticalFailure: audit.isCriticalFailure || false,
       ringTime: audit.ringTime,
       creationTime: audit.creationTime,
       takeTime: audit.takeTime,
@@ -248,17 +251,19 @@ const operatorsQuality = finalAgents.map((agent) => {
   const prevMonthAudits = prevMonth
     ? agentAudits.filter((a) => a.month === prevMonth)
     : [];
-  const prevAverageScore =
+  // Misma fórmula que `averageScore` (promedio de los promedios por canal): el
+  // diff comparaba el mes actual por canal contra un promedio plano del mes
+  // anterior, así que la flecha no era interpretable con reparto desigual.
+  const prevFlatAverage =
     prevMonthAudits.length > 0
       ? Math.round(
           prevMonthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
             prevMonthAudits.length,
         )
       : 0;
+  const prevAverageScore =
+    calculateOperatorChannelStats(prevMonthAudits).globalAverage || prevFlatAverage;
   const prevCallsCount = prevMonthAudits.length;
-  const prevCriticalCount = prevMonthAudits.filter(
-    (a) => a.isCriticalFailure,
-  ).length;
 
   return {
     id: agent.id.toString(),
@@ -279,7 +284,6 @@ const operatorsQuality = finalAgents.map((agent) => {
     quotaFulfilled: channelStats.quotaFulfilled,
     prevAverageScore,
     prevCallsCount,
-    prevCriticalCount,
   };
 });
 
@@ -290,14 +294,6 @@ const operatorsDataMap = Object.fromEntries(
 const auditedOperators = operatorsQuality.filter((op) => op.calls.length > 0);
 const totalOperators = operatorsQuality.length;
 
-const avgScore =
-  auditedOperators.length > 0
-    ? Math.round(
-        auditedOperators.reduce((acc, op) => acc + op.averageScore, 0) /
-          auditedOperators.length,
-      )
-    : 0;
-
 const excellentOperators = auditedOperators.filter(
   (op) => op.averageScore >= 90,
 ).length;
@@ -305,23 +301,6 @@ const excellentOperators = auditedOperators.filter(
 const needsImprovement = auditedOperators.filter(
   (op) => op.averageScore > 0 && op.averageScore < 80,
 ).length;
-
-const allCalls = operatorsQuality.flatMap((op) => op.calls);
-const totalCalls = allCalls.length;
-
-const avgSection1 =
-  totalCalls > 0
-    ? Math.round(
-        allCalls.reduce((acc, c) => acc + c.section1.score, 0) / totalCalls,
-      )
-    : 0;
-
-const avgSection2 =
-  totalCalls > 0
-    ? Math.round(
-        allCalls.reduce((acc, c) => acc + c.section2.score, 0) / totalCalls,
-      )
-    : 0;
 
 const cleanBase = getCleanBase();
 ---
@@ -348,45 +327,60 @@ const cleanBase = getCleanBase();
     description="Evaluación de llamadas, métricas y validaciones de la calidad de atención del equipo de operaciones de Mesa de Ayuda."
   />
 
-  <!-- Selector de Período -->
+  <!-- Barra Superior Unificada Compacta -->
   <div
-    class="bg-base-200/50 border-base-300 mt-4 mb-6 flex flex-col rounded-xl border p-4 shadow-md sm:flex-row sm:items-center sm:justify-between"
+    class="bg-base-100 border-base-200/80 mt-2 mb-4 flex flex-col gap-3 rounded-2xl border p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between"
   >
-    <div class="text-base-content/80 mb-3 flex items-center gap-2 sm:mb-0">
-      <Icon name="boxicons:calendar" size={24} class="text-primary" />
-      <span class="font-semibold">Período de evaluación:</span>
+    {/* Extremo Izquierdo: Buscador */}
+    <div class="w-full sm:w-80 md:w-96">
+      {
+        !isAgent ? (
+          <SearchBar
+            id="operator-search"
+            placeholder="Buscar por nombre o legajo..."
+          />
+        ) : (
+          <div class="text-base-content/80 flex items-center gap-2">
+            <Icon name="boxicons:calendar" size={20} class="text-primary" />
+            <span class="font-semibold text-xs uppercase tracking-wider">Período de evaluación:</span>
+          </div>
+        )
+      }
     </div>
-    <div class="flex items-center gap-2">
-      <button
-        id="btn-prev-month"
-        class="btn btn-sm btn-square btn-ghost"
-        title="Mes anterior"
-      >
-        <Icon name="boxicons:chevron-left" size={24} />
-      </button>
-      <select
-        id="month-selector"
-        class="select select-sm bg-base-100 w-full text-center font-bold sm:w-48"
-      >
-        {
-          selectorMonthsList.map((m) => (
-            <option value={m} selected={selectedMonth === m}>
-              {formatMonthLabel(m)}
-            </option>
-          ))
-        }
-      </select>
-      <button
-        id="btn-next-month"
-        class="btn btn-sm btn-square btn-ghost"
-        title="Mes siguiente"
-      >
-        <Icon name="boxicons:chevron-right" size={24} />
-      </button>
-      <div class="divider divider-horizontal mx-1 hidden sm:flex"></div>
+    {/* Extremo Derecho: Selector de mes + Botones */}
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <div class="flex items-center gap-1 bg-base-200/40 p-1 rounded-xl border border-base-200/60">
+        <button
+          id="btn-prev-month"
+          class="btn btn-xs btn-square btn-ghost"
+          title="Mes anterior"
+        >
+          <Icon name="boxicons:chevron-left" size={18} />
+        </button>
+        <select
+          id="month-selector"
+          class="select select-xs bg-base-100 text-base-content border-0 text-center font-bold sm:w-40 focus:outline-hidden"
+        >
+          {
+            selectorMonthsList.map((m) => (
+              <option value={m} selected={selectedMonth === m} class="bg-base-100 text-base-content">
+                {formatMonthLabel(m)}
+              </option>
+            ))
+          }
+        </select>
+        <button
+          id="btn-next-month"
+          class="btn btn-xs btn-square btn-ghost"
+          title="Mes siguiente"
+        >
+          <Icon name="boxicons:chevron-right" size={18} />
+        </button>
+      </div>
+
       <button
         id="btn-export-excel"
-        class="btn btn-sm btn-outline btn-success gap-1.5 text-xs font-bold uppercase"
+        class="btn btn-sm btn-outline btn-secondary gap-1.5 text-xs font-bold uppercase"
         title="Exportar Reporte a Excel (.xlsx)"
       >
         <Icon name="boxicons:file" size={18} />
@@ -394,14 +388,25 @@ const cleanBase = getCleanBase();
       </button>
       {
         !isAgent && (
-          <button
-            id="btn-configure-parameters"
-            class="btn btn-sm btn-outline btn-secondary gap-1.5 text-xs font-bold uppercase"
-            title="Configurar Parámetros de Calidad"
-          >
-            <Icon name="boxicons:cog" size={18} />
-            <span>Parámetros</span>
-          </button>
+          <>
+            <div class="divider divider-horizontal mx-0.5 hidden sm:flex"></div>
+            <button
+              id="btn-configure-parameters"
+              class="btn btn-sm btn-ghost text-base-content/70 hover:text-base-content gap-1.5 text-xs font-semibold"
+              title="Configurar Parámetros de Calidad"
+            >
+              <Icon name="boxicons:cog" size={18} />
+              <span class="hidden md:inline">Parámetros</span>
+            </button>
+            <a
+              id="btn-top-new-audit"
+              href={`${cleanBase}supervision/calidad-operadores/nueva?month=${selectedMonth}`}
+              class="btn btn-sm btn-secondary gap-1.5 text-xs font-bold uppercase tracking-wider shadow-xs hover:shadow-sm"
+            >
+              <Icon name="boxicons:plus" size={18} />
+              <span>Nueva Auditoría</span>
+            </a>
+          </>
         )
       }
     </div>
@@ -427,644 +432,180 @@ const cleanBase = getCleanBase();
         </div>
       </div>
     ) : (
-      <div class="relative mt-2 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        {/* Panel Izquierdo: Lista Navegable */}
-        <aside
-          class:list={[
-            "flex flex-col gap-4 lg:sticky lg:top-6 lg:h-[calc(100vh-8rem)]",
-            isAgent ? "hidden" : "lg:col-span-4",
-          ]}
-        >
-          <div class="card border-base-300 bg-base-100 flex flex-1 flex-col overflow-hidden border shadow-md">
-            <div class="border-base-200 bg-base-200/30 flex flex-col gap-3 border-b p-4">
-              <h2 class="text-base-content flex items-center gap-2 font-bold">
-                <Icon name="boxicons:group" class="text-primary" size={24} />
-                Operadores Evaluados
-              </h2>
-              <div class="flex flex-col gap-2">
-                <SearchBar
-                  id="operator-search"
-                  placeholder="Buscar por nombre o legajo..."
-                />
-                <div class="flex gap-2">
-                  <select
-                    id="operator-sort"
-                    class="select select-sm text-base-content/70 w-full font-medium"
-                  >
-                    <option value="name">Nombre: A → Z</option>
-                    <option value="name-desc">Nombre: Z → A</option>
-                    <option value="score-desc">Score: Mayor primero</option>
-                    <option value="score-asc">Score: Menor primero</option>
-                    <option value="calls-desc">
-                      Auditorías: Más evaluados
-                    </option>
-                    <option value="calls-asc">
-                      Auditorías: Menos evaluados
-                    </option>
-                  </select>
-                </div>
-              </div>
+      <div class="mt-4">
+        {
+          isAgent ? (
+            <div id="operator-details-panel" class="w-full space-y-6">
+              <OperatorDetailsPanel isAgent={true} />
             </div>
-
-            <div class="flex-1 overflow-y-auto p-2" id="operator-list">
-              {operatorsQuality.map((op) => (
-                <button
-                  class="operator-item group bg-base-100 border-base-200 hover:border-l-secondary mb-2 flex w-full items-center justify-between rounded-xl border border-l-4 border-l-transparent p-4 text-left transition-colors"
-                  data-name={op.name.toLowerCase()}
-                  data-id={op.id.toLowerCase()}
-                  data-operator={JSON.stringify({
-                    id: op.id,
-                    name: op.name,
-                    averageScore: op.averageScore,
-                    callsCount: op.calls.length,
-                  })}
-                >
-                  <div class="flex items-center gap-4">
-                    <div class="relative">
-                      <div class="bg-base-200 group-hover:bg-secondary group-hover:text-secondary-content text-base-content/70 flex size-10 items-center justify-center rounded-full font-bold shadow-sm transition-colors">
-                        {op.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .substring(0, 2)}
-                      </div>
-                    </div>
-                    <div>
-                      <div class="text-base-content group-hover:text-base-content flex items-center gap-1 text-sm font-bold tracking-tight transition-colors">
-                        {op.name}
-                        {op.averageScore >= 90 && (
-                          <Icon
-                            name="boxicons:badge-check"
-                            class="text-secondary"
-                            size={24}
-                            title="Insignia de Excelencia"
-                          />
-                        )}
-                      </div>
-                      <div class="text-base-content/50 mt-0.5 font-mono text-xs lowercase">
-                        @{op.username || op.id}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    class={`text-sm font-black ${op.averageScore >= 90 ? "text-success" : op.averageScore >= 80 ? "text-warning" : "text-error"}`}
-                  >
-                    {op.averageScore}%
-                  </div>
-                </button>
-              ))}
-              <SearchEmptyState
-                id="calidad-empty-state"
-                title="Sin resultados"
-                description="No hay operadores que coincidan con la búsqueda. Probá con otro nombre o legajo."
-              />
-            </div>
-          </div>
-        </aside>
-
-        {/* Panel Derecho: Información / Detalle */}
-        <main
-          class:list={["h-full", isAgent ? "lg:col-span-12" : "lg:col-span-8"]}
-        >
-          {/* Estado 1: Información General (Default) */}
-          <div
-            id="general-info-panel"
-            class:list={["animate-fade-in space-y-6", isAgent && "hidden"]}
-          >
-            {/* Stats Grid */}
-            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {/* Hero Stat: Promedio General (Takes 2 cols/2 rows) */}
-              <div class="bg-secondary text-secondary-content relative col-span-2 row-span-2 flex flex-col justify-between overflow-hidden rounded-3xl p-8 shadow-md">
-                <div
-                  class="absolute inset-0 opacity-5"
-                  style="background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0); background-size: 24px 24px;"
-                />
-                <div class="absolute -top-8 -right-8 opacity-10 transition-opacity duration-700">
-                  <Icon name="boxicons:check-shield" size={256} />
-                </div>
-                <div class="relative z-10 flex items-start justify-between">
-                  <h3 class="text-xs font-bold tracking-widest uppercase opacity-80">
-                    Calidad Global
-                  </h3>
-                  <Icon
-                    name="boxicons:chart-bar-columns"
-                    size={24}
-                    class="opacity-80"
-                  />
-                </div>
-                <div class="relative z-10 mt-12">
-                  <div class="text-7xl font-black tracking-tighter lg:text-8xl">
-                    {avgScore}
-                    <span class="ml-2 text-4xl opacity-70 lg:text-5xl">%</span>
-                  </div>
-                  <p class="mt-4 max-w-xs text-sm font-medium opacity-90">
-                    Promedio general del equipo de Mesa de Ayuda en el período
-                    seleccionado.
-                  </p>
-                </div>
-              </div>
-
-              <StatsCard
-                icon="group"
-                label="Evaluados"
-                value={totalOperators}
-                subtitle="Operadores activos"
-              />
-
-              <StatsCard
-                icon="phone-ring"
-                label="Auditorías"
-                value={totalCalls}
-                subtitle="Llamadas aleatorias"
-              />
-
-              <StatsCard
-                icon="star"
-                label="Excelencia"
-                value={excellentOperators}
-                subtitle="Operadores > 90%"
-                color="success"
-              />
-
-              <StatsCard
-                icon="alert-circle"
-                label="Alerta"
-                value={needsImprovement}
-                subtitle="Operadores < 80%"
-                color="error"
-              />
-
-              <StatsCard
-                icon="discussion"
-                label="Interacción"
-                value={`${avgSection1}%`}
-                subtitle="Trato al usuario y habilidades blandas"
-                class="col-span-2"
-              />
-
-              <StatsCard
-                icon="task"
-                label="Gestión"
-                value={`${avgSection2}%`}
-                subtitle="Eficiencia técnica y resolución de tickets"
-                class="col-span-2"
-              />
-            </div>
-
-            {/* Empty State CTA */}
-            <div class="bg-base-200/50 border-base-300 mt-4 flex min-h-64 flex-1 flex-col items-center justify-center rounded-3xl border p-8 text-center shadow-inner">
-              <div class="bg-base-100 border-base-200 mb-6 rounded-full border p-6 shadow-sm">
-                <Icon
-                  name="boxicons:cursor-click"
-                  size={48}
-                  class="text-secondary/40"
-                />
-              </div>
-              <h3 class="text-base-content mb-3 text-2xl font-black tracking-tight">
-                Análisis Individual
-              </h3>
-              <p class="text-base-content/60 max-w-md text-sm font-medium">
-                Seleccione un operador de la lista lateral para visualizar su
-                rendimiento detallado y el desglose de cada llamada.
-              </p>
-            </div>
-          </div>
-
-          {/* Estado 2: Detalle del Operador (Oculto por defecto) */}
-          <div
-            id="operator-details-panel"
-            class:list={[
-              "animate-fade-in pb-8",
-              !isAgent && "hidden space-y-6",
-              isAgent && "grid grid-cols-1 items-start gap-6 lg:grid-cols-12",
-            ]}
-          >
-            <div class:list={[isAgent ? "col-span-full" : "w-full"]}>
-              <div class="no-print mb-2 flex items-center justify-between">
-                <button
-                  id="btn-back-to-summary"
-                  class="btn btn-sm btn-ghost text-base-content/70 hover:text-base-content hover:bg-base-200 w-fit pl-2"
-                >
-                  <Icon name="boxicons:arrow-to-left" size={18} />
-                  Volver al resumen
-                </button>
-              </div>
-
-              {isAgent ? (
-                <div class="bg-base-100 border-l-secondary border-base-200 mt-2 flex flex-col gap-6 rounded-2xl border-y border-r border-l-4 p-6 shadow-md sm:p-8 lg:flex-row lg:items-center lg:justify-between">
-                  <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
-                    <div
-                      class="bg-base-200 text-base-content/60 border-base-300 flex size-20 items-center justify-center rounded-2xl border text-3xl font-black shadow-inner"
-                      id="detail-avatar"
-                    >
-                      --
-                    </div>
-                    <div>
-                      <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
-                        Perfil del Operador
-                      </div>
-                      <h3
-                        class="text-base-content text-4xl font-black tracking-tighter"
-                        id="detail-name"
-                      >
-                        --
-                      </h3>
-                      <div class="text-base-content/60 mt-2 flex flex-wrap items-center gap-3 text-xs font-medium">
-                        <span class="flex items-center gap-1">
-                          <Icon
-                            name="boxicons:user-id-card"
-                            size={18}
-                            class="opacity-70"
-                          />
-                          <span id="detail-id" class="font-mono">
-                            --
-                          </span>
-                        </span>
-                        <span class="opacity-30">•</span>
-                        <span class="flex items-center gap-1">
-                          <Icon
-                            name="boxicons:calendar"
-                            size={18}
-                            class="opacity-70"
-                          />
-                          <span id="detail-month">--</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats in the middle */}
-                  <div class="bg-base-200/20 border-base-200 flex shrink-0 flex-wrap items-center gap-3 rounded-2xl border p-3 shadow-sm sm:gap-4 sm:p-4">
-                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Score vs Mes Ant.
-                      </span>
-                      <span
-                        id="detail-stat-diff"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Duración Promedio
-                      </span>
-                      <span
-                        id="detail-stat-aht"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="border-base-200 flex flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Interacción
-                      </span>
-                      <span
-                        id="detail-stat-interaction"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="flex flex-col px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Gestión
-                      </span>
-                      <span
-                        id="detail-stat-management"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Score Card */}
-                  <div class="bg-base-200/50 border-base-200 w-full shrink-0 rounded-2xl border p-4 sm:w-fit sm:min-w-35 sm:text-right">
-                    <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
-                      Score Mensual
-                    </div>
-                    <div
-                      class="text-secondary text-5xl font-black tracking-tighter"
-                      id="detail-score"
-                    >
-                      --%
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div class="bg-base-100 border-l-secondary border-base-200 mt-2 flex flex-col gap-6 rounded-2xl border-y border-r border-l-4 p-6 shadow-md sm:p-8">
-                  {/* Top section: Avatar, Name and Monthly Score */}
-                  <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
-                      <div
-                        class="bg-base-200 text-base-content/60 border-base-300 flex size-20 items-center justify-center rounded-2xl border text-3xl font-black shadow-inner"
-                        id="detail-avatar"
-                      >
-                        --
-                      </div>
-                      <div>
-                        <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
-                          Perfil del Operador
-                        </div>
-                        <h3
-                          class="text-base-content text-4xl font-black tracking-tighter"
-                          id="detail-name"
-                        >
-                          --
-                        </h3>
-                        <div class="text-base-content/60 mt-2 flex flex-wrap items-center gap-3 text-xs font-medium">
-                          <span class="flex items-center gap-1">
-                            <Icon
-                              name="boxicons:user-id-card"
-                              size={18}
-                              class="opacity-70"
-                            />
-                            <span id="detail-id" class="font-mono">
-                              --
-                            </span>
-                          </span>
-                          <span class="opacity-30">•</span>
-                          <span class="flex items-center gap-1">
-                            <Icon
-                              name="boxicons:calendar"
-                              size={18}
-                              class="opacity-70"
-                            />
-                            <span id="detail-month">--</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Score Card */}
-                    <div class="bg-base-200/50 border-base-200 w-full shrink-0 rounded-2xl border p-4 sm:w-fit sm:min-w-35 sm:text-right">
-                      <div class="text-base-content/50 mb-1 text-xs font-bold tracking-widest uppercase">
-                        Score Mensual
-                      </div>
-                      <div
-                        class="text-secondary text-5xl font-black tracking-tighter"
-                        id="detail-score"
-                      >
-                        --%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom section: Stats block */}
-                  <div class="bg-base-200/20 border-base-200 flex w-full flex-wrap items-center gap-3 rounded-2xl border p-3 shadow-sm sm:gap-4 sm:p-4">
-                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Score vs Mes Ant.
-                      </span>
-                      <span
-                        id="detail-stat-diff"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Duración Promedio
-                      </span>
-                      <span
-                        id="detail-stat-aht"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="border-base-200 flex min-w-30 flex-1 flex-col border-r px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Interacción
-                      </span>
-                      <span
-                        id="detail-stat-interaction"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                    <div class="flex min-w-30 flex-1 flex-col px-2 sm:px-3">
-                      <span class="text-xxs text-base-content/40 font-bold tracking-wider uppercase">
-                        Gestión
-                      </span>
-                      <span
-                        id="detail-stat-management"
-                        class="text-base-content text-lg font-black sm:text-xl"
-                      >
-                        --
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Insights y Tendencia */}
-            <div
-              class:list={[
-                isAgent
-                  ? "col-span-full flex flex-col gap-6 lg:col-span-4"
-                  : "mt-6 grid gap-6 sm:grid-cols-2",
-              ]}
-            >
-              {/* Tendencia */}
-              <div class="bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md">
-                <h4 class="text-base-content/70 mb-4 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                  <Icon name="boxicons:chart-line" size={18} />
-                  Tendencia (Últimos 6 meses)
-                </h4>
-                <div
-                  class="flex h-20 items-end justify-between gap-2"
-                  id="detail-history-chart"
-                >
-                  {/* dynamic bars */}
-                </div>
-              </div>
-
-              {/* Áreas de Mejora */}
-              <div class="bg-base-100 border-warning/30 rounded-2xl border p-6 shadow-md">
-                <h4 class="text-warning-content/70 mb-4 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                  <Icon
-                    name="boxicons:alert-octagon"
-                    z-200
-                    size={24}
-                    class="text-warning"
-                  />
-                  Áreas de Mejora Detectadas
-                </h4>
-                <ul
-                  class="text-base-content/80 space-y-2 text-sm font-medium"
-                  id="detail-insights"
-                >
-                  {/* dynamic insights */}
-                </ul>
-              </div>
-
-              {/* Observaciones del Mes (Para Agentes en la columna izquierda) */}
-              {isAgent && (
-                <div class="bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md">
-                  <div class="mb-4 flex items-center justify-between">
-                    <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                      <Icon name="boxicons:note" size={18} />
-                      Observaciones del Mes
-                    </h4>
-                  </div>
-                  <p
-                    id="detail-month-summary"
-                    class="text-base-content/80 text-sm font-medium whitespace-pre-line empty:hidden"
-                  >
-                    {/* dynamic summary */}
-                  </p>
-                  <p
-                    id="detail-month-summary-empty"
-                    class="text-base-content/40 text-sm font-medium italic"
-                  >
-                    No hay observaciones para este mes.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div
-              class:list={[
-                isAgent
-                  ? "col-span-full flex flex-col gap-6 lg:col-span-8"
-                  : "space-y-6",
-              ]}
-            >
-              {/* Observaciones del Mes (Para Supervisores/Admins en el flujo principal) */}
-              {!isAgent && (
-                <div
-                  class:list={[
-                    "bg-base-100 border-base-200 rounded-2xl border p-6 shadow-md",
-                    !isAgent && "mt-6",
-                  ]}
-                >
-                  <div class="mb-4 flex items-center justify-between">
-                    <h4 class="text-base-content/70 flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-                      <Icon name="boxicons:note" size={18} />
-                      Observaciones del Mes
-                    </h4>
-                    <button
-                      id="btn-edit-month-summary"
-                      class="btn btn-sm btn-ghost btn-square"
-                      title="Editar observaciones"
-                    >
-                      <Icon name="boxicons:edit-alt" size={18} />
-                    </button>
-                  </div>
-                  <p
-                    id="detail-month-summary"
-                    class="text-base-content/80 text-sm font-medium whitespace-pre-line empty:hidden"
-                  >
-                    {/* dynamic summary */}
-                  </p>
-                  <p
-                    id="detail-month-summary-empty"
-                    class="text-base-content/40 text-sm font-medium italic"
-                  >
-                    No hay observaciones para este mes.
-                  </p>
-                </div>
-              )}
-
-              {/* Section Titulo y Tabs de Canales */}
+          ) : (
+            <>
+              {/* Sorter + Grilla de Operadores. El root envuelve barra y grilla;
+                  la grilla es el "body" que `clientTableSort` reordena. */}
               <div
-                class:list={[
-                  "border-base-300 flex flex-col gap-4 border-b pb-3",
-                  !isAgent && "mt-8",
-                ]}
+                id="operators-sort-root"
+                data-table-sort-root
+                data-table-sort-default-key="nombre"
+                data-table-sort-default-direction="ascending"
+                class="space-y-3"
               >
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h4 class="text-base-content/80 flex items-center gap-2 font-bold tracking-wider uppercase">
-                      <Icon name="boxicons:chart-bar-columns" size={24} />
-                      Evaluaciones de Calidad del Operador
-                    </h4>
-                    <p class="text-base-content/50 text-xs">Cuota mensual requerida: 4 Llamadas Wise + 4 Mails Wise + 4 Autogestiones (12 en total)</p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span
-                      id="total-samples-avg-badge"
-                      class="badge badge-neutral text-xs font-bold gap-1"
-                      title="Promedio General del Total de Muestras del Mes"
-                    >
-                      <Icon name="boxicons:calculator" size={14} />
-                      <span class="opacity-70 font-normal">Promedio Total:</span>
-                      <strong id="total-samples-avg-val">--</strong>
-                    </span>
-                    <span
-                      id="quota-progress-badge"
-                      class="badge badge-neutral text-xs font-bold"
-                    >
-                      0/12 Completadas
-                    </span>
-                    {!isAgent && (
-                      <button
-                        id="btn-new-audit"
-                        class="btn btn-sm btn-primary rounded-lg text-xs font-bold uppercase gap-1"
-                      >
-                        <Icon name="boxicons:plus" size={16} />
-                        Nueva Auditoría
-                      </button>
-                    )}
-                  </div>
+                <div
+                  data-table-header
+                  class="flex flex-wrap items-center justify-end gap-1.5 px-1 text-xs text-base-content/70"
+                >
+                  <span class="text-xxs font-semibold tracking-wider text-base-content/50 uppercase">
+                    Ordenar por:
+                  </span>
+                  {
+                    [
+                      { key: "nombre", label: "Nombre" },
+                      { key: "puntaje", label: "Puntaje" },
+                      { key: "auditorias", label: "Auditorías" },
+                    ].map((sortOption) => {
+                      const isDefault = sortOption.key === "nombre";
+                      return (
+                        <button
+                          type="button"
+                          data-table-sort-key={sortOption.key}
+                          data-table-sort-direction={
+                            isDefault ? "ascending" : "none"
+                          }
+                          aria-sort={isDefault ? "ascending" : "none"}
+                          class="btn btn-xs btn-ghost gap-1 rounded-lg border border-base-200/80 bg-base-100 px-2 font-medium hover:border-secondary/40 hover:bg-base-200/50"
+                        >
+                          <span>{sortOption.label}</span>
+                          <span class="relative inline-flex size-3.5 shrink-0 items-center justify-center">
+                            <Icon
+                              name="boxicons:arrow-down-up-filled"
+                              size={12}
+                              class="absolute opacity-50"
+                              data-table-sort-icon="none"
+                            />
+                            <Icon
+                              name="boxicons:chevron-up"
+                              size={14}
+                              class="absolute hidden opacity-0"
+                              data-table-sort-icon="ascending"
+                            />
+                            <Icon
+                              name="boxicons:chevron-down"
+                              size={14}
+                              class="absolute hidden opacity-0"
+                              data-table-sort-icon="descending"
+                            />
+                          </span>
+                        </button>
+                      );
+                    })
+                  }
                 </div>
 
-                <!-- Tabs de separación por Canal -->
-                <div class="tabs tabs-boxed bg-base-200/60 p-1 w-fit" id="operator-channel-tabs">
-                  <button
-                    type="button"
-                    class="tab tab-active operator-channel-tab text-xs font-bold gap-1.5"
-                    data-channel="wise_call"
-                  >
-                    <Icon name="boxicons:phone-ring" size={16} />
-                    <span>Llamadas Wise</span>
-                    <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-wise_call">0/4</span>
-                    <span class="badge badge-xs badge-ghost ml-0.5 font-bold" id="tab-avg-wise_call" title="Promedio de Llamadas Wise">--</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="tab operator-channel-tab text-xs font-bold gap-1.5"
-                    data-channel="wise_email"
-                  >
-                    <Icon name="boxicons:envelope" size={16} />
-                    <span>Mails Wise</span>
-                    <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-wise_email">0/4</span>
-                    <span class="badge badge-xs badge-ghost ml-0.5 font-bold" id="tab-avg-wise_email" title="Promedio de Mails Wise">--</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="tab operator-channel-tab text-xs font-bold gap-1.5"
-                    data-channel="invgate_ticket"
-                  >
-                    <Icon name="boxicons:handshake" size={16} />
-                    <span>Autogestiones</span>
-                    <span class="badge badge-xs badge-ghost ml-1 font-mono" id="tab-count-invgate_ticket">0/4</span>
-                    <span class="badge badge-xs badge-ghost ml-0.5 font-bold" id="tab-avg-invgate_ticket" title="Promedio de Autogestiones">--</span>
-                  </button>
+                <div
+                  id="operators-grid"
+                  data-table-sort-body
+                  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                >
+                {operatorsQuality.map((op) => {
+                  const initials = op.name
+                    .split(" ")
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .join("")
+                    .substring(0, 2)
+                    .toUpperCase();
+                  const scoreChipClass =
+                    op.averageScore >= 90
+                      ? "bg-success/10 text-success border-success/20"
+                      : op.averageScore >= 80
+                        ? "bg-warning/10 text-warning border-warning/20"
+                        : "bg-error/10 text-error border-error/20";
+                  const progressPct = Math.min(Math.round((op.calls.length / 12) * 100), 100);
+
+                  return (
+                    <button
+                      type="button"
+                      class="operator-card operator-item bg-base-100 border-base-200/80 hover:border-secondary/40 shadow-xs hover:shadow-md transition-all duration-200 border p-4.5 text-left cursor-pointer group flex flex-col justify-between rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:border-secondary/50 active:scale-[0.99]"
+                      data-name={op.name.toLowerCase()}
+                      data-id={op.id.toLowerCase()}
+                      data-username={(op.username || "").toLowerCase()}
+                      data-operator-id={op.id}
+                      data-table-row
+                      data-sort-nombre={op.name.toLowerCase()}
+                      data-sort-puntaje={op.averageScore}
+                      data-sort-auditorias={op.calls.length}
+                      data-operator={JSON.stringify({
+                        id: op.id,
+                        name: op.name,
+                        username: op.username,
+                        averageScore: op.averageScore,
+                        callsCount: op.calls.length,
+                      })}
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <div class="size-11 rounded-xl bg-secondary/10 text-secondary group-hover:bg-secondary group-hover:text-secondary-content flex items-center justify-center font-bold text-sm tracking-wider shadow-xs transition-colors duration-200 shrink-0">
+                            <span>{initials}</span>
+                          </div>
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                              <span class="text-base-content font-bold text-sm tracking-tight truncate group-hover:text-secondary transition-colors">
+                                {op.name}
+                              </span>
+                            </div>
+                            <div class="text-base-content/50 font-mono text-xs lowercase mt-0.5 truncate">
+                              @{op.username || op.id}
+                            </div>
+                          </div>
+                        </div>
+                        <div class={`inline-flex items-center px-2 py-0.5 rounded-lg border text-xs font-black tracking-tight ${scoreChipClass} shrink-0`}>
+                          {op.averageScore}%
+                        </div>
+                      </div>
+
+                      <div class="mt-4 pt-3 border-t border-base-200/60">
+                        <div class="flex items-center justify-between text-xs">
+                          <span class="text-base-content/60 font-medium">Auditorías</span>
+                          <span class="text-base-content/80 font-mono text-xxs sm:text-xs">
+                            <span class="text-base-content font-bold">{op.calls.length}</span> de 12 completadas
+                          </span>
+                        </div>
+                        <div class="w-full bg-base-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                          <div
+                            class={`h-full rounded-full transition-all duration-300 ${op.calls.length >= 12 ? "bg-success" : "bg-secondary"}`}
+                            style={`width: ${progressPct}%`}
+                          ></div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+                <div id="calidad-empty-state" class="col-span-full hidden py-12">
+                  <SearchEmptyState
+                    title="Sin resultados"
+                    description="No hay operadores que coincidan con la búsqueda. Probá con otro nombre o legajo."
+                  />
+                </div>
                 </div>
               </div>
 
-
-              {/* Grid de Auditorías del Canal Activo */}
-              <div class="grid gap-6 mt-4" id="detail-calls-container">
-                {/* Renderizado dinámico vía JS */}
-              </div>
-            </div>
-          </div>
-        </main>
+              {/* Modal de Detalle de Operador para Supervisores */}
+              <dialog id="operator-details-modal" class="modal z-150">
+                <div class="modal-box w-11/12 max-w-6xl max-h-[90vh] overflow-y-auto p-6 bg-base-100">
+                  <div id="operator-details-panel" class="space-y-6">
+                    <OperatorDetailsPanel isAgent={false} />
+                  </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                  <button>close</button>
+                </form>
+              </dialog>
+            </>
+          )
+        }
       </div>
     )
   }
 </PageContainer>
-
-<AuditModal allParameters={activeParameters} selectedMonth={selectedMonth} />
 
 <Modal
   id="month-summary-modal"
@@ -1088,29 +629,28 @@ const cleanBase = getCleanBase();
         id="summary-content"
         name="summary"
         label="Resumen general"
-        placeholder="Escriba aquí las observaciones del mes..."
+        placeholder="Añadir observación del mes..."
         rows={5}
         textareaClass="textarea-sm font-bold"
       />
+
+      <div class="modal-action mt-6 flex justify-end gap-2">
+        <button
+          type="button"
+          id="btn-close-summary-modal"
+          class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          id="btn-submit-month-summary"
+          class="btn btn-sm btn-secondary text-xs font-black uppercase"
+        >
+          Guardar
+        </button>
+      </div>
     </form>
-  </Fragment>
-  <Fragment slot="actions">
-    <div class="modal-action mt-6 flex justify-end gap-2">
-      <button
-        type="button"
-        id="btn-close-summary-modal"
-        class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
-      >
-        Cancelar
-      </button>
-      <button
-        type="submit"
-        form="month-summary-form"
-        class="btn btn-sm btn-secondary text-xs font-black uppercase"
-      >
-        Guardar
-      </button>
-    </div>
   </Fragment>
 </Modal>
 
@@ -1118,110 +658,137 @@ const cleanBase = getCleanBase();
   id="parameters-modal"
   title="Configuración de Parámetros de Calidad"
   icon="boxicons:cog"
-  titleClass="font-black text-lg uppercase tracking-tight"
-  size="2xl"
+  titleClass="font-black text-base uppercase tracking-tight"
+  size="3xl"
   zIndex="z-200"
-  class="flex h-[80vh] w-11/12 flex-col sm:h-150"
+  fixedFooter={true}
+  class="flex flex-col h-[90vh] sm:h-[82vh] max-h-[780px] w-11/12 sm:max-w-3xl"
 >
   <Fragment slot="content">
-    <!-- Channel Selector in Parameters Modal -->
-    <div class="flex items-center justify-between gap-2 mb-3 bg-base-200/40 p-2 rounded-xl border border-base-300">
-      <span class="text-xs font-bold uppercase tracking-wider text-base-content/60 pl-1">Canal:</span>
-      <div class="join">
+    <!-- Compact Header Bar with Channel & Section Tabs -->
+    <div class="bg-base-200/50 rounded-xl p-3 border border-base-200/80 space-y-2.5 mb-4 shrink-0">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <!-- Channel Selector: Segmented Control unificado y redondeado -->
+        <div class="flex items-center gap-1.5 shrink-0 overflow-x-auto pb-0.5 sm:pb-0 text-xs no-scrollbar">
+          <span class="text-xs font-semibold text-base-content/60 mr-1 shrink-0">Canal:</span>
+          <div class="inline-flex items-center rounded-xl bg-base-200/80 p-0.5 border border-base-200 shadow-2xs shrink-0" id="param-channel-container">
+            <button
+              type="button"
+              class="btn btn-xs rounded-lg border-0 param-channel-btn btn-active bg-secondary text-secondary-content font-bold shadow-2xs transition-all px-2.5"
+              data-channel="wise_call"
+            >
+              Llamada Wise
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs rounded-lg border-0 bg-transparent param-channel-btn font-medium text-base-content/70 hover:text-secondary hover:bg-base-100/60 transition-all px-2.5"
+              data-channel="wise_email"
+            >
+              Mail Wise
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs rounded-lg border-0 bg-transparent param-channel-btn font-medium text-base-content/70 hover:text-secondary hover:bg-base-100/60 transition-all px-2.5"
+              data-channel="invgate_ticket"
+            >
+              Autogestión
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Weight & Criteria Summary Badge + Tooltip Disclaimer -->
+        <div class="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+          <div
+            id="param-summary-badge"
+            class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium bg-base-100 border border-base-200/80 transition-colors"
+            title="Resumen de criterios y porcentaje asignado"
+          >
+            <span id="param-summary-count" class="font-bold text-base-content">0 criterios</span>
+            <span class="text-base-content/30">•</span>
+            <span id="param-summary-weight" class="font-mono font-bold text-base-content/70">Peso total: 0%</span>
+          </div>
+
+          <div
+            class="tooltip tooltip-bottom sm:tooltip-left z-210"
+            data-tip="La evaluación empieza en 100 puntos y cada ítem no cumplido resta porcentaje. Para que la nota sea justa y equilibrada, la suma de los criterios de cada sección debe dar exactamente 100%. Si supera el 100%, se penaliza de más al operador."
+          >
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-base-content"
+              aria-label="Información sobre cálculo de pesos y criterios"
+            >
+              <Icon name="boxicons:info-circle" size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-section Tabs -->
+      <div class="tabs tabs-box bg-base-100/90 p-1 rounded-lg border border-base-200/60 overflow-x-auto flex">
         <button
           type="button"
-          class="btn btn-xs join-item param-channel-btn btn-active btn-primary font-bold uppercase"
-          data-channel="wise_call"
+          id="param-tab-s1-btn"
+          class="tab tab-active parameter-tab flex-1 text-xs font-bold transition-all py-1.5"
+          data-tab="s1"
         >
-          Llamada Wise
+          Interacción con Usuario
         </button>
         <button
           type="button"
-          class="btn btn-xs join-item param-channel-btn font-bold uppercase"
-          data-channel="wise_email"
+          id="param-tab-s2-btn"
+          class="tab parameter-tab flex-1 text-xs font-bold transition-all py-1.5"
+          data-tab="s2"
         >
-          Mail Wise
-        </button>
-        <button
-          type="button"
-          class="btn btn-xs join-item param-channel-btn font-bold uppercase"
-          data-channel="invgate_ticket"
-        >
-          Autogestión
+          Gestión del Ticket
         </button>
       </div>
     </div>
 
-    <!-- Tabs Header -->
-    <div class="tabs bg-base-200/50 mb-4 shrink-0 rounded-xl p-1">
-      <button
-        type="button"
-        id="param-tab-s1-btn"
-        class="tab tab-active parameter-tab flex-1 text-xs font-bold uppercase"
-        data-tab="s1"
-      >
-        Interacción con Usuario
-      </button>
-      <button
-        type="button"
-        id="param-tab-s2-btn"
-        class="tab parameter-tab flex-1 text-xs font-bold uppercase"
-        data-tab="s2"
-      >
-        Gestión del Ticket
-      </button>
-    </div>
-
-    <!-- Lists Container -->
-    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+    <!-- Lists Container with Independent Scroll -->
+    <div class="min-h-0 flex-1 space-y-3 pb-2">
       <!-- Section 1 List -->
-      <div id="param-list-s1" class="parameter-list-pane space-y-3">
+      <div id="param-list-s1" class="parameter-list-pane space-y-2">
         <!-- populated dynamically -->
       </div>
 
       <!-- Section 2 List -->
-      <div id="param-list-s2" class="parameter-list-pane hidden space-y-3">
+      <div id="param-list-s2" class="parameter-list-pane hidden space-y-2">
         <!-- populated dynamically -->
       </div>
     </div>
   </Fragment>
+
   <Fragment slot="actions">
-    <!-- Action Buttons -->
-    <div
-      class="modal-action border-base-200 mt-6 flex shrink-0 justify-between border-t pt-4"
-    >
-      <div class="flex gap-2">
+    <!-- Fixed Footer Actions -->
+    <div class="flex items-center justify-between gap-3 w-full">
+      <div class="flex items-center gap-2">
         <button
           type="button"
-          id="btn-add-param-s1"
-          class="btn btn-sm btn-primary add-param-btn gap-1 text-xs font-black uppercase"
+          id="btn-add-param"
+          class="btn btn-sm btn-ghost gap-1 text-xs font-bold transition-transform active:scale-95"
+          title="Agregar nuevo criterio a la sección activa"
         >
           <Icon name="boxicons:plus" size={16} />
-          <span id="btn-add-param-s1-label">Agregar Criterio</span>
+          <span id="btn-add-param-label">Agregar criterio</span>
         </button>
-        <button
-          type="button"
-          id="btn-add-param-s2"
-          class="btn btn-sm btn-primary add-param-btn hidden gap-1 text-xs font-black uppercase"
-        >
-          <Icon name="boxicons:plus" size={16} />
-          <span id="btn-add-param-s2-label">Agregar Criterio</span>
-        </button>
+        <!-- Compatibilidad oculta para selectores legacy -->
+        <button type="button" id="btn-add-param-s1" class="hidden"></button>
+        <button type="button" id="btn-add-param-s2" class="hidden"></button>
       </div>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
         <button
           type="button"
           id="btn-close-parameters-modal"
-          class="btn btn-sm btn-ghost hover:bg-base-200 text-xs font-black uppercase"
+          class="btn btn-sm btn-ghost text-xs font-semibold hover:bg-base-200"
         >
           Cancelar
         </button>
         <button
           type="button"
           id="btn-save-parameters"
-          class="btn btn-sm btn-secondary text-xs font-black uppercase"
+          class="btn btn-sm btn-secondary text-xs font-bold shadow-xs hover:shadow-md"
         >
-          Guardar Cambios
+          Guardar cambios
         </button>
       </div>
     </div>
@@ -1247,6 +814,40 @@ const cleanBase = getCleanBase();
 </style>
 
 <style>
+  /* Asegurar fondo sólido y scrollbar no transparente en el selector de meses */
+  #month-selector,
+  #month-selector:focus,
+  #month-selector option,
+  #month-selector optgroup {
+    background-color: var(--color-base-100, #efefef) !important;
+    color: var(--color-base-content, #0c0c0c) !important;
+  }
+
+  #month-selector::-webkit-scrollbar {
+    width: 8px;
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  #month-selector::-webkit-scrollbar-track {
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  #month-selector::-webkit-scrollbar-thumb {
+    background-color: var(--color-base-300, #cacdce);
+    border-radius: 4px;
+  }
+
+  /* Ocultar flechas nativas (stepper spinners) en inputs numéricos de peso para evitar desalineación */
+  .param-input-weight::-webkit-outer-spin-button,
+  .param-input-weight::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .param-input-weight {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
   /* Animaciones útiles para las transiciones de estado */
   @media print {
     body * {
@@ -1279,12 +880,14 @@ const cleanBase = getCleanBase();
 <script>
   import { actions } from "astro:actions";
   import {
-    calculateAuditScores,
     calculateChannelAverages,
     formatChannelAverageScore,
-    getChannelAverageBadgeClass,
+    getChannelAverageTextClass,
+    hasSection2,
+    hasSection2Evaluated,
   } from "@lib/qualityCalculator";
   import { escapeHtml } from "@lib/sanitize";
+  import { bindClientTableSort } from "@lib/clientTableSort";
 
   import { formatMonthLabel } from "@lib/monthUtils";
   import { getCleanBase } from "@lib/baseUrl";
@@ -1339,12 +942,12 @@ const cleanBase = getCleanBase();
         : call.section2.score >= 70
           ? "text-warning"
           : "text-error";
-    const badgeClass =
+    const totalScoreColor =
       call.totalScore >= 90
-        ? "badge-success"
+        ? "text-success"
         : call.totalScore >= 80
-          ? "badge-warning"
-          : "badge-error";
+          ? "text-warning"
+          : "text-error";
 
     // Filtrar parámetros dinámicos para el canal de la auditoría
     const params: AuditParameter[] = getAuditParameters();
@@ -1369,35 +972,42 @@ const cleanBase = getCleanBase();
       );
     }
 
-    const hasS2 =
-      call.channelType === "wise_call"
-        ? (call.appliesMda ?? true)
-        : call.channelType === "wise_email"
-          ? Boolean(call.appliesMda)
-          : Boolean(call.staysInMda);
+    const hasS2 = hasSection2(call);
+    const s2Evaluated = hasSection2Evaluated(call);
 
+    let s1PassedCount = 0;
+    const s1TotalCount = s1Params.length;
     const s1ListHTML = s1Params
       .map((param) => {
-        const isChecked =
-          param.code in call.section1.details
-            ? Boolean(call.section1.details[param.code])
-            : false;
+        const isEvaluated = param.code in call.section1.details;
+        const isChecked = isEvaluated
+          ? Boolean(call.section1.details[param.code])
+          : false;
+        if (isEvaluated && isChecked) s1PassedCount++;
+
+        const isNoCumple = isEvaluated && !isChecked;
+        const rowClass = isNoCumple
+          ? "bg-error/5 border-l-2 border-l-error pl-2.5 pr-2 py-2 rounded-r-lg transition-colors"
+          : "border-b border-base-200/60 last:border-b-0 py-2 transition-colors";
+
+        const weightText = isNoCumple
+          ? `<span class="text-3xs font-mono font-bold text-error shrink-0">−${param.weight}%</span>`
+          : `<span class="text-3xs font-mono text-base-content/40 shrink-0">${param.weight}%</span>`;
+
         const comment = call.comments?.[param.code];
         return `
-        <li class="flex flex-col group/item border-b border-base-200/40 last:border-b-0 py-1.5">
-          <div class="flex items-center justify-between">
-            <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors text-xs">
+        <li class="flex flex-col group/item ${rowClass}">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs leading-snug font-medium ${isNoCumple ? "text-error font-semibold" : "text-base-content/85 group-hover/item:text-base-content"}">
               ${escapeHtml(param.name)}
-              <span class="text-xs opacity-50 font-normal ml-1.5">(${param.weight})</span>
             </span>
-            <span class="${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
+            ${weightText}
           </div>
           ${
             comment
               ? `
-            <div class="mt-1 flex items-start gap-1.5 text-xs text-base-content/80 bg-base-200/50 rounded-lg px-2.5 py-1 border border-base-300/40">
-              <span class="text-secondary text-xxs font-bold uppercase tracking-wider shrink-0 mt-0.5">Obs:</span>
-              <span class="break-words font-sans text-xs">${escapeHtml(comment)}</span>
+            <div class="mt-1.5 flex items-start text-xs text-base-content/90 bg-base-200/60 rounded-lg px-2.5 py-1.5 border border-base-300/40">
+              <span class="break-words font-sans text-xs text-base-content/80">${escapeHtml(comment)}</span>
             </div>
           `
               : ""
@@ -1407,160 +1017,249 @@ const cleanBase = getCleanBase();
       })
       .join("");
 
+    const isReclamo = Boolean(call.isReclamoNovedad);
+    let s2PassedCount = 0;
+    const s2TotalCount = s2Params.length;
     const s2ListHTML = !hasS2
-      ? `<li class="text-xs text-base-content/40 italic py-2">${
+      ? `<li class="text-xs text-base-content/40 italic py-3 text-center bg-base-200/30 rounded-xl border border-dashed border-base-300/60">${
           call.channelType === "wise_call"
             ? "No aplica evaluación de ticket (no se generó ticket)."
             : "No aplica ticket MDA."
         }</li>`
-      : s2Params
-          .map((param) => {
-            const isChecked =
-              param.code in call.section2.details
+      : isReclamo
+        ? s2Params
+            .map((param) => {
+              const comment = call.comments?.[param.code];
+              return `
+          <li class="flex flex-col group/item border-b border-base-200/60 last:border-b-0 py-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors text-xs leading-snug">
+                ${escapeHtml(param.name)}
+                <span class="text-3xs opacity-40 font-normal font-mono ml-1">(${param.weight}%)</span>
+              </span>
+              <span class="badge badge-xs badge-ghost text-base-content/60 text-3xs font-bold gap-1 shrink-0" title="Eximido: Reclamo o Novedad (100% automático)">
+                N/A (Reclamo)
+              </span>
+            </div>
+            ${
+              comment
+                ? `
+              <div class="mt-1.5 flex items-start text-xs text-base-content/90 bg-base-200/60 rounded-lg px-2.5 py-1.5 border border-base-300/40">
+                <span class="break-words font-sans text-xs text-base-content/80">${escapeHtml(comment)}</span>
+              </div>
+            `
+                : ""
+            }
+          </li>
+        `;
+            })
+            .join("")
+        : s2Params
+            .map((param) => {
+              const isEvaluated = param.code in call.section2.details;
+              const isChecked = isEvaluated
                 ? Boolean(call.section2.details[param.code])
                 : call.section2.score === 100;
-            const comment = call.comments?.[param.code];
-            return `
-        <li class="flex flex-col group/item border-b border-base-200/40 last:border-b-0 py-1.5">
-          <div class="flex items-center justify-between">
-            <span class="text-base-content/70 font-medium group-hover/item:text-base-content transition-colors text-xs">
-              ${escapeHtml(param.name)}
-              <span class="text-xs opacity-50 font-normal ml-1.5">(${param.weight})</span>
-            </span>
-            <span class="${isChecked ? "text-success" : "text-error"}" title="${isChecked ? "Cumple" : "No Cumple"}">${isChecked ? ICON_CHECK : ICON_X}</span>
-          </div>
-          ${
-            comment
-              ? `
-            <div class="mt-1 flex items-start gap-1.5 text-xs text-base-content/80 bg-base-200/50 rounded-lg px-2.5 py-1 border border-base-300/40">
-              <span class="text-secondary text-xxs font-bold uppercase tracking-wider shrink-0 mt-0.5">Obs:</span>
-              <span class="break-words font-sans text-xs">${escapeHtml(comment)}</span>
+              if (isChecked) s2PassedCount++;
+
+              const isNoCumple = isEvaluated && !isChecked;
+              const rowClass = isNoCumple
+                ? "bg-error/5 border-l-2 border-l-error pl-2.5 pr-2 py-2 rounded-r-lg transition-colors"
+                : "border-b border-base-200/60 last:border-b-0 py-2 transition-colors";
+
+              const weightText = isNoCumple
+                ? `<span class="text-3xs font-mono font-bold text-error shrink-0">−${param.weight}%</span>`
+                : `<span class="text-3xs font-mono text-base-content/40 shrink-0">${param.weight}%</span>`;
+
+              const comment = call.comments?.[param.code];
+              return `
+          <li class="flex flex-col group/item ${rowClass}">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs leading-snug font-medium ${isNoCumple ? "text-error font-semibold" : "text-base-content/85 group-hover/item:text-base-content"}">
+                ${escapeHtml(param.name)}
+              </span>
+              ${weightText}
             </div>
-          `
-              : ""
-          }
-        </li>
-      `;
-          })
-          .join("");
+            ${
+              comment
+                ? `
+              <div class="mt-1.5 flex items-start text-xs text-base-content/90 bg-base-200/60 rounded-lg px-2.5 py-1.5 border border-base-300/40">
+                <span class="break-words font-sans text-xs text-base-content/80">${escapeHtml(comment)}</span>
+              </div>
+            `
+                : ""
+            }
+          </li>
+        `;
+            })
+            .join("");
 
     const notesSection = call.notes
       ? `
-        <div class="col-span-full border-t border-base-200/50 pt-4 mt-4">
-          <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Notas / Observaciones de la llamada</div>
-          <p class="text-sm text-base-content/70 whitespace-pre-line">${escapeHtml(call.notes)}</p>
+        <div class="col-span-full">
+          <div class="text-3xs font-bold uppercase tracking-wider text-base-content/40 mb-1">Notas / Observaciones de la evaluación</div>
+          <p class="text-xs text-base-content/80 whitespace-pre-line bg-base-100 p-2.5 rounded-xl border border-base-200/80">${escapeHtml(call.notes)}</p>
         </div>
       `
       : "";
 
+    // El usuario puede escribir el ticket con o sin "#": anteponerlo siempre
+// producía "##1234". Solo se agrega cuando falta.
+const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
+  const t = (ticketId || "").trim();
+  if (!t || t === "N/A") return callId || "--";
+  return t.startsWith("#") ? t : `#${t}`;
+};
+
+    const durationTitle =
+      call.channelType === "wise_call"
+        ? "Duración de llamada"
+        : call.channelType === "wise_email"
+          ? "Tiempo de respuesta"
+          : "Toma / Lectura";
+    const durationText =
+      call.channelType === "wise_call"
+        ? (call.duration || "00:00")
+        : call.channelType === "wise_email"
+          ? (call.duration || "00:00")
+          : (call.takeTime || call.creationTime || "--");
+
+    const channelTag =
+      call.channelType === "wise_call"
+        ? "Llamada Wise"
+        : call.channelType === "wise_email"
+          ? "Mail Wise"
+          : "Autogestión";
+
     return `
-      <div class="call-card-container rounded-3xl border border-base-300 bg-base-100 overflow-hidden shadow-md relative group">
+      <div class="call-card call-card-container rounded-2xl border border-base-200/90 bg-base-100 overflow-hidden shadow-2xs relative group hover:border-base-300 transition-colors" data-call-id="${call.id}">
         
-        <!-- Decoration Left Border -->
-        <div class="absolute left-0 top-0 bottom-0 w-2 ${badgeClass.replace("badge-", "bg-")} opacity-80 group-hover:opacity-100 transition-opacity"></div>
-        
-        <!-- Card Header -->
-        <div class="flex flex-wrap items-center justify-between border-b border-base-200 bg-base-100 p-6 pl-8">
-          <div class="flex items-center gap-5">
-            <div class="flex size-12 items-center justify-center rounded-2xl bg-base-200 font-black text-base-content/70 border border-base-300 shadow-inner">
-              #${index + 1}
+        <!-- Compact Card Header (Clickable Accordion) -->
+        <div class="call-card-header flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-base-200/40 transition-colors select-none">
+          <div class="flex flex-wrap items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <!-- 1. Resultado / Score -->
+            <span class="${totalScoreColor} font-black font-mono text-sm shrink-0 w-11 text-center">
+              ${call.totalScore}%
+            </span>
+
+            <!-- 2. Duración -->
+            <div class="flex items-center gap-1 text-xs font-mono font-bold text-base-content/80 shrink-0" title="${durationTitle}">
+              <svg class="size-3.5 opacity-50 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/><path d="M13 7h-2v6h5v-2h-3z"/></svg>
+              <span>${escapeHtml(durationText)}</span>
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-mono text-lg font-black tracking-tight text-base-content">${escapeHtml(call.callId)}</span>
-                ${call.isPas ? '<span class="badge badge-secondary badge-sm font-bold uppercase tracking-wider text-xxs px-2 py-1.5 shadow-sm">PAS</span>' : ""}
-              </div>
-              <div class="text-xs font-medium text-base-content/50 mt-1 uppercase tracking-widest">Ticket: <span class="font-mono text-base-content/70">${escapeHtml(call.ticketId || "--")}</span> ${call.date ? `<span class="opacity-50 ml-1">(${call.date})</span>` : ""}</div>
+
+            <span class="text-base-content/20 text-xs hidden sm:inline">•</span>
+
+            <!-- 3. Ticket / Nro de Caso -->
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="font-mono text-xs font-bold text-base-content truncate">${escapeHtml(formatTicketRef(call.ticketId, call.callId))}</span>
+              ${call.isPas ? '<span class="badge badge-secondary badge-xs font-bold uppercase tracking-wider text-3xs px-1.5 py-0.5 shadow-2xs shrink-0">PAS</span>' : ""}
+              ${call.callId && call.ticketId && call.callId !== call.ticketId ? `<span class="text-3xs text-base-content/40 font-mono truncate hidden md:inline">(${escapeHtml(call.callId)})</span>` : ""}
             </div>
-          </div>
-          <div class="flex items-center gap-8 mt-4 sm:mt-0">
+
+            <span class="text-base-content/20 text-xs hidden sm:inline">•</span>
+
+            <!-- 4. Fecha -->
+            <span class="text-xs text-base-content/50 font-medium shrink-0">
+              ${escapeHtml(call.date || "--")}
+            </span>
+
+            <span class="badge badge-xs badge-neutral font-medium text-3xs ml-1 shrink-0">
+              ${channelTag}
+            </span>
+
             ${
-              call.channelType === "wise_call"
-                ? `
-            <div class="text-right">
-              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Duración</div>
-              <div class="text-base font-mono font-bold text-base-content/80">${escapeHtml(call.duration || "00:00")}</div>
-            </div>
-            `
-                : call.channelType === "wise_email"
-                  ? `
-            <div class="text-right">
-              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Respuesta</div>
-              <div class="text-base font-mono font-bold text-base-content/80">${escapeHtml(call.duration || "00:00")}</div>
-            </div>
-            `
-                  : call.takeTime || call.creationTime
-                    ? `
-            <div class="text-right">
-              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Toma / Lectura</div>
-              <div class="text-xs font-mono font-bold text-base-content/80">${escapeHtml(call.takeTime || call.creationTime || "")}</div>
-            </div>
-            `
-                    : ""
+              isReclamo
+                ? `<span class="badge badge-xs badge-neutral font-bold uppercase tracking-wide shrink-0" title="Reclamo o novedad: sección de ticket eximida">Reclamo</span>`
+                : ""
             }
-            <div class="text-right">
-              <div class="text-xs font-bold uppercase tracking-widest text-base-content/40 mb-1">Score Total</div>
-              <div class="badge ${badgeClass} font-black shadow-sm text-sm py-3 px-3">
-                ${call.totalScore}%
-              </div>
-            </div>
+          </div>
+
+          <!-- Actions: Edit & Expand Chevron -->
+          <div class="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
             ${
               isUserAgent
                 ? ""
                 : `
             <button 
-              class="btn btn-circle btn-ghost btn-sm text-base-content/50 hover:text-secondary ml-1 edit-audit-btn" 
+              type="button"
+              class="btn btn-circle btn-ghost btn-xs text-base-content/50 hover:text-secondary edit-audit-btn" 
               data-call-id="${call.id}"
               title="Editar Auditoría"
             >
-              <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"></path></svg>
+              <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"/></svg>
             </button>
             `
             }
             <button 
-              class="btn btn-circle btn-ghost btn-sm text-base-content/50 hover:text-base-content hover:bg-base-200 ml-1" 
-              onclick="this.closest('.call-card-container').querySelector('.call-card-details').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180');"
+              type="button"
+              class="btn btn-circle btn-ghost btn-xs text-base-content/50 hover:text-base-content accordion-toggle-btn"
               title="Expandir / Minimizar detalles"
             >
-              <svg class="size-6 transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M16.293 9.293 12 13.586 7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z"></path></svg>
+              <svg class="size-4.5 transition-transform duration-200 accordion-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16.293 9.293 12 13.586 7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z"/></svg>
             </button>
           </div>
         </div>
         
-        <!-- Details Grid -->
-        <div class="call-card-details hidden grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-base-200 bg-base-200/20">
+        <!-- Details Grid (2 columnas con alto contraste y resumen de sección) -->
+        <div class="call-card-details hidden grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-base-200/80 bg-base-200/20 border-t border-base-200/80">
           
           <!-- Section 1 -->
-          <div class="p-6 pl-8">
-            <div class="mb-6 flex items-center justify-between border-b border-base-300/50 pb-3">
-              <h5 class="font-bold text-xs uppercase tracking-widest text-base-content/70">${call.channelType === "wise_call" ? "Interacción con Usuario" : call.channelType === "wise_email" ? "Gestión del Correo" : "Gestión del Caso"}</h5>
+          <div class="p-4 sm:p-5">
+            <div class="mb-3 flex items-center justify-between border-b border-base-200/80 pb-2">
+              <div>
+                <h5 class="font-bold text-xs uppercase tracking-wider text-base-content/80">${call.channelType === "wise_call" ? "Interacción con Usuario" : call.channelType === "wise_email" ? "Gestión del Correo" : "Gestión del Caso"}</h5>
+                <span class="text-3xs font-semibold text-base-content/50">${s1PassedCount} de ${s1TotalCount} criterios cumplidos</span>
+              </div>
               <div class="flex items-baseline gap-1">
-                <span class="text-xl font-black ${s1ScoreColor}">${call.section1.score}</span>
-                <span class="text-xs font-bold text-base-content/30">/${call.section1.maxScore}</span>
+                <span class="text-xl font-black font-mono ${s1ScoreColor}">${call.section1.score}</span>
+                <span class="text-3xs font-bold text-base-content/40">/${call.section1.maxScore}</span>
               </div>
             </div>
-            <ul class="space-y-3.5 text-sm">
+            <ul class="space-y-1 text-xs">
               ${s1ListHTML}
             </ul>
           </div>
           
-          <!-- Section 2 -->
-          <div class="p-6">
-            <div class="mb-6 flex items-center justify-between border-b border-base-300/50 pb-3">
-              <h5 class="font-bold text-xs uppercase tracking-widest text-base-content/70">${call.channelType === "wise_call" ? (!hasS2 ? "Gestión del Ticket (No Aplica)" : "Gestión del Ticket") : call.channelType === "wise_email" ? (call.appliesMda ? "Ticket MDA" : "Ticket MDA (No Aplica)") : (call.staysInMda ? "Ticket MDA" : "Ticket MDA (No Aplica)")}</h5>
+          <!-- Section 2: el número usa hasSection2Evaluated (no hasSection2) porque un
+             reclamo APLICA S2 —y por eso conserva el desglose de parámetros—
+             pero no se evaluó criterio a criterio, así que no tiene puntaje que
+             mostrar. Reclamo y "no aplica" muestran ambos N/A, pero son
+             causas opuestas (decisión del auditor vs ausencia de ticket), así
+             que el badge los distingue. -->
+          <div class="p-4 sm:p-5 ${s2Evaluated ? "" : "opacity-60"}">
+            <div class="mb-3 flex items-center justify-between border-b border-base-200/80 pb-2">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h5 class="font-bold text-xs uppercase tracking-wider text-base-content/80">${isReclamo ? (call.channelType === "wise_call" ? "Gestión del Ticket" : "Ticket MDA") : (call.channelType === "wise_call" ? "Gestión del Ticket" : "Ticket MDA")}</h5>
+                  ${
+                    s2Evaluated
+                      ? ""
+                      : isReclamo
+                        ? `<span class="badge badge-xs badge-neutral font-bold uppercase tracking-wide" title="Reclamo o novedad: eximido de evaluación individual (100% automático)">Reclamo</span>`
+                        : `<span class="badge badge-xs badge-ghost font-bold uppercase tracking-wide" title="${call.channelType === "wise_call" ? "No se generó ticket, no hay gestión que evaluar" : call.channelType === "wise_email" ? "El mail no derivó en ticket MDA" : "El caso no quedó en MDA"}">No aplica</span>`
+                  }
+                </div>
+                <span class="text-3xs font-semibold text-base-content/50">${isReclamo ? "Eximido de evaluación individual (100% automático)" : (hasS2 ? `${s2PassedCount} de ${s2TotalCount} criterios cumplidos` : "No aplica evaluación de ticket")}</span>
+              </div>
               <div class="flex items-baseline gap-1">
-                <span class="text-xl font-black ${s2ScoreColor}">${call.section2.score}</span>
-                <span class="text-xs font-bold text-base-content/30">/${call.section2.maxScore}</span>
+                ${
+                  s2Evaluated
+                    ? `<span class="text-xl font-black font-mono ${s2ScoreColor}">${call.section2.score}</span>
+                <span class="text-3xs font-bold text-base-content/40">/${call.section2.maxScore}</span>`
+                    : `<span class="text-xl font-black font-mono text-base-content/40">N/A</span>`
+                }
               </div>
             </div>
-            <ul class="space-y-3.5 text-sm">
+            <ul class="space-y-1 text-xs">
               ${s2ListHTML}
             </ul>
           </div>
 
-          <div class="col-span-full p-6 pl-8 border-t border-base-200 bg-base-200/40">
+          <!-- Notes / Observaciones -->
+          <div class="col-span-full p-4 sm:p-5 border-t border-base-200/80 bg-base-200/40">
             ${notesSection}
-            ${!call.notes ? '<p class="text-xs text-base-content/40 italic">Sin observaciones o notas registradas.</p>' : ""}
+            ${!call.notes ? '<p class="text-3xs text-base-content/40 italic">Sin observaciones o notas registradas para esta evaluación.</p>' : ""}
           </div>
 
         </div>
@@ -1569,15 +1268,92 @@ const cleanBase = getCleanBase();
   }
 
   function initQualityMasterDetail() {
-    const operatorListContainer = document.getElementById("operator-list");
-    if (!operatorListContainer) return false;
-    if (operatorListContainer.dataset.masterDetailBound === "true") return true;
-    operatorListContainer.dataset.masterDetailBound = "true";
+    const rootContainer =
+      document.getElementById("operators-grid") ||
+      document.getElementById("operator-details-panel");
+    if (!rootContainer) return false;
+    if (rootContainer.dataset.masterDetailBound === "true") return true;
+    rootContainer.dataset.masterDetailBound = "true";
+
+    // El sorter es idempotente por `data-table-sort-bound`, así que repetir el
+    // bind cuando la island vuelve a streamear no duplica listeners.
+    bindClientTableSort();
 
     let currentActiveChannel = "wise_call";
 
-    const generalPanel = document.getElementById("general-info-panel");
-    const detailsPanel = document.getElementById("operator-details-panel");
+    const detailsModal = document.getElementById(
+      "operator-details-modal",
+    ) as HTMLDialogElement | null;
+
+    const monthSelector = document.getElementById(
+      "month-selector",
+    ) as HTMLSelectElement | null;
+    const btnPrevMonth = document.getElementById(
+      "btn-prev-month",
+    ) as HTMLButtonElement | null;
+    const btnNextMonth = document.getElementById(
+      "btn-next-month",
+    ) as HTMLButtonElement | null;
+
+    const updateMonthButtonsState = () => {
+      if (!monthSelector) return;
+      const idx = monthSelector.selectedIndex;
+      const totalOptions = monthSelector.options.length;
+
+      if (btnPrevMonth) {
+        const canGoPrev = idx < totalOptions - 1;
+        btnPrevMonth.disabled = !canGoPrev;
+        if (!canGoPrev) {
+          btnPrevMonth.classList.add("opacity-50");
+        } else {
+          btnPrevMonth.classList.remove("opacity-50");
+        }
+      }
+
+      if (btnNextMonth) {
+        const canGoNext = idx > 0;
+        btnNextMonth.disabled = !canGoNext;
+        if (!canGoNext) {
+          btnNextMonth.classList.add("opacity-50");
+        } else {
+          btnNextMonth.classList.remove("opacity-50");
+        }
+      }
+    };
+
+    if (monthSelector) {
+      monthSelector.addEventListener("change", (e) => {
+        const select = e.target as HTMLSelectElement;
+        const url = new URL(window.location.href);
+        url.searchParams.set("month", select.value);
+        if (activeAgentId) {
+          url.searchParams.set("agentId", activeAgentId);
+        } else {
+          url.searchParams.delete("agentId");
+        }
+        window.location.href = url.toString();
+      });
+
+      updateMonthButtonsState();
+
+      if (btnPrevMonth) {
+        btnPrevMonth.addEventListener("click", () => {
+          if (monthSelector.selectedIndex < monthSelector.options.length - 1) {
+            monthSelector.selectedIndex += 1;
+            monthSelector.dispatchEvent(new Event("change"));
+          }
+        });
+      }
+
+      if (btnNextMonth) {
+        btnNextMonth.addEventListener("click", () => {
+          if (monthSelector.selectedIndex > 0) {
+            monthSelector.selectedIndex -= 1;
+            monthSelector.dispatchEvent(new Event("change"));
+          }
+        });
+      }
+    }
 
     const dAvatar = document.getElementById("detail-avatar");
     const dName = document.getElementById("detail-name");
@@ -1586,48 +1362,17 @@ const cleanBase = getCleanBase();
     const dScore = document.getElementById("detail-score");
     const dStatDiff = document.getElementById("detail-stat-diff");
     const dStatAht = document.getElementById("detail-stat-aht");
-    const dStatInteraction = document.getElementById("detail-stat-interaction");
-    const dStatManagement = document.getElementById("detail-stat-management");
+    const dStatChannel = {
+      wise_call: document.getElementById("detail-stat-wise_call"),
+      wise_email: document.getElementById("detail-stat-wise_email"),
+      invgate_ticket: document.getElementById("detail-stat-invgate_ticket"),
+    };
     const dMonthSummary = document.getElementById("detail-month-summary");
     const dMonthSummaryEmpty = document.getElementById(
       "detail-month-summary-empty",
     );
     const callsContainer = document.getElementById("detail-calls-container");
     const btnBack = document.getElementById("btn-back-to-summary");
-
-    // Modal elements
-    const auditModal = document.getElementById(
-      "audit-modal",
-    ) as HTMLDialogElement;
-    const auditForm = document.getElementById("audit-form") as HTMLFormElement;
-    const modalTitle = document.getElementById("modal-title");
-    const formAuditId = document.getElementById(
-      "form-audit-id",
-    ) as HTMLInputElement;
-    const formAgentId = document.getElementById(
-      "form-agent-id",
-    ) as HTMLInputElement;
-    const formCallId = document.getElementById(
-      "form-call-id",
-    ) as HTMLInputElement;
-    const formTicketId = document.getElementById(
-      "form-ticket-id",
-    ) as HTMLInputElement;
-    const formDuration = document.getElementById(
-      "form-duration",
-    ) as HTMLInputElement;
-    const formDate = document.getElementById("form-date") as HTMLInputElement;
-    const btnDeleteAudit = document.getElementById(
-      "btn-delete-audit",
-    ) as HTMLButtonElement;
-    const btnCloseModal = document.getElementById(
-      "btn-close-modal",
-    ) as HTMLButtonElement;
-
-    // Additional field elements
-    const formNotes = document.getElementById(
-      "form-notes",
-    ) as HTMLTextAreaElement;
 
     // Month Summary Modal elements
     const summaryModal = document.getElementById(
@@ -1725,309 +1470,38 @@ const cleanBase = getCleanBase();
     }
 
     // open modal for editing or new audit
-    const openAuditModal = (
-      agentId: string,
-      callData: QualityCall | null = null,
-      defaultChannel: string = "wise_call",
-    ) => {
-      activeAgentId = agentId;
-      if (!auditForm || !auditModal) return;
-      auditForm.reset();
-      clearFormErrors(auditForm);
-      (window as any).resetTicketViewer?.();
-      if (formAgentId) formAgentId.value = agentId;
-
-      const targetChannel = callData ? (callData.channelType || "wise_call") : defaultChannel;
-      const targetBtn = document.querySelector(`.channel-btn[data-channel="${targetChannel}"]`) as HTMLButtonElement | null;
-      if (targetBtn) {
-        targetBtn.click();
-      }
-
-      if (callData) {
-        // Edit mode
-        if (modalTitle) {
-          modalTitle.innerHTML = `<svg class="size-6 text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor; margin-right: 0.5rem;"><path d="m18.988 2.012-3 3L19.988 9.012l3-3zM3.988 17.012v4h4l12.75-12.75-4-4z"></path></svg> Editar Auditoría de Calidad`;
-        }
-        if (formAuditId) formAuditId.value = String(callData.id);
-        if (formCallId) formCallId.value = callData.callId;
-        if (formTicketId) formTicketId.value = callData.ticketId;
-        (window as any).syncInvgateDeepLink?.();
-        if (formDuration) formDuration.value = callData.duration;
-        if (formDate) formDate.value = callData.date.substring(0, 10);
-        if (formNotes) formNotes.value = callData.notes || "";
-
-        const formRing = document.getElementById("form-ring-time") as HTMLInputElement | null;
-        const formCreation = document.getElementById("form-creation-time") as HTMLInputElement | null;
-        const formTake = document.getElementById("form-take-time") as HTMLInputElement | null;
-        const formRecordingUrl = document.getElementById("form-recording-url") as HTMLInputElement | null;
-        const formIsPas = document.getElementById("form-is-pas") as HTMLInputElement | null;
-        const toggleCallGeneratedTicket = document.getElementById("toggle-call-generated-ticket") as HTMLInputElement | null;
-        const toggleAppliesMda = document.getElementById("toggle-applies-mda") as HTMLInputElement | null;
-        const toggleStaysMda = document.getElementById("toggle-stays-mda") as HTMLInputElement | null;
-
-        if (formRing) formRing.value = callData.ringTime || "";
-        if (formCreation) formCreation.value = callData.creationTime || "";
-        if (formTake) formTake.value = callData.takeTime || "";
-        if (formRecordingUrl) formRecordingUrl.value = callData.recordingUrl || "";
-        if (formIsPas) formIsPas.checked = !!callData.isPas;
-
-        // Populate audio viewer if callData has recordingUrl
-        const tvAudioContainer = document.getElementById("tv-audio-container");
-        const tvAudioPlayer = document.getElementById("tv-audio-player") as HTMLAudioElement | null;
-        const tvAudioDownload = document.getElementById("tv-audio-download") as HTMLAnchorElement | null;
-        if (callData.recordingUrl && tvAudioContainer && tvAudioPlayer && tvAudioDownload) {
-          const caseId = callData.callId || "llamada";
-          const downloadUrl = `${cleanBase}api/calidad/download-audio?url=${encodeURIComponent(callData.recordingUrl)}&filename=grabacion-caso-${encodeURIComponent(caseId)}.mp3&download=1`;
-          tvAudioPlayer.src = callData.recordingUrl;
-          tvAudioPlayer.load();
-          tvAudioDownload.href = downloadUrl;
-          tvAudioContainer.classList.remove("hidden");
-        }
-        if ((callData.channelType || "wise_call") === "wise_call") {
-          const isReclamo = !!callData.isReclamoNovedad;
-          (window as any).setAuditTicketMode?.(isReclamo ? "reclamo" : "nuevo");
-        } else if (callData.channelType === "wise_email") {
-          const isReclamo = !!callData.isReclamoNovedad;
-          (window as any).setAuditEmailTicketMode?.(isReclamo ? "reclamo" : "nuevo");
-        } else if (toggleCallGeneratedTicket) {
-          toggleCallGeneratedTicket.checked = (callData.channelType || "wise_call") === "wise_call"
-            ? (callData.appliesMda ?? true)
-            : (callData.appliesMda !== false);
-          toggleCallGeneratedTicket.dispatchEvent(new Event("change"));
-        }
-        if (toggleAppliesMda) {
-          toggleAppliesMda.value = "true";
-        }
-        if (toggleStaysMda) {
-          toggleStaysMda.checked = callData.staysInMda ?? true;
-          toggleStaysMda.dispatchEvent(new Event("change"));
-        }
-
-        const s1Details = callData.section1?.details || {};
-        const s2Details = callData.section2?.details || {};
-        const comments = callData.comments || {};
-
-        auditForm.querySelectorAll(".audit-checkbox").forEach((cbEl) => {
-          const cb = cbEl as HTMLInputElement;
-          const name = cb.name;
-          if (s1Details.hasOwnProperty(name)) {
-            cb.checked = !!s1Details[name];
-          } else if (s2Details.hasOwnProperty(name)) {
-            cb.checked = !!s2Details[name];
-          }
-        });
-
-        // Precargar comentarios por parámetro
-        auditForm.querySelectorAll<HTMLInputElement>("input[name$='_comment']").forEach((inp) => {
-          const code = inp.name.replace(/_comment$/, "");
-          inp.value = comments[code] || "";
-        });
-
-        if (btnDeleteAudit) btnDeleteAudit.classList.remove("hidden");
-      } else {
-        // New mode
-        if (modalTitle) {
-          modalTitle.innerHTML = `<svg class="size-6 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor; margin-right: 0.5rem;"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"></path></svg> Nueva Auditoría de Calidad`;
-        }
-        if (formAuditId) formAuditId.value = "";
-        if (formCallId) formCallId.value = "";
-        if (formTicketId) formTicketId.value = "";
-        if (formDuration) formDuration.value = "";
-        if (formNotes) formNotes.value = "";
-
-        const formRing = document.getElementById("form-ring-time") as HTMLInputElement | null;
-        const formCreation = document.getElementById("form-creation-time") as HTMLInputElement | null;
-        const formTake = document.getElementById("form-take-time") as HTMLInputElement | null;
-        const formIsPas = document.getElementById("form-is-pas") as HTMLInputElement | null;
-
-        const toggleCallGeneratedTicket = document.getElementById("toggle-call-generated-ticket") as HTMLInputElement | null;
-        const toggleAppliesMda = document.getElementById("toggle-applies-mda") as HTMLInputElement | null;
-        const toggleStaysMda = document.getElementById("toggle-stays-mda") as HTMLInputElement | null;
-
-        if (formRing) formRing.value = "";
-        if (formCreation) formCreation.value = "";
-        if (formTake) formTake.value = "";
-        if (formIsPas) formIsPas.checked = false;
-        (window as any).syncInvgateDeepLink?.();
-        (window as any).setAuditTicketMode?.("nuevo");
-        (window as any).setAuditEmailTicketMode?.("nuevo");
-        if (toggleCallGeneratedTicket) {
-          toggleCallGeneratedTicket.checked = true;
-          toggleCallGeneratedTicket.dispatchEvent(new Event("change"));
-        }
-        if (toggleAppliesMda) {
-          toggleAppliesMda.value = "true";
-        }
-        if (toggleStaysMda) {
-          toggleStaysMda.checked = true;
-          toggleStaysMda.dispatchEvent(new Event("change"));
-        }
-
-        const today = new Date().toISOString().substring(0, 10);
-        if (formDate) formDate.value = today;
-
-        auditForm.querySelectorAll(".audit-checkbox").forEach((cbEl) => {
-          (cbEl as HTMLInputElement).checked = true;
-        });
-
-        // Limpiar comentarios por parámetro
-        auditForm.querySelectorAll<HTMLInputElement>("input[name$='_comment']").forEach((inp) => {
-          inp.value = "";
-        });
-
-        if (btnDeleteAudit) btnDeleteAudit.classList.add("hidden");
-      }
-
-      (window as any).refreshAuditCommentsVisibility?.();
-      (window as any).recalculateAuditScores?.();
-      auditModal.showModal();
-    };
-
-    // Close modal triggers
-    if (btnCloseModal) {
-      btnCloseModal.addEventListener("click", () => {
-        auditModal?.close();
-      });
-    }
-
     // Attach "Nueva Auditoría" button listener
     const btnNewAudit = document.getElementById("btn-new-audit");
     if (btnNewAudit) {
       btnNewAudit.addEventListener("click", () => {
+        const monthVal = monthSelector?.value || "";
         if (activeAgentId) {
-          openAuditModal(activeAgentId, null, currentActiveChannel);
+          window.location.href = `${cleanBase}supervision/calidad-operadores/nueva?agentId=${encodeURIComponent(activeAgentId)}&month=${encodeURIComponent(monthVal)}`;
+        } else {
+          window.location.href = `${cleanBase}supervision/calidad-operadores/nueva?month=${encodeURIComponent(monthVal)}`;
         }
       });
     }
 
     // Submit form using Astro Actions
-    auditForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearFormErrors(auditForm);
-
-      const btnSubmit = (document.getElementById("btn-submit-audit") ||
-        auditForm.querySelector('button[type="submit"]')) as HTMLButtonElement | null;
-      const originalText = btnSubmit ? btnSubmit.innerHTML : "";
-      if (btnSubmit) {
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML =
-          '<span class="loading loading-spinner loading-xs"></span> Guardando…';
-      }
-
-      const formData = new FormData(auditForm);
-      const toggleCallGeneratedTicket = document.getElementById("toggle-call-generated-ticket") as HTMLInputElement | null;
-      const callTicketModeInput = document.getElementById("call-ticket-mode") as HTMLInputElement | null;
-      const isReclamoInput = document.getElementById("form-is-reclamo-novedad") as HTMLInputElement | null;
-      const toggleAppliesMda = document.getElementById("toggle-applies-mda") as HTMLInputElement | null;
-      const toggleStaysMda = document.getElementById("toggle-stays-mda") as HTMLInputElement | null;
-      if (toggleCallGeneratedTicket) {
-        formData.set("callGeneratedTicket", toggleCallGeneratedTicket.checked ? "true" : "false");
-      }
-      if (callTicketModeInput) {
-        formData.set("callTicketMode", callTicketModeInput.value);
-      }
-      if (isReclamoInput) {
-        formData.set("isReclamoNovedad", isReclamoInput.value);
-      }
-      if (toggleAppliesMda) {
-        formData.set("appliesMda", "true");
-      }
-      if (toggleStaysMda) {
-        formData.set("staysInMda", toggleStaysMda.checked ? "true" : "false");
-      }
-      const activeChannel = (formData.get("channelType") as string) || "wise_call";
-      const callIdVal = (formData.get("callId") as string)?.trim() || "";
-      const ticketIdVal = (formData.get("ticketId") as string)?.trim() || "";
-
-      // Dynamic validation per channel
-      if (activeChannel === "wise_call" && !callIdVal) {
-        (window as any).showToast?.("El Nro de Caso / ID de Llamada es requerido.", "alert-warning");
-        const callInput = document.getElementById("form-call-id");
-        callInput?.focus();
-        if (btnSubmit) {
-          btnSubmit.disabled = false;
-          btnSubmit.innerHTML = originalText;
-        }
-        return;
-      }
-      if (activeChannel === "wise_email" && !callIdVal) {
-        (window as any).showToast?.("El Nro de Caso / Mail Wise es requerido.", "alert-warning");
-        const callInput = document.getElementById("form-call-id");
-        callInput?.focus();
-        if (btnSubmit) {
-          btnSubmit.disabled = false;
-          btnSubmit.innerHTML = originalText;
-        }
-        return;
-      }
-      if (activeChannel === "invgate_ticket") {
-        if (!ticketIdVal && !callIdVal) {
-          (window as any).showToast?.("El Nro de Caso / Ticket AG es requerido.", "alert-warning");
-          const ticketInput = document.getElementById("form-ticket-id");
-          ticketInput?.focus();
-          if (btnSubmit) {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = originalText;
-          }
-          return;
-        }
-        if (!callIdVal) {
-          formData.set("callId", ticketIdVal);
-        }
-      }
-
-      if (!formData.get("duration")) {
-        formData.set("duration", "00:00");
-      }
-
-      // Ensure notes is always present (even if textarea is empty)
-      if (!formData.has("notes")) {
-        formData.set("notes", "");
-      }
-      try {
-        const result = await actions.saveAudit(formData);
-        if (result.error) {
-          console.error("Validation error:", result.error);
-          showFormErrors(auditForm, result.error);
-        } else if (result.data?.success) {
-          const url = new URL(window.location.href);
-          if (activeAgentId) {
-            url.searchParams.set("agentId", activeAgentId);
-          }
-          url.searchParams.set("toast_msg", "Auditoría guardada con éxito.");
-          url.searchParams.set("toast_type", "success");
-          window.location.href = url.toString();
-        } else {
-          (window as any).showToast?.(
-            "Error al guardar la auditoría.",
-            "alert-error",
-          );
-        }
-      } catch (error) {
-        console.error(error);
-        (window as any).showToast?.(
-          "Ocurrió un error inesperado al guardar la auditoría.",
-          "alert-error",
-        );
-      } finally {
-        if (btnSubmit) {
-          btnSubmit.disabled = false;
-          btnSubmit.innerHTML = originalText;
-        }
-      }
-    });
-
     // Handle Month Summary Modal
-    if (btnEditMonthSummary) {
-      btnEditMonthSummary.addEventListener("click", () => {
-        if (activeAgentId) {
-          summaryForm.reset();
-          clearFormErrors(summaryForm);
-          summaryAgentId.value = activeAgentId;
-          summaryContent.value = activeAgentSummary;
-          summaryModal.showModal();
-        }
-      });
+    const openMonthSummaryModal = () => {
+      if (activeAgentId) {
+        summaryForm.reset();
+        clearFormErrors(summaryForm);
+        summaryAgentId.value = activeAgentId;
+        summaryContent.value = activeAgentSummary;
+        summaryModal.showModal();
+      }
+    };
+
+    const btnAddObsPlaceholder = document.getElementById("btn-add-observation-placeholder");
+    if (btnAddObsPlaceholder) {
+      btnAddObsPlaceholder.addEventListener("click", openMonthSummaryModal);
+    }
+
+    if (dMonthSummary) {
+      dMonthSummary.addEventListener("click", openMonthSummaryModal);
     }
 
     if (btnCloseSummaryModal) {
@@ -2088,125 +1562,58 @@ const cleanBase = getCleanBase();
     });
 
     // Delete audit using Astro Actions
-    btnDeleteAudit.addEventListener("click", async () => {
-      const auditId = formAuditId.value;
-      if (!auditId) return;
-
-      if (confirm("¿Estás seguro de que querés eliminar esta auditoría?")) {
-        const originalText = btnDeleteAudit.innerHTML;
-        btnDeleteAudit.disabled = true;
-        btnDeleteAudit.innerHTML =
-          '<span class="loading loading-spinner loading-xs"></span> Eliminando…';
-
-        try {
-          const deleteForm = new FormData();
-          deleteForm.append("id", auditId);
-
-          const result = await actions.deleteAudit(deleteForm);
-          if (result.data?.success) {
-            const url = new URL(window.location.href);
-            if (activeAgentId) {
-              url.searchParams.set("agentId", activeAgentId);
-            }
-            url.searchParams.set("toast_msg", "Auditoría eliminada con éxito.");
-            url.searchParams.set("toast_type", "success");
-            window.location.href = url.toString();
-          } else {
-            (window as any).showToast?.(
-              "Error al eliminar la auditoría.",
-              "alert-error",
-            );
-            btnDeleteAudit.disabled = false;
-            btnDeleteAudit.innerHTML = originalText;
-          }
-        } catch (error) {
-          console.error(error);
-          (window as any).showToast?.(
-            "Ocurrió un error inesperado al eliminar la auditoría.",
-            "alert-error",
-          );
-          btnDeleteAudit.disabled = false;
-          btnDeleteAudit.innerHTML = originalText;
-        }
+    const clearAgentFromUrl = () => {
+      activeAgentId = "";
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.searchParams.has("agentId")) {
+        currentUrl.searchParams.delete("agentId");
+        window.history.replaceState({}, "", currentUrl.toString());
       }
-    });
+    };
+
+    if (detailsModal) {
+      detailsModal.addEventListener("close", () => {
+        clearAgentFromUrl();
+      });
+    }
 
     if (btnBack) {
       btnBack.addEventListener("click", () => {
-        if (generalPanel) generalPanel.classList.remove("hidden");
-        if (detailsPanel) detailsPanel.classList.add("hidden");
-
-        document.querySelectorAll(".operator-item").forEach((el) => {
-          el.classList.remove(
-            "border-l-secondary",
-            "bg-secondary/5",
-            "shadow-md",
-          );
-          el.classList.add("border-l-transparent");
-        });
+        if (detailsModal && typeof detailsModal.close === "function") {
+          detailsModal.close();
+        }
       });
     }
 
     let searchInput = document.getElementById(
       "operator-search",
-    ) as HTMLInputElement;
-    let operatorSort = document.getElementById(
-      "operator-sort",
-    ) as HTMLSelectElement | null;
+    ) as HTMLInputElement | null;
     const noResultsMsg = document.getElementById("calidad-empty-state");
 
     const updateOperatorsList = () => {
-      const term = searchInput?.value.toLowerCase() || "";
-      const sortValue = operatorSort?.value || "name";
+      const term = searchInput?.value.toLowerCase().trim() || "";
       let hasVisibleItems = false;
 
-      // Re-query items to always work with the current live DOM nodes
-      const itemsArray = Array.from(
-        document.querySelectorAll(".operator-item"),
+      const cards = Array.from(
+        document.querySelectorAll(".operator-card"),
       ) as HTMLElement[];
 
-      itemsArray.sort((a, b) => {
-        if (sortValue === "name") {
-          return (a.getAttribute("data-name") || "").localeCompare(
-            b.getAttribute("data-name") || "",
-          );
-        } else if (sortValue === "name-desc") {
-          return (b.getAttribute("data-name") || "").localeCompare(
-            a.getAttribute("data-name") || "",
-          );
-        } else if (
-          sortValue === "calls-desc" ||
-          sortValue === "calls-asc"
-        ) {
-          const opA = JSON.parse(a.getAttribute("data-operator") || "{}");
-          const opB = JSON.parse(b.getAttribute("data-operator") || "{}");
-          return sortValue === "calls-desc"
-            ? (opB.callsCount ?? 0) - (opA.callsCount ?? 0)
-            : (opA.callsCount ?? 0) - (opB.callsCount ?? 0);
-        } else {
-          const opA = JSON.parse(a.getAttribute("data-operator") || "{}");
-          const opB = JSON.parse(b.getAttribute("data-operator") || "{}");
-          return sortValue === "score-desc"
-            ? opB.averageScore - opA.averageScore
-            : opA.averageScore - opB.averageScore;
-        }
-      });
+      cards.forEach((card) => {
+        const name = card.getAttribute("data-name") || "";
+        const id = card.getAttribute("data-id") || "";
+        const username = card.getAttribute("data-username") || "";
 
-      itemsArray.forEach((item) => {
-        const name = item.getAttribute("data-name") || "";
-        const id = item.getAttribute("data-id") || "";
-
-        const matchesSearch = name.includes(term) || id.includes(term);
+        const matchesSearch =
+          !term ||
+          name.includes(term) ||
+          id.includes(term) ||
+          username.includes(term);
 
         if (matchesSearch) {
-          item.classList.remove("hidden");
+          card.classList.remove("hidden");
           hasVisibleItems = true;
         } else {
-          item.classList.add("hidden");
-        }
-
-        if (operatorListContainer && noResultsMsg) {
-          operatorListContainer.insertBefore(item, noResultsMsg);
+          card.classList.add("hidden");
         }
       });
 
@@ -2219,460 +1626,432 @@ const cleanBase = getCleanBase();
       }
     };
 
-    let monthSelector = document.getElementById(
-      "month-selector",
-    ) as HTMLSelectElement;
-
-    const btnPrevMonth = document.getElementById(
-      "btn-prev-month",
-    ) as HTMLButtonElement;
-    const btnNextMonth = document.getElementById(
-      "btn-next-month",
-    ) as HTMLButtonElement;
-
-    const updateMonthButtonsState = () => {
-      if (!monthSelector) return;
-      const idx = monthSelector.selectedIndex;
-      const totalOptions = monthSelector.options.length;
-
-      if (btnPrevMonth) {
-        const canGoPrev = idx < totalOptions - 1;
-        btnPrevMonth.disabled = !canGoPrev;
-        if (!canGoPrev) {
-          btnPrevMonth.classList.add("opacity-50");
-        } else {
-          btnPrevMonth.classList.remove("opacity-50");
-        }
-      }
-
-      if (btnNextMonth) {
-        const canGoNext = idx > 0;
-        btnNextMonth.disabled = !canGoNext;
-        if (!canGoNext) {
-          btnNextMonth.classList.add("opacity-50");
-        } else {
-          btnNextMonth.classList.remove("opacity-50");
-        }
-      }
-    };
-
-    if (monthSelector) {
-      monthSelector.addEventListener("change", (e) => {
-        const select = e.target as HTMLSelectElement;
-        const url = new URL(window.location.href);
-        url.searchParams.set("month", select.value);
-        if (activeAgentId) {
-          url.searchParams.set("agentId", activeAgentId);
-        } else {
-          url.searchParams.delete("agentId");
-        }
-        window.location.href = url.toString();
-      });
-
-      updateMonthButtonsState();
-
-      if (btnPrevMonth) {
-        btnPrevMonth.addEventListener("click", () => {
-          if (monthSelector.selectedIndex < monthSelector.options.length - 1) {
-            monthSelector.selectedIndex += 1;
-            monthSelector.dispatchEvent(new Event("change"));
-          }
-        });
-      }
-
-      if (btnNextMonth) {
-        btnNextMonth.addEventListener("click", () => {
-          if (monthSelector.selectedIndex > 0) {
-            monthSelector.selectedIndex -= 1;
-            monthSelector.dispatchEvent(new Event("change"));
-          }
-        });
-      }
-    }
-
     if (searchInput) {
       searchInput.addEventListener("input", updateOperatorsList);
     }
 
-    if (operatorSort) {
-      operatorSort.addEventListener("change", updateOperatorsList);
-    }
+    const displayOperatorDetails = (operatorId: string) => {
+      const operator = getOperatorFullData(operatorId) as OperatorQuality | null;
+      if (!operator) return;
+      activeAgentId = operator.id;
 
-    // Attach click listeners to operator items
-    document.querySelectorAll(".operator-item").forEach((item) => {
-      item.addEventListener("click", (e) => {
-        const target = e.currentTarget as HTMLButtonElement;
-        const operatorData = target.getAttribute("data-operator");
-        if (!operatorData) return;
+      if (dAvatar)
+        dAvatar.textContent = operator.name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .substring(0, 2);
+      if (dName) dName.textContent = operator.name;
+      if (dId) dId.textContent = `@${operator.username || operator.id}`;
+      if (dMonth) dMonth.textContent = formatMonthLabel(operator.month);
 
-        try {
-          const operatorSummary = JSON.parse(operatorData) as {
-            id: string;
-            name: string;
-            averageScore: number;
-            callsCount: number;
-            hasCriticalFailure: boolean;
+      if (dScore) {
+        dScore.textContent = `${operator.averageScore}%`;
+        dScore.className = `text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
+      }
+
+      if (dStatDiff) {
+        const currentScore = operator.averageScore;
+        const prevScore = operator.prevAverageScore || 0;
+        const hasPrevAudits = (operator.prevCallsCount ?? 0) > 0;
+
+        if (hasPrevAudits) {
+          const diff = currentScore - prevScore;
+          if (diff > 0) {
+            dStatDiff.textContent = `+${diff}%`;
+            dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-success";
+          } else if (diff < 0) {
+            dStatDiff.textContent = `${diff}%`;
+            dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-error";
+          } else {
+            dStatDiff.textContent = "0%";
+            dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/60";
+          }
+        } else {
+          dStatDiff.textContent = "Sin datos";
+          dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/40";
+        }
+      }
+
+      if (dStatAht) {
+        const allAudits = operator.calls || [];
+        const callAudits = allAudits.filter(
+          (c: any) =>
+            (c.channelType || "wise_call") === "wise_call" &&
+            c.duration &&
+            c.duration !== "00:00",
+        );
+        if (callAudits.length > 0) {
+          const parseDurationToSeconds = (durStr: string) => {
+            if (!durStr) return 0;
+            const parts = durStr.split(":").map(Number);
+            if (parts.length === 2) {
+              return parts[0] * 60 + parts[1];
+            } else if (parts.length === 3) {
+              return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            }
+            return 0;
           };
-          const operator = (getOperatorFullData(operatorSummary.id) ||
-            operatorSummary) as OperatorQuality;
-          activeAgentId = operator.id;
+          const formatSecondsToDuration = (totalSecs: number) => {
+            // Redondear los segundos por separado podía dar 60 ("01:60"): el
+            // redondeo tiene que cascada al minuto.
+            const total = Math.round(totalSecs);
+            const m = Math.floor(total / 60);
+            const s = total % 60;
+            return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+          };
+          const totalSecs = callAudits.reduce(
+            (acc: number, c: any) => acc + parseDurationToSeconds(c.duration),
+            0,
+          );
+          const avgSecs = totalSecs / callAudits.length;
+          dStatAht.textContent = formatSecondsToDuration(avgSecs);
+          dStatAht.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-base-content";
+        } else {
+          dStatAht.textContent = "Sin datos";
+          dStatAht.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/40";
+        }
+      }
 
-          document.querySelectorAll(".operator-item").forEach((el) => {
-            el.classList.remove(
-              "border-l-secondary",
-              "bg-secondary/5",
-              "shadow-md",
-            );
-            el.classList.add("border-l-transparent");
+      const channelAverages = calculateChannelAverages(
+        (operator.calls || []) as any[],
+      );
+
+      type ChannelKey = keyof typeof dStatChannel;
+      const channelStats: Array<[ChannelKey, number | null]> = [
+        ["wise_call", channelAverages.wiseCallsAvg],
+        ["wise_email", channelAverages.wiseEmailsAvg],
+        ["invgate_ticket", channelAverages.invgateAgAvg],
+      ];
+
+      channelStats.forEach(([channel, avg]) => {
+        const el = dStatChannel[channel];
+        if (!el) return;
+        el.textContent = formatChannelAverageScore(avg);
+        el.className = `text-base sm:text-lg font-black font-mono mt-0.5 ${getChannelAverageTextClass(avg)}`;
+      });
+
+      activeAgentSummary = operator.monthSummary || "";
+      if (dMonthSummary) dMonthSummary.textContent = activeAgentSummary;
+      if (dMonthSummaryEmpty) {
+        if (activeAgentSummary) {
+          dMonthSummaryEmpty.classList.add("hidden");
+        } else {
+          dMonthSummaryEmpty.classList.remove("hidden");
+        }
+      }
+
+      const historyContainer = document.getElementById("detail-history-chart");
+      if (historyContainer) {
+        const points = (operator.history || []) as Array<{ month: string; label: string; count: number; score: number }>;
+        if (points.length < 2) {
+          historyContainer.className = "flex flex-col items-center justify-center min-h-[5.5rem] py-2 text-center text-base-content/40";
+          historyContainer.innerHTML = `
+            <svg class="size-5 mb-1 opacity-40 text-base-content shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
+              <path d="M11 11h2v6h-2zm0-4h2v2h-2z"/>
+            </svg>
+            <span class="text-xs font-semibold">Sin datos suficientes para mostrar la tendencia</span>
+            <span class="text-3xs text-base-content/40 mt-0.5">Se requieren al menos 2 meses con evaluaciones</span>
+          `;
+        } else {
+          // Ancho y alto acotados y proporcionales (sin deformación de aspecto)
+          const width = 260;
+          const height = 50;
+          const paddingX = 14;
+          const paddingY = 8;
+          const usableWidth = width - paddingX * 2;
+          const usableHeight = height - paddingY * 2;
+
+          // Escala dinámica Y para visibilidad real de pendiente
+          const allScores = points.map((p) => p.score);
+          const minScore = Math.min(...allScores);
+          const maxScore = Math.max(...allScores);
+          const yMin = Math.max(0, Math.min(minScore - 6, 75));
+          const yMax = Math.min(100, Math.max(maxScore + 2, 100));
+          const yRange = yMax - yMin || 20;
+
+          const coords = points.map((item, i) => {
+            const x = paddingX + (i / (points.length - 1)) * usableWidth;
+            const normalized = (item.score - yMin) / yRange;
+            const y = height - paddingY - normalized * usableHeight;
+            return { x, y, score: item.score, label: item.label };
           });
-          target.classList.remove("border-l-transparent");
-          target.classList.add(
-            "border-l-secondary",
-            "bg-secondary/5",
-            "shadow-md",
-          );
 
-          if (dAvatar)
-            dAvatar.textContent = operator.name
-              .split(" ")
-              .map((n: string) => n[0])
-              .join("")
-              .substring(0, 2);
-          if (dName) dName.textContent = operator.name;
-          if (dId) dId.textContent = `@${operator.username || operator.id}`;
-          if (dMonth) dMonth.textContent = formatMonthLabel(operator.month);
+          const pathD = coords
+            .map((c, i) => (i === 0 ? `M ${c.x.toFixed(1)},${c.y.toFixed(1)}` : `L ${c.x.toFixed(1)},${c.y.toFixed(1)}`))
+            .join(" ");
 
-          if (dScore) {
-            dScore.textContent = `${operator.averageScore}%`;
-            dScore.className = `text-5xl font-black tracking-tighter ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
-          }
+          const firstPoint = coords[0];
+          const lastPoint = coords[coords.length - 1];
+          const areaD = `${pathD} L ${lastPoint.x.toFixed(1)},${height} L ${firstPoint.x.toFixed(1)},${height} Z`;
 
-          if (dStatDiff) {
-            const currentScore = operator.averageScore;
-            const prevScore = operator.prevAverageScore || 0;
-            const hasPrevAudits = (operator.prevCallsCount ?? 0) > 0;
-
-            if (hasPrevAudits) {
-              const diff = currentScore - prevScore;
-              if (diff > 0) {
-                dStatDiff.textContent = `+${diff}%`;
-                dStatDiff.className = "text-xl font-black text-success";
-              } else if (diff < 0) {
-                dStatDiff.textContent = `${diff}%`;
-                dStatDiff.className = "text-xl font-black text-error";
-              } else {
-                dStatDiff.textContent = `0%`;
-                dStatDiff.className = "text-xl font-black text-base-content/40";
-              }
-            } else {
-              dStatDiff.textContent = "N/A";
-              dStatDiff.className = "text-xl font-black text-base-content/40";
-            }
-          }
-
-          if (dStatAht) {
-            const allAudits = operator.calls || [];
-            const callAudits = allAudits.filter(
-              (c: any) =>
-                (c.channelType || "wise_call") === "wise_call" &&
-                c.duration &&
-                c.duration !== "00:00",
-            );
-            if (callAudits.length > 0) {
-              const parseDurationToSeconds = (durStr: string) => {
-                if (!durStr) return 0;
-                const parts = durStr.split(":").map(Number);
-                if (parts.length === 2) {
-                  return parts[0] * 60 + parts[1];
-                } else if (parts.length === 3) {
-                  return parts[0] * 3600 + parts[1] * 60 + parts[2];
-                }
-                return 0;
-              };
-              const formatSecondsToDuration = (totalSecs: number) => {
-                const m = Math.floor(totalSecs / 60);
-                const s = Math.round(totalSecs % 60);
-                return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-              };
-              const totalSecs = callAudits.reduce(
-                (acc: number, c: any) =>
-                  acc + parseDurationToSeconds(c.duration),
-                0,
-              );
-              const avgSecs = totalSecs / callAudits.length;
-              dStatAht.textContent = formatSecondsToDuration(avgSecs);
-              dStatAht.className = "text-xl font-black text-base-content";
-            } else {
-              dStatAht.textContent = "--";
-              dStatAht.className = "text-xl font-black text-base-content/40";
-            }
-          }
-
-          if (dStatInteraction) {
-            const calls = operator.calls || [];
-            if (calls.length > 0) {
-              const avgS1 = Math.round(
-                calls.reduce(
-                  (acc: number, c: any) => acc + c.section1.score,
-                  0,
-                ) / calls.length,
-              );
-              dStatInteraction.textContent = `${avgS1}%`;
-              dStatInteraction.className = `text-xl font-black ${avgS1 >= 90 ? "text-success" : avgS1 >= 80 ? "text-warning" : "text-error"}`;
-            } else {
-              dStatInteraction.textContent = "--";
-              dStatInteraction.className =
-                "text-xl font-black text-base-content/40";
-            }
-          }
-
-          if (dStatManagement) {
-            const allAudits = operator.calls || [];
-            const auditsWithS2 = allAudits.filter((c: any) => {
-              if (c.channelType === "wise_call") return c.appliesMda !== false;
-              if (c.channelType === "wise_email") return c.appliesMda !== false;
-              if (c.channelType === "invgate_ticket") return c.staysInMda !== false;
-              return true;
-            });
-
-            if (auditsWithS2.length > 0) {
-              const avgS2 = Math.round(
-                auditsWithS2.reduce(
-                  (acc: number, c: any) => acc + c.section2.score,
-                  0,
-                ) / auditsWithS2.length,
-              );
-              dStatManagement.textContent = `${avgS2}%`;
-              dStatManagement.className = `text-xl font-black ${avgS2 >= 90 ? "text-success" : avgS2 >= 80 ? "text-warning" : "text-error"}`;
-            } else {
-              dStatManagement.textContent = "--";
-              dStatManagement.className =
-                "text-xl font-black text-base-content/40";
-            }
-          }
-
-          if (dMonthSummary && dMonthSummaryEmpty) {
-            activeAgentSummary = operator.monthSummary || "";
-            if (activeAgentSummary.trim()) {
-              dMonthSummary.textContent = activeAgentSummary;
-              dMonthSummary.classList.remove("hidden");
-              dMonthSummaryEmpty.classList.add("hidden");
-            } else {
-              dMonthSummary.textContent = "";
-              dMonthSummary.classList.add("hidden");
-              dMonthSummaryEmpty.classList.remove("hidden");
-            }
-          }
-
-          const callsBadge = document.getElementById("calls-count-badge");
-          if (callsBadge) {
-            callsBadge.textContent = `${(operator.calls || []).length} Aleatorias`;
-          }
-
-          const historyContainer = document.getElementById(
-            "detail-history-chart",
-          );
-          if (historyContainer && operator.history) {
-            const points = operator.history;
-            const width = 300;
-            const height = 60;
-
-            const coords = points.map((score: number, i: number) => {
-              const x = (i / (points.length - 1)) * width;
-              const y = height - (score / 100) * height;
-              return { x, y, score };
-            });
-
-            const pathD = coords
-              .map((c, i) => (i === 0 ? `M ${c.x},${c.y}` : `L ${c.x},${c.y}`))
-              .join(" ");
-
-            historyContainer.className = "relative w-full h-16 mt-2 mb-4";
-            historyContainer.innerHTML = `
-               <svg class="w-full h-full overflow-visible" viewBox="-4 -4 ${width + 8} ${height + 8}" preserveAspectRatio="none">
-                 <path d="${pathD}" fill="none" stroke="currentColor" stroke-width="3" class="text-secondary drop-shadow-sm" stroke-linecap="round" stroke-linejoin="round" />
+          // Contenedor acotado y centrado (máximo ~280px) para evitar aspecto estirado horizontalmente
+          historyContainer.className = "w-full max-w-[280px] sm:max-w-[300px] mx-auto flex flex-col items-center justify-center py-0.5";
+          historyContainer.innerHTML = `
+             <div class="relative w-full h-[54px]">
+               <svg class="w-full h-full overflow-visible" viewBox="0 0 ${width} ${height}">
+                 <defs>
+                   <linearGradient id="trend-area-grad" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="0%" stop-color="var(--color-secondary, #3b82f6)" stop-opacity="0.22" />
+                     <stop offset="100%" stop-color="var(--color-secondary, #3b82f6)" stop-opacity="0.0" />
+                   </linearGradient>
+                 </defs>
+                 <path d="${areaD}" fill="url(#trend-area-grad)" />
+                 <path d="${pathD}" fill="none" stroke="currentColor" stroke-width="2.5" class="text-secondary drop-shadow-2xs" stroke-linecap="round" stroke-linejoin="round" />
                  ${coords
                    .map(
                      (c, i) => `
-                   <circle cx="${c.x}" cy="${c.y}" r="${i === points.length - 1 ? "5" : "4"}" fill="currentColor" class="${i === points.length - 1 ? "text-secondary" : "text-base-100"} stroke-secondary stroke-2 hover:r-6" />
+                   <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${i === points.length - 1 ? "4.5" : "3.5"}" fill="currentColor" class="${i === points.length - 1 ? "text-secondary" : "text-base-100"} stroke-secondary stroke-2" />
                  `,
                    )
                    .join("")}
                </svg>
-               <div class="absolute w-full flex justify-between -bottom-5 text-xs font-bold text-base-content/50">
-                  ${points.map((p: number) => `<span>${p}%</span>`).join("")}
-               </div>
-             `;
-          }
+             </div>
+             <div class="w-full flex justify-between mt-1 px-1 text-3xs font-mono font-bold text-base-content/60 select-none">
+                ${points.map((p) => `<div class="flex flex-col items-center"><span class="text-3xs uppercase tracking-wider opacity-60 font-sans">${p.label}</span><strong class="text-secondary font-mono">${p.score}%</strong></div>`).join("")}
+             </div>
+           `;
+        }
+      }
 
-          const insightsContainer = document.getElementById("detail-insights");
-          if (insightsContainer && operator.calls) {
-            const failures: Record<string, number> = {};
+      const insightsContainer = document.getElementById("detail-insights");
+      const insightsCard = document.getElementById("detail-card-insights");
+      const insightsTitle = document.getElementById("detail-insights-title-text");
+      const insightsIconContainer = document.getElementById("detail-insights-icon-container");
+      const insightsBadge = document.getElementById("detail-insights-badge");
 
-            operator.calls.forEach((c) => {
-              Object.entries(c.section1.details).forEach(([key, val]) => {
-                if (!val) failures[key] = (failures[key] || 0) + 1;
-              });
-              Object.entries(c.section2.details).forEach(([key, val]) => {
-                if (!val) failures[key] = (failures[key] || 0) + 1;
-              });
+      if (insightsContainer && operator.calls) {
+        const failures: Record<string, number> = {};
+
+        operator.calls.forEach((c) => {
+          Object.entries(c.section1.details).forEach(([key, val]) => {
+            if (!val) failures[key] = (failures[key] || 0) + 1;
+          });
+          // Los reclamos se eximen de S2 con 100% automático, pero el action
+          // persiste sus parámetros sin evaluar: contarlos como fallos
+          // reportaba "Áreas de Mejora" en auditorías que la app marca 100%.
+          if (hasSection2Evaluated(c)) {
+            Object.entries(c.section2.details).forEach(([key, val]) => {
+              if (!val) failures[key] = (failures[key] || 0) + 1;
             });
-
-            const sortedFailures = Object.entries(failures)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 2);
-
-            if (sortedFailures.length > 0) {
-              const params: AuditParameter[] = getAuditParameters();
-              const paramNameMap = new Map<string, string>(
-                params.map((p) => [p.code, p.name]),
-              );
-
-              insightsContainer.innerHTML = sortedFailures
-                .map(
-                  ([key, count]) => `
-                 <li class="flex items-center gap-2">
-                   ${ICON_ARROW}
-                   <span>Falla frecuente en: <strong>${escapeHtml(paramNameMap.get(key) || key)}</strong> <span class="opacity-50">(${count} veces)</span></span>
-                 </li>
-               `,
-                )
-                .join("");
-            } else {
-              insightsContainer.innerHTML = `<li class="text-success flex items-center gap-2">${ICON_STAR} <span class="font-bold">¡Rendimiento impecable!</span> No se detectaron patrones de error frecuentes.</li>`;
-            }
           }
+        });
 
-          currentActiveChannel = "wise_call";
+        const sortedFailures = Object.entries(failures)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2);
 
-          const updateChannelTabsAndList = () => {
-            const allAudits = operator.calls || [];
-            const wiseCalls = allAudits.filter((c: any) => (c.channelType || "wise_call") === "wise_call");
-            const wiseEmails = allAudits.filter((c: any) => c.channelType === "wise_email");
-            const invgateAgs = allAudits.filter((c: any) => c.channelType === "invgate_ticket");
+        if (operator.calls.length === 0) {
+          if (insightsTitle) insightsTitle.textContent = "Resumen de Calidad";
+          if (insightsCard) {
+            insightsCard.classList.remove("border-warning/30");
+            insightsCard.classList.add("border-base-200/80");
+          }
+          if (insightsBadge) {
+            insightsBadge.className = "badge badge-xs badge-neutral font-bold";
+            insightsBadge.textContent = "Sin auditorías";
+          }
+          if (insightsIconContainer) {
+            insightsIconContainer.innerHTML = `<svg class="size-4 text-base-content/50" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/><path d="M11 11h2v6h-2zm0-4h2v2h-2z"/></svg>`;
+          }
+          insightsContainer.innerHTML = `<li class="text-base-content/50 italic text-xs py-2 text-center">No hay auditorías registradas en este período.</li>`;
+        } else if (sortedFailures.length > 0) {
+          if (insightsTitle) insightsTitle.textContent = "Áreas de Mejora Detectadas";
+          if (insightsCard) {
+            insightsCard.classList.remove("border-base-200/80");
+            insightsCard.classList.add("border-secondary/30");
+          }
+          if (insightsBadge) {
+            insightsBadge.className = "badge badge-xs badge-secondary font-bold";
+            insightsBadge.textContent = `${sortedFailures.length} área${sortedFailures.length > 1 ? "s" : ""}`;
+          }
+          if (insightsIconContainer) {
+            insightsIconContainer.innerHTML = `<svg class="size-4 text-secondary" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2zm0 3.99 7.53 13.01H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z"/></svg>`;
+          }
+          const params: AuditParameter[] = getAuditParameters();
+          const paramNameMap = new Map<string, string>(
+            params.map((p) => [p.code, p.name]),
+          );
 
-            const averages = calculateChannelAverages(allAudits);
+          insightsContainer.innerHTML = sortedFailures
+            .map(
+              ([key, count]) => `
+             <li class="flex items-center justify-between gap-2 bg-secondary/10 border border-secondary/20 rounded-xl px-3 py-2 text-xs">
+               <div class="flex items-center gap-2 min-w-0">
+                 <svg class="size-4 text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10.707 17.707 16.414 12l-5.707-5.707-1.414 1.414L13.586 12l-4.293 4.293z"/></svg>
+                 <span class="text-base-content/80 font-medium truncate">${escapeHtml(paramNameMap.get(key) || key)}</span>
+               </div>
+               <span class="badge badge-secondary badge-sm font-mono font-bold shrink-0">${count} fallo${count > 1 ? "s" : ""}</span>
+             </li>
+           `,
+            )
+            .join("");
+        } else {
+          if (insightsTitle) insightsTitle.textContent = "Resumen de Calidad";
+          if (insightsCard) {
+            insightsCard.classList.remove("border-warning/30");
+            insightsCard.classList.add("border-base-200/80");
+          }
+          if (insightsBadge) {
+            insightsBadge.className = "badge badge-xs badge-secondary font-bold";
+            insightsBadge.textContent = "100% Óptimo";
+          }
+          if (insightsIconContainer) {
+            insightsIconContainer.innerHTML = `<svg class="size-4 text-secondary" viewBox="0 0 24 24" fill="currentColor"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"/></svg>`;
+          }
+          insightsContainer.innerHTML = `
+            <li class="flex items-center gap-2.5 bg-secondary/10 border border-secondary/20 rounded-xl p-3 text-xs text-secondary">
+              <svg class="size-4 text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.947 9.179a1.001 1.001 0 0 0-.868-.676l-5.701-.453-2.467-5.461a.998.998 0 0 0-1.822-.001L8.622 8.05l-5.701.453a1 1 0 0 0-.619 1.713l4.214 4.107-1.29 5.71a1.001 1.001 0 0 0 1.451 1.054L12 18.26l5.324 2.827a1.002 1.002 0 0 0 1.45-1.054l-1.29-5.71 4.214-4.107a1 1 0 0 0 .249-1.037z"/></svg>
+              <div>
+                <span class="font-bold text-secondary block">¡Rendimiento impecable!</span>
+                <span class="text-3xs text-base-content/60 font-normal">No se detectaron fallas en las auditorías evaluadas.</span>
+              </div>
+            </li>
+          `;
+        }
+      }
 
-            const bCall = document.getElementById("tab-count-wise_call");
-            const bEmail = document.getElementById("tab-count-wise_email");
-            const bAg = document.getElementById("tab-count-invgate_ticket");
+      currentActiveChannel = "all";
 
-            const bCallAvg = document.getElementById("tab-avg-wise_call");
-            const bEmailAvg = document.getElementById("tab-avg-wise_email");
-            const bAgAvg = document.getElementById("tab-avg-invgate_ticket");
+      const updateChannelTabsAndList = () => {
+        const allAudits = operator.calls || [];
+        const wiseCalls = allAudits.filter(
+          (c: any) => (c.channelType || "wise_call") === "wise_call",
+        );
+        const wiseEmails = allAudits.filter(
+          (c: any) => c.channelType === "wise_email",
+        );
+        const invgateAgs = allAudits.filter(
+          (c: any) => c.channelType === "invgate_ticket",
+        );
 
-            const bTotalAvgVal = document.getElementById("total-samples-avg-val");
-            const bTotalAvgBadge = document.getElementById("total-samples-avg-badge");
-            const bQuota = document.getElementById("quota-progress-badge");
+        const bAll = document.getElementById("tab-count-all");
+        const bCall = document.getElementById("tab-count-wise_call");
+        const bEmail = document.getElementById("tab-count-wise_email");
+        const bAg = document.getElementById("tab-count-invgate_ticket");
 
-            if (bCall) bCall.textContent = `${wiseCalls.length}/4`;
-            if (bEmail) bEmail.textContent = `${wiseEmails.length}/4`;
-            if (bAg) bAg.textContent = `${invgateAgs.length}/4`;
+        if (bAll) bAll.textContent = `${allAudits.length}`;
+        if (bCall) bCall.textContent = `${wiseCalls.length}/4`;
+        if (bEmail) bEmail.textContent = `${wiseEmails.length}/4`;
+        if (bAg) bAg.textContent = `${invgateAgs.length}/4`;
 
-            if (bCallAvg) {
-              bCallAvg.textContent = formatChannelAverageScore(averages.wiseCallsAvg);
-              bCallAvg.className = getChannelAverageBadgeClass(averages.wiseCallsAvg);
-            }
-            if (bEmailAvg) {
-              bEmailAvg.textContent = formatChannelAverageScore(averages.wiseEmailsAvg);
-              bEmailAvg.className = getChannelAverageBadgeClass(averages.wiseEmailsAvg);
-            }
-            if (bAgAvg) {
-              bAgAvg.textContent = formatChannelAverageScore(averages.invgateTicketAvg);
-              bAgAvg.className = getChannelAverageBadgeClass(averages.invgateTicketAvg);
-            }
+        let filteredCalls: QualityCall[] = [];
+        let channelEmptyMsg = "";
 
-            if (bTotalAvgVal && bTotalAvgBadge) {
-              bTotalAvgVal.textContent = formatChannelAverageScore(averages.overallAvg);
-              const badgeClass =
-                averages.overallAvg === null
-                  ? "badge-neutral"
-                  : averages.overallAvg >= 85
-                    ? "badge-success text-success-content"
-                    : averages.overallAvg >= 70
-                      ? "badge-warning text-warning-content"
-                      : "badge-error text-error-content";
-              bTotalAvgBadge.className = `badge text-xs font-bold gap-1 ${badgeClass}`;
-            }
+        if (currentActiveChannel === "all") {
+          filteredCalls = allAudits;
+          channelEmptyMsg =
+            "No hay evaluaciones registradas para este operador en este mes.";
+        } else if (currentActiveChannel === "wise_call") {
+          filteredCalls = wiseCalls;
+          channelEmptyMsg =
+            "No hay llamadas Wise registradas para este operador en este mes.";
+        } else if (currentActiveChannel === "wise_email") {
+          filteredCalls = wiseEmails;
+          channelEmptyMsg =
+            "No hay correos Wise registrados para este operador en este mes.";
+        } else {
+          filteredCalls = invgateAgs;
+          channelEmptyMsg =
+            "No hay autogestiones registradas para este operador en este mes.";
+        }
 
-            if (bQuota) {
-              const isFulfilled = wiseCalls.length >= 4 && wiseEmails.length >= 4 && invgateAgs.length >= 4;
-              const effectiveCompleted =
-                Math.min(wiseCalls.length, 4) +
-                Math.min(wiseEmails.length, 4) +
-                Math.min(invgateAgs.length, 4);
-              bQuota.textContent = `${effectiveCompleted}/12 Completadas`;
-              bQuota.className = `badge text-xs font-bold ${isFulfilled ? "badge-success text-success-content" : "badge-neutral"}`;
-            }
+        if (callsContainer) {
+          if (filteredCalls.length === 0) {
+            callsContainer.innerHTML = `
+              <div class="col-span-full py-8 text-center bg-base-200/40 rounded-2xl border border-base-200/80">
+                <p class="text-xs text-base-content/50">${channelEmptyMsg}</p>
+              </div>
+            `;
+          } else {
+            callsContainer.innerHTML = filteredCalls
+              .map((c, idx) => renderCallCard(c, idx))
+              .join("");
 
+            // Acordeón Exclusivo: máximo una auditoría abierta simultáneamente
+            callsContainer
+              .querySelectorAll(".call-card-header")
+              .forEach((trigger) => {
+                trigger.addEventListener("click", (e) => {
+                  if ((e.target as HTMLElement).closest(".edit-audit-btn")) return;
+                  const card = (trigger as HTMLElement).closest(".call-card-container");
+                  if (!card) return;
+                  const details = card.querySelector(".call-card-details");
+                  const arrow = card.querySelector(".accordion-arrow");
+                  const isCurrentlyOpen = details && !details.classList.contains("hidden");
 
-            let filteredAudits: any[] = [];
-            if (currentActiveChannel === "wise_call") filteredAudits = wiseCalls;
-            else if (currentActiveChannel === "wise_email") filteredAudits = wiseEmails;
-            else if (currentActiveChannel === "invgate_ticket") filteredAudits = invgateAgs;
-
-            if (callsContainer) {
-              if (filteredAudits.length === 0) {
-                callsContainer.innerHTML = `
-                  <div class="bg-base-200/40 border border-base-300 rounded-3xl p-8 text-center text-base-content/60">
-                    <p class="text-sm font-semibold">No hay auditorías registradas para este canal ${operator.month ? `en ${operator.month}` : "en este período"}.</p>
-                    <p class="text-xs text-base-content/40 mt-1">Haga clic en 'Nueva Auditoría' para evaluar un caso de este tipo.</p>
-                  </div>
-                `;
-              } else {
-                callsContainer.innerHTML = filteredAudits
-                  .map((call, index) => renderCallCard(call, index))
-                  .join("");
-
-                callsContainer
-                  .querySelectorAll(".edit-audit-btn")
-                  .forEach((btn) => {
-                    btn.addEventListener("click", (e) => {
-                      e.stopPropagation();
-                      const callIdStr = (
-                        e.currentTarget as HTMLElement
-                      ).getAttribute("data-call-id");
-                      if (callIdStr) {
-                        const callId = parseInt(callIdStr, 10);
-                        const call = (operator.calls || []).find((c: any) => c.id === callId);
-                        if (call) {
-                          openAuditModal(operator.id, call, call.channelType || currentActiveChannel);
-                        }
-                      }
-                    });
+                  // Cerrar cualquier otra auditoría abierta
+                  callsContainer.querySelectorAll(".call-card-container").forEach((otherCard) => {
+                    otherCard.querySelector(".call-card-details")?.classList.add("hidden");
+                    otherCard.querySelector(".accordion-arrow")?.classList.remove("rotate-180");
                   });
-              }
-            }
-          };
 
-          document.querySelectorAll(".operator-channel-tab").forEach((tabBtn) => {
-            tabBtn.onclick = () => {
-              document.querySelectorAll(".operator-channel-tab").forEach((b) => b.classList.remove("tab-active"));
-              tabBtn.classList.add("tab-active");
-              currentActiveChannel = tabBtn.getAttribute("data-channel") || "wise_call";
-              updateChannelTabsAndList();
-            };
-          });
-
-          document.querySelectorAll(".operator-channel-tab").forEach((b) => {
-            b.classList.toggle("tab-active", b.getAttribute("data-channel") === "wise_call");
-          });
-          currentActiveChannel = "wise_call";
-          updateChannelTabsAndList();
-
-          if (generalPanel) generalPanel.classList.add("hidden");
-          if (detailsPanel) {
-            detailsPanel.classList.remove("hidden");
-
-            if (window.innerWidth < 1024) {
-              detailsPanel.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
+                  // Si la actual estaba cerrada, abrirla; si ya estaba abierta, queda cerrada
+                  if (!isCurrentlyOpen && details) {
+                    details.classList.remove("hidden");
+                    arrow?.classList.add("rotate-180");
+                  }
+                });
               });
-            }
+
+            // Botón de Edición
+            callsContainer
+              .querySelectorAll(".edit-audit-btn")
+              .forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  const callIdStr =
+                    btn.getAttribute("data-call-id") ||
+                    (btn.closest(".call-card-container") as HTMLElement)?.getAttribute("data-call-id");
+                  if (callIdStr) {
+                    const monthVal = monthSelector?.value || "";
+                    const url = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores/nueva`);
+                    url.searchParams.set("auditId", callIdStr);
+                    url.searchParams.set("agentId", operator.id);
+                    if (monthVal) url.searchParams.set("month", monthVal);
+                    window.location.href = url.toString();
+                  }
+                });
+              });
           }
-        } catch (err) {
-          console.error("Error displaying operator details", err);
+        }
+      };
+
+      document.querySelectorAll(".operator-channel-tab").forEach((tabBtn) => {
+        tabBtn.onclick = () => {
+          document
+            .querySelectorAll(".operator-channel-tab")
+            .forEach((b) => b.classList.remove("tab-active"));
+          tabBtn.classList.add("tab-active");
+          currentActiveChannel =
+            tabBtn.getAttribute("data-channel") || "all";
+          updateChannelTabsAndList();
+        };
+      });
+
+      document.querySelectorAll(".operator-channel-tab").forEach((b) => {
+        b.classList.toggle(
+          "tab-active",
+          b.getAttribute("data-channel") === "all",
+        );
+      });
+      currentActiveChannel = "all";
+      updateChannelTabsAndList();
+    };
+
+    // Attach click listeners to operator cards
+    document.querySelectorAll(".operator-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const opId = card.getAttribute("data-operator-id");
+        if (!opId) return;
+        const exportDropdown = document.getElementById("operator-export-dropdown");
+        if (exportDropdown) {
+          exportDropdown.removeAttribute("open");
+        }
+        displayOperatorDetails(opId);
+        if (detailsModal) {
+          detailsModal.showModal();
         }
       });
     });
@@ -2687,11 +2066,13 @@ const cleanBase = getCleanBase();
     const btnCloseParametersModal = document.getElementById(
       "btn-close-parameters-modal",
     );
+    const btnAddParam = document.getElementById("btn-add-param");
     const btnAddParamS1 = document.getElementById("btn-add-param-s1");
     const btnAddParamS2 = document.getElementById("btn-add-param-s2");
 
     let localParams: any[] = [];
     let activeParamChannel: string = "wise_call";
+    let activeParamTab: "s1" | "s2" = "s1";
 
     const channelLabels: Record<string, { s1: string; s2: string; addS1: string; addS2: string }> = {
       wise_call: {
@@ -2714,17 +2095,81 @@ const cleanBase = getCleanBase();
       },
     };
 
+    const isMatchingChannel = (p: any) => {
+      const ch = p.channel || "wise_call";
+      return ch === activeParamChannel;
+    };
+
+    const isS1 = (p: any) => {
+      return (
+        p.section === "items" ||
+        p.category === "Items" ||
+        p.category === "Interacción con Usuario"
+      );
+    };
+
+    const isS2 = (p: any) => {
+      return (
+        p.section === "ticket" ||
+        p.section === "mda" ||
+        p.category === "Gestión del Ticket" ||
+        p.category === "Ticket" ||
+        p.category === "MDA"
+      );
+    };
+
     function updateParamTabLabels() {
       const labels = channelLabels[activeParamChannel] || channelLabels.wise_call;
       const tab1Btn = document.getElementById("param-tab-s1-btn");
       const tab2Btn = document.getElementById("param-tab-s2-btn");
-      const add1Label = document.getElementById("btn-add-param-s1-label");
-      const add2Label = document.getElementById("btn-add-param-s2-label");
 
       if (tab1Btn) tab1Btn.textContent = labels.s1;
       if (tab2Btn) tab2Btn.textContent = labels.s2;
-      if (add1Label) add1Label.textContent = labels.addS1;
-      if (add2Label) add2Label.textContent = labels.addS2;
+    }
+
+    function updateParamSummary() {
+      const summaryCountEl = document.getElementById("param-summary-count");
+      const summaryWeightEl = document.getElementById("param-summary-weight");
+      const summaryBadgeEl = document.getElementById("param-summary-badge");
+      if (!summaryCountEl || !summaryWeightEl || !summaryBadgeEl) return;
+
+      const currentActive = localParams.filter(
+        (p) =>
+          !p.isDeleted &&
+          isMatchingChannel(p) &&
+          (activeParamTab === "s1" ? isS1(p) : isS2(p)),
+      );
+      const count = currentActive.length;
+      const totalWeight =
+        Math.round(
+          currentActive.reduce(
+            (sum, p) => sum + (parseFloat(p.weight) || 0),
+            0,
+          ) * 10,
+        ) / 10;
+
+      summaryCountEl.textContent = `${count} criterio${count === 1 ? "" : "s"}`;
+      summaryWeightEl.textContent = `Peso total: ${totalWeight}%`;
+
+      if (count > 0 && Math.abs(totalWeight - 100) < 0.05) {
+        summaryBadgeEl.className =
+          "inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-success/15 text-success border border-success/30 shrink-0 self-start sm:self-auto transition-colors";
+        summaryBadgeEl.title = "Distribución perfecta: la suma da exactamente 100%";
+        summaryCountEl.className = "font-bold text-success";
+        summaryWeightEl.className = "font-mono font-bold text-success";
+      } else if (totalWeight > 100) {
+        summaryBadgeEl.className =
+          "inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-error/15 text-error border border-error/30 shrink-0 self-start sm:self-auto transition-colors";
+        summaryBadgeEl.title = `Atención: los criterios suman ${totalWeight}%. Al superar el 100%, se penaliza de más al operador ante cualquier falta.`;
+        summaryCountEl.className = "font-bold text-error";
+        summaryWeightEl.className = "font-mono font-bold text-error";
+      } else {
+        summaryBadgeEl.className =
+          "inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-warning/20 text-warning-content border border-warning/40 shrink-0 self-start sm:self-auto transition-colors";
+        summaryBadgeEl.title = `Configuración incompleta: los criterios suman ${totalWeight}%. Faltan ítems o puntos para llegar al 100%.`;
+        summaryCountEl.className = "font-bold text-warning-content";
+        summaryWeightEl.className = "font-mono font-bold text-warning-content";
+      }
     }
 
     // Channel buttons in parameters modal
@@ -2734,8 +2179,12 @@ const cleanBase = getCleanBase();
         if (!ch) return;
         activeParamChannel = ch;
 
-        document.querySelectorAll(".param-channel-btn").forEach((b) => b.classList.remove("btn-active", "btn-primary"));
-        btn.classList.add("btn-active", "btn-primary");
+        document.querySelectorAll(".param-channel-btn").forEach((b) => {
+          b.classList.remove("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "shadow-2xs");
+          b.classList.add("bg-transparent", "font-medium", "text-base-content/70", "hover:text-secondary", "hover:bg-base-100/60");
+        });
+        btn.classList.add("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "shadow-2xs");
+        btn.classList.remove("bg-transparent", "font-medium", "text-base-content/70", "hover:bg-base-100/60");
 
         updateParamTabLabels();
         renderParametersList();
@@ -2752,9 +2201,15 @@ const cleanBase = getCleanBase();
         }));
 
         activeParamChannel = "wise_call";
+        activeParamTab = "s1";
+
         const chBtns = document.querySelectorAll(".param-channel-btn");
-        chBtns.forEach((b) => b.classList.remove("btn-active", "btn-primary"));
-        chBtns[0]?.classList.add("btn-active", "btn-primary");
+        chBtns.forEach((b) => {
+          b.classList.remove("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "shadow-2xs");
+          b.classList.add("bg-transparent", "font-medium", "text-base-content/70", "hover:text-secondary", "hover:bg-base-100/60");
+        });
+        chBtns[0]?.classList.add("btn-active", "bg-secondary", "text-secondary-content", "font-bold", "shadow-2xs");
+        chBtns[0]?.classList.remove("bg-transparent", "font-medium", "text-base-content/70", "hover:bg-base-100/60");
 
         // Reset tabs to S1
         const tabs = document.querySelectorAll(".parameter-tab");
@@ -2763,8 +2218,6 @@ const cleanBase = getCleanBase();
 
         document.getElementById("param-list-s1")?.classList.remove("hidden");
         document.getElementById("param-list-s2")?.classList.add("hidden");
-        document.getElementById("btn-add-param-s1")?.classList.remove("hidden");
-        document.getElementById("btn-add-param-s2")?.classList.add("hidden");
 
         updateParamTabLabels();
         renderParametersList();
@@ -2775,18 +2228,6 @@ const cleanBase = getCleanBase();
     if (btnCloseParametersModal) {
       btnCloseParametersModal.addEventListener("click", () => {
         parametersModal.close();
-      });
-    }
-
-    if (btnAddParamS1) {
-      btnAddParamS1.addEventListener("click", () => {
-        handleAddParam("items");
-      });
-    }
-
-    if (btnAddParamS2) {
-      btnAddParamS2.addEventListener("click", () => {
-        handleAddParam(activeParamChannel === "wise_call" ? "ticket" : "mda");
       });
     }
 
@@ -2822,50 +2263,153 @@ const cleanBase = getCleanBase();
       }
     };
 
+    if (btnAddParam) {
+      btnAddParam.addEventListener("click", () => {
+        handleAddParam(
+          activeParamTab === "s1"
+            ? "items"
+            : (activeParamChannel === "wise_call" ? "ticket" : "mda"),
+        );
+      });
+    }
+
+    if (btnAddParamS1) {
+      btnAddParamS1.addEventListener("click", () => {
+        handleAddParam("items");
+      });
+    }
+
+    if (btnAddParamS2) {
+      btnAddParamS2.addEventListener("click", () => {
+        handleAddParam(activeParamChannel === "wise_call" ? "ticket" : "mda");
+      });
+    }
+
+    function handleMoveParam(actualIndex: number, direction: -1 | 1) {
+      const currentList = localParams
+        .map((p, i) => ({ p, i }))
+        .filter(
+          (item) =>
+            isMatchingChannel(item.p) &&
+            (activeParamTab === "s1" ? isS1(item.p) : isS2(item.p)) &&
+            (item.p.active || !item.p.id || item.p.isDeleted),
+        );
+
+      const pos = currentList.findIndex((item) => item.i === actualIndex);
+      if (pos === -1) return;
+
+      const targetPos = pos + direction;
+      if (targetPos < 0 || targetPos >= currentList.length) return;
+
+      const targetActualIndex = currentList[targetPos].i;
+
+      // Intercambiar en localParams
+      const temp = localParams[actualIndex];
+      localParams[actualIndex] = localParams[targetActualIndex];
+      localParams[targetActualIndex] = temp;
+
+      renderParametersList();
+    }
+
     function renderParameterRow(
       param: any,
       actualIndex: number,
       displayIndex: number,
+      isFirst: boolean,
+      isLast: boolean,
     ) {
       const isDeleted = param.isDeleted;
       const isNew = !param.id;
 
       return `
-        <div class="flex items-center gap-3 bg-base-200/40 p-2 rounded-xl border border-base-300 transition-colors ${isDeleted ? "opacity-40 bg-error/5 border-error/20 line-through" : ""}" data-index="${actualIndex}">
-          <div class="flex items-center justify-center size-8 rounded-lg bg-base-100 font-mono text-xs text-base-content/50 border border-base-200 shrink-0">
-            ${isNew ? '<span class="text-success font-black">+</span>' : displayIndex}
+        <div class="group flex items-center gap-2 sm:gap-3 bg-base-100 hover:bg-base-200/40 p-2 sm:p-2.5 rounded-xl border border-base-200/80 shadow-2xs transition-colors ${
+          isDeleted ? "opacity-45 bg-error/5 border-error/20 line-through" : ""
+        }" data-index="${actualIndex}">
+          <!-- Reorder Controls -->
+          <div class="flex flex-col gap-0.5 shrink-0 ${isDeleted ? "invisible pointer-events-none" : ""}">
+            <button
+              type="button"
+              class="btn btn-ghost btn-2xs size-4.5 p-0 text-base-content/40 hover:text-secondary hover:bg-base-200 param-btn-move-up ${isFirst ? "opacity-20 pointer-events-none" : ""}"
+              data-index="${actualIndex}"
+              title="Mover arriba"
+              aria-label="Mover arriba"
+              ${isFirst ? "disabled" : ""}
+            >
+              <svg class="size-3" viewBox="0 0 24 24" fill="currentColor"><path d="M5 15h14l-7-7z"/></svg>
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-2xs size-4.5 p-0 text-base-content/40 hover:text-secondary hover:bg-base-200 param-btn-move-down ${isLast ? "opacity-20 pointer-events-none" : ""}"
+              data-index="${actualIndex}"
+              title="Mover abajo"
+              aria-label="Mover abajo"
+              ${isLast ? "disabled" : ""}
+            >
+              <svg class="size-3" viewBox="0 0 24 24" fill="currentColor"><path d="M5 9h14l-7 7z"/></svg>
+            </button>
           </div>
-          <input 
-            type="text" 
-            value="${escapeHtml(param.name)}" 
-            placeholder="Nombre del criterio..."
-            class="input input-sm flex-1 font-semibold bg-base-100 focus:outline-none focus:border-primary param-input-name"
-            ${isDeleted ? "disabled" : ""}
-            data-index="${actualIndex}"
-          />
-          <div class="flex items-center gap-1 shrink-0">
-            <span class="text-xs font-bold text-base-content/40 uppercase">Peso:</span>
+
+          <!-- Number Indicator -->
+          <div class="flex items-center justify-center size-7 rounded-lg bg-base-200/70 font-mono text-xs font-semibold text-base-content/60 shrink-0">
+            ${isNew ? '<span class="text-success font-black text-sm">+</span>' : displayIndex}
+          </div>
+
+          <!-- Parameter Name Input -->
+          <div class="flex-1 min-w-0">
             <input 
-              type="number" 
-              step="0.1" 
-              min="0"
-              value="${param.weight}" 
-              class="input input-sm w-16 text-center font-bold bg-base-100 focus:outline-none focus:border-primary param-input-weight"
+              type="text" 
+              value="${escapeHtml(param.name)}" 
+              placeholder="Nombre del criterio de evaluación..."
+              class="input input-sm w-full font-medium bg-base-200/30 hover:bg-base-200/50 focus:bg-base-100 border border-transparent focus:border-secondary rounded-lg text-xs sm:text-sm text-base-content transition-colors param-input-name"
               ${isDeleted ? "disabled" : ""}
               data-index="${actualIndex}"
+              aria-label="Nombre del criterio"
             />
           </div>
-          <div class="shrink-0">
+
+          <!-- Weight Input with % suffix -->
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-[11px] font-bold text-base-content/50 uppercase tracking-wider hidden sm:inline">Peso:</span>
+            <div class="relative">
+              <input 
+                type="number" 
+                step="0.1" 
+                min="0"
+                max="100"
+                value="${param.weight}" 
+                class="input input-sm w-16 sm:w-20 text-center font-mono font-bold text-xs sm:text-sm bg-base-200/30 hover:bg-base-200/50 focus:bg-base-100 border border-transparent focus:border-secondary rounded-lg param-input-weight pr-5"
+                ${isDeleted ? "disabled" : ""}
+                data-index="${actualIndex}"
+                aria-label="Peso del criterio"
+              />
+              <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-base-content/40 pointer-events-none">%</span>
+            </div>
+          </div>
+
+          <!-- Actions: Delete or Restore -->
+          <div class="shrink-0 flex items-center">
             ${
               isDeleted
                 ? `
-              <button type="button" class="btn btn-sm btn-circle btn-ghost text-success param-btn-restore animate-fade-in" data-index="${actualIndex}" title="Restaurar">
-                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+              <button 
+                type="button" 
+                class="btn btn-xs btn-ghost text-success hover:bg-success/10 font-bold param-btn-restore gap-1" 
+                data-index="${actualIndex}" 
+                title="Restaurar criterio"
+                aria-label="Restaurar criterio"
+              >
+                Restaurar
               </button>
             `
                 : `
-              <button type="button" class="btn btn-sm btn-circle btn-ghost text-error hover:bg-error/10 param-btn-delete animate-fade-in" data-index="${actualIndex}" title="Eliminar">
-                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="fill: currentColor;"><path d="m20.37 5.91-1 .92a2 2 0 0 1-1.39.57H6A2 2 0 0 1 4.6 6.84l-1-.93L2.24 7.27l1 .93a4 4 0 0 0 2.76 1.14h12A4 4 0 0 0 20.76 8.2l1-.93zm-3.5 4v9a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-9h-2v9a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-9zM8.5 3h7V1h-7z"/></svg>
+              <button 
+                type="button" 
+                class="btn btn-xs sm:btn-sm btn-ghost btn-square text-base-content/30 hover:text-error hover:bg-error/10 param-btn-delete rounded-lg transition-colors" 
+                data-index="${actualIndex}" 
+                title="Descartar criterio"
+                aria-label="Descartar criterio"
+              >
+                <svg class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="m20.37 5.91-1 .92a2 2 0 0 1-1.39.57H6A2 2 0 0 1 4.6 6.84l-1-.93L2.24 7.27l1 .93a4 4 0 0 0 2.76 1.14h12A4 4 0 0 0 20.76 8.2l1-.93zm-3.5 4v9a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-9h-2v9a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-9zM8.5 3h7V1h-7z"/></svg>
               </button>
             `
             }
@@ -2879,55 +2423,62 @@ const cleanBase = getCleanBase();
       const s2Container = document.getElementById("param-list-s2");
       if (!s1Container || !s2Container) return;
 
-      const isMatchingChannel = (p: any) => {
-        const ch = p.channel || "wise_call";
-        return ch === activeParamChannel;
-      };
-
-      const isS1 = (p: any) => {
-        return p.section === "items" || p.category === "Items" || p.category === "Interacción con Usuario";
-      };
-
-      const isS2 = (p: any) => {
-        return p.section === "ticket" || p.section === "mda" || p.category === "Gestión del Ticket" || p.category === "Ticket" || p.category === "MDA";
-      };
-
-      let s1Count = 0;
-      const s1Html = localParams
+      const s1Items = localParams
         .map((p, i) => ({ p, i }))
         .filter(
           (item) =>
             isMatchingChannel(item.p) &&
             isS1(item.p) &&
             (item.p.active || !item.p.id || item.p.isDeleted),
+        );
+
+      const s1Html = s1Items
+        .map((item, idx) =>
+          renderParameterRow(
+            item.p,
+            item.i,
+            idx + 1,
+            idx === 0,
+            idx === s1Items.length - 1,
+          ),
         )
-        .map((item) => {
-          s1Count++;
-          return renderParameterRow(item.p, item.i, s1Count);
-        })
         .join("");
 
-      let s2Count = 0;
-      const s2Html = localParams
+      const s2Items = localParams
         .map((p, i) => ({ p, i }))
         .filter(
           (item) =>
             isMatchingChannel(item.p) &&
             isS2(item.p) &&
             (item.p.active || !item.p.id || item.p.isDeleted),
+        );
+
+      const s2Html = s2Items
+        .map((item, idx) =>
+          renderParameterRow(
+            item.p,
+            item.i,
+            idx + 1,
+            idx === 0,
+            idx === s2Items.length - 1,
+          ),
         )
-        .map((item) => {
-          s2Count++;
-          return renderParameterRow(item.p, item.i, s2Count);
-        })
         .join("");
 
       s1Container.innerHTML =
         s1Html ||
-        '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría para este canal.</p>';
+        '<p class="text-xs text-base-content/40 italic text-center py-6">No hay criterios activos en esta sección para este canal.</p>';
       s2Container.innerHTML =
         s2Html ||
-        '<p class="text-xs text-base-content/40 italic text-center py-4">No hay parámetros activos en esta categoría para este canal.</p>';
+        '<p class="text-xs text-base-content/40 italic text-center py-6">No hay criterios activos en esta sección para este canal.</p>';
+
+      if (activeParamTab === "s1") {
+        s1Container.classList.remove("hidden");
+        s2Container.classList.add("hidden");
+      } else {
+        s1Container.classList.add("hidden");
+        s2Container.classList.remove("hidden");
+      }
 
       // Attach input change listeners
       s1Container
@@ -2950,6 +2501,35 @@ const cleanBase = getCleanBase();
       s2Container
         .querySelectorAll(".param-btn-restore")
         .forEach((btn) => btn.addEventListener("click", handleRestoreParam));
+
+      // Attach move up / move down button listeners
+      s1Container.querySelectorAll(".param-btn-move-up").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt((e.currentTarget as HTMLElement).getAttribute("data-index") || "0", 10);
+          handleMoveParam(idx, -1);
+        });
+      });
+      s1Container.querySelectorAll(".param-btn-move-down").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt((e.currentTarget as HTMLElement).getAttribute("data-index") || "0", 10);
+          handleMoveParam(idx, 1);
+        });
+      });
+      s2Container.querySelectorAll(".param-btn-move-up").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt((e.currentTarget as HTMLElement).getAttribute("data-index") || "0", 10);
+          handleMoveParam(idx, -1);
+        });
+      });
+      s2Container.querySelectorAll(".param-btn-move-down").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt((e.currentTarget as HTMLElement).getAttribute("data-index") || "0", 10);
+          handleMoveParam(idx, 1);
+        });
+      });
+
+      // Update summary badge
+      updateParamSummary();
     }
 
     function attachInputListeners(input: Element) {
@@ -2960,6 +2540,7 @@ const cleanBase = getCleanBase();
           localParams[idx].name = target.value;
         } else if (target.classList.contains("param-input-weight")) {
           localParams[idx].weight = parseFloat(target.value) || 0;
+          updateParamSummary();
         }
       });
     }
@@ -2983,27 +2564,23 @@ const cleanBase = getCleanBase();
     paramTabs.forEach((tab) => {
       tab.addEventListener("click", (e) => {
         const target = e.currentTarget as HTMLElement;
-        const tabName = target.getAttribute("data-tab");
+        const tabName = target.getAttribute("data-tab") as "s1" | "s2";
+        activeParamTab = tabName || "s1";
 
         paramTabs.forEach((t) => t.classList.remove("tab-active"));
         target.classList.add("tab-active");
 
         const paneS1 = document.getElementById("param-list-s1");
         const paneS2 = document.getElementById("param-list-s2");
-        const btnAddS1 = document.getElementById("btn-add-param-s1");
-        const btnAddS2 = document.getElementById("btn-add-param-s2");
 
         if (tabName === "s1") {
           paneS1?.classList.remove("hidden");
           paneS2?.classList.add("hidden");
-          btnAddS1?.classList.remove("hidden");
-          btnAddS2?.classList.add("hidden");
         } else {
           paneS1?.classList.add("hidden");
           paneS2?.classList.remove("hidden");
-          btnAddS1?.classList.add("hidden");
-          btnAddS2?.classList.remove("hidden");
         }
+        updateParamSummary();
       });
     });
 
@@ -3013,8 +2590,20 @@ const cleanBase = getCleanBase();
         (p) => !p.isDeleted && !p.name.trim(),
       );
       if (emptyParams.length > 0) {
-        alert("Por favor, complete el nombre de todos los parámetros.");
+        alert("Por favor, complete el nombre de todos los criterios activos.");
         return;
+      }
+
+      // Validar si el peso no suma 100% en la sección activa
+      const currentActive = localParams.filter(
+        (p) => !p.isDeleted && isMatchingChannel(p) && (activeParamTab === "s1" ? isS1(p) : isS2(p)),
+      );
+      const totalWeight = Math.round(currentActive.reduce((sum, p) => sum + (parseFloat(p.weight) || 0), 0) * 10) / 10;
+      if (currentActive.length > 0 && Math.abs(totalWeight - 100) > 0.05) {
+        const proceed = confirm(
+          `Atención: El peso total de los criterios en esta sección es ${totalWeight}%, lo cual difiere del 100% recomendado.\n\n¿Deseas guardar los cambios de todas formas?`
+        );
+        if (!proceed) return;
       }
 
       const originalText = btnSaveParams.innerHTML;
@@ -3072,29 +2661,61 @@ const cleanBase = getCleanBase();
       });
     }
 
+    // --- EXPORT OPERATOR REPORT TO EXCEL (.xlsx) ---
+    const btnExportExcelOp = document.getElementById("btn-export-excel-operator");
+    if (btnExportExcelOp) {
+      btnExportExcelOp.addEventListener("click", () => {
+        const el = document.getElementById("operators-data");
+        const cleanBase = el?.getAttribute("data-clean-base") || "/";
+        const monthSelector = document.getElementById(
+          "month-selector",
+        ) as HTMLSelectElement;
+        const monthStr = monthSelector ? monthSelector.value : "";
+        const operatorsData = JSON.parse(
+          el?.getAttribute("data-operators") || "{}",
+        );
+        const selectedOp = activeAgentId ? operatorsData[activeAgentId] : null;
+
+        if (!selectedOp || !selectedOp.calls || selectedOp.calls.length === 0) {
+          alert("No hay auditorías registradas para exportar en este período.");
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (monthStr) params.set("month", monthStr);
+        if (activeAgentId) params.set("agentId", activeAgentId);
+
+        const exportUrl = `${cleanBase}api/calidad/export-excel?${params.toString()}`;
+        window.location.href = exportUrl;
+      });
+    }
+
 
     // Auto-select operator on page load if agentId is in URL or if user is an agent
     const urlParams = new URLSearchParams(window.location.search);
     const urlAgentId = urlParams.get("agentId");
     const rbacContainer = document.querySelector("[data-is-agent]");
     const isUserAgent =
-      rbacContainer && rbacContainer.getAttribute("data-is-agent") === "true";
+      rbacContainer?.getAttribute("data-is-agent") === "true";
 
     if (isUserAgent) {
-      const firstOpBtn = document.querySelector(
-        ".operator-item",
-      ) as HTMLButtonElement | null;
-      if (firstOpBtn) {
-        firstOpBtn.click();
-      }
+      const operatorsDataEl = document.getElementById("operators-data");
+      try {
+        const map = JSON.parse(
+          operatorsDataEl?.getAttribute("data-operators") || "{}",
+        );
+        const firstId = Object.keys(map)[0];
+        if (firstId) {
+          displayOperatorDetails(firstId);
+        }
+      } catch (e) {}
     } else if (urlAgentId) {
-      const opBtn = Array.from(
-        document.querySelectorAll(".operator-item"),
-      ).find(
-        (el) => el.getAttribute("data-id") === urlAgentId,
-      ) as HTMLButtonElement | null;
-      if (opBtn) {
-        opBtn.click();
+      displayOperatorDetails(urlAgentId);
+      if (detailsModal) {
+        detailsModal.showModal();
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete("agentId");
+        window.history.replaceState({}, "", currentUrl.toString());
       }
     }
     return true;
