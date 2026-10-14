@@ -1658,6 +1658,7 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
   import { calculateMultiChannelAuditScores } from "@lib/qualityCalculator";
   import type { EvaluationParameter } from "@/types/quality";
   import { matchApprovedTitle, cleanHtmlText } from "@/lib/titleNormalizer";
+  import { evaluateOrthography } from "@/lib/orthography";
 
   const STATE_LABEL: Record<string, string> = {
     cumple: "Cumple",
@@ -2213,7 +2214,36 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
       recalculateScores();
     }
 
-    // Auto-evaluación del SLA de 90 minutos para Mails Wise (email_sla_90min)
+    // Auto-evaluación de Ortografía (call_ticket_ortografia / email_mda_ortografia /
+// ag_mda_ortografia). Regla heurística de @lib/orthography (#291): marca No
+// cumple y muestra el primer hallazgo; el supervisor puede sobrescribirlo a mano
+// (setItemState oculta el badge cuando lo hace).
+function evaluateOrthographyRule(title: string, description: string) {
+  const channel = formChannelType?.value || "wise_call";
+  const checkboxName =
+    channel === "wise_email"
+      ? "email_mda_ortografia"
+      : channel === "invgate_ticket"
+        ? "ag_mda_ortografia"
+        : "call_ticket_ortografia";
+
+  const checkbox = document.querySelector(`input[name="${checkboxName}"]`) as HTMLInputElement | null;
+  if (!checkbox) return;
+  const item = checkbox.closest(".checklist-item") as HTMLElement | null;
+
+  const text = [title, description].filter(Boolean).join("\n");
+  if (!text.trim()) {
+    setParamRuleBadge(checkboxName, false);
+    return;
+  }
+
+  const result = evaluateOrthography(text);
+  if (item) setItemState(item, result.complies ? "cumple" : "nocumple");
+  setParamRuleBadge(checkboxName, !result.complies, result.complies ? "Regla" : `Ortografía: ${result.findings[0].word}`);
+  recalculateScores();
+}
+
+// Auto-evaluación del SLA de 90 minutos para Mails Wise (email_sla_90min)
     function evaluateWiseEmailSla(data: any) {
       const channel = formChannelType?.value || "wise_call";
       if (channel !== "wise_email") return;
@@ -2372,6 +2402,10 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
       if (data.source || data.rawDetails?.source) {
         evaluateTicketSource(data.source || data.rawDetails?.source);
       }
+      evaluateOrthographyRule(
+        data.title || data.rawDetails?.title || "",
+        data.description || data.rawDetails?.description || "",
+      );
       evaluateInvgateSlas(data);
     }
 

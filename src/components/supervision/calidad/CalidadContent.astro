@@ -24,6 +24,7 @@ import { formatMonthLabel, MONTH_LABELS } from "@lib/monthUtils";
 import { getCleanBase } from "@lib/baseUrl";
 import OperatorDetailsPanel from "./OperatorDetailsPanel.astro";
 import { calculateOperatorChannelStats } from "@lib/qualityCalculator";
+import { getOperatorNumber } from "@lib/operatorNumbers";
 import type { ChannelType } from "@/types/quality";
 
 
@@ -232,6 +233,7 @@ const operatorsQuality = finalAgents.map((agent) => {
       staysInMda: audit.staysInMda,
       isReclamoNovedad: audit.isReclamoNovedad ?? false,
       recordingUrl: audit.recordingUrl,
+      sortOrder: audit.sortOrder ?? 0,
       comments: parameterComments,
       section1: {
         score: audit.section1Score,
@@ -447,6 +449,7 @@ const cleanBase = getCleanBase();
                 data-table-sort-root
                 data-table-sort-default-key="nombre"
                 data-table-sort-default-direction="ascending"
+                data-table-sort-storage-key={`calidad-operadores-sort-${user.username}`}
                 class="space-y-3"
               >
                 <div
@@ -459,6 +462,7 @@ const cleanBase = getCleanBase();
                   {
                     [
                       { key: "nombre", label: "Nombre" },
+                      { key: "operador", label: "N° Operador" },
                       { key: "puntaje", label: "Puntaje" },
                       { key: "auditorias", label: "Auditorías" },
                     ].map((sortOption) => {
@@ -531,6 +535,7 @@ const cleanBase = getCleanBase();
                       data-operator-id={op.id}
                       data-table-row
                       data-sort-nombre={op.name.toLowerCase()}
+                      data-sort-operador={getOperatorNumber(op.username) ?? 999}
                       data-sort-puntaje={op.averageScore}
                       data-sort-auditorias={op.calls.length}
                       data-operator={JSON.stringify({
@@ -925,6 +930,10 @@ const cleanBase = getCleanBase();
     }
   };
 
+  // La numeración 1..4 y el asa de arrastre son por canal: en la pestaña
+  // "Todas" no se muestran. Lo fija `updateChannelTabsAndList` antes de renderizar.
+  let showAuditSlots = false;
+
   function renderCallCard(call: QualityCall, index: number) {
     const isUserAgent =
       document
@@ -1143,11 +1152,25 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
           : "Autogestión";
 
     return `
-      <div class="call-card call-card-container rounded-2xl border border-base-200/90 bg-base-100 overflow-hidden shadow-2xs relative group hover:border-base-300 transition-colors" data-call-id="${call.id}">
+      <div class="call-card call-card-container rounded-2xl border border-base-200/90 bg-base-100 overflow-hidden shadow-2xs relative group hover:border-base-300 transition-colors" data-call-id="${call.id}" data-channel="${call.channelType || "wise_call"}">
         
         <!-- Compact Card Header (Clickable Accordion) -->
         <div class="call-card-header flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-base-200/40 transition-colors select-none">
           <div class="flex flex-wrap items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <!-- 0. N° de auditoría dentro del canal (1..4) + asa de arrastre. En la
+                 pestaña "Todas" no se muestra: la numeración es por canal y el
+                 reordenamiento se hace entrando a cada canal. -->
+            ${
+              showAuditSlots
+                ? `<span class="flex items-center gap-1.5 shrink-0">
+              <span class="audit-drag-handle text-base-content/45 hover:text-secondary active:text-secondary transition-colors cursor-grab active:cursor-grabbing" draggable="true" title="Arrastrar para reordenar">
+                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h2v2H9zm4 0h2v2h-2zM9 8h2v2H9zm4 0h2v2h-2zm-4 4h2v2H9zm4 0h2v2h-2zm-4 4h2v2H9zm4 0h2v2h-2zm-4 4h2v2H9zm4 0h2v2h-2z"/></svg>
+              </span>
+              <span class="text-base-content/35 font-mono text-xs font-bold" data-audit-slot>${index + 1}</span>
+            </span>`
+                : ""
+            }
+
             <!-- 1. Resultado / Score -->
             <span class="${totalScoreColor} font-black font-mono text-sm shrink-0 w-11 text-center">
               ${call.totalScore}%
@@ -1926,7 +1949,141 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
 
       currentActiveChannel = "all";
 
-      const updateChannelTabsAndList = () => {
+      // Orden manual de las tarjetas dentro de cada canal (columna sort_order).
+// Sort es estable: las auditorías legacy (sortOrder = 0) conservan el orden
+// de llegada, así que migrar la columna no reordena nada por sorpresa.
+const sortedByManualOrder = <T extends { sortOrder?: number }>(calls: T[]): T[] =>
+[...calls].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+// La numeración 1..4 es POR CANAL: en la pestaña "Todas" cada canal vuelve a
+// empezar en 1.
+const renumberAuditSlots = () => {
+if (!callsContainer) return;
+const perChannel: Record<string, number> = {};
+callsContainer
+.querySelectorAll<HTMLElement>(".call-card-container")
+.forEach((card) => {
+const channel = card.dataset.channel || "wise_call";
+const slot = (perChannel[channel] = (perChannel[channel] || 0) + 1);
+const badge = card.querySelector<HTMLElement>("[data-audit-slot]");
+if (badge) badge.textContent = String(slot);
+});
+};
+
+// Momento del último dragended: el click del header que dispara el navegador
+// al terminar el arrastre no debe abrir el acordeón.
+let lastAuditDragEnd = 0;
+
+const bindAuditCardDragAndDrop = () => {
+if (!callsContainer) return;
+let dragged: HTMLElement | null = null;
+
+// Solo el asa es `draggable`: arrastrar desde cualquier otro punto de la card
+// chocaba con el click del acordeón.
+callsContainer
+.querySelectorAll<HTMLElement>(".audit-drag-handle")
+.forEach((handle) => {
+const card = handle.closest<HTMLElement>(".call-card-container");
+if (!card) return;
+
+handle.addEventListener("dragstart", (e) => {
+dragged = card;
+card.classList.add("opacity-40", "border-dashed");
+const dt = (e as DragEvent).dataTransfer;
+if (dt) {
+dt.effectAllowed = "move";
+dt.setData("text/plain", card.dataset.callId || "");
+// El elemento arrastrable es el asa: sin esto se mueve el icono, no la card.
+dt.setDragImage(card, 24, 24);
+}
+});
+
+handle.addEventListener("dragend", () => {
+card.classList.remove("opacity-40", "border-dashed");
+lastAuditDragEnd = Date.now();
+dragged = null;
+});
+});
+
+callsContainer
+.querySelectorAll<HTMLElement>(".call-card-container")
+.forEach((card) => {
+card.addEventListener("dragover", (e) => {
+e.preventDefault();
+if (!dragged || dragged === card) return;
+// No se mezcla entre canales: cada uno tiene su propia numeración.
+if (dragged.dataset.channel !== card.dataset.channel) return;
+
+const rect = card.getBoundingClientRect();
+const after = e.clientY > rect.top + rect.height / 2;
+callsContainer?.insertBefore(dragged, after ? card.nextSibling : card);
+});
+
+card.addEventListener("drop", (e) => {
+e.preventDefault();
+if (!dragged) return;
+renumberAuditSlots();
+persistAuditOrder();
+});
+});
+};
+
+const syncOperatorsDataWithOrder = (
+items: Array<{ id: number; sortOrder: number }>,
+) => {
+const el = document.getElementById("operators-data");
+if (!el) return;
+try {
+const map = JSON.parse(el.getAttribute("data-operators") || "{}");
+const calls = map[activeAgentId]?.calls;
+if (!calls) return;
+map[activeAgentId].calls = calls.map((c: any) => {
+const item = items.find((i) => i.id === c.id);
+return item ? { ...c, sortOrder: item.sortOrder } : c;
+});
+el.setAttribute("data-operators", JSON.stringify(map));
+} catch {
+// JSON inválido: el orden guardado igual se ve al recargar.
+}
+};
+
+const persistAuditOrder = async () => {
+const perChannel: Record<string, number> = {};
+const items = Array.from(
+callsContainer?.querySelectorAll<HTMLElement>(".call-card-container") || [],
+).map((card) => {
+const channel = card.dataset.channel || "wise_call";
+const position = (perChannel[channel] = (perChannel[channel] || 0) + 1);
+return { id: Number(card.dataset.callId), sortOrder: position * 10 };
+});
+
+try {
+const res = await fetch(`${cleanBase}api/calidad/reorder-audits`, {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ items }),
+});
+if (!res.ok) {
+(window as any).showToast?.(
+  "No se pudo guardar el orden de las auditorías",
+  "alert-error",
+);
+return;
+}
+// El modal se re-pinta desde el JSON de `data-operators`, no desde la variable
+// local `operator`: sin esto, reabrir el panel mostraba el orden viejo hasta
+// recargar la página.
+syncOperatorsDataWithOrder(items);
+} catch {
+(window as any).showToast?.(
+  "No se pudo guardar el orden de las auditorías",
+  "alert-error",
+);
+}
+};
+
+const updateChannelTabsAndList = () => {
+      showAuditSlots = currentActiveChannel !== "all";
         const allAudits = operator.calls || [];
         const wiseCalls = allAudits.filter(
           (c: any) => (c.channelType || "wise_call") === "wise_call",
@@ -1977,9 +2134,12 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
               </div>
             `;
           } else {
-            callsContainer.innerHTML = filteredCalls
+            callsContainer.innerHTML = sortedByManualOrder(filteredCalls)
               .map((c, idx) => renderCallCard(c, idx))
               .join("");
+
+            renumberAuditSlots();
+            bindAuditCardDragAndDrop();
 
             // Acordeón Exclusivo: máximo una auditoría abierta simultáneamente
             callsContainer
@@ -1987,6 +2147,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
               .forEach((trigger) => {
                 trigger.addEventListener("click", (e) => {
                   if ((e.target as HTMLElement).closest(".edit-audit-btn")) return;
+if (Date.now() - lastAuditDragEnd < 250) return;
                   const card = (trigger as HTMLElement).closest(".call-card-container");
                   if (!card) return;
                   const details = card.querySelector(".call-card-details");

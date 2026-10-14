@@ -431,6 +431,218 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
     await expect(page.locator('input[name="email_mda_reclamo_novedad"]')).not.toBeAttached();
   });
 
+  /**
+   * Numeración 1..N por canal + orden manual persistente. El arrastre HTML5 no
+   * se simula (Playwright no dispara la secuencia dragstart/dragover/drop de
+   * forma confiable); lo que se verifica es el contrato observable: el orden
+   * sale de `sort_order` al renderizar, los badges numeran por canal, y el
+   * endpoint de reorder persiste el nuevo orden para la próxima carga.
+   */
+  test("Orden manual de auditorías: numeración por canal y persistencia", async ({
+    page,
+  }) => {
+    const now = new Date();
+    const currentMonth = `${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getFullYear()}`;
+
+    const [opAgent] = await db
+      .insert(agents)
+      .values({
+        name: "Operador Orden Manual",
+        username: `op_orden_${Date.now()}`,
+        incluidoCalidad: true,
+      })
+      .returning({ id: agents.id });
+    seededAgentId = opAgent.id;
+
+    // Se insertan invertidas a propósito: la segunda tiene MENOR sort_order.
+    const [second] = await db
+      .insert(qualityAudits)
+      .values({
+        agentId: opAgent.id,
+        month: currentMonth,
+        channelType: "wise_call",
+        callId: "ORDEN-B",
+        ticketId: "",
+        duration: "01:00",
+        date: "2026-10-01",
+        totalScore: 80,
+        section1Score: 80,
+        section2Score: 80,
+        sortOrder: 10,
+      })
+      .returning({ id: qualityAudits.id });
+
+    const [first] = await db
+      .insert(qualityAudits)
+      .values({
+        agentId: opAgent.id,
+        month: currentMonth,
+        channelType: "wise_call",
+        callId: "ORDEN-A",
+        ticketId: "",
+        duration: "01:00",
+        date: "2026-10-02",
+        totalScore: 80,
+        section1Score: 80,
+        section2Score: 80,
+        sortOrder: 20,
+      })
+      .returning({ id: qualityAudits.id });
+
+    await page.goto(`/supervision/calidad-operadores?month=${currentMonth}`);
+    await page.locator(`.operator-card[data-operator-id="${opAgent.id}"]`).click();
+
+    const cards = page.locator("#detail-calls-container .call-card-container");
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+
+    // sort_order manda sobre la fecha de inserción.
+    await expect(cards.nth(0)).toContainText("ORDEN-B");
+    await expect(cards.nth(1)).toContainText("ORDEN-A");
+
+    // En "Todas" no hay numeración: es por canal.
+    await expect(cards.first().locator("[data-audit-slot]")).toHaveCount(0);
+    await expect(cards.first().locator(".audit-drag-handle")).toHaveCount(0);
+
+    // Dentro del canal aparece el N° y el asa arrastrable.
+    await page.locator('.operator-channel-tab[data-channel="wise_call"]').click({ force: true });
+    await expect(cards.nth(0).locator("[data-audit-slot]")).toHaveText("1");
+    await expect(cards.nth(1).locator("[data-audit-slot]")).toHaveText("2");
+    await expect(cards.first().locator(".audit-drag-handle")).toHaveAttribute(
+      "draggable",
+      "true",
+    );
+
+    // Arrastre real (eventos HTML5 disparados a mano: Playwright no genera la
+    // secuencia). Se toma la 2ª card y se la suelta antes de la 1ª.
+    const reorderResponse = page.waitForResponse((r) =>
+      r.url().includes("/api/calidad/reorder-audits"),
+    );
+    const dragged = await page.evaluate(() => {
+      const handles = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "#detail-calls-container .audit-drag-handle",
+        ),
+      );
+      const cards = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "#detail-calls-container .call-card-container",
+        ),
+      );
+      if (handles.length < 2) return "faltan asas";
+
+      const dt = new DataTransfer();
+      handles[1].dispatchEvent(
+        new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }),
+      );
+      const target = cards[0];
+      target.dispatchEvent(
+        new DragEvent("dragover", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+          clientY: target.getBoundingClientRect().top - 10,
+        }),
+      );
+      target.dispatchEvent(
+        new DragEvent("drop", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+        }),
+      );
+      handles[1].dispatchEvent(
+        new DragEvent("dragend", { bubbles: true, dataTransfer: dt }),
+      );
+      return "ok";
+    });
+    expect(dragged).toBe("ok");
+    expect((await reorderResponse).ok()).toBeTruthy();
+
+    // El DOM quedó invertido y la DB guardó el nuevo orden.
+    await expect(cards.nth(0)).toContainText("ORDEN-A");
+    await expect(cards.nth(0).locator("[data-audit-slot]")).toHaveText("1");
+
+    const rows = await db
+      .select({ id: qualityAudits.id, sortOrder: qualityAudits.sortOrder })
+      .from(qualityAudits)
+      .where(eq(qualityAudits.agentId, opAgent.id));
+    expect(rows.find((r) => r.id === first.id)?.sortOrder).toBe(10);
+    expect(rows.find((r) => r.id === second.id)?.sortOrder).toBe(20);
+
+    // Cerrar y reabrir el modal SIN recargar: el orden tiene que persistir.
+    await page.locator("#operator-details-modal").evaluate((el: any) => el.close());
+    await page.locator(`.operator-card[data-operator-id="${opAgent.id}"]`).click();
+    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+    await expect(cards.nth(0)).toContainText("ORDEN-A");
+    await expect(cards.nth(1)).toContainText("ORDEN-B");
+
+    await page.reload();
+    await page.locator(`.operator-card[data-operator-id="${opAgent.id}"]`).click();
+    const afterReload = page.locator("#detail-calls-container .call-card-container");
+    await expect(afterReload.first()).toBeVisible({ timeout: 10000 });
+    await expect(afterReload.nth(0)).toContainText("ORDEN-A");
+    await expect(afterReload.nth(1)).toContainText("ORDEN-B");
+  });
+
+  /**
+   * Regla de Ortografía (#291): al cargar el ticket, el parámetro de ortografía
+   * del canal se auto-evalúa y el badge muestra el primer hallazgo. El
+   * supervisor puede sobrescribir el estado con un clic (y el badge se oculta).
+   */
+  test("Regla de ortografía: auto-evalúa el criterio y permite override manual", async ({
+    page,
+  }) => {
+    let description = "El cliente nesesita revisar la configuracion del equipo.";
+    await page.route("**/api/calidad/fetch-metadata*source=invgate*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            caseNumber: "88444",
+            title: "Falla de impressora",
+            category: "Hardware",
+            priority: "Media",
+            status: "En curso",
+            creator: "Juan Pérez",
+            helpdesk: "Mesa de Ayuda TI",
+            source: "Teléfono",
+            description,
+            date: "2026-10-01",
+          },
+        }),
+      });
+    });
+
+    await page.goto("/supervision/calidad-operadores/nueva");
+    await page.locator("#form-ticket-id").fill("88444");
+    await page.locator("#btn-fetch-invgate-api").click();
+
+    const ortoCheckbox = page.locator('input[name="call_ticket_ortografia"]');
+    const ortoBadge = page.locator('.rule-auto-badge[data-rule-badge="call_ticket_ortografia"]');
+
+    // Erratas + falta de tilde -> No cumple con el primer hallazgo en el badge.
+    await expect(ortoCheckbox).not.toBeChecked();
+    await expect(ortoBadge).not.toHaveClass(/hidden/);
+    await expect(ortoBadge).toHaveText(/Ortografía: (nesecita|configuracion)/);
+
+    // Override manual: el estado del supervisor manda y el badge desaparece.
+    const ortoItem = ortoCheckbox.locator(
+      "xpath=ancestor::div[contains(@class,'checklist-item')]",
+    );
+    await ortoItem.locator('.state-btn[data-state="cumple"]').click();
+    await expect(ortoCheckbox).toBeChecked();
+    await expect(ortoBadge).toHaveClass(/hidden/);
+
+    // Texte limpio (sin jerga MDA ni siglas) -> Cumple sin badge.
+    description = "El cliente necesita revisar la configuración del equipo.";
+    await page.locator("#form-ticket-id").fill("88445");
+    await page.locator("#btn-fetch-invgate-api").click();
+    await expect(ortoCheckbox).toBeChecked();
+    await expect(ortoBadge).toHaveClass(/hidden/);
+  });
+
   test("Debe mostrar scores consistentes entre la card de auditoría guardada y el modal de edición", async ({
     page,
   }) => {

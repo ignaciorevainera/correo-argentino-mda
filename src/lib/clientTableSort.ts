@@ -119,6 +119,38 @@ const applyRowGridClass = (root: HTMLElement, rows: HTMLElement[]): void => {
   });
 };
 
+/**
+ * Persistencia opcional del criterio elegido, por root. Se activa declarando
+ * `data-table-sort-storage-key` en el root (el valor lo elige la pagina, que
+ * suele incluir el usuario para que el orden no se comparta entre perfiles).
+ */
+const readStoredSort = (root: HTMLElement): [string, SortDirection] | null => {
+  const storageKey = root.dataset.tableSortStorageKey?.trim();
+  if (!storageKey) return null;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { key?: string; direction?: string };
+    const direction = parsed.direction as SortDirection;
+    if (!parsed.key || (direction !== "ascending" && direction !== "descending")) {
+      return null;
+    }
+    return [parsed.key, direction];
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredSort = (root: HTMLElement, key: string, direction: SortDirection): void => {
+  const storageKey = root.dataset.tableSortStorageKey?.trim();
+  if (!storageKey || key === "") return;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify({ key, direction }));
+  } catch {
+    // localStorage lleno o bloqueado: el orden sigue funcionando en memoria.
+  }
+};
+
 const bindTableSortRoot = (root: HTMLElement): void => {
   if (root.dataset.tableSortBound === "true") {
     return;
@@ -138,7 +170,13 @@ const bindTableSortRoot = (root: HTMLElement): void => {
   const defaultDirection = root.dataset
     .tableSortDefaultDirection as SortDirection | undefined;
 
-  if (
+  const stored = readStoredSort(root);
+  if (stored) {
+    sortRows(body, stored[0], stored[1]);
+    updateSortControls(root, stored[0], stored[1]);
+    root.dataset.tableSortKey = stored[0];
+    root.dataset.tableSortDirection = stored[1];
+  } else if (
     defaultKey &&
     (defaultDirection === "ascending" || defaultDirection === "descending")
   ) {
@@ -179,6 +217,7 @@ const bindTableSortRoot = (root: HTMLElement): void => {
 
     root.dataset.tableSortKey = nextDirection === "none" ? "" : sortKey;
     root.dataset.tableSortDirection = nextDirection;
+    writeStoredSort(root, root.dataset.tableSortKey, nextDirection);
 
     if (root.dataset.serverSideSort === "true") {
       root.dispatchEvent(

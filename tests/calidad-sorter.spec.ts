@@ -111,6 +111,31 @@ test("Sorter: la barra existe y ordena por nombre, puntaje y auditorías", async
   expect(deNuevo).toEqual(esperadoNombre);
 });
 
+test("Sorter: ordena por N° Operador y recuerda el criterio tras recargar", async ({
+  page,
+  context,
+}) => {
+  await setSessionCookie(context, sup.signedSessionId);
+  await page.goto(`/supervision/calidad-operadores?month=${MONTH}`);
+  await expect(page.locator("#operators-data")).toBeAttached({ timeout: 20000 });
+
+  const root = page.locator("#operators-sort-root");
+  const operador = root.locator('[data-table-sort-key="operador"]');
+  await expect(operador).toBeVisible();
+
+  // Los fixtures no estan en la lista de numeros: todos caen en 999, pero el
+  // criterio debe activarse y persistir (no volver a "nombre").
+  await operador.click();
+  await expect(operador).toHaveAttribute("data-table-sort-direction", "ascending");
+
+  await page.reload();
+  await expect(page.locator("#operators-data")).toBeAttached({ timeout: 20000 });
+  await expect(root.locator('[data-table-sort-key="operador"]')).toHaveAttribute(
+    "data-table-sort-direction",
+    "ascending",
+  );
+});
+
 test("Sorter: convive con el buscador sin romper el empty state", async ({
   page,
   context,

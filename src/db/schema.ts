@@ -511,6 +511,9 @@ export const qualityAudits = sqliteTable(
     staysInMda: integer("stays_in_mda", { mode: "boolean" }).notNull().default(true),
     isReclamoNovedad: integer("is_reclamo_novedad", { mode: "boolean" }).notNull().default(false),
     recordingUrl: text("recording_url"),
+    // Posición dentro de su canal+mes (0, 10, 20...): la usa el panel de
+    // detalle para numerar las auditorías 1..4 y permitir reordenarlas a mano.
+    sortOrder: integer("sort_order").notNull().default(0),
   },
   (table) => ({
     monthIdx: index("quality_audits_month_idx").on(table.month),
