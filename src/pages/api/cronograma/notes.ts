@@ -14,37 +14,16 @@ export const GET: APIRoute = async ({ request }) => {
       return jsonResponse({ error: "Missing agentName parameter" }, 400);
     }
 
-    // Lookup agent in database case-insensitively
+    // Lectura pura: nunca crea agentes. Un nombre inexistente devuelve notas
+    // vacías sin escribir en `agents` (#264).
     const agent = await db
-      .select({ id: agents.id })
+      .select({ notes: agents.notes })
       .from(agents)
       .where(eq(sql`lower(${agents.name})`, agentName.trim().toLowerCase()))
       .limit(1);
 
-    if (agent.length === 0) {
-      // Dynamic fallback creation to ensure operator exists in SQLite
-      const parts = agentName.trim().split(/\s+/);
-      const initials = parts
-        .map((p: string) => p[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase();
-
-      await db.insert(agents).values({
-        name: agentName,
-        avatarInitials: initials,
-        notes: "",
-      });
-
-      return jsonResponse(
-        { notes: "" },
-        200,
-        "no-store, no-cache, must-revalidate",
-      );
-    }
-
     return jsonResponse(
-      { notes: agent[0].notes || "" },
+      { notes: agent[0]?.notes || "" },
       200,
       "no-store, no-cache, must-revalidate",
     );

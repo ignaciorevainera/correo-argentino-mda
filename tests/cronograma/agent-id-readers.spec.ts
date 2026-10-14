@@ -225,15 +225,17 @@ test.describe("lectores de schedules por agentId", () => {
     expect(rows.length).toBe(0);
   });
 
-  test("regenerar un mes borra por agentId (no por nombre)", async ({ context }) => {
+  test("crear un mes existente devuelve 409 y no borra datos (#141)", async ({
+    context,
+  }) => {
     const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await context.addCookies([
       { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
     ]);
     const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
 
-    // Fila del mes target vinculada por id: el delete por id la borra y la
-    // regeneracion la reemplaza.
+    // Fila preexistente del mes target: con el guard 409 el POST no debe
+    // tocar nada (antes el delete+reinsert incondicional borraba estos datos).
     const [row] = await db
       .insert(schedules)
       .values({ agentId: agent.id, date: "2027-01-15", status: "Trabajo", isOverride: true })
@@ -245,9 +247,10 @@ test.describe("lectores de schedules por agentId", () => {
       data: { year: 2027, month: 0 },
       headers: { "Content-Type": "application/json" },
     });
-    expect([200, 201]).toContain(res.status());
+    expect(res.status()).toBe(409);
 
+    // La fila preexistente debe seguir intacta (no hubo pérdida de datos).
     const left = await db.select({ id: schedules.id }).from(schedules).where(eq(schedules.id, row.id));
-    expect(left.length).toBe(0);
+    expect(left.length).toBe(1);
   });
 });

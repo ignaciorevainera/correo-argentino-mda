@@ -2,6 +2,7 @@ import { state } from "./state";
 import { showToast } from "./notifications";
 import { updateViewSwitcherUI } from "./dashboard-client";
 import { updatePasivaActiveMonthBadge } from "./monthly-view";
+import { currentMonthKey } from "@lib/cronogramaMonths";
 
 let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -43,7 +44,7 @@ export async function autoSavePasivaChanges(): Promise<void> {
   ) as HTMLInputElement | null;
   const month = dateInput?.value
     ? dateInput.value.slice(0, 7)
-    : new Date().toISOString().slice(0, 7);
+    : currentMonthKey();
 
   const weeks = Object.values(state.pasivaState.weeklyAssignments).map((w) => ({
     startDate: w.startDate,
@@ -91,7 +92,7 @@ export async function savePasivaChanges(btn: HTMLButtonElement): Promise<void> {
   ) as HTMLInputElement | null;
   const month = dateInput?.value
     ? dateInput.value.slice(0, 7)
-    : new Date().toISOString().slice(0, 7);
+    : currentMonthKey();
 
   btn.disabled = true;
   btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
@@ -195,7 +196,7 @@ export async function renderPasivaView(): Promise<void> {
   ) as HTMLInputElement | null;
   const month = dateInput?.value
     ? dateInput.value.slice(0, 7)
-    : new Date().toISOString().slice(0, 7);
+    : currentMonthKey();
 
   try {
     const res = await fetch(`/api/cronograma/guardia-pasiva?month=${month}`);

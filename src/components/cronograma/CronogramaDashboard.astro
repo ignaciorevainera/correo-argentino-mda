@@ -8,7 +8,7 @@ import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import FilterButtonBar from "@components/ui/FilterButtonBar.astro";
 import SortDropdown from "@components/ui/SortDropdown.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
-import MonthSelect from "@components/ui/MonthSelect.astro";
+import MonthNavigator from "@components/ui/MonthNavigator.astro";
 
 import OperatorDrawer from "./subcomponents/OperatorDrawer.astro";
 import MonthlyDetailModal from "./subcomponents/MonthlyDetailModal.astro";
@@ -278,27 +278,12 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
               <!-- Left: Title, Navigation & Maximize button -->
               <div class="flex shrink-0 flex-wrap items-center gap-3">
                 <!-- Month Navigator -->
-                <div class="ml-2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    id="prev-month-btn"
-                    class="btn btn-xs btn-ghost p-1 min-h-8 min-w-8"
-                    title="Mes anterior"
-                    aria-label="Mes anterior"
-                  >
-                    <Icon name="boxicons:chevron-left-filled" size={14} />
-                  </button>
-                  <MonthSelect id="month-selector" />
-                  <button
-                    type="button"
-                    id="next-month-btn"
-                    class="btn btn-xs btn-ghost p-1 min-h-8 min-w-8"
-                    title="Mes siguiente"
-                    aria-label="Mes siguiente"
-                  >
-                    <Icon name="boxicons:chevron-right-filled" size={14} />
-                  </button>
-                </div>
+                <MonthNavigator
+                  selectId="month-selector"
+                  prevId="prev-month-btn"
+                  nextId="next-month-btn"
+                  class="ml-2"
+                />
 
                 <!-- Agregar nuevo mes -->
                 <ActionButton
@@ -468,7 +453,12 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
             title="Configuración de Grupos"
             subtitle="Establece la rotación y horarios de sábados aplicados únicamente al mes seleccionado."
           >
-            <MonthSelect id="groups-month-selector" class="shrink-0" />
+            <MonthNavigator
+              selectId="groups-month-selector"
+              prevId="groups-prev-month-btn"
+              nextId="groups-next-month-btn"
+              class="shrink-0"
+            />
           </CronoCardHeader>
           <!-- Configuration form -->
           <div
@@ -678,7 +668,7 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
                 <button
                   type="button"
                   id="preview-month-btn"
-                  class="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 text-base-content w-56 justify-between font-bold shadow-sm"
+                  class="btn btn-sm bg-base-100 hover:bg-base-200 border-base-300 text-base-content w-56 justify-between font-bold shadow-sm h-8 min-h-8"
                   title="Seleccionar fin de semana..."
                 >
                   <span class="flex min-w-0 items-center gap-2">
@@ -901,7 +891,12 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
             iconBg="bg-info/15"
             iconColor="text-info"
           >
-            <MonthSelect id="pasiva-month-selector" class="shrink-0" />
+            <MonthNavigator
+              selectId="pasiva-month-selector"
+              prevId="pasiva-prev-month-btn"
+              nextId="pasiva-next-month-btn"
+              class="shrink-0"
+            />
           </CronoCardHeader>
           <div class="overflow-x-auto">
             <table
@@ -928,6 +923,8 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
   <!-- Quick Edit Context Menu -->
   <div
     id="quick-edit-menu"
+    tabindex="-1"
+    role="menu"
     class="bg-base-100/90 border-base-300 animate-in fade-in zoom-in-95 fixed z-100 hidden min-w-40 rounded-xl border p-1.5 shadow-overlay backdrop-blur-xl duration-100"
   >
     <div class="border-base-200 mb-1 border-b px-3 py-2">

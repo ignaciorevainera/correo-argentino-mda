@@ -1,6 +1,7 @@
 import { state } from "./state";
 import { formatToDDMMYY } from "./rotation-helper";
 import { escapeHtml } from "@lib/sanitize";
+import { currentMonthKey } from "@lib/cronogramaMonths";
 
 interface ShiftEntry {
   agentId: number;
@@ -378,7 +379,7 @@ export async function openOvertimePreview(month?: string): Promise<void> {
     if (state.overtimeSelectedWeekend) {
       currentMonth = state.overtimeSelectedWeekend.slice(0, 7);
     } else {
-      currentMonth = new Date().toISOString().slice(0, 7);
+      currentMonth = currentMonthKey();
     }
   }
 

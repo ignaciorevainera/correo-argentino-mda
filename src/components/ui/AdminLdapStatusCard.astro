@@ -1,0 +1,155 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div
+  class="card bg-base-100 border-base-300 flex flex-row items-center justify-between border p-5 md:p-6"
+>
+  <div class="min-w-0 flex-1">
+    <div class="flex items-center gap-2">
+      <div
+        class="text-base-content/60 truncate text-xs font-semibold tracking-wider uppercase"
+      >
+        Active Directory (LDAP)
+      </div>
+      <button
+        type="button"
+        id="ldap-status-refresh-btn"
+        class="btn btn-ghost btn-circle btn-xs text-base-content/50 hover:text-base-content focus-visible:ring-primary focus:outline-none focus-visible:ring-1"
+        title="Verificar conexión de LDAP"
+        aria-label="Verificar conexión de LDAP"
+      >
+        <Icon
+          name="boxicons:refresh-ccw-filled"
+          size={14}
+          id="ldap-status-refresh-icon"
+        />
+      </button>
+    </div>
+    <div class="mt-0.5 text-lg font-bold md:text-xl" id="ldap-status">
+      Cargando...
+    </div>
+    <div
+      class="text-base-content/50 mt-1 truncate text-xs"
+      id="ldap-status-desc"
+    >
+      Esperando datos...
+    </div>
+  </div>
+  <div
+    class="bg-base-200/60 text-base-content/40 ml-4 shrink-0 rounded-xl p-3"
+    id="ldap-status-icon-container"
+  >
+    <Icon name="boxicons:server-filled" size={32} />
+  </div>
+</div>
+
+<script>
+  const ldapStatusEl = document.getElementById("ldap-status");
+  const ldapStatusDescEl = document.getElementById("ldap-status-desc");
+  const ldapStatusIconContainer = document.getElementById(
+    "ldap-status-icon-container",
+  );
+  const ldapStatusRefreshBtn = document.getElementById("ldap-status-refresh-btn");
+  const ldapStatusRefreshIcon = document.getElementById(
+    "ldap-status-refresh-icon",
+  );
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    credentials: "Credenciales inválidas",
+    network: "Error de red",
+    other: "Otro error",
+  };
+
+  async function updateLdapStatus() {
+    if (!ldapStatusEl) return;
+
+    if (ldapStatusRefreshIcon) {
+      ldapStatusRefreshIcon.classList.add("animate-spin");
+    }
+    if (ldapStatusRefreshBtn) {
+      ldapStatusRefreshBtn.setAttribute("disabled", "true");
+    }
+
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 15000);
+
+    try {
+      const res = await fetch("/api/admin/ldap-status", {
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error("Error en la respuesta de la API");
+
+      const data = await res.json();
+
+      let statusText = "Desconectado";
+      let statusClass = "text-error";
+      let iconContainerClass =
+        "bg-error/15 text-error p-3 rounded-xl shrink-0 ml-4";
+
+      if (data.ok) {
+        statusText = "Conectado";
+        statusClass = "text-success";
+        iconContainerClass =
+          "bg-success/15 text-success p-3 rounded-xl shrink-0 ml-4";
+      } else if (data.category) {
+        statusText =
+          CATEGORY_LABELS[data.category] || "Error de LDAP";
+        statusClass = "text-warning";
+        iconContainerClass =
+          "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+      }
+
+      ldapStatusEl.textContent = statusText;
+      ldapStatusEl.className = `text-lg md:text-xl font-bold mt-0.5 ${statusClass}`;
+
+      if (ldapStatusDescEl) {
+        const descText = data.message || "";
+        ldapStatusDescEl.textContent = descText;
+        ldapStatusDescEl.title = descText;
+      }
+
+      if (ldapStatusIconContainer) {
+        ldapStatusIconContainer.className = iconContainerClass;
+      }
+    } catch (err) {
+      console.error(
+        "[AdminLdapStatusCard] Error al verificar LDAP:",
+        err,
+      );
+      ldapStatusEl.textContent = "Error de Conexión";
+      ldapStatusEl.className =
+        "text-lg md:text-xl font-bold mt-0.5 text-warning";
+      if (ldapStatusIconContainer) {
+        ldapStatusIconContainer.className =
+          "bg-warning/15 text-warning p-3 rounded-xl shrink-0 ml-4";
+      }
+    } finally {
+      clearTimeout(timeout);
+      if (ldapStatusRefreshIcon) {
+        ldapStatusRefreshIcon.classList.remove("animate-spin");
+      }
+      if (ldapStatusRefreshBtn) {
+        ldapStatusRefreshBtn.removeAttribute("disabled");
+      }
+    }
+  }
+
+  function initLdapCard() {
+    const btn = document.getElementById("ldap-status-refresh-btn");
+    if (btn) {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        updateLdapStatus();
+      };
+    }
+    updateLdapStatus();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initLdapCard);
+  } else {
+    initLdapCard();
+  }
+  document.addEventListener("astro:page-load", initLdapCard);
+</script>

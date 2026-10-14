@@ -11,35 +11,43 @@ import {
   users,
 } from "@db/schema";
 import { eq, and, desc, lt, like, sql } from "drizzle-orm";
-import { activeAgentCondition } from "@lib/activeUsers";
+import { eligibleAgentsCondition } from "@lib/cronogramaAgents";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 import { buildNameToAgentId, resolveAgentIdByName } from "@lib/scheduleLinks";
+import { currentMonthKey, resolveInitialMonth } from "@lib/cronogramaMonths";
 
 export const GET: APIRoute = async ({ url }) => {
   try {
-    // 1. Determinar el mes activo y meses disponibles (Database-Side Unique Months Aggregation)
-    const dbSchedulesList = await db
-      .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
-      .from(schedules);
-    const availableMonths = dbSchedulesList
-      .map((s) => s.month)
-      .filter(Boolean)
-      .sort();
+    // 1. Meses disponibles = unión de schedules ∪ agentSaturdayGroups ∪
+    // saturdayRotationConfig. Un mes creado sin filas de schedules (p. ej.
+    // rotación sin schedules, #273) igual aparece en el selector (#139).
+    const [scheduleMonths, groupMonths, rotationMonths] = await Promise.all([
+      db
+        .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
+        .from(schedules),
+      db
+        .selectDistinct({ month: agentSaturdayGroups.month })
+        .from(agentSaturdayGroups),
+      db
+        .selectDistinct({ month: saturdayRotationConfig.month })
+        .from(saturdayRotationConfig),
+    ]);
+    const availableMonths = Array.from(
+      new Set(
+        [
+          ...scheduleMonths.map((s) => s.month),
+          ...groupMonths.map((g) => g.month),
+          ...rotationMonths.map((r) => r.month),
+        ].filter(Boolean),
+      ),
+    ).sort();
 
-    const d = new Date();
-    const currentMonthDefault = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const pastOrCurrentMonths = availableMonths.filter(
-      (m) => m <= currentMonthDefault,
-    );
+    // Regla única de mes inicial (#139), misma función que usa el cliente.
     const activeMonth =
       url.searchParams.get("month") ||
-      (pastOrCurrentMonths.length > 0
-        ? pastOrCurrentMonths[pastOrCurrentMonths.length - 1]
-        : availableMonths.length > 0
-          ? availableMonths[availableMonths.length - 1]
-          : currentMonthDefault);
+      resolveInitialMonth(availableMonths, currentMonthKey());
 
     // 2. Cargar configuración de rotación para este mes
     let configList = await db
@@ -133,7 +141,7 @@ export const GET: APIRoute = async ({ url }) => {
       })
       .from(agents)
       .leftJoin(users, eq(users.id, agents.userId))
-      .where(and(eq(agents.enCronograma, true), activeAgentCondition()));
+      .where(eligibleAgentsCondition());
 
     // 6. Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
     const dbOvertimeConfigs = await db

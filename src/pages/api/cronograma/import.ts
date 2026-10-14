@@ -167,6 +167,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
+    const monthField = formData.get("month");
+    const month = typeof monthField === "string" ? monthField.trim() : "";
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return jsonResponse(
+        { error: "Falta el mes destino (formato YYYY-MM) en la importación" },
+        400,
+      );
+    }
+
     const csvText = await file.text();
 
     // Auto-detect delimiter
@@ -325,6 +334,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
           });
         }
       }
+    }
+
+    const outOfRange = parsedEdits.filter((e) => !e.date.startsWith(month));
+    if (outOfRange.length > 0) {
+      return jsonResponse(
+        {
+          error:
+            "El archivo CSV contiene fechas fuera del mes seleccionado. Cambie de mes o corrija el archivo.",
+        },
+        400,
+      );
     }
 
     return jsonResponse({ edits: parsedEdits });
