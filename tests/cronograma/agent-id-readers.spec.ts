@@ -60,9 +60,8 @@ test.describe("lectores de schedules por agentId", () => {
 
   test.afterAll(async () => {
     if (createdScheduleIds.length) await db.delete(schedules).where(inArray(schedules.id, createdScheduleIds));
-    // La regeneracion de 2027-01 inserta filas para TODOS los agentes de la
-    // DB (no solo los de la fixture). Limpiar todo lo generado para ese mes
-    // (schedules por agentId + grupos sabatinos + config de rotacion).
+    // Limpieza defensiva del mes 2027-01 (el guard 409 ya no lo toca, pero por
+    // si una corrida previa dejo filas generadas en la DB real).
     const allAgentIds = (await db.select({ id: agents.id }).from(agents)).map((a) => a.id);
     if (allAgentIds.length) {
       await db
@@ -225,15 +224,15 @@ test.describe("lectores de schedules por agentId", () => {
     expect(rows.length).toBe(0);
   });
 
-  test("regenerar un mes borra por agentId (no por nombre)", async ({ context }) => {
+  test("un mes existente no se regenera: guard 409 preserva los datos", async ({ context }) => {
     const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
     await context.addCookies([
       { name: "session_id", value: adminCookie, domain: new URL(baseURL).hostname, path: "/" },
     ]);
     const [agent] = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, createdAgentIds));
 
-    // Fila del mes target vinculada por id: el delete por id la borra y la
-    // regeneracion la reemplaza.
+    // Fila del mes target con override: antes se regeneraba (delete+reinsert) y
+    // se perdia. Ahora el POST responde 409 y NO toca la fila.
     const [row] = await db
       .insert(schedules)
       .values({ agentId: agent.id, date: "2027-01-15", status: "Trabajo", isOverride: true })
@@ -245,9 +244,14 @@ test.describe("lectores de schedules por agentId", () => {
       data: { year: 2027, month: 0 },
       headers: { "Content-Type": "application/json" },
     });
-    expect([200, 201]).toContain(res.status());
+    expect(res.status()).toBe(409);
 
-    const left = await db.select({ id: schedules.id }).from(schedules).where(eq(schedules.id, row.id));
-    expect(left.length).toBe(0);
+    const left = await db
+      .select({ id: schedules.id, status: schedules.status, isOverride: schedules.isOverride })
+      .from(schedules)
+      .where(eq(schedules.id, row.id));
+    expect(left.length).toBe(1);
+    expect(left[0].status).toBe("Trabajo");
+    expect(left[0].isOverride).toBe(true);
   });
 });

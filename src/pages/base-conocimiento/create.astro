@@ -12,7 +12,7 @@ import { can } from "@lib/roleConfig";
 import { getModulePermissions } from "@lib/rbac";
 import { kbArticleSchema } from "@lib/validations";
 import { createArticle } from "@lib/kb";
-import { listCategories } from "@lib/kbCategories";
+import { categoryKey, listCategories } from "@lib/kbCategories";
 import { logAdminActionStructured } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { getCsrfTokenForSession, validateCsrfToken } from "@lib/csrf";
@@ -169,7 +169,8 @@ if (Astro.request.method === "POST") {
       } else if (
         parsed.data.category &&
         !listCategories(helpdeskId).some(
-          (category) => category.name === parsed.data.category,
+          (category) =>
+            categoryKey(category.name) === categoryKey(parsed.data.category),
         )
       ) {
         errorMsg = "La categoría seleccionada no es válida.";
@@ -249,7 +250,10 @@ const categoriaOptions = [
   })),
 ];
 const categoriaSeleccionada =
-  nuevaCategoria && !targetCategories.some((c) => c.name === nuevaCategoria)
+  nuevaCategoria &&
+  !targetCategories.some(
+    (c) => categoryKey(c.name) === categoryKey(nuevaCategoria),
+  )
     ? [...categoriaOptions, { value: nuevaCategoria, label: nuevaCategoria }]
     : categoriaOptions;
 ---

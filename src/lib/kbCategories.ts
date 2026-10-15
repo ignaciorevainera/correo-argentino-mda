@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@db/index";
 import { kbArticles, kbCategories } from "@db/schema";
 
@@ -27,6 +27,16 @@ export type KbCategoryDeleteResult =
 
 function normalizeCategoryName(raw: string): string {
   return raw.normalize("NFC").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Clave de comparación de categorías: `normalizeCategoryName` (NFC + espacios
+ * colapsados + trim) más minúsculas. SQLite no puede replicar NFC ni el
+ * `lower()` de acentos, así que toda comparación entre el catálogo y
+ * `kb_articles.category` pasa por acá en JS.
+ */
+export function categoryKey(raw: string): string {
+  return normalizeCategoryName(raw).toLowerCase();
 }
 
 function isValidHelpdeskId(helpdeskId: number): boolean {
@@ -177,16 +187,36 @@ export function renameCategory(input: {
       .set({ name })
       .where(eq(kbCategories.id, input.id))
       .run();
-    const cascaded = tx
-      .update(kbArticles)
-      .set({ category: name })
-      .where(
-        and(
-          eq(kbArticles.helpdeskId, input.helpdeskId),
-          eq(kbArticles.category, current.name),
-        ),
-      )
-      .run();
+    const previousKey = categoryKey(current.name);
+    const variants = [
+      ...new Set(
+        tx
+          .select({ category: kbArticles.category })
+          .from(kbArticles)
+          .where(eq(kbArticles.helpdeskId, input.helpdeskId))
+          .all()
+          .filter(
+            (row) =>
+              row.category != null &&
+              categoryKey(row.category) === previousKey,
+          )
+          .map((row) => row.category as string),
+      ),
+    ];
+
+    const cascaded =
+      variants.length > 0
+        ? tx
+            .update(kbArticles)
+            .set({ category: name })
+            .where(
+              and(
+                eq(kbArticles.helpdeskId, input.helpdeskId),
+                inArray(kbArticles.category, variants),
+              ),
+            )
+            .run()
+        : { changes: 0 };
 
     return {
       ok: true as const,
@@ -211,9 +241,13 @@ export function listCategoryCounts(helpdeskId: number): Map<string, number> {
     .groupBy(kbArticles.category)
     .all();
 
+  // La clave del Map es `categoryKey`: variantes de espacio/mayúsculas suman
+  // en la misma entrada. El consumidor debe buscar por `categoryKey(nombre)`.
   for (const row of rows) {
-    if (row.name === null || row.name === undefined) continue;
-    counts.set(row.name, Number(row.total));
+    if (row.name == null) continue;
+    const key = categoryKey(row.name);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + Number(row.total));
   }
   return counts;
 }
@@ -225,14 +259,23 @@ export function countArticlesWithCategory(
   name: string,
   executor: KbCategoriesExecutor = db,
 ): number {
-  const [row] = executor
-    .select({ total: sql<number>`count(*)` })
+  // Compara en JS (SQLite no puede replicar NFC ni el lower() de acentos), así
+  // que materializa las filas de la mesa en lugar de un count(*) indexado. A la
+  // escala de la KB es despreciable; si kb_articles crece, denormalizar una
+  // columna `category_key` y comparar en SQL.
+  const target = categoryKey(name);
+  const rows = executor
+    .select({ category: kbArticles.category })
     .from(kbArticles)
-    .where(
-      and(eq(kbArticles.helpdeskId, helpdeskId), eq(kbArticles.category, name)),
-    )
+    .where(eq(kbArticles.helpdeskId, helpdeskId))
     .all();
-  return Number(row?.total ?? 0);
+  return rows.reduce(
+    (total, row) =>
+      row.category != null && categoryKey(row.category) === target
+        ? total + 1
+        : total,
+    0,
+  );
 }
 
 export function deleteCategory(input: {
@@ -275,41 +318,4 @@ export function deleteCategory(input: {
       articlesInUse: 0 as const,
     };
   });
-}
-
-export type KbUncatalogedCategory = { name: string; total: number };
-
-export function listUncatalogedCategories(
-  helpdeskId: number,
-): KbUncatalogedCategory[] {
-  if (!isValidHelpdeskId(helpdeskId)) return [];
-
-  const rows = db
-    .select({
-      name: sql<string>`trim(${kbArticles.category})`,
-      total: sql<number>`count(*)`,
-    })
-    .from(kbArticles)
-    .where(
-      and(
-        eq(kbArticles.helpdeskId, helpdeskId),
-        isNotNull(kbArticles.category),
-        sql`length(trim(${kbArticles.category})) > 0`,
-        sql`not exists (
-          select 1 from ${kbCategories}
-          where ${kbCategories.helpdeskId} = ${kbArticles.helpdeskId}
-            and lower(${kbCategories.name}) = lower(trim(${kbArticles.category}))
-        )`,
-      ),
-    )
-    .groupBy(sql`trim(${kbArticles.category})`)
-    .orderBy(sql`lower(trim(${kbArticles.category}))`)
-    .all();
-
-  return rows
-    .filter(
-      (row): row is { name: string; total: number } =>
-        typeof row.name === "string" && row.name.trim().length > 0,
-    )
-    .map((row) => ({ name: row.name, total: Number(row.total ?? 0) }));
 }

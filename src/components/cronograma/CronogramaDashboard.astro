@@ -8,7 +8,7 @@ import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import FilterButtonBar from "@components/ui/FilterButtonBar.astro";
 import SortDropdown from "@components/ui/SortDropdown.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
-import MonthSelect from "@components/ui/MonthSelect.astro";
+import MonthNavigator from "./MonthNavigator.astro";
 
 import OperatorDrawer from "./subcomponents/OperatorDrawer.astro";
 import MonthlyDetailModal from "./subcomponents/MonthlyDetailModal.astro";
@@ -20,6 +20,11 @@ import GroupCard from "./subcomponents/GroupCard.astro";
 import CronoCardHeader from "./subcomponents/CronoCardHeader.astro";
 import CronoDatePicker from "./subcomponents/CronoDatePicker.astro";
 import { STATUS_FILTER_OPTIONS } from "./lib/filters";
+import {
+  buildCronogramaPayload,
+  listAvailableMonths,
+  resolveCronogramaMonth,
+} from "@lib/cronograma/payload";
 
 interface Props {
   userRole?: string;
@@ -31,6 +36,21 @@ const currentUsername = currentUser?.username
   ? currentUser.username.toLowerCase()
   : "";
 const currentUserId = currentUser?.id ? String(currentUser.id) : "";
+
+// Payload del primer render embebido por SSR: el cliente lo consume de
+// `window.__CRONOGRAMA_INITIAL_DATA__` y evita el GET a /api/cronograma.
+// Si el armado falla, se emite `null`: el cliente cae al GET normal y
+// conserva su manejo de error (toast) en vez de dejar el skeleton colgado.
+let initialData = null;
+try {
+  const months = await listAvailableMonths();
+  initialData = await buildCronogramaPayload(
+    resolveCronogramaMonth(null, months),
+    months,
+  );
+} catch (err) {
+  console.error("[cronograma] SSR payload failed", err);
+}
 ---
 
 <div
@@ -265,6 +285,9 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
       </div>
 
       <!-- Monthly View Section (Shown by default) -->
+      <!-- #267: la tabla mensual no está virtualizada; el DOM aceptado es
+           (operadores filtrados) × (días del mes). Si el plantel crece al
+           punto de degradar el render, evaluar virtualización recién ahí. -->
       <div id="monthly-view" class="min-h-0 flex-1">
         <div
           class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden rounded-2xl border shadow-md"
@@ -278,27 +301,11 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
               <!-- Left: Title, Navigation & Maximize button -->
               <div class="flex shrink-0 flex-wrap items-center gap-3">
                 <!-- Month Navigator -->
-                <div class="ml-2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    id="prev-month-btn"
-                    class="btn btn-xs btn-ghost p-1 min-h-8 min-w-8"
-                    title="Mes anterior"
-                    aria-label="Mes anterior"
-                  >
-                    <Icon name="boxicons:chevron-left-filled" size={14} />
-                  </button>
-                  <MonthSelect id="month-selector" />
-                  <button
-                    type="button"
-                    id="next-month-btn"
-                    class="btn btn-xs btn-ghost p-1 min-h-8 min-w-8"
-                    title="Mes siguiente"
-                    aria-label="Mes siguiente"
-                  >
-                    <Icon name="boxicons:chevron-right-filled" size={14} />
-                  </button>
-                </div>
+                <MonthNavigator
+                  id="month-selector"
+                  class="ml-2"
+                  aria-label="Mes de la vista Mensual"
+                />
 
                 <!-- Agregar nuevo mes -->
                 <ActionButton
@@ -468,7 +475,11 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
             title="Configuración de Grupos"
             subtitle="Establece la rotación y horarios de sábados aplicados únicamente al mes seleccionado."
           >
-            <MonthSelect id="groups-month-selector" class="shrink-0" />
+            <MonthNavigator
+              id="groups-month-selector"
+              class="shrink-0"
+              aria-label="Mes de la vista Grupal"
+            />
           </CronoCardHeader>
           <!-- Configuration form -->
           <div
@@ -901,7 +912,11 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
             iconBg="bg-info/15"
             iconColor="text-info"
           >
-            <MonthSelect id="pasiva-month-selector" class="shrink-0" />
+            <MonthNavigator
+              id="pasiva-month-selector"
+              class="shrink-0"
+              aria-label="Mes de la vista Pasiva"
+            />
           </CronoCardHeader>
           <div class="overflow-x-auto">
             <table
@@ -1907,6 +1922,10 @@ const currentUserId = currentUser?.id ? String(currentUser.id) : "";
   is:inline
   src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
 ></script>
+
+<script define:vars={{ initialData }}>
+  window.__CRONOGRAMA_INITIAL_DATA__ = initialData;
+</script>
 
 <script>
   import "./lib/dashboard-client";

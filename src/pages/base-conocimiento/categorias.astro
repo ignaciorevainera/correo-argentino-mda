@@ -17,17 +17,19 @@ import {
   normalizeKbReturnPath,
 } from "@lib/kbRedirects";
 import {
+  categoryKey,
   createCategory,
   deleteCategory,
   listCategories,
   listCategoryCounts,
-  listUncatalogedCategories,
   renameCategory,
 } from "@lib/kbCategories";
+import { resolveUrl } from "@lib/url";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SectionCard from "@components/ui/SectionCard.astro";
+import ActionButton from "@components/ui/ActionButton.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 
 const user = Astro.locals.user;
@@ -226,9 +228,10 @@ const categorias = sessionHelpdeskId ? listCategories(sessionHelpdeskId) : [];
 const conteos = sessionHelpdeskId
   ? listCategoryCounts(sessionHelpdeskId)
   : new Map<string, number>();
-const sinCatalogar = sessionHelpdeskId
-  ? listUncatalogedCategories(sessionHelpdeskId)
-  : [];
+const editParam = Number(Astro.url.searchParams.get("edit") ?? 0);
+const editingId =
+  Number.isInteger(editParam) && editParam > 0 ? editParam : null;
+const categoriasHref = resolveUrl(KB_CATEGORIAS_PATH);
 ---
 
 <BaseLayout title="Categorías">
@@ -267,89 +270,77 @@ const sinCatalogar = sessionHelpdeskId
           >
         </form>
 
-        <ul class="divide-base-300 divide-y">
+        <ul data-kb-categories-list class="divide-base-300 divide-y">
           {
-            categorias.map((categoria) => (
-              <li class="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p class="font-semibold">{categoria.name}</p>
-                  <p class="text-base-content/60 text-xs">
-                    {conteos.get(categoria.name) ?? 0} artículo(s)
-                  </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <form method="POST" class="flex items-end gap-2">
-                    <input type="hidden" name="action" value="rename" />
-                    <input type="hidden" name="id" value={categoria.id} />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <input type="hidden" name="csrf_token" value={csrfToken} />
-                    <FormField
-                      id={`kb-category-rename-${categoria.id}`}
-                      name="name"
-                      label="Nuevo nombre"
-                      required
-                      minlength={2}
-                      maxlength={60}
-                      size="sm"
-                    />
-                    <button
-                      type="submit"
-                      class="btn btn-sm"
-                      aria-label={`Editar ${categoria.name}`}
+            categorias.map((categoria) => {
+              const editing = editingId === categoria.id;
+              return (
+                <li class="py-3">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="font-semibold">{categoria.name}</p>
+                      <p class="text-base-content/60 text-xs">
+                        {conteos.get(categoryKey(categoria.name)) ?? 0} artículo(s)
+                      </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <ActionButton
+                        href={`${categoriasHref}?edit=${categoria.id}`}
+                        icon="boxicons:pencil-filled"
+                        ariaLabel={`Editar ${categoria.name}`}
+                        size="xs"
+                      />
+                      <form
+                        method="POST"
+                        onsubmit="return confirm('¿Eliminar esta categoría?');"
+                      >
+                        <input type="hidden" name="action" value="delete" />
+                        <input type="hidden" name="id" value={categoria.id} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
+                        <input type="hidden" name="csrf_token" value={csrfToken} />
+                        <ActionButton
+                          type="submit"
+                          icon="boxicons:trash-filled"
+                          ariaLabel={`Eliminar ${categoria.name}`}
+                          size="xs"
+                          color="btn-error"
+                        />
+                      </form>
+                    </div>
+                  </div>
+
+                  {editing && (
+                    <form
+                      method="POST"
+                      class="border-base-300 mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
                     >
-                      Guardar
-                    </button>
-                  </form>
-                  <form
-                    method="POST"
-                    onsubmit="return confirm('¿Eliminar esta categoría?');"
-                  >
-                    <input type="hidden" name="action" value="delete" />
-                    <input type="hidden" name="id" value={categoria.id} />
-                    <input type="hidden" name="returnTo" value={returnTo} />
-                    <input type="hidden" name="csrf_token" value={csrfToken} />
-                    <button
-                      type="submit"
-                      class="btn btn-error btn-sm"
-                      aria-label={`Eliminar ${categoria.name}`}
-                    >
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))
+                      <input type="hidden" name="action" value="rename" />
+                      <input type="hidden" name="id" value={categoria.id} />
+                      <input type="hidden" name="returnTo" value={returnTo} />
+                      <input type="hidden" name="csrf_token" value={csrfToken} />
+                      <FormField
+                        id={`kb-category-rename-${categoria.id}`}
+                        name="name"
+                        label="Nuevo nombre"
+                        required
+                        value={categoria.name}
+                        minlength={2}
+                        maxlength={60}
+                        size="sm"
+                      />
+                      <button type="submit" class="btn btn-sm btn-primary">
+                        Guardar {categoria.name}
+                      </button>
+                      <a class="btn btn-sm" href={categoriasHref}>
+                        Cancelar
+                      </a>
+                    </form>
+                  )}
+                </li>
+              );
+            })
           }
         </ul>
-
-        {
-          sinCatalogar.length > 0 && (
-            <div
-              role="status"
-              class="alert alert-warning"
-              data-kb-uncategorized
-            >
-              <div>
-                <p class="font-semibold">Categorías sin catalogar</p>
-                <p class="text-sm">
-                  Hay artículos con valores de categoría que no existen en el
-                  catálogo de la mesa. No se pueden renombrar ni eliminar desde
-                  acá. Migrálos con
-                  <code>scripts/backfill-kb-categories.mts</code>.
-                </p>
-                <ul class="mt-2 flex flex-wrap gap-2">
-                  {sinCatalogar.map((item) => (
-                    <li>
-                      <span class="badge badge-warning badge-outline">
-                        {item.name} · {item.total} artículo(s)
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )
-        }
       </div>
     </SectionCard>
   </PageContainer>

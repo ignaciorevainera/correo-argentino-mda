@@ -15,7 +15,6 @@ import type {
   CategoryViewModel,
 } from "./types";
 import { decrypt } from "@lib/encryption";
-import { getHideDescriptions } from "@/lib/viewMode";
 
 const isAuthenticated = Astro.locals.user && Astro.locals.user.id !== 0;
 
@@ -152,7 +151,6 @@ const cleanBase = getCleanBase();
       <input
         type="checkbox"
         name="hide-descriptions"
-        checked={getHideDescriptions()}
         class="checkbox checkbox-primary"
         id="hide-descriptions-toggle"
       />
@@ -194,30 +192,18 @@ const cleanBase = getCleanBase();
     color: inherit;
   }
 
-/* View mode: icon sizes */
-[data-view-mode="compact"] {
-  --link-icon-size: 28px;
-  --link-icon-container: 36px;
-}
-
-[data-view-mode="normal"] {
-  --link-icon-size: 36px;
-  --link-icon-container: 44px;
-}
-
-[data-view-mode="large"] {
-  --link-icon-size: 44px;
-  --link-icon-container: 52px;
-}
+/* Los tamaños de ícono por modo viven en global.css (siempre presentes);
+   acá solo se aplican a las cajas del grid. */
 
 /* View columns: el ancho de los ítems usa el conteo efectivo que setea JS
-   (misma fuente que masonry), evitando desacuerdos con media queries de viewport */
+   (misma fuente que masonry), evitando desacuerdos con media queries de viewport.
+   `--columns-effective` siempre está definido (:root en global.css). */
 .masonry-grid {
   position: relative;
 }
 
 .masonry-grid .grid-item {
-  width: calc((100% - (8px * (var(--columns-effective, 3) - 1))) / var(--columns-effective, 3));
+  width: calc((100% - (8px * (var(--columns-effective) - 1))) / var(--columns-effective));
   margin-bottom: 8px;
   break-inside: avoid;
 }
@@ -264,9 +250,12 @@ const cleanBase = getCleanBase();
     setViewMode,
     getViewColumns,
     setViewColumns,
+    getHideDescriptions,
+    setHideDescriptions,
     type ViewMode,
     type ViewColumns,
   } from "@lib/viewMode";
+  import { resolveEffectiveColumns } from "@lib/enlacesColumns";
 
   const searchInput = document.getElementById(
     "important-links-search",
@@ -284,18 +273,12 @@ const cleanBase = getCleanBase();
 
   const GAP = 8;
 
-  // Máximo de columnas según el ancho del contenedor (responsive)
-  const getColumnCap = (): ViewColumns => {
-    const width = linksGrid?.offsetWidth ?? 0;
-    if (width < 768) return 1;
-    if (width < 1280) return 2;
-    return 4;
-  };
-
-  // Columnas efectivas: preferencia del usuario (localStorage, intacta)
-  // acotada por responsive. El atributo en <html> es solo salida (CSS highlight)
+  // Columnas efectivas: preferencia del usuario (localStorage, intacta) acotada
+  // por el cap responsive. El cap y los umbrales viven en @lib/enlacesColumns
+  // (fuente única compartida con el script inline pre-paint de BaseLayout) y se
+  // miden sobre el MISMO ancho (viewport) para que el primer frame no discrepe.
   const getEffectiveColumns = (): ViewColumns =>
-    Math.min(getViewColumns(), getColumnCap()) as ViewColumns;
+    resolveEffectiveColumns(getViewColumns(), window.innerWidth);
 
   const getColumnWidth = (): number => {
     if (!linksGrid) return 0;
@@ -309,12 +292,17 @@ const cleanBase = getCleanBase();
     msnry.layout();
   };
 
-  // Aplica el conteo efectivo: atributo en <html> (alimentan el highlight de
-  // los tabs vía CSS), variable CSS de ancho y releo de masonry
+  // Aplica el conteo efectivo: atributo en <html> (alimenta el highlight de
+  // los tabs vía CSS), variable CSS de ancho en <html> (mismo nodo y mismo
+  // cálculo que el inline pre-paint: un único escritor convergente) y releo de
+  // masonry
   const applyEffectiveColumns = (): void => {
     const effective = getEffectiveColumns();
     document.documentElement.setAttribute("data-view-columns", String(effective));
-    linksGrid?.style.setProperty("--columns-effective", String(effective));
+    document.documentElement.style.setProperty(
+      "--columns-effective",
+      String(effective),
+    );
     layoutMasonry();
   };
 
@@ -440,16 +428,26 @@ const cleanBase = getCleanBase();
     "hide-descriptions-toggle",
   ) as HTMLInputElement | null;
   if (hideDescriptionsToggle) {
+    const applyHideDescriptions = (hide: boolean): void => {
+      hideDescriptionsToggle.checked = hide;
+      const grid = document.getElementById(
+        "important-links-grid",
+      ) as HTMLElement | null;
+      grid?.classList.toggle("hide-descriptions", hide);
+    };
+
+    // Estado inicial: el frontmatter del servidor no tiene localStorage, así que
+    // la preferencia se aplica acá al hidratar (checkbox + clase) o se pierde.
+    applyHideDescriptions(getHideDescriptions());
+    // Las cards cambian de altura: releer posiciones tras aplicar el estado inicial.
+    requestAnimationFrame(() => layoutMasonry());
+
     hideDescriptionsToggle.addEventListener("change", () => {
       const hideDescriptions = hideDescriptionsToggle.checked;
-      localStorage.setItem("enlacesHideDescriptions", String(hideDescriptions));
-      const grid = document.getElementById("important-links-grid") as HTMLElement | null;
-      if (grid) {
-        grid.classList.toggle("hide-descriptions", hideDescriptions);
-        // Las cards cambian de altura al instante: releer las posiciones ahora,
-        // sin esperar a que otro evento dispare el observer.
-        requestAnimationFrame(() => layoutMasonry());
-      }
+      setHideDescriptions(hideDescriptions);
+      applyHideDescriptions(hideDescriptions);
+      // Releer posiciones ahora, sin esperar a que otro evento dispare el observer.
+      requestAnimationFrame(() => layoutMasonry());
     });
   }
 </script>

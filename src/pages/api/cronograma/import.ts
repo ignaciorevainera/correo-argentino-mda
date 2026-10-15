@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { parse } from "csv-parse/sync";
 import { db } from "@db/index";
 import { agents } from "@db/schema";
-import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
 
 // Helper to normalize multiple date formats to YYYY-MM-DD
@@ -167,6 +167,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
+    // #261: el mes seleccionado es obligatorio. Antes el cliente filtraba en
+    // silencio las fechas de otros meses; ahora el servidor rechaza el archivo
+    // explícitamente para que el usuario corrija el mes antes de importar.
+    const month = formData.get("month");
+    if (typeof month !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return jsonError("Mes inválido", 400);
+    }
+
     const csvText = await file.text();
 
     // Auto-detect delimiter
@@ -325,6 +333,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
           });
         }
       }
+    }
+
+    if (parsedEdits.some((e) => !e.date.startsWith(month))) {
+      return jsonError(
+        "El archivo contiene fechas fuera del mes seleccionado",
+        400,
+      );
     }
 
     return jsonResponse({ edits: parsedEdits });

@@ -4,7 +4,6 @@ import path from "node:path";
 import readline from "node:readline";
 import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
-import { db } from "../src/db/index";
 import { offices, auditLogs } from "../src/db/schema";
 import {
   groupOfficesByBuilding,
@@ -175,6 +174,12 @@ async function main() {
     printHelp();
     return;
   }
+
+  // Import dinámico: `--help` no debe requerir una base. Con el import estático,
+  // `src/db/index` se evaluaba al cargar el módulo y, desde #177, aborta si falta
+  // `database/mda.db` (antes la creaba vacía). El respaldo `db-preflight` sigue
+  // corriendo estático y corta antes para el resto de los casos.
+  const { db } = await import("../src/db/index");
 
   const rows = await db
     .select({

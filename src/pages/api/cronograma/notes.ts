@@ -22,20 +22,8 @@ export const GET: APIRoute = async ({ request }) => {
       .limit(1);
 
     if (agent.length === 0) {
-      // Dynamic fallback creation to ensure operator exists in SQLite
-      const parts = agentName.trim().split(/\s+/);
-      const initials = parts
-        .map((p: string) => p[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase();
-
-      await db.insert(agents).values({
-        name: agentName,
-        avatarInitials: initials,
-        notes: "",
-      });
-
+      // #264: el GET es de solo lectura; no crear el agente. La creación de
+      // agentes queda exclusivamente en el POST.
       return jsonResponse(
         { notes: "" },
         200,

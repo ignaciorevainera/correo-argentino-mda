@@ -14,17 +14,30 @@ import { buildBuildingKey } from "@lib/officeBuildingKey";
 import { z } from "zod";
 
 /**
- * Tope de filas a escribir por pedido. El driver better-sqlite3 de Drizzle es
- * sincrono (los `await` sobre `run`/`all` no ceden el event loop), asi que el
- * lote bloquea el proceso SSR entero mientras dura. Sin este tope, un payload
- * de 100 grupos nombrando una direccion muy repetida genero 644.900 sentencias
- * y 41,6 s de bloqueo. El reconcile completo de los datos actuales son 229
- * oficinas, asi que el tope deja margen de sobra para el uso real.
+ * Guarda de CRECIMIENTO, no un limite operativo: es inalcanzable via API. El
+ * schema capa `groups` en 100, la base real tiene ~5.200 buckets cuyo mas grande
+ * tiene 26 filas, y los 100 buckets mas grandes cubren ~487 filas; por eso los
+ * 2000 no se tocan salvo que cambien los datos. Existe porque el driver
+ * better-sqlite3 de Drizzle es sincrono (los `await` sobre `run`/`all` no ceden
+ * el event loop): sin tope, un payload de 100 grupos nombrando una direccion muy
+ * repetida genero 644.900 sentencias y 41,6 s de bloqueo del SSR. No bajarlo
+ * pensando que es un limite de negocio: cortaria cargas legitimas (#181).
  */
 const MAX_UPDATE_ROWS = 2000;
 
 /** Snapshots `mda-reconcile-*` que se conservan en `database/backups/`. */
 const MAX_RECONCILE_BACKUPS = 5;
+
+/**
+ * Snapshots que una respuesta todavia en curso va a nombrar. El `keep` de
+ * `pruneReconcileBackups` solo protege el `dest` de la propia llamada, asi que
+ * un POST concurrente podia borrar el snapshot que este POST le acababa de
+ * devolver al operador (con un salto de reloj hacia atras, el sello del recien
+ * escrito ordena por debajo de 5 snapshots viejos y el prune ajeno lo recorta).
+ * Con este registro, ningun prune de otro pedido lo borra mientras la respuesta
+ * se esta armando (#181).
+ */
+const inFlightBackups = new Set<string>();
 
 const payloadSchema = z.object({
   groups: z
@@ -248,8 +261,10 @@ function pruneReconcileBackups(backupDir: string, keep: string): void {
     .sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0))
     // `keep` se aparta del recorte: un salto de reloj hacia atrás hace que 5
     // sellos existentes ordenen por encima del recién escrito y el prune lo
-    // borraba aunque la respuesta lo nominara como `backup`.
-    .filter((entry) => entry.full !== keep);
+    // borraba aunque la respuesta lo nominara como `backup`. Los snapshots de
+    // respuestas en curso (`inFlightBackups`) se protegen igual, porque el
+    // `keep` solo cubre la llamada propia (#181).
+    .filter((entry) => entry.full !== keep && !inFlightBackups.has(entry.name));
 
   // El `- 1` reserva el lugar que ocupa `keep` en el conjunto protegido.
   for (const stale of snapshots.slice(MAX_RECONCILE_BACKUPS - 1)) {
@@ -283,6 +298,8 @@ export const POST: APIRoute = async ({ locals, request }) => {
   if (!parsed.success) {
     return jsonError(parsed.error.issues.map((i) => i.message).join(", "), 400);
   }
+
+  let backupName: string | null = null;
 
   try {
     // El select va PRIMERO: define el lote, y sin filas que escribir no hay
@@ -320,10 +337,12 @@ export const POST: APIRoute = async ({ locals, request }) => {
       );
     }
 
-    let backupName: string | null = null;
-
     if (plan.updates.length > 0) {
       backupName = path.basename(await backupDatabase());
+      // Se protege del prune de otros pedidos hasta que la respuesta quede
+      // armada (finally). Sin esto, un POST concurrente podia borrarlo y la
+      // respuesta nombraba un backup inexistente (#181).
+      inFlightBackups.add(backupName);
 
       // Un solo lote atomico: sin esto, un throw a mitad de camino dejaba los
       // grupos anteriores ya unificados sin que el cliente supiera cuantos.
@@ -357,5 +376,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     });
   } catch (error) {
     return jsonError(sanitizeError(error), 500);
+  } finally {
+    if (backupName) inFlightBackups.delete(backupName);
   }
 };

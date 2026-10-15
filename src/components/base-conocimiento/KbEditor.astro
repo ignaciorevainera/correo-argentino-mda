@@ -32,9 +32,7 @@ const cleanBase = getCleanBase();
   id={id}
   name={name}
   data-kb-source
-  class="sr-only"
-  aria-hidden="true"
-  tabindex="-1"
+  class="textarea textarea-bordered w-full font-mono"
   required={required}>{value}</textarea
 >
 <div
@@ -222,82 +220,103 @@ const cleanBase = getCleanBase();
       return;
     }
 
-    container.dataset.kbEditorInit = "true";
     const cleanBase = container.dataset.cleanBase ?? "";
     const uploadUrl = container.dataset.uploadUrl ?? "";
     const placeholder = container.dataset.placeholder ?? "";
     const minHeight = container.dataset.minHeight ?? "420px";
     const targetHelpdeskId = Number(container.dataset.targetHelpdeskId);
     const targetMesaSelector = container.dataset.kbTargetMesaSelector ?? "";
-    const mde = new EasyMDE({
-      element: textarea,
-      forceSync: true,
-      autoDownloadFontAwesome: false,
-      spellChecker: false,
-      status: ["lines", "words"],
-      autofocus: false,
-      sideBySideFullscreen: false,
-      placeholder,
-      minHeight,
-      toolbar: [
-        "bold",
-        "italic",
-        "heading",
-        "code",
-        "quote",
-        "unordered-list",
-        "ordered-list",
-        "link",
-        "upload-image",
-        "preview",
-        "side-by-side",
-        "fullscreen",
-        "guide",
-      ],
-      previewRender(plainText, preview) {
-        const renderedHtml = marked.parse(plainText, {
-          async: false,
-          gfm: true,
-          breaks: true,
-        }) as string;
-        const inputGuard = document.createElement("template");
-        inputGuard.innerHTML = renderedHtml;
-        inputGuard.content.querySelectorAll("input").forEach((input) => {
-          if (input.getAttribute("type") !== "checkbox") {
-            input.remove();
-            return;
-          }
-          input.setAttribute("disabled", "");
-          input.setAttribute("aria-hidden", "true");
-          input.setAttribute("tabindex", "-1");
-        });
-        const sanitizedHtml = DOMPurify.sanitize(inputGuard.innerHTML, {
-          FORBID_TAGS: ["form", "select", "textarea", "button"],
-        });
-        const wrapper = document.createElement("div");
-        wrapper.innerHTML = sanitizedHtml;
-        wrapper.querySelectorAll("img").forEach((image) => {
-          const src = image.getAttribute("src");
-          if (src?.startsWith("/api/kb/images/")) {
-            image.setAttribute("src", `${cleanBase}${src.slice(1)}`);
-          }
-        });
-        preview.innerHTML = wrapper.innerHTML;
-        return null;
-      },
-      uploadImage: true,
-      imageAccept: "image/png,image/jpeg,image/webp",
-      imageUploadFunction(file, onSuccess, onError) {
-        return uploadImage(
-          file,
-          onSuccess,
-          onError,
-          uploadUrl,
-          targetHelpdeskId,
-          targetMesaSelector,
-        );
-      },
-    });
+    let mde: EasyMDE;
+    try {
+      mde = new EasyMDE({
+        element: textarea,
+        forceSync: true,
+        autoDownloadFontAwesome: false,
+        spellChecker: false,
+        status: ["lines", "words"],
+        autofocus: false,
+        sideBySideFullscreen: false,
+        placeholder,
+        minHeight,
+        toolbar: [
+          "bold",
+          "italic",
+          "heading",
+          "code",
+          "quote",
+          "unordered-list",
+          "ordered-list",
+          "link",
+          "upload-image",
+          "preview",
+          "side-by-side",
+          "fullscreen",
+          "guide",
+        ],
+        previewRender(plainText, preview) {
+          const renderedHtml = marked.parse(plainText, {
+            async: false,
+            gfm: true,
+            breaks: true,
+          }) as string;
+          const inputGuard = document.createElement("template");
+          inputGuard.innerHTML = renderedHtml;
+          inputGuard.content.querySelectorAll("input").forEach((input) => {
+            if (input.getAttribute("type") !== "checkbox") {
+              input.remove();
+              return;
+            }
+            input.setAttribute("disabled", "");
+            input.setAttribute("aria-hidden", "true");
+            input.setAttribute("tabindex", "-1");
+          });
+          const sanitizedHtml = DOMPurify.sanitize(inputGuard.innerHTML, {
+            FORBID_TAGS: ["form", "select", "textarea", "button"],
+          });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = sanitizedHtml;
+          wrapper.querySelectorAll("img").forEach((image) => {
+            const src = image.getAttribute("src");
+            if (src?.startsWith("/api/kb/images/")) {
+              image.setAttribute("src", `${cleanBase}${src.slice(1)}`);
+            }
+          });
+          preview.innerHTML = wrapper.innerHTML;
+          return null;
+        },
+        uploadImage: true,
+        imageAccept: "image/png,image/jpeg,image/webp",
+        imageUploadFunction(file, onSuccess, onError) {
+          return uploadImage(
+            file,
+            onSuccess,
+            onError,
+            uploadUrl,
+            targetHelpdeskId,
+            targetMesaSelector,
+          );
+        },
+      });
+    } catch (error) {
+      // EasyMDE (vía `CodeMirror.fromTextArea`) oculta el textarea de origen
+      // antes de construir el editor y lo restaura recién en `toTextArea()`:
+      // si el constructor tira, hay que devolverlo a la vista a mano o el
+      // campo queda invisible e inusable (bug #136).
+      console.error("[KbEditor] No se pudo inicializar el editor:", error);
+      textarea.style.display = "";
+      textarea.classList.remove("sr-only");
+      textarea.removeAttribute("aria-hidden");
+      textarea.removeAttribute("tabindex");
+      errorElement.textContent =
+        "No se pudo cargar el editor visual. Podés seguir editando el contenido en el área de texto.";
+      errorElement.classList.remove("hidden");
+      return;
+    }
+
+    container.dataset.kbEditorInit = "true";
+    textarea.classList.add("sr-only");
+    textarea.setAttribute("aria-hidden", "true");
+    textarea.setAttribute("tabindex", "-1");
 
     const showValidationError = () => {
       errorElement.textContent = "El contenido del artículo es obligatorio.";
@@ -308,7 +327,6 @@ const cleanBase = getCleanBase();
       errorElement.classList.add("hidden");
     };
     const syncSubmit = (event: Event) => {
-      if (!mde) return;
       const value = mde.value();
       textarea.value = value;
       if (textarea.required && !value.trim()) {
@@ -325,7 +343,6 @@ const cleanBase = getCleanBase();
       document.addEventListener("submit", syncSubmit, true);
     }
     textarea.addEventListener("invalid", (event) => {
-      if (!mde) return;
       const value = mde.value();
       if (textarea.required && !value.trim()) {
         event.preventDefault();

@@ -196,6 +196,7 @@ test.describe("Base de conocimiento - ABM de categorías", () => {
 
     const renombrada = `${nombre} v2`;
     const row = page.locator("li").filter({ hasText: nombre });
+    await row.getByRole("link", { name: `Editar ${nombre}` }).click();
     await row.locator('input[name="name"]').fill(renombrada);
     await row.locator('input[name="name"]').press("Enter");
 
@@ -206,6 +207,43 @@ test.describe("Base de conocimiento - ABM de categorías", () => {
       page.getByText(renombrada, { exact: true }).first(),
     ).toBeVisible();
     await expect(page.getByText(nombre, { exact: true })).toHaveCount(0);
+
+    const [updated] = await db
+      .select({ category: kbArticles.category })
+      .from(kbArticles)
+      .where(eq(kbArticles.id, article.id));
+    expect(updated.category).toBe(renombrada);
+  });
+
+  test("renombra una categoría cascadeando variantes de espacio y mayúsculas", async ({
+    context,
+    page,
+  }) => {
+    const admin = await fixture.createUser("admin", mesa);
+    await setSessionCookie(context, admin.signedSessionId);
+
+    const token = uniqueToken();
+    const nombre = `Cascade ${token}`;
+    await ensureCategoryFixture(mesa.invgateId, nombre);
+
+    const article = await fixture.createArticle({
+      mesa,
+      authorUserId: admin.userId,
+      title: `Artículo variante ${token}`,
+      category: `cascade ${token} `,
+      status: "draft",
+    });
+
+    await page.goto("/base-conocimiento/categorias");
+    const renombrada = `Renombrada ${token}`;
+    const row = page.locator("li").filter({ hasText: nombre });
+    await row.getByRole("link", { name: `Editar ${nombre}` }).click();
+    await row.locator('input[name="name"]').fill(renombrada);
+    await row.locator('input[name="name"]').press("Enter");
+
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Categoría actualizada.",
+    );
 
     const [updated] = await db
       .select({ category: kbArticles.category })
@@ -723,7 +761,7 @@ test.describe("Base de conocimiento - ABM de categorías", () => {
     if (creada) createdCategoryIds.push(creada.id);
   });
 
-  test("el ABM muestra los valores de categoría que no están catalogados", async ({
+  test("en estado normal no hay ningún input de texto en la lista", async ({
     context,
     page,
   }) => {
@@ -731,23 +769,100 @@ test.describe("Base de conocimiento - ABM de categorías", () => {
     await setSessionCookie(context, admin.signedSessionId);
 
     await page.goto("/base-conocimiento/categorias");
+    await expect(page.locator("[data-kb-categories-list]")).toBeVisible();
+    await expect(
+      page.locator('[data-kb-categories-list] input[type="text"]'),
+    ).toHaveCount(0);
     await expect(page.locator("[data-kb-uncategorized]")).toHaveCount(0);
+  });
 
-    const legado = `Heredado ${uniqueToken()}`;
+  test("renombrar requiere la acción explícita, precarga y Cancela sin persistir", async ({
+    context,
+    page,
+  }) => {
+    const admin = await fixture.createUser("admin", mesa);
+    await setSessionCookie(context, admin.signedSessionId);
+
+    const original = `Rename ${uniqueToken()}`;
+    const id = await ensureCategoryFixture(mesa.invgateId, original);
+
+    await page.goto("/base-conocimiento/categorias");
+    await page.getByRole("link", { name: `Editar ${original}` }).click();
+
+    const input = page.locator(`#kb-category-rename-${id}`);
+    await expect(input).toHaveValue(original);
+
+    // Guardar sin cambios no produce error.
+    await page.getByRole("button", { name: `Guardar ${original}` }).click();
+    await expect(page.getByText("Categoría actualizada.")).toBeVisible();
+
+    // Cancelar no persiste.
+    await page.getByRole("link", { name: `Editar ${original}` }).click();
+    await input.fill(`${original} X`);
+    await page.getByRole("link", { name: "Cancelar" }).click();
+    await expect(
+      page.getByRole("link", { name: `Editar ${original}` }),
+    ).toBeVisible();
+
+    const rows = await db
+      .select({ name: kbCategories.name })
+      .from(kbCategories)
+      .where(eq(kbCategories.id, id));
+    expect(rows.map((row) => row.name)).toEqual([original]);
+  });
+
+  test("las acciones de la fila están alineadas y del mismo tamaño", async ({
+    context,
+    page,
+  }) => {
+    const admin = await fixture.createUser("admin", mesa);
+    await setSessionCookie(context, admin.signedSessionId);
+
+    const nombre = `Alineado ${uniqueToken()}`;
+    await ensureCategoryFixture(mesa.invgateId, nombre);
+    await page.goto("/base-conocimiento/categorias");
+
+    const editar = page.getByRole("link", { name: `Editar ${nombre}` });
+    const eliminar = page.getByRole("button", { name: `Eliminar ${nombre}` });
+    const [cajaEditar, cajaEliminar] = await Promise.all([
+      editar.boundingBox(),
+      eliminar.boundingBox(),
+    ]);
+    expect(cajaEditar && cajaEliminar).toBeTruthy();
+    expect(
+      Math.abs((cajaEditar?.y ?? 0) - (cajaEliminar?.y ?? 0)),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs((cajaEditar?.height ?? 0) - (cajaEliminar?.height ?? 0)),
+    ).toBeLessThanOrEqual(1);
+  });
+
+  test("el conteo del ABM suma variantes de espacio y mayúsculas", async ({
+    context,
+    page,
+  }) => {
+    const admin = await fixture.createUser("admin", mesa);
+    await setSessionCookie(context, admin.signedSessionId);
+
+    const categoria = `Conteo ${uniqueToken()}`;
+    await ensureCategoryFixture(mesa.invgateId, categoria);
     await fixture.createArticle({
       mesa,
       authorUserId: admin.userId,
-      title: `Artículo heredado ${uniqueToken()}`,
-      category: legado,
+      title: `Conteo A ${uniqueToken()}`,
+      category: categoria,
+      status: "draft",
+    });
+    await fixture.createArticle({
+      mesa,
+      authorUserId: admin.userId,
+      title: `Conteo B ${uniqueToken()}`,
+      category: `${categoria.toLowerCase()} `,
       status: "draft",
     });
 
-    await page.reload();
-
-    const bloque = page.locator("[data-kb-uncategorized]");
-    await expect(bloque).toBeVisible();
-    await expect(bloque).toContainText("Categorías sin catalogar");
-    await expect(bloque).toContainText(legado);
-    await expect(bloque).toContainText("1 artículo(s)");
+    await page.goto("/base-conocimiento/categorias");
+    const fila = page.locator("li").filter({ hasText: categoria });
+    await expect(fila).toContainText("2 artículo(s)");
   });
 });

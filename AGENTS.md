@@ -26,7 +26,7 @@
 - Usar la skill global **`managing-github-issues`** (`skill` tool, nombre `managing-github-issues`) para redactar/decomponer/actualizar/cerrar issues. Nunca improvisar formato.
 - Crear/actualizar la issue **con el MCP `github`** (`github_issue_write`, `github_search_issues`, `github_issue_read`), nunca con `gh` CLI ni web. Buscar duplicados antes de crear.
 - Las issues funcionan como **registro acumulado del proyecto**: contexto, evidencia (paths, líneas), impacto y criterio de aceptación. Se resuelven **cuando se planifique**, no por enganche.
-- Labels de referencia: `hallazgo`, `deuda-tecnica`, `mejora`, `bug`. Severidad explícita en el título o label cuando aplique.
+- **Labels: conjunto cerrado, siempre en inglés.** Catálogo completo: `bug`, `enhancement`, `refactor`, `test`, `style`, `performance`, `documentation`, `chore`, `ui/ux`, `database`, `architecture`, `security`, `high-priority`, `epic`, `tech-debt`, `finding`. **No crear labels nuevas**; si el trabajo no encaja, proponé nombre + color + descripción y esperá OK. Equivalencias de nombres ya fuera de circulación: `hallazgo` → `finding`, `deuda-tecnica` → `tech-debt`, `mejora` → `enhancement` (eliminada por redundante). Severidad explícita en el título o label cuando aplique.
 - **Nunca commitear** código para "dejar el fix de paso" si no fue pedido — issue primero, fix después planificado.
 
 ## Quick start

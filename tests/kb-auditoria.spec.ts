@@ -343,6 +343,7 @@ test("el renombrado de categoría registra el nombre anterior y la cascada", asy
 
   const renombrada = `${nombre} v2`;
   const row = page.locator("li").filter({ hasText: nombre });
+  await row.getByRole("link", { name: `Editar ${nombre}` }).click();
   await row.locator('input[name="name"]').fill(renombrada);
   await row.locator('input[name="name"]').press("Enter");
   await expect(

@@ -4,18 +4,16 @@ import path from "node:path";
 /**
  * Guarda de arranque para scripts que abren la base al importar.
  *
- * DEBE importarse ANTES de `../src/db/index`: ese modulo hace
- * `new Database("./database/mda.db")` en tiempo de import, con las opciones
- * por defecto de better-sqlite3, que CREAN el archivo si falta. Sin este
- * guard, una base ausente dejaba un `mda.db` de 0 bytes y el script moria
- * despues con `SqliteError: no such table: offices` en ingles (#162).
+ * DEBE importarse ANTES de `../src/db/index`. Históricamente ese modulo abria
+ * con las opciones por defecto de better-sqlite3, que CREAN el archivo si
+ * falta: una base ausente dejaba un `mda.db` de 0 bytes y el script moria
+ * despues con `SqliteError: no such table: offices` en ingles (#162). Desde
+ * #177 el modulo abre con `fileMustExist: true` y ya corta en castellano; este
+ * guard sigue cortando un paso antes y sin cargar el resto de los imports.
  *
- * Con `--help` el guard no valida y no escribe nada en disco (la ayuda no
- * debe requerir una base), pero la importación de `../src/db/index` corre
- * igual: si `database/` existe y falta `mda.db`, ese módulo crea un archivo
- * de 0 bytes, y si falta el directorio falla con `TypeError: Cannot open
- * database because the directory does not exist` — comportamiento previo
- * de ese módulo, no de este script.
+ * Con `--help` el guard no valida (la ayuda no debe requerir una base). Por eso
+ * los scripts con ayuda importan `../src/db/index` de forma dinamica, despues
+ * del chequeo de `--help`: con el import estatico, la apertura abortaria igual.
  */
 const dbPath = path.resolve(process.cwd(), "database", "mda.db");
 

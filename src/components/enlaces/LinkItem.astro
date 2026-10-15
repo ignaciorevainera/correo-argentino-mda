@@ -62,7 +62,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
     {/* Left: Icon and Details */}
     <div class="flex min-w-0 flex-1 items-start gap-3">
       <div
-        class="icon-container bg-base-200 flex shrink-0 items-center justify-center overflow-hidden rounded p-1"
+        class="icon-container bg-base-200 flex max-w-full shrink-0 items-center justify-center overflow-hidden rounded p-1"
       >
         {
           iconUrl ? (
@@ -71,7 +71,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
               alt={`Ícono de ${link.title}`}
               width={36}
               height={36}
-              class="h-full w-full object-contain"
+              class="h-full w-full max-w-full object-contain"
               loading="lazy"
               decoding="async"
             />
@@ -86,7 +86,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
       </div>
 
       <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-link-head>
           <span
             class:list={[
               "text-base-content truncate text-sm font-bold",
@@ -94,6 +94,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
             ]}
             title={link.title}
             data-highlight-target
+            data-link-title
           >
             {link.title}
           </span>
@@ -114,6 +115,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
                   link.deprecated && "opacity-50",
                 ]}
                 data-highlight-target
+                data-link-subtitle
               >
                 {linkSubtitle}
               </span>
@@ -230,6 +232,7 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
     {/* Right: Floating action buttons (hover only, inline) */}
     <div
       class="flex shrink-0 items-center gap-1.5 opacity-0 transition-all duration-150 group-hover:opacity-100 focus-within:opacity-100"
+      data-link-actions
     >
       <CopyButton
         value={mainAction.url}
@@ -309,5 +312,32 @@ const iconUrl = hasIcon ? `${cleanBase}api/icons/${link.iconPath}` : null;
   :root[data-view-columns="4"] [data-creds-close]::after {
     content: "Ocultar";
     font-size: 0.75rem;
+  }
+
+  /* Tarjetas angostas (4 columnas o móvil): las acciones del enlace
+     (copiar/abrir) están ocultas hasta hover pero reservaban ~82px de ancho,
+     dejando el bloque de credenciales en ~124px y colapsando el input de
+     contraseña. Fuera de flujo para que no roben ancho; se muestran igual al
+     hacer hover/focus. Condicionado por el ancho real de la tarjeta, no por el
+     número de columnas (el 4-columnas y el móvil comparten el problema). */
+  [data-link-item] {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 22rem) {
+    [data-link-actions] {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+    }
+
+    /* Reserva un canal a la derecha solo en el título/subtítulo (no en todo el
+       body) para que las acciones flotantes no tapen el texto truncado al
+       aparecer en hover. Las credenciales quedan fuera del canal y conservan el
+       ancho que ganaron al sacar las acciones del flujo. */
+    [data-link-head],
+    [data-link-subtitle] {
+      margin-right: 4.75rem;
+    }
   }
 </style>

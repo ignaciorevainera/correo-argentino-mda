@@ -167,3 +167,16 @@ describe("checkRateLimit (fixed window, RATE_LIMITS.kbCategoryWrite)", () => {
     expect(checkRateLimit(key("u:4"), profile).ok).toBe(true);
   });
 });
+
+describe("checkRateLimit (fixed window, RATE_LIMITS.kbArticleWrite)", () => {
+  const profile = RATE_LIMITS.kbArticleWrite;
+
+  it("corta exactamente en el límite y aísla por usuario", () => {
+    const key = (id: string) => `kb-article-write:${id}:/base-conocimiento/create`;
+    for (let i = 0; i < profile.limit; i += 1) {
+      expect(checkRateLimit(key("u:1"), profile).ok).toBe(true);
+    }
+    expect(checkRateLimit(key("u:1"), profile).ok).toBe(false);
+    expect(checkRateLimit(key("u:2"), profile).ok).toBe(true);
+  });
+});

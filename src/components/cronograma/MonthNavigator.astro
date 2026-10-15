@@ -1,0 +1,64 @@
+---
+// MonthNavigator.astro — navegador de mes único (select + flechas).
+import { Icon } from "astro-icon/components";
+import type { HTMLAttributes } from "astro/types";
+// Un solo componente para los selectores de mes de Mensual/Grupos/Pasiva: el
+// select y las flechas comparten altura (select-sm / btn-sm btn-square),
+// ícono 18 y estado deshabilitado nativo (`disabled`, sin clases inyectadas
+// por JS). El JS (`monthly-view.ts`) hidrata las opciones y el estado.
+interface Props extends HTMLAttributes<"select"> {
+  id: string;
+  class?: string;
+}
+
+const { id, class: className = "", ...rest } = Astro.props;
+
+const prevId = `${id}-prev`;
+const nextId = `${id}-next`;
+---
+
+<div class:list={["inline-flex items-center gap-1", className]}>
+  <button
+    type="button"
+    id={prevId}
+    class="btn btn-sm btn-ghost btn-square"
+    title="Mes anterior"
+    aria-label="Mes anterior"
+  >
+    <Icon name="boxicons:chevron-left-filled" size={18} />
+  </button>
+  <select id={id} class="select select-sm gap-2 bg-base-100" {...rest}></select>
+  <button
+    type="button"
+    id={nextId}
+    class="btn btn-sm btn-ghost btn-square"
+    title="Mes siguiente"
+    aria-label="Mes siguiente"
+  >
+    <Icon name="boxicons:chevron-right-filled" size={18} />
+  </button>
+</div>
+
+<style>
+  select,
+  select:focus,
+  select option,
+  select optgroup {
+    background-color: var(--color-base-100, #efefef) !important;
+    color: var(--color-base-content, #0c0c0c) !important;
+  }
+
+  select::-webkit-scrollbar {
+    width: 8px;
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  select::-webkit-scrollbar-track {
+    background-color: var(--color-base-100, #efefef);
+  }
+
+  select::-webkit-scrollbar-thumb {
+    background-color: var(--color-base-300, #cacdce);
+    border-radius: 4px;
+  }
+</style>

@@ -4,6 +4,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import CronogramaDashboard from "@components/cronograma/CronogramaDashboard.astro";
 import { Icon } from "astro-icon/components";
 import PageContainer from "@components/ui/PageContainer.astro";
+import SkeletonTable from "@components/ui/skeletons/SkeletonTable.astro";
 import { normalizeRole } from "@lib/rbac";
 const cleanBase = getCleanBase();
 
@@ -13,7 +14,9 @@ const role = normalizeRole(user.role);
 
 <BaseLayout>
   <PageContainer width="xl" id="crono-page-container">
-    <CronogramaDashboard userRole={role} currentUser={user} />
+    <CronogramaDashboard userRole={role} currentUser={user} server:defer>
+      <SkeletonTable slot="fallback" rows={10} columns={8} />
+    </CronogramaDashboard>
   </PageContainer>
 </BaseLayout>
 

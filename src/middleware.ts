@@ -9,7 +9,7 @@ import { isSectionVisibleSync, resolveSessionMesa } from "./lib/helpdeskAccess";
 import { resolveUrl } from "./lib/url";
 import { getCleanBase } from "./lib/baseUrl";
 import { jsonError } from "@lib/apiResponse";
-import { KB_CATEGORIAS_PATH } from "@lib/kbRedirects";
+import { KB_CATEGORIAS_PATH, isCategoryFormKbPath } from "@lib/kbRedirects";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
 import {
   isFingerprintValid,
@@ -127,6 +127,28 @@ function applyRateLimit(
         resolveUrl(
           `${KB_CATEGORIAS_PATH}?toast_msg=${message}&toast_type=error`,
         ),
+      );
+    }
+  }
+
+  if (method === "POST" && isCategoryFormKbPath(relativePath)) {
+    const identifier =
+      locals.user.id > 0
+        ? `u:${locals.user.id}`
+        : `ip:${clientAddress ?? "unknown"}`;
+    const result = checkRateLimit(
+      `kb-article-write:${identifier}`,
+      RATE_LIMITS.kbArticleWrite,
+    );
+    if (!result.ok) {
+      const message = encodeURIComponent(KB_WRITE_THROTTLE_MESSAGE);
+      if (locals.user.id === 0) {
+        return redirect(
+          resolveUrl(`/login?toast_msg=${message}&toast_type=error`),
+        );
+      }
+      return redirect(
+        resolveUrl(`${relativePath}?toast_msg=${message}&toast_type=error`),
       );
     }
   }

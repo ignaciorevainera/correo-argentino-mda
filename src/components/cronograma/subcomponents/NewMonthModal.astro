@@ -1,10 +1,24 @@
 ---
 // NewMonthModal.astro
 import Modal from "@components/ui/Modal.astro";
-import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import ActionCancelButton from "@components/ui/ActionCancelButton.astro";
 import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
+
+const MONTHS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 ---
 
 <Modal
@@ -17,36 +31,30 @@ import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
 >
   <Fragment slot="content">
     <div class="space-y-4">
-      <FormField
+      <SelectField
         id="new-month-year"
         name="new-month-year"
         label="Seleccionar Año"
-        type="number"
-        value="2026"
-        min="2020"
-        max="2035"
         size="sm"
-        inputClass="font-mono"
-      />
+        selectClass="font-mono"
+      >
+        <option value="">—</option>
+      </SelectField>
       <SelectField
         id="new-month-month"
         name="new-month-month"
         label="Seleccionar Mes"
         size="sm"
       >
-        <option value="0">Enero</option>
-        <option value="1">Febrero</option>
-        <option value="2">Marzo</option>
-        <option value="3">Abril</option>
-        <option value="4">Mayo</option>
-        <option value="5">Junio</option>
-        <option value="6">Julio</option>
-        <option value="7">Agosto</option>
-        <option value="8">Septiembre</option>
-        <option value="9">Octubre</option>
-        <option value="10">Noviembre</option>
-        <option value="11">Diciembre</option>
+        {MONTHS.map((label, i) => (
+          <option value={String(i)} data-month={String(i)} data-label={label}>{label}</option>
+        ))}
       </SelectField>
+      <p class="text-base-content/60 text-xs">
+        Este flujo solo crea meses nuevos. Los meses ya cargados aparecen
+        deshabilitados: para regenerar uno existente, primero eliminálo desde
+        el cronograma.
+      </p>
     </div>
   </Fragment>
   <Fragment slot="actions">
@@ -74,10 +82,11 @@ import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
   const modal = document.getElementById(
     "new-month-modal",
   ) as HTMLDialogElement | null;
+
   if (modal) {
-    const yearInput = document.getElementById(
+    const yearSelect = document.getElementById(
       "new-month-year",
-    ) as HTMLInputElement | null;
+    ) as HTMLSelectElement | null;
     const monthSelect = document.getElementById(
       "new-month-month",
     ) as HTMLSelectElement | null;
@@ -86,34 +95,102 @@ import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
       "confirm-new-month",
     ) as HTMLButtonElement | null;
 
+    const existingMonths = (): string[] => state.uniqueMonths;
+    const monthKey = (year: number, monthIndex: number): string =>
+      `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+
+    // Años derivados de los datos: del menor al mayor cargado, más un año
+    // extra hacia adelante para poder extender el cronograma.
+    function yearList(): number[] {
+      const years = new Set<number>();
+      for (const ym of existingMonths()) {
+        const y = parseInt(ym.slice(0, 4), 10);
+        if (!Number.isNaN(y)) years.add(y);
+      }
+      if (years.size === 0) years.add(new Date().getFullYear());
+      const min = Math.min(...years);
+      const max = Math.max(...years);
+      const list: number[] = [];
+      for (let y = min; y <= max + 1; y++) list.push(y);
+      return list;
+    }
+
+    function refreshMonths(): void {
+      if (!yearSelect || !monthSelect) return;
+      const year = parseInt(yearSelect.value, 10);
+      const existing = new Set(existingMonths());
+      let firstFree = -1;
+      for (const opt of Array.from(monthSelect.options)) {
+        const idx = parseInt(opt.dataset.month ?? opt.value, 10);
+        const label = opt.dataset.label ?? opt.textContent ?? "";
+        const isExisting =
+          !Number.isNaN(year) && existing.has(monthKey(year, idx));
+        opt.disabled = isExisting;
+        opt.textContent = isExisting ? `${label} (ya cargado)` : label;
+        if (!isExisting && firstFree === -1) firstFree = idx;
+      }
+      monthSelect.value = firstFree === -1 ? "" : String(firstFree);
+      updateConfirmState();
+    }
+
+    function selectionExists(): boolean {
+      if (!yearSelect || !monthSelect) return true;
+      const year = parseInt(yearSelect.value, 10);
+      const month = parseInt(monthSelect.value, 10);
+      if (Number.isNaN(year) || Number.isNaN(month)) return true;
+      return existingMonths().includes(monthKey(year, month));
+    }
+
+    function updateConfirmState(): void {
+      if (confirmBtn) confirmBtn.disabled = selectionExists();
+    }
+
+    function populate(): void {
+      if (!yearSelect || !monthSelect) return;
+      const prev = yearSelect.value;
+      const years = yearList();
+      yearSelect.innerHTML = years
+        .map((y) => `<option value="${y}">${y}</option>`)
+        .join("");
+      yearSelect.value =
+        prev && years.includes(parseInt(prev, 10))
+          ? prev
+          : String(years[0]);
+      refreshMonths();
+    }
+
+    yearSelect?.addEventListener("change", refreshMonths);
+    monthSelect?.addEventListener("change", updateConfirmState);
+    document
+      .getElementById("add-month-btn")
+      ?.addEventListener("click", populate);
+
     cancelBtn?.addEventListener("click", () => {
-      if (yearInput) yearInput.value = "2026";
-      if (monthSelect) monthSelect.value = "0";
+      populate();
       modal.close();
     });
 
     confirmBtn?.addEventListener("click", async (e) => {
       e.preventDefault();
-      if (!yearInput || !monthSelect) return;
+      if (!yearSelect || !monthSelect) return;
 
-      const year = parseInt(yearInput.value, 10);
+      const year = parseInt(yearSelect.value, 10);
       const month = parseInt(monthSelect.value, 10);
+      if (Number.isNaN(year) || Number.isNaN(month)) return;
 
-      const newMonthStr = `${year}-${(month + 1).toString().padStart(2, "0")}`;
-      const uniqueMonths = state.uniqueMonths;
-
-      if (uniqueMonths.includes(newMonthStr)) {
+      if (selectionExists()) {
         showToast(
           "El mes seleccionado ya existe en los registros. No se puede volver a crear para evitar pérdida de datos.",
           "error",
         );
+        updateConfirmState();
         return;
       }
+
       confirmBtn.disabled = true;
       try {
         await createMonth(year, month);
         modal.close();
-
         document.dispatchEvent(
           new CustomEvent("cronograma:month-created", {
             detail: { year, month },
@@ -121,14 +198,17 @@ import ActionConfirmButton from "@components/ui/ActionConfirmButton.astro";
         );
       } catch (err: unknown) {
         console.error("Error creating month:", err);
-        const msg =
+        showToast(
           err instanceof Error
             ? err.message
-            : "Error al intentar crear el mes.";
-        showToast(msg, "error");
+            : "Error al intentar crear el mes.",
+          "error",
+        );
       } finally {
-        confirmBtn.disabled = false;
+        updateConfirmState();
       }
     });
+
+    populate();
   }
 </script>

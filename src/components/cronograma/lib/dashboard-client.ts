@@ -18,6 +18,7 @@ import {
   debounce,
   timeToMinutes,
 } from "./utils";
+import { resolveInitialMonth } from "./initialMonth";
 import {
   updateButtonGroupState,
   STATUS_FILTER_CONFIGS,
@@ -32,6 +33,7 @@ import {
   type WeekendOvertimeConfig,
 } from "./types";
 import { isFeriado, getFeriadoName } from "./feriados";
+import { currentMonthYM } from "./monthLabel";
 
 // Submodule imports
 import {
@@ -53,10 +55,15 @@ import {
   updateGroupsActiveMonthBadge,
   renderMonthSelect,
   changeMonth,
+  MONTH_NAVIGATOR_IDS,
   renderDaily,
   renderHourly,
   renderMonthly,
   clearParsedDatesCache,
+  buildMonthlyRowStartHtml,
+  buildMonthlyCoverageCellHtml,
+  syncMonthlyFillerRow,
+  matchesStatusFilter,
 } from "./monthly-view";
 
 export function isWeekend(dateStr: string): boolean {
@@ -266,7 +273,9 @@ export async function reloadDataForActiveMonth(
       targetMonth ||
       (dateInput?.value
         ? dateInput.value.slice(0, 7)
-        : new Date().toISOString().slice(0, 7));
+        : currentMonthYM());
+
+    applyDateInputMonthBounds(dateInput, monthToLoad);
 
     const payload = await fetchCronogramaFullData(monthToLoad);
     state.cronoData = payload.operators;
@@ -318,6 +327,42 @@ export async function reloadDataForActiveMonth(
   }
 }
 
+/**
+ * Fija el `min`/`max` del date input al rango completo del mes indicado.
+ */
+function applyDateInputMonthBounds(
+  dateInput: HTMLInputElement | null,
+  month: string,
+): void {
+  if (!dateInput) return;
+  const [year, monthIndex] = month.split("-").map(Number);
+  dateInput.min = `${month}-01`;
+  dateInput.max = `${month}-${String(getDaysInMonth(year, monthIndex - 1)).padStart(2, "0")}`;
+}
+
+/**
+ * Aplica la regla única de mes inicial al date input: fija el valor al día
+ * válido del mes resuelto (hoy si pertenece y tiene dato, si no el último día
+ * de ese mes con dato, si no el día 1) y el min/max al rango de ese mes.
+ */
+function applyInitialMonthToDateInput(
+  dateInput: HTMLInputElement | null,
+): void {
+  const todayStr = formatYMD(new Date());
+  const initialMonth = resolveInitialMonth(
+    state.uniqueMonths,
+    todayStr.slice(0, 7),
+  );
+  if (!dateInput) return;
+  const datesInMonth = state.uniqueDates.filter((d) =>
+    d.startsWith(initialMonth),
+  );
+  dateInput.value = datesInMonth.includes(todayStr)
+    ? todayStr
+    : datesInMonth[datesInMonth.length - 1] || `${initialMonth}-01`;
+  applyDateInputMonthBounds(dateInput, initialMonth);
+}
+
 async function init(): Promise<void> {
   try {
     const dateInput = document.getElementById(
@@ -343,23 +388,9 @@ async function init(): Promise<void> {
       console.warn("Failed to load holidays:", err);
     }
 
-    await loadRotationConfig(activeMonth);
-
-    const hasDataForToday =
-      activeMonth === todayStr.slice(0, 7) &&
-      state.cronoData.some((op) => op.asistencia[todayStr]);
-    const initialDate = hasDataForToday
-      ? todayStr
-      : state.uniqueDates[state.uniqueDates.length - 1] || `${activeMonth}-01`;
-
-    if (dateInput) {
-      dateInput.value = initialDate;
-      updateDateInputDisplay();
-      if (state.uniqueDates.length > 0) {
-        dateInput.min = state.uniqueDates[0];
-        dateInput.max = state.uniqueDates[state.uniqueDates.length - 1];
-      }
-    }
+    applyInitialMonthToDateInput(dateInput);
+    updateDateInputDisplay();
+    await loadRotationConfig(dateInput?.value.slice(0, 7) || activeMonth);
 
     renderDaily();
     renderMonthly();
@@ -445,65 +476,18 @@ function countDailyCoverage(date: string): {
   return { pmg, ppp, ho, licenses };
 }
 
-// NOTE: keep in sync with the HO/P-week violation checks in renderMonthly() (monthly-view.ts)
-function hasRuleViolations(op: OperatorData): boolean {
-  const dates = getDatesArrayForCurrentMonth();
-  const opMaxHO =
-    op.maxConsecutiveHO !== undefined && op.maxConsecutiveHO !== null
-      ? op.maxConsecutiveHO
-      : state.maxConsecutiveHOLimit;
-  const opMinPWeek =
-    op.minPWeek !== undefined && op.minPWeek !== null
-      ? op.minPWeek
-      : state.minPWeekLimit;
-
-  let maxConsecutiveHO = 0;
-  let currentHO = 0;
-  let pWeekViolation = false;
-  let currentWeekP = 0;
-  let currentWeekDays = 0;
-
-  dates.forEach((d, i) => {
-    const s = op.asistencia[d];
-    const day = new Date(d + "T12:00:00").getDay();
-    if (s === OperatorStatus.HomeOffice) {
-      currentHO++;
-      maxConsecutiveHO = Math.max(maxConsecutiveHO, currentHO);
-    } else if (s !== OperatorStatus.Franco && s) {
-      currentHO = 0;
-    }
-    if (
-      s === OperatorStatus.PresencialMonteGrande ||
-      s === OperatorStatus.PresencialParquePatricios
-    ) {
-      currentWeekP++;
-    }
-    if (
-      s !== OperatorStatus.Franco &&
-      s !== OperatorStatus.Licencia &&
-      s !== OperatorStatus.Vacaciones &&
-      s
-    ) {
-      currentWeekDays++;
-    }
-    if (day === 0 || i === dates.length - 1) {
-      if (currentWeekDays >= 5 && currentWeekP < opMinPWeek) {
-        pWeekViolation = true;
-      }
-      currentWeekP = 0;
-      currentWeekDays = 0;
-    }
-  });
-
-  return maxConsecutiveHO > opMaxHO || pWeekViolation;
-}
-
-// NOTE: keep in sync with the day-cell markup generated inside renderMonthly() (monthly-view.ts)
-function buildMonthlyCellHtml(
+/**
+ * Celda de día mensual (franco o con estado). Builder único compartido por
+ * `renderMonthly()` (monthly-view.ts, vía import) y el patcheo dirigido (#265)
+ * para que el markup no diverja. Devuelve además si la celda es un solapamiento
+ * de licencias, para que el render completo mantenga el contador de inconsistencias.
+ */
+export function buildMonthlyCellHtml(
   op: OperatorData,
   date: string,
   rowIndex: number,
-): string {
+  precomputedLicenses?: number,
+): { html: string; isLicenseOverlap: boolean } {
   const container = document.getElementById("cronograma-app-container");
   const userRole = container?.dataset.userRole || "agent";
   const hideComments = ["agent", "referent"].includes(userRole);
@@ -521,11 +505,11 @@ function buildMonthlyCellHtml(
   const isHoliday = !!feriadoName;
   const isSaturday = dayOfWeek === 6;
 
-  const coverage = countDailyCoverage(date);
+  const licenses = precomputedLicenses ?? countDailyCoverage(date).licenses;
   const isLicenseOverlap =
     (status === OperatorStatus.Licencia ||
       status === OperatorStatus.Vacaciones) &&
-    coverage.licenses > state.maxLicenseOverlapLimit;
+    licenses > state.maxLicenseOverlapLimit;
 
   const isFrancoCell = status === OperatorStatus.Franco || !status;
   let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-colors duration-300`;
@@ -552,6 +536,9 @@ function buildMonthlyCellHtml(
   const otAttr = dayOvertime
     ? `data-overtime="${escapeHtml(dayOvertime.startTime + " - " + dayOvertime.endTime)}"`
     : "";
+  // Marcador del patcheo dirigido (#265): mismo marcador que renderMonthly().
+  const cellMarkerAttr =
+    op.id != null ? ` data-cell-op="${op.id}" data-cell-date="${date}"` : "";
 
   if (isFrancoCell) {
     let francoBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center relative hover:z-20 ${isTodayCell ? "bg-base-300/40 border border-base-content/25" : "bg-base-200/20 border border-base-300/20"}`;
@@ -570,7 +557,8 @@ function buildMonthlyCellHtml(
       francoAria += ` (Feriado: ${feriadoName})`;
     }
 
-    return `<td class="${cellClass}">
+    return {
+      html: `<td class="${cellClass}"${cellMarkerAttr}>
             <button
               type="button"
               class="${francoBtnClass}"
@@ -591,7 +579,9 @@ function buildMonthlyCellHtml(
               ${dayOvertime ? `<span class="text-micro font-black text-base-content bg-warning/25 border border-warning/40 px-1 py-0.5 rounded tracking-tight">HE: ${dayOvertime.startTime}</span>` : ""}
               ${hasComment ? `<div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ${dayOvertime ? "mt-0.5" : ""}" title="Tiene comentario"></div>` : ""}
             </button>
-          </td>`;
+          </td>`,
+      isLicenseOverlap,
+    };
   }
 
   let initials = "";
@@ -651,8 +641,9 @@ function buildMonthlyCellHtml(
     statusAria += ` (Feriado: ${feriadoName})`;
   }
 
-  return `
-          <td class="${cellClass}">
+  return {
+    html: `
+          <td class="${cellClass}"${cellMarkerAttr}>
             <button
               type="button"
               class="${statusBtnClass}"
@@ -677,7 +668,9 @@ function buildMonthlyCellHtml(
               ${hasComment ? `<div class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border border-base-100" title="Tiene comentario"></div>` : ""}
             </button>
           </td>
-        `;
+        `,
+    isLicenseOverlap,
+  };
 }
 
 function findLiveMonthlyCell(
@@ -686,6 +679,13 @@ function findLiveMonthlyCell(
   date: string | undefined,
 ): HTMLElement | null {
   if (!tbody || !operator || !date) return null;
+  const op = state.cronoData.find((o) => o.nombre === operator);
+  if (op?.id != null) {
+    return tbody.querySelector<HTMLElement>(
+      `td[data-cell-op="${op.id}"][data-cell-date="${date}"] [data-monthly-detail]`,
+    );
+  }
+  // Operadores legacy sin id (sin marcador): fallback acotado al escaneo.
   for (const el of Array.from(
     tbody.querySelectorAll<HTMLElement>("[data-monthly-detail]"),
   )) {
@@ -694,89 +694,116 @@ function findLiveMonthlyCell(
   return null;
 }
 
-function updateMonthlyCellDisplay(
-  cell: HTMLElement,
-  op: OperatorData,
-  date: string,
-): void {
-  // Targeted update of a single monthly cell after a status change.
-  // Must reflect exactly what renderMonthly() would produce for this cell.
-  const td = cell.closest("td");
-  const tr = td?.closest("tr");
-  if (!td || !tr) {
-    renderMonthly();
-    return;
-  }
-
-  const html = buildMonthlyCellHtml(op, date, tr.sectionRowIndex);
-  const tpl = document.createElement("template");
-  tpl.innerHTML = html.trim();
-  const fresh = tpl.content.firstElementChild as HTMLElement | null;
-  if (!fresh) {
-    renderMonthly();
-    return;
-  }
-  td.replaceWith(fresh);
-
-  const dates = getDatesArrayForCurrentMonth();
-
-  if (!state.isTotalsCollapsed && tr.children.length >= 4) {
-    const stats = { P: 0, HO: 0, L: 0 };
-    dates.forEach((d) => {
-      const s = op.asistencia[d];
-      if (
-        s === OperatorStatus.PresencialMonteGrande ||
-        s === OperatorStatus.PresencialParquePatricios
-      )
-        stats.P++;
-      else if (s === OperatorStatus.HomeOffice) stats.HO++;
-      else if (
-        s === OperatorStatus.Licencia ||
-        s === OperatorStatus.Vacaciones
-      )
-        stats.L++;
-    });
-    (tr.children[1] as HTMLElement).textContent = String(stats.P);
-    (tr.children[2] as HTMLElement).textContent = String(stats.HO);
-    (tr.children[3] as HTMLElement).textContent = String(stats.L);
-  }
-
+/**
+ * Patcheo dirigido tras una edición de celda (#265): reemplaza solo la(s)
+ * celda(s) editada(s), el arranque de la fila (nombre + badges de violación +
+ * stats) y las celdas de cobertura de los días afectados. Si algún nodo o
+ * marcador no está (vista desincronizada), cae al rebuild completo.
+ */
+function patchAfterCellEdit(operatorId: number, dates: string[]): void {
+  const op = state.cronoData.find((o) => o.id === operatorId);
+  const tbody = document.getElementById("monthly-tbody");
   const tfoot = document.getElementById("monthly-tfoot");
-  const offset = 1 + (state.isTotalsCollapsed ? 0 : 3);
-  const dayOfMonth = parseInt(date.slice(-2), 10);
-  const coverageCell = tfoot?.children[offset + dayOfMonth - 1] as
-    | HTMLElement
-    | undefined;
-  if (coverageCell) {
-    const c = countDailyCoverage(date);
-    const teamSize = state.cronoData.length;
-    const hoPercent = teamSize > 0 ? (c.ho / teamSize) * 100 : 0;
-    const pmgPercent = teamSize > 0 ? (c.pmg / teamSize) * 100 : 0;
-    const pppPercent = teamSize > 0 ? (c.ppp / teamSize) * 100 : 0;
-    const totalPercent =
-      teamSize > 0 ? ((c.pmg + c.ppp + c.ho) / teamSize) * 100 : 0;
-    const isLowCoverage = totalPercent < 40;
-    const cellPyClass = state.isCoverageMinimized ? "py-1 px-1" : "py-2 px-1";
-
-    coverageCell.className = `${cellPyClass} border-r border-base-200/50 min-w-16 ${isLowCoverage ? "bg-error/5" : ""}`;
-    coverageCell.innerHTML = `<div class="flex flex-col items-center gap-1.5">
-           ${
-             state.isCoverageMinimized
-               ? ""
-               : `
-           <div class="flex flex-col w-2.5 h-10 bg-base-300/30 rounded-full overflow-hidden justify-end shadow-[inset_0_1px_2px_rgb(0_0_0_/_0.1)]">
-               <div class="bg-purple-500 w-full transition-[height] duration-500" style="height: ${pppPercent}%" title="P. Parque Patricios: ${c.ppp}"></div>
-               <div class="bg-amber-500 w-full transition-[height] duration-500" style="height: ${pmgPercent}%" title="P. Monte Grande: ${c.pmg}"></div>
-               <div class="bg-secondary w-full transition-[height] duration-500" style="height: ${hoPercent}%" title="HO: ${c.ho}"></div>
-           </div>
-           `
-           }
-           <div class="flex flex-col items-center">
-              <span class="text-xxs font-black ${isLowCoverage ? "text-error" : "text-base-content/60"}">${c.pmg + c.ppp + c.ho}</span>
-              <span class="text-micro font-black uppercase opacity-30">Activos</span>
-           </div>
-        </div>`;
+  if (!op || !tbody || !tfoot) {
+    renderMonthly();
+    return;
   }
+
+  // Sin mes activo (#date-input vacío) getDatesArrayForCurrentMonth() da []:
+  // parchear dejaría stats y badges en cero → rebuild (usa su propio fallback).
+  const monthDates = getDatesArrayForCurrentMonth();
+  if (monthDates.length === 0) {
+    renderMonthly();
+    return;
+  }
+
+  const cells: { td: HTMLElement; date: string }[] = [];
+  for (const date of dates) {
+    const td = tbody.querySelector<HTMLElement>(
+      `td[data-cell-op="${operatorId}"][data-cell-date="${date}"]`,
+    );
+    if (!td) {
+      renderMonthly();
+      return;
+    }
+    cells.push({ td, date });
+  }
+  const tr = cells[0].td.closest("tr");
+  if (!tr) {
+    renderMonthly();
+    return;
+  }
+  const rowIndex = tr.sectionRowIndex;
+
+  const container = document.getElementById("cronograma-app-container");
+  const userRole = container?.dataset.userRole || "agent";
+  const currentUsername = (container?.dataset.currentUsername || "")
+    .trim()
+    .toLowerCase();
+  const isReadOnly = ["agent", "referent"].includes(userRole);
+  const opUsername = (op.username || "").trim().toLowerCase();
+  const opNameLower = (op.nombre || "").trim().toLowerCase();
+  const isCurrentUser = !!(
+    currentUsername &&
+    (opUsername === currentUsername || opNameLower === currentUsername)
+  );
+
+  const tpl = document.createElement("template");
+
+  // 1. Celdas editadas (mismo markup que renderMonthly).
+  for (const { td, date } of cells) {
+    tpl.innerHTML = buildMonthlyCellHtml(op, date, rowIndex).html.trim();
+    const fresh = tpl.content.firstElementChild as HTMLElement | null;
+    if (!fresh) {
+      renderMonthly();
+      return;
+    }
+    td.replaceWith(fresh);
+  }
+
+  // 2. Arranque de la fila: nombre + badges de violación + stats.
+  const rowStart = buildMonthlyRowStartHtml(op, {
+    isReadOnly,
+    isCurrentUser,
+    dates: monthDates,
+  });
+  tpl.innerHTML = rowStart.html.trim();
+  const freshStart = Array.from(tpl.content.children) as HTMLElement[];
+  const staleStart: HTMLElement[] = [
+    tr.children[0] as HTMLElement,
+    ...Array.from(tr.querySelectorAll<HTMLElement>("[data-op-stats]")),
+  ];
+  if (!staleStart[0] || freshStart.length !== staleStart.length) {
+    renderMonthly();
+    return;
+  }
+  staleStart.forEach((el, i) => el.replaceWith(freshStart[i]));
+  tr.classList.toggle("bg-error/2", rowStart.showViolation);
+
+  // 3. Cobertura de los días afectados (recalculada in situ).
+  for (const { date } of cells) {
+    const coverageTd = tfoot.querySelector<HTMLElement>(
+      `td[data-coverage-date="${date}"]`,
+    );
+    if (!coverageTd) {
+      renderMonthly();
+      return;
+    }
+    tpl.innerHTML = buildMonthlyCoverageCellHtml({
+      date,
+      ...countDailyCoverage(date),
+    }).trim();
+    const fresh = tpl.content.firstElementChild as HTMLElement | null;
+    if (!fresh) {
+      renderMonthly();
+      return;
+    }
+    coverageTd.replaceWith(fresh);
+  }
+
+  // El badge de violación puede cambiar el alto de la fila: reajustar el
+  // filler para que el tfoot siga clavado al fondo (igual que renderMonthly).
+  syncMonthlyFillerRow();
 }
 
 function updateCellStatus(cell: HTMLElement, newStatus: string): void {
@@ -810,12 +837,12 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const opIndex = state.cronoData.findIndex((o) => o.nombre === operator);
   if (opIndex !== -1) {
     const op = state.cronoData[opIndex];
+    const opId = op.id;
     const teamSize = state.cronoData.length;
     const prevCoverage = countDailyCoverage(date);
     const prevActive = prevCoverage.pmg + prevCoverage.ppp + prevCoverage.ho;
     const prevCritical =
       teamSize > 0 && prevActive / teamSize < state.minCoveragePercent / 100;
-    const prevViolations = hasRuleViolations(op);
 
     op.asistencia[date] = newStatus as OperatorStatus;
     updateOperatorDailyHorario(op, date, newStatus);
@@ -825,7 +852,6 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
     const postActive = postCoverage.pmg + postCoverage.ppp + postCoverage.ho;
     const postCritical =
       teamSize > 0 && postActive / teamSize < state.minCoveragePercent / 100;
-    const postViolations = hasRuleViolations(op);
 
     const otherLicensed = state.cronoData.some(
       (o) =>
@@ -838,10 +864,21 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
       (prevCoverage.licenses > state.maxLicenseOverlapLimit) !==
         (postCoverage.licenses > state.maxLicenseOverlapLimit);
 
-    if (overlapCrossed || prevCritical !== postCritical || prevViolations !== postViolations) {
+    if (
+      overlapCrossed ||
+      prevCritical !== postCritical ||
+      opId == null ||
+      !matchesStatusFilter(op, getDatesArrayForCurrentMonth()) ||
+      state.activeSort === "entry-time"
+    ) {
+      // El cambio de criticidad toca el th del día, el solapamiento de
+      // licencias toca celdas de OTROS operadores, perder la membresía del
+      // filtro activo elimina la fila y con orden por `entry-time` la clave
+      // depende de asistencia/horarios de la celda mutada (reordena filas):
+      // nada de eso se puede reproducir con un parche de celdas → rebuild.
       renderMonthly();
     } else {
-      updateMonthlyCellDisplay(cell, op, date);
+      patchAfterCellEdit(opId, [date]);
     }
   }
 
@@ -1018,7 +1055,7 @@ export async function renderGroupsView(): Promise<void> {
     ) as HTMLInputElement | null;
     const month = dateInput?.value
       ? dateInput.value.slice(0, 7)
-      : new Date().toISOString().slice(0, 7);
+      : currentMonthYM();
     const res = await fetch(`/api/cronograma/rotation-config?month=${month}`);
     if (!res.ok)
       throw new Error("No se pudo cargar la configuración de rotación");
@@ -1375,52 +1412,31 @@ function updateBrushUI(): void {
 }
 
 function setupEventListeners(): void {
-  // Month Select Change Handler
-  document.getElementById("month-selector")?.addEventListener("change", (e) => {
-    const select = e.target as HTMLSelectElement;
-    const val = select.value;
-    if (!val) return;
-    const dateInput = document.getElementById(
-      "date-input",
-    ) as HTMLInputElement | null;
-    if (dateInput) {
-      dateInput.value = val;
-      updateDateInputDisplay();
-      reloadDataForActiveMonth(val.slice(0, 7));
-    }
+  // Navegador de mes único (Mensual/Grupos/Pasiva): select + flechas.
+  // Todos comparten `date-input` como fuente de verdad.
+  MONTH_NAVIGATOR_IDS.forEach((navId) => {
+    document.getElementById(navId)?.addEventListener("change", (e) => {
+      const select = e.target as HTMLSelectElement;
+      const val = select.value;
+      if (!val) return;
+      const dateInput = document.getElementById(
+        "date-input",
+      ) as HTMLInputElement | null;
+      if (dateInput) {
+        dateInput.value = val;
+        updateDateInputDisplay();
+        reloadDataForActiveMonth(val.slice(0, 7));
+      }
+    });
+
+    document.getElementById(`${navId}-prev`)?.addEventListener("click", () => {
+      changeMonth(-1);
+    });
+
+    document.getElementById(`${navId}-next`)?.addEventListener("click", () => {
+      changeMonth(1);
+    });
   });
-
-  document
-    .getElementById("groups-month-selector")
-    ?.addEventListener("change", (e) => {
-      const select = e.target as HTMLSelectElement;
-      const val = select.value;
-      if (!val) return;
-      const dateInput = document.getElementById(
-        "date-input",
-      ) as HTMLInputElement | null;
-      if (dateInput) {
-        dateInput.value = val;
-        updateDateInputDisplay();
-        reloadDataForActiveMonth(val.slice(0, 7));
-      }
-    });
-
-  document
-    .getElementById("pasiva-month-selector")
-    ?.addEventListener("change", (e) => {
-      const select = e.target as HTMLSelectElement;
-      const val = select.value;
-      if (!val) return;
-      const dateInput = document.getElementById(
-        "date-input",
-      ) as HTMLInputElement | null;
-      if (dateInput) {
-        dateInput.value = val;
-        updateDateInputDisplay();
-        reloadDataForActiveMonth(val.slice(0, 7));
-      }
-    });
 
   // Holidays Modal Trigger
   const holidaysModal = document.getElementById("holidays-modal") as
@@ -1454,6 +1470,9 @@ function setupEventListeners(): void {
       updateDateInputDisplay();
       renderDaily();
       renderMonthly();
+      // Mantener el select y el estado de las flechas en sincronía con
+      // `date-input` (fuente de verdad), incluso si el mes queda fuera de lista.
+      updateMonthDisplay();
     });
   }
 
@@ -1472,14 +1491,6 @@ function setupEventListeners(): void {
 
   backToMonthlyBtn?.addEventListener("click", () => {
     showMonthlyView();
-  });
-
-  document.getElementById("prev-month-btn")?.addEventListener("click", () => {
-    changeMonth(-1);
-  });
-
-  document.getElementById("next-month-btn")?.addEventListener("click", () => {
-    changeMonth(1);
   });
 
   document
@@ -1667,8 +1678,10 @@ function setupEventListeners(): void {
       monthlySearch.value = state.searchQuery;
     if (dailySearch && dailySearch !== e.target)
       dailySearch.value = state.searchQuery;
-    renderMonthly();
-    renderDaily();
+    // Solo la tabla visible: la oculta se re-renderiza al entrar
+    // (showDailyView/showMonthlyView ya renderizan via rAF).
+    if (isViewVisible("monthly-view")) renderMonthly();
+    if (isViewVisible("daily-view")) renderDaily();
   }, 150);
 
   monthlySearch?.addEventListener("input", handleSearchInput);
@@ -1936,24 +1949,14 @@ function setupEventListeners(): void {
         state.cronoData = payload.operators;
         state.availableMonths = payload.availableMonths || [];
 
-        if (state.uniqueDates.length > 0) {
-          const targetDate = state.uniqueDates[state.uniqueDates.length - 1];
-          dateInput.value = targetDate;
-          dateInput.min = state.uniqueDates[0];
-          dateInput.max = targetDate;
-        } else {
-          const todayStr = formatYMD(new Date());
-          dateInput.value = todayStr;
-          dateInput.removeAttribute("min");
-          dateInput.removeAttribute("max");
-        }
+        applyInitialMonthToDateInput(dateInput);
 
         const activeYM = dateInput.value.slice(0, 7);
         await loadRotationConfig(activeYM);
 
         updateDateInputDisplay();
-        updateMonthDisplay();
         renderMonthSelect();
+        updateMonthDisplay();
         clearParsedDatesCache();
         renderDaily();
         renderMonthly();
@@ -1989,6 +1992,12 @@ function setupEventListeners(): void {
 
     const formData = new FormData();
     formData.append("file", file);
+    // #261: el servidor valida el mes; sin esto rechazaría el import.
+    const activeMonth =
+      (
+        document.getElementById("date-input") as HTMLInputElement | null
+      )?.value?.slice(0, 7) ?? "";
+    formData.append("month", activeMonth);
 
     const btn = document.getElementById("import-csv-btn");
     const originalContent = btn ? btn.innerHTML : "";
@@ -2010,28 +2019,10 @@ function setupEventListeners(): void {
       })
       .then((data) => {
         if (data.edits && Array.isArray(data.edits)) {
-          const dateInput = document.getElementById(
-            "date-input",
-          ) as HTMLInputElement | null;
-          const currentMonth = dateInput?.value
-            ? dateInput.value.slice(0, 7)
-            : ""; // "YYYY-MM"
-
-          // Filter edits that belong to the active month
-          const currentMonthEdits = data.edits.filter(
-            (edit: any) => edit.date && edit.date.startsWith(currentMonth),
-          );
-
-          if (data.edits.length > 0 && currentMonthEdits.length === 0) {
-            showToast(
-              "El archivo CSV no corresponde al mes seleccionado. Cambie de mes en el selector antes de importar.",
-              "warning",
-            );
-            return;
-          }
-
+          // #261: el server rechaza (400) cualquier edit fuera del mes, así que
+          // un 200 garantiza que todos los edits pertenecen al mes activo.
           let appliedCount = 0;
-          currentMonthEdits.forEach((edit: any) => {
+          data.edits.forEach((edit: any) => {
             const op = state.cronoData.find((o) => o.nombre === edit.agentName);
             if (op) {
               const key = `${edit.agentName}_${edit.date}`;
@@ -2505,7 +2496,7 @@ function setupEventListeners(): void {
     ) as HTMLInputElement | null;
     const month = dateInput?.value
       ? dateInput.value.slice(0, 7)
-      : new Date().toISOString().slice(0, 7);
+      : currentMonthYM();
 
     try {
       const res = await fetch("/api/cronograma/rotation-config", {
@@ -2556,7 +2547,7 @@ function setupEventListeners(): void {
         "date-input",
       ) as HTMLInputElement | null;
       const month =
-        dateInput?.value?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+        dateInput?.value?.slice(0, 7) || currentMonthYM();
 
       const disabledGroups = ["A", "B", "C", "D"]
         .filter((g) => {
@@ -2607,7 +2598,7 @@ function setupEventListeners(): void {
       ) as HTMLInputElement | null;
       const month = dateInput?.value
         ? dateInput.value.slice(0, 7)
-        : new Date().toISOString().slice(0, 7);
+        : currentMonthYM();
 
       try {
         const res = await fetch("/api/cronograma/rotation-groups/members", {
@@ -2663,7 +2654,7 @@ function setupEventListeners(): void {
         ) as HTMLInputElement | null;
         const month = dateInput?.value
           ? dateInput.value.slice(0, 7)
-          : new Date().toISOString().slice(0, 7);
+          : currentMonthYM();
 
         try {
           const res = await fetch("/api/cronograma/rotation-groups/members", {
@@ -2789,7 +2780,7 @@ function setupEventListeners(): void {
     ) as HTMLInputElement | null;
     const month = dateInput?.value
       ? dateInput.value.slice(0, 7)
-      : new Date().toISOString().slice(0, 7);
+      : currentMonthYM();
 
     try {
       const res = await fetch("/api/cronograma/rotation-groups/members", {

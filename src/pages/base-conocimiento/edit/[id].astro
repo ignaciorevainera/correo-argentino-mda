@@ -17,7 +17,7 @@ import {
   type KbArticle,
   type KbScope,
 } from "@lib/kb";
-import { listCategories } from "@lib/kbCategories";
+import { categoryKey, listCategories } from "@lib/kbCategories";
 import { logAdminActionStructured } from "@lib/auditLogger";
 import { redirectWithToast } from "@lib/api/redirectWithToast";
 import { getCsrfTokenForSession, validateCsrfToken } from "@lib/csrf";
@@ -128,9 +128,11 @@ if (Astro.request.method === "POST" && !loadError && article) {
         errorMsg = parsed.error.issues.map((issue) => issue.message).join(", ");
       } else if (
         parsed.data.category &&
-        parsed.data.category !== (article.category ?? "") &&
+        categoryKey(parsed.data.category) !==
+          categoryKey(article.category ?? "") &&
         !listCategories(article.helpdeskId).some(
-          (category) => category.name === parsed.data.category,
+          (category) =>
+            categoryKey(category.name) === categoryKey(parsed.data.category),
         )
       ) {
         errorMsg = "La categoría seleccionada no es válida.";
@@ -222,11 +224,13 @@ const categoriaOptions = [
     label: category.name,
   })),
 ];
+const existingCategoryKeys = new Set(
+  targetCategories.map((category) => categoryKey(category.name)),
+);
 const extraCategories = [
   ...new Set(
     [formValues.category, nuevaCategoria].filter(
-      (name) =>
-        name.length > 0 && !targetCategories.some((c) => c.name === name),
+      (name) => name.length > 0 && !existingCategoryKeys.has(categoryKey(name)),
     ),
   ),
 ];

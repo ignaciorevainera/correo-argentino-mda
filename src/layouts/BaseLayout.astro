@@ -14,6 +14,8 @@ import {
 import { normalizeRole, hasPermission } from "@lib/rbac";
 import { isSectionVisibleSync } from "@lib/helpdeskAccess";
 import { getUnassignedFeedbackCount } from "@lib/getUnassignedFeedbackCount";
+import { COLUMN_CAP_SM, COLUMN_CAP_LG } from "@lib/enlacesColumns";
+import { DEFAULT_VIEW_COLUMNS } from "@lib/viewMode";
 import { ClientRouter } from "astro:transitions";
 
 // Components
@@ -145,7 +147,10 @@ const globalFontFaceCss = `
     <meta charset="utf-8" />
     {isAutomationModule && <ClientRouter />}
 
-    <script is:inline>
+    <script
+      is:inline
+      define:vars={{ capSm: COLUMN_CAP_SM, capLg: COLUMN_CAP_LG, defaultColumns: DEFAULT_VIEW_COLUMNS }}
+    >
       const applyTheme = () => {
         const savedTheme = localStorage.getItem("theme");
         const theme =
@@ -158,9 +163,19 @@ const globalFontFaceCss = `
           root.setAttribute("data-view-mode", mode);
         }
         const cols = localStorage.getItem("enlacesViewColumns");
-        if (cols === "1" || cols === "2" || cols === "3" || cols === "4") {
-          root.setAttribute("data-view-columns", cols);
-        }
+        // 767/1280: umbrales de @lib/enlacesColumns (fuente única, inyectada).
+        const cap = window.innerWidth < capSm ? 1 : window.innerWidth < capLg ? 2 : 4;
+        const pref =
+          cols === "1" || cols === "2" || cols === "3" || cols === "4"
+            ? Number(cols)
+            : defaultColumns;
+        // Se aplica SIEMPRE (no solo con valor guardado): cubre al usuario
+        // default (sin localStorage), que si no pintaria el :root 3 y el
+        // island lo bajaria al cap -> flash. Mismo ancho (viewport) y mismo
+        // calculo que applyEffectiveColumns() del island, sobre <html>.
+        const effective = String(Math.min(pref, cap));
+        root.setAttribute("data-view-columns", effective);
+        root.style.setProperty("--columns-effective", effective);
 
         const toggle = document.getElementById("theme-toggle");
         if (toggle instanceof HTMLInputElement) {
